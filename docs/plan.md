@@ -35,6 +35,7 @@ zahlen oder einen externen Dienst zu konfigurieren.
 | Sourcemaps | `build.sourcemap: false` explizit setzen | Sonst können `.map`-Dateien mit lokalen Absolutpfaden im öffentlichen Deploy landen |
 | Jekyll | Leere `.nojekyll` im Build-Output erzeugen | Pages ignoriert sonst Dateien/Ordner mit führendem Unterstrich |
 | Assets V1 | **Harte Regel:** nur Runtime-generierte Shapes (Phaser Graphics → Texturen) oder CC0 von Kenney.nl. Jede andere Fremdasset-Übernahme (itch.io, OpenGameArt — dort oft CC-BY/CC-BY-SA) braucht vorherige Freigabe durch Thomas | Keine geschützten Grafiken/Sounds; inspiriert, keine Kopie; Lizenzentscheidung bleibt bei Thomas, nicht bei Codex |
+| Optik | **Pixel-Art Retro** (Thomas-Entscheidung 2026-08-19): Kenney-CC0-Sprites, lokal gebundelt; Phaser mit `pixelArt: true` (kein Anti-Aliasing, knackige Pixel) | Arcade-Look; konkrete Pack-Auswahl in der E1/E2-Spec, Assets werden beim Bauen ins Repo geladen — zur Laufzeit weiterhin keine externen Requests |
 | Fonts | System-Font oder lokal gebundelt, nie CDN | „Keine externen Requests" gilt auch für Fonts; viele Phaser-Templates binden Google Fonts ein — nicht übernehmen |
 
 ## Architektur
