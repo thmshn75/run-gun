@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -168,3 +168,40 @@ Vite-Import einbinden und in `preload()` laden. Texturschlüssel:
 Die Bildqualität und den Torlauf prüft Claude nach der Umsetzung am laufenden Spiel und an
 den großen Vorlagen im Probeordner. Ob die Waffen auf Anhieb erkennbar sind, entscheidet
 Thomas am iPhone.
+
+## Implementation Summary
+
+- Vier große Waffen-Vorlagen und freigestellte Zwischenschritte liegen unter `assets/probe/waffen/`; daraus entstanden acht transparente PNGs in den vorgegebenen Tor- und HUD-Größen.
+- BootScene lädt alle Waffenbilder. Waffen-Tore verwenden vorgepoolte Bildobjekte, skalieren perspektivisch mit dem Tor und blitzen beim Auswählen weiß auf; Stat-Tore bleiben unverändert als Text.
+- Die HUD-Waffe ist ein einmalig angelegtes, unskaliertes Bild; die Schriftgröße der zweiten Zeile ist als `secondaryFontPx` zentral in der Balance abgelegt.
+- Verifiziert: `npm run check`, `npm run build`, PNG-Maße/Alpha, große Vorlagenbreite, Probeordner-Ignorierung und `git diff --check`.
+
+
+## Review-Ergebnis (Claude)
+
+**Bilder (Teil 1):** An den grossen Vorlagen geprueft, nicht am fertigen Sprite —
+1942 x 809 px, deutlich ueber der geforderten Mindestbreite. Alle vier zeigen die Waffe als
+erkennbares Objekt in Seitenansicht nach rechts, in einheitlichem Stil, jede mit der Farbe
+ihres Geschosses (Orange, Gold, Cyan, Rot). Freistellung sauber: **0 Gruenpixel** im Motiv
+bei allen vier finalen Sprites, obwohl drei der Rohbilder auf Greenscreen erzeugt wurden.
+Maße exakt: 150 x 44 (Tor) und 72 x 20 (HUD). Die grossen Vorlagen liegen in
+`assets/probe/waffen/` und sind korrekt nicht eingecheckt.
+
+**Torbild (Teil 2):** 20 Waffen-Tore ueber ihren gesamten Weg vermessen, 3360 Proben:
+**kein einziger Ueberstand** ueber den Torrahmen. Kleinster Seitenrand 8,8 px, kleinster
+Rand oben/unten 14,8 px — auch oben, wo das Tor nur etwa 86 px breit ist. Das Bild skaliert
+auf beiden Achsen mit dem Tor mit, das Seitenverhaeltnis bleibt.
+
+**HUD:** Im unguenstigsten Fall (`DMG 17.5`, `RATE 7.5`, `SPD 305`) sitzen die vier Spalten
+bei 26-90, 119-179, 210-271 und 296-368 px im Panel (12-378), **keine Ueberlappung**;
+zwischen Muenzanzeige (endet bei y=45) und Waffenbild (beginnt bei y=50) bleiben 5 px.
+
+**Code:** Bildobjekte entstehen einmalig in `createPair()` bzw. `create()`, im laufenden
+Spiel wird nur die Textur gewechselt — bei einem Tor alle 36 Sekunden kein Hot Path.
+Stat-Tore unveraendert. Die HUD-Schriftgroesse steht jetzt als `secondaryFontPx` in
+`balance.ts` statt als Rechnung im Code (Nebenbefund aus dem E4b-Review erledigt).
+
+**Bau:** `npm run check` und `npm run build` selbst im Terminal ausgefuehrt, beide exit 0.
+
+**Offen bis zu Thomas' iPhone-Test:** ob die vier Waffen am kleinen Bildschirm auf Anhieb
+auseinanderzuhalten sind — besonders das HUD-Bild mit 72 x 20 px.

@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { HUD_COLORS, STAT_COLORS, WEAPON_GATE_COLOR, WORLD_COLORS } from '../config/colors'
+import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
 import { Coins } from '../systems/coins'
 import { Crowd } from '../systems/crowd'
 import { Gates } from '../systems/gates'
@@ -8,7 +8,7 @@ import { Road } from '../systems/road'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { Spawner } from '../systems/spawner'
 import { RunStats } from '../systems/upgrades'
-import { WEAPON_LABELS, Weapons, type WeaponKey } from '../systems/weapons'
+import { Weapons, type WeaponKey } from '../systems/weapons'
 
 interface HudSegments {
   hp: Phaser.GameObjects.Text
@@ -16,7 +16,7 @@ interface HudSegments {
   speed: Phaser.GameObjects.Text
   damage: Phaser.GameObjects.Text
   rate: Phaser.GameObjects.Text
-  weapon: Phaser.GameObjects.Text
+  weapon: Phaser.GameObjects.Image
 }
 
 interface SplashFlash {
@@ -127,7 +127,7 @@ export class GameScene extends Phaser.Scene {
     }
     const statHudStyle: Phaser.Types.GameObjects.Text.TextStyle = {
       fontFamily: 'system-ui',
-      fontSize: `${BALANCE.hud.statFontPx - 1}px`,
+      fontSize: `${BALANCE.hud.secondaryFontPx}px`,
       fontStyle: 'bold',
     }
     const rowOneY = panelY + BALANCE.hud.rowOneOffsetY
@@ -139,9 +139,9 @@ export class GameScene extends Phaser.Scene {
       damage: this.add.text(panelX + colW * 0.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.damage) }).setOrigin(0.5, 0),
       rate: this.add.text(panelX + colW * 1.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.shotsPerSec) }).setOrigin(0.5, 0),
       speed: this.add.text(panelX + colW * 2.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.speed) }).setOrigin(0.5, 0),
-      weapon: this.add.text(panelX + colW * 3.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(WEAPON_GATE_COLOR) }).setOrigin(0.5, 0),
+      weapon: this.add.image(panelX + colW * 3.5, rowTwoY + 10, 'weapon-normal-hud').setOrigin(0.5),
     }
-    Object.values(this.hud).forEach((text) => text.setDepth(BALANCE.hud.depthText))
+    Object.values(this.hud).forEach((segment) => segment.setDepth(BALANCE.hud.depthText))
     this.crowd.setSize(this.runStats.get('hp'))
     this.lastCrowdSize = this.runStats.get('hp')
     this.updateHud()
@@ -277,7 +277,7 @@ export class GameScene extends Phaser.Scene {
     this.hud.speed.setText(`SPD ${Math.round(this.runStats.get('speed'))}`)
     this.hud.damage.setText(`DMG ${damage}`)
     this.hud.rate.setText(`RATE ${shotsPerSec}`)
-    this.hud.weapon.setText(WEAPON_LABELS[this.weapons.getWeapon()])
+    this.hud.weapon.setTexture(`weapon-${this.weapons.getWeapon()}-hud`)
   }
 
   private syncCrowdSize(): void {

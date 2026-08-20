@@ -3,6 +3,14 @@ import enemyHeavyUrl from '../assets/enemy-heavy.png'
 import enemyLightUrl from '../assets/enemy-light.png'
 import enemyStandardUrl from '../assets/enemy-standard.png'
 import playerUrl from '../assets/player.png'
+import weaponLaserGateUrl from '../assets/weapon-laser-gate.png'
+import weaponLaserHudUrl from '../assets/weapon-laser-hud.png'
+import weaponNormalGateUrl from '../assets/weapon-normal-gate.png'
+import weaponNormalHudUrl from '../assets/weapon-normal-hud.png'
+import weaponRocketGateUrl from '../assets/weapon-rocket-gate.png'
+import weaponRocketHudUrl from '../assets/weapon-rocket-hud.png'
+import weaponShotgunGateUrl from '../assets/weapon-shotgun-gate.png'
+import weaponShotgunHudUrl from '../assets/weapon-shotgun-hud.png'
 import { BALANCE } from '../config/balance'
 import { WORLD_COLORS } from '../config/colors'
 import { getRoadHalfWidth } from '../systems/road'
@@ -17,6 +25,14 @@ export class BootScene extends Phaser.Scene {
     this.load.image('enemy-light', enemyLightUrl)
     this.load.image('enemy-standard', enemyStandardUrl)
     this.load.image('enemy-heavy', enemyHeavyUrl)
+    this.load.image('weapon-normal-gate', weaponNormalGateUrl)
+    this.load.image('weapon-shotgun-gate', weaponShotgunGateUrl)
+    this.load.image('weapon-laser-gate', weaponLaserGateUrl)
+    this.load.image('weapon-rocket-gate', weaponRocketGateUrl)
+    this.load.image('weapon-normal-hud', weaponNormalHudUrl)
+    this.load.image('weapon-shotgun-hud', weaponShotgunHudUrl)
+    this.load.image('weapon-laser-hud', weaponLaserHudUrl)
+    this.load.image('weapon-rocket-hud', weaponRocketHudUrl)
   }
 
   public create(): void {

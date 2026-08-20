@@ -130,6 +130,7 @@ export const BALANCE = {
     rowTwoOffsetY: 38,
     primaryFontPx: 22,
     statFontPx: 15,
+    secondaryFontPx: 14,
     depthPanel: 90,
     depthText: 91,
   },

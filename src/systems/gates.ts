@@ -3,7 +3,7 @@ import { BALANCE } from '../config/balance'
 import { HUD_COLORS, STAT_COLORS, WEAPON_GATE_COLOR } from '../config/colors'
 import { getRoadHalfWidth } from './road'
 import { clampStat, type RunStats, type StatKey } from './upgrades'
-import { WEAPON_LABELS, type WeaponKey } from './weapons'
+import { type WeaponKey } from './weapons'
 
 export interface GateOp {
   label: string
@@ -15,6 +15,8 @@ interface GatePair {
   right: Phaser.GameObjects.Image
   leftText: Phaser.GameObjects.Text
   rightText: Phaser.GameObjects.Text
+  leftIcon: Phaser.GameObjects.Image
+  rightIcon: Phaser.GameObjects.Image
   statLabel: Phaser.GameObjects.Text
   active: boolean
   kind: 'stat' | 'weapon'
@@ -193,11 +195,13 @@ export class Gates {
     }
     const leftText = this.scene.add.text(0, 0, '', textStyle).setOrigin(0.5).setActive(false).setVisible(false)
     const rightText = this.scene.add.text(0, 0, '', textStyle).setOrigin(0.5).setActive(false).setVisible(false)
+    const leftIcon = this.scene.add.image(0, 0, 'weapon-normal-gate').setOrigin(0.5).setActive(false).setVisible(false)
+    const rightIcon = this.scene.add.image(0, 0, 'weapon-normal-gate').setOrigin(0.5).setActive(false).setVisible(false)
     const statLabel = this.scene.add.text(0, 0, '', {
       fontFamily: 'system-ui', fontSize: '17px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 3, fontStyle: 'bold',
     }).setOrigin(0.5).setActive(false).setVisible(false)
     return {
-      left, right, leftText, rightText, statLabel, active: false, kind: 'stat', stat: 'hp', leftWeapon: 'normal', rightWeapon: 'normal',
+      left, right, leftText, rightText, leftIcon, rightIcon, statLabel, active: false, kind: 'stat', stat: 'hp', leftWeapon: 'normal', rightWeapon: 'normal',
       leftOp: { label: '', apply: (value) => value }, rightOp: { label: '', apply: (value) => value },
       prevBottomY: 0, triggered: false, flashUntilMs: 0,
     }
@@ -234,6 +238,8 @@ export class Gates {
     pair.right.setPosition(0, spawnY).setActive(true).setVisible(true).setAlpha(1).setTint(statColor)
     pair.leftText.setFontSize('34px').setText(operations.left.label).setActive(true).setVisible(true).setAlpha(1).clearTint()
     pair.rightText.setFontSize('34px').setText(operations.right.label).setActive(true).setVisible(true).setAlpha(1).clearTint()
+    pair.leftIcon.setActive(false).setVisible(false)
+    pair.rightIcon.setActive(false).setVisible(false)
     pair.statLabel.setText(this.statLabel(stat)).setColor(statColorCss).setActive(true).setVisible(true).setAlpha(1).clearTint()
   }
 
@@ -246,8 +252,10 @@ export class Gates {
     pair.rightWeapon = choices.right
     pair.left.setPosition(0, spawnY).setActive(true).setVisible(true).setAlpha(1).setTint(WEAPON_GATE_COLOR)
     pair.right.setPosition(0, spawnY).setActive(true).setVisible(true).setAlpha(1).setTint(WEAPON_GATE_COLOR)
-    pair.leftText.setFontSize('26px').setText(WEAPON_LABELS[choices.left]).setActive(true).setVisible(true).setAlpha(1).clearTint()
-    pair.rightText.setFontSize('26px').setText(WEAPON_LABELS[choices.right]).setActive(true).setVisible(true).setAlpha(1).clearTint()
+    pair.leftText.setActive(false).setVisible(false)
+    pair.rightText.setActive(false).setVisible(false)
+    pair.leftIcon.setTexture(`weapon-${choices.left}-gate`).setActive(true).setVisible(true).setAlpha(1).clearTint()
+    pair.rightIcon.setTexture(`weapon-${choices.right}-gate`).setActive(true).setVisible(true).setAlpha(1).clearTint()
     pair.statLabel.setText('WAFFE').setColor(colorCss).setActive(true).setVisible(true).setAlpha(1).clearTint()
   }
 
@@ -267,6 +275,8 @@ export class Gates {
     pair.right.setPosition(rightX, y).setScale(scaleX, 1)
     pair.leftText.setPosition(leftX, y)
     pair.rightText.setPosition(rightX, y)
+    pair.leftIcon.setPosition(leftX, y).setScale(scaleX)
+    pair.rightIcon.setPosition(rightX, y).setScale(scaleX)
     pair.statLabel.setPosition(centerX, y - BALANCE.gates.gateHeight / 2 - 14)
   }
 
@@ -277,7 +287,7 @@ export class Gates {
     if (pair.kind === 'weapon') {
       this.onWeaponSelected(selectedLeft ? pair.leftWeapon : pair.rightWeapon)
       ;(selectedLeft ? pair.left : pair.right).setTintFill(0xffffff)
-      ;(selectedLeft ? pair.leftText : pair.rightText).setTintFill(0xffffff)
+      ;(selectedLeft ? pair.leftIcon : pair.rightIcon).setTintFill(0xffffff)
       return
     }
     const selected = selectedLeft ? pair.leftOp : pair.rightOp
@@ -308,6 +318,8 @@ export class Gates {
     pair.right.setActive(false).setVisible(false)
     pair.leftText.setActive(false).setVisible(false)
     pair.rightText.setActive(false).setVisible(false)
+    pair.leftIcon.setActive(false).setVisible(false)
+    pair.rightIcon.setActive(false).setVisible(false)
     pair.statLabel.setActive(false).setVisible(false)
   }
 
