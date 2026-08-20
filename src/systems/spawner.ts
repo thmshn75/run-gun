@@ -120,6 +120,9 @@ export class Spawner {
     enemy.enableBody(true, x, y, true, true)
     const body = enemy.body as Phaser.Physics.Arcade.Body
     body.setSize(type.bodyWidth, type.bodyHeight, true)
+    // The spawner moves enemies itself; otherwise Arcade writes offset.x back to the
+    // sprite each frame, making the visible enemy jump sideways.
+    body.moves = false
     body.updateFromGameObject()
     enemy.setActive(true).setVisible(true).setAlpha(1).clearTint()
     enemy.setData('hp', type.hp)
@@ -130,7 +133,6 @@ export class Spawner {
     enemy.setData('bodyHeight', type.bodyHeight)
     enemy.setData('flashUntil', 0)
     enemy.setData('lane', lane)
-    body.setVelocity(0, 0)
     this.intervalSpawnCount += 1
     return 'spawned'
   }
