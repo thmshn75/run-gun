@@ -20,3 +20,7 @@ Jede Nutzerkorrektur wird hier als Regel eingetragen. Zu Sitzungsbeginn lesen.
 - **Fehler:** Die vorhandene Spielerfigur war groß erzeugt und heruntergerechnet worden. Das stand in keiner Datei (Probeordner ist gitignored), also fehlte es in der ersten Sprite-Spec — Codex erzeugte direkt in Zielgröße, das Ergebnis war unbrauchbar.
 - **Regel:** Wenn im Projekt etwas schon einmal gelungen ist, gehört der Weg dorthin in die Spec, nicht nur das Ergebnis ins Repo. Vor jeder Asset-Spec prüfen, wie vergleichbare Assets entstanden sind — und das Verfahren beim ersten Mal mitdokumentieren.
 
+
+### 2026-08-20 — Bildgenerator dreht Figuren nicht
+- **Fehler:** Zwei Anläufe, die vorhandene Spielfigur als Rückenansicht neu zu erzeugen, lieferten beide wieder eine Frontalansicht — beim zweiten Mal trotz ausdrücklicher Vorgabe „Helm von hinten, Rucksack, keine Vorderseiten-Details, kein Gesicht". Die Schärfe-Nacharbeit im selben Lauf gelang dagegen sofort.
+- **Regel:** Eine **Blickrichtungsänderung** an einer bestehenden Figur ist keine Nachbesserung, sondern eine Neuzeichnung — der Bildgenerator hält am Ausgangsbild fest. Solche Aufträge nicht als „dieselbe Figur, nur gedreht" formulieren (das erzeugt genau die Kopie), sondern als eigenständige Figur mit vollständiger Beschreibung von hinten, ohne Verweis auf das vorhandene Bild. Und nur **einen** Mangel pro Nacharbeitslauf, wenn einer davon die Blickrichtung ist: Sonst gilt der Lauf als erfolgreich, weil der einfachere Teil geklappt hat.

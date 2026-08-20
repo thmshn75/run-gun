@@ -6,185 +6,176 @@
 
 ## Task
 
-**Perspektivische Straße statt flacher Draufsicht (3D-Optik, Schritt 1 von 2)**
+**Betongraue Straße** (Rückenansicht der Truppe: Reißleine gezogen, siehe unten)
 
-Thomas' Wunsch nach dem Vergleich mit „Real War: Not Fake" und ähnlichen Titeln desselben
-Genres: Das Spielfeld soll räumlich wirken — die Gegner sollen von hinten nach vorne
-kommen, nicht von oben nach unten über eine flache Fläche.
+Zwei Optik-Nachbesserungen zum 3D-Schritt 1, beide von Thomas beauftragt (2026-08-20):
 
-**Der Effekt kommt fast ganz vom Hintergrund.** In den Vorbildern ist es die Straße, die
-sich nach oben verjüngt, mit Rändern und einer laufenden Mittellinie. Die Figuren selbst
-wachsen dort nur moderat. Deshalb ist dieser Task **Schritt 1 von 2**:
+1. Die Straße ist heute fast so dunkel wie ihre Umgebung und hebt sich kaum ab. Sie soll
+   **hellgrau wie Beton** werden.
+2. Die Spielfiguren schauen den Spieler frontal an. In den Vorbildern sieht man die eigene
+   Truppe **von hinten**. Das passt nicht zur perspektivischen Straße und wird nachgezogen.
 
-- **Schritt 1 (dieser Task):** perspektivische Straße, Gegner folgen ihrem Verlauf,
-  Tore passen sich der Straßenbreite an. **Keine Größenänderung von Figuren.**
-- **Schritt 2 (später, eigener Task):** Figuren wachsen beim Näherkommen. Das ist der Teil,
-  der die Trefferflächen zu beweglichen Größen macht — deshalb bewusst getrennt.
-
-Thomas beurteilt nach Schritt 1 am iPhone, ob der Effekt schon reicht.
-
-Zwei kleine Korrekturen aus dem Münz-Task laufen mit (Abschnitt 5) — sie betreffen dieselbe
-Datei und wären ein eigener Durchlauf nicht wert.
+Beides betrifft nur das Aussehen. **Keine Spielmechanik anfassen.**
 
 ## Anforderungen
 
-### 1. Straßengeometrie — eine Funktion, an der alles hängt
+### 1. Straßenfarben
 
-Die Straße füllt das Bild von oben bis unten. **Kein sichtbarer Himmel, kein Horizont**:
-der Fluchtpunkt liegt rechnerisch oberhalb des Bildschirms, die Straße läuft am oberen
-Bildrand mit einer Restbreite hinaus. Das passt zum bestehenden Verhalten, bei dem Gegner
-oberhalb des Bildrands erscheinen, und erspart die Frage, wo sie „aus dem Nichts" auftauchen.
+In `src/config/colors.ts` unter `WORLD_COLORS`:
 
-Es gibt genau **eine** zentrale Funktion, aus der sich alles andere ableitet:
+- `road`: von `0x172033` (dunkelblau) auf ein **helles Betongrau**, Vorschlag `0x9b9b94`.
+- `roadEdge`: von `0x34415d` auf einen **dunkleren** Grauton als die Fahrbahn, Vorschlag
+  `0x6e6e68`, damit der Rand vor der hellen Fläche als Kante lesbar bleibt.
+- `roadCenterLine`: von `0xd8e0ef` auf **reines Weiß** `0xffffff`. Auf hellgrauem Beton
+  wäre der bisherige, leicht bläuliche Ton kaum noch zu sehen.
 
-```
-halbeStrassenbreite(y) = (breiteOben + (breiteUnten − breiteOben) × y / bildhoehe) / 2
-```
+`WORLD_COLORS.background` bleibt **unverändert dunkel** — der Kontrast zwischen heller
+Fahrbahn und dunkler Umgebung ist es, der die Straße überhaupt sichtbar macht.
 
-mit `breiteOben = 0,46 × Bildbreite` (179 px bei 390) und `breiteUnten = Bildbreite`.
-Beide Werte gehören nach `balance.ts` unter einen neuen Abschnitt `road`, zusammen mit
-allen anderen Zahlen dieses Tasks. **Keine Zahl davon im Code hartkodieren.**
+**Der kritische Punkt dabei ist der Kontrast zu den Figuren.** Der leichte Zombie ist seit
+heute hell-beige. Auf einer hellgrauen Straße kann er verschwinden — genau der Gegner, der
+am schnellsten läuft und deshalb am besten erkennbar sein muss. Deshalb ist ein
+Kontrollbild Pflicht (Abschnitt 3).
 
-Der Verlauf ist bewusst **linear**, nicht mathematisch exakt perspektivisch (dort wäre er
-1/Tiefe). Auf diesem Bildausschnitt ist der Unterschied nicht zu sehen, aber die lineare
-Form hält die Umrechnung der Gegnerpositionen trivial und robust. Reicht die Tiefenwirkung
-nicht, wird zuerst `breiteOben` verkleinert — nicht die Formel getauscht.
+Ergibt die Kontrolle, dass der leichte Zombie auf der Fahrbahn schlecht erkennbar ist:
+**Straße dunkler machen** (in Richtung `0x86867f`), bis er sich abhebt — und im
+Abschlussbericht sagen, welcher Wert es geworden ist und warum. Den Zombie **nicht**
+umfärben, der ist von Thomas freigegeben.
 
-Ergebnis zur Kontrolle: y = 0 → 179 px breit, y = 400 → 279 px, y = 714 (Höhe der Truppe)
-→ 358 px, y = 844 → volle 390 px.
+### 2. Spielfigur in Rückenansicht
 
-### 2. Darstellung der Straße
+`src/assets/player.png` wird ersetzt. Zielgröße bleibt **exakt 34 × 46 px** — dadurch
+bleiben Formation, Kollisionshülle (`crowd.hullWidthFigures` × Figurenbreite) und alle
+Abstände unverändert gültig. Es ist ein reiner Bildtausch, kein Umbau.
 
-Die heutige gekachelte Fläche (`createBackgroundTexture` + `TileSprite`, `GameScene.ts:51`
-und `:110`) entfällt und wird ersetzt durch:
+- **Dieselbe Figur wie heute**, nur von hinten gesehen: derselbe rot-orange Soldat,
+  dieselbe Silhouette, dieselbe Farbwelt. Es ist eine Drehung, keine Neugestaltung.
+- Von hinten heißt: man sieht Rücken, Hinterkopf und die Rückseite der Beine. Die Waffe
+  zeigt vom Betrachter weg nach vorne — sie darf seitlich sichtbar bleiben.
+- **Kein Gesicht.** Wenn nach dem Umbau noch Augen zu sehen sind, ist es keine
+  Rückenansicht.
+- Leicht von schräg oben, passend zur Straßenperspektive.
+- Das Spiel läuft mit `pixelArt: true`: klare Silhouette, kräftige Farben, keine weichen
+  Verläufe.
+- Die Figur muss sich **vor der neuen hellgrauen Straße** klar abheben. Rot-orange auf
+  Betongrau tut das — falls nicht, im Bericht melden.
 
-- **Fahrbahn:** die Fläche zwischen den beiden Rändern, etwas heller als der heutige
-  Hintergrund. Außerhalb bleibt die bisherige dunkle Hintergrundfarbe stehen — das ist
-  „neben der Straße".
-- **Zwei Randlinien**, die dem Verlauf aus Abschnitt 1 folgen. Sie sind statisch; die
-  Bewegung entsteht allein durch die Mittellinie.
-- **Laufende Mittellinie:** **12 Striche**, die von oben nach unten wandern und dabei
-  breiter, länger und schneller werden. Das ist der eigentliche Tiefeneindruck.
+**Verfahren — verbindlich:** Das Bild zuerst **groß** erzeugen (mindestens 4-fach, also ab
+136 × 184 px) und **danach** auf 34 × 46 px herunterrechnen. Direkt in Zielgröße erzeugte
+Bilder waren in diesem Projekt bereits zweimal unbrauchbar (`docs/lessons.md`, 2026-08-20).
+Die große Zwischenversion in `assets/probe/` ablegen (gitignored).
 
-**Die Striche müssen unten schneller laufen als oben** — läuft alles gleich schnell, wirkt
-das Bild flach, egal wie gut die Straße gezeichnet ist. Umsetzung: jeder Strich trägt einen
-Fortschrittswert zwischen 0 und 1, der pro Bild gleichmäßig wächst; seine Bildschirmposition
-ist `bildhoehe × Fortschritt²`. Erreicht ein Strich 1, springt sein Fortschritt auf 0
-zurück. Die 12 Striche sind gleichmäßig über den Fortschritt verteilt (0/12, 1/12, …).
+### 3. Kontrollbild (Pflicht)
 
-Breite und Länge jedes Strichs skalieren mit `halbeStrassenbreite(y)`, damit er in die
-Fahrbahn passt.
-
-Zwölf Striche sind **kein Pool im üblichen Sinn**, sondern ein geschlossener Ring: sie
-existieren immer alle, es kann nie einer fehlen. Sie werden einmalig angelegt und danach nur
-noch bewegt — kein `create()`/`destroy()` im laufenden Spiel, wie überall sonst.
-
-Die Geschwindigkeit der Striche leitet sich aus `BALANCE.scrollSpeed` ab, damit Straße und
-Spielgeschwindigkeit zusammenpassen und ein späteres Tempo-Tuning an einer Stelle wirkt.
-
-### 3. Gegner folgen dem Straßenverlauf
-
-Ohne diesen Punkt sieht der ganze Umbau falsch aus: Gegner würden auf halber Höhe neben der
-Fahrbahn laufen.
-
-Ein Gegner bekommt beim Spawnen statt einer festen X-Position eine **relative Spur**
-zwischen −1 (linker Fahrbahnrand) und +1 (rechter Rand). Seine Bildschirmposition ist in
-jedem Bild:
-
-```
-x = Bildmitte + Spur × halbeStrassenbreite(y)
-```
-
-Er behält seine Spur und fächert dadurch beim Näherkommen nach außen auf — genau wie in den
-Vorbildern.
-
-**Was sich dadurch nicht ändert:** Die Gegner bleiben gleich groß, also bleiben die
-gemessenen Trefferflächen (`bodyWidth`) unverändert gültig. Das Größenwachstum ist Schritt 2
-und wird hier **nicht** vorweggenommen.
-
-Die Spur wird beim Spawnen aus dem bestehenden Bereich `crowd.getAnchorRange()` abgeleitet,
-damit Gegner weiterhin dort erscheinen, wo die Truppe sie erreichen kann.
-
-### 4. Tore folgen der Straßenbreite
-
-Ein Torpaar über die volle Bildbreite sieht vor einer schmalen Fahrbahn falsch aus. Die
-Tore werden deshalb in der Breite mit `halbeStrassenbreite(y)` skaliert (`setScale` in X,
-Höhe unverändert) und ihre X-Positionen entsprechend mitgeführt.
-
-**Die Torlogik selbst bleibt unangetastet.** Die Trennlinie zwischen linker und rechter
-Wahl ist die Bildmitte und bleibt es — die Skalierung ist symmetrisch, an der Entscheidung
-ändert sich nichts. Beim Erreichen der Truppe (y = 714) hat das Tor 92 % der vollen Breite,
-die Wahl bleibt also genauso eindeutig wie heute.
-
-### 5. Zwei Korrekturen aus dem Münz-Task
-
-- **Abstand:** Die Münzen eines Kills liegen mit 12 px Abstand nebeneinander, sind selbst
-  aber 14 px breit und überlappen sich dadurch. Der Abstand steigt auf **18 px**. Als Wert
-  nach `balance.ts` unter `coins`, nicht als Zahl im Code.
-- **Bildrand:** Heute wird jede Münze einzeln in den sichtbaren Bereich geklemmt
-  (`GameScene.ts`, `Phaser.Math.Clamp` je Münze). Stirbt ein Zombie am Rand, landen dadurch
-  zwei Münzen exakt aufeinander und sehen aus wie eine. Stattdessen wird die **gesamte
-  Gruppe** um denselben Betrag nach innen verschoben, sodass die äußerste Münze gerade noch
-  im Bild liegt und die Abstände erhalten bleiben.
+Nach `assets/probe/vorschau-strasse.png`: ein Ausschnitt der neuen Straße in Spielgröße mit
+**allen vier Figuren nebeneinander darauf** — die drei Zombies und die neue Spielfigur von
+hinten, in Originalgröße, auf der neuen Fahrbahnfarbe, mit dem dunklen Umgebungston an den
+Seiten. Daran beurteilt Thomas Farbe und Erkennbarkeit in einem Bild.
 
 ## Grenzen
 
-Nichts anderes anfassen. Insbesondere **nicht**:
-- Figuren, Gegner, Projektile oder Münzen in der Größe skalieren — das ist Schritt 2.
-- Trefferflächen, `bodyWidth`, HP, Tempo, Wellen oder Waffenwerte ändern.
-- Die Spielerfigur oder die Truppenformation umbauen.
-- Neue Bilddateien erzeugen — die Straße wird wie die bisherigen Weltgrafiken programmatisch
-  in `BootScene` gezeichnet.
-- Irgendetwas aus `docs/spec-e4b-entwurf.md` vorwegnehmen. Diese Datei bleibt unverändert.
+Nichts anderes anfassen. Insbesondere **nicht**: Straßengeometrie, Gegnerführung, Torlogik,
+Münzen, `balance.ts`, Trefferflächen, Formationswerte oder Gegner-Sprites. Keine
+Größenänderung von Figuren — das bleibt 3D-Schritt 2. `docs/spec-e4b-entwurf.md` und
+`docs/naechste-tasks.md` bleiben unverändert.
 
 ## Reißleine
 
-**Riskanteste Stelle ist das Zielgefühl.** Durch das Auffächern bewegen sich Gegner nicht
-mehr nur auf den Spieler zu, sondern auch seitwärts: ein Gegner am äußersten Rand driftet
-über die volle Bahn 105 px zur Seite, beim schnellsten Gegnertyp rund 30 px pro Sekunde.
-Das ist gewollt und Teil des Effekts — es kann das Treffen aber spürbar erschweren.
+Lässt sich die Rückenansicht nach zwei Versuchen nicht in gleichbleibendem Stil erzeugen:
+**melden und stoppen**, die alte Frontalfigur unverändert lassen. Die Straßenfarbe ist davon
+unabhängig und wird trotzdem geliefert.
 
-Fühlt es sich bei Thomas' iPhone-Test schlecht an, wird **`breiteOben` erhöht** (z. B. von
-0,46 auf 0,65). Damit sinkt die Querdrift, die Tiefenwirkung nimmt ab — eine bewusste
-Abwägung, die Thomas trifft.
-
-**Kein zulässiger Ersatz ist:** die Gegner wieder geradeaus laufen zu lassen, während die
-Straße sich verjüngt (dann laufen sie sichtbar neben der Fahrbahn); die Straße wieder flach
-zu machen; die Gegnergeschwindigkeit zu ändern, um die Drift zu kaschieren; Figuren zu
-skalieren, um es „auszugleichen". Führt das Erhöhen von `breiteOben` nicht zum Ziel:
-**melden und stoppen.**
-
-**Zeitbudget:** Steht die Straße nach zwei Codex-Läufen nicht, wird der Umfang auf den
-reinen Hintergrund reduziert (Abschnitte 1, 2 und 5) und die Gegnerführung vertagt — dann
-sieht es räumlich aus, verhält sich aber wie bisher. Diese Kürzung entscheidet **Thomas**.
+**Kein zulässiger Ersatz ist:** die vorhandene Frontalfigur spiegeln oder drehen; die Figur
+programmatisch aus geometrischen Formen zeichnen; eine andere Figur liefern als den
+vorhandenen Soldaten; die Zielgröße ändern; das Gesicht stehen lassen und als
+„Dreiviertelansicht" ausgeben.
 
 ## Akzeptanzkriterien
 
-1. Die Straße verjüngt sich nach oben auf 46 % der Bildbreite; alle Maße stammen aus einer
-   einzigen Funktion und alle Zahlen stehen in `balance.ts` unter `road`.
-2. Die Mittellinie läuft sichtbar **unten schneller als oben**.
-3. Die 12 Striche werden einmalig angelegt; im laufenden Spiel gibt es kein `create()` oder
-   `destroy()`.
-4. Gegner behalten ihre Spur und fächern beim Näherkommen nach außen auf; keiner läuft
-   sichtbar neben der Fahrbahn.
-5. Gegner sind unverändert groß; `bodyWidth` und alle anderen Gegnerwerte sind nicht
-   angefasst.
-6. Torpaare passen sich der Straßenbreite an; die Wahl links/rechts funktioniert unverändert.
-7. Münzen eines Kills liegen 18 px auseinander und überlappen nicht; am Bildrand wird die
-   ganze Gruppe verschoben, nie zwei Münzen aufeinander.
-8. `npm run check` und `npm run build` laufen fehlerfrei durch.
-9. `docs/spec-e4b-entwurf.md` ist unverändert.
+1. Die Fahrbahn ist hellgrau und hebt sich deutlich von der dunklen Umgebung ab.
+2. Randlinien und Mittellinie sind auf der hellen Fahrbahn klar erkennbar.
+3. `src/assets/player.png` ist 34 × 46 px und zeigt dieselbe Figur von hinten — kein
+   Gesicht, keine Augen.
+4. Alle drei Zombies sind auf der neuen Fahrbahn klar erkennbar, besonders der helle
+   leichte Gegner.
+5. `assets/probe/vorschau-strasse.png` zeigt alle vier Figuren auf der neuen Straße.
+6. Keine Änderung an Geometrie, Mechanik oder `balance.ts`.
+7. `npm run check` und `npm run build` laufen fehlerfrei durch.
 
 ## Implementation Summary
 
-- `Road` zeichnet die programmatische Trapez-Fahrbahn mit Rändern und einem dauerhaft angelegten 12er-Ring aus beschleunigten Mittellinien-Strichen. Die gemeinsame Breitenfunktion liegt in `src/systems/road.ts`; sämtliche Stellwerte stehen in `BALANCE.road`.
-- Gegner speichern beim Spawn eine aus `crowd.getAnchorRange()` abgeleitete Spur und erhalten ihre X-Position in jedem Frame aus der Straßenbreite. Die Gegner-Skalierung und Trefferflächen bleiben unverändert.
-- Tore werden bei jeder Bewegung symmetrisch in die aktuelle Straßenbreite gesetzt und nur horizontal skaliert; die Auswahl bleibt an der Bildmitte.
-- Münzen eines Kills liegen nun mit `BALANCE.coins.dropSpacing` (18 px) auseinander. Am Rand wird die gesamte Gruppe gemeinsam verschoben.
-- `npm run check` und `npm run build` erfolgreich ausgeführt. `docs/spec-e4b-entwurf.md` per Git-Status unverändert bestätigt.
+- `WORLD_COLORS.road` ist Betongrau `0x9b9b94`; Rand `0x6e6e68` und Mittellinie `0xffffff` bleiben darauf klar lesbar. Das Kontrollbild bestätigt auch den Kontrast des hellen leichten Zombies.
+- `src/assets/player.png` ist die rot-orange Spielerfigur in Rückenansicht (34 × 46 px), mit geschlossenem Helm, orangefarbenem Rucksack und seitlich nach vorn gerichteter Waffe. Gesicht und Augen sind nicht sichtbar.
+- `assets/probe/vorschau-strasse.png` enthält alle drei unveränderten Zombies und die neue Spielerfigur in Originalgröße auf der neuen Fahrbahn.
+- Nacharbeit 1: Das 136 × 184-Pixel-Zwischenbild wurde auf 34 × 46 px heruntergerechnet, anschließend auf 22 RGBA-Farben reduziert und der Alpha-Kanal auf 0 oder 255 geschwellen. `assets/probe/figur-schaerfe.png` zeigt links den bisherigen und rechts den neuen Sprite, jeweils 8-fach vergrößert.
+- `git diff --check`, `npm run check` und `npm run build` erfolgreich. Der sichtbare Terminal-Start war in dieser Umgebung nicht verfügbar; die identischen Prüfungen liefen direkt im Projekt.
 
-**Offen bis zu Thomas' iPhone-Test:** ob die Tiefenwirkung überzeugt, ob das Zielen sich
-noch gut anfühlt und ob der Effekt schon ausreicht oder Schritt 2 folgen soll.
+**Offen bis zu Thomas' iPhone-Test:** ob der Grauton stimmt und ob die Truppe von hinten
+richtig wirkt.
+
+## Ergebnis: Straße abgenommen, Rückenansicht vertagt
+
+Die Straßenfarben sind umgesetzt und abgenommen. Die Rückenansicht ist in zwei Anläufen
+gescheitert — beide Male kam wieder eine Frontalansicht zurück. Die Reißleine dieser Spec
+wurde gezogen, `src/assets/player.png` bleibt unverändert. Weiteres Vorgehen steht in
+`docs/naechste-tasks.md`, die Ursache in `docs/lessons.md`.
+
+## Nacharbeit 1 (Claude-Review, 2026-08-20) — nur Schärfe erreicht
+
+**Die Straßenfarben sind in Ordnung und bleiben, wie sie sind** (`road: 0x9b9b94`,
+`roadEdge: 0x6e6e68`, weiße Mittellinie). Das Kontrollbild zeigt: auch der helle leichte
+Zombie ist auf der Fahrbahn klar erkennbar. Dieser Teil ist abgenommen.
+
+**Die neue Spielfigur muss nachgearbeitet werden — zwei Mängel.**
+
+### Mangel 1: Das Bild ist matschig
+
+Ein direkter Vergleich mit der alten Figur (beide 9-fach vergrößert) zeigt es deutlich: Die
+alte Figur hat harte Pixelkanten, die neue ist weichgezeichnet, die Silhouette zerfließt.
+Das Spiel läuft mit `pixelArt: true`, also mit harten Kanten ohne Glättung — ein
+weichgezeichnetes Sprite passt nicht dazu und sieht bei jeder Vergrößerung schlechter aus.
+
+Ursache ist mit hoher Wahrscheinlichkeit das Herunterrechnen mit einem glättenden Filter.
+**Nach dem Verkleinern müssen die Kanten wieder hart gemacht werden:**
+- Die Transparenz auf hart schwellen: jeder Bildpunkt ist entweder ganz sichtbar oder ganz
+  durchsichtig, keine halbtransparenten Ränder.
+- Die Farben auf eine begrenzte Palette reduzieren (Größenordnung 16–24 Farben), so wie es
+  die vorhandenen Sprites auch sind.
+
+Prüfe das Ergebnis, indem du das fertige 34 × 46-PNG **8-fach vergrößert neben die alte
+Figur** legst (`assets/probe/figur-schaerfe.png`). Sind die Kanten der neuen Figur nicht
+genauso hart wie die der alten, ist die Nacharbeit nicht fertig.
+
+### Mangel 2: Man erkennt nicht, dass es eine Rückenansicht ist
+
+Das Gesicht ist korrekt verschwunden. Aber sonst fehlt jedes Merkmal, an dem man einen
+Rücken erkennt — die Figur wirkt wie eine unscharfe Frontalfigur ohne Kopf-Details.
+
+Eine Rückenansicht braucht sichtbare Rückenmerkmale:
+- **Helm von hinten**: geschlossene Kalotte, gern mit Nackenschutz. Keine Sichtöffnung.
+- **Rücken-Ausrüstung**: ein Rucksack, ein Tornister oder Gurte über dem Rücken. Das ist das
+  stärkste einzelne Erkennungsmerkmal und darf ruhig deutlich ausfallen.
+- **Keine Vorderseiten-Details**: keine Brusttaschen, keine Gürtelschnalle vorn, keine
+  Frontgurte.
+- Die Waffe zeigt vom Betrachter weg nach vorne und darf seitlich neben dem Körper
+  hervorstehen.
+
+Farbwelt, Größe (**exakt 34 × 46 px**) und Grundsilhouette bleiben wie beim vorhandenen
+roten Soldaten. Es bleibt eine Drehung derselben Figur, keine neue.
+
+### Grenzen der Nacharbeit
+
+Nur `src/assets/player.png` und die Probebilder anfassen. `colors.ts` bleibt unverändert,
+ebenso alles andere aus der Grenzen-Liste oben.
+
+### Zusätzliche Akzeptanzkriterien
+
+8. Das neue Sprite hat harte Kanten: keine halbtransparenten Randpixel, begrenzte Palette.
+9. `assets/probe/figur-schaerfe.png` zeigt alte und neue Figur 8-fach vergrößert
+   nebeneinander; die Kanten der neuen sind so hart wie die der alten.
+10. Die Figur ist als Rückenansicht erkennbar — Helm von hinten und Rücken-Ausrüstung sind
+    zu sehen, keine Vorderseiten-Details.
+
 
 ## Zuletzt abgeschlossen (2026-08-20)
 
