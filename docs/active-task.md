@@ -1,207 +1,35 @@
 # Active Task
 
 ## Status
-`APPROVED`
+`IDLE`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**Waffen-Tore und HUD zeigen Bilder der Waffen statt der Wörter NORMAL/SCHROT/LASER/RAKETE.**
+_Kein laufender Task._
 
-Thomas-Entscheidung vom 2026-08-20: „für die Waffen möchte ich Bilder haben, keine Schrift",
-auf Rückfrage präzisiert zu **die Waffe als realistisches Bild**, und zwar **an beiden
-Stellen — Tor und HUD**.
+## Zuletzt abgeschlossen (2026-08-20)
 
-Der Task besteht aus zwei Teilen: erst die vier Bilder erzeugen, dann Tor und HUD umbauen.
+- **Gegner laufen nicht mehr durch andere Gegner hindurch** (`97e02c8`). Die Spurwahl rechnet
+  jetzt voraus, ob ein schneller Gegner einen langsameren noch einholen kann, und hält dann
+  Seitenabstand. Vorher 1,7 % aller Frames mit Überlappung, danach 0 über 211 s.
+- **Zombies zittern nicht mehr seitwärts** (`2efa02c`). Der Spawner setzte die Position selbst,
+  die Arcade-Physik schrieb sie danach um `body.offset.x` versetzt zurück — jedes Bild mit
+  wechselndem Vorzeichen. Sichtbar als doppelte Figur, proportional zum transparenten Rand des
+  Sprites, deshalb nur bei den kleinen und mittleren. Gegner stehen jetzt auf `moves = false`.
+- **E4b — drei Zusatzwaffen und Waffen-Tore** (`db6c558`). Schrot, Laser, Rakete plus die
+  Torart zum Wechseln. Vier getrennte Projektil-Segmente, keine Allokation im Hot Path.
+- **Waffen erscheinen als Bild statt als Wort** (`ff56f3b`). Vier Waffenbilder von Codex
+  erzeugt, groß erzeugt und heruntergerechnet; Tor und HUD zeigen das Bild.
 
----
+## Offen / als Nächstes
 
-# Teil 1 — Die vier Waffenbilder erzeugen
+Reihenfolge und Details in `docs/naechste-tasks.md` und `docs/plan.md`.
 
-## Verfahren (im Projekt bewährt, nicht abkürzen)
+- **E4c** — Gegner als Truppen.
+- **Torwahl sichtbar machen** — Tor länger einblenden, keine Zahlen (Thomas' Rahmen).
+- **Hintergrund gestalten** — Farben von Fahrbahn und Umgebung zusammen entscheiden.
+- **3D-Schritt 2** — Figuren wachsen beim Näherkommen. Nur, wenn Thomas Schritt 1 nicht reicht.
+- **E5 / E6** — Menü, Persistenz, Feinschliff.
 
-Die vorhandene Spielfigur und die drei Zombies sind entstanden, indem das Bild **groß**
-erzeugt und danach auf Zielgröße **heruntergerechnet** wurde. Direkt in Zielgröße zu
-erzeugen hat im selben Projekt bereits ein unbrauchbares Ergebnis geliefert
-(`docs/lessons.md`, Eintrag vom 2026-08-20). Also:
-
-1. Je Waffe **ein großes Bild** erzeugen, Breite mindestens 1024 px, Querformat etwa 1536 × 640.
-2. Das große Original ablegen unter `assets/probe/waffen/<key>-gross.png`
-   (`normal`, `shotgun`, `laser`, `rocket`). Der Ordner liegt in `.gitignore` — die großen
-   Dateien kommen bewusst **nicht** ins Repo.
-3. Freistellen (voll transparenter Hintergrund), auf den sichtbaren Inhalt zuschneiden.
-4. Herunterrechnen auf **zwei** Zielgrößen je Waffe und unter `src/assets/` ablegen:
-   - `weapon-<key>-gate.png` — **150 × 44 px**, für das Tor
-   - `weapon-<key>-hud.png` — **72 × 20 px**, für die HUD-Zeile
-   Beim Verkleinern die Seitenverhältnisse halten und innerhalb der Zielgröße zentrieren;
-   die Waffe soll die Breite möglichst ausfüllen, oben und unten darf transparenter Rand
-   bleiben.
-5. Zwischenschritte (freigestellt, zugeschnitten) ebenfalls in `assets/probe/waffen/`
-   lassen, damit sie beim nächsten Anfassen ohne Neuerzeugung prüfbar sind.
-
-## Bildinhalt
-
-**Für alle vier Bilder gleich** — ohne diesen gemeinsamen Rahmen passen die vier Bilder
-nebeneinander am Tor nicht zusammen:
-
-> Seitenansicht, Waffe zeigt nach rechts, exakt waagerecht ausgerichtet. Freigestellt auf
-> vollständig transparentem Hintergrund, kein Schatten, kein Boden, keine Hand, keine
-> Person, kein Text, kein Rahmen. Gleichmäßige Ausleuchtung von vorne, kräftige Farben,
-> klare Kanten, hoher Kontrast gegen dunklen Untergrund (das Spiel ist dunkel, Fahrbahn
-> `#1a2133`). Stil einheitlich über alle vier Bilder: kompakte Spielgrafik mit deutlichen
-> Konturen — kein Foto, keine Weichzeichnung, keine Spiegelungen, kein Verlauf im
-> Hintergrund.
-
-**1. `normal`** — Ein kompaktes Sturmgewehr in Schwarz und Gunmetal-Grau, kurzer Lauf,
-gerades Magazin, schlichter Schaft. Nüchtern und funktional, keine Verzierungen. Ein
-orangefarbener Akzentstreifen am Lauf (Ton wie `#e8590c`).
-
-**2. `shotgun`** — Eine Pump-Action-Schrotflinte mit dickem, kurzem Lauf, Holzschaft in
-warmem Braun und Vorderschaft-Pumpe. Wuchtig und breit, deutlich massiver als ein Gewehr.
-Warme gelb-orange Akzente an der Mündung (Ton wie `#ffb347`).
-
-**3. `laser`** — Ein futuristisches Lasergewehr mit glatten weißen und dunkelgrauen
-Gehäuseflächen, einer leuchtenden cyanfarbenen Energiezelle in der Mitte und einem cyan
-glühenden Emitter an der Spitze. Kantiges Science-Fiction-Design, keine Rundungen. Das Cyan
-muss kräftig leuchten (Ton wie `#7af4ff`).
-
-**4. `rocket`** — Ein schultergestützter Raketenwerfer: dickes graugrünes Rohr, Griff und
-Visier oben, vorne ragt eine Rakete mit leuchtend rotem Kopf heraus (Ton wie `#f03e3e`).
-Militärisch, gedrungen, deutlich dicker als die anderen drei.
-
-Jede Waffe trägt damit die Farbe ihres Geschosses. Am Tor ist so vor der Entscheidung
-erkennbar, was gleich aus den Läufen kommt.
-
-## Reißleine Teil 1
-
-Lässt sich ein Bild nicht in brauchbarer Qualität erzeugen: **melden und stoppen**.
-
-**Kein zulässiger Ersatz ist insbesondere:**
-- Die Symbole programmatisch in `BootScene` zeichnen. Genau dieser Ausweg wurde im Projekt
-  schon einmal gezogen und lieferte abstrakte Formen statt erkennbarer Objekte
-  (`docs/lessons.md`, 2026-08-20). Thomas musste den Auftrag wiederholen.
-- Ein Bild direkt in Zielgröße erzeugen statt groß und herunterrechnen.
-- Die Schrift stehen lassen und zusätzlich ein Symbol danebensetzen — es soll das Bild
-  **statt** des Wortes zu sehen sein.
-- Für eine Waffe ein Bild in anderem Stil liefern als für die übrigen drei.
-
----
-
-# Teil 2 — Tor und HUD auf Bilder umstellen
-
-## Torbild
-
-`src/systems/gates.ts`:
-
-- `GatePair` bekommt zwei zusätzliche Bildobjekte `leftIcon` / `rightIcon`, **einmalig in
-  `createPair()` angelegt** wie die vorhandenen Texte, standardmäßig inaktiv und unsichtbar.
-  Keine Erzeugung im laufenden Spiel.
-- `configureWeaponGate()` setzt auf den beiden Bildobjekten die Textur der jeweiligen Waffe,
-  macht sie sichtbar und **blendet `leftText` / `rightText` aus**.
-  `setTexture()` ist hier ausdrücklich erlaubt: ein Tor erscheint etwa alle 36 Sekunden,
-  das ist kein Hot Path. Vier Bildobjekte je Seite vorzuhalten wäre unnötig.
-- `configureStatGate()` blendet umgekehrt die Bildobjekte aus und die Texte wieder ein.
-  Die Stat-Tore ändern sich sonst nicht.
-- `layoutPair()` positioniert die Bilder wie die Texte auf `leftX` / `rightX` und `y`.
-  **Anders als der Text skalieren die Bilder mit dem Tor mit:** auf beiden Achsen mit
-  demselben `scaleX`, das das Tor bekommt (`gateWidth / this.baseGateWidth`). Damit wächst
-  das Bild perspektivisch mit und ragt oben, wo das Tor nur etwa 86 px breit ist, nicht
-  über den Rahmen hinaus. Das Seitenverhältnis bleibt erhalten.
-- Der weiße Aufblitz beim Durchfahren (`applyPair`) muss beim Waffen-Tor auf dem **Bild**
-  ausgelöst werden statt auf dem Text.
-- Die Kopfzeile `WAFFE` über dem Tor bleibt als Schrift bestehen — sie benennt die Art des
-  Tors, nicht die Waffe.
-- Die für Waffen-Tore eingeführte Schriftgröße 26 px wird nicht mehr gebraucht und entfällt.
-  `WEAPON_LABELS` bleibt bestehen, es wird weiterhin für die DEV-Warnung bei erschöpftem
-  Projektil-Pool gebraucht.
-
-## HUD
-
-`src/scenes/GameScene.ts`:
-
-- Die vierte Spalte der zweiten HUD-Zeile zeigt statt des Waffennamens das HUD-Bild der
-  aktiven Waffe. Das Textobjekt `hud.weapon` wird durch ein **einmalig in `create()`
-  angelegtes** Bildobjekt ersetzt; `updateHud()` setzt nur noch dessen Textur.
-- Position wie bisher: Spaltenmitte bei `panelX + colW * 3.5`, gleiche Zeilenhöhe wie die
-  anderen drei Werte, vertikal an ihnen ausgerichtet. Ursprung mittig setzen, damit das Bild
-  in der Spalte zentriert sitzt.
-- Das Bild wird **nicht** skaliert; es ist in `72 × 20 px` bereits in Zielgröße und passt in
-  die 91 px breite Spalte.
-- Die Schriftgröße der zweiten Zeile steht derzeit als `BALANCE.hud.statFontPx - 1` im Code.
-  Bei dieser Gelegenheit sauber ziehen: den tatsächlichen Wert als eigenen Eintrag in
-  `balance.ts` führen und im Code nur diesen Wert lesen. Keine Rechnung im Code.
-
-## Laden der Bilder
-
-`src/scenes/BootScene.ts`: Die acht PNG-Dateien wie die vorhandenen Gegner-Sprites per
-Vite-Import einbinden und in `preload()` laden. Texturschlüssel:
-`weapon-<key>-gate` und `weapon-<key>-hud`.
-
-## Ausdrücklich nicht ändern
-
-- Waffenwerte, Pools, Feuerraten, Reichweiten, Flächenschaden — nichts aus der Balance.
-- Die Auswahlregeln der Waffen-Tore (jedes vierte Tor, nie die aktuelle Waffe, nie zweimal
-  dieselbe) und die Stat-Tore.
-- Die Reihenfolge `gates.update()` vor `weapons.update()` in `GameScene.update()`.
-- Die violette Torfarbe `WEAPON_GATE_COLOR` bleibt für Rahmen und Kopfzeile.
-
-## Akzeptanzkriterien
-
-1. Acht PNG-Dateien liegen unter `src/assets/`: je Waffe `-gate.png` (150 × 44) und
-   `-hud.png` (72 × 20), alle mit transparentem Hintergrund.
-2. Die vier großen Originale liegen unter `assets/probe/waffen/` und sind mindestens
-   1024 px breit. Sie sind **nicht** eingecheckt (Ordner steht in `.gitignore`).
-3. Jedes der vier Bilder zeigt die jeweilige Waffe als erkennbares Objekt in Seitenansicht,
-   nicht als abstrakte Form, und alle vier in einheitlichem Stil.
-4. Am Waffen-Tor steht das Bild, **kein** Waffenname mehr. Die Kopfzeile `WAFFE` bleibt.
-5. Das Torbild skaliert mit dem Tor mit und ragt zu keinem Zeitpunkt über den Torrahmen
-   hinaus — auch nicht oben, wo das Tor am schmalsten ist.
-6. Stat-Tore zeigen unverändert ihre Rechenoperationen als Schrift.
-7. Die HUD-Zeile zeigt das Bild der aktiven Waffe; TEAM, Münzen, DMG, RATE und SPD bleiben
-   auch bei ihren Höchstwerten vollständig sichtbar und überlappen nicht.
-8. Keine Erzeugung von Bild- oder Textobjekten im laufenden Spiel; alle Objekte entstehen
-   einmalig im Konstruktor beziehungsweise in `create()`.
-9. Die Schriftgröße der zweiten HUD-Zeile steht als eigener Wert in `balance.ts`, nicht als
-   Rechnung im Code.
-10. `npm run check` und `npm run build` laufen fehlerfrei durch.
-11. Keine neuen Abhängigkeiten, keine Requests zur Laufzeit.
-
-Die Bildqualität und den Torlauf prüft Claude nach der Umsetzung am laufenden Spiel und an
-den großen Vorlagen im Probeordner. Ob die Waffen auf Anhieb erkennbar sind, entscheidet
-Thomas am iPhone.
-
-## Implementation Summary
-
-- Vier große Waffen-Vorlagen und freigestellte Zwischenschritte liegen unter `assets/probe/waffen/`; daraus entstanden acht transparente PNGs in den vorgegebenen Tor- und HUD-Größen.
-- BootScene lädt alle Waffenbilder. Waffen-Tore verwenden vorgepoolte Bildobjekte, skalieren perspektivisch mit dem Tor und blitzen beim Auswählen weiß auf; Stat-Tore bleiben unverändert als Text.
-- Die HUD-Waffe ist ein einmalig angelegtes, unskaliertes Bild; die Schriftgröße der zweiten Zeile ist als `secondaryFontPx` zentral in der Balance abgelegt.
-- Verifiziert: `npm run check`, `npm run build`, PNG-Maße/Alpha, große Vorlagenbreite, Probeordner-Ignorierung und `git diff --check`.
-
-
-## Review-Ergebnis (Claude)
-
-**Bilder (Teil 1):** An den grossen Vorlagen geprueft, nicht am fertigen Sprite —
-1942 x 809 px, deutlich ueber der geforderten Mindestbreite. Alle vier zeigen die Waffe als
-erkennbares Objekt in Seitenansicht nach rechts, in einheitlichem Stil, jede mit der Farbe
-ihres Geschosses (Orange, Gold, Cyan, Rot). Freistellung sauber: **0 Gruenpixel** im Motiv
-bei allen vier finalen Sprites, obwohl drei der Rohbilder auf Greenscreen erzeugt wurden.
-Maße exakt: 150 x 44 (Tor) und 72 x 20 (HUD). Die grossen Vorlagen liegen in
-`assets/probe/waffen/` und sind korrekt nicht eingecheckt.
-
-**Torbild (Teil 2):** 20 Waffen-Tore ueber ihren gesamten Weg vermessen, 3360 Proben:
-**kein einziger Ueberstand** ueber den Torrahmen. Kleinster Seitenrand 8,8 px, kleinster
-Rand oben/unten 14,8 px — auch oben, wo das Tor nur etwa 86 px breit ist. Das Bild skaliert
-auf beiden Achsen mit dem Tor mit, das Seitenverhaeltnis bleibt.
-
-**HUD:** Im unguenstigsten Fall (`DMG 17.5`, `RATE 7.5`, `SPD 305`) sitzen die vier Spalten
-bei 26-90, 119-179, 210-271 und 296-368 px im Panel (12-378), **keine Ueberlappung**;
-zwischen Muenzanzeige (endet bei y=45) und Waffenbild (beginnt bei y=50) bleiben 5 px.
-
-**Code:** Bildobjekte entstehen einmalig in `createPair()` bzw. `create()`, im laufenden
-Spiel wird nur die Textur gewechselt — bei einem Tor alle 36 Sekunden kein Hot Path.
-Stat-Tore unveraendert. Die HUD-Schriftgroesse steht jetzt als `secondaryFontPx` in
-`balance.ts` statt als Rechnung im Code (Nebenbefund aus dem E4b-Review erledigt).
-
-**Bau:** `npm run check` und `npm run build` selbst im Terminal ausgefuehrt, beide exit 0.
-
-**Offen bis zu Thomas' iPhone-Test:** ob die vier Waffen am kleinen Bildschirm auf Anhieb
-auseinanderzuhalten sind — besonders das HUD-Bild mit 72 x 20 px.
+Offen aus dem letzten Test: ob die vier Waffen am iPhone auf Anhieb auseinanderzuhalten sind
+(besonders das HUD-Bild mit 72 × 20 px) und ob es bei voller Truppe plus Schrot flüssig bleibt.
