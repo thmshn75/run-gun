@@ -29,8 +29,10 @@ export class BootScene extends Phaser.Scene {
 
   private createProjectileTexture(): void {
     const graphics = this.add.graphics()
-    graphics.fillStyle(0xf9f1a5)
+    graphics.fillStyle(0xe8590c)
     graphics.fillRect(0, 0, 6, 14)
+    graphics.fillStyle(0xffc078)
+    graphics.fillRect(1, 1, 4, 9)
     graphics.generateTexture('projectile', 6, 14)
     graphics.destroy()
   }

@@ -3,11 +3,11 @@ import { BALANCE } from '../config/balance'
 export type StatKey = 'hp' | 'damage' | 'shotsPerSec' | 'projectiles' | 'speed'
 
 export const STAT_COLORS: Record<StatKey, number> = {
-  hp: 0xff6b6b,
-  damage: 0xffa94d,
-  shotsPerSec: 0x66d9e8,
-  projectiles: 0xb197fc,
-  speed: 0xced4da,
+  hp: 0xf03e3e,
+  damage: 0xf76707,
+  shotsPerSec: 0x22b8cf,
+  projectiles: 0x845ef7,
+  speed: 0x40c057,
 }
 
 export function clampStat(stat: StatKey, value: number): number {
