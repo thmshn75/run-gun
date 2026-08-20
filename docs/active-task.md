@@ -1,156 +1,141 @@
 # Active Task
 
 ## Status
-`APPROVED`
+`SPEC_READY`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**E5-1 — Speicherstand: laden, sichern, prüfen. Reine Logik, keine Oberfläche.**
+**E5-2 — Boss und Level: Bosskampf am Levelende, danach das nächste Level.**
 
-Erster von vier Läufen für E5. Der Rahmen und alle stellvertretend getroffenen Entscheidungen
-stehen in `docs/e5-design.md` — **vor dem Bauen lesen**.
+Zweiter von vier Läufen für E5. Rahmen und Zahlen: `docs/e5-design.md`, Abschnitt
+„Entscheidung 3" — **vor dem Bauen lesen**. E5-1 (Speicherstand) ist fertig und freigegeben.
 
-Dieser Lauf baut ausschließlich das Fundament. **Es wird nichts sichtbar.** Boss, Menü und
-Bestenliste kommen in den Läufen E5-2 bis E5-4 darauf.
+Das ist der Teil, der die Definition „fertig" aus `docs/plan.md` einlöst: ein
+2–3-Minuten-Loop **inklusive Boss**.
 
-## Warum zuerst und allein
+## Ablauf eines Levels
 
-Alle drei Folgeteile schreiben in denselben Speicherstand. Wäre die Speicherlogik Teil eines
-größeren Laufs, würde ein Fehler darin erst auffallen, wenn schon Menü und Bestenliste darauf
-stehen — und der teuerste Fehler dieses Projekts wäre ein Importvorgang, der einen
-funktionierenden Spielstand zerstört.
+1. **Normale Phase**, `level.normalPhaseSec` = **75 s**: läuft wie heute.
+2. **Ankündigung**, `level.warningMs` = **1500 ms**: Ein kurzer Schriftzug „BOSS" erscheint
+   mittig. Ab jetzt spawnen **keine neuen normalen Gegner** mehr; bereits vorhandene laufen
+   normal weiter und aus.
+3. **Bosskampf**: Der Boss erscheint am Horizont, blendet wie alle Gegner über
+   `road.entryFadePx` auf, fährt auf seine Kampfhöhe und bleibt dort.
+4. **Boss tot** → Überblendung „LEVEL n GESCHAFFT" für `level.clearedMs` = **1800 ms**, dann
+   beginnt Level n+1 **in derselben Szene**.
+5. **Spieler tot** → Game Over wie bisher.
 
-## Neue Datei `src/systems/save.ts`
+## Der Boss
 
-### Form des Spielstands
+### Verhalten
 
-```ts
-interface SaveData {
-  version: 1
-  coins: number                                   // Kontostand zwischen den Runs
-  upgrades: { team: number; damage: number; rate: number }   // je 0..5
-  highestLevel: number                            // >= 1
-  scores: Array<{ coins: number; level: number; timeMs: number }>  // max 10
-}
-```
+- Erscheint bei `y = road.horizonY`, fährt mit `boss.approachSpeed` = **90 px/s** nach unten
+  bis `boss.battleY` = **300**, dann nicht weiter.
+- Bewegt sich waagerecht mit `boss.moveSpeed` = **110 px/s** zwischen den Fahrbahnrändern auf
+  seiner Höhe und kehrt an den Rändern um. Die Fahrbahnbreite kommt aus `getRoadHalfWidth`,
+  damit er nicht über die Straße hinausfährt.
+- Feuert alle `boss.fireIntervalMs` = **1400 ms** einen Schub von `boss.burstCount` = **3**
+  Geschossen senkrecht nach unten, gefächert über `boss.burstSpreadPx` = **60 px**.
+- Boss-Geschosse fliegen mit `boss.projectileSpeed` = **260 px/s** und machen
+  `boss.projectileDamage` = **1** Schaden an der Truppe — dieselbe Wirkung wie ein Gegner,
+  der die Truppe erreicht, über denselben Weg (`handlePlayerHit`), damit iFrames und Blinken
+  unverändert greifen.
+- Der Boss selbst macht **keinen** Berührungsschaden: Er bleibt auf seiner Höhe und kommt der
+  Truppe nie nahe. Eine zweite Schadensquelle wäre nicht lesbar.
 
-Schlüssel in `localStorage`: **`rungun_save_v1`** (steht so im Plan).
+### Lebenspunkte
 
-### Verlangte Funktionen
+- `boss.baseHp` = **400**, je Level multipliziert mit `boss.hpPerLevel` = **1.6**.
+  Also Level 1: 400, Level 2: 640, Level 3: 1024.
+- Herleitung, die als Kommentar an den Wert gehört: Bei Grundschaden 1, Feuerrate 3,5/s und
+  acht Schützen sind das rund 28 Schaden pro Sekunde — der erste Boss fällt in gut 14 s, wenn
+  nichts aufgewertet wurde. Mit Toren im Level deutlich schneller; das ist gewollt.
+- **Lebensbalken** oben quer über die Fahrbahnbreite, **unterhalb** der HUD-Leiste
+  (`insets.top + hud.padding + hud.panelHeight + 8`), damit er nichts verdeckt. Zwei
+  Rechtecke: Hintergrund und Füllung. Einmalig angelegt, nur Breite und Sichtbarkeit ändern
+  sich.
+- Der Boss nimmt Schaden über **denselben** Weg wie normale Gegner
+  (`handleProjectileHit` → `spawner.damage`), damit Waffenfaktoren, Durchschlag und
+  Flächenschaden ohne Sonderfall wirken.
+- **Der Boss braucht eine `spawnId`** wie jeder Gegner, sonst schädigt ihn der Laser in jedem
+  Bild erneut. Das ist die kritischste Einzelstelle dieses Laufs.
+- Trefferblitz wie bei normalen Gegnern.
 
-- `defaultSave(): SaveData` — Kontostand 0, alle Stufen 0, `highestLevel` 1, leere Liste.
-- `loadSave(): SaveData` — liest aus `localStorage`. Bei fehlendem Eintrag, kaputtem JSON oder
-  ungültiger Form **den Standard zurückgeben, nie werfen**. Ein Spiel, das wegen eines
-  kaputten Speicherstands gar nicht startet, ist schlimmer als eines ohne Fortschritt.
-- `writeSave(data: SaveData): void` — schreibt. Wirft `localStorage` (voll, privater Modus,
-  abgeschaltet), wird das **abgefangen** und im DEV-Modus auf der Konsole gemeldet. Das Spiel
-  läuft weiter.
-- `parseSave(text: string): { ok: true; data: SaveData } | { ok: false; reason: string }` —
-  prüft einen von außen kommenden Text, **ohne** irgendetwas zu schreiben. Der Grund ist ein
-  kurzer deutscher Satz, der später unverändert angezeigt werden kann.
-- `serializeSave(data: SaveData): string` — JSON-Text für den Export.
-- `addScore(data: SaveData, entry): SaveData` — fügt einen Lauf in die Bestenliste ein,
-  sortiert absteigend nach `coins`, kürzt auf zehn. **Gibt einen neuen Wert zurück, ändert
-  den übergebenen nicht.**
-- `qualifiesForScores(data: SaveData, coins: number): boolean` — ob ein Lauf es in die Liste
-  schaffen würde. Wird später für die Hervorhebung nach dem Game Over gebraucht.
+### Aussehen
 
-### Prüfregeln für `parseSave`
+**Das Bild erzeugt Codex** nach dem im Projekt bewährten Verfahren: groß erzeugen,
+freistellen, dann herunterrechnen. Große Vorlage nach `assets/probe/boss-gross.png`
+(gitignored), fertiges Sprite nach `src/assets/enemy-boss.png`, **120 × 120 px**.
 
-Diese Liste ist verbindlich, weil daran hängt, ob ein falscher Text den Spielstand zerstört:
+**Motiv:** ein deutlich größerer, schwer gepanzerter Zombie im Stil der drei vorhandenen
+Gegner — Frontalansicht, gleiche Pixel-Machart, dunkle Rüstungsplatten, rote Augen. Voll
+transparenter Hintergrund, keine Bodenfläche, kein Schatten, kein Text.
 
-1. Text ist gültiges JSON und ein Objekt — sonst `reason` „Text ist kein gültiger Spielstand."
-2. `version` ist exakt `1` — sonst „Spielstand stammt aus einer anderen Version."
-3. `coins`, `highestLevel` und alle drei Stufen sind **endliche Zahlen ≥ 0**; Stufen zusätzlich
-   ≤ 5, `highestLevel` ≥ 1. `NaN` und `Infinity` gelten ausdrücklich als ungültig.
-4. `scores` ist ein Array mit höchstens zehn Einträgen; jeder Eintrag hat drei endliche Zahlen
-   ≥ 0. Ein einzelner kaputter Eintrag macht den ganzen Text ungültig — nicht stillschweigend
-   überspringen.
-5. Unbekannte zusätzliche Felder werden **verworfen**, nicht übernommen und nicht beanstandet.
-   Die zurückgegebenen Daten enthalten nur die oben genannten Felder.
+Sichtbare Breite und Höhe **nachmessen** und als `boss.bodyWidth` / `boss.bodyHeight` in
+`balance.ts` eintragen — wie bei den drei Gegnertypen. Nicht schätzen.
 
-**Zahlen werden beim Einlesen geklemmt, nicht dem Text geglaubt.** Auch ein formal gültiger
-Text darf keine Stufe 9 setzen.
+## Levelfortschritt
 
-## Anbindung an das Spiel — nur das Nötigste
+- Level beginnt bei 1 und steigt nach jedem besiegten Boss.
+- Beim Levelwechsel bleiben **Statuswerte, Truppengröße, Waffe und Münzen erhalten**. Es ist
+  ein durchgehender Run, kein Neustart.
+- Die Gegnerwellen starten härter: Der Spawn-Zähler beginnt neu, aber das Spawn-Intervall
+  startet bei `enemy.spawnIntervalMs` minus `level.spawnBonusPerLevel` = **150 ms** je
+  bereits geschafftem Level, nie unter `enemy.spawnIntervalMinMs`.
+- Nach jedem geschafften Level **speichern**: `highestLevel` hochziehen und den Stand
+  schreiben (`writeSave`), wie im Plan vorgesehen.
+- Bei Game Over wird die **erreichte Levelnummer** in den Bestenlisten-Eintrag geschrieben
+  statt der festen 1 aus E5-1.
+- Der Boss lässt beim Sterben `boss.coinReward` = **25** Münzen fallen, über den vorhandenen
+  Münzweg.
 
-Mehr als diese zwei Punkte wird in diesem Lauf **nicht** angeschlossen:
+## Pools
 
-- `GameScene` merkt sich die im Run gesammelten Münzen und die Laufzeit (beides existiert
-  bereits) und ruft bei Game Over `writeSave` mit dem um den Run ergänzten Stand auf:
-  Kontostand plus Münzen des Runs, `addScore` mit Münzen, Level und Laufzeit.
-  **Level ist in diesem Lauf immer 1** — Level kommen erst in E5-2.
-- Beim Start eines Runs werden die gekauften Stufen aus dem Speicherstand auf die Startwerte
-  angewandt: `hp` + Stufe Truppe, `damage` + 0,5 je Stufe, `shotsPerSec` + 0,3 je Stufe,
-  jeweils über die vorhandene Klemmung in `upgrades.ts`. Da noch nichts gekauft werden kann,
-  sind die Stufen immer 0 — der Weg muss aber jetzt stehen, damit E5-3 nur noch den Kauf
-  ergänzt.
+- Der Boss ist **ein** Objekt, einmalig angelegt, danach nur aktiviert und deaktiviert.
+- Boss-Geschosse: eigener Pool, Größe **24**. Herleitung als Kommentar: Flugzeit von
+  `battleY` 300 bis zum unteren Rand 844 sind 544 px bei 260 px/s = 2,1 s; bei einem Schub
+  von 3 alle 1,4 s sind das höchstens 5 Schübe gleichzeitig = 15 Geschosse. 24 lässt Reserve.
+- Kein `create()`/`destroy()` im laufenden Spiel, auch nicht beim Levelwechsel.
 
-## Tests unter `tests/`
+## Ausdrücklich nicht ändern
 
-**Vitest** als Entwicklungsabhängigkeit ergänzen (`npm i -D vitest`) und ein Skript
-`"test": "vitest run"` in `package.json`. Vitest gehört zum Vite-Umfeld, ist kostenlos und
-landet nicht im ausgelieferten Spiel.
-
-`tests/save.test.ts` deckt mindestens ab:
-
-1. Leerer Speicher → Standardwerte, kein Fehler.
-2. Kaputter JSON-Text im Speicher → Standardwerte, kein Fehler.
-3. Runde: schreiben, lesen, gleicher Inhalt.
-4. `parseSave` mit gültigem Export → `ok: true`, Werte identisch.
-5. `parseSave` mit falscher Version → `ok: false` mit Begründung.
-6. `parseSave` mit `coins: NaN`, mit `coins: -5`, mit Stufe `9`, mit elf Einträgen in der
-   Liste, mit einem kaputten Eintrag in der Liste → jeweils `ok: false`.
-7. `parseSave` mit zusätzlichem unbekanntem Feld → `ok: true`, Feld ist im Ergebnis **nicht**
-   enthalten.
-8. `addScore`: besserer Lauf steht vorn; elfter Lauf verdrängt den schlechtesten; ein
-   schlechterer Lauf bei voller Liste ändert nichts; der übergebene Wert bleibt unverändert.
-
-## Ausdrücklich nicht in diesem Lauf
-
-- Keine Menü-Szene, kein Startbildschirm, keine Anzeige der Bestenliste.
-- Kein Export- oder Import-Knopf, keine Oberfläche dafür.
-- Kein Boss, keine Level, keine Kaufmöglichkeit.
-- Keine Änderung an Gegnern, Waffen, Toren, Himmel oder HUD.
-- `navigator.clipboard.readText()` wird nirgends benutzt — auch später nicht, siehe Plan.
+- Keine Menü-Szene, kein Startbildschirm, keine Anzeige der Bestenliste — das ist E5-3/E5-4.
+- Keine Werte von Gegnern, Waffen, Toren, Himmel oder HUD ändern.
+- Die Speicherlogik aus E5-1 bleibt, wie sie ist; es kommen nur Aufrufe dazu.
+- Kein Partikelsystem, kein Ton, keine Tweens für den Bosskampf — Restzeiten mitführen wie
+  beim Einschlag-Flash der Rakete.
 
 ## Reißleine
 
-Lässt sich `localStorage` in der Zielumgebung nicht verlässlich benutzen: **melden und
-stoppen**. Kein zulässiger Ersatz sind Cookies, IndexedDB oder ein Speicher im Arbeitsspeicher,
-der beim Schließen verschwindet — das wäre ein Fortschritt, der nur so tut als ob.
+Wird der Bosskampf am iPhone zäh oder unlesbar, wird **in dieser Reihenfolge** nachgezogen:
+zuerst `boss.baseHp`, dann `boss.fireIntervalMs`. **Kein zulässiger Ersatz** ist es, den Boss
+zu streichen, die Gegner im Level auszudünnen, die Truppengröße zu deckeln oder den
+Lebensbalken wegzulassen. Führt keiner der beiden Schritte zum Ziel: melden und stoppen.
+
+Lässt sich das Bossbild nicht in brauchbarer Qualität erzeugen: **melden und stoppen**. Kein
+zulässiger Ersatz ist ein programmatisch gezeichneter Klotz oder ein vergrößerter
+vorhandener Gegner.
 
 ## Akzeptanzkriterien
 
-1. `npm run check` und `npm run build` laufen fehlerfrei durch.
-2. `npm test` läuft und **alle** Tests aus der Liste oben sind grün.
-3. Ein Run mit Game Over erhöht den Kontostand um die im Run gesammelten Münzen und schreibt
-   einen Eintrag in die Bestenliste; nach einem Neuladen der Seite sind beide noch da.
-4. Ein von Hand kaputt gemachter Eintrag in `localStorage` lässt das Spiel normal starten.
-5. Im ausgelieferten Bündel ist kein Testcode enthalten.
-6. Nichts am sichtbaren Spiel hat sich verändert.
+1. Nach 75 s erscheint die Ankündigung, danach der Boss; ab der Ankündigung kommen **keine
+   neuen** normalen Gegner mehr.
+2. Der Boss hat auf Level 1 genau 400 Lebenspunkte und nimmt Schaden über denselben Weg wie
+   normale Gegner — Waffenfaktoren, Durchschlag und Flächenschaden wirken ohne Sonderfall.
+3. **Der Laser schädigt den Boss pro Durchflug genau einmal**, nachweisbar über seine
+   `spawnId`.
+4. Der Lebensbalken sitzt unterhalb der HUD-Leiste und überlappt sie nicht.
+5. Boss besiegt → Überblendung → Level 2 beginnt in derselben Szene, mit erhaltenen
+   Statuswerten, Truppe und Waffe.
+6. Der Boss von Level 2 hat 640 Lebenspunkte.
+7. Nach jedem geschafften Level ist `highestLevel` im Speicherstand erhöht und geschrieben.
+8. Bei Game Over steht im Bestenlisten-Eintrag die tatsächlich erreichte Levelnummer.
+9. Boss-Geschosse treffen die Truppe über denselben Weg wie Gegner; iFrames und Blinken
+   verhalten sich unverändert.
+10. Kein `create()`/`destroy()` im laufenden Spiel, auch nicht beim Levelwechsel; Pools mit
+    Herleitung als Kommentar.
+11. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
 
-Kriterium 3 und 4 prüft Claude am laufenden Spiel nach.
-
-
-## Review-Ergebnis (Claude)
-
-**Vitest musste Claude installieren.** Codex' Sandbox hat keinen Netzzugang (steht so in
-`docs/plan.md`); Codex hat den Status deshalb ehrlich auf `SPEC_READY` gelassen statt einen
-ungeprueften Lauf als fertig zu melden. Richtig so.
-
-- **Kriterium 2:** `npm test` gruen. Fuenf Testbloecke decken alle acht geforderten Faelle ab —
-  die Faelle stecken in Schleifen, unter anderem alle fuenf ungueltigen Eingaben (NaN,
-  negativ, Stufe 9, elf Eintraege, kaputter Eintrag).
-- **Kriterium 1 und 5:** `npm run check`, `npm run build` und `npm test` selbst im Terminal,
-  alle exit 0; im Buendel kein Testcode.
-- **Kriterium 3, am laufenden Spiel:** Vor dem Run kein Speicherstand. Nach einem Run mit Game
-  Over: Konto 21 Muenzen, ein Bestenlisten-Eintrag (21 Muenzen, Level 1, 73,8 s). Nach dem
-  Neuladen **bitgleich derselbe Stand**.
-- **Kriterium 4:** `rungun_save_v1` von Hand auf `{kaputt,,,` gesetzt, Seite neu geladen —
-  das Spiel startet normal, **kein einziger Seitenfehler**.
-- **Kriterium 6:** Am sichtbaren Spiel hat sich nichts geaendert.
-
-**Kleiner Nachziehpunkt fuer E5-4:** Die Laufzeit wird als `73784.69333340932` gespeichert.
-Funktioniert, ist aber unnoetig genau. Beim Anzeigen der Bestenliste auf ganze Sekunden runden
-und dann auch so ablegen.
+Kriterien 1 bis 9 prüft Claude am laufenden Spiel nach, Kriterium 3 über eine Zählung der
+tatsächlichen Schadensereignisse je Projektil und Ziel. Ob der Kampf Spaß macht und die
+Länge stimmt, entscheidet Thomas am iPhone.
