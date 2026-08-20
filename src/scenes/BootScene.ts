@@ -62,9 +62,9 @@ export class BootScene extends Phaser.Scene {
   private createGateTexture(): void {
     const width = (this.scale.width - BALANCE.gates.gapBetween) / 2
     const graphics = this.add.graphics()
-    graphics.fillStyle(0x574a9e, 0.82)
+    graphics.fillStyle(0xcccccc, 0.82)
     graphics.fillRect(0, 0, width, BALANCE.gates.gateHeight)
-    graphics.lineStyle(3, 0xc7bcff, 1)
+    graphics.lineStyle(3, 0xffffff, 1)
     graphics.strokeRect(1.5, 1.5, width - 3, BALANCE.gates.gateHeight - 3)
     graphics.generateTexture('gate', width, BALANCE.gates.gateHeight)
     graphics.destroy()

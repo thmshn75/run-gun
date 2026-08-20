@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { clampStat, type RunStats, type StatKey } from './upgrades'
+import { STAT_COLORS, clampStat, type RunStats, type StatKey } from './upgrades'
 
 export interface GateOp {
   label: string
@@ -147,18 +147,20 @@ export class Gates {
     const spawnY = -BALANCE.gates.gateHeight / 2
     const leftX = gateWidth / 2
     const rightX = gateWidth + BALANCE.gates.gapBetween + gateWidth / 2
+    const statColor = STAT_COLORS[stat]
+    const statColorCss = `#${statColor.toString(16).padStart(6, '0')}`
     pair.stat = stat
     pair.leftOp = operations.left
     pair.rightOp = operations.right
     pair.active = true
     pair.triggered = false
     pair.flashUntilMs = 0
-    pair.left.setPosition(leftX, spawnY).setActive(true).setVisible(true).setAlpha(1).clearTint()
-    pair.right.setPosition(rightX, spawnY).setActive(true).setVisible(true).setAlpha(1).clearTint()
+    pair.left.setPosition(leftX, spawnY).setActive(true).setVisible(true).setAlpha(1).setTint(statColor)
+    pair.right.setPosition(rightX, spawnY).setActive(true).setVisible(true).setAlpha(1).setTint(statColor)
     pair.leftText.setPosition(leftX, spawnY).setText(operations.left.label).setActive(true).setVisible(true).setAlpha(1).clearTint()
     pair.rightText.setPosition(rightX, spawnY).setText(operations.right.label).setActive(true).setVisible(true).setAlpha(1).clearTint()
     pair.statLabel.setPosition(this.scene.scale.width / 2, spawnY - BALANCE.gates.gateHeight / 2 - 14)
-      .setText(this.statLabel(stat)).setActive(true).setVisible(true).setAlpha(1).clearTint()
+      .setText(this.statLabel(stat)).setColor(statColorCss).setActive(true).setVisible(true).setAlpha(1).clearTint()
     pair.prevBottomY = spawnY + BALANCE.gates.gateHeight / 2
   }
 

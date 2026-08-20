@@ -5,8 +5,16 @@ import { Crowd } from '../systems/crowd'
 import { Gates } from '../systems/gates'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { Spawner } from '../systems/spawner'
-import { RunStats } from '../systems/upgrades'
+import { STAT_COLORS, RunStats } from '../systems/upgrades'
 import { Weapons } from '../systems/weapons'
+
+interface HudSegments {
+  hp: Phaser.GameObjects.Text
+  coins: Phaser.GameObjects.Text
+  speed: Phaser.GameObjects.Text
+  damage: Phaser.GameObjects.Text
+  rate: Phaser.GameObjects.Text
+}
 
 export class GameScene extends Phaser.Scene {
   private background!: Phaser.GameObjects.TileSprite
@@ -20,7 +28,7 @@ export class GameScene extends Phaser.Scene {
   private iframeUntilMs!: number
   private nextBlinkAtMs!: number
   private lastPointerX!: number | null
-  private hud!: Phaser.GameObjects.Text
+  private hud!: HudSegments
   private insets!: SafeAreaInsets
   private gameOverStarted!: boolean
   private lastShownSpeed!: number
@@ -46,11 +54,20 @@ export class GameScene extends Phaser.Scene {
     this.spawner = new Spawner(this)
     this.coins = new Coins(this, () => this.updateHud())
     this.gates = new Gates(this, this.runStats, getAnchorPosition, () => this.updateHud(), () => Phaser.Math.RND.frac())
-    this.hud = this.add.text(this.insets.left + BALANCE.feedback.hudPadding, this.insets.top + BALANCE.feedback.hudPadding, '', {
+    const hudX = this.insets.left + BALANCE.feedback.hudPadding
+    const hudY = this.insets.top + BALANCE.feedback.hudPadding
+    const hudStyle: Phaser.Types.GameObjects.Text.TextStyle = {
       fontFamily: 'system-ui',
-      fontSize: '24px',
-      color: '#daf6ff',
-    })
+      fontSize: '20px',
+    }
+    const colorFor = (stat: keyof typeof STAT_COLORS): string => `#${STAT_COLORS[stat].toString(16).padStart(6, '0')}`
+    this.hud = {
+      hp: this.add.text(hudX, hudY, '', { ...hudStyle, color: colorFor('hp') }),
+      coins: this.add.text(hudX + 112, hudY, '', { ...hudStyle, color: '#f9dc65' }),
+      speed: this.add.text(hudX + 228, hudY, '', { ...hudStyle, color: '#ced4da' }),
+      damage: this.add.text(hudX, hudY + 28, '', { ...hudStyle, color: colorFor('damage') }),
+      rate: this.add.text(hudX + 112, hudY + 28, '', { ...hudStyle, color: colorFor('shotsPerSec') }),
+    }
     this.updateHud()
     this.enableRelativeDrag()
     this.physics.add.overlap(this.weapons.getProjectiles(), this.spawner.getEnemies(), (projectile, enemy) => {
@@ -140,9 +157,11 @@ export class GameScene extends Phaser.Scene {
   private updateHud(): void {
     const damage = Math.round(this.runStats.get('damage') * 10) / 10
     const shotsPerSec = Math.round(this.runStats.get('shotsPerSec') * 10) / 10
-    this.hud.setText(
-      `HP ${this.runStats.get('hp')}   ¢ ${this.coins.getCount()}   SPD ${Math.round(this.spawner.getEnemySpeed())}\nDMG ${damage}   RATE ${shotsPerSec}`,
-    )
+    this.hud.hp.setText(`HP ${this.runStats.get('hp')}`)
+    this.hud.coins.setText(`¢ ${this.coins.getCount()}`)
+    this.hud.speed.setText(`SPD ${Math.round(this.spawner.getEnemySpeed())}`)
+    this.hud.damage.setText(`DMG ${damage}`)
+    this.hud.rate.setText(`RATE ${shotsPerSec}`)
   }
 
   private drawSafeAreaDebug(): void {

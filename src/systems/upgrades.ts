@@ -2,6 +2,13 @@ import { BALANCE } from '../config/balance'
 
 export type StatKey = 'hp' | 'damage' | 'shotsPerSec' | 'projectiles'
 
+export const STAT_COLORS: Record<StatKey, number> = {
+  hp: 0xff6b6b,
+  damage: 0xffa94d,
+  shotsPerSec: 0x66d9e8,
+  projectiles: 0xb197fc,
+}
+
 export function clampStat(stat: StatKey, value: number): number {
   const roundedValue = stat === 'hp' || stat === 'projectiles' ? Math.round(value) : value
   const floor = stat === 'hp' ? 0 : 1
