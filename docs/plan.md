@@ -132,6 +132,10 @@ Der Reiz der Tore soll aus dem Rechnen unter Zeitdruck kommen, nicht aus dem Abl
 - **Kollision gegen eine Box, nicht gegen N Boxen:** Treffer werden gegen die Formations-Hülle
   geprüft, nicht gegen jede Einzelfigur.
 
+## Gegnertypen (Scope-Erweiterung V1.1)
+
+Leichte Gegner haben 1 HP, sind mit Faktor 1,35 schnell und geben 1 Münze; Standardgegner haben 3 HP, Faktor 1 und 1 Münze; beide verursachen 1 Kontaktschaden. Schwere Gegner haben 9 HP, Faktor 0,7, verursachen 2 Kontaktschaden und geben eine Münze im Wert 3. Die Wellen nutzen bis 30 Sekunden die Gewichte 70/30/0, bis 90 Sekunden 40/45/15 und danach dauerhaft 20/45/35. Der Gegnerpool umfasst 48 Objekte: Schwere Gegner brauchen am SPD-Floor bei 49 px/s rund 17,2 Sekunden für 844 px Flugweg, sodass bei 450 ms Spawnabstand bis zu 39 gleichzeitig sichtbar sein können.
+
 ## Waffentypen (Scope-Erweiterung V1.1, Etappe E4)
 
 | Typ | Verhalten | Technische Konsequenz |

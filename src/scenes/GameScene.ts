@@ -138,14 +138,16 @@ export class GameScene extends Phaser.Scene {
     if (!projectile.active || !enemy.active) return
     const enemyX = enemy.x
     const enemyY = enemy.y
+    const coinValue = enemy.getData('coinValue') as number
     this.weapons.recycle(projectile)
-    if (this.spawner.damage(enemy, this.runStats.get('damage') * this.getCrowdDamageMultiplier(), this.elapsedMs)) this.coins.spawnAt(enemyX, enemyY)
+    if (this.spawner.damage(enemy, this.runStats.get('damage') * this.getCrowdDamageMultiplier(), this.elapsedMs)) this.coins.spawnAt(enemyX, enemyY, coinValue)
   }
 
   private handlePlayerHit(enemy: Phaser.Physics.Arcade.Image): void {
     if (!enemy.active) return
+    const contactDamage = enemy.getData('contactDamage') as number
     this.spawner.recycle(enemy)
-    this.runStats.set('hp', this.runStats.get('hp') - 1)
+    this.runStats.set('hp', this.runStats.get('hp') - contactDamage)
     this.syncCrowdSize()
     this.iframeUntilMs = this.elapsedMs + BALANCE.player.iframesMs
     this.nextBlinkAtMs = this.elapsedMs

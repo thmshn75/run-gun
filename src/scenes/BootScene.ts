@@ -1,4 +1,7 @@
 import Phaser from 'phaser'
+import enemyHeavyUrl from '../assets/enemy-heavy.png'
+import enemyLightUrl from '../assets/enemy-light.png'
+import enemyStandardUrl from '../assets/enemy-standard.png'
 import playerUrl from '../assets/player.png'
 import { BALANCE } from '../config/balance'
 import { WORLD_COLORS } from '../config/colors'
@@ -10,11 +13,13 @@ export class BootScene extends Phaser.Scene {
 
   public preload(): void {
     this.load.image('player', playerUrl)
+    this.load.image('enemy-light', enemyLightUrl)
+    this.load.image('enemy-standard', enemyStandardUrl)
+    this.load.image('enemy-heavy', enemyHeavyUrl)
   }
 
   public create(): void {
     this.createProjectileTexture()
-    this.createEnemyTexture()
     this.createBackgroundTexture()
     this.createGateTexture()
     this.createCoinTexture()
@@ -29,16 +34,6 @@ export class BootScene extends Phaser.Scene {
     graphics.fillStyle(WORLD_COLORS.projectileCore)
     graphics.fillRect(1, 1, 4, 9)
     graphics.generateTexture('projectile', 6, 14)
-    graphics.destroy()
-  }
-
-  private createEnemyTexture(): void {
-    const graphics = this.add.graphics()
-    graphics.fillStyle(WORLD_COLORS.enemyEdge)
-    graphics.fillRect(0, 0, 30, 30)
-    graphics.fillStyle(WORLD_COLORS.enemyBody)
-    graphics.fillRect(3, 3, 24, 24)
-    graphics.generateTexture('enemy', 30, 30)
     graphics.destroy()
   }
 

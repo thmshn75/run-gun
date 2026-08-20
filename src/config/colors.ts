@@ -11,8 +11,6 @@ export const WORLD_COLORS = {
   background: 0x10131d,
   backgroundLine: 0x172033,
   backgroundDot: 0x26344e,
-  enemyEdge: 0x501f2f,
-  enemyBody: 0xdf4d66,
   projectileShell: 0xe8590c,
   projectileCore: 0xffc078,
   coinRim: 0x5e4400,

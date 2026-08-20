@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import { chooseEnemyType } from './enemyTypes'
 import type { RunStats } from './upgrades'
 
 export class Spawner {
@@ -20,7 +21,7 @@ export class Spawner {
     this.elapsedMs = 0
     this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
     for (let index = 0; index < BALANCE.pools.enemies; index += 1) {
-      const enemy = scene.physics.add.image(0, 0, 'enemy')
+      const enemy = scene.physics.add.image(0, 0, BALANCE.enemy.types[0].texture)
       enemy.setActive(false).setVisible(false)
       enemy.disableBody(true, true)
       this.enemies.add(enemy)
@@ -68,7 +69,7 @@ export class Spawner {
     for (const child of this.enemies.getChildren()) {
       const enemy = child as Phaser.Physics.Arcade.Image
       if (!enemy.active) continue
-      enemy.y += (enemySpeed * dt) / 1000
+      enemy.y += (enemySpeed * (enemy.getData('speedFactor') as number) * dt) / 1000
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       if ((enemy.getData('flashUntil') as number) <= this.elapsedMs) enemy.clearTint()
       if (enemy.y - enemy.displayHeight / 2 > this.scene.scale.height) this.recycle(enemy)
@@ -81,6 +82,8 @@ export class Spawner {
       this.warnPoolExhausted()
       return
     }
+    const type = chooseEnemyType(this.elapsedMs, () => Phaser.Math.RND.frac())
+    enemy.setTexture(type.texture)
     const halfWidth = enemy.displayWidth / 2
     const range = this.getSpawnRange()
     const lo = Math.max(halfWidth, Math.round(range.min))
@@ -88,10 +91,16 @@ export class Spawner {
     const x = Phaser.Math.Between(lo, hi)
     const y = -enemy.displayHeight / 2
     enemy.enableBody(true, x, y, true, true)
+    const body = enemy.body as Phaser.Physics.Arcade.Body
+    body.setSize(enemy.displayWidth, enemy.displayHeight)
+    body.updateFromGameObject()
     enemy.setActive(true).setVisible(true).setAlpha(1).clearTint()
-    enemy.setData('hp', BALANCE.enemy.hp)
+    enemy.setData('hp', type.hp)
+    enemy.setData('speedFactor', type.speedFactor)
+    enemy.setData('contactDamage', type.contactDamage)
+    enemy.setData('coinValue', type.coinValue)
     enemy.setData('flashUntil', 0)
-    ;(enemy.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0)
+    body.setVelocity(0, 0)
   }
 
   private warnPoolExhausted(): void {

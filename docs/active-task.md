@@ -5,137 +5,189 @@
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**Update-Pfad der PWA reparieren + Salvengröße auf 8**
+**Drei Gegnertypen mit eigenen Bildern und unterschiedlicher Stärke**
 
-Zwei Punkte aus Thomas' drittem iPhone-Test. Der erste ist ein Betriebsmangel, der die
-gesamte Test-Rückmeldeschleife blockiert; der zweite ist eine Balance-Entscheidung.
+Scope-Erweiterung auf Thomas' Wunsch (2026-08-20), nach seiner Freigabe des E4a-Stands am
+iPhone. Steht **nicht** im ursprünglichen `docs/plan.md` — bewusste Entscheidung, wird dort
+im Abschnitt „Gegner" nachgetragen (Anforderung 8).
 
 **Nicht Teil dieses Tasks:** E4b (Zusatzwaffen + Waffen-Tore), E4c (Gegner als Truppen),
-Hintergrundgestaltung, Torlogik, Formation, Kollision, Drag.
-
-## Befund zu Teil 1 (nachgeprüft, nicht vermutet)
-
-Nach dem Deploy von `e2b2fba` liefert der Server nachweislich die neue Fassung aus: In
-`assets/index-CGY24OHT.js` kommt die Zeichenkette `GUNS` null Mal vor, `shootersPerSalvo`
-und `salvoCursor` sind enthalten. Auf Thomas' iPhone erschien trotzdem weiter die alte
-Version mit GUNS-Anzeige und GUNS-Toren.
-
-Ursache ist der normale Ablauf einer installierten PWA: Beim Start rendert die App aus dem
-Cache des Service Workers, prüft erst danach im Hintergrund auf eine neue Fassung und lädt
-sie herunter. `skipWaiting` und `clientsClaim` sind in `vite.config.ts` bereits gesetzt, der
-neue Service Worker übernimmt also — aber die **bereits laufende Seite** lädt sich nicht neu.
-Sichtbar wird die neue Version deshalb frühestens beim übernächsten Start. Verschärfend:
-iOS friert eine weggewischte PWA häufig nur ein, statt sie zu beenden; dann findet gar keine
-neue Prüfung statt und der Zustand kann beliebig lange bestehen bleiben.
-
-Das ist auch das E6-Kriterium „neue Version wird nach Force-Quit + Neuöffnen sichtbar" —
-es wird hier vorgezogen, weil sonst jeder weitere iPhone-Test die vorletzte Version prüft.
+Hintergrundgestaltung, Boss. Formation, Truppe, Tore, Drag und HUD werden nicht angefasst.
 
 ## Anforderungen
 
-### 1. `src/main.ts` — App lädt sich nach einem Update selbst neu
+### 1. Drei Gegner-Sprites erzeugen
 
-`registerSW` wird um Update-Behandlung erweitert. `vite.config.ts` bleibt **unverändert** —
-`registerType: 'autoUpdate'`, `skipWaiting` und `clientsClaim` sind bereits richtig gesetzt;
-was fehlt, ist ausschließlich das Neuladen der laufenden Seite.
+Codex erzeugt drei PNG-Dateien mit **transparentem Hintergrund**, im selben Stil wie die
+vorhandene Spielerfigur `src/assets/player.png` (kleine, kompakte Figur, kräftige Farben,
+klare Silhouette, leicht pixelige Anmutung — das Spiel läuft mit `pixelArt: true`).
 
-Zu implementieren, in dieser Logik:
+Die Gegner fliegen von oben nach unten auf den Spieler zu; man sieht sie also **von vorne**,
+leicht von oben. Die Spielerfigur ist rot und wird von hinten gesehen — die Gegner müssen
+sich davon farblich klar absetzen, damit im Gewühl auf einen Blick klar ist, wer wer ist.
 
-- Vor der Registrierung merken, ob die Seite bereits von einem Service Worker bedient wird:
+| Datei | Größe | Motiv |
+|---|---|---|
+| `src/assets/enemy-light.png` | 24 × 24 px | Kleiner, schneller Angreifer. Schlanke, spitze Silhouette, wirkt leicht und flink. Helles Türkis/Cyan (`#34d1e0`-Familie), dunklerer Rand zur Abgrenzung. |
+| `src/assets/enemy-standard.png` | 30 × 30 px | Der Standardgegner. Kompakte, blockige Silhouette mittlerer Masse. Kräftiges Rosa-Rot in der Familie der heutigen Platzhalterfarbe `#df4d66` mit dunklem Rand `#501f2f`. |
+| `src/assets/enemy-heavy.png` | 38 × 38 px | Schwerer Brocken. Breite, massige Silhouette, sichtbare Panzerung, wirkt träge und gefährlich. Tiefes Violett-Purpur (`#8b5cf6`-Familie) mit dunklem Rand. |
+
+Anforderungen an alle drei: Alphakanal, exakt die angegebene Kantenlänge, kein sichtbarer
+Rahmen und kein Hintergrund, Motiv füllt die Fläche weitgehend aus, deutlich unterscheidbare
+Silhouetten auch bei kleiner Darstellung. Die drei Größen sind bewusst gestaffelt — die
+Masse soll man sehen, bevor man die Farbe liest.
+
+Zusätzlich unter `assets/probe/gegner/vorschau.png` (der Ordner `assets/probe/` ist
+gitignored, wird also **nicht** eingecheckt) ein Vorschaubild ablegen: die drei Gegner
+nebeneinander, vierfach vergrößert, mit der Spielfeld-Hintergrundfarbe `#10131d` hinterlegt,
+damit Thomas sie beurteilen kann.
+
+### 2. `src/scenes/BootScene.ts` — Bilder laden statt zeichnen
+
+- Die drei PNGs per Vite-Import und `this.load.image(...)` in `preload()` laden, unter den
+  Texturschlüsseln `enemy-light`, `enemy-standard`, `enemy-heavy` — genau wie `player`.
+- `createEnemyTexture()` entfällt ersatzlos; die Farben `enemyEdge` und `enemyBody` in
+  `src/config/colors.ts` werden dadurch unbenutzt und sind ebenfalls zu entfernen.
+- Alle übrigen erzeugten Texturen (Projektil, Hintergrund, Tor, Münze) bleiben unverändert.
+
+### 3. `src/config/balance.ts` — Typtabelle und Wellen
+
+Die Sektion `enemy` bekommt statt des einzelnen `hp: 3` eine Typtabelle:
+
+```ts
+enemy: {
+  types: [
+    { key: 'light',    texture: 'enemy-light',    hp: 1, speedFactor: 1.35, contactDamage: 1, coinValue: 1 },
+    { key: 'standard', texture: 'enemy-standard', hp: 3, speedFactor: 1,    contactDamage: 1, coinValue: 1 },
+    { key: 'heavy',    texture: 'enemy-heavy',    hp: 9, speedFactor: 0.7,  contactDamage: 2, coinValue: 3 },
+  ],
+  // Anteile je Typ, abhaengig von der Laufzeit. Die letzte Stufe gilt ab dann dauerhaft.
+  waves: [
+    { untilSec: 30, weights: [70, 30, 0] },
+    { untilSec: 90, weights: [40, 45, 15] },
+    { untilSec: 0,  weights: [20, 45, 35] },
+  ],
+  spawnIntervalMs: 1600,
+  spawnIntervalMinMs: 450,
+  spawnRampPerSec: 6,
+},
+```
+Die Reihenfolge in `weights` entspricht der Reihenfolge in `types`. Die letzte Welle hat
+`untilSec: 0` als Kennzeichnung „gilt ab hier dauerhaft"; der Code nimmt sie, wenn keine
+frühere Stufe mehr passt.
+
+Weiter ändern:
+- `pools.enemies` von `20` auf **48**, mit neuer Herleitung im Kommentar: Schwere Gegner sind
+  mit `speedFactor 0,7` deutlich langsamer und halten 9 Treffer aus, bleiben also länger im
+  Bild. Schlimmster Fall: SPD am Floor 70 × 0,7 = 49 px/s, Bildhöhe 844 px = 17,2 s Flugzeit,
+  bei minimalem Spawnabstand von 450 ms also bis zu 39 gleichzeitig. 48 lässt Reserve.
+- `coins.value` bleibt `1` und ist ab jetzt der **Standardwert**, den `coinValue` je Typ
+  überschreibt.
+
+### 4. `src/systems/spawner.ts` — Typwahl, Textur und Tempo
+
+- Beim Spawn den Typ ziehen: Aus `BALANCE.enemy.waves` die erste Stufe nehmen, deren
+  `untilSec` größer als die verstrichene Laufzeit in Sekunden ist; gibt es keine, die letzte
+  Stufe. Dann gewichtet aus `types` ziehen (Summe der Gewichte bilden, eine Zufallszahl
+  darauf ziehen, aufsummieren bis die Grenze überschritten ist).
+- **Texturwechsel korrekt durchführen** — das ist die kritische Stelle:
   ```ts
-  const hadController = navigator.serviceWorker?.controller != null
+  enemy.setTexture(type.texture)
+  enemy.enableBody(true, x, y, true, true)
+  const body = enemy.body as Phaser.Physics.Arcade.Body
+  body.setSize(enemy.displayWidth, enemy.displayHeight)
+  body.updateFromGameObject()
   ```
-  **Das ist Pflicht:** Bei der allerersten Installation übernimmt der Service Worker durch
-  `clientsClaim` ebenfalls, ohne dass eine neue Version vorliegt. Ohne diese Abfrage würde
-  die App bei jedem Erstbesuch einmal grundlos neu laden.
-- Ein `controllerchange`-Listener auf `navigator.serviceWorker` löst das Neuladen aus,
-  aber nur wenn `hadController` wahr ist und noch kein Neuladen läuft (Flag gegen
-  Doppelauslösung).
-- **Kein Neuladen mitten im Spiel.** Regel:
-  - Passiert der Wechsel innerhalb der ersten 5000 ms nach dem Laden (`performance.now()`),
-    sofort `location.reload()`. Das ist der Normalfall: Der Nutzer startet die App, der
-    Service Worker aktualisiert kurz darauf, und die neue Version ist noch im selben Start
-    sichtbar.
-  - Danach wird nur ein Merker `pendingReload = true` gesetzt und das Neuladen auf den
-    nächsten Wechsel nach `document.visibilityState === 'visible'` verschoben. Damit
-    passiert es beim Zurückholen der App, nie in einem laufenden Run.
-- Zusätzlich beim Sichtbarwerden aktiv auf Updates prüfen:
-  ```ts
-  registerSW({
-    immediate: true,
-    onRegisteredSW(_swUrl, registration) { /* Registration merken */ },
-  })
-  ```
-  und bei `visibilitychange` auf `'visible'` `registration?.update()` aufrufen. Grund: iOS
-  friert die PWA ein; ohne diesen Anstoß prüft sie beim Zurückholen von selbst nicht.
-- Der Code gehört vor die Erzeugung der `Phaser.Game`-Instanz und darf beim Fehlen von
-  `navigator.serviceWorker` (Desktop-Dev ohne HTTPS) **nicht** werfen — überall optional
-  zugreifen.
+  Ohne `body.setSize` nach `setTexture` behält der Physikkörper die Maße der vorher
+  benutzten Textur — ein kleiner Gegner hätte dann die Trefferfläche eines großen und
+  umgekehrt. Das ist keine Kosmetik, sondern der Unterschied zwischen fairen und
+  unerklärlichen Treffern.
+- Per `setData` am Gegner ablegen: `hp`, `speedFactor`, `contactDamage`, `coinValue`,
+  zusätzlich `flashUntil` wie bisher.
+- Die x-Ziehung bleibt wie sie ist — sie rechnet bereits mit `enemy.displayWidth / 2` und
+  passt sich damit automatisch an die unterschiedlichen Größen an.
+- In `update()` bewegt sich jeder Gegner mit
+  `enemySpeed * (enemy.getData('speedFactor') as number)`. `getEnemySpeed()` selbst bleibt
+  unverändert und liefert weiter den reinen SPD-Stat.
+- Pool-Regel gilt unverändert: kein `create()`/`destroy()` zur Laufzeit, nur
+  `enableBody`/`disableBody` und `setActive`/`setVisible`.
 
-### 2. `src/config/balance.ts` — Salvengröße 8
+### 5. `src/systems/coins.ts` — Münzwert je Gegner
 
-- `crowd.shootersPerSalvo` von `5` auf `8`.
-- `crowd.damagePerExtraFigure` von `0.12` auf `0.14`. **Grund, nicht optional:** Der
-  Schadensmultiplikator rechnet `1 + (TEAM − shootersPerSalvo) × damagePerExtraFigure`.
-  Steigt die Salvengröße auf 8, ohne den Faktor anzuheben, erreicht eine volle Truppe nur
-  noch `1 + 22 × 0,12 = 3,64` statt des vorgesehenen Vierfach-Caps. Mit `0,14` sind es
-  `1 + 22 × 0,14 = 4,08`, der Cap 4 wird bei Truppengröße 30 also genau erreicht.
-- `pools.projectiles` von `64` auf `96`, mit neu hergeleitetem Kommentar:
-  8 Schuss/s (RATE-Cap) × 8 Figuren pro Salve × 1,12 s Flugzeit = 72 gleichzeitig aktive
-  Projektile; 96 lässt Reserve.
-- `crowd.damageMultiplierCap` bleibt bei `4`. Alle übrigen Werte unverändert.
+- `spawnAt(x: number, y: number, value: number = BALANCE.coins.value): void` — der Wert wird
+  per `setData('value', value)` an der Münze abgelegt.
+- Beim Einsammeln `this.collected += coin.getData('value') as number` statt des festen
+  `BALANCE.coins.value`.
+- Pool und Magnetlogik bleiben unverändert. Bewusst **eine** Münze mit höherem Wert statt
+  drei einzelner Münzen — drei Münzen pro schwerem Gegner würden den Münzvorrat sprengen.
 
-### 3. Keine weiteren Codeänderungen
+### 6. `src/scenes/GameScene.ts` — Kontaktschaden und Münzwert
 
-Der Rundlauf in `crowd.ts` und `fire()` in `weapons.ts` lesen `shootersPerSalvo` bereits aus
-`BALANCE` — dort ist **nichts** anzupassen. Wirkung der neuen Zahl: Bis Truppengröße 8
-feuern alle Figuren gleichzeitig, darüber wandert die Achter-Salve weiter reihum durch die
-Truppe (bei TEAM 30 also knapp vier Salven für einen vollen Durchlauf).
+- In `handleProjectileHit()` vor dem Schaden den Münzwert des Gegners auslesen und beim Kill
+  an `this.coins.spawnAt(enemyX, enemyY, coinValue)` übergeben. Wichtig: **vor** dem Aufruf
+  von `spawner.damage()` auslesen, weil der Gegner beim Kill sofort recycelt wird.
+- In `handlePlayerHit()` statt `hp − 1` den Wert
+  `hp − (enemy.getData('contactDamage') as number)` abziehen. Ebenfalls vor dem Recyceln
+  auslesen. Der bestehende Schutz „bei hp ≤ 0 Game Over" und die iFrames bleiben unberührt.
+- Sonst nichts ändern.
+
+### 7. `src/config/colors.ts`
+
+`enemyEdge` und `enemyBody` entfernen (durch die Bilder ersetzt). Alle übrigen Farben,
+insbesondere `STAT_COLORS`, bleiben unverändert.
+
+### 8. `docs/plan.md` — Abschnitt „Gegner" ergänzen
+
+Direkt vor dem Abschnitt „Waffentypen" einen neuen Abschnitt „Gegnertypen (Scope-Erweiterung
+V1.1)" einfügen, der die Typtabelle, die Wellenlogik und die Poolherleitung aus Anforderung 3
+in zwei bis vier Sätzen festhält. Kein Umschreiben bestehender Abschnitte.
 
 ## Akzeptanzkriterien
 
 1. `npm run check` und `npm run build` laufen fehlerfrei.
-2. `grep -n "controllerchange\|visibilitychange\|pendingReload" src/main.ts` zeigt alle drei
-   Bestandteile; `grep -n "hadController" src/main.ts` zeigt die Erstinstallations-Abfrage.
-3. `vite.config.ts` ist unverändert (`git diff vite.config.ts` ist leer).
-4. Der Dev-Server startet ohne Fehler in der Browser-Konsole, obwohl dort kein Service
-   Worker aktiv ist — der Update-Code darf ohne `navigator.serviceWorker` nicht werfen.
-   Im Abschlussbericht bestätigen.
-5. `BALANCE.crowd.shootersPerSalvo === 8`, `BALANCE.crowd.damagePerExtraFigure === 0.14`,
-   `BALANCE.pools.projectiles === 96`.
-6. Im Abschlussbericht vorrechnen: Schadensmultiplikator bei Truppengröße 8, 20 und 30
-   (erwartet 1,00 / 2,68 / 4,00 nach Cap) sowie die Projektil-Spitzenlast
-   (8 × 8 × 1,12 ≈ 72 gegen Pool 96).
-7. Die Salvenrotation ist unverändert: `git diff src/systems/crowd.ts src/systems/weapons.ts`
-   ist leer.
-8. Der eigentliche Beweis für Teil 1 — dass die neue Version am iPhone nach einem Neustart
-   erscheint — ist **kein** Codex-Kriterium. Er wird nach dem Deploy geprüft: erst durch
-   Abruf der ausgelieferten Datei, dann durch Thomas am Gerät.
+2. Die drei PNGs existieren unter `src/assets/`, haben exakt 24×24, 30×30 und 38×38 Pixel
+   und einen Alphakanal. Im Abschlussbericht die tatsächlichen Maße und den Farbmodus je
+   Datei angeben (z. B. per Python/PIL ausgelesen), nicht behaupten.
+3. `assets/probe/gegner/vorschau.png` existiert und zeigt alle drei Gegner vierfach
+   vergrößert nebeneinander.
+4. `grep -rn "createEnemyTexture\|enemyBody\|enemyEdge" src/` liefert keinen Treffer.
+5. **Trefferflächen-Nachweis:** In `spawner.ts` folgt auf jedes `setTexture` ein
+   `body.setSize(...)` mit anschließendem `updateFromGameObject()`. Im Abschlussbericht die
+   Codestelle zitieren.
+6. **Typverteilung nachweisen:** Wegwerf-Skript außerhalb von `src/` (nicht einchecken), das
+   die Ziehfunktion 20.000-mal je Zeitpunkt aufruft — bei 10 s, bei 60 s und bei 150 s — und
+   die gemessenen Anteile ausgibt. Erwartet: 70/30/0, 40/45/15 und 20/45/35, jeweils mit
+   maximal 2 Prozentpunkten Abweichung. Ergebnis im Bericht angeben.
+7. `BALANCE.pools.enemies === 48`, und der Herleitungskommentar nennt die 17,2 s Flugzeit
+   des schweren Gegners am SPD-Floor.
+8. Ein schwerer Gegner kostet beim Zusammenstoß zwei Figuren, ein leichter und ein
+   Standardgegner je eine — im Code nachvollziehbar über `contactDamage`.
+9. Ein schwerer Gegner hinterlässt **eine** Münze im Wert von 3; der Münzzähler steigt beim
+   Einsammeln entsprechend um 3.
+10. Pool-Checkpunkte gelten unverändert: `grep -n "destroy()" src/systems/spawner.ts` und
+    `src/systems/coins.ts` liefern keinen Treffer, und es gibt kein `scene.add`/`create`
+    außerhalb der Konstruktoren.
+11. Ein Kurztest im Dev-Server ist erlaubt, aber **kein** Nachweis: Ob die Gegner gut
+    aussehen, unterscheidbar sind und sich die Stärkeabstufung richtig anfühlt, beurteilt
+    Thomas — Bilder am Vorschaubild, Spielgefühl am iPhone.
 
 ## Reißleine
-Führt der Reload-Mechanismus zu einer Schleife (App lädt sich beim Start wiederholt neu),
-**sofort abbrechen** und nur die Variante mit `pendingReload` behalten, also ausschließlich
-beim Zurückholen der App neu laden — nie im 5-Sekunden-Fenster nach dem Start. Eine sich
-selbst neu ladende App ist schlimmer als eine, die einen Start hinterherhinkt.
+Gelingen die Bilder nach zwei Versuchen nicht in brauchbarer Qualität (unklare Silhouette,
+Hintergrund nicht sauber transparent, bei 24 px unkenntlich), **nicht weiter iterieren**:
+Die drei Gegner stattdessen programmatisch mit PIL zeichnen — schlichte geometrische Formen
+in den drei genannten Farben, klar unterscheidbare Umrisse — und ein Skript
+`scripts/make-enemies.py` analog zu `scripts/make-icons.py` einchecken. Der gesamte
+Spielmechanik-Teil (Anforderungen 3 bis 8) ist davon unabhängig und muss in jedem Fall
+vollständig stehen.
 
 ## Nicht ändern
-- `vite.config.ts`, `index.html`, `src/systems/crowd.ts`, `src/systems/weapons.ts`,
-  `src/systems/formation.ts`, `src/systems/gates.ts`, `src/systems/spawner.ts`,
-  `src/systems/upgrades.ts`, `src/scenes/`, `src/config/colors.ts`.
-- Alle Balance-Werte außer den drei unter Anforderung 2 genannten.
+- `src/systems/crowd.ts`, `src/systems/formation.ts`, `src/systems/weapons.ts`,
+  `src/systems/gates.ts`, `src/systems/upgrades.ts`, `src/main.ts`, `vite.config.ts`,
+  `index.html`.
+- Formation, Kollisionshülle, Salvenrotation, Torlogik, HUD-Layout, Drag-Clamp,
+  Spawn-Korridor.
+- Alle Balance-Werte außer den unter Anforderung 3 genannten.
 
 ## Implementation Summary
-Update-Handling in `src/main.ts` ergänzt: Vorhandener Service-Worker-Controller wird vor
-der Registrierung erfasst; ein Controller-Wechsel lädt innerhalb der ersten fünf Sekunden
-einmal neu, später erst beim nächsten Sichtbarwerden. Beim Sichtbarwerden wird außerdem
-aktiv `registration.update()` angefordert. Ohne Service Worker bleibt der Pfad durchgehend
-optional und wirft daher nicht.
-
-Balance: Salvengröße 8, Schadensfaktor 0,14 und Projektilpool 96; der Pool-Kommentar ist
-auf 8 × 8 × 1,12 ≈ 72 aktive Projektile neu hergeleitet. `npm run check` und `npm run build`
-waren erfolgreich (nur die bekannte, nicht blockierende Vite-Chunk-Warnung). `vite.config.ts`
-sowie `src/systems/crowd.ts` und `src/systems/weapons.ts` sind unverändert.
-
-Offen: Der verlangte Browser-Konsolencheck des Dev-Servers konnte nicht laufen, weil in
-dieser Sitzung kein steuerbarer Browser verfügbar ist. Status bleibt deshalb `SPEC_READY`;
-die iPhone-Prüfung erfolgt weiterhin erst nach dem Deploy.
+<!-- Von Codex auszufüllen -->
+Drei transparente Pixel-Sprites samt gitignorierter Vierfach-Vorschau und reproduzierbarem `scripts/make-enemies.py` ergänzt (Reißleine nach zwei für 24–38 px zu detailreichen KI-Versuchen). Gegner wählen nun über zeitabhängige Gewichte ihren Typ, setzen Textur und Arcade-Hitbox beim Pool-Reuse korrekt zurück und speichern HP, Tempo, Kontaktschaden und Münzwert. Münzen übernehmen den Typwert; schwere Gegner kosten zwei Figuren und hinterlassen eine Münze im Wert 3. `npm run check`, `npm run build`, Bildmetadaten-, Pool- und 20.000er-Verteilungsprüfungen bestanden.

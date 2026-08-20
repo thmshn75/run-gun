@@ -38,7 +38,17 @@ export const BALANCE = {
     damageMultiplierCap: 4,
   },
   enemy: {
-    hp: 3,
+    types: [
+      { key: 'light', texture: 'enemy-light', hp: 1, speedFactor: 1.35, contactDamage: 1, coinValue: 1 },
+      { key: 'standard', texture: 'enemy-standard', hp: 3, speedFactor: 1, contactDamage: 1, coinValue: 1 },
+      { key: 'heavy', texture: 'enemy-heavy', hp: 9, speedFactor: 0.7, contactDamage: 2, coinValue: 3 },
+    ],
+    // The final wave (untilSec: 0) applies permanently once the earlier limits have passed.
+    waves: [
+      { untilSec: 30, weights: [70, 30, 0] },
+      { untilSec: 90, weights: [40, 45, 15] },
+      { untilSec: 0, weights: [20, 45, 35] },
+    ],
     spawnIntervalMs: 1600,
     spawnIntervalMinMs: 450,
     spawnRampPerSec: 6,
@@ -88,8 +98,8 @@ export const BALANCE = {
   pools: {
     // 8 shots/s cap x 8 figures per salvo x ((anchor-Y 714 - despawn-Y 0) / 640px/s = 1.12s) = 72; 96 leaves margin.
     projectiles: 96,
-    // Start: 844px / 105px/s ≈ 8.0s at 1600ms intervals ≈ 5; late game: 844px / 200px/s ≈ 4.2s at 450ms intervals ≈ 9.4; 20 remains ample.
-    enemies: 20,
+    // Heavy enemies at the 70 SPD floor move at 49px/s, so crossing 844px takes 17.2s; at 450ms spawns that permits up to 39 concurrent enemies. 48 leaves reserve.
+    enemies: 48,
     // Must be >= crowd.max because all figures are created once and then only shown or hidden.
     crowd: 30,
     // Max enemy kill rate is 1 / 0.45s; 844px / 180px/s = 4.7s coin visibility, so about 10.4; 20 remains enough (magnet collects faster).
