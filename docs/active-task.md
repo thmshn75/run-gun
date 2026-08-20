@@ -1,250 +1,234 @@
 # Active Task
 
 ## Status
-`APPROVED`
+`IMPL_DONE`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**E4a — Truppe: Figurenzahl ersetzt die HP-Punkte, Formation, Schützen und Truppen-Schaden**
+**E4a-Nacharbeit — Trefferzone am Bildrand, ehrliche SPD-Anzeige, Tore ohne Leerwahl**
 
-Erster von drei Teilen der Etappe E4 aus `docs/plan.md`. Dieser Task baut **nur** die
-eigene Truppe. Nicht Teil dieses Tasks:
-- **E4b** — die drei Zusatzwaffen (Schrot, Laser, Rakete) und die Waffen-Tore.
-- **E4c** — Gegner als Truppen. Wird erst nach Thomas' iPhone-Test von E4a entschieden.
-  Deshalb gilt für diesen Task die harte Auflage aus Anforderung 1: die Formationsrechnung
-  muss ohne jede Änderung auch von einem späteren Gegner-Modul nutzbar sein.
+Fix-Task aus Thomas' iPhone-Test von E4a. Drei bestätigte Befunde, alle im bestehenden
+Code, kein neues Feature. **Nicht Teil dieses Tasks:** E4b (Zusatzwaffen + Waffen-Tore),
+E4c (Gegner-Truppen), Hintergrundgestaltung. Die Truppen-Mechanik aus E4a bleibt
+unverändert — Formation, Kollisionshülle, Schützenzahl und Truppen-Schaden werden
+**nicht** angefasst außer an den unten genannten Stellen.
+
+## Befunde (Messung, nicht Vermutung)
+
+**B1 — Gegner am Rand sind unerreichbar.** Der Bewegungsrand des Ankers wird in
+`Crowd.setAnchorX()` aus der halben Kollisionshüllen-Breite gerechnet
+(`34 px × 2,4 = 81,6`, halb = 40,8). Damit gilt `anchorX ∈ [48,8; 341,2]` bei 390 px
+Spielfeldbreite. Gegner spawnen dagegen in `[15; 375]`. Bei GUNS 1 sitzt der einzige
+Schütze exakt auf dem Anker; ein Treffer verlangt `|Projektil-x − Gegner-x| < 18`
+(3 + 15 Halbbreiten). Erreichbar sind damit nur Gegner-Mitten bis 359,2 — die äußersten
+~16 px auf **beiden** Seiten sind tote Zone. Rechnerisch symmetrisch; Thomas fällt es
+rechts auf.
+
+**B2 — SPD-Tore stimmen nicht mit dem HUD überein.** Das HUD zeigt nicht den Stat,
+sondern `round(Gegnertempo − 105)`, wobei das Gegnertempo zusätzlich mit 0,5/s über die
+Zeit hochläuft. Die Tore rechnen auf dem Stat. Gemessen bei t = 60 s: Ein Tor „×2" auf
+`speed = 105` lässt die HUD-Zahl von 30 auf 135 springen (Faktor 4,5 statt 2), ein „÷2"
+drückt sie von 75 auf 1 (Faktor 0,01). Ursache ist die verschobene Skala: Eine
+Multiplikation auf dem Rohwert wirkt auf einer um 105 verschobenen Anzeige völlig anders.
+
+**B3 — Tore mit Leerseite und Klumpung.** Die Stat-Auswahl selbst ist sauber
+(100.000 Ziehungen: 20,0 / 20,2 / 19,9 / 19,8 / 20,1 %). Zwei andere Effekte erzeugen den
+Eindruck von Willkür:
+- Leerseiten: Bei GUNS 1 hat in **100 %** der Torpaare eine Seite keine Wirkung
+  (alle Abwärts-Ops laufen in den Floor). An jeder Obergrenze (TEAM 30, GUNS 5, DMG 20,
+  RATE 8) und am SPD-Floor 70 sind es ~76 %. Das Tor beschriftet dann „×2" und der
+  HUD-Wert rührt sich nicht.
+- Klumpung: Ein 2-Minuten-Run zeigt nur ~13 Tore. Bei Gleichverteilung fehlt in 26,2 %
+  der Runs eine Stat komplett und in 47,4 % kommt eine fünfmal oder öfter.
+
+**B4 (Kleinkram, mitgenommen)** — DMG und RATE werden im HUD auf eine Nachkommastelle
+gerundet, intern aber ungerundet geführt. Ein „+25 %"-Tor auf DMG 1,0 zeigt 1,3.
 
 ## Anforderungen
 
-### 1. Neue Datei `src/systems/formation.ts` — reine Rechnung, keine Phaser-Abhängigkeit
+### 1. `src/config/balance.ts`
 
-Diese Datei darf **nichts** importieren außer `BALANCE` — kein Phaser, kein `crowd.ts`,
-keine Spieler-spezifische Annahme. Grund: E4c (Gegner-Truppen) soll dieselbe Funktion
-unverändert benutzen; jede Kopplung an den Spieler macht diesen Schritt später teuer.
+- In `player` neuen Wert ergänzen:
+  ```ts
+  // Bewegungsrand als Vielfaches der halben Figurenbreite — bewusst NICHT an die
+  // Kollisionshuelle gekoppelt (siehe Befund B1).
+  dragClampFigures: 0.5,
+  ```
+- Sonst **keine** Balance-Änderung. `crowd`, `enemy`, `gates`, `pools`, `stats` bleiben wie sie sind.
 
+### 2. `src/systems/crowd.ts` — Bewegungsrand von der Trefferbox entkoppeln
+
+- Figurenbreite im Konstruktor merken (`private readonly figureWidth: number`), analog zu
+  `figureHeight`, aus demselben `firstSprite`.
+- Neue öffentliche Methode:
+  ```ts
+  public getAnchorRange(): Readonly<{ min: number; max: number }>
+  ```
+  liefert
+  `min = figureWidth * BALANCE.player.dragClampFigures + BALANCE.player.dragClampMargin`
+  und `max = scene.scale.width - min`. Grund für die eigene Methode: Der Spawner braucht
+  denselben Korridor (Anforderung 3), und zwei getrennte Rechnungen würden auseinanderlaufen.
+- `setAnchorX()` klemmt **über `getAnchorRange()`**, nicht mehr über `this.hull.width / 2`.
+- Die Kollisionshülle bleibt in Größe und Verhalten **unverändert**. Sie darf jetzt an den
+  Rändern über den Bildschirm hinausragen — das ist gewollt und ändert nichts an der
+  Trefferlogik. Ebenso bleibt es dabei, dass äußere Figuren einer großen Formation seitlich
+  aus dem Bild ragen können; das ist bekannte Kosmetik und **nicht** Teil dieses Tasks.
+
+### 3. `src/systems/spawner.ts` — Gegner nur im erreichbaren Korridor
+
+- Konstruktor bekommt ein drittes Argument
+  `getSpawnRange: () => Readonly<{ min: number; max: number }>`.
+- In `spawn()` die x-Ziehung ersetzen durch:
+  ```ts
+  const range = this.getSpawnRange()
+  const lo = Math.max(halfWidth, Math.round(range.min))
+  const hi = Math.max(lo, Math.min(this.scene.scale.width - halfWidth, Math.round(range.max)))
+  const x = Phaser.Math.Between(lo, hi)
+  ```
+  `Math.max(lo, ...)` ist Pflicht: Ohne diese Klammer könnte `Phaser.Math.Between` bei einem
+  degenerierten Bereich mit `min > max` aufgerufen werden.
+- Sonst nichts ändern — Spawn-Takt, Ramp, Recycling und Pool bleiben identisch.
+
+### 4. `src/scenes/GameScene.ts` — Verdrahtung und ehrliche SPD-Anzeige
+
+- `Spawner` wird konstruiert als
+  `new Spawner(this, this.runStats, () => this.crowd.getAnchorRange())`.
+  Die Reihenfolge stimmt bereits: `crowd` entsteht vor `spawner`.
+- **SPD-Anzeige:** `this.hud.speed.setText(\`SPD ${Math.round(this.runStats.get('speed'))}\`)`.
+  Die Methode `getSpdShown()`, das Feld `lastShownSpeed` und der Block in `update()`, der
+  bei Änderung der gerampten Zahl `updateHud()` ruft, entfallen ersatzlos.
+  **Bewusste Entscheidung:** Das HUD zeigt ab jetzt den Stat (Startwert 105, Cap 305) und
+  nicht mehr das über die Zeit hochlaufende Gegnertempo. Der Zeit-Ramp im Spawner bleibt
+  wirksam, wird nur nicht mehr als Stat ausgegeben. Nur so kann ein „×2"-Tor die angezeigte
+  Zahl auch verdoppeln. Das entlastet nebenbei `update()` um einen HUD-Aufruf pro Frame-Sprung.
+- `getCrowdDamageMultiplier`, `syncCrowdSize`, `handlePlayerHit`, `handleProjectileHit`,
+  Coins- und Gate-Verdrahtung bleiben unverändert.
+
+### 5. `src/systems/upgrades.ts` — Anzeige und interner Wert identisch (B4)
+
+In `clampStat` die Rundung erweitern:
 ```ts
-export interface FormationSlot {
-  readonly offsetX: number
-  readonly offsetY: number
-  readonly row: number
-}
-
-export interface FormationOptions {
-  readonly rowSpacingY: number
-  readonly colSpacing: number
-  readonly minColSpacing: number
-  readonly maxWidth: number
-}
-
-export function computeFormation(count: number, options: FormationOptions): FormationSlot[]
+const roundedValue = stat === 'hp' || stat === 'projectiles' || stat === 'speed'
+  ? Math.round(value)
+  : Math.round(value * 10) / 10
 ```
+Damit führen `damage` und `shotsPerSec` intern exakt den Wert, den das HUD zeigt.
 
-Layout-Regeln:
-- Reihe `r` (0-basiert) fasst `r + 1` Plätze; gefüllt wird von vorne nach hinten, die
-  letzte Reihe darf unvollständig bleiben.
-- `offsetY = row * rowSpacingY`, positiv = **nach hinten** (im Bild nach unten, weg von den
-  anfliegenden Gegnern).
-- Plätze einer Reihe sind um `offsetX = 0` zentriert. Der Spaltenabstand einer Reihe ist
-  `Math.max(minColSpacing, Math.min(colSpacing, maxWidth / Math.max(1, plaetzeInReihe - 1)))`
-  — die Formation wird also **dichter, nicht breiter**, wenn die Truppe wächst.
-  Bei einer einzelnen Figur pro Reihe entfällt die Rechnung (offsetX = 0).
-- `count <= 0` liefert ein leeres Array. Gleiches `count` liefert immer dieselben Slots
-  (deterministisch, kein Zufall) — sonst zappelt die Formation bei jedem Neuaufbau.
+### 6. `src/systems/gates.ts` — keine Leerseiten mehr (B3, Teil 1)
 
-### 2. `src/config/balance.ts` — neue `crowd`-Sektion
+Die zentrale Regel lautet ab jetzt: **Beide Seiten eines Torpaares müssen den Wert
+tatsächlich verändern, und sie müssen zu unterschiedlichen Ergebnissen führen.**
 
-```ts
-crowd: {
-  start: 3,
-  max: 30,
-  shooters: 5,
-  rowSpacingY: 18,
-  colSpacing: 24,
-  minColSpacing: 11,
-  // Formationsbreite: Anteil der Spielfeldbreite, den die breiteste Reihe belegen darf.
-  maxWidthRatio: 0.44,
-  // Kollisionshülle ist bewusst FIX und wächst nicht mit der Truppe (siehe Anforderung 3).
-  hullWidthFigures: 2.4,
-  hullHeightFigures: 1.6,
-  damagePerExtraFigure: 0.12,
-  damageMultiplierCap: 4,
-},
-```
+- Neue Hilfsfunktion neben `drawGateOp`:
+  ```ts
+  type GateDirection = 'up' | 'down'
+  function drawDirectionalOp(current: number, rng: () => number, direction: GateDirection): GateOp
+  ```
+  - `'up'` zieht gleichverteilt aus: `multiply` (`multipliers`), `add` mit Vorzeichen `+`,
+    `percent` aus den **positiven** Einträgen von `ops.percentages`.
+  - `'down'` zieht gleichverteilt aus: `divide` (`divisors`), `add` mit Vorzeichen `−`,
+    `percent` aus den **negativen** Einträgen von `ops.percentages`.
+  - Label-Format identisch zu `drawGateOp`.
+- `drawGatePair(stat, current, rng)` bekommt drei Stufen:
+  1. **Normalzug:** bis zu `BALANCE.gates.maxRedraws` Versuche mit `drawGateOp`.
+     Akzeptiert wird ein Paar nur, wenn
+     `leftResult !== current && rightResult !== current && leftResult !== rightResult`
+     und der bestehende hp-Schutz `(stat !== 'hp' || leftResult > 0 || rightResult > 0)` hält.
+  2. **Gerichteter Fallback:** `const upWorks = clampStat(stat, current * 2) !== current`,
+     `const downWorks = clampStat(stat, current / 2) !== current`. Ist genau eine Richtung
+     offen (Wert klebt am Cap oder Floor), bis zu `maxRedraws` Versuche mit
+     `drawDirectionalOp` in der offenen Richtung, gleiche Akzeptanzbedingung wie Stufe 1.
+     Das Tor lautet dann z. B. „+25 % / +50 %" statt „×2 / ÷2 (wirkungslos)" — die Wahl
+     bleibt eine echte Wahl (mehr oder weniger Gewinn), und die Beschriftung lügt nicht.
+  3. **Reißleine:** unverändert `{ left: '+1', right: '−1' }`.
 
-Weiter ändern:
-- `stats.hp`: `{ base: 3, cap: 20, floor: 0 }` → `{ base: 3, cap: 30, floor: 0 }`.
-  Der HP-Wert **ist** ab jetzt die Truppengröße; `cap` muss exakt `crowd.max` entsprechen.
-- `pools.crowd`: bleibt `30`, Kommentar ergänzen: muss `>= crowd.max` sein, weil alle
-  Figuren einmalig im Konstruktor erzeugt und danach nur noch ein-/ausgeblendet werden.
+  **Warum kein Ausschluss der Stat am Anschlag:** Das wäre die einfachere Lösung, erzeugt
+  aber einen Deadlock. DMG startet bei 1 mit Floor 1, die Abwärtsrichtung ist also von
+  Anfang an blockiert. Würde man Stats am Anschlag überspringen, käme nie ein DMG-Tor und
+  DMG bliebe für immer 1. Deshalb der gerichtete Fallback statt einer Stat-Neuziehung.
 
-### 3. `src/systems/crowd.ts` — Formation statt Einzelfigur
+### 7. `src/systems/gates.ts` — Stat-Auswahl als Shuffle-Bag (B3, Teil 2)
 
-- Konstruktor erzeugt weiterhin **einmalig** `BALANCE.pools.crowd` Sprites (Pool-Regel:
-  kein `create()`/`destroy()` zur Laufzeit, nur `setActive`/`setVisible`).
-- Neue Methode `setSize(count: number): void`:
-  - `count` auf `[0, BALANCE.crowd.max]` klemmen.
-  - Slots über `computeFormation(count, { ... maxWidth: scene.scale.width * BALANCE.crowd.maxWidthRatio })`
-    holen und den ersten `count` Sprites zuweisen; die restlichen auf
-    `setActive(false).setVisible(false)`.
-  - Jeder aktive Sprite bekommt `setDepth(slot.row)` — hintere Reihen stehen weiter unten
-    und müssen die vorderen überlappen, sonst sieht die Formation flach aus.
-  - `setSize` wird **nicht** in `update()` gerufen, sondern nur wenn sich die Truppengröße
-    tatsächlich geändert hat (siehe Anforderung 5). Wird `setSize` mit unverändertem `count`
-    gerufen, darf es trotzdem korrekt durchlaufen (idempotent).
-- Die Kollisionshülle bleibt **fix**: Breite `figureWidth * BALANCE.crowd.hullWidthFigures`,
-  Höhe `figureHeight * BALANCE.crowd.hullHeightFigures`, zentriert auf dem Anker; sie wächst
-  **nicht** mit der Truppe. Grund: Eine mitwachsende Hülle würde jeden Zugewinn sofort
-  bestrafen — je besser der Run läuft, desto größer die Trefferfläche. Figuren am Rand der
-  Formation stehen damit sichtbar außerhalb der Trefferzone; das ist gewollt (Plan:
-  „Kollision gegen eine Box, nicht gegen N Boxen").
-- Neue Methode `getShooterPositions(maxShooters: number): Array<{ x: number; y: number }>`:
-  liefert die Weltkoordinaten der **vordersten** aktiven Figuren, höchstens `maxShooters`,
-  sortiert nach Reihe und dann nach Abstand zur Mitte. Bei Truppengröße 0 ein leeres Array.
-- `setFiguresAlpha` und `update()` bleiben in ihrer Logik unverändert (iFrames-Blinken gilt
-  weiterhin für alle aktiven Figuren).
-- `getAnchorX`/`getAnchorY`/`getHullBounds`/`setAnchorX` bleiben unverändert, damit Drag-Clamp
-  und Coin-Magnet nicht angefasst werden müssen.
-
-### 4. `src/systems/weapons.ts` — Schützen feuern, nicht der Anker
-
-- Der Konstruktor bekommt statt `getAnchorPosition` eine Funktion
-  `getShooterPositions: (maxShooters: number) => Array<{ x: number; y: number }>`.
-- In `fire()`: `const shooterCount = Math.min(this.runStats.get('projectiles'), BALANCE.crowd.shooters)`,
-  danach `const origins = this.getShooterPositions(shooterCount)`. Pro Origin **genau ein**
-  Projektil, gespawnt an der Position des Schützen. Der bisherige künstliche Fächer-Offset
-  (`(index - (count - 1) / 2) * 12`) entfällt ersatzlos — die Streuung entsteht jetzt aus den
-  Positionen der Figuren.
-- Damit ist die `SHOTS`-Stat ab sofort die **Schützenzahl**. Das ist die zentrale
-  Architekturentscheidung dieses Tasks: Die Projektilzahl pro Salve bleibt bei
-  `min(SHOTS, crowd.shooters)` und damit bei höchstens 5 — genau wie bei einer einzelnen
-  Figur. Würde stattdessen jede Figur einzeln feuern, wüchse die Projektilzahl linear mit der
-  Truppe und das iPhone bräche ein, sobald der Run gut läuft (Plan, Abschnitt „Truppe").
-- `BALANCE.pools.projectiles` bleibt deshalb bei 64; der Herleitungskommentar bleibt gültig
-  und muss nur um den Halbsatz ergänzt werden, dass `SHOTS` jetzt die Schützenzahl ist.
-- Ist die Truppe kleiner als `shooterCount`, feuern entsprechend weniger Figuren — kein
-  Sonderfall, das Array ist einfach kürzer. `warnPoolExhausted()` bleibt unverändert.
-
-### 5. `src/scenes/GameScene.ts` — Truppengröße und Truppen-Schaden
-
-- Die `Weapons`-Instanz wird mit `(maxShooters) => this.crowd.getShooterPositions(maxShooters)`
-  konstruiert. Coins und Gates nutzen weiterhin die Ankerposition — nicht anfassen.
-- Nach `create()` einmal `this.crowd.setSize(this.runStats.get('hp'))` aufrufen.
-- Neue private Methode `syncCrowdSize()`: liest `runStats.get('hp')`, vergleicht mit einem
-  gemerkten `lastCrowdSize` und ruft `crowd.setSize()` **nur bei Änderung**. Aufgerufen wird
-  sie an genau den Stellen, an denen sich `hp` ändern kann: in `updateHud()` (das ist der
-  Callback, den Coins und Gates ohnehin auslösen) und in `handlePlayerHit()`.
-  Kein Aufruf im `update()`-Hot-Path.
-- Neue private Methode `getCrowdDamageMultiplier(): number`:
-  `Math.min(BALANCE.crowd.damageMultiplierCap, 1 + Math.max(0, crowdSize - BALANCE.crowd.shooters) * BALANCE.crowd.damagePerExtraFigure)`.
-  In `handleProjectileHit()` wird `this.runStats.get('damage') * this.getCrowdDamageMultiplier()`
-  an `spawner.damage()` übergeben. Damit zahlt jede Figur über der Schützenzahl auf den
-  Schaden ein statt auf die Projektilzahl — bei voller Truppe das Vierfache.
-- HUD: Das Label `HP` heißt jetzt `CREW` (`CREW ${runStats.get('hp')}`). Farbe, Position und
-  Layout bleiben unverändert.
-
-### 6. `src/systems/gates.ts` — Torbeschriftung
-
-In `statLabel()` das Mapping `hp: 'HP'` auf `hp: 'CREW'` ändern. Sonst nichts: die
-Tor-Mathematik, die Operatoren und der 0-Schutz (`leftResult <= 0 && rightResult <= 0`)
-bleiben unangetastet — der Schutz greift jetzt sinngemäß als „nie beide Tore auf 0 Figuren".
-
-### 7. `src/scenes/GameOverScene.ts`
-Unverändert. Game Over bei 0 Figuren funktioniert weiter über `runStats.get('hp') <= 0`.
+- Zwei neue private Felder: `statBag: StatKey[]` (leer initialisiert) und
+  `lastStat: StatKey | null` (`null` initialisiert).
+- Neue private Methode `nextStat(): StatKey`: Ist der Bag leer, neu füllen; dann das
+  **erste** Element mit `shift()` entnehmen, in `lastStat` merken und zurückgeben.
+- Neue private Methode `refillBag(): void`: Array
+  `['hp', 'damage', 'shotsPerSec', 'projectiles', 'speed']` per Fisher-Yates mit `this.rng`
+  mischen. Ist danach `stats[0] === this.lastStat`, `stats[0]` und `stats[1]` tauschen —
+  sonst kann an der Bag-Grenze dieselbe Stat doch zweimal hintereinander kommen.
+- In `spawn()` ersetzt `this.nextStat()` den bisherigen
+  `pick<StatKey>([...], this.rng)`-Aufruf.
+- Wirkung: In je fünf aufeinanderfolgenden Toren kommt jede Stat genau einmal, und nie
+  zweimal direkt hintereinander. Damit verschwinden die gemessenen 26,2 % „Stat fehlt
+  komplett" und 47,4 % „Stat kommt fünfmal" vollständig.
+- `statLabel()`, `applyPair()`, `movePair()`, `recycle()`, die Torgeometrie und der
+  hp-0-Schutz bleiben unverändert.
 
 ## Akzeptanzkriterien
 
 1. `npm run check` und `npm run build` laufen fehlerfrei.
-2. `src/systems/formation.ts` existiert und importiert **nur** `BALANCE` — nachprüfbar:
-   `grep -n "^import" src/systems/formation.ts` zeigt genau eine Zeile, und die enthält
-   weder `phaser` noch `crowd`.
-3. Pool-Checkpunkt Truppe: In `crowd.ts` gibt es `scene.add.image` ausschließlich im
-   Konstruktor, und `grep -n "destroy()" src/systems/crowd.ts` liefert keinen Treffer.
-4. Projektil-Checkpunkt: In `weapons.ts` ist die Zahl der pro `fire()` aktivierten Projektile
-   nachweisbar auf `min(runStats.get('projectiles'), BALANCE.crowd.shooters)` begrenzt —
-   also höchstens 5, unabhängig von der Truppengröße.
-5. `BALANCE.stats.hp.cap === BALANCE.crowd.max` (beide 30); `pools.crowd >= crowd.max`.
-6. `grep -rn "'HP'" src/` liefert keinen Treffer mehr; HUD und Tor zeigen `CREW`.
-7. `setSize()` wird nicht aus `update()` heraus gerufen — weder direkt noch indirekt:
-   `grep -n "setSize" src/scenes/GameScene.ts` zeigt nur Aufrufe aus `create()`,
-   `updateHud()` und `handlePlayerHit()`.
-8. Ein Kurztest im Dev-Server ist erlaubt, aber **kein** Nachweis: Formationsbild, Gamefeel
-   und Performance beurteilt Thomas am iPhone.
+2. `grep -n "hull.width" src/systems/crowd.ts` zeigt keinen Treffer mehr in `setAnchorX`;
+   der Clamp läuft über `getAnchorRange()`.
+3. Rechnerisch nachprüfbar (im Abschlussbericht ausrechnen und angeben): Mit
+   `figureWidth = 34`, `dragClampFigures = 0.5`, `dragClampMargin = 8` und Breite 390 gilt
+   `getAnchorRange() = { min: 25, max: 365 }`, und der Gegner-Spawn liegt vollständig
+   innerhalb dieses Korridors. Kein Gegner kann außerhalb der Reichweite des vordersten
+   Schützen erscheinen.
+4. `grep -n "getSpdShown\|lastShownSpeed" src/` liefert keinen Treffer mehr.
+   Das HUD zeigt `SPD` als gerundeten `runStats.get('speed')`.
+5. Ein SPD-Tor „×2" verdoppelt die im HUD gezeigte Zahl exakt (bis auf Cap-Begrenzung) —
+   im Abschlussbericht an einem Zahlenbeispiel vorrechnen.
+6. In `gates.ts` existiert `drawDirectionalOp`, und `drawGatePair` akzeptiert kein Paar,
+   bei dem eine Seite `clampStat(stat, op.apply(current)) === current` ergibt (außer in der
+   Reißleine Stufe 3).
+7. Simulationsnachweis im Abschlussbericht: Für die Werte `projectiles@1`,
+   `projectiles@5`, `damage@1`, `damage@20`, `hp@30`, `shotsPerSec@8`, `speed@70`,
+   `speed@305` jeweils 20.000 Ziehungen aus `drawGatePair` — der Anteil der Paare mit einer
+   wirkungslosen Seite muss unter 1 % liegen (heute 76–100 %). Der Nachweis läuft über ein
+   Wegwerf-Skript außerhalb von `src/`; es wird **nicht** eingecheckt.
+8. Shuffle-Bag: In 5 aufeinanderfolgenden `nextStat()`-Aufrufen kommt jede der fünf Stats
+   genau einmal vor, und über 1000 Aufrufe hinweg gibt es keine direkte Wiederholung.
+   Ebenfalls per Wegwerf-Skript nachweisen und im Bericht angeben.
+9. `clampStat('damage', 1.25) === 1.3` und `clampStat('shotsPerSec', 3.55) === 3.6`;
+   HUD-Wert und interner Wert sind für DMG und RATE identisch.
+10. Der Truppen-Teil aus E4a ist unangetastet: `git diff` zeigt in `formation.ts` keine
+    Änderung, und in `crowd.ts` nur die Figurenbreite, `getAnchorRange()` und den
+    geänderten Clamp — keine Änderung an `setSize`, `getShooterPositions`, `update` oder
+    der Hüllengeometrie.
+11. Ein Kurztest im Dev-Server ist erlaubt, aber **kein** Nachweis: Ob sich die Randzone,
+    das SPD-Gefühl und die Torwahl richtig anfühlen, beurteilt Thomas am iPhone.
 
 ## Reißleine
-Läuft die Formation nach einem Umsetzungsversuch nicht sauber (zappelnde Figuren, Truppe
-verschiebt den Trefferpunkt, Drag fühlt sich anders an), **nicht weiterbohren**: Formation auf
-eine einzige Reihe hinter dem Anker reduzieren und den Rest der Anforderungen unverändert
-liefern. Das Dreieckslayout ist Kosmetik, die Mechanik dahinter ist es nicht.
+Sollte der gerichtete Fallback in Anforderung 6 nach einem Umsetzungsversuch nicht sauber
+laufen (Endlosschleifen, unlesbare Labels, Tore die trotzdem nichts tun), **nicht
+weiterbohren**: Stufe 2 auf eine feste Tabelle reduzieren — am Cap „−20 % / −30 %",
+am Floor „+25 % / +50 %" — und den Rest der Anforderungen unverändert liefern. Die
+Anforderungen 1–5 und 7 sind unabhängig davon und müssen in jedem Fall stehen.
 
 ## Nicht ändern
-- Gate-Mathematik, Coin-System, Spawner, Balance-Werte außer `stats.hp.cap` und der neuen
-  `crowd`-Sektion.
-- Farbpalette (`src/config/colors.ts`), HUD-Layout, Icons, `vite.config.ts`, `index.html`.
-- Die drei Zusatzwaffen und die Waffen-Tore — das ist E4b.
+- `src/systems/formation.ts`, `src/systems/weapons.ts`, `src/systems/coins.ts`,
+  `src/scenes/GameOverScene.ts`, `src/scenes/BootScene.ts`.
+- Kollisionshüllen-Geometrie, Formationslayout, Schützenzahl, Truppen-Schadensmultiplikator.
+- Farbpalette (`src/config/colors.ts`), HUD-Layout und -Positionen, Torgeometrie,
+  `vite.config.ts`, `index.html`, `docs/plan.md`.
+- Alle Balance-Werte außer dem neuen `player.dragClampFigures`.
 
 ## Implementation Summary
+Bewegungs- und Spawn-Korridor verwenden nun dieselbe Figurenbreiten-Rechnung
+(`25…365 px` bei 390 px Breite); die Kollisionshülle und der Truppen-Teil bleiben
+unverändert. Das HUD zeigt SPD direkt als gerundeten Speed-Stat, während der Gegner-Ramp
+im Spawner weiterläuft. DMG und RATE werden beim Speichern auf eine Nachkommastelle
+gerundet.
 
-Die importfreie Formationsrechnung versorgt einen festen Figurenpool mit einer kompakten,
-dreieckigen TEAM-Formation. Sie verdichtet sich bei voller Größe auch in der Tiefe; die
-Kollisionshülle bleibt fix. Die vordersten maximal fünf Figuren geben die
-Projektilursprünge vor; GUNS begrenzt deren Zahl und zusätzliche TEAM-Figuren erhöhen den
-Schaden bis zum vierfachen Multiplikator.
+Tore akzeptieren nur noch zwei wirksame, unterschiedliche Ergebnisse. Am einseitig
+blockierten Rand ziehen sie gerichtete Operationen; wenn diskrete Rundung (GUNS 1) alle
+Zufallsergebnisse auf denselben Wert legt, sichert `+1 / +2` die echte Wahl. Die
+Stat-Auswahl nutzt einen Fisher-Yates-Shuffle-Bag ohne direkte Wiederholung.
 
-Validierung: `npm run check` und `npm run build` erfolgreich. Import-, Pool-, TEAM/GUNS-,
-Balance- und `setSize`-Checks sind erfüllt; der isolierte Rechentest bestätigt für 30
-Slots `max offsetY=98 <= maxDepth=100`. Die Vite-Chunk-Größenwarnung bleibt bestehen,
-ist aber nicht fehlerschlagend. Bild, Spielgefühl und Performance sind bewusst für den
-iPhone-Test vorbehalten.
-
----
-
-## Nacharbeit Runde 2 (Review-Befunde + Umbenennung)
-
-### N1 — Formation ragt bei voller Truppe aus dem Bild
-
-Rechnung: Spielfeld ist 844 hoch, der Anker sitzt bei `844 - 130 = 714`. 30 Figuren ergeben
-8 Reihen, die hinterste bei `offsetY = 7 * 18 = 126`, also `y = 840` — die Figur reicht bis
-863 und steht damit 19px unter dem Bildschirmrand. Die letzten drei Reihen sind bei voller
-Truppe nicht mehr sichtbar.
-
-Fix, symmetrisch zur bestehenden Breitenregel („dichter, nicht breiter") — die Formation wird
-jetzt auch **dichter, nicht tiefer**:
-
-- `FormationOptions` bekommt ein Feld `maxDepth: number`.
-- `computeFormation` ermittelt die Reihenzahl für `count` **vor** dem Verteilen und rechnet
-  `effectiveRowSpacing = Math.min(rowSpacingY, maxDepth / Math.max(1, rowCount - 1))`.
-  `offsetY = row * effectiveRowSpacing`. Bei einer einzigen Reihe bleibt `offsetY = 0`.
-- `crowd.ts` übergibt
-  `maxDepth: this.scene.scale.height - this.anchorY - figureHeight / 2 - BALANCE.crowd.bottomMargin`,
-  wobei `figureHeight` die bereits im Konstruktor bekannte Sprite-Höhe ist. Neuer
-  Balance-Wert `crowd.bottomMargin: 8`.
-- Zusätzlich `crowd.rowSpacingY` von `18` auf `14` senken, damit die Formation auch dann
-  kompakt aussieht, wenn der Deckel gar nicht greift.
-
-Nachprüfbar: Bei `count = BALANCE.crowd.max` muss
-`max(offsetY) <= maxDepth` gelten. Diese Bedingung als Kommentar an `computeFormation` notieren.
-
-### N2 — Toter Import in `formation.ts`
-
-Die Datei importiert `BALANCE` und neutralisiert den unbenutzten Import mit `void BALANCE`.
-Das war eine zu wörtlich genommene Vorgabe von mir: Die Datei soll **gar nichts** importieren.
-Import und `void BALANCE` ersatzlos löschen; alle Layout-Werte kommen wie bisher über
-`FormationOptions` herein. Der Kommentar darüber wird entsprechend umformuliert.
-
-### N3 — Umbenennung: `CREW` → `TEAM`, `SHOTS` → `GUNS`
-
-Thomas' Entscheidung. Zwei Gruppenbegriffe nebeneinander wären verwechselbar, deshalb:
-- Die **Truppengröße** (Stat-Key `hp`) heißt überall `TEAM` — im HUD und im Tor-Label.
-- Die **Schützenzahl** (Stat-Key `projectiles`) heißt überall `GUNS` — im HUD und im Tor-Label.
-- Die internen Stat-Keys `hp` und `projectiles` bleiben **unverändert**. Es geht ausschließlich
-  um die angezeigten Beschriftungen; kein Umbenennen von Feldern, keine Migration.
-
-Danach darf weder `'CREW'` noch `'SHOTS'` in `src/` vorkommen.
-
-## Zusätzliche Akzeptanzkriterien Runde 2
-
-9.  `grep -n "^import" src/systems/formation.ts` liefert keine Zeile.
-10. `grep -rn "CREW\|SHOTS" src/` liefert keinen Treffer; HUD und Tore zeigen `TEAM` und `GUNS`.
-11. `BALANCE.crowd.rowSpacingY === 14`, `BALANCE.crowd.bottomMargin === 8`, und
-    `computeFormation` respektiert `maxDepth`.
-12. `npm run check` und `npm run build` laufen weiterhin fehlerfrei.
+Validierung: `npm run check` und `npm run build` erfolgreich. Wegwerf-Simulation mit je
+20.000 `drawGatePair`-Ziehungen: projectiles@1/@5, damage@1/@20, hp@30,
+shotsPerSec@8 und speed@70/@305 jeweils 0,00 % Leerseiten. Shuffle-Bag: alle
+200 Fünferblöcke vollständig, 0/999 direkte Wiederholungen. `clampStat('damage', 1.25)`
+ergibt 1,3 und `clampStat('shotsPerSec', 3.55)` 3,6. Die Vite-Chunk-Größenwarnung ist
+nicht fehlschlagend; iPhone-Gamefeel bleibt der manuelle Test.

@@ -24,6 +24,7 @@ interface GatePair {
 }
 
 type GateOperatorKind = (typeof BALANCE.gates.ops.kinds)[number]
+type GateDirection = 'up' | 'down'
 
 function pick<T>(values: readonly T[], rng: () => number): T {
   return values[Math.min(values.length - 1, Math.floor(rng() * values.length))]
@@ -49,14 +50,61 @@ function drawGateOp(current: number, rng: () => number): GateOp {
   return { label, apply: (value) => value * (1 + percentage) }
 }
 
+function drawDirectionalOp(current: number, rng: () => number, direction: GateDirection): GateOp {
+  const kind = pick(direction === 'up'
+    ? ['multiply', 'add', 'percent'] as const
+    : ['divide', 'add', 'percent'] as const, rng)
+  if (kind === 'multiply') {
+    const multiplier = pick(BALANCE.gates.ops.multipliers, rng)
+    return { label: `×${multiplier}`, apply: (value) => value * multiplier }
+  }
+  if (kind === 'divide') {
+    const divisor = pick(BALANCE.gates.ops.divisors, rng)
+    return { label: `÷${divisor}`, apply: (value) => value / divisor }
+  }
+  if (kind === 'add') {
+    const magnitude = Math.max(1, Math.round(current * pick(BALANCE.gates.ops.additiveRatios, rng)))
+    const sign = direction === 'up' ? 1 : -1
+    return { label: `${sign > 0 ? '+' : '−'}${magnitude}`, apply: (value) => value + sign * magnitude }
+  }
+  const percentages = BALANCE.gates.ops.percentages.filter((percentage) => direction === 'up' ? percentage > 0 : percentage < 0)
+  const percentage = pick(percentages, rng)
+  return { label: `${percentage >= 0 ? '+' : '−'}${Math.abs(percentage * 100)} %`, apply: (value) => value * (1 + percentage) }
+}
+
 export function drawGatePair(stat: StatKey, current: number, rng: () => number): { left: GateOp; right: GateOp } {
+  const isValidPair = (left: GateOp, right: GateOp): boolean => {
+    const leftResult = clampStat(stat, left.apply(current))
+    const rightResult = clampStat(stat, right.apply(current))
+    return leftResult !== current
+      && rightResult !== current
+      && leftResult !== rightResult
+      && (stat !== 'hp' || leftResult > 0 || rightResult > 0)
+  }
+
   for (let attempt = 0; attempt < BALANCE.gates.maxRedraws; attempt += 1) {
     const left = drawGateOp(current, rng)
     const right = drawGateOp(current, rng)
-    const leftResult = clampStat(stat, left.apply(current))
-    const rightResult = clampStat(stat, right.apply(current))
-    if (leftResult !== rightResult && (stat !== 'hp' || leftResult > 0 || rightResult > 0)) return { left, right }
+    if (isValidPair(left, right)) return { left, right }
   }
+
+  const upWorks = clampStat(stat, current * 2) !== current
+  const downWorks = clampStat(stat, current / 2) !== current
+  if (upWorks !== downWorks) {
+    const direction: GateDirection = upWorks ? 'up' : 'down'
+    for (let attempt = 0; attempt < BALANCE.gates.maxRedraws; attempt += 1) {
+      const left = drawDirectionalOp(current, rng, direction)
+      const right = drawDirectionalOp(current, rng, direction)
+      if (isValidPair(left, right)) return { left, right }
+    }
+    // At integer bounds (notably GUNS 1), several different percentage and multiplier
+    // labels can round to the same value. Keep the choice real in that discrete case.
+    const sign = direction === 'up' ? 1 : -1
+    const left = { label: `${sign > 0 ? '+' : '−'}1`, apply: (value: number) => value + sign }
+    const right = { label: `${sign > 0 ? '+' : '−'}2`, apply: (value: number) => value + sign * 2 }
+    if (isValidPair(left, right)) return { left, right }
+  }
+
   return {
     left: { label: '+1', apply: (value) => value + 1 },
     right: { label: '−1', apply: (value) => value - 1 },
@@ -70,6 +118,8 @@ export class Gates {
   private readonly onStatsChanged: () => void
   private readonly rng: () => number
   private readonly pairs!: GatePair[]
+  private statBag: StatKey[]
+  private lastStat: StatKey | null
   private spawnAccumulatorMs!: number
   private nextSpawnDelayMs!: number
   private elapsedMs!: number
@@ -88,6 +138,8 @@ export class Gates {
     this.onStatsChanged = onStatsChanged
     this.rng = rng
     this.pairs = []
+    this.statBag = []
+    this.lastStat = null
     this.spawnAccumulatorMs = 0
     this.nextSpawnDelayMs = BALANCE.gates.firstSpawnDelayMs
     this.elapsedMs = 0
@@ -142,7 +194,7 @@ export class Gates {
       this.warnPoolExhausted()
       return
     }
-    const stat = pick<StatKey>(['hp', 'damage', 'shotsPerSec', 'projectiles', 'speed'], this.rng)
+    const stat = this.nextStat()
     const operations = drawGatePair(stat, this.runStats.get(stat), this.rng)
     const gateWidth = (this.scene.scale.width - BALANCE.gates.gapBetween) / 2
     const spawnY = -BALANCE.gates.gateHeight / 2
@@ -201,6 +253,24 @@ export class Gates {
 
   private statLabel(stat: StatKey): string {
     return { hp: 'TEAM', damage: 'DMG', shotsPerSec: 'RATE', projectiles: 'GUNS', speed: 'SPD' }[stat]
+  }
+
+  private nextStat(): StatKey {
+    if (this.statBag.length === 0) this.refillBag()
+    const stat = this.statBag.shift()
+    if (stat === undefined) throw new Error('Stat bag must not be empty after refill.')
+    this.lastStat = stat
+    return stat
+  }
+
+  private refillBag(): void {
+    const stats: StatKey[] = ['hp', 'damage', 'shotsPerSec', 'projectiles', 'speed']
+    for (let index = stats.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(this.rng() * (index + 1))
+      ;[stats[index], stats[swapIndex]] = [stats[swapIndex], stats[index]]
+    }
+    if (stats[0] === this.lastStat) [stats[0], stats[1]] = [stats[1], stats[0]]
+    this.statBag = stats
   }
 
   private warnPoolExhausted(): void {

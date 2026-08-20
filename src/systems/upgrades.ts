@@ -3,7 +3,9 @@ import { BALANCE } from '../config/balance'
 export type StatKey = 'hp' | 'damage' | 'shotsPerSec' | 'projectiles' | 'speed'
 
 export function clampStat(stat: StatKey, value: number): number {
-  const roundedValue = stat === 'hp' || stat === 'projectiles' || stat === 'speed' ? Math.round(value) : value
+  const roundedValue = stat === 'hp' || stat === 'projectiles' || stat === 'speed'
+    ? Math.round(value)
+    : Math.round(value * 10) / 10
   const { cap, floor } = BALANCE.stats[stat]
   return Math.min(cap, Math.max(floor, roundedValue))
 }

@@ -5,14 +5,16 @@ import type { RunStats } from './upgrades'
 export class Spawner {
   private readonly scene: Phaser.Scene
   private readonly runStats: RunStats
+  private readonly getSpawnRange: () => Readonly<{ min: number; max: number }>
   private readonly enemies: Phaser.Physics.Arcade.Group
   private spawnAccumulatorMs: number
   private elapsedMs: number
   private lastPoolWarningAtMs: number
 
-  public constructor(scene: Phaser.Scene, runStats: RunStats) {
+  public constructor(scene: Phaser.Scene, runStats: RunStats, getSpawnRange: () => Readonly<{ min: number; max: number }>) {
     this.scene = scene
     this.runStats = runStats
+    this.getSpawnRange = getSpawnRange
     this.enemies = scene.physics.add.group()
     this.spawnAccumulatorMs = 0
     this.elapsedMs = 0
@@ -83,7 +85,10 @@ export class Spawner {
       return
     }
     const halfWidth = enemy.displayWidth / 2
-    const x = Phaser.Math.Between(halfWidth, this.scene.scale.width - halfWidth)
+    const range = this.getSpawnRange()
+    const lo = Math.max(halfWidth, Math.round(range.min))
+    const hi = Math.max(lo, Math.min(this.scene.scale.width - halfWidth, Math.round(range.max)))
+    const x = Phaser.Math.Between(lo, hi)
     const y = -enemy.displayHeight / 2
     enemy.enableBody(true, x, y, true, true)
     enemy.setActive(true).setVisible(true).setAlpha(1).clearTint()

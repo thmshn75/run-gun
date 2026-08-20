@@ -33,7 +33,6 @@ export class GameScene extends Phaser.Scene {
   private hud!: HudSegments
   private insets!: SafeAreaInsets
   private gameOverStarted!: boolean
-  private lastShownSpeed!: number
   private lastCrowdSize!: number
 
   public constructor() {
@@ -47,7 +46,6 @@ export class GameScene extends Phaser.Scene {
     this.nextBlinkAtMs = 0
     this.lastPointerX = null
     this.gameOverStarted = false
-    this.lastShownSpeed = -1
     this.lastCrowdSize = -1
     this.insets = readSafeAreaInsets()
     this.cameras.main.setBackgroundColor(WORLD_COLORS.background)
@@ -55,7 +53,7 @@ export class GameScene extends Phaser.Scene {
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
     const getAnchorPosition = (): Readonly<{ x: number; y: number }> => ({ x: this.crowd.getAnchorX(), y: this.crowd.getAnchorY() })
     this.weapons = new Weapons(this, (maxShooters) => this.crowd.getShooterPositions(maxShooters), this.runStats)
-    this.spawner = new Spawner(this, this.runStats)
+    this.spawner = new Spawner(this, this.runStats, () => this.crowd.getAnchorRange())
     this.coins = new Coins(this, () => this.updateHud())
     this.gates = new Gates(this, this.runStats, getAnchorPosition, () => this.updateHud(), () => Phaser.Math.RND.frac())
     const panelX = this.insets.left + BALANCE.hud.padding
@@ -115,11 +113,6 @@ export class GameScene extends Phaser.Scene {
     this.crowd.update()
     this.weapons.update(dt)
     this.spawner.update(dt)
-    const speed = this.getSpdShown()
-    if (speed !== this.lastShownSpeed) {
-      this.lastShownSpeed = speed
-      this.updateHud()
-    }
     this.coins.update(dt, this.crowd.getAnchorX(), this.crowd.getAnchorY())
     this.gates.update(dt)
     if (this.runStats.get('hp') <= 0) {
@@ -185,7 +178,7 @@ export class GameScene extends Phaser.Scene {
     const shotsPerSec = Math.round(this.runStats.get('shotsPerSec') * 10) / 10
     this.hud.hp.setText(`TEAM ${this.runStats.get('hp')}`)
     this.hud.coins.setText(`¢ ${this.coins.getCount()}`)
-    this.hud.speed.setText(`SPD ${this.getSpdShown()}`)
+    this.hud.speed.setText(`SPD ${Math.round(this.runStats.get('speed'))}`)
     this.hud.damage.setText(`DMG ${damage}`)
     this.hud.rate.setText(`RATE ${shotsPerSec}`)
     this.hud.shots.setText(`GUNS ${this.runStats.get('projectiles')}`)
@@ -204,10 +197,6 @@ export class GameScene extends Phaser.Scene {
       BALANCE.crowd.damageMultiplierCap,
       1 + Math.max(0, crowdSize - BALANCE.crowd.shooters) * BALANCE.crowd.damagePerExtraFigure,
     )
-  }
-
-  private getSpdShown(): number {
-    return Math.max(1, Math.round(this.spawner.getEnemySpeed() - BALANCE.stats.speed.base))
   }
 
   private drawSafeAreaDebug(): void {

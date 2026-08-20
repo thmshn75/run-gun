@@ -8,6 +8,7 @@ export class Crowd {
   private readonly scene: Phaser.Scene
   private readonly members: FormationMember[]
   private readonly hull: Phaser.GameObjects.Zone
+  private readonly figureWidth: number
   private readonly figureHeight: number
   private anchorX: number
   private readonly anchorY: number
@@ -19,6 +20,7 @@ export class Crowd {
     this.members = []
 
     const firstSprite = scene.add.image(anchorX, anchorY, 'player')
+    this.figureWidth = firstSprite.displayWidth
     this.figureHeight = firstSprite.displayHeight
     const hullWidth = firstSprite.displayWidth * BALANCE.crowd.hullWidthFigures
     const hullHeight = firstSprite.displayHeight * BALANCE.crowd.hullHeightFigures
@@ -68,12 +70,13 @@ export class Crowd {
   }
 
   public setAnchorX(x: number): void {
-    const halfHullWidth = this.hull.width / 2
-    this.anchorX = Phaser.Math.Clamp(
-      x,
-      halfHullWidth + BALANCE.player.dragClampMargin,
-      this.scene.scale.width - halfHullWidth - BALANCE.player.dragClampMargin,
-    )
+    const range = this.getAnchorRange()
+    this.anchorX = Phaser.Math.Clamp(x, range.min, range.max)
+  }
+
+  public getAnchorRange(): Readonly<{ min: number; max: number }> {
+    const min = this.figureWidth * BALANCE.player.dragClampFigures + BALANCE.player.dragClampMargin
+    return { min, max: this.scene.scale.width - min }
   }
 
   public getAnchorX(): number {

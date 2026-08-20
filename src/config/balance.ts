@@ -6,6 +6,9 @@ export const BALANCE = {
     iframesMs: 1200,
     blinkIntervalMs: 100,
     dragClampMargin: 8,
+    // Bewegungsrand als Vielfaches der halben Figurenbreite — bewusst NICHT an die
+    // Kollisionshuelle gekoppelt (siehe Befund B1).
+    dragClampFigures: 0.5,
     anchorBottomOffset: 130,
   },
   stats: {
