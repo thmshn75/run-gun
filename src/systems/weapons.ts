@@ -111,9 +111,9 @@ export class Weapons {
       ;(projectile.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       const config = this.getWeaponConfig(projectile.getData('weapon') as WeaponKey)
       const leftOrRight = projectile.x + projectile.displayWidth / 2 < 0 || projectile.x - projectile.displayWidth / 2 > this.scene.scale.width
-      const aboveScreen = projectile.y + projectile.displayHeight / 2 < 0
+      const aboveHorizon = projectile.y + projectile.displayHeight / 2 < BALANCE.road.horizonY
       const outOfRange = config.rangePx > 0 && (projectile.getData('travelledPx') as number) >= config.rangePx
-      if (leftOrRight || aboveScreen || outOfRange) this.recycle(projectile)
+      if (leftOrRight || aboveHorizon || outOfRange) this.recycle(projectile)
     }
   }
 

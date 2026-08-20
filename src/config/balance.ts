@@ -3,6 +3,8 @@ export const BALANCE = {
   maxDeltaMs: 100,
   scrollSpeed: 180,
   road: {
+    horizonY: 150,
+    entryFadePx: 40,
     topWidthRatio: 0.46,
     bottomWidthRatio: 1,
     edgeLineWidth: 2,
@@ -28,6 +30,7 @@ export const BALANCE = {
     depth: 1,
   },
   layers: {
+    background: -1,
     road: 0,
     gameplay: 2,
   },
@@ -147,8 +150,8 @@ export const BALANCE = {
     // Must stay above 2x the roughly 1.4s visibility duration, or raise pools.gatePairs.
     spawnIntervalMs: 9000,
     firstSpawnDelayMs: 5000,
-    // Gate path is about player-Y + gate height = 754px; (180 + 360)px/s takes about 1.4s.
-    extraSpeed: 360,
+    // Gate path from the horizon to the player is about 564px; (180 + 227)px/s takes about 1.39s.
+    extraSpeed: 227,
     choiceFlashMs: 250,
     gateHeight: 70,
     gapBetween: 8,

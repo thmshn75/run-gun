@@ -10,11 +10,13 @@ export const STAT_COLORS: Record<StatKey, number> = {
 export const WEAPON_GATE_COLOR = 0xb18cff
 
 export const WORLD_COLORS = {
-  background: 0x10131d,
-  backgroundLine: 0x172033,
-  backgroundDot: 0x26344e,
-  road: 0x172033,
-  roadEdge: 0x34415d,
+  background: 0x2f7fd1,
+  skyTop: 0x2f7fd1,
+  skyHorizon: 0xbfe3f7,
+  horizonHaze: 0xdfeef8,
+  ground: 0x3f5a3a,
+  road: 0x4a4f57,
+  roadEdge: 0xe8ecf2,
   roadCenterLine: 0xd8e0ef,
   aimLine: 0xd8e0ef,
   projectileShell: 0xe8590c,

@@ -37,12 +37,34 @@ export class BootScene extends Phaser.Scene {
 
   public create(): void {
     this.createProjectileTextures()
+    this.createBackgroundTextures()
     this.createRoadTextures()
     this.createGateTexture()
     this.createCoinTexture()
     this.createAimLineTexture()
 
     this.scene.start('GameScene')
+  }
+
+  private createBackgroundTextures(): void {
+    const width = this.scale.width
+    const horizonY = BALANCE.road.horizonY
+    const graphics = this.add.graphics()
+    graphics.fillGradientStyle(
+      WORLD_COLORS.skyTop,
+      WORLD_COLORS.skyHorizon,
+      WORLD_COLORS.skyTop,
+      WORLD_COLORS.skyHorizon,
+    )
+    graphics.fillRect(0, 0, width, horizonY)
+    graphics.fillStyle(WORLD_COLORS.horizonHaze)
+    graphics.fillRect(0, horizonY - 12, width, 12)
+    graphics.generateTexture('sky', width, horizonY)
+    graphics.clear()
+    graphics.fillStyle(WORLD_COLORS.ground)
+    graphics.fillRect(0, 0, width, this.scale.height - horizonY)
+    graphics.generateTexture('ground', width, this.scale.height - horizonY)
+    graphics.destroy()
   }
 
   private createProjectileTextures(): void {
@@ -79,20 +101,21 @@ export class BootScene extends Phaser.Scene {
     const width = this.scale.width
     const height = this.scale.height
     const centerX = width / 2
-    const topHalfWidth = getRoadHalfWidth(width, height, 0)
+    const horizonY = BALANCE.road.horizonY
+    const topHalfWidth = getRoadHalfWidth(width, height, horizonY)
     const bottomHalfWidth = getRoadHalfWidth(width, height, height)
     const graphics = this.add.graphics()
     graphics.fillStyle(WORLD_COLORS.road)
     graphics.beginPath()
-    graphics.moveTo(centerX - topHalfWidth, 0)
-    graphics.lineTo(centerX + topHalfWidth, 0)
+    graphics.moveTo(centerX - topHalfWidth, horizonY)
+    graphics.lineTo(centerX + topHalfWidth, horizonY)
     graphics.lineTo(centerX + bottomHalfWidth, height)
     graphics.lineTo(centerX - bottomHalfWidth, height)
     graphics.closePath()
     graphics.fillPath()
     graphics.lineStyle(BALANCE.road.edgeLineWidth, WORLD_COLORS.roadEdge)
-    graphics.lineBetween(centerX - topHalfWidth, 0, centerX - bottomHalfWidth, height)
-    graphics.lineBetween(centerX + topHalfWidth, 0, centerX + bottomHalfWidth, height)
+    graphics.lineBetween(centerX - topHalfWidth, horizonY, centerX - bottomHalfWidth, height)
+    graphics.lineBetween(centerX + topHalfWidth, horizonY, centerX + bottomHalfWidth, height)
     graphics.generateTexture('road', width, height)
     graphics.clear()
     graphics.fillStyle(WORLD_COLORS.roadCenterLine)

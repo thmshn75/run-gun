@@ -299,7 +299,7 @@ export class GameScene extends Phaser.Scene {
     const startY = this.crowd.getAnchorY() - this.crowd.getFigureHeight() / 2
     this.aimLine
       .setPosition(this.crowd.getAnchorX(), startY)
-      .setDisplaySize(BALANCE.aim.widthPx, startY)
+      .setDisplaySize(BALANCE.aim.widthPx, startY - BALANCE.road.horizonY)
   }
 
   private getCrowdDamageMultiplier(): number {

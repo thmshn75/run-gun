@@ -215,12 +215,13 @@ export class Gates {
     }
     this.spawnCount += 1
     const isWeaponGate = this.spawnCount % BALANCE.gates.weaponGateEvery === 0
-    const spawnY = -BALANCE.gates.gateHeight / 2
+    const spawnY = BALANCE.road.horizonY
     pair.active = true
     pair.triggered = false
     pair.flashUntilMs = 0
     if (isWeaponGate) this.configureWeaponGate(pair, spawnY)
     else this.configureStatGate(pair, spawnY)
+    this.setPairAlpha(pair, 0)
     this.layoutPair(pair)
     pair.prevBottomY = spawnY + BALANCE.gates.gateHeight / 2
   }
@@ -262,6 +263,18 @@ export class Gates {
   private movePair(pair: GatePair, movement: number): void {
     pair.left.y += movement
     this.layoutPair(pair)
+    const alpha = Math.min(1, Math.max(0, (pair.left.y - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
+    this.setPairAlpha(pair, alpha)
+  }
+
+  private setPairAlpha(pair: GatePair, alpha: number): void {
+    pair.left.setAlpha(alpha)
+    pair.right.setAlpha(alpha)
+    pair.leftText.setAlpha(alpha)
+    pair.rightText.setAlpha(alpha)
+    pair.leftIcon.setAlpha(alpha)
+    pair.rightIcon.setAlpha(alpha)
+    pair.statLabel.setAlpha(alpha)
   }
 
   private layoutPair(pair: GatePair): void {

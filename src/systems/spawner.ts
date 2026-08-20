@@ -95,6 +95,7 @@ export class Spawner {
       if (!enemy.active) continue
       enemy.y += (enemySpeed * (enemy.getData('speedFactor') as number) * dt) / 1000
       enemy.x = this.scene.scale.width / 2 + (enemy.getData('lane') as number) * getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, enemy.y)
+      enemy.setAlpha(Math.min(1, Math.max(0, (enemy.y - BALANCE.road.horizonY) / BALANCE.road.entryFadePx)))
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       if ((enemy.getData('flashUntil') as number) <= this.elapsedMs) enemy.clearTint()
       if (enemy.y - enemy.displayHeight / 2 > this.scene.scale.height) this.recycle(enemy)
@@ -108,7 +109,7 @@ export class Spawner {
       return 'pool-exhausted'
     }
     enemy.setTexture(type.texture)
-    const y = -type.bodyHeight / 2
+    const y = BALANCE.road.horizonY
     const lane = chooseSpawnLane(
       this.getActiveLaneEnemies(),
       { ...type, y },
@@ -126,7 +127,7 @@ export class Spawner {
     // sprite each frame, making the visible enemy jump sideways.
     body.moves = false
     body.updateFromGameObject()
-    enemy.setActive(true).setVisible(true).setAlpha(1).clearTint()
+    enemy.setActive(true).setVisible(true).setAlpha(0).clearTint()
     enemy.setData('hp', type.hp)
     enemy.setData('speedFactor', type.speedFactor)
     enemy.setData('contactDamage', type.contactDamage)

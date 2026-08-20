@@ -4,7 +4,12 @@ import { BALANCE } from '../config/balance'
 export function getRoadHalfWidth(width: number, height: number, y: number): number {
   const topWidth = width * BALANCE.road.topWidthRatio
   const bottomWidth = width * BALANCE.road.bottomWidthRatio
-  return (topWidth + (bottomWidth - topWidth) * y / height) / 2
+  const progress = Phaser.Math.Clamp(
+    (y - BALANCE.road.horizonY) / (height - BALANCE.road.horizonY),
+    0,
+    1,
+  )
+  return (topWidth + (bottomWidth - topWidth) * progress) / 2
 }
 
 type CenterLineSegment = {
@@ -19,6 +24,8 @@ export class Road {
   public constructor(scene: Phaser.Scene) {
     this.scene = scene
     this.centerLines = []
+    scene.add.image(0, 0, 'sky').setOrigin(0).setDepth(BALANCE.layers.background)
+    scene.add.image(0, BALANCE.road.horizonY, 'ground').setOrigin(0).setDepth(BALANCE.layers.background)
     scene.add.image(0, 0, 'road').setOrigin(0).setDepth(BALANCE.layers.road)
     for (let index = 0; index < BALANCE.road.centerLine.segments; index += 1) {
       this.centerLines.push({
@@ -42,7 +49,7 @@ export class Road {
     const width = this.scene.scale.width
     const height = this.scene.scale.height
     for (const centerLine of this.centerLines) {
-      const y = height * centerLine.progress * centerLine.progress
+      const y = BALANCE.road.horizonY + (height - BALANCE.road.horizonY) * centerLine.progress * centerLine.progress
       const halfWidth = getRoadHalfWidth(width, height, y)
       centerLine.image
         .setPosition(width / 2, y)
