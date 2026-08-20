@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -131,3 +131,26 @@ der beim Schließen verschwindet — das wäre ein Fortschritt, der nur so tut a
 6. Nichts am sichtbaren Spiel hat sich verändert.
 
 Kriterium 3 und 4 prüft Claude am laufenden Spiel nach.
+
+
+## Review-Ergebnis (Claude)
+
+**Vitest musste Claude installieren.** Codex' Sandbox hat keinen Netzzugang (steht so in
+`docs/plan.md`); Codex hat den Status deshalb ehrlich auf `SPEC_READY` gelassen statt einen
+ungeprueften Lauf als fertig zu melden. Richtig so.
+
+- **Kriterium 2:** `npm test` gruen. Fuenf Testbloecke decken alle acht geforderten Faelle ab —
+  die Faelle stecken in Schleifen, unter anderem alle fuenf ungueltigen Eingaben (NaN,
+  negativ, Stufe 9, elf Eintraege, kaputter Eintrag).
+- **Kriterium 1 und 5:** `npm run check`, `npm run build` und `npm test` selbst im Terminal,
+  alle exit 0; im Buendel kein Testcode.
+- **Kriterium 3, am laufenden Spiel:** Vor dem Run kein Speicherstand. Nach einem Run mit Game
+  Over: Konto 21 Muenzen, ein Bestenlisten-Eintrag (21 Muenzen, Level 1, 73,8 s). Nach dem
+  Neuladen **bitgleich derselbe Stand**.
+- **Kriterium 4:** `rungun_save_v1` von Hand auf `{kaputt,,,` gesetzt, Seite neu geladen —
+  das Spiel startet normal, **kein einziger Seitenfehler**.
+- **Kriterium 6:** Am sichtbaren Spiel hat sich nichts geaendert.
+
+**Kleiner Nachziehpunkt fuer E5-4:** Die Laufzeit wird als `73784.69333340932` gespeichert.
+Funktioniert, ist aber unnoetig genau. Beim Anzeigen der Bestenliste auf ganze Sekunden runden
+und dann auch so ablegen.

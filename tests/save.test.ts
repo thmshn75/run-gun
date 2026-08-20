@@ -1,0 +1,99 @@
+import { afterEach, describe, expect, it } from 'vitest'
+import {
+  addScore,
+  defaultSave,
+  loadSave,
+  parseSave,
+  qualifiesForScores,
+  serializeSave,
+  writeSave,
+  type SaveData,
+} from '../src/systems/save'
+
+const SAVE_KEY = 'rungun_save_v1'
+
+class MemoryStorage implements Storage {
+  private readonly values = new Map<string, string>()
+
+  public get length(): number {
+    return this.values.size
+  }
+
+  public clear(): void {
+    this.values.clear()
+  }
+
+  public getItem(key: string): string | null {
+    return this.values.get(key) ?? null
+  }
+
+  public key(index: number): string | null {
+    return [...this.values.keys()][index] ?? null
+  }
+
+  public removeItem(key: string): void {
+    this.values.delete(key)
+  }
+
+  public setItem(key: string, value: string): void {
+    this.values.set(key, value)
+  }
+}
+
+const storage = new MemoryStorage()
+Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: storage })
+
+afterEach(() => storage.clear())
+
+describe('save system', () => {
+  it('returns defaults for empty and broken storage', () => {
+    expect(loadSave()).toEqual(defaultSave())
+    storage.setItem(SAVE_KEY, '{broken')
+    expect(loadSave()).toEqual(defaultSave())
+  })
+
+  it('round-trips a saved game', () => {
+    const save: SaveData = {
+      version: 1,
+      coins: 42,
+      upgrades: { team: 2, damage: 3, rate: 4 },
+      highestLevel: 5,
+      scores: [{ coins: 12, level: 2, timeMs: 3456 }],
+    }
+    writeSave(save)
+    expect(loadSave()).toEqual(save)
+    expect(parseSave(serializeSave(save))).toEqual({ ok: true, data: save })
+  })
+
+  it('rejects wrong versions and invalid numeric values', () => {
+    expect(parseSave(JSON.stringify({ ...defaultSave(), version: 2 }))).toEqual({ ok: false, reason: 'Spielstand stammt aus einer anderen Version.' })
+    for (const text of [
+      '{"version":1,"coins":NaN,"upgrades":{"team":0,"damage":0,"rate":0},"highestLevel":1,"scores":[]}',
+      JSON.stringify({ ...defaultSave(), coins: -5 }),
+      JSON.stringify({ ...defaultSave(), upgrades: { team: 9, damage: 0, rate: 0 } }),
+      JSON.stringify({ ...defaultSave(), scores: Array.from({ length: 11 }, () => ({ coins: 1, level: 1, timeMs: 1 })) }),
+      JSON.stringify({ ...defaultSave(), scores: [{ coins: 1, level: 1, timeMs: -1 }] }),
+    ]) expect(parseSave(text).ok).toBe(false)
+  })
+
+  it('drops unknown fields from valid imports', () => {
+    const result = parseSave(JSON.stringify({ ...defaultSave(), unexpected: 'discard me' }))
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.data).not.toHaveProperty('unexpected')
+  })
+
+  it('keeps the ten best scores without mutating its input', () => {
+    const full = {
+      ...defaultSave(),
+      scores: Array.from({ length: 10 }, (_value, index) => ({ coins: 10 - index, level: 1, timeMs: index })),
+    }
+    const original = structuredClone(full)
+    const better = addScore(full, { coins: 20, level: 2, timeMs: 100 })
+    expect(better.scores[0]).toEqual({ coins: 20, level: 2, timeMs: 100 })
+    expect(better.scores).toHaveLength(10)
+    expect(full).toEqual(original)
+    expect(addScore(full, { coins: 0, level: 1, timeMs: 1 })).toEqual(full)
+    expect(qualifiesForScores(full, 11)).toBe(true)
+    expect(qualifiesForScores(full, 0)).toBe(false)
+  })
+})

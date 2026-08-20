@@ -6,6 +6,7 @@ import { Crowd } from '../systems/crowd'
 import { Gates } from '../systems/gates'
 import { Road } from '../systems/road'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
+import { addScore, loadSave, writeSave } from '../systems/save'
 import { Spawner } from '../systems/spawner'
 import { RunStats } from '../systems/upgrades'
 import { Weapons, type WeaponKey } from '../systems/weapons'
@@ -83,6 +84,10 @@ export class GameScene extends Phaser.Scene {
 
   public create(): void {
     this.runStats = new RunStats()
+    const save = loadSave()
+    this.runStats.set('hp', this.runStats.get('hp') + save.upgrades.team)
+    this.runStats.set('damage', this.runStats.get('damage') + save.upgrades.damage * 0.5)
+    this.runStats.set('shotsPerSec', this.runStats.get('shotsPerSec') + save.upgrades.rate * 0.3)
     this.elapsedMs = 0
     this.iframeUntilMs = 0
     this.nextBlinkAtMs = 0
@@ -254,7 +259,11 @@ export class GameScene extends Phaser.Scene {
   private triggerGameOver(): void {
     if (this.gameOverStarted) return
     this.gameOverStarted = true
-    this.scene.start('GameOverScene', { coins: this.coins.getCount() })
+    const runCoins = this.coins.getCount()
+    const saved = loadSave()
+    const withScore = addScore(saved, { coins: runCoins, level: 1, timeMs: this.elapsedMs })
+    writeSave({ ...withScore, coins: withScore.coins + runCoins, highestLevel: Math.max(withScore.highestLevel, 1) })
+    this.scene.start('GameOverScene', { coins: runCoins })
   }
 
   private updateIframes(): void {
