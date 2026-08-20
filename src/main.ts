@@ -5,6 +5,7 @@ import { BALANCE } from './config/balance'
 import { BootScene } from './scenes/BootScene'
 import { GameOverScene } from './scenes/GameOverScene'
 import { GameScene } from './scenes/GameScene'
+import { MenuScene } from './scenes/MenuScene'
 
 const hadController = navigator.serviceWorker?.controller != null
 let pendingReload = false
@@ -60,7 +61,7 @@ const game = new Phaser.Game({
       debug: BALANCE.debug,
     },
   },
-  scene: [BootScene, GameScene, GameOverScene],
+  scene: [BootScene, MenuScene, GameScene, GameOverScene],
 })
 
 game.canvas.addEventListener('contextmenu', (event) => event.preventDefault())

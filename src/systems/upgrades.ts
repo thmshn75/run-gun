@@ -1,6 +1,36 @@
 import { BALANCE } from '../config/balance'
+import type { SaveData } from './save'
 
 export type StatKey = 'hp' | 'damage' | 'shotsPerSec' | 'speed'
+export type ShopUpgradeKey = 'team' | 'damage' | 'rate'
+
+const shopKeys: readonly ShopUpgradeKey[] = ['team', 'damage', 'rate']
+
+export function getShopUpgradeKeys(): readonly ShopUpgradeKey[] {
+  return shopKeys
+}
+
+export function getUpgradePrice(_key: ShopUpgradeKey, level: number): number | undefined {
+  if (level < 0 || level >= BALANCE.upgradesShop.prices.length) return undefined
+  return BALANCE.upgradesShop.prices[level]
+}
+
+export function getUpgradeStartValue(key: ShopUpgradeKey, level: number): number {
+  const config = BALANCE.upgradesShop[key]
+  return config.base + config.effectPerLevel * level
+}
+
+export function purchaseUpgrade(save: SaveData, key: ShopUpgradeKey): SaveData | undefined {
+  const level = save.upgrades[key]
+  const price = getUpgradePrice(key, level)
+  if (price === undefined || save.coins < price) return undefined
+  return {
+    ...save,
+    coins: save.coins - price,
+    upgrades: { ...save.upgrades, [key]: level + 1 },
+    scores: save.scores.map((score) => ({ ...score })),
+  }
+}
 
 export function clampStat(stat: StatKey, value: number): number {
   const roundedValue = stat === 'hp' || stat === 'speed'

@@ -60,3 +60,17 @@ export const HUD_COLORS = {
   bossOverlayText: 0xffffff,
   textDark: '#0b0f18',
 } as const
+
+export const MENU_COLORS = {
+  title: 0xffffff,
+  text: 0xdaf6ff,
+  mutedText: 0x8290a8,
+  row: 0x101827,
+  rowStroke: 0x536480,
+  button: 0xdc563e,
+  buttonStroke: 0xffc078,
+  disabledButton: 0x3d4654,
+  disabledStroke: 0x657185,
+  levelFilled: 0xffd84c,
+  levelEmpty: 0x4d596d,
+} as const

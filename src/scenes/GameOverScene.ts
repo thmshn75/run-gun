@@ -31,14 +31,14 @@ export class GameOverScene extends Phaser.Scene {
       fontSize: '22px',
       color: `#${HUD_COLORS.coins.toString(16).padStart(6, '0')}`,
     }).setOrigin(0.5)
-    this.add.text(centerX, centerY + 92, 'Tippen für Neustart', {
+    this.add.text(centerX, centerY + 92, 'Tippen für Menü', {
       fontFamily: 'system-ui',
       fontSize: '20px',
       color: '#daf6ff',
     }).setOrigin(0.5)
     this.input.on('pointerdown', () => {
       if (this.elapsedMs < BALANCE.feedback.gameOverRestartDelayMs) return
-      this.scene.start('GameScene')
+      this.scene.start('MenuScene')
     })
   }
 

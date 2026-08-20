@@ -9,6 +9,7 @@ import {
   writeSave,
   type SaveData,
 } from '../src/systems/save'
+import { getUpgradePrice, getUpgradeStartValue, purchaseUpgrade } from '../src/systems/upgrades'
 
 const SAVE_KEY = 'rungun_save_v1'
 
@@ -95,5 +96,25 @@ describe('save system', () => {
     expect(addScore(full, { coins: 0, level: 1, timeMs: 1 })).toEqual(full)
     expect(qualifiesForScores(full, 11)).toBe(true)
     expect(qualifiesForScores(full, 0)).toBe(false)
+  })
+
+  it('buys exactly one upgrade level and persists it across a reload', () => {
+    const save = { ...defaultSave(), coins: 170 }
+    const bought = purchaseUpgrade(save, 'team')
+    expect(bought).toEqual({ ...save, coins: 120, upgrades: { team: 1, damage: 0, rate: 0 } })
+    expect(save).toEqual({ ...defaultSave(), coins: 170 })
+    if (bought === undefined) throw new Error('Expected purchase to succeed')
+    writeSave(bought)
+    expect(loadSave()).toEqual(bought)
+    expect(getUpgradeStartValue('team', bought.upgrades.team)).toBe(4)
+    expect(getUpgradeStartValue('damage', 5)).toBe(3.5)
+    expect(getUpgradeStartValue('rate', 5)).toBe(5)
+  })
+
+  it('does not buy an unaffordable or fully upgraded shop item', () => {
+    expect(getUpgradePrice('damage', 0)).toBe(50)
+    expect(getUpgradePrice('damage', 5)).toBeUndefined()
+    expect(purchaseUpgrade({ ...defaultSave(), coins: 49 }, 'damage')).toBeUndefined()
+    expect(purchaseUpgrade({ ...defaultSave(), coins: 9999, upgrades: { team: 5, damage: 0, rate: 0 } }, 'team')).toBeUndefined()
   })
 })

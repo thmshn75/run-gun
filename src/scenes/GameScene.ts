@@ -9,7 +9,7 @@ import { getRoadHalfWidth, Road } from '../systems/road'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { addScore, loadSave, writeSave } from '../systems/save'
 import { Spawner } from '../systems/spawner'
-import { RunStats } from '../systems/upgrades'
+import { getUpgradeStartValue, RunStats } from '../systems/upgrades'
 import { Weapons, type WeaponKey } from '../systems/weapons'
 
 interface HudSegments {
@@ -98,9 +98,9 @@ export class GameScene extends Phaser.Scene {
   public create(): void {
     this.runStats = new RunStats()
     const save = loadSave()
-    this.runStats.set('hp', this.runStats.get('hp') + save.upgrades.team)
-    this.runStats.set('damage', this.runStats.get('damage') + save.upgrades.damage * 0.5)
-    this.runStats.set('shotsPerSec', this.runStats.get('shotsPerSec') + save.upgrades.rate * 0.3)
+    this.runStats.set('hp', getUpgradeStartValue('team', save.upgrades.team))
+    this.runStats.set('damage', getUpgradeStartValue('damage', save.upgrades.damage))
+    this.runStats.set('shotsPerSec', getUpgradeStartValue('rate', save.upgrades.rate))
     this.elapsedMs = 0
     this.iframeUntilMs = 0
     this.nextBlinkAtMs = 0

@@ -4,6 +4,7 @@ import enemyBossUrl from '../assets/enemy-boss.png'
 import enemyLightUrl from '../assets/enemy-light.png'
 import enemyStandardUrl from '../assets/enemy-standard.png'
 import playerUrl from '../assets/player.png'
+import titleUrl from '../assets/title.png'
 import weaponLaserGateUrl from '../assets/weapon-laser-gate.png'
 import weaponLaserHudUrl from '../assets/weapon-laser-hud.png'
 import weaponNormalGateUrl from '../assets/weapon-normal-gate.png'
@@ -23,6 +24,7 @@ export class BootScene extends Phaser.Scene {
 
   public preload(): void {
     this.load.image('player', playerUrl)
+    this.load.image('title', titleUrl)
     this.load.image('enemy-light', enemyLightUrl)
     this.load.image('enemy-standard', enemyStandardUrl)
     this.load.image('enemy-heavy', enemyHeavyUrl)
@@ -44,7 +46,7 @@ export class BootScene extends Phaser.Scene {
     this.createGateTexture()
     this.createCoinTexture()
 
-    this.scene.start('GameScene')
+    this.scene.start('MenuScene')
   }
 
   private createBackgroundTextures(): void {

@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -119,6 +119,8 @@ vor und nach einem Neuladen. Ob das Bild gefällt, entscheidet Thomas.
   beziehen ihre Werte nun zentral aus `balance.ts`.
 - Kauf- und Speicherlogik mit zwei zusätzlichen Vitest-Fällen für Preis, Maximalstufe und
   Neuladen abgedeckt. `npm run check`, `npm run build` und `npm test` sind grün.
+- Nacharbeit: Der Mittelpunkt des SPIELEN-Knopfs wird mit `safeLeft + safeWidth / 2`
+  übergeben; `addButton()` benennt seinen Mittelpunkt nun ausdrücklich als `centerX`/`centerY`.
 
 
 ---
@@ -157,3 +159,28 @@ beim Lesen auf.
     rechte Kante ≤ `safeLeft + safeWidth`. Die Beschriftung ist vollständig lesbar.
 12. Die KAUFEN-Knöpfe liegen weiterhin vollständig innerhalb ihrer Zeile.
 13. Die Parameter von `addButton()` heissen so, dass die Bedeutung beim Aufruf erkennbar ist.
+
+
+## Review-Ergebnis nach der Nacharbeit (Claude, am laufenden Spiel gemessen)
+
+Alle dreizehn Kriterien erfuellt.
+
+- **Kriterium 11 (Nacharbeit):** Der SPIELEN-Knopf liegt jetzt vollstaendig im Bild und ist
+  vollstaendig lesbar. `addButton()` heisst seine Parameter `centerX` / `centerY` und traegt
+  einen Kommentar dazu — ein Aufrufer, der eine Kante uebergibt, faellt beim Lesen auf.
+- **Kriterium 1 und 2:** Das Spiel startet im Menue. Nach dem Tod zeigt Game Over die Muenzen
+  des Runs und „Tippen fuer Menue"; danach steht im Menue `KONTO ¢ 23`.
+- **Kriterium 4 und 5:** Kauf gemessen: Konto 200 → 150, Truppe 0 → 1, Anzeige danach
+  `4 / 8` mit naechstem Preis 120. Nach dem Neuladen unveraendert vorhanden.
+- **Kriterium 4 (zu wenig Muenzen):** Bei 60 Muenzen und Preis 120 ist der Knopf gedaempft;
+  ein Klick darauf liess den Speicherstand **bitgleich**.
+- **Kriterium 6:** Auf der letzten Stufe `8 / 8`, alle Punkte gefuellt, `MAX` statt Preis,
+  kein Knopf.
+- **Kriterium 7:** Ein Run nach dem Kauf aller Stufen startet mit `TEAM 8`, `DMG 3.5`,
+  `RATE 5` — genau Grundwert plus fuenf Stufen.
+- **Kriterium 9:** Null DOM-Elemente neben dem Canvas.
+- **Kriterium 10:** `npm run check`, `npm run build`, `npm test` selbst im Terminal, alle
+  exit 0; sieben Tests, davon zwei neue fuer die Kauflogik ueber die Spec hinaus.
+
+**Titelbild:** 390 × 844 px aus einer 941 × 1672-Vorlage, ohne ein Wort Text. Die dunkle
+untere Haelfte ist die geforderte ruhige Zone.

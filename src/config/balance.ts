@@ -35,6 +35,24 @@ export const BALANCE = {
     shotsPerSec: { base: 3.5, cap: 8, floor: 1 },
     speed: { base: 105, cap: 305, floor: 70 },
   },
+  upgradesShop: {
+    team: { label: 'TRUPPE', base: 3, max: 8, effectPerLevel: 1 },
+    damage: { label: 'SCHADEN', base: 1, max: 3.5, effectPerLevel: 0.5 },
+    rate: { label: 'FEUERRATE', base: 3.5, max: 5, effectPerLevel: 0.3 },
+    prices: [50, 120, 250, 450, 750],
+  },
+  menu: {
+    overlayAlpha: 0.45,
+    sidePadding: 18,
+    topPadding: 18,
+    titleY: 48,
+    balanceY: 100,
+    rowStartY: 230,
+    rowHeight: 76,
+    rowGap: 10,
+    playButtonHeight: 54,
+    playButtonBottom: 20,
+  },
   weapon: {
     normal: {
       rateFactor: 1,
