@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -375,7 +375,32 @@ Problem strukturell (Encounter-/Gate-Design) — dann Design-Entscheidung mit
 Thomas statt endlosem Zahlendrehen.
 
 ## Implementation Summary
-_Wird von Codex ausgefüllt nach IMPL_DONE._
+E3 umgesetzt: `RunStats` mit zentralem `clampStat`, zustandsabhängige gepoolte Tore
+mit injizierbarem RNG, Flash und Sackgassen-Schutz, gepoolte Magnet-Coins sowie
+Run-Stat-gebundene Feuerrate, Schaden und zentrierter Projektil-Fächer. GameScene
+integriert den gemeinsamen Game-Over-Pfad, HUD (`HP`/Coins), Coin-Drops nur bei
+Kills und den vorgegebenen Update-Ablauf; Boot/GameOver und `balance.ts` sind für
+die neuen Runtime-Texturen, Anzeige und entschärften Gegnerwerte ergänzt.
+
+Testergebnisse: `npm run check` erfolgreich (Exit 0, `tsc --noEmit`); `npm run build`
+erfolgreich (Exit 0, 20 Module, PWA-Precache mit 6 Einträgen). Der Build meldet nur
+die bestehende Vite-Hinweiswarnung zum 1.218-kB-JavaScript-Chunk, kein Fehler.
+
+Nicht prüfbar: die iPhone-Gamefeel-Kriterien (2–3-Minuten-Run, Tor-Entscheidungen,
+Gegnerdichte) benötigen den Deploy und Thomas' Gerätetest; es wurde kein Browser,
+kein Netz-Zugriff und kein neuer Test-Runner verwendet.
 
 ## Review Notes
-_Wird von Claude nach Review ausgefüllt._
+Review 2026-08-20 (Claude): bestanden.
+- Alle drei neuen Module vollständig gelesen (`upgrades.ts`, `gates.ts`, `coins.ts`),
+  Diffs aller geänderten Dateien gegen die Akzeptanzkriterien geprüft.
+- Kernpunkte verifiziert: `clampStat` einzige Clamp-/Rundungsstelle; Tore/Coins ohne
+  Arcade-Bodies (Flanken- bzw. Distanz-Check); Update-Reihenfolge Coins → Gates →
+  HP-Check mit sofortigem return; `triggerGameOver` mit Guard-Flag; Coin nur bei Kill
+  via `damage()`-Rückgabewert; Flash vor Recycling; prevBottomY-Reset beim Spawn;
+  Sackgassen-Schutz; Magnet-Schritt auf Restdistanz geclampt; Tor-Textur in
+  Zielgröße gezeichnet; Fächer schrumpft symmetrisch.
+- Float-Verdacht Prozent-Labels geprüft (node): 0.2·100 = 20 exakt — Labels sauber.
+- Eigene Checks: greps auf destroy/create/addEvent/delayedCall und Alt-Referenzen
+  (fireRateMs/startHp/projectileDamage) leer; `npm run check` und `npm run build` grün.
+- Offen (per Definition): iPhone-Gamefeel-Test durch Thomas nach Deploy.

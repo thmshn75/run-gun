@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { BALANCE } from '../config/balance'
 
 export class BootScene extends Phaser.Scene {
   public constructor() {
@@ -10,6 +11,8 @@ export class BootScene extends Phaser.Scene {
     this.createProjectileTexture()
     this.createEnemyTexture()
     this.createBackgroundTexture()
+    this.createGateTexture()
+    this.createCoinTexture()
 
     this.scene.start('GameScene')
   }
@@ -53,6 +56,27 @@ export class BootScene extends Phaser.Scene {
     graphics.fillRect(8, 28, 4, 2)
     graphics.fillRect(42, 58, 4, 2)
     graphics.generateTexture('background-tile', 64, 64)
+    graphics.destroy()
+  }
+
+  private createGateTexture(): void {
+    const width = (this.scale.width - BALANCE.gates.gapBetween) / 2
+    const graphics = this.add.graphics()
+    graphics.fillStyle(0x574a9e, 0.82)
+    graphics.fillRect(0, 0, width, BALANCE.gates.gateHeight)
+    graphics.lineStyle(3, 0xc7bcff, 1)
+    graphics.strokeRect(1.5, 1.5, width - 3, BALANCE.gates.gateHeight - 3)
+    graphics.generateTexture('gate', width, BALANCE.gates.gateHeight)
+    graphics.destroy()
+  }
+
+  private createCoinTexture(): void {
+    const graphics = this.add.graphics()
+    graphics.fillStyle(0x5e4400)
+    graphics.fillCircle(7, 7, 7)
+    graphics.fillStyle(0xffd84c)
+    graphics.fillCircle(7, 7, 5)
+    graphics.generateTexture('coin', 14, 14)
     graphics.destroy()
   }
 }

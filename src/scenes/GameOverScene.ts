@@ -4,9 +4,14 @@ import { readSafeAreaInsets } from '../systems/safeArea'
 
 export class GameOverScene extends Phaser.Scene {
   private elapsedMs!: number
+  private coins!: number
 
   public constructor() {
     super('GameOverScene')
+  }
+
+  public init(data: Readonly<{ coins?: number }>): void {
+    this.coins = data.coins ?? 0
   }
 
   public create(): void {
@@ -20,7 +25,12 @@ export class GameOverScene extends Phaser.Scene {
       fontSize: '42px',
       color: '#ff7b7b',
     }).setOrigin(0.5)
-    this.add.text(centerX, centerY + 52, 'Tippen für Neustart', {
+    this.add.text(centerX, centerY + 52, `Coins: ${this.coins}`, {
+      fontFamily: 'system-ui',
+      fontSize: '22px',
+      color: '#f9dc65',
+    }).setOrigin(0.5)
+    this.add.text(centerX, centerY + 92, 'Tippen für Neustart', {
       fontFamily: 'system-ui',
       fontSize: '20px',
       color: '#daf6ff',

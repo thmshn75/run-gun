@@ -32,12 +32,16 @@ export class Spawner {
     enemy.setActive(false).setVisible(false)
   }
 
-  public damage(enemy: Phaser.Physics.Arcade.Image, damage: number, gameTimeMs: number): void {
+  public damage(enemy: Phaser.Physics.Arcade.Image, damage: number, gameTimeMs: number): boolean {
     const remainingHp = (enemy.getData('hp') as number) - damage
     enemy.setData('hp', remainingHp)
     enemy.setTintFill(0xffffff)
     enemy.setData('flashUntil', gameTimeMs + BALANCE.feedback.hitFlashMs)
-    if (remainingHp <= 0) this.recycle(enemy)
+    if (remainingHp <= 0) {
+      this.recycle(enemy)
+      return true
+    }
+    return false
   }
 
   public update(dt: number): void {

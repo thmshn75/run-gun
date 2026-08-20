@@ -1,15 +1,22 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import type { RunStats } from './upgrades'
 
 export class Weapons {
   private readonly projectiles: Phaser.Physics.Arcade.Group
   private readonly getAnchorPosition: () => Readonly<{ x: number; y: number }>
+  private readonly runStats: RunStats
   private fireAccumulatorMs: number
   private lastPoolWarningAtMs: number
   private elapsedMs: number
 
-  public constructor(scene: Phaser.Scene, getAnchorPosition: () => Readonly<{ x: number; y: number }>) {
+  public constructor(
+    scene: Phaser.Scene,
+    getAnchorPosition: () => Readonly<{ x: number; y: number }>,
+    runStats: RunStats,
+  ) {
     this.getAnchorPosition = getAnchorPosition
+    this.runStats = runStats
     this.projectiles = scene.physics.add.group()
     this.fireAccumulatorMs = 0
     this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
@@ -35,8 +42,8 @@ export class Weapons {
   public update(dt: number): void {
     this.elapsedMs += dt
     this.fireAccumulatorMs += dt
-    while (this.fireAccumulatorMs >= BALANCE.weapon.fireRateMs) {
-      this.fireAccumulatorMs -= BALANCE.weapon.fireRateMs
+    while (this.fireAccumulatorMs >= 1000 / this.runStats.get('shotsPerSec')) {
+      this.fireAccumulatorMs -= 1000 / this.runStats.get('shotsPerSec')
       this.fire()
     }
 
@@ -50,20 +57,25 @@ export class Weapons {
   }
 
   private fire(): void {
-    const projectile = this.projectiles.getChildren().find((child) => !child.active) as Phaser.Physics.Arcade.Image | undefined
-    if (projectile === undefined) {
-      this.warnPoolExhausted()
-      return
-    }
+    const count = this.runStats.get('projectiles')
+    const offsets = Array.from({ length: count }, (_, index) => (index - (count - 1) / 2) * 12)
+      .sort((left, right) => Math.abs(left) - Math.abs(right))
+    const freeProjectiles = this.projectiles.getChildren()
+      .filter((child) => !child.active)
+      .slice(0, count) as Phaser.Physics.Arcade.Image[]
+    if (freeProjectiles.length < count) this.warnPoolExhausted()
     const anchor = this.getAnchorPosition()
-    projectile.enableBody(true, anchor.x, anchor.y, true, true)
-    projectile.setActive(true).setVisible(true).setAlpha(1).clearTint()
-    ;(projectile.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0)
+    for (let index = 0; index < freeProjectiles.length; index += 1) {
+      const projectile = freeProjectiles[index]
+      projectile.enableBody(true, anchor.x + offsets[index], anchor.y, true, true)
+      projectile.setActive(true).setVisible(true).setAlpha(1).clearTint()
+      ;(projectile.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0)
+    }
   }
 
   private warnPoolExhausted(): void {
     if (!import.meta.env.DEV || this.elapsedMs - this.lastPoolWarningAtMs < BALANCE.feedback.poolWarningIntervalMs) return
-    console.warn('Projectile pool exhausted; shot skipped.')
+    console.warn('Projectile pool exhausted; fan shrank.')
     this.lastPoolWarningAtMs = this.elapsedMs
   }
 }

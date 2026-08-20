@@ -1,8 +1,11 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import { Coins } from '../systems/coins'
 import { Crowd } from '../systems/crowd'
+import { Gates } from '../systems/gates'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { Spawner } from '../systems/spawner'
+import { RunStats } from '../systems/upgrades'
 import { Weapons } from '../systems/weapons'
 
 export class GameScene extends Phaser.Scene {
@@ -10,30 +13,37 @@ export class GameScene extends Phaser.Scene {
   private crowd!: Crowd
   private weapons!: Weapons
   private spawner!: Spawner
-  private hp!: number
+  private coins!: Coins
+  private gates!: Gates
+  private runStats!: RunStats
   private elapsedMs!: number
   private iframeUntilMs!: number
   private nextBlinkAtMs!: number
   private lastPointerX!: number | null
   private hud!: Phaser.GameObjects.Text
   private insets!: SafeAreaInsets
+  private gameOverStarted!: boolean
 
   public constructor() {
     super('GameScene')
   }
 
   public create(): void {
-    this.hp = BALANCE.player.startHp
+    this.runStats = new RunStats()
     this.elapsedMs = 0
     this.iframeUntilMs = 0
     this.nextBlinkAtMs = 0
     this.lastPointerX = null
+    this.gameOverStarted = false
     this.insets = readSafeAreaInsets()
     this.cameras.main.setBackgroundColor('#10131d')
     this.background = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'background-tile').setOrigin(0, 0)
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
-    this.weapons = new Weapons(this, () => ({ x: this.crowd.getAnchorX(), y: this.crowd.getAnchorY() }))
+    const getAnchorPosition = (): Readonly<{ x: number; y: number }> => ({ x: this.crowd.getAnchorX(), y: this.crowd.getAnchorY() })
+    this.weapons = new Weapons(this, getAnchorPosition, this.runStats)
     this.spawner = new Spawner(this)
+    this.coins = new Coins(this, () => this.updateHud())
+    this.gates = new Gates(this, this.runStats, getAnchorPosition, () => this.updateHud(), () => Phaser.Math.RND.frac())
     this.hud = this.add.text(this.insets.left + BALANCE.feedback.hudPadding, this.insets.top + BALANCE.feedback.hudPadding, '', {
       fontFamily: 'system-ui',
       fontSize: '24px',
@@ -62,6 +72,12 @@ export class GameScene extends Phaser.Scene {
     this.crowd.update()
     this.weapons.update(dt)
     this.spawner.update(dt)
+    this.coins.update(dt, this.crowd.getAnchorX(), this.crowd.getAnchorY())
+    this.gates.update(dt)
+    if (this.runStats.get('hp') <= 0) {
+      this.triggerGameOver()
+      return
+    }
     this.updateIframes()
   }
 
@@ -81,18 +97,26 @@ export class GameScene extends Phaser.Scene {
 
   private handleProjectileHit(projectile: Phaser.Physics.Arcade.Image, enemy: Phaser.Physics.Arcade.Image): void {
     if (!projectile.active || !enemy.active) return
+    const enemyX = enemy.x
+    const enemyY = enemy.y
     this.weapons.recycle(projectile)
-    this.spawner.damage(enemy, BALANCE.weapon.projectileDamage, this.elapsedMs)
+    if (this.spawner.damage(enemy, this.runStats.get('damage'), this.elapsedMs)) this.coins.spawnAt(enemyX, enemyY)
   }
 
   private handlePlayerHit(enemy: Phaser.Physics.Arcade.Image): void {
     if (!enemy.active) return
     this.spawner.recycle(enemy)
-    this.hp -= 1
+    this.runStats.set('hp', this.runStats.get('hp') - 1)
     this.iframeUntilMs = this.elapsedMs + BALANCE.player.iframesMs
     this.nextBlinkAtMs = this.elapsedMs
     this.updateHud()
-    if (this.hp <= 0) this.scene.start('GameOverScene')
+    if (this.runStats.get('hp') <= 0) this.triggerGameOver()
+  }
+
+  private triggerGameOver(): void {
+    if (this.gameOverStarted) return
+    this.gameOverStarted = true
+    this.scene.start('GameOverScene', { coins: this.coins.getCount() })
   }
 
   private updateIframes(): void {
@@ -107,7 +131,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateHud(): void {
-    this.hud.setText(`HP ${this.hp}`)
+    this.hud.setText(`HP ${this.runStats.get('hp')}   ¢ ${this.coins.getCount()}`)
   }
 
   private drawSafeAreaDebug(): void {
