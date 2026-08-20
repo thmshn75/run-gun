@@ -34,6 +34,7 @@ export class GameScene extends Phaser.Scene {
   private insets!: SafeAreaInsets
   private gameOverStarted!: boolean
   private lastShownSpeed!: number
+  private lastCrowdSize!: number
 
   public constructor() {
     super('GameScene')
@@ -47,12 +48,13 @@ export class GameScene extends Phaser.Scene {
     this.lastPointerX = null
     this.gameOverStarted = false
     this.lastShownSpeed = -1
+    this.lastCrowdSize = -1
     this.insets = readSafeAreaInsets()
     this.cameras.main.setBackgroundColor(WORLD_COLORS.background)
     this.background = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'background-tile').setOrigin(0, 0)
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
     const getAnchorPosition = (): Readonly<{ x: number; y: number }> => ({ x: this.crowd.getAnchorX(), y: this.crowd.getAnchorY() })
-    this.weapons = new Weapons(this, getAnchorPosition, this.runStats)
+    this.weapons = new Weapons(this, (maxShooters) => this.crowd.getShooterPositions(maxShooters), this.runStats)
     this.spawner = new Spawner(this, this.runStats)
     this.coins = new Coins(this, () => this.updateHud())
     this.gates = new Gates(this, this.runStats, getAnchorPosition, () => this.updateHud(), () => Phaser.Math.RND.frac())
@@ -88,6 +90,8 @@ export class GameScene extends Phaser.Scene {
       speed: this.add.text(panelX + colW * 3.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.speed) }).setOrigin(0.5, 0),
     }
     Object.values(this.hud).forEach((text) => text.setDepth(BALANCE.hud.depthText))
+    this.crowd.setSize(this.runStats.get('hp'))
+    this.lastCrowdSize = this.runStats.get('hp')
     this.updateHud()
     this.enableRelativeDrag()
     this.physics.add.overlap(this.weapons.getProjectiles(), this.spawner.getEnemies(), (projectile, enemy) => {
@@ -144,13 +148,14 @@ export class GameScene extends Phaser.Scene {
     const enemyX = enemy.x
     const enemyY = enemy.y
     this.weapons.recycle(projectile)
-    if (this.spawner.damage(enemy, this.runStats.get('damage'), this.elapsedMs)) this.coins.spawnAt(enemyX, enemyY)
+    if (this.spawner.damage(enemy, this.runStats.get('damage') * this.getCrowdDamageMultiplier(), this.elapsedMs)) this.coins.spawnAt(enemyX, enemyY)
   }
 
   private handlePlayerHit(enemy: Phaser.Physics.Arcade.Image): void {
     if (!enemy.active) return
     this.spawner.recycle(enemy)
     this.runStats.set('hp', this.runStats.get('hp') - 1)
+    this.syncCrowdSize()
     this.iframeUntilMs = this.elapsedMs + BALANCE.player.iframesMs
     this.nextBlinkAtMs = this.elapsedMs
     this.updateHud()
@@ -175,14 +180,30 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateHud(): void {
+    this.syncCrowdSize()
     const damage = Math.round(this.runStats.get('damage') * 10) / 10
     const shotsPerSec = Math.round(this.runStats.get('shotsPerSec') * 10) / 10
-    this.hud.hp.setText(`HP ${this.runStats.get('hp')}`)
+    this.hud.hp.setText(`TEAM ${this.runStats.get('hp')}`)
     this.hud.coins.setText(`¢ ${this.coins.getCount()}`)
     this.hud.speed.setText(`SPD ${this.getSpdShown()}`)
     this.hud.damage.setText(`DMG ${damage}`)
     this.hud.rate.setText(`RATE ${shotsPerSec}`)
-    this.hud.shots.setText(`SHOTS ${this.runStats.get('projectiles')}`)
+    this.hud.shots.setText(`GUNS ${this.runStats.get('projectiles')}`)
+  }
+
+  private syncCrowdSize(): void {
+    const crowdSize = this.runStats.get('hp')
+    if (crowdSize === this.lastCrowdSize) return
+    this.crowd.setSize(crowdSize)
+    this.lastCrowdSize = crowdSize
+  }
+
+  private getCrowdDamageMultiplier(): number {
+    const crowdSize = this.runStats.get('hp')
+    return Math.min(
+      BALANCE.crowd.damageMultiplierCap,
+      1 + Math.max(0, crowdSize - BALANCE.crowd.shooters) * BALANCE.crowd.damagePerExtraFigure,
+    )
   }
 
   private getSpdShown(): number {

@@ -4,7 +4,7 @@ import type { RunStats } from './upgrades'
 
 export class Weapons {
   private readonly projectiles: Phaser.Physics.Arcade.Group
-  private readonly getAnchorPosition: () => Readonly<{ x: number; y: number }>
+  private readonly getShooterPositions: (maxShooters: number) => Array<{ x: number; y: number }>
   private readonly runStats: RunStats
   private fireAccumulatorMs: number
   private lastPoolWarningAtMs: number
@@ -12,10 +12,10 @@ export class Weapons {
 
   public constructor(
     scene: Phaser.Scene,
-    getAnchorPosition: () => Readonly<{ x: number; y: number }>,
+    getShooterPositions: (maxShooters: number) => Array<{ x: number; y: number }>,
     runStats: RunStats,
   ) {
-    this.getAnchorPosition = getAnchorPosition
+    this.getShooterPositions = getShooterPositions
     this.runStats = runStats
     this.projectiles = scene.physics.add.group()
     this.fireAccumulatorMs = 0
@@ -57,17 +57,16 @@ export class Weapons {
   }
 
   private fire(): void {
-    const count = this.runStats.get('projectiles')
-    const offsets = Array.from({ length: count }, (_, index) => (index - (count - 1) / 2) * 12)
-      .sort((left, right) => Math.abs(left) - Math.abs(right))
+    const shooterCount = Math.min(this.runStats.get('projectiles'), BALANCE.crowd.shooters)
+    const origins = this.getShooterPositions(shooterCount)
     const freeProjectiles = this.projectiles.getChildren()
       .filter((child) => !child.active)
-      .slice(0, count) as Phaser.Physics.Arcade.Image[]
-    if (freeProjectiles.length < count) this.warnPoolExhausted()
-    const anchor = this.getAnchorPosition()
+      .slice(0, origins.length) as Phaser.Physics.Arcade.Image[]
+    if (freeProjectiles.length < origins.length) this.warnPoolExhausted()
     for (let index = 0; index < freeProjectiles.length; index += 1) {
       const projectile = freeProjectiles[index]
-      projectile.enableBody(true, anchor.x + offsets[index], anchor.y, true, true)
+      const origin = origins[index]
+      projectile.enableBody(true, origin.x, origin.y, true, true)
       projectile.setActive(true).setVisible(true).setAlpha(1).clearTint()
       ;(projectile.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0)
     }

@@ -9,7 +9,7 @@ export const BALANCE = {
     anchorBottomOffset: 130,
   },
   stats: {
-    hp: { base: 3, cap: 20, floor: 0 },
+    hp: { base: 3, cap: 30, floor: 0 },
     damage: { base: 1, cap: 20, floor: 1 },
     shotsPerSec: { base: 3.5, cap: 8, floor: 1 },
     projectiles: { base: 1, cap: 5, floor: 1 },
@@ -17,6 +17,22 @@ export const BALANCE = {
   },
   weapon: {
     projectileSpeed: 640,
+  },
+  crowd: {
+    start: 3,
+    max: 30,
+    shooters: 5,
+    rowSpacingY: 14,
+    colSpacing: 24,
+    minColSpacing: 11,
+    // Formation width is the share of the playfield available to the widest row.
+    maxWidthRatio: 0.44,
+    bottomMargin: 8,
+    // The collision hull stays fixed instead of growing with the formation.
+    hullWidthFigures: 2.4,
+    hullHeightFigures: 1.6,
+    damagePerExtraFigure: 0.12,
+    damageMultiplierCap: 4,
   },
   enemy: {
     hp: 3,
@@ -68,10 +84,11 @@ export const BALANCE = {
     collectDistance: 24,
   },
   pools: {
-    // 8 shots/s cap x 5 projectiles cap x ((anchor-Y 714 - despawn-Y 0) / 640px/s = 1.12s) = 45; 64 leaves margin.
+    // 8 shots/s cap x 5 GUNS (shooter count) cap x ((anchor-Y 714 - despawn-Y 0) / 640px/s = 1.12s) = 45; 64 leaves margin.
     projectiles: 64,
     // Start: 844px / 105px/s ≈ 8.0s at 1600ms intervals ≈ 5; late game: 844px / 200px/s ≈ 4.2s at 450ms intervals ≈ 9.4; 20 remains ample.
     enemies: 20,
+    // Must be >= crowd.max because all figures are created once and then only shown or hidden.
     crowd: 30,
     // Max enemy kill rate is 1 / 0.45s; 844px / 180px/s = 4.7s coin visibility, so about 10.4; 20 remains enough (magnet collects faster).
     coins: 20,

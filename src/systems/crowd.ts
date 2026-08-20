@@ -1,12 +1,14 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import { computeFormation } from './formation'
 
-type FormationMember = Readonly<{ sprite: Phaser.GameObjects.Image; offsetX: number; offsetY: number }>
+type FormationMember = { readonly sprite: Phaser.GameObjects.Image; offsetX: number; offsetY: number; row: number }
 
 export class Crowd {
   private readonly scene: Phaser.Scene
   private readonly members: FormationMember[]
   private readonly hull: Phaser.GameObjects.Zone
+  private readonly figureHeight: number
   private anchorX: number
   private readonly anchorY: number
 
@@ -17,16 +19,16 @@ export class Crowd {
     this.members = []
 
     const firstSprite = scene.add.image(anchorX, anchorY, 'player')
-    const hullWidth = firstSprite.displayWidth
-    const hullHeight = firstSprite.displayHeight
+    this.figureHeight = firstSprite.displayHeight
+    const hullWidth = firstSprite.displayWidth * BALANCE.crowd.hullWidthFigures
+    const hullHeight = firstSprite.displayHeight * BALANCE.crowd.hullHeightFigures
     firstSprite.setActive(false).setVisible(false)
 
     for (let index = 0; index < BALANCE.pools.crowd; index += 1) {
       const sprite = index === 0 ? firstSprite : scene.add.image(anchorX, anchorY, 'player')
       sprite.setActive(false).setVisible(false)
-      this.members.push({ sprite, offsetX: 0, offsetY: 0 })
+      this.members.push({ sprite, offsetX: 0, offsetY: 0, row: 0 })
     }
-    this.members[0].sprite.setActive(true).setVisible(true).setAlpha(1)
 
     this.hull = scene.add.zone(anchorX, anchorY, hullWidth, hullHeight)
     scene.physics.add.existing(this.hull)
@@ -34,6 +36,35 @@ export class Crowd {
     body.setSize(hullWidth, hullHeight)
     body.setAllowGravity(false)
     this.update()
+  }
+
+  public setSize(count: number): void {
+    const size = Phaser.Math.Clamp(Math.floor(count), 0, BALANCE.crowd.max)
+    const slots = computeFormation(size, {
+      rowSpacingY: BALANCE.crowd.rowSpacingY,
+      colSpacing: BALANCE.crowd.colSpacing,
+      minColSpacing: BALANCE.crowd.minColSpacing,
+      maxWidth: this.scene.scale.width * BALANCE.crowd.maxWidthRatio,
+      maxDepth: this.scene.scale.height - this.anchorY - this.figureHeight / 2 - BALANCE.crowd.bottomMargin,
+    })
+
+    for (let index = 0; index < this.members.length; index += 1) {
+      const member = this.members[index]
+      const slot = slots[index]
+      if (slot === undefined) {
+        member.sprite.setActive(false).setVisible(false)
+        continue
+      }
+      member.offsetX = slot.offsetX
+      member.offsetY = slot.offsetY
+      member.row = slot.row
+      member.sprite
+        .setPosition(this.anchorX + slot.offsetX, this.anchorY + slot.offsetY)
+        .setDepth(slot.row)
+        .setActive(true)
+        .setVisible(true)
+        .setAlpha(1)
+    }
   }
 
   public setAnchorX(x: number): void {
@@ -61,6 +92,14 @@ export class Crowd {
     for (const member of this.members) {
       if (member.sprite.active) member.sprite.setAlpha(alpha)
     }
+  }
+
+  public getShooterPositions(maxShooters: number): Array<{ x: number; y: number }> {
+    return this.members
+      .filter((member) => member.sprite.active)
+      .sort((left, right) => left.row - right.row || Math.abs(left.offsetX) - Math.abs(right.offsetX) || left.offsetX - right.offsetX)
+      .slice(0, Math.max(0, Math.floor(maxShooters)))
+      .map((member) => ({ x: member.sprite.x, y: member.sprite.y }))
   }
 
   public update(): void {

@@ -5,261 +5,246 @@
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**Farbsystem vereinheitlichen, HUD neu aufteilen, SPD-Start senken, App-Icons neu bauen**
+**E4a — Truppe: Figurenzahl ersetzt die HP-Punkte, Formation, Schützen und Truppen-Schaden**
 
-Vier zusammenhängende Polish-Punkte nach Thomas' iPhone-Test. Kein neues Feature,
-keine Scope-Erweiterung — E3 bleibt E3.
-
-Diagnose, die dieser Task behebt:
-1. `SPD` steht im HUD grau (`#ced4da`), am Tor aber grün (`STAT_COLORS.speed`) —
-   dieselbe Stat in zwei Farben.
-2. `hp` (Rot `0xf03e3e`), `damage` (Orange `0xf76707`), Gegner (`0xdf4d66`) und die
-   rot-orangen Projektile (`0xe8590c`/`0xffc078`) liegen alle im gleichen warmen
-   Sektor — Tore verschwimmen mit Spielobjekten.
-3. Die Tor-Textur ist hellgrau (`0xcccccc`, Alpha 0.82) und wird getintet: das ergibt
-   eine helle Pastellfläche, während dieselbe Farbe im HUD voll gesättigt erscheint.
-   Zusätzlich steht weißer Text auf heller Fläche — schlecht lesbar.
-4. Das HUD hängt an festen Pixel-Offsets (`hudX + 112`, `+ 228`) in zwei Reihen oben
-   links, nutzt die Bildschirmbreite nicht und zeigt `SHOTS` gar nicht an.
+Erster von drei Teilen der Etappe E4 aus `docs/plan.md`. Dieser Task baut **nur** die
+eigene Truppe. Nicht Teil dieses Tasks:
+- **E4b** — die drei Zusatzwaffen (Schrot, Laser, Rakete) und die Waffen-Tore.
+- **E4c** — Gegner als Truppen. Wird erst nach Thomas' iPhone-Test von E4a entschieden.
+  Deshalb gilt für diesen Task die harte Auflage aus Anforderung 1: die Formationsrechnung
+  muss ohne jede Änderung auch von einem späteren Gegner-Modul nutzbar sein.
 
 ## Anforderungen
 
-### 1. Neue Datei `src/config/colors.ts` — eine Farbquelle für alles
+### 1. Neue Datei `src/systems/formation.ts` — reine Rechnung, keine Phaser-Abhängigkeit
 
-Alle Farben ziehen hierher um. Datei-Inhalt exakt so anlegen:
+Diese Datei darf **nichts** importieren außer `BALANCE` — kein Phaser, kein `crowd.ts`,
+keine Spieler-spezifische Annahme. Grund: E4c (Gegner-Truppen) soll dieselbe Funktion
+unverändert benutzen; jede Kopplung an den Spieler macht diesen Schritt später teuer.
 
 ```ts
-import type { StatKey } from '../systems/upgrades'
-
-export const STAT_COLORS: Record<StatKey, number> = {
-  hp: 0x3ddc84,
-  damage: 0xff9f45,
-  shotsPerSec: 0x34d1e0,
-  projectiles: 0xb78cff,
-  speed: 0xff4fa3,
+export interface FormationSlot {
+  readonly offsetX: number
+  readonly offsetY: number
+  readonly row: number
 }
 
-export const WORLD_COLORS = {
-  background: 0x10131d,
-  backgroundLine: 0x172033,
-  backgroundDot: 0x26344e,
-  enemyEdge: 0x501f2f,
-  enemyBody: 0xdf4d66,
-  projectileShell: 0xe8590c,
-  projectileCore: 0xffc078,
-  coinRim: 0x5e4400,
-  coinBody: 0xffd84c,
-  gateBase: 0xffffff,
-} as const
-
-export const HUD_COLORS = {
-  coins: 0xffd84c,
-  panel: 0x080b12,
-  panelStroke: 0x2a3550,
-  textDark: '#0b0f18',
-} as const
-```
-
-Der `import type` ist bewusst type-only: `upgrades.ts` importiert `colors.ts` zur
-Laufzeit, die Gegenrichtung existiert nur im Typsystem und wird wegkompiliert —
-kein Laufzeit-Zyklus. `Record<StatKey, number>` erzwingt, dass keine Stat vergessen wird.
-
-Warum diese fünf Stat-Farben: Gegner (Himbeerrot), Projektile (Orange) und Coins (Gelb)
-belegen den warmen Sektor. `hp` wandert deshalb von Rot auf Grün, `speed` (= Gegner-Tempo,
-je höher desto schlechter) auf Pink. `damage` bleibt bewusst warm und wird auf den hellen
-Projektil-Kernton abgestimmt — die Nähe zur Kugelfarbe ist ab jetzt gewollt statt zufällig.
-
-### 2. `src/systems/upgrades.ts` — `STAT_COLORS` entfernen
-
-Den `STAT_COLORS`-Block löschen und stattdessen `import { STAT_COLORS } from '../config/colors'`
-**nicht** hier ergänzen: `upgrades.ts` braucht die Farben selbst nicht. Stattdessen die beiden
-Konsumenten direkt auf die neue Datei umstellen:
-- `src/scenes/GameScene.ts`: `import { STAT_COLORS } from '../systems/upgrades'` → aus `'../config/colors'`;
-  `RunStats` weiter aus `'../systems/upgrades'`.
-- `src/systems/gates.ts`: `STAT_COLORS` aus `'../config/colors'`, `clampStat`/`RunStats`/`StatKey`
-  bleiben aus `'./upgrades'`.
-
-Danach darf `STAT_COLORS` in `src/systems/upgrades.ts` nicht mehr vorkommen.
-
-### 3. `src/scenes/BootScene.ts` — Hartcodierte Farben ersetzen
-
-Alle `graphics.fillStyle(0x...)`/`lineStyle`-Literale durch `WORLD_COLORS`-Werte ersetzen
-(Import aus `'../config/colors'`). Die Zeichenlogik selbst bleibt unverändert, **mit einer
-Ausnahme** — `createGateTexture()` wird neu:
-
-```ts
-private createGateTexture(): void {
-  const width = (this.scale.width - BALANCE.gates.gapBetween) / 2
-  const graphics = this.add.graphics()
-  graphics.fillStyle(WORLD_COLORS.gateBase, 0.2)
-  graphics.fillRect(0, 0, width, BALANCE.gates.gateHeight)
-  graphics.lineStyle(4, WORLD_COLORS.gateBase, 1)
-  graphics.strokeRect(2, 2, width - 4, BALANCE.gates.gateHeight - 4)
-  graphics.generateTexture('gate', width, BALANCE.gates.gateHeight)
-  graphics.destroy()
+export interface FormationOptions {
+  readonly rowSpacingY: number
+  readonly colSpacing: number
+  readonly minColSpacing: number
+  readonly maxWidth: number
 }
+
+export function computeFormation(count: number, options: FormationOptions): FormationSlot[]
 ```
 
-Grund: Phaser-Tint multipliziert die Texturfarbe. Eine **weiße** Basis ergibt getintet exakt
-die Stat-Farbe aus dem HUD — identische Farbe an beiden Orten. Die Fläche bleibt bei Alpha 0.2
-dunkel durchscheinend, nur der Rahmen leuchtet voll; damit wird der weiße Tortext wieder lesbar.
+Layout-Regeln:
+- Reihe `r` (0-basiert) fasst `r + 1` Plätze; gefüllt wird von vorne nach hinten, die
+  letzte Reihe darf unvollständig bleiben.
+- `offsetY = row * rowSpacingY`, positiv = **nach hinten** (im Bild nach unten, weg von den
+  anfliegenden Gegnern).
+- Plätze einer Reihe sind um `offsetX = 0` zentriert. Der Spaltenabstand einer Reihe ist
+  `Math.max(minColSpacing, Math.min(colSpacing, maxWidth / Math.max(1, plaetzeInReihe - 1)))`
+  — die Formation wird also **dichter, nicht breiter**, wenn die Truppe wächst.
+  Bei einer einzelnen Figur pro Reihe entfällt die Rechnung (offsetX = 0).
+- `count <= 0` liefert ein leeres Array. Gleiches `count` liefert immer dieselben Slots
+  (deterministisch, kein Zufall) — sonst zappelt die Formation bei jedem Neuaufbau.
 
-### 4. `src/systems/gates.ts` — Textkontrast
-
-Nur die beiden Textstile in `createPair()` ändern, sonst nichts:
-- `textStyle`: `color: '#ffffff'`, `stroke: HUD_COLORS.textDark`, `strokeThickness: 4`,
-  `fontStyle: 'bold'`, `fontSize` bleibt `'34px'`.
-- `statLabel`-Stil: `fontSize: '17px'`, `fontStyle: 'bold'`,
-  `stroke: HUD_COLORS.textDark`, `strokeThickness: 3`. Die Farbe wird weiterhin in `spawn()`
-  per `setColor(statColorCss)` gesetzt — diese Zeile bleibt unangetastet.
-
-Der Trefferblitz (`setTintFill(0xffffff)`) bleibt unverändert.
-
-### 5. `src/config/balance.ts` — neue `hud`-Sektion
-
-Neben `feedback` (bleibt, wird von `drawSafeAreaDebug` genutzt) eine neue Sektion ergänzen:
+### 2. `src/config/balance.ts` — neue `crowd`-Sektion
 
 ```ts
-hud: {
-  padding: 12,
-  panelHeight: 62,
-  panelRadius: 12,
-  panelAlpha: 0.55,
-  panelStrokeAlpha: 0.6,
-  sidePad: 14,
-  rowOneOffsetY: 9,
-  rowTwoOffsetY: 38,
-  primaryFontPx: 22,
-  statFontPx: 15,
-  depthPanel: 90,
-  depthText: 91,
+crowd: {
+  start: 3,
+  max: 30,
+  shooters: 5,
+  rowSpacingY: 18,
+  colSpacing: 24,
+  minColSpacing: 11,
+  // Formationsbreite: Anteil der Spielfeldbreite, den die breiteste Reihe belegen darf.
+  maxWidthRatio: 0.44,
+  // Kollisionshülle ist bewusst FIX und wächst nicht mit der Truppe (siehe Anforderung 3).
+  hullWidthFigures: 2.4,
+  hullHeightFigures: 1.6,
+  damagePerExtraFigure: 0.12,
+  damageMultiplierCap: 4,
 },
 ```
 
-### 6. `src/scenes/GameScene.ts` — HUD neu aufteilen
+Weiter ändern:
+- `stats.hp`: `{ base: 3, cap: 20, floor: 0 }` → `{ base: 3, cap: 30, floor: 0 }`.
+  Der HP-Wert **ist** ab jetzt die Truppengröße; `cap` muss exakt `crowd.max` entsprechen.
+- `pools.crowd`: bleibt `30`, Kommentar ergänzen: muss `>= crowd.max` sein, weil alle
+  Figuren einmalig im Konstruktor erzeugt und danach nur noch ein-/ausgeblendet werden.
 
-Das bisherige HUD (fünf Texte an festen Offsets, zwei Reihen links oben) wird ersetzt.
-Alle Positionen aus `this.scale.width` und den Safe-Area-Insets berechnen — **keine festen
-Pixel-Offsets mehr**, sonst bricht das Layout auf schmalen Geräten.
+### 3. `src/systems/crowd.ts` — Formation statt Einzelfigur
 
-Aufbau in `create()`:
-- `panelX = insets.left + BALANCE.hud.padding`,
-  `panelY = insets.top + BALANCE.hud.padding`,
-  `panelW = this.scale.width - insets.left - insets.right - 2 * BALANCE.hud.padding`,
-  `panelH = BALANCE.hud.panelHeight`.
-- Ein `this.add.graphics()` einmalig in `create()`: `fillStyle(HUD_COLORS.panel, BALANCE.hud.panelAlpha)`
-  + `fillRoundedRect(panelX, panelY, panelW, panelH, BALANCE.hud.panelRadius)`, dazu
-  `lineStyle(1, HUD_COLORS.panelStroke, BALANCE.hud.panelStrokeAlpha)` +
-  `strokeRoundedRect(...)`. `setDepth(BALANCE.hud.depthPanel)`.
-  Das Graphics-Objekt wird **einmal** gezeichnet, nie im `update()` — kein Neuzeichnen im Hot Path.
-- Zeile 1, `fontSize: BALANCE.hud.primaryFontPx`, `fontStyle: 'bold'`,
-  y = `panelY + BALANCE.hud.rowOneOffsetY`:
-  - `hp`: x = `panelX + BALANCE.hud.sidePad`, `setOrigin(0, 0)`, Farbe `STAT_COLORS.hp`
-  - `coins`: x = `panelX + panelW - BALANCE.hud.sidePad`, `setOrigin(1, 0)`, Farbe `HUD_COLORS.coins`
-    (identisch zum Coin-Sprite `WORLD_COLORS.coinBody` — beide `0xffd84c`)
-- Zeile 2, `fontSize: BALANCE.hud.statFontPx`, y = `panelY + BALANCE.hud.rowTwoOffsetY`,
-  vier gleich breite Spalten: `colW = panelW / 4`, Spalte `i` bei
-  x = `panelX + colW * (i + 0.5)`, `setOrigin(0.5, 0)`:
-  `DMG` (i=0), `RATE` (i=1), `SHOTS` (i=2), `SPD` (i=3), jeweils in ihrer Stat-Farbe.
-- Alle fünf Texte `setDepth(BALANCE.hud.depthText)` — Tore fahren durch den HUD-Bereich
-  und dürfen ihn nie überdecken.
+- Konstruktor erzeugt weiterhin **einmalig** `BALANCE.pools.crowd` Sprites (Pool-Regel:
+  kein `create()`/`destroy()` zur Laufzeit, nur `setActive`/`setVisible`).
+- Neue Methode `setSize(count: number): void`:
+  - `count` auf `[0, BALANCE.crowd.max]` klemmen.
+  - Slots über `computeFormation(count, { ... maxWidth: scene.scale.width * BALANCE.crowd.maxWidthRatio })`
+    holen und den ersten `count` Sprites zuweisen; die restlichen auf
+    `setActive(false).setVisible(false)`.
+  - Jeder aktive Sprite bekommt `setDepth(slot.row)` — hintere Reihen stehen weiter unten
+    und müssen die vorderen überlappen, sonst sieht die Formation flach aus.
+  - `setSize` wird **nicht** in `update()` gerufen, sondern nur wenn sich die Truppengröße
+    tatsächlich geändert hat (siehe Anforderung 5). Wird `setSize` mit unverändertem `count`
+    gerufen, darf es trotzdem korrekt durchlaufen (idempotent).
+- Die Kollisionshülle bleibt **fix**: Breite `figureWidth * BALANCE.crowd.hullWidthFigures`,
+  Höhe `figureHeight * BALANCE.crowd.hullHeightFigures`, zentriert auf dem Anker; sie wächst
+  **nicht** mit der Truppe. Grund: Eine mitwachsende Hülle würde jeden Zugewinn sofort
+  bestrafen — je besser der Run läuft, desto größer die Trefferfläche. Figuren am Rand der
+  Formation stehen damit sichtbar außerhalb der Trefferzone; das ist gewollt (Plan:
+  „Kollision gegen eine Box, nicht gegen N Boxen").
+- Neue Methode `getShooterPositions(maxShooters: number): Array<{ x: number; y: number }>`:
+  liefert die Weltkoordinaten der **vordersten** aktiven Figuren, höchstens `maxShooters`,
+  sortiert nach Reihe und dann nach Abstand zur Mitte. Bei Truppengröße 0 ein leeres Array.
+- `setFiguresAlpha` und `update()` bleiben in ihrer Logik unverändert (iFrames-Blinken gilt
+  weiterhin für alle aktiven Figuren).
+- `getAnchorX`/`getAnchorY`/`getHullBounds`/`setAnchorX` bleiben unverändert, damit Drag-Clamp
+  und Coin-Magnet nicht angefasst werden müssen.
 
-`HudSegments` bekommt das neue Feld `shots`. `updateHud()` setzt zusätzlich
-`this.hud.shots.setText(\`SHOTS ${this.runStats.get('projectiles')}\`)`.
-`SHOTS` war bisher bewusst ausgeblendet; mit vier Spalten ist Platz, und alle fünf Stats,
-die über Tore verändert werden, sind damit auch ablesbar.
+### 4. `src/systems/weapons.ts` — Schützen feuern, nicht der Anker
 
-`colorFor()` bleibt als Helfer erhalten (rechnet `number` → CSS-Hex) und wird auch für
-`HUD_COLORS.coins` benutzt, damit es nur eine Umrechnungsstelle gibt.
+- Der Konstruktor bekommt statt `getAnchorPosition` eine Funktion
+  `getShooterPositions: (maxShooters: number) => Array<{ x: number; y: number }>`.
+- In `fire()`: `const shooterCount = Math.min(this.runStats.get('projectiles'), BALANCE.crowd.shooters)`,
+  danach `const origins = this.getShooterPositions(shooterCount)`. Pro Origin **genau ein**
+  Projektil, gespawnt an der Position des Schützen. Der bisherige künstliche Fächer-Offset
+  (`(index - (count - 1) / 2) * 12`) entfällt ersatzlos — die Streuung entsteht jetzt aus den
+  Positionen der Figuren.
+- Damit ist die `SHOTS`-Stat ab sofort die **Schützenzahl**. Das ist die zentrale
+  Architekturentscheidung dieses Tasks: Die Projektilzahl pro Salve bleibt bei
+  `min(SHOTS, crowd.shooters)` und damit bei höchstens 5 — genau wie bei einer einzelnen
+  Figur. Würde stattdessen jede Figur einzeln feuern, wüchse die Projektilzahl linear mit der
+  Truppe und das iPhone bräche ein, sobald der Run gut läuft (Plan, Abschnitt „Truppe").
+- `BALANCE.pools.projectiles` bleibt deshalb bei 64; der Herleitungskommentar bleibt gültig
+  und muss nur um den Halbsatz ergänzt werden, dass `SHOTS` jetzt die Schützenzahl ist.
+- Ist die Truppe kleiner als `shooterCount`, feuern entsprechend weniger Figuren — kein
+  Sonderfall, das Array ist einfach kürzer. `warnPoolExhausted()` bleibt unverändert.
 
-`getSpdShown()` und die Update-Drossel (`lastShownSpeed`) bleiben unverändert.
+### 5. `src/scenes/GameScene.ts` — Truppengröße und Truppen-Schaden
 
-### 7. `src/config/balance.ts` — SPD-Start auf 70 %
+- Die `Weapons`-Instanz wird mit `(maxShooters) => this.crowd.getShooterPositions(maxShooters)`
+  konstruiert. Coins und Gates nutzen weiterhin die Ankerposition — nicht anfassen.
+- Nach `create()` einmal `this.crowd.setSize(this.runStats.get('hp'))` aufrufen.
+- Neue private Methode `syncCrowdSize()`: liest `runStats.get('hp')`, vergleicht mit einem
+  gemerkten `lastCrowdSize` und ruft `crowd.setSize()` **nur bei Änderung**. Aufgerufen wird
+  sie an genau den Stellen, an denen sich `hp` ändern kann: in `updateHud()` (das ist der
+  Callback, den Coins und Gates ohnehin auslösen) und in `handlePlayerHit()`.
+  Kein Aufruf im `update()`-Hot-Path.
+- Neue private Methode `getCrowdDamageMultiplier(): number`:
+  `Math.min(BALANCE.crowd.damageMultiplierCap, 1 + Math.max(0, crowdSize - BALANCE.crowd.shooters) * BALANCE.crowd.damagePerExtraFigure)`.
+  In `handleProjectileHit()` wird `this.runStats.get('damage') * this.getCrowdDamageMultiplier()`
+  an `spawner.damage()` übergeben. Damit zahlt jede Figur über der Schützenzahl auf den
+  Schaden ein statt auf die Projektilzahl — bei voller Truppe das Vierfache.
+- HUD: Das Label `HP` heißt jetzt `CREW` (`CREW ${runStats.get('hp')}`). Farbe, Position und
+  Layout bleiben unverändert.
 
-- `stats.speed.base`: `150` → `105` (70 % des bisherigen Startwerts)
-- `stats.speed.floor`: `100` → `70` (proportional mitgezogen; sonst läge der Boden fast auf
-  dem Startwert und SPD-Minus-Tore hätten keine Wirkung mehr)
-- `stats.speed.cap`: `350` → `305` (hält die HUD-Spanne bei 1–200, denn
-  `getSpdShown()` rechnet `enemySpeed − stats.speed.base`)
+### 6. `src/systems/gates.ts` — Torbeschriftung
 
-Der Kommentar über `pools.enemies` muss auf die neuen Zahlen nachgerechnet und angepasst
-werden: Gegner sind jetzt länger sichtbar (Startphase 844px / 105px/s ≈ 8,0s statt 5,6s).
-Gegenrechnung, die im Kommentar stehen soll: dichteste Phase ist die Startphase mit
-Spawn-Intervall 1600ms bei 8,0s Sichtbarkeit ≈ 5 gleichzeitig; im Spätspiel ≈ 200px/s bei
-450ms Intervall ≈ 9,4 gleichzeitig. Pool 20 bleibt ausreichend, **nicht** erhöhen.
+In `statLabel()` das Mapping `hp: 'HP'` auf `hp: 'CREW'` ändern. Sonst nichts: die
+Tor-Mathematik, die Operatoren und der 0-Schutz (`leftResult <= 0 && rightResult <= 0`)
+bleiben unangetastet — der Schutz greift jetzt sinngemäß als „nie beide Tore auf 0 Figuren".
 
-### 8. App-Icons neu bauen — `scripts/make-icons.py`
-
-Neues Skript (Python 3 + Pillow, beides lokal vorhanden; läuft **nicht** im CI, die Icons
-werden fertig committet). Aufruf: `python3 scripts/make-icons.py` aus dem Projekt-Root.
-
-Es erzeugt drei Dateien und überschreibt die bestehenden:
-- `public/icon-192.png` (192×192)
-- `public/icon-512.png` (512×512)
-- `public/apple-touch-icon.png` (180×180)
-
-Aufbau je Icon (Reihenfolge der Ebenen):
-1. **Hintergrund:** dasselbe Muster wie die `background-tile`-Textur im Spiel — ein 64×64-Tile
-   (Basis `#10131d`; Linien `#172033` bei y=12–13 und y=44–45 über volle Breite; Punkte
-   `#26344e` bei (8,28)–(11,29) und (42,58)–(45,59)), dann mit `Image.NEAREST` auf die
-   Icon-Größe **hochskaliert** (nicht gekachelt) — so bleiben die Linien groß und ruhig.
-2. **Glow:** weiche Ellipse hinter der Figur, Farbe `#e8590c` (Projektil-Orange), Deckkraft
-   max. 90/255, Radius ≈ 0,34 × Icongröße, zentriert, per `ImageFilter.GaussianBlur`
-   (Radius ≈ 0,08 × Icongröße) auf einer eigenen RGBA-Ebene weichgezeichnet und dann
-   alpha-komponiert. Damit hebt sich die dunkelrote Figur vom dunklen Grund ab.
-3. **Figur:** `src/assets/player.png` mit `Image.NEAREST` skaliert auf Höhe
-   `round(size * 0.58)` (Breite proportional, ganzzahliger Faktor bevorzugt, damit die Pixel
-   scharf bleiben), zentriert einkomponiert. 58 % hält die Figur sicher in der mittleren
-   70 % — iOS rundet die Ecken und darf nichts abschneiden.
-4. **Speichern:** als `RGB` (Alpha flachlegen auf den Hintergrund), `optimize=True`.
-   iOS-Homescreen-Icons dürfen keine Transparenz haben, sonst wird der Rest schwarz gefüllt.
-
-`vite.config.ts` und `index.html` bleiben unverändert — Dateinamen, `start_url`, `scope`,
-`theme_color`/`background_color` (`#10131d`) stimmen bereits und passen zum neuen Icon.
-
-### 9. Restliche Aufräumarbeit
-
-- `#ced4da` (das alte SPD-Grau) und `#f9dc65` (das alte Coin-Gelb) dürfen in `src/` nicht
-  mehr vorkommen.
-- Keine hartcodierte Farbe mehr in `BootScene.ts`, `GameScene.ts`, `gates.ts` außer
-  `#ffffff` (Tortext, Trefferblitz) und den Werten aus `colors.ts`.
+### 7. `src/scenes/GameOverScene.ts`
+Unverändert. Game Over bei 0 Figuren funktioniert weiter über `runStats.get('hp') <= 0`.
 
 ## Akzeptanzkriterien
 
-1. `npm run check` (tsc) und `npm run build` laufen fehlerfrei.
-2. `grep -rn "0xf03e3e\|0xf76707\|0x22b8cf\|0x845ef7\|0x40c057\|ced4da\|f9dc65" src/`
-   liefert keinen Treffer.
-3. `src/config/colors.ts` existiert; `STAT_COLORS` kommt in `src/systems/upgrades.ts`
-   nicht mehr vor; `GameScene.ts` und `gates.ts` importieren es aus `../config/colors`.
-4. Das HUD zeigt fünf Werte (`HP`, `¢`, `DMG`, `RATE`, `SHOTS`, `SPD` — HP und Coins in
-   Zeile 1 an den Außenkanten, die vier Stats gleichmäßig verteilt in Zeile 2), alle
-   Positionen aus `scale.width`/Insets berechnet, kein `+ 112`/`+ 228` mehr im Code.
-5. Das HUD-Panel wird genau einmal in `create()` gezeichnet — kein `graphics.clear()`
-   oder Neuzeichnen in `update()`/`updateHud()` (Pool-Regel: nichts im Hot Path erzeugen).
-6. `BALANCE.stats.speed` steht auf `base: 105`, `floor: 70`, `cap: 305`; der
-   `pools.enemies`-Kommentar ist auf diese Werte nachgerechnet, `pools.enemies` bleibt 20.
-7. `python3 scripts/make-icons.py` läuft durch und erzeugt die drei Dateien. Prüfbar:
-   ```
-   python3 -c "from PIL import Image; [print(p, Image.open(p).size, Image.open(p).mode) for p in ['public/icon-192.png','public/icon-512.png','public/apple-touch-icon.png']]"
-   ```
-   muss `(192, 192) RGB`, `(512, 512) RGB`, `(180, 180) RGB` ausgeben.
-8. Ein Screenshot ist **nicht** verlangt und zählt auch nicht als Nachweis — Farb- und
-   Gamefeel-Abnahme macht Thomas am iPhone.
+1. `npm run check` und `npm run build` laufen fehlerfrei.
+2. `src/systems/formation.ts` existiert und importiert **nur** `BALANCE` — nachprüfbar:
+   `grep -n "^import" src/systems/formation.ts` zeigt genau eine Zeile, und die enthält
+   weder `phaser` noch `crowd`.
+3. Pool-Checkpunkt Truppe: In `crowd.ts` gibt es `scene.add.image` ausschließlich im
+   Konstruktor, und `grep -n "destroy()" src/systems/crowd.ts` liefert keinen Treffer.
+4. Projektil-Checkpunkt: In `weapons.ts` ist die Zahl der pro `fire()` aktivierten Projektile
+   nachweisbar auf `min(runStats.get('projectiles'), BALANCE.crowd.shooters)` begrenzt —
+   also höchstens 5, unabhängig von der Truppengröße.
+5. `BALANCE.stats.hp.cap === BALANCE.crowd.max` (beide 30); `pools.crowd >= crowd.max`.
+6. `grep -rn "'HP'" src/` liefert keinen Treffer mehr; HUD und Tor zeigen `CREW`.
+7. `setSize()` wird nicht aus `update()` heraus gerufen — weder direkt noch indirekt:
+   `grep -n "setSize" src/scenes/GameScene.ts` zeigt nur Aufrufe aus `create()`,
+   `updateHud()` und `handlePlayerHit()`.
+8. Ein Kurztest im Dev-Server ist erlaubt, aber **kein** Nachweis: Formationsbild, Gamefeel
+   und Performance beurteilt Thomas am iPhone.
+
+## Reißleine
+Läuft die Formation nach einem Umsetzungsversuch nicht sauber (zappelnde Figuren, Truppe
+verschiebt den Trefferpunkt, Drag fühlt sich anders an), **nicht weiterbohren**: Formation auf
+eine einzige Reihe hinter dem Anker reduzieren und den Rest der Anforderungen unverändert
+liefern. Das Dreieckslayout ist Kosmetik, die Mechanik dahinter ist es nicht.
 
 ## Nicht ändern
-- Physik, Kollision, Pools, Spawnraten, Gate-Mathematik, Coin-Werte.
-- `vite.config.ts`, `index.html`, Manifest-Felder, Service-Worker-Konfiguration.
-- `src/assets/player.png` (dient dem Icon-Skript nur als Vorlage).
-- Alle übrigen `BALANCE`-Werte außer `stats.speed` und der neuen `hud`-Sektion.
+- Gate-Mathematik, Coin-System, Spawner, Balance-Werte außer `stats.hp.cap` und der neuen
+  `crowd`-Sektion.
+- Farbpalette (`src/config/colors.ts`), HUD-Layout, Icons, `vite.config.ts`, `index.html`.
+- Die drei Zusatzwaffen und die Waffen-Tore — das ist E4b.
 
 ## Implementation Summary
 
-Farben liegen jetzt zentral in `src/config/colors.ts`; Boot-Texturen, Tore und HUD
-verwenden diese Quelle. Das HUD ist ein einmalig gezeichnetes, Safe-Area-basiertes
-Panel mit HP und Coins außen sowie DMG, RATE, SHOTS und SPD in vier Spalten.
-Die Gegnergeschwindigkeit startet bei 105 und die drei Homescreen-Icons werden mit
-`scripts/make-icons.py` aus dem Spiel-Hintergrund, Glow und Spieler-Sprite gebaut.
+Die importfreie Formationsrechnung versorgt einen festen Figurenpool mit einer kompakten,
+dreieckigen TEAM-Formation. Sie verdichtet sich bei voller Größe auch in der Tiefe; die
+Kollisionshülle bleibt fix. Die vordersten maximal fünf Figuren geben die
+Projektilursprünge vor; GUNS begrenzt deren Zahl und zusätzliche TEAM-Figuren erhöhen den
+Schaden bis zum vierfachen Multiplikator.
 
-Validierung: `npm run check` und `npm run build` erfolgreich. Die Altfarben-Suche
-liefert keinen Treffer; die Icons sind `192x192 RGB`, `512x512 RGB` und `180x180 RGB`.
-Die sichtbare Farb- und Gamefeel-Abnahme am iPhone ist bewusst nicht Teil dieser Aufgabe.
+Validierung: `npm run check` und `npm run build` erfolgreich. Import-, Pool-, TEAM/GUNS-,
+Balance- und `setSize`-Checks sind erfüllt; der isolierte Rechentest bestätigt für 30
+Slots `max offsetY=98 <= maxDepth=100`. Die Vite-Chunk-Größenwarnung bleibt bestehen,
+ist aber nicht fehlerschlagend. Bild, Spielgefühl und Performance sind bewusst für den
+iPhone-Test vorbehalten.
+
+---
+
+## Nacharbeit Runde 2 (Review-Befunde + Umbenennung)
+
+### N1 — Formation ragt bei voller Truppe aus dem Bild
+
+Rechnung: Spielfeld ist 844 hoch, der Anker sitzt bei `844 - 130 = 714`. 30 Figuren ergeben
+8 Reihen, die hinterste bei `offsetY = 7 * 18 = 126`, also `y = 840` — die Figur reicht bis
+863 und steht damit 19px unter dem Bildschirmrand. Die letzten drei Reihen sind bei voller
+Truppe nicht mehr sichtbar.
+
+Fix, symmetrisch zur bestehenden Breitenregel („dichter, nicht breiter") — die Formation wird
+jetzt auch **dichter, nicht tiefer**:
+
+- `FormationOptions` bekommt ein Feld `maxDepth: number`.
+- `computeFormation` ermittelt die Reihenzahl für `count` **vor** dem Verteilen und rechnet
+  `effectiveRowSpacing = Math.min(rowSpacingY, maxDepth / Math.max(1, rowCount - 1))`.
+  `offsetY = row * effectiveRowSpacing`. Bei einer einzigen Reihe bleibt `offsetY = 0`.
+- `crowd.ts` übergibt
+  `maxDepth: this.scene.scale.height - this.anchorY - figureHeight / 2 - BALANCE.crowd.bottomMargin`,
+  wobei `figureHeight` die bereits im Konstruktor bekannte Sprite-Höhe ist. Neuer
+  Balance-Wert `crowd.bottomMargin: 8`.
+- Zusätzlich `crowd.rowSpacingY` von `18` auf `14` senken, damit die Formation auch dann
+  kompakt aussieht, wenn der Deckel gar nicht greift.
+
+Nachprüfbar: Bei `count = BALANCE.crowd.max` muss
+`max(offsetY) <= maxDepth` gelten. Diese Bedingung als Kommentar an `computeFormation` notieren.
+
+### N2 — Toter Import in `formation.ts`
+
+Die Datei importiert `BALANCE` und neutralisiert den unbenutzten Import mit `void BALANCE`.
+Das war eine zu wörtlich genommene Vorgabe von mir: Die Datei soll **gar nichts** importieren.
+Import und `void BALANCE` ersatzlos löschen; alle Layout-Werte kommen wie bisher über
+`FormationOptions` herein. Der Kommentar darüber wird entsprechend umformuliert.
+
+### N3 — Umbenennung: `CREW` → `TEAM`, `SHOTS` → `GUNS`
+
+Thomas' Entscheidung. Zwei Gruppenbegriffe nebeneinander wären verwechselbar, deshalb:
+- Die **Truppengröße** (Stat-Key `hp`) heißt überall `TEAM` — im HUD und im Tor-Label.
+- Die **Schützenzahl** (Stat-Key `projectiles`) heißt überall `GUNS` — im HUD und im Tor-Label.
+- Die internen Stat-Keys `hp` und `projectiles` bleiben **unverändert**. Es geht ausschließlich
+  um die angezeigten Beschriftungen; kein Umbenennen von Feldern, keine Migration.
+
+Danach darf weder `'CREW'` noch `'SHOTS'` in `src/` vorkommen.
+
+## Zusätzliche Akzeptanzkriterien Runde 2
+
+9.  `grep -n "^import" src/systems/formation.ts` liefert keine Zeile.
+10. `grep -rn "CREW\|SHOTS" src/` liefert keinen Treffer; HUD und Tore zeigen `TEAM` und `GUNS`.
+11. `BALANCE.crowd.rowSpacingY === 14`, `BALANCE.crowd.bottomMargin === 8`, und
+    `computeFormation` respektiert `maxDepth`.
+12. `npm run check` und `npm run build` laufen weiterhin fehlerfrei.

@@ -200,7 +200,7 @@ export class Gates {
   }
 
   private statLabel(stat: StatKey): string {
-    return { hp: 'HP', damage: 'DMG', shotsPerSec: 'RATE', projectiles: 'SHOTS', speed: 'SPD' }[stat]
+    return { hp: 'TEAM', damage: 'DMG', shotsPerSec: 'RATE', projectiles: 'GUNS', speed: 'SPD' }[stat]
   }
 
   private warnPoolExhausted(): void {
