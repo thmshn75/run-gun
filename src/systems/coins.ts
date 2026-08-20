@@ -18,7 +18,7 @@ export class Coins {
     this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
 
     for (let index = 0; index < BALANCE.pools.coins; index += 1) {
-      const coin = scene.add.image(0, 0, 'coin').setActive(false).setVisible(false)
+      const coin = scene.add.image(0, 0, 'coin').setDepth(BALANCE.layers.gameplay).setActive(false).setVisible(false)
       this.coins.push(coin)
     }
   }

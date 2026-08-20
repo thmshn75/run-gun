@@ -16,6 +16,7 @@ export const WORLD_COLORS = {
   road: 0x172033,
   roadEdge: 0x34415d,
   roadCenterLine: 0xd8e0ef,
+  aimLine: 0xd8e0ef,
   projectileShell: 0xe8590c,
   projectileCore: 0xffc078,
   shotgunShell: 0xffb347,

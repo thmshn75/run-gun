@@ -32,7 +32,7 @@ class SplashFlashPool {
     this.flashes = []
     this.nextIndex = 0
     for (let index = 0; index < BALANCE.pools.splashFlashes; index += 1) {
-      const image = scene.add.image(0, 0, 'splash-flash').setActive(false).setVisible(false)
+      const image = scene.add.image(0, 0, 'splash-flash').setDepth(BALANCE.layers.gameplay).setActive(false).setVisible(false)
       this.flashes.push({ image, remainingMs: 0 })
     }
   }
@@ -76,6 +76,7 @@ export class GameScene extends Phaser.Scene {
   private gameOverStarted!: boolean
   private lastCrowdSize!: number
   private splashFlashes!: SplashFlashPool
+  private aimLine!: Phaser.GameObjects.Image
 
   public constructor() {
     super('GameScene')
@@ -93,6 +94,12 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(WORLD_COLORS.background)
     this.road = new Road(this)
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
+    this.aimLine = this.add.image(0, 0, 'aim-line')
+      .setOrigin(0.5, 1)
+      .setTint(WORLD_COLORS.aimLine)
+      .setAlpha(BALANCE.aim.alpha)
+      .setDepth(BALANCE.aim.depth)
+    this.updateAimLine()
     const getAnchorPosition = (): Readonly<{ x: number; y: number }> => ({ x: this.crowd.getAnchorX(), y: this.crowd.getAnchorY() })
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
     this.spawner = new Spawner(this, this.runStats)
@@ -165,6 +172,7 @@ export class GameScene extends Phaser.Scene {
     this.elapsedMs += dt
     this.road.update(dt)
     this.crowd.update()
+    this.updateAimLine()
     this.gates.update(dt)
     this.weapons.update(dt)
     this.spawner.update(dt)
@@ -285,6 +293,13 @@ export class GameScene extends Phaser.Scene {
     if (crowdSize === this.lastCrowdSize) return
     this.crowd.setSize(crowdSize)
     this.lastCrowdSize = crowdSize
+  }
+
+  private updateAimLine(): void {
+    const startY = this.crowd.getAnchorY() - this.crowd.getFigureHeight() / 2
+    this.aimLine
+      .setPosition(this.crowd.getAnchorX(), startY)
+      .setDisplaySize(BALANCE.aim.widthPx, startY)
   }
 
   private getCrowdDamageMultiplier(): number {

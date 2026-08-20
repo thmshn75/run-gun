@@ -40,6 +40,7 @@ export class BootScene extends Phaser.Scene {
     this.createRoadTextures()
     this.createGateTexture()
     this.createCoinTexture()
+    this.createAimLineTexture()
 
     this.scene.start('GameScene')
   }
@@ -118,6 +119,14 @@ export class BootScene extends Phaser.Scene {
     graphics.fillStyle(WORLD_COLORS.coinBody)
     graphics.fillCircle(7, 7, 5)
     graphics.generateTexture('coin', 14, 14)
+    graphics.destroy()
+  }
+
+  private createAimLineTexture(): void {
+    const graphics = this.add.graphics()
+    graphics.fillStyle(0xffffff)
+    graphics.fillRect(0, 0, 1, 1)
+    graphics.generateTexture('aim-line', 1, 1)
     graphics.destroy()
   }
 }

@@ -22,6 +22,15 @@ export const BALANCE = {
     dragClampFigures: 0.5,
     anchorBottomOffset: 130,
   },
+  aim: {
+    widthPx: 2,
+    alpha: 0.3,
+    depth: 1,
+  },
+  layers: {
+    road: 0,
+    gameplay: 2,
+  },
   stats: {
     hp: { base: 3, cap: 30, floor: 0 },
     damage: { base: 1, cap: 20, floor: 1 },
@@ -140,6 +149,7 @@ export const BALANCE = {
     firstSpawnDelayMs: 5000,
     // Gate path is about player-Y + gate height = 754px; (180 + 360)px/s takes about 1.4s.
     extraSpeed: 360,
+    choiceFlashMs: 250,
     gateHeight: 70,
     gapBetween: 8,
     maxRedraws: 8,

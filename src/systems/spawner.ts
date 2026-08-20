@@ -37,7 +37,7 @@ export class Spawner {
     this.lastSpawnMetricsAtMs = 0
     this.nextSpawnId = 1
     for (let index = 0; index < BALANCE.pools.enemies; index += 1) {
-      const enemy = scene.physics.add.image(0, 0, BALANCE.enemy.types[0].texture)
+      const enemy = scene.physics.add.image(0, 0, BALANCE.enemy.types[0].texture).setDepth(BALANCE.layers.gameplay)
       enemy.setActive(false).setVisible(false)
       enemy.disableBody(true, true)
       this.enemies.add(enemy)

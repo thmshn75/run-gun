@@ -64,7 +64,7 @@ export class Crowd {
       member.row = slot.row
       member.sprite
         .setPosition(this.anchorX + slot.offsetX, this.anchorY + slot.offsetY)
-        .setDepth(slot.row)
+        .setDepth(BALANCE.layers.gameplay + slot.row)
         .setActive(true)
         .setVisible(true)
         .setAlpha(1)
@@ -88,6 +88,10 @@ export class Crowd {
 
   public getAnchorY(): number {
     return this.anchorY
+  }
+
+  public getFigureHeight(): number {
+    return this.figureHeight
   }
 
   public getHullBounds(): Phaser.GameObjects.Zone {

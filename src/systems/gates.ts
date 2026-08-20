@@ -188,18 +188,18 @@ export class Gates {
   }
 
   private createPair(): GatePair {
-    const left = this.scene.add.image(0, 0, 'gate').setActive(false).setVisible(false)
-    const right = this.scene.add.image(0, 0, 'gate').setActive(false).setVisible(false)
+    const left = this.scene.add.image(0, 0, 'gate').setDepth(BALANCE.layers.gameplay).setActive(false).setVisible(false)
+    const right = this.scene.add.image(0, 0, 'gate').setDepth(BALANCE.layers.gameplay).setActive(false).setVisible(false)
     const textStyle: Phaser.Types.GameObjects.Text.TextStyle = {
       fontFamily: 'system-ui', fontSize: '34px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 4, fontStyle: 'bold',
     }
-    const leftText = this.scene.add.text(0, 0, '', textStyle).setOrigin(0.5).setActive(false).setVisible(false)
-    const rightText = this.scene.add.text(0, 0, '', textStyle).setOrigin(0.5).setActive(false).setVisible(false)
-    const leftIcon = this.scene.add.image(0, 0, 'weapon-normal-gate').setOrigin(0.5).setActive(false).setVisible(false)
-    const rightIcon = this.scene.add.image(0, 0, 'weapon-normal-gate').setOrigin(0.5).setActive(false).setVisible(false)
+    const leftText = this.scene.add.text(0, 0, '', textStyle).setOrigin(0.5).setDepth(BALANCE.layers.gameplay).setActive(false).setVisible(false)
+    const rightText = this.scene.add.text(0, 0, '', textStyle).setOrigin(0.5).setDepth(BALANCE.layers.gameplay).setActive(false).setVisible(false)
+    const leftIcon = this.scene.add.image(0, 0, 'weapon-normal-gate').setOrigin(0.5).setDepth(BALANCE.layers.gameplay).setActive(false).setVisible(false)
+    const rightIcon = this.scene.add.image(0, 0, 'weapon-normal-gate').setOrigin(0.5).setDepth(BALANCE.layers.gameplay).setActive(false).setVisible(false)
     const statLabel = this.scene.add.text(0, 0, '', {
       fontFamily: 'system-ui', fontSize: '17px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 3, fontStyle: 'bold',
-    }).setOrigin(0.5).setActive(false).setVisible(false)
+    }).setOrigin(0.5).setDepth(BALANCE.layers.gameplay).setActive(false).setVisible(false)
     return {
       left, right, leftText, rightText, leftIcon, rightIcon, statLabel, active: false, kind: 'stat', stat: 'hp', leftWeapon: 'normal', rightWeapon: 'normal',
       leftOp: { label: '', apply: (value) => value }, rightOp: { label: '', apply: (value) => value },
@@ -282,7 +282,7 @@ export class Gates {
 
   private applyPair(pair: GatePair, anchorX: number): void {
     pair.triggered = true
-    pair.flashUntilMs = this.elapsedMs + BALANCE.feedback.hitFlashMs
+    pair.flashUntilMs = this.elapsedMs + BALANCE.gates.choiceFlashMs
     const selectedLeft = anchorX < this.scene.scale.width / 2
     if (pair.kind === 'weapon') {
       this.onWeaponSelected(selectedLeft ? pair.leftWeapon : pair.rightWeapon)

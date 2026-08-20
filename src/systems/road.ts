@@ -19,10 +19,10 @@ export class Road {
   public constructor(scene: Phaser.Scene) {
     this.scene = scene
     this.centerLines = []
-    scene.add.image(0, 0, 'road').setOrigin(0)
+    scene.add.image(0, 0, 'road').setOrigin(0).setDepth(BALANCE.layers.road)
     for (let index = 0; index < BALANCE.road.centerLine.segments; index += 1) {
       this.centerLines.push({
-        image: scene.add.image(0, 0, 'road-center-line').setOrigin(0.5),
+        image: scene.add.image(0, 0, 'road-center-line').setOrigin(0.5).setDepth(BALANCE.layers.road),
         progress: index / BALANCE.road.centerLine.segments,
       })
     }

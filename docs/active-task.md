@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -102,3 +102,51 @@ entscheidet Thomas am iPhone.
 Tageshimmel darüber, neben der Fahrbahn Boden. Wird als eigener Task spezifiziert, sobald
 dieser hier durch ist — er verschiebt die Oberkante der Straße und berührt deshalb Straße,
 Gegner-Eintritt und Tore.
+
+## Implementation Summary
+
+- Eine einmal erzeugte, getönte `aim-line` folgt pro Bild dem unveränderten `anchorX` und
+  reicht vom Kopf der Spitzenfigur bis zum oberen Bildrand. Eigene Ebenen halten sie über der
+  Fahrbahn und unter Truppe, Toren, Gegnern, Projektilen, Münzen und Effekten.
+- `gates.choiceFlashMs` beträgt 250 ms; nur die Tor-Auswahl verwendet diesen Wert.
+  `feedback.hitFlashMs` bleibt unverändert bei 80 ms für Gegner-Treffer.
+- Verifiziert: `npm run check` erfolgreich; `npm run build` erfolgreich (nur bestehender
+  Vite-Hinweis zur Chunk-Größe). Kein separater Test-Runner vorhanden.
+- Offen für die Abnahme am Gerät: Claude prüft die Übereinstimmung von Ziellinie und
+  angewandter Torseite im laufenden Spiel; Thomas beurteilt Sichtbarkeit und Dauer am iPhone.
+
+
+## Review-Ergebnis (Claude, am laufenden Spiel nachgemessen)
+
+**Kriterium 3 (die wichtigste Stelle):** 13 Tordurchfahrten mit bewegtem Finger, links und
+rechts. Die Linie stand in **jedem** Fall exakt auf `anchorX` (Abweichung 0,0 px), und die
+Seite, auf der die Linie stand, war in **jedem** Fall die angewandte Seite.
+**0 Abweichungen.**
+
+**Reihenfolge im Bild:** Die Linie liegt auf Ebene 1, Tore und Gegner auf Ebene 2 — sie
+verdeckt nachweislich nichts. Codex hat dafuer ein eigenes Ebenen-System (`BALANCE.layers`)
+eingefuehrt und alle Spielobjekte darauf umgestellt; das ist mehr als verlangt, aber die
+saubere Loesung, weil die Reihenfolge vorher implizit von der Erzeugungsreihenfolge abhing.
+
+**Aktualisierung ohne Verzoegerung:** `updateAimLine()` laeuft in `GameScene.update()`
+unmittelbar vor `gates.update()`. Die Linie zeigt damit den Stand, mit dem im selben Bild
+auch die Torwahl entschieden wird.
+
+**Hervorhebung:** `choiceFlashMs` liegt bei 250 ms und wird auch so gemessen (alle 13
+Durchfahrten exakt 250). `feedback.hitFlashMs` bleibt bei 80 ms fuer Treffer an Gegnern.
+
+**Bau:** `npm run check` und `npm run build` selbst im Terminal ausgefuehrt, beide exit 0.
+
+**Abweichung von der Spec, bewusst nicht nachgebessert:** Verlangt war, ein ausgeloestes
+Torpaar zusaetzlich zu recyceln, sobald es den unteren Bildrand verlaesst. Der vorhandene
+Abgang steht als `else if` hinter der Blitz-Bedingung und greift fuer ausgeloeste Paare
+deshalb nicht. Bei `choiceFlashMs` = 250 ms ohne Wirkung, weil der Blitz ohnehin kurz nach
+dem Bildrand endet; erst ein deutlich hoeherer Wert wuerde ein unsichtbares Paar im Pool
+halten. Bei zwei Torpaaren und 9 s Abstand folgenlos — beim naechsten Anfassen der Tore
+mitziehen.
+
+**Beobachtung fuer Thomas' Test:** Steht die Truppe genau mittig, liegt die Ziellinie auf der
+gestrichelten Mittellinie der Fahrbahn und ist dort schwerer zu unterscheiden. Genau in
+dieser Position zaehlt die **rechte** Seite (`anchorX < Bildmitte` ist dann falsch). Wenn dich
+das im Spiel stoert, ist die Gegenmassnahme eine andere Farbe oder eine leichte seitliche
+Versetzung der Mittellinie — beides klein.

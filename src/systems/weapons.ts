@@ -56,7 +56,7 @@ export class Weapons {
       const segment = this.segments[key]
       segment.start = this.projectileList.length
       for (let index = 0; index < BALANCE.pools.projectiles[key]; index += 1) {
-        const projectile = scene.physics.add.image(0, 0, `projectile-${key}`)
+        const projectile = scene.physics.add.image(0, 0, `projectile-${key}`).setDepth(BALANCE.layers.gameplay)
         projectile.setData('weapon', key)
         if (key === 'laser') projectile.setData('hitSpawnIds', new Set<number>())
         projectile.setActive(false).setVisible(false)
