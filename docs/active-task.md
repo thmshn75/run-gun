@@ -1,446 +1,170 @@
 # Active Task
 
 ## Status
-`APPROVED`
+`SPEC_READY`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
-<!-- Uebernommen aus docs/spec-e4b-entwurf.md am 2026-08-20, unveraendert.
-     Zwei Gegenpruefungen (Premortem, Betriebssicht) sind dort bereits eingearbeitet. -->
-
 ## Task
+**Waffen-Tore und HUD zeigen Bilder der Waffen statt der Wörter NORMAL/SCHROT/LASER/RAKETE.**
 
-**Drei Zusatzwaffen (Schrot, Laser, Rakete) plus Waffen-Tore**
+Thomas-Entscheidung vom 2026-08-20: „für die Waffen möchte ich Bilder haben, keine Schrift",
+auf Rückfrage präzisiert zu **die Waffe als realistisches Bild**, und zwar **an beiden
+Stellen — Tor und HUD**.
 
-Zweite Hälfte der Etappe E4 aus `docs/plan.md`, Abschnitt „Waffentypen". Die Truppe (E4a)
-ist fertig und freigegeben. Jetzt bekommt sie etwas anderes als den Standardschuss.
+Der Task besteht aus zwei Teilen: erst die vier Bilder erzeugen, dann Tor und HUD umbauen.
 
-Das ist der umfangreichste Task des Projekts. Er greift in `weapons.ts`, `gates.ts`,
-`balance.ts`, `colors.ts`, `BootScene.ts` und `GameScene.ts` ein.
+---
 
-## Verbindliche Architekturentscheidungen
+# Teil 1 — Die vier Waffenbilder erzeugen
 
-Diese Punkte sind entschieden, nicht Codex' Ermessen. Abweichung nur mit Meldung, nie still.
+## Verfahren (im Projekt bewährt, nicht abkürzen)
 
-### A. Waffe ist Run-Zustand, kein Stat
+Die vorhandene Spielfigur und die drei Zombies sind entstanden, indem das Bild **groß**
+erzeugt und danach auf Zielgröße **heruntergerechnet** wurde. Direkt in Zielgröße zu
+erzeugen hat im selben Projekt bereits ein unbrauchbares Ergebnis geliefert
+(`docs/lessons.md`, Eintrag vom 2026-08-20). Also:
 
-`RunStats` bleibt **unverändert** — es bleibt bei `hp | damage | shotsPerSec | speed`.
-Die aktive Waffe ist kein numerischer Wert und darf nicht in `StatKey` aufgenommen werden.
-Sie lebt als eigener Zustand (Vorschlag: `activeWeapon: WeaponKey` in `Weapons`, mit
-`setWeapon()` und `getWeapon()`).
+1. Je Waffe **ein großes Bild** erzeugen, Breite mindestens 1024 px, Querformat etwa 1536 × 640.
+2. Das große Original ablegen unter `assets/probe/waffen/<key>-gross.png`
+   (`normal`, `shotgun`, `laser`, `rocket`). Der Ordner liegt in `.gitignore` — die großen
+   Dateien kommen bewusst **nicht** ins Repo.
+3. Freistellen (voll transparenter Hintergrund), auf den sichtbaren Inhalt zuschneiden.
+4. Herunterrechnen auf **zwei** Zielgrößen je Waffe und unter `src/assets/` ablegen:
+   - `weapon-<key>-gate.png` — **150 × 44 px**, für das Tor
+   - `weapon-<key>-hud.png` — **72 × 20 px**, für die HUD-Zeile
+   Beim Verkleinern die Seitenverhältnisse halten und innerhalb der Zielgröße zentrieren;
+   die Waffe soll die Breite möglichst ausfüllen, oben und unten darf transparenter Rand
+   bleiben.
+5. Zwischenschritte (freigestellt, zugeschnitten) ebenfalls in `assets/probe/waffen/`
+   lassen, damit sie beim nächsten Anfassen ohne Neuerzeugung prüfbar sind.
 
-Der Waffentyp **multipliziert** die bestehenden Stats, er ersetzt sie nicht. Es sind
-**drei** Werte, die die Waffe beeinflusst — nicht zwei:
+## Bildinhalt
 
-1. Feuerrate = `runStats.shotsPerSec × weapon.rateFactor`
-2. Schaden pro Kugel = `runStats.damage × weapon.damageFactor`
-3. **Schützen pro Salve = `weapon.shootersPerSalvo`**
+**Für alle vier Bilder gleich** — ohne diesen gemeinsamen Rahmen passen die vier Bilder
+nebeneinander am Tor nicht zusammen:
 
-Punkt 3 ist die Stelle, die am leichtesten übersehen wird: `weapons.ts:60` ruft heute fest
-`this.getSalvoPositions(BALANCE.crowd.shootersPerSalvo)` mit dem globalen Wert 8 auf.
-**Diese Zeile muss waffenabhängig werden.** Bleibt sie unverändert, feuert die Rakete mit
-8 statt 3 Figuren — also mit dem 2,7-fachen Volumen — und wird bei voller Truppe zum
-Raketenhagel, der alle anderen Waffen entwertet. Genau das soll die Zahl 3 verhindern.
+> Seitenansicht, Waffe zeigt nach rechts, exakt waagerecht ausgerichtet. Freigestellt auf
+> vollständig transparentem Hintergrund, kein Schatten, kein Boden, keine Hand, keine
+> Person, kein Text, kein Rahmen. Gleichmäßige Ausleuchtung von vorne, kräftige Farben,
+> klare Kanten, hoher Kontrast gegen dunklen Untergrund (das Spiel ist dunkel, Fahrbahn
+> `#1a2133`). Stil einheitlich über alle vier Bilder: kompakte Spielgrafik mit deutlichen
+> Konturen — kein Foto, keine Weichzeichnung, keine Spiegelungen, kein Verlauf im
+> Hintergrund.
 
-`BALANCE.crowd.shootersPerSalvo` (8) bleibt bestehen und ist ab jetzt die **Obergrenze**:
-keine Waffe darf einen höheren Wert setzen, und der Wert selbst wird nicht erhöht.
+**1. `normal`** — Ein kompaktes Sturmgewehr in Schwarz und Gunmetal-Grau, kurzer Lauf,
+gerades Magazin, schlichter Schaft. Nüchtern und funktional, keine Verzierungen. Ein
+orangefarbener Akzentstreifen am Lauf (Ton wie `#e8590c`).
 
-### B. Vier getrennte Projektil-Pools, eine Phaser-Gruppe
+**2. `shotgun`** — Eine Pump-Action-Schrotflinte mit dickem, kurzem Lauf, Holzschaft in
+warmem Braun und Vorderschaft-Pumpe. Wuchtig und breit, deutlich massiver als ein Gewehr.
+Warme gelb-orange Akzente an der Mündung (Ton wie `#ffb347`).
 
-Der Plan verlangt einen getrennten Pool je Typ. Umsetzung: **eine** `physics.add.group()`
-wie bisher, darin vier fest zugeteilte Segmente. Jedes Objekt bekommt beim einmaligen
-Anlegen im Konstruktor seinen Waffentyp und seine Textur **fest** zugewiesen und behält
-beide bis Spielende.
+**3. `laser`** — Ein futuristisches Lasergewehr mit glatten weißen und dunkelgrauen
+Gehäuseflächen, einer leuchtenden cyanfarbenen Energiezelle in der Mitte und einem cyan
+glühenden Emitter an der Spitze. Kantiges Science-Fiction-Design, keine Rundungen. Das Cyan
+muss kräftig leuchten (Ton wie `#7af4ff`).
 
-Daraus folgen drei Pflichten:
+**4. `rocket`** — Ein schultergestützter Raketenwerfer: dickes graugrünes Rohr, Griff und
+Visier oben, vorne ragt eine Rakete mit leuchtend rotem Kopf heraus (Ton wie `#f03e3e`).
+Militärisch, gedrungen, deutlich dicker als die anderen drei.
 
-- **Kein `setTexture()` im Hot Path** — die Textur steht beim Anlegen fest.
-- **Jedes Projektil trägt seinen Waffentyp als Marke** (`setData('weapon', key)`, einmalig
-  beim Anlegen gesetzt, nie wieder geändert). `GameScene` braucht diese Marke, um beim
-  Treffer zu entscheiden, welcher Schadensfaktor gilt, ob durchschlagen wird und ob ein
-  Flächenschaden ausgelöst wird. Ohne sie ist der Trefferbehandler nicht baubar.
-- **Ein einziger `physics.add.overlap`** in `GameScene` bleibt bestehen; er wird nicht
-  vervierfacht.
+Jede Waffe trägt damit die Farbe ihres Geschosses. Am Tor ist so vor der Entscheidung
+erkennbar, was gleich aus den Läufen kommt.
 
-**Die Suche nach einem freien Projektil darf nichts allokieren.** `fire()` baut heute pro
-Schuss zwei neue Arrays (`.filter(...)` und `.slice(...)`, `weapons.ts:61-63`). Das ist
-schon jetzt Müll im Hot Path, und mit der Laser-Feuerrate von 11,2 Salven pro Sekunde
-entsteht er häufiger als bisher — auf iOS sind solche Muster ein typischer Auslöser für
-Ruckler durch die Speicherbereinigung. Stattdessen: je Segment ein Anfangs- und Endindex
-plus ein **Suchzeiger**, der beim Abfeuern durch das Segment läuft und die ersten freien
-Objekte direkt belegt. Kein `filter`, kein `slice`, kein `map`, keine Zwischen-Arrays.
-Dasselbe gilt für die Ursprungspositionen: `getNextSalvoPositions` baut heute ebenfalls ein
-Array pro Schuss — das darf bestehen bleiben (eine Allokation statt drei), muss aber nicht
-zusätzlich vervielfacht werden.
+## Reißleine Teil 1
 
-Warum alle vier Segmente dauerhaft existieren, obwohl immer nur eine Waffe feuert: Beim
-Waffenwechsel fliegt die Ladung der alten Waffe noch aus. Sie muss weiterfliegen, treffen
-und regulär despawnen. Alle Segmente laufen deshalb in `update()` und in der Kollision
-mit, unabhängig davon, welche Waffe gerade aktiv ist. **Nichts beim Wechsel wegräumen.**
+Lässt sich ein Bild nicht in brauchbarer Qualität erzeugen: **melden und stoppen**.
 
-Preis dieser Bauweise, bewusst akzeptiert: Die Zahl der Physik-Körper steigt von 96 auf 344.
-Die Arcade-Physik läuft einmal pro Frame über alle Körper, auch über abgeschaltete — das
-sind rund 20.600 zusätzliche Kurz-Durchläufe pro Sekunde, die je nur eine Abfrage kosten.
-Gemessen an 60 Bildern pro Sekunde ist das unkritisch; es ist hier festgehalten, damit es
-bei einem Performance-Problem nicht als unbekannte Größe dasteht.
+**Kein zulässiger Ersatz ist insbesondere:**
+- Die Symbole programmatisch in `BootScene` zeichnen. Genau dieser Ausweg wurde im Projekt
+  schon einmal gezogen und lieferte abstrakte Formen statt erkennbarer Objekte
+  (`docs/lessons.md`, 2026-08-20). Thomas musste den Auftrag wiederholen.
+- Ein Bild direkt in Zielgröße erzeugen statt groß und herunterrechnen.
+- Die Schrift stehen lassen und zusätzlich ein Symbol danebensetzen — es soll das Bild
+  **statt** des Wortes zu sehen sein.
+- Für eine Waffe ein Bild in anderem Stil liefern als für die übrigen drei.
 
-### C. Bewegung bekommt zwei Achsen
+---
 
-Heute bewegt `weapons.ts` Projektile nur in Y. Der Schrot-Fächer braucht schräge Bahnen.
-Jedes Projektil führt ab jetzt einen Geschwindigkeitsvektor mit (`vx`, `vy`) und wird auf
-beiden Achsen bewegt. Beim Standard ist `vx = 0` — das Verhalten bleibt identisch.
+# Teil 2 — Tor und HUD auf Bilder umstellen
 
-Die Bewegung bleibt **manuell** in `update()` wie bisher (`x += vx·dt`, `y += vy·dt`,
-danach `body.updateFromGameObject()`). Nicht auf Arcade-Velocity umstellen — die
-bestehende Bauweise ist bewusst so und funktioniert.
+## Torbild
 
-Projektile mit schräger Bahn werden zusätzlich in Flugrichtung gedreht (`setRotation`),
-damit der Fächer als Fächer lesbar ist.
+`src/systems/gates.ts`:
 
-### D. Despawn-Bedingungen
-
-Ein Projektil wird recycelt, sobald **eine** davon zutrifft:
-1. Es hat den oberen Bildrand verlassen (wie bisher).
-2. Es hat den linken oder rechten Bildrand verlassen (neu, wegen der Fächerbahnen).
-3. Es hat seine **Reichweite** aufgebraucht (neu, nur bei Waffen mit `rangePx > 0`).
-4. Es hat getroffen und die Waffe durchschlägt nicht.
-
-Reichweite wird als zurückgelegte Strecke mitgeführt und pro Frame um
-`√(vx² + vy²) · dt` erhöht — nicht als Timer, damit sie unabhängig von der Bildrate ist.
-`rangePx: 0` bedeutet „unbegrenzt, fliegt bis zum Bildrand".
-
-Die Reichweitenprüfung muss **im selben Frame** greifen, in dem die Strecke überschritten
-wird. Ein um einen Frame verspätetes Aufräumen lässt beim Schrot kurzzeitig mehr
-Projektile in der Luft, als der Pool hergibt (siehe Pool-Herleitung).
-
-### E. Laser durchschlägt — Trefferliste ist Pflicht
-
-`physics.add.overlap` feuert **jeden Frame erneut**, solange sich zwei Körper überlappen.
-Beim Standard fällt das nicht auf, weil das Projektil beim Treffer verschwindet. Der Laser
-verschwindet nicht — ohne Trefferliste würde er denselben Gegner 60-mal pro Sekunde
-schädigen und wäre nicht spielbar. **Das ist die kritischste Einzelstelle dieses Tasks.**
-
-Umsetzung:
-- Jedes Laser-Projektil bekommt beim einmaligen Anlegen ein `Set<number>` zugewiesen. Beim
-  Abfeuern wird es mit `.clear()` geleert. **Kein `new Set()` im Hot Path.**
-- Gegner können nicht über ihre Objektreferenz identifiziert werden — sie sind gepoolt, ein
-  recycelter Gegner ist dasselbe Objekt. Der `Spawner` vergibt deshalb beim Spawnen eine
-  **fortlaufende Nummer** (`spawnId`, einfacher Zähler, in `setData` abgelegt). Das Set
-  speichert diese Nummern.
-- Vor jedem Schaden prüfen, ob die `spawnId` schon im Set steht; wenn ja, nichts tun.
-
-### F. `GameScene.handleProjectileHit` muss umgebaut werden
-
-Das ist der Punkt, an dem die Umsetzung sonst scheitert. `GameScene.ts:137-143` recycelt
-heute **ausnahmslos jedes** Projektil beim Treffer:
-
-```ts
-private handleProjectileHit(projectile, enemy): void {
-  if (!projectile.active || !enemy.active) return
-  // ... Schaden ...
-  this.weapons.recycle(projectile)      // <- unbedingt
-}
-```
-
-Solange diese Zeile unbedingt läuft, ist der Laser-Durchschlag technisch unmöglich, egal
-wie sauber `weapons.ts` gebaut ist. Der Behandler muss die Marke `weapon` vom Projektil
-lesen (Abschnitt B) und danach verzweigen:
-
-- **Normal, Schrot:** Schaden `runStats.damage × damageFactor`, danach recyceln — wie heute.
-- **Laser:** `spawnId` des Gegners gegen die Trefferliste prüfen; unbekannt → Schaden und
-  `spawnId` eintragen, bekannt → nichts tun. **In keinem Fall recyceln.**
-- **Rakete:** direkter Schaden auf den getroffenen Gegner, danach Flächenschaden (unten),
-  dann recyceln.
-
-Der Schadenswert wird an genau einer Stelle berechnet, nicht je Zweig neu.
-
-### G. Rakete: Flächenschaden ohne Partikelsystem
-
-Beim Einschlag nehmen alle aktiven Gegner innerhalb von `splashRadiusPx` **70 px** Schaden
-in Höhe von `runStats.damage × splashDamageFactor`, mit **`splashDamageFactor: 1.5`**.
-Der direkt getroffene Gegner nimmt zusätzlich den direkten Treffer
-(`runStats.damage × damageFactor`, also × 2,5). Umsetzung als Schleife über die aktiven
-Gegner mit Distanzprüfung — bei höchstens 48 Gegnern ist das unkritisch.
-
-Der Einschlag wird sichtbar durch einen **kurzen Kreis-Flash aus einem eigenen kleinen
-Pool** (Größe 12, Herleitung unten): ein einmalig in `BootScene` erzeugtes Kreis-Sprite,
-das beim Einschlag auf `splashRadiusPx` skaliert und über `flashMs` **180 ms** ausgeblendet
-wird.
-
-**Wie ausgeblendet wird, ist vorgegeben:** eine Restzeit je Flash mitführen, sie in
-`update()` um `dt` verringern und daraus die Deckkraft setzen — genau wie der bestehende
-Code Trefferblitze und Torblitze behandelt. **Kein `scene.tweens.add(...)`** und keine
-andere Phaser-Animation: ein Tween legt pro Einschlag ein neues Objekt an, bei bis zu
-6 Einschlägen pro Sekunde ist das genau die Art von Speichermüll, die diese ganze
-Pool-Architektur vermeiden soll. **Kein Partikelsystem** — das ist eine V1-Regel aus
-`docs/plan.md`.
-
-## Balance-Werte
-
-Neu in `src/config/balance.ts` unter `weapon`. Die bestehende `weapon.projectileSpeed`
-geht im Standard-Eintrag auf; alle anderen Werte werden ergänzt, nichts Bestehendes
-außerhalb dieses Abschnitts geändert.
-
-| | Normal | Schrot | Laser | Rakete |
-|---|---|---|---|---|
-| Kugeln pro Schuss | 1 | **7** | 1 | 1 |
-| Fächerwinkel gesamt | 0° | **34°** | 0° | 0° |
-| Schützen pro Salve | 8 | 8 | 8 | **3** |
-| Ratenfaktor | 1,0 | **0,4** | **1,4** | **0,25** |
-| Schadensfaktor | 1,0 | **1,5** | **0,4** | **2,5** |
-| Geschwindigkeit | 640 | 640 | **900** | **300** |
-| Reichweite | ∞ | **280 px** | ∞ | ∞ |
-| durchschlägt | nein | nein | **ja** | nein |
-| Flächenradius | – | – | – | **70 px** |
-| Flächen-Schadensfaktor | – | – | – | **1,5** |
-
-**Warum diese Werte:**
-- **Schrot** ist absichtlich träge und laut statt schnell: 40 % Feuerrate, dafür sieben
-  Kugeln mit anderthalbfachem Schaden. Ein Fächer aus Nahdistanz macht rund
-  10-fachen Schaden und legt einen schweren Zombie (9 HP) mit einem Schuss um. Die
-  Reichweite von 280 px reicht vom Anker (y = 714) bis y = 434 — man muss die Gegner
-  herankommen lassen. Das ist der Preis für die Wucht.
-- **Laser** ist das Gegenteil: schnelles Geknatter mit wenig Einzelschaden, das aber ganze
-  Kolonnen auf einmal durchschlägt. Stark bei vielen leichten Gegnern, schwach gegen
-  einzelne schwere.
-- **Rakete** feuert nur mit drei Figuren gleichzeitig statt acht — sonst wäre sie bei voller
-  Truppe ein Raketenhagel mit 16 Flächentreffern pro Sekunde und würde alles andere
-  entwerten. Drei Raketen mit 70 px Radius decken bereits einen großen Teil der Breite ab.
-
-## Pool-Herleitungen
-
-**Die Formel ist nicht der Durchschnitt, sondern die Spitze.** Ein Durchschnitt
-(Salven/s × Schützen × Kugeln × Flugzeit) unterschätzt den Bedarf, sobald eine Salve groß
-und die Zahl der gleichzeitig fliegenden Salven klein ist — genau der Fall beim Schrot.
-Richtig ist:
-
-```
-gleichzeitig fliegende Salven = aufgerundet( Flugzeit / Salvenabstand )
-Spitze                        = Salven × Schützen × Kugeln pro Schuss
-```
-
-Die Salvenrate ist durch `BALANCE.stats.shotsPerSec.cap = 8` gedeckelt, multipliziert mit
-dem Ratenfaktor der Waffe. Bildhöhe 844 px, Anker bei y = 714.
-
-- **Normal: 96.** 8 Salven/s, Abstand 0,125 s, Flugzeit 714/640 = 1,12 s → 9 Salven
-  gleichzeitig × 8 Kugeln = **Spitze 72**. 96 lässt 33 % Reserve. Unverändert gegenüber heute.
-- **Schrot: 128.** 3,2 Salven/s, Abstand 0,3125 s, Flugzeit 280/640 = 0,44 s → 2 Salven
-  gleichzeitig × 56 Kugeln (8 Schützen × 7) = **Spitze 112**. Der Durchschnitt läge bei 79 —
-  die Salve ist hier so groß, dass die Aufrundung von 1,4 auf 2 Salven 43 % ausmacht. 128
-  lässt 14 % Reserve. Ein Pool von 112 wäre exakt die Spitze und würde beim ersten um einen
-  Frame verspäteten Reichweiten-Despawn überlaufen — sichtbar als schrumpfender Fächer.
-- **Laser: 96.** 11,2 Salven/s, Abstand 0,089 s, Flugzeit 714/900 = 0,79 s → 9 Salven × 8 =
-  **Spitze 72**. Der Laser despawnt beim Treffer nicht, fliegt also immer die volle Bahn —
-  die Rechnung darf keinen vorzeitigen Abgang unterstellen. 96 lässt 33 % Reserve.
-- **Rakete: 24.** 2 Salven/s, Abstand 0,5 s, Flugzeit 714/300 = 2,38 s → 5 Salven × 3
-  Schützen = **Spitze 15**. 24 lässt 60 % Reserve.
-- **Einschlag-Flash: 12.** 2 Salven/s × 3 Schützen = 6 Einschläge/s × 0,18 s Sichtbarkeit
-  = 1,1 gleichzeitig. 12 ist großzügige Reserve für gleichzeitige Einschläge.
-
-Zusammen 344 Projektile plus 12 Flashes, alle **einmalig im Konstruktor** angelegt.
-
-Jede dieser Herleitungen gehört als Kommentar an die jeweilige Poolgröße in `balance.ts` —
-gleiche Form wie die bestehenden Kommentare, und mit der Spitzen-Formel, nicht mit dem
-Durchschnitt.
-
-Die Dev-Konsolenwarnung bei Poolerschöpfung (`warnPoolExhausted`) bleibt und muss
-**benennen, welche Waffe** den Pool erschöpft hat. Ein zu kleiner Pool lässt Schüsse still
-verschwinden und sähe sonst wie ein Balance-Problem aus statt wie ein Technik-Bug.
-
-## Aussehen der Projektile
-
-Die drei neuen Geschosse müssen auf einen Blick unterscheidbar sein, sonst merkt man den
-Waffenwechsel nur an der Wirkung. Alle vier Texturen werden wie bisher programmatisch in
-`BootScene` erzeugt (das sind abstrakte Geschosse, keine Figuren — hier ist das zulässig).
-Neue Farben in `colors.ts` unter `WORLD_COLORS`.
-
-- **Normal:** unverändert, 6 × 14 px, orange (`projectileShell` / `projectileCore`).
-- **Schrot:** kleines Korn, 4 × 6 px, helles Gelb-Orange. Sieben davon müssen als Fächer
-  lesbar sein, nicht als Klumpen.
-- **Laser:** dünner langer Strahl, 3 × 20 px, helles Cyan. Deutlich anders als die
-  RATE-Farbe im HUD (`0x34d1e0`), damit HUD und Geschoss nicht verwechselt werden.
-- **Rakete:** gedrungener Körper, 8 × 16 px, grau mit rotem Kopf.
-- **Einschlag-Flash:** gefüllter Kreis, 32 px Durchmesser, warmes Orange-Weiß. Wird beim
-  Einschlag auf 70 px Radius skaliert — deshalb klein erzeugt und hochskaliert, nicht
-  in Zielgröße.
-
-## Waffen-Tore
-
-Die Waffe wird im Run an Toren erworben und gilt bis Run-Ende.
-
-- **Häufigkeit:** jedes vierte Tor ist ein Waffen-Tor. Bei 9 s Torabstand also etwa alle
-  36 s — in einem 2–3-Minuten-Run drei bis fünf Gelegenheiten. Als Wert in `balance.ts`
-  (`gates.weaponGateEvery: 4`), nicht als Zahl im Code.
-- **Kein Leerlauf:** Beide Seiten zeigen eine Waffe, beide **verschieden von der aktuellen**
-  und **voneinander verschieden**. Bei vier Waffen und einer aktiven bleiben immer drei zur
-  Auswahl, eine gültige Ziehung ist also immer möglich. Dieselbe Regel wie bei den
-  Stat-Toren, wo bereits gilt, dass keine Seite wirkungslos sein darf.
-- **Beschriftung:** der Waffenname statt einer Rechenoperation — `NORMAL`, `SCHROT`,
-  `LASER`, `RAKETE`. Die Torschrift ist heute 34 px; für Waffen-Tore auf **26 px**
-  reduzieren, sonst läuft der Text bei 191 px Torbreite über den Rand.
-- **Kopfzeile** über dem Tor: `WAFFE` statt eines Statkürzels.
-- **Farbe:** eine eigene Farbe, die sich von allen vier `STAT_COLORS` klar unterscheidet
-  (Vorschlag `0xb18cff`, ein helles Violett). Als `WEAPON_GATE_COLOR` in `colors.ts`.
-  `STAT_COLORS` und der `StatKey`-Typ bleiben unverändert — die Waffe ist kein Stat.
-- Die bestehende Logik für Stat-Tore (`drawGatePair`, gemischte Operatoren, zustands-
-  abhängige Ziehung) bleibt **vollständig erhalten**. Das Waffen-Tor ist eine zweite
-  Tor-Art daneben, kein Umbau der ersten.
-- Der Wechsel greift **sofort** beim Durchlaufen. Damit das stimmt, muss in
-  `GameScene.update()` der Aufruf `gates.update(...)` **vor** `weapons.update(...)`
-  stehen — heute ist es umgekehrt (Zeilen 112 und 115), wodurch der Wechsel einen Frame zu
-  spät wirkte. Die Reihenfolge der übrigen Aufrufe bleibt unverändert.
-- Die auslaufende Ladung der alten Waffe fliegt weiter (siehe Abschnitt B).
+- `GatePair` bekommt zwei zusätzliche Bildobjekte `leftIcon` / `rightIcon`, **einmalig in
+  `createPair()` angelegt** wie die vorhandenen Texte, standardmäßig inaktiv und unsichtbar.
+  Keine Erzeugung im laufenden Spiel.
+- `configureWeaponGate()` setzt auf den beiden Bildobjekten die Textur der jeweiligen Waffe,
+  macht sie sichtbar und **blendet `leftText` / `rightText` aus**.
+  `setTexture()` ist hier ausdrücklich erlaubt: ein Tor erscheint etwa alle 36 Sekunden,
+  das ist kein Hot Path. Vier Bildobjekte je Seite vorzuhalten wäre unnötig.
+- `configureStatGate()` blendet umgekehrt die Bildobjekte aus und die Texte wieder ein.
+  Die Stat-Tore ändern sich sonst nicht.
+- `layoutPair()` positioniert die Bilder wie die Texte auf `leftX` / `rightX` und `y`.
+  **Anders als der Text skalieren die Bilder mit dem Tor mit:** auf beiden Achsen mit
+  demselben `scaleX`, das das Tor bekommt (`gateWidth / this.baseGateWidth`). Damit wächst
+  das Bild perspektivisch mit und ragt oben, wo das Tor nur etwa 86 px breit ist, nicht
+  über den Rahmen hinaus. Das Seitenverhältnis bleibt erhalten.
+- Der weiße Aufblitz beim Durchfahren (`applyPair`) muss beim Waffen-Tor auf dem **Bild**
+  ausgelöst werden statt auf dem Text.
+- Die Kopfzeile `WAFFE` über dem Tor bleibt als Schrift bestehen — sie benennt die Art des
+  Tors, nicht die Waffe.
+- Die für Waffen-Tore eingeführte Schriftgröße 26 px wird nicht mehr gebraucht und entfällt.
+  `WEAPON_LABELS` bleibt bestehen, es wird weiterhin für die DEV-Warnung bei erschöpftem
+  Projektil-Pool gebraucht.
 
 ## HUD
 
-Die aktive Waffe muss jederzeit ablesbar sein, sonst ist nach einem Torwechsel unklar,
-womit man schießt.
+`src/scenes/GameScene.ts`:
 
-Zeile 2 des HUD hat heute drei Spalten (DMG, RATE, SPD). Sie wird auf **vier** Spalten
-aufgeteilt (Spaltenbreite `panelW / 4`, Positionen bei 0,5 / 1,5 / 2,5 / 3,5), die vierte
-zeigt den Waffennamen in der Waffen-Tor-Farbe.
+- Die vierte Spalte der zweiten HUD-Zeile zeigt statt des Waffennamens das HUD-Bild der
+  aktiven Waffe. Das Textobjekt `hud.weapon` wird durch ein **einmalig in `create()`
+  angelegtes** Bildobjekt ersetzt; `updateHud()` setzt nur noch dessen Textur.
+- Position wie bisher: Spaltenmitte bei `panelX + colW * 3.5`, gleiche Zeilenhöhe wie die
+  anderen drei Werte, vertikal an ihnen ausgerichtet. Ursprung mittig setzen, damit das Bild
+  in der Spalte zentriert sitzt.
+- Das Bild wird **nicht** skaliert; es ist in `72 × 20 px` bereits in Zielgröße und passt in
+  die 91 px breite Spalte.
+- Die Schriftgröße der zweiten Zeile steht derzeit als `BALANCE.hud.statFontPx - 1` im Code.
+  Bei dieser Gelegenheit sauber ziehen: den tatsächlichen Wert als eigenen Eintrag in
+  `balance.ts` führen und im Code nur diesen Wert lesen. Keine Rechnung im Code.
 
-Die Spalten werden dabei von rund 122 px auf 91 px schmaler. Zu prüfen ist deshalb nicht
-nur, ob der längste Waffenname hineinpasst, sondern auch, ob die **Bestandswerte an ihrer
-Obergrenze** noch passen: `DMG 20.0`, `RATE 8.0` und `SPD 305` erreicht ein Run durch die
-Tore zwangsläufig. Passt einer davon nicht, wird die Schriftgröße in Zeile 2 abgesenkt —
-nicht eine Anzeige weggelassen.
+## Laden der Bilder
 
-Keine bestehende Anzeige darf verschwinden, abgeschnitten werden oder überlappen.
+`src/scenes/BootScene.ts`: Die acht PNG-Dateien wie die vorhandenen Gegner-Sprites per
+Vite-Import einbinden und in `preload()` laden. Texturschlüssel:
+`weapon-<key>-gate` und `weapon-<key>-hud`.
 
-## Reißleine
+## Ausdrücklich nicht ändern
 
-**Riskanteste Stelle ist die Bildrate am iPhone bei voller Truppe (30 Figuren) plus
-Schrot.** Der Waffenwechsel ist dabei der Spitzenmoment: die auslaufende Ladung der alten
-Waffe und die neue Waffe sind gleichzeitig in der Luft. Für den Wechsel Normal → Schrot
-sind das rund 122 Projektile gegen bis zu 48 Gegner in der Kollisionsprüfung. Das ist die
-Zahl, an der es bricht — nicht die Poolgröße.
-
-Ruckelt es bei Thomas' iPhone-Test, in dieser Reihenfolge nachziehen:
-1. Schützenzahl für Schrot von 8 auf 5 senken (Spitze sinkt von 112 auf 70, Pool auf 80).
-2. Erst danach die Kugelzahl von 7 auf 5.
-
-**Kein zulässiger Ersatz ist:** eine Waffe streichen; den Pool kleiner setzen als die
-Herleitung ergibt und Schüsse still verschlucken lassen; `crowd.max` senken; die Gegnerzahl
-oder `pools.enemies` reduzieren; die Kollisionsprüfung ausdünnen (etwa nur jeden zweiten
-Frame prüfen). Führt keiner der beiden erlaubten Schritte zum Ziel: **melden und stoppen**,
-nicht selbst etwas anderes wählen.
-
-**Zeitbudget:** Ist der Task nach zwei Codex-Läufen nicht lauffähig, wird der Umfang auf
-zwei Waffen reduziert (Schrot und Laser, Rakete entfällt) — das entspricht der Reißleine
-in `docs/plan.md` („zwei Waffen mit unterschiedlichem Gefühl sind mehr wert als drei
-gleiche"). Diese Kürzung trifft **Thomas**, nicht Codex und nicht Claude eigenmächtig.
-
-**Balance-Urteil:** Ob sich eine Waffe spürbar anders anfühlt als der Standard, entscheidet
-Thomas am iPhone. Codex' Selbsteinschätzung und die Desktop-Vorschau zählen nicht als
-Nachweis.
+- Waffenwerte, Pools, Feuerraten, Reichweiten, Flächenschaden — nichts aus der Balance.
+- Die Auswahlregeln der Waffen-Tore (jedes vierte Tor, nie die aktuelle Waffe, nie zweimal
+  dieselbe) und die Stat-Tore.
+- Die Reihenfolge `gates.update()` vor `weapons.update()` in `GameScene.update()`.
+- Die violette Torfarbe `WEAPON_GATE_COLOR` bleibt für Rahmen und Kopfzeile.
 
 ## Akzeptanzkriterien
 
-1. Vier Waffen sind spielbar; die Startwaffe ist `NORMAL`.
-2. Alle Projektil- und Flash-Objekte werden **einmalig im Konstruktor** angelegt. Im
-   laufenden Spiel gibt es weder `create()`, `destroy()`, `new Set()`, `setTexture()` noch
-   `tweens.add()`; `fire()` erzeugt **keine Zwischen-Arrays** mehr (kein `filter`, `slice`
-   oder `map` pro Schuss). Im Diff nachweisbar.
-3. Jede Poolgröße steht mit ihrer Herleitung als Kommentar in `balance.ts`, gerechnet über
-   die gleichzeitig fliegenden Salven, nicht über den Durchschnitt.
-4. Die Rakete feuert mit 3 Figuren pro Salve, alle anderen Waffen mit bis zu 8 — im Diff an
-   der waffenabhängigen Schützenzahl nachweisbar, nicht nur in der Balance-Tabelle.
-5. Der Schrot-Fächer besteht aus 7 Kugeln auf schrägen Bahnen und verschwindet nach 280 px.
-6. Der Laser durchschlägt und schädigt denselben Gegner **nachweislich nur einmal** pro
-   Durchflug; die Identität läuft über die Spawn-Nummer, nicht über die Objektreferenz.
-7. `handleProjectileHit` verzweigt nach dem Waffentyp des Projektils und recycelt den Laser
-   nicht.
-8. Der Raketeneinschlag schädigt Gegner im Radius von 70 px mit Faktor 1,5 und zeigt einen
-   Kreis-Flash aus dem eigenen Pool, der über eine mitgeführte Restzeit ausgeblendet wird.
-9. Waffen-Tore erscheinen als jedes vierte Tor, zeigen nie die aktuelle Waffe und nie
-   zweimal dieselbe; der Wechsel wirkt im selben Frame.
-10. Die Stat-Tore funktionieren unverändert weiter; `RunStats` und `StatKey` sind nicht
-    verändert.
-11. Beim Waffenwechsel fliegt die Ladung der alten Waffe zu Ende und trifft weiterhin.
-12. Das HUD zeigt die aktive Waffe; TEAM, Münzen, DMG, RATE und SPD bleiben auch bei ihren
-    Höchstwerten (20.0 / 8.0 / 305) vollständig sichtbar und überlappen nicht.
-13. Die vier Projektiltypen sind optisch klar unterscheidbar.
-14. `npm run check` und `npm run build` laufen fehlerfrei durch.
-15. Keine Requests an fremde Hosts, keine neuen Abhängigkeiten.
+1. Acht PNG-Dateien liegen unter `src/assets/`: je Waffe `-gate.png` (150 × 44) und
+   `-hud.png` (72 × 20), alle mit transparentem Hintergrund.
+2. Die vier großen Originale liegen unter `assets/probe/waffen/` und sind mindestens
+   1024 px breit. Sie sind **nicht** eingecheckt (Ordner steht in `.gitignore`).
+3. Jedes der vier Bilder zeigt die jeweilige Waffe als erkennbares Objekt in Seitenansicht,
+   nicht als abstrakte Form, und alle vier in einheitlichem Stil.
+4. Am Waffen-Tor steht das Bild, **kein** Waffenname mehr. Die Kopfzeile `WAFFE` bleibt.
+5. Das Torbild skaliert mit dem Tor mit und ragt zu keinem Zeitpunkt über den Torrahmen
+   hinaus — auch nicht oben, wo das Tor am schmalsten ist.
+6. Stat-Tore zeigen unverändert ihre Rechenoperationen als Schrift.
+7. Die HUD-Zeile zeigt das Bild der aktiven Waffe; TEAM, Münzen, DMG, RATE und SPD bleiben
+   auch bei ihren Höchstwerten vollständig sichtbar und überlappen nicht.
+8. Keine Erzeugung von Bild- oder Textobjekten im laufenden Spiel; alle Objekte entstehen
+   einmalig im Konstruktor beziehungsweise in `create()`.
+9. Die Schriftgröße der zweiten HUD-Zeile steht als eigener Wert in `balance.ts`, nicht als
+   Rechnung im Code.
+10. `npm run check` und `npm run build` laufen fehlerfrei durch.
+11. Keine neuen Abhängigkeiten, keine Requests zur Laufzeit.
 
-**Offen bis zu Thomas' iPhone-Test:** ob es bei voller Truppe plus Schrot flüssig läuft,
-ob sich die drei Waffen unterschiedlich anfühlen und ob die Torwahl eine Entscheidung ist.
-
-## Nicht in diesem Task
-
-- **Startwaffe im Menü kaufen** — der Plan nennt das unter „Erwerb", es braucht aber das
-  Menü- und Persistenzsystem aus Etappe E5. In E4b ist die Startwaffe immer `NORMAL`.
-- E4c (Gegner als Truppen), Hintergrundgestaltung, die HUD-Überlappung beim Torerscheinen.
-
-## Hinweis zum aktuellen Codestand
-
-`src/systems/spawner.ts` wurde heute zweimal geaendert (`97e02c8`, `2efa02c`):
-Spurwahl liegt jetzt als reine Funktion in `src/systems/spawnLanes.ts`, und Gegnerkoerper
-stehen auf `body.moves = false`. Beides bleibt unangetastet. Die in Abschnitt E verlangte
-fortlaufende `spawnId` kommt als zusaetzliches `setData` in `spawn()` dazu — die
-bestehenden Datenfelder und die Poollogik bleiben, wie sie sind.
-
-## Implementation Summary
-
-- Vier Waffen mit festen Teilpools (96/128/96/24), Spawn-ID-gestuetzter Laser-Trefferliste,
-  Schrot-Reichweite, Raketenflaechenschaden und 12er-Einschlagflash-Pool umgesetzt.
-- Jedes vierte Tor ist jetzt ein Waffen-Tor; der Wechsel gilt vor dem Waffen-Update im selben
-  Frame. Das HUD zeigt die aktive Waffe als vierte Spalte, ohne `RunStats` oder `StatKey` zu aendern.
-- Geprueft: `git diff --check`, `npm run check` und `npm run build` erfolgreich. Der Build erzeugt
-  nur die bestehende Vite-Hinweiswarnung fuer einen Chunk ueber 500 kB.
-- Nicht lokal pruefbar: iPhone-Performance bei voller Truppe plus Schrot, Waffen-Gamefeel und
-  Entscheidungsqualitaet der Tore; diese Punkte sind laut Spezifikation Thomas' iPhone-Test vorbehalten.
-
-
-## Review-Ergebnis (Claude, am laufenden Spiel nachgemessen)
-
-Alle 15 Akzeptanzkriterien geprueft. Messungen bei voller Truppe (30 Figuren) und
-Feuerrate am Cap (8/s), jede Waffe einzeln erzwungen.
-
-**Pools — gemessene Spitze gegen hergeleitete Groesse, 0 Erschoepfungswarnungen:**
-
-| Waffe | gemessene Spitze | Pool | hergeleitete Spitze |
-|---|---|---|---|
-| Normal | 48 | 96 | 72 |
-| Schrot | **112** | 128 | 112 |
-| Laser | 72 | 96 | 72 |
-| Rakete | 9 | 24 | 15 |
-
-Der Schrot erreicht die hergeleitete Spitze exakt — die Herleitung ueber die gleichzeitig
-fliegenden Salven war noetig, ein Pool nach Durchschnitt (79) waere uebergelaufen.
-
-**Laser-Durchschlag (Kriterium 6, kritischste Stelle):** 593 Ueberlappungs-Aufrufe,
-davon nur **494 tatsaechliche Schadensereignisse** und **0 Doppelschaeden** ueber 494
-verschiedene Projektil-Gegner-Paare. Die Trefferliste greift. `laserRecycled: 0` —
-der Laser wird beim Treffer nie recycelt (Kriterium 7).
-
-**Waffen-Tore (Kriterium 9):** 22 Tore beobachtet, davon 6 Waffen-Tore an genau jeder
-vierten Position. **0 Regelverstoesse** — nie die aktuelle Waffe, nie zweimal dieselbe.
-16 Stat-Tore funktionierten unveraendert weiter (Kriterium 10).
-
-**Alte Ladung (Kriterium 11):** Bei sechs beobachteten Wechseln flogen bis zu 32
-Projektile der alten Waffe weiter; 300 ms nach dem Wechsel waren davon noch bis zu 16 aktiv.
-
-**Rakete (Kriterium 8):** Flaechenschaden toetete mehrfach mehr als einen Gegner pro
-Einschlag. Einschlag-Flash: Pool 12, 72 Aktivierungen in 40 s, hoechstens 3 gleichzeitig,
-Deckkraft startet bei 1 und laeuft ueber die mitgefuehrte Restzeit aus.
-
-**HUD (Kriterium 12):** Im unguenstigsten Fall (`DMG 17.5`, `RATE 7.5`, `SPD 305`,
-Waffenname) sitzen die vier Spalten bei 26-90, 119-179, 210-271 und 301-363 px innerhalb
-des Panels (12-378). Kleinster Abstand 29 px, **keine Ueberlappung**, nichts abgeschnitten.
-
-**Optik (Kriterium 13):** Die vier Geschosse sind im Bildvergleich klar unterscheidbar;
-der Schrot-Faecher ist als Faecher lesbar, nicht als Klumpen.
-
-**Bau (Kriterium 14):** `npm run check` und `npm run build` selbst im Terminal ausgefuehrt,
-beide exit 0. Keine neuen Abhaengigkeiten, keine externen Requests (Kriterium 15).
-
-**Nebenbefund, bewusst nicht nachgebessert:** Die Schriftgroesse der zweiten HUD-Zeile
-steht als `BALANCE.hud.statFontPx - 1` im Code statt als eigener Wert in `balance.ts`.
-Funktional richtig, aber der tatsaechliche Wert ist dadurch nicht mehr an einer Stelle
-ablesbar. Beim naechsten Anfassen des HUD mitziehen.
-
-**Offen bis zu Thomas' iPhone-Test:** Bildrate bei voller Truppe plus Schrot (der
-Wechselmoment mit rund 122 gleichzeitig fliegenden Projektilen), ob sich die drei Waffen
-spuerbar unterschiedlich anfuehlen und ob die Torwahl eine echte Entscheidung ist.
-Reissleine dafuer steht oben im Abschnitt „Reissleine".
+Die Bildqualität und den Torlauf prüft Claude nach der Umsetzung am laufenden Spiel und an
+den großen Vorlagen im Probeordner. Ob die Waffen auf Anhieb erkennbar sind, entscheidet
+Thomas am iPhone.
