@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { HUD_COLORS, STAT_COLORS, WEAPON_GATE_COLOR } from '../config/colors'
+import { HUD_COLORS, lighten, STAT_COLORS, WEAPON_GATE_COLOR } from '../config/colors'
 import { getRoadHalfWidth } from './road'
 import { clampStat, type RunStats, type StatKey } from './upgrades'
 import { type WeaponKey } from './weapons'
@@ -35,6 +35,10 @@ type GateDirection = 'up' | 'down'
 
 function pick<T>(values: readonly T[], rng: () => number): T {
   return values[Math.min(values.length - 1, Math.floor(rng() * values.length))]
+}
+
+export function isLeftSelected(anchorX: number, width: number): boolean {
+  return anchorX < width / 2
 }
 
 function drawGateOp(current: number, rng: () => number): GateOp {
@@ -180,6 +184,7 @@ export class Gates {
       if (!pair.active) continue
       this.movePair(pair, movement)
       const bottomY = pair.left.y + pair.left.displayHeight / 2
+      if (!pair.triggered) this.updateHighlight(pair, anchor.x)
       if (!pair.triggered && pair.prevBottomY < anchor.y && bottomY >= anchor.y) this.applyPair(pair, anchor.x)
       pair.prevBottomY = bottomY
       if (pair.triggered && this.elapsedMs >= pair.flashUntilMs) this.recycle(pair)
@@ -263,8 +268,17 @@ export class Gates {
   private movePair(pair: GatePair, movement: number): void {
     pair.left.y += movement
     this.layoutPair(pair)
-    const alpha = Math.min(1, Math.max(0, (pair.left.y - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
+    const topY = pair.statLabel.y - pair.statLabel.displayHeight / 2
+    const alpha = Math.min(1, Math.max(0, (topY - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
     this.setPairAlpha(pair, alpha)
+  }
+
+  private updateHighlight(pair: GatePair, anchorX: number): void {
+    const baseColor = pair.kind === 'weapon' ? WEAPON_GATE_COLOR : STAT_COLORS[pair.stat]
+    const highlightColor = lighten(baseColor, BALANCE.gates.highlightLighten)
+    const selectedLeft = isLeftSelected(anchorX, this.scene.scale.width)
+    pair.left.setTint(selectedLeft ? highlightColor : baseColor)
+    pair.right.setTint(selectedLeft ? baseColor : highlightColor)
   }
 
   private setPairAlpha(pair: GatePair, alpha: number): void {
@@ -296,7 +310,7 @@ export class Gates {
   private applyPair(pair: GatePair, anchorX: number): void {
     pair.triggered = true
     pair.flashUntilMs = this.elapsedMs + BALANCE.gates.choiceFlashMs
-    const selectedLeft = anchorX < this.scene.scale.width / 2
+    const selectedLeft = isLeftSelected(anchorX, this.scene.scale.width)
     if (pair.kind === 'weapon') {
       this.onWeaponSelected(selectedLeft ? pair.leftWeapon : pair.rightWeapon)
       ;(selectedLeft ? pair.left : pair.right).setTintFill(0xffffff)

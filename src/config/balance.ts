@@ -24,11 +24,6 @@ export const BALANCE = {
     dragClampFigures: 0.5,
     anchorBottomOffset: 130,
   },
-  aim: {
-    widthPx: 2,
-    alpha: 0.3,
-    depth: 1,
-  },
   layers: {
     background: -1,
     road: 0,
@@ -153,6 +148,7 @@ export const BALANCE = {
     // Gate path from the horizon to the player is about 564px; (180 + 227)px/s takes about 1.39s.
     extraSpeed: 227,
     choiceFlashMs: 250,
+    highlightLighten: 0.45,
     gateHeight: 70,
     gapBetween: 8,
     maxRedraws: 8,

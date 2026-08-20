@@ -1,153 +1,165 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**Himmel und Horizont: oben Tageshimmel, darunter der Horizont, neben der Fahrbahn Boden.**
+**Ziellinie ersetzen: Die Torhälfte, in die man fährt, leuchtet. Dazu Horizont-Feinschliff.**
 
-Thomas-Entscheidungen vom 2026-08-20: **Aufbau** = Horizont oben mit Himmel darüber, neben
-der Fahrbahn Boden (nicht: Straße schwebt im Himmel). **Stimmung** = heller Tag.
+Thomas-Entscheidung vom 2026-08-20 nach dem Test: Die Ziellinie auf der Fahrbahn gefällt ihm
+nicht. Statt eines Strichs soll die **Torhälfte, in die er gerade fährt, beim Näherkommen
+heller werden** — die Rückmeldung sitzt damit am Tor selbst und nicht dauerhaft auf der Bahn.
 
-Damit wird auch die offene Frage aus `docs/naechste-tasks.md` eingelöst: Die Fahrbahnfarbe
-wurde testweise betongrau gemacht und zurückgesetzt, weil Thomas den Kontrast aus dem neuen
-Hintergrund holen wollte. **Fahrbahn- und Umgebungsfarben werden deshalb in diesem Task
-zusammen entschieden, nicht nacheinander.**
+Der Zweck bleibt derselbe wie beim Strich: Vor dem Durchfahren muss erkennbar sein, welche
+Seite zählt. Auslöser war ein `+2`-Tor auf RATE, nach dem Thomas die Rate für gesunken hielt.
+Die Tor-Mathematik ist geprüft und korrekt — unsichtbar war die Seitenwahl.
 
-## Was sich dadurch geometrisch ändert
+Der vorige Task (Himmel und Horizont) ist abgeschlossen und freigegeben; seine Farben,
+Geschwindigkeiten und Geometrie werden hier **nicht** angefasst.
 
-Heute beginnt die Fahrbahn am oberen Bildrand (`y = 0`). Ein Horizont bedeutet, dass sie
-weiter unten beginnt. Oberhalb liegt Himmel, unterhalb links und rechts Boden.
+## Teil 1 — Ziellinie entfernen
 
-- Neuer Balance-Wert `road.horizonY`, **150**. Herleitung: Auf dem iPhone liegt die
-  HUD-Leiste bei y ≈ 59 bis 121 (Safe-Area oben ≈ 47 px + 12 px Rand + 62 px Höhe). Ein
-  Horizont darüber wäre von der Leiste verdeckt. Bei 150 bleibt darunter ein frei sichtbarer
-  Himmelsstreifen, und oberhalb der Leiste ist ebenfalls Himmel zu sehen; die Leiste ist
-  halbdurchsichtig, der Himmel scheint durch.
-- `getRoadHalfWidth()` interpoliert künftig von `horizonY` bis `height` statt von `0` bis
-  `height` — **und klemmt Werte oberhalb des Horizonts auf die Horizontbreite**. Dadurch
-  liefern alle bestehenden Aufrufstellen (auch die mit `y = 0` in `spawnLanes`) weiterhin
-  denselben Wert wie bisher am oberen Rand, und die Spurlogik bleibt unverändert gültig.
-- Die Fahrbahn ist am Horizont **genauso breit wie heute am oberen Bildrand**
-  (`topWidthRatio: 0.46`). Es wird nichts auf einen Punkt zusammengezogen — sonst passt kein
-  Gegner mehr in die Spur und die Spurwahl aus `spawnLanes.ts` liefe leer.
+Restlos, ohne Reste:
 
-## Eintritt am Horizont statt von oben
+- Das Bildobjekt und `updateAimLine()` in `GameScene`.
+- Die Textur `aim-line` und `createAimLineTexture()` in `BootScene`.
+- Der Abschnitt `aim` in `balance.ts` und `aimLine` in `colors.ts`.
 
-Gegner und Tore können nicht mehr von außerhalb des Bildes hereinrutschen — dort ist jetzt
-Himmel. Sie erscheinen **am Horizont** und blenden auf, damit sie nicht aufpoppen.
+Das Ebenensystem `BALANCE.layers` **bleibt** — es wird weiterhin von allen Spielobjekten
+benutzt. Nur ein durch die Linie ungenutzt gewordener Eintrag entfällt.
 
-- Gegner erscheinen bei `y = road.horizonY` statt bei `y = -bodyHeight / 2`.
-- Tore erscheinen bei `y = road.horizonY` statt bei `y = -gateHeight / 2`.
-- Neuer Wert `road.entryFadePx`, **40**: Über die ersten 40 px unterhalb des Horizonts steigt
-  die Deckkraft linear von 0 auf 1. Danach normal. Die Berechnung läuft über die
-  **zurückgelegte Strecke**, nicht über einen Zeitgeber — sonst hängt sie an der Bildrate.
-- Der Aufblend-Zustand darf die Trefferlogik **nicht** verändern: Ein Gegner ist ab dem
-  ersten Bild vollständig aktiv und trefferbar, nur eben noch durchscheinend.
+## Teil 2 — Leuchtende Torhälfte
 
-## Weitere Stellen, die der Horizont berührt
+Solange ein Torpaar sichtbar und noch nicht ausgelöst ist, wird **genau eine** der beiden
+Hälften hervorgehoben: die, die bei der aktuellen Position der Spitzenfigur angewandt würde.
+Die Hervorhebung wandert live mit, wenn Thomas den Finger bewegt.
 
-Diese Punkte sind leicht zu übersehen und gehören ausdrücklich dazu:
+### Die eine Regel, an der alles hängt
 
-- **Projektile** verschwinden heute bei `y + displayHeight / 2 < 0`. Künftig am Horizont
-  (`< road.horizonY`), sonst fliegen die Geschosse sichtbar in den Himmel hinein.
-- **Die Ziellinie** aus dem vorigen Task reicht heute bis `y = 0`. Künftig endet sie am
-  Horizont.
-- **Die Mittellinien-Segmente** in `road.ts` laufen heute über `y = height * progress²` von 0
-  bis `height`. Sie müssen künftig am Horizont beginnen; die perspektivische Stauchung bleibt.
-- **Die Fahrbahn-Textur** in `BootScene.createRoadTextures()` wird nur noch unterhalb des
-  Horizonts gezeichnet.
-- **Der Kamera-Hintergrund** (`WORLD_COLORS.background`) wird auf die obere Himmelsfarbe
-  gesetzt, damit an keiner Kante Dunkles durchblitzt.
+Welche Seite gilt, entscheidet heute `applyPair()` mit `anchorX < this.scene.scale.width / 2`.
+**Die Hervorhebung muss dieselbe Entscheidung treffen — nicht eine nachgebaute.**
 
-## Gate-Lesezeit — die einzige Kompensation in diesem Task
+Dafür eine kleine gemeinsame Funktion herausziehen, zum Beispiel
+`isLeftSelected(anchorX, width): boolean`, und sie **an beiden Stellen** aufrufen: in
+`applyPair()` und in der Hervorhebung. Zwei getrennte Vergleiche wären der wahrscheinlichste
+Weg, wie beide Seiten später auseinanderlaufen — besonders im Grenzfall „genau mittig", wo
+heute die **rechte** Seite gilt.
 
-Der Weg eines Tores verkürzt sich von 749 px auf 564 px. Bei unveränderten 540 px/s
-(`scrollSpeed` 180 + `gates.extraSpeed` 360) sinkt die Zeit, in der ein Tor sichtbar ist, von
-**1,39 s auf 1,04 s** — ein Viertel weniger Lesezeit, direkt nachdem die Torlesbarkeit im
-vorigen Task verbessert wurde.
+### Wie hervorgehoben wird
 
-Deshalb: `gates.extraSpeed` von 360 auf **227** senken. Rechnung: 564 px ÷ 1,39 s = 406 px/s
-Gesamtgeschwindigkeit, minus `scrollSpeed` 180 = 226,6 → 227. Damit ist ein Tor exakt so lange
-sichtbar wie heute. Den vorhandenen Kommentar zur Torstrecke entsprechend nachziehen.
+- Die gewählte Hälfte bekommt eine **aufgehellte Fassung ihrer eigenen Farbe**, die andere
+  behält den bisherigen Ton. Also kein Weiß und keine Fremdfarbe: Ein Stat-Tor muss weiterhin
+  an seiner Statfarbe erkennbar sein, ein Waffen-Tor an seinem Violett.
+- Dafür eine Hilfsfunktion in `colors.ts`, die eine Farbe in Richtung Weiß mischt
+  (Vorschlag: `lighten(color, amount)`), und ein Balance-Wert `gates.highlightLighten`,
+  Vorschlag **0.45**.
+- Angewandt wird die Aufhellung auf den **Torrahmen** (`pair.left` / `pair.right`). Schrift
+  und Waffenbild bleiben unverändert — der Rahmen trägt das Signal.
+- Aktualisiert wird je Bild in `Gates.update()`, solange `pair.active && !pair.triggered`.
+  Zwei `setTint`-Aufrufe je aktivem Paar; bei höchstens zwei Paaren unkritisch.
+- Sobald das Tor ausgelöst hat, gilt weiter die bestehende Rückmeldung: die gewählte Seite
+  blitzt `gates.choiceFlashMs` = 250 ms weiß auf. Die Aufhellung wird dabei nicht doppelt
+  angewandt.
 
-## Was **nicht** kompensiert wird — und warum
+## Teil 3 — Horizont-Feinschliff
 
-Ich hatte Thomas zunächst angekündigt, die Fahrgeschwindigkeit auszugleichen, damit ein Gegner
-genauso lange bis zu ihm braucht wie heute. **Das wird hier bewusst nicht gemacht.** Grund:
-Der Ausgleich müsste `scrollSpeed`, alle drei `stats.speed`-Werte und die Schrot-Reichweite
-gleichzeitig um 23 % senken. Das verlangsamt sichtbar den Bildlauf der Fahrbahn — also genau
-das, was das Tempogefühl des Spiels ausmacht — und es vermischt eine Balance-Änderung mit
-einer Optikänderung, sodass eine spätere Verschlechterung nicht mehr zuzuordnen wäre.
+Nachgemessen am laufenden Spiel: Es ragt noch Sichtbares über den Horizont in den Himmel.
+Ursache ist, dass die Einblendung an der **Mitte** eines Objekts hängt statt an seiner
+**Oberkante**.
 
-**Messbare Folge, die so bleibt:** Ein Standard-Gegner braucht bei Grundgeschwindigkeit vom
-Erscheinen bis zur Truppe künftig **5,4 s statt 7,0 s** (564 px statt 736 px bei 105 px/s).
-Die Vorwarnzeit sinkt um 23 %.
+Gemessen über 12 058 Bilder:
+- Gegner: bis zu **25 px** über dem Horizont bei einer Deckkraft von bis zu **0,64**.
+- Kopfzeile über dem Tor (`SPD`, `WAFFE` …): bis zu **20 px** über dem Horizont bei voller
+  Deckkraft — die Zeile sitzt 49 px über der Tormitte und wird deshalb von der heutigen
+  Rechnung gar nicht erfasst.
+- Projektile: Der Abgang prüft die **Unterkante** (`y + displayHeight / 2 < horizonY`), also
+  fliegt ein Geschoss vollständig in den Himmel, bevor es verschwindet; gemessen bis
+  **18 px** darüber.
 
-Ist das am iPhone zu hart, wird **ein einziger Wert** gesenkt: `stats.speed.base`. Das ist
-Thomas' Entscheidung nach seinem Test, nicht Codex' und nicht Claudes.
+Korrektur, einheitlich über die **Oberkante**:
 
-## Farben
+```
+alpha = clamp((oberkante - road.horizonY) / road.entryFadePx, 0, 1)
+```
 
-Alle neuen Farben nach `colors.ts` unter `WORLD_COLORS`. Startwerte, die Codex einsetzt:
+- **Gegner:** `oberkante = y - displayHeight / 2`.
+- **Tore:** `oberkante` ist die Oberkante des **höchsten** sichtbaren Teils des Paares, also
+  der Kopfzeile — nicht die des Rahmens.
+- **Projektile:** verschwinden, sobald `y - displayHeight / 2 <= road.horizonY`.
 
-| Zweck | Wert | Anmerkung |
-|---|---|---|
-| Himmel oben | `0x2f7fd1` | kräftiges Tagesblau |
-| Himmel am Horizont | `0xbfe3f7` | hell, fast weiß |
-| Horizontdunst | `0xdfeef8` | schmales helles Band direkt am Horizont |
-| Boden | `0x3f5a3a` | gedämpftes Grün, deutlich dunkler als der Himmel |
-| Fahrbahn | `0x4a4f57` | Asphaltgrau statt des heutigen `0x172033` |
-| Fahrbahnrand | `0xe8ecf2` | helle Begrenzungslinie statt `0x34415d` |
+Damit ist die Deckkraft in dem Moment 0, in dem die Oberkante den Horizont berührt, und
+erreicht 1 erst 40 px darunter. Über dem Horizont ist dann nichts mehr sichtbar.
 
-Himmel und Boden werden als **je eine einmalig in `BootScene` erzeugte Textur** angelegt
-(Verlauf im Himmel), nicht pro Bild gezeichnet. Beide liegen auf einer Ebene **unter**
-`BALANCE.layers.road`; das Ebenensystem aus dem vorigen Task wird dafür um einen Eintrag
-`background` ergänzt.
+## Ausdrücklich nicht ändern
 
-## Pflicht: Kontrollbild
-
-Vor dem Abschluss ein Kontrollbild erzeugen und unter `assets/probe/hintergrund-kontrolle.png`
-ablegen (Ordner liegt in `.gitignore`): die vier Figuren — Spielertruppe, leichter, mittlerer
-und schwerer Zombie — auf der neuen Fahrbahn, dazu ein Ausschnitt mit Himmel, Horizont und
-Boden. Beim Betongrau-Versuch hat genau dieses Vorgehen den Ausschlag gegeben.
-
-**Zu prüfen ist am Kontrollbild:** Der leichte Zombie ist hell-beige, die eigene Truppe
-rot-orange. Beide müssen sich vor der neuen Fahrbahn **und** vor dem Boden klar abheben.
+- Der Bezugspunkt der Torwahl (`anchorX`) und der Auslösezeitpunkt bleiben.
+- `gates.choiceFlashMs` (250 ms) und `feedback.hitFlashMs` (80 ms) bleiben.
+- Keine eingeblendeten Zahlen, nirgends — Thomas' Vorgabe gilt weiter.
+- Keine Farben von Himmel, Boden oder Fahrbahn ändern; die stehen seit dem letzten Task.
+- `gates.extraSpeed` (227) bleibt — die Torlesezeit ist bereits nachgerechnet.
+- Die Geschwindigkeitswerte der Gegner bleiben unangetastet.
 
 ## Reißleine
 
-Hebt sich eine der vier Figuren auf dem neuen Untergrund nicht ab: **melden und stoppen**.
-
-**Kein zulässiger Ersatz ist:**
-- Die Sprites der Figuren ändern, um den Kontrast herzustellen.
-- Den Himmel dunkler machen, bis es passt — Thomas hat „heller Tag" gewählt.
-- Eine Kontur oder einen Schatten um die Figuren legen.
-- Den Horizont weiter nach oben schieben, um dem Problem auszuweichen.
-
-Die Fahrbahnfarbe ist der Wert, an dem gedreht werden darf — aber die Entscheidung darüber
-trifft Thomas am Kontrollbild, nicht Codex im Alleingang.
+Lässt sich die Hervorhebung nicht so bauen, dass sie **immer** dieselbe Seite anzeigt, die
+danach angewandt wird: **melden und stoppen**. Kein zulässiger Ersatz ist eine Anzeige, die
+„meistens" stimmt, eine zweite eigene Vergleichslogik, oder ein Rückgriff auf die gerade
+entfernte Linie.
 
 ## Akzeptanzkriterien
 
-1. Oberhalb von `road.horizonY` ist Himmel mit Verlauf zu sehen, darunter links und rechts
-   der Fahrbahn Boden. Am Horizont liegt ein schmales helles Dunstband.
-2. Die Fahrbahn beginnt am Horizont und ist dort genauso breit wie heute am oberen Bildrand.
-3. Gegner und Tore erscheinen am Horizont und blenden über die ersten 40 px auf; nichts
-   springt sichtbar ins Bild und nichts erscheint oberhalb des Horizonts.
-4. Ein Gegner ist vom ersten Bild an trefferbar, auch während er noch durchscheinend ist.
-5. Projektile verschwinden am Horizont, nicht erst am oberen Bildrand; kein Geschoss ist im
-   Himmel zu sehen.
-6. Die Ziellinie endet am Horizont.
-7. Ein Tor ist genauso lange sichtbar wie vorher — nachweisbar über `gates.extraSpeed` = 227
-   und eine Sichtbarkeitsdauer von rund 1,39 s.
-8. Die Spurwahl der Gegner funktioniert unverändert: 0 überlappende Gegner und eine
-   Aufschub-Quote unter 5 % über drei Minuten, wie im Task vom 2026-08-20 gemessen.
-9. Das Kontrollbild liegt vor und zeigt alle vier Figurentypen auf dem neuen Untergrund.
-10. Kein `create()`/`destroy()` im laufenden Spiel; Himmel und Boden sind je ein einmalig
-    erzeugtes Objekt.
-11. `npm run check` und `npm run build` laufen fehlerfrei durch.
+1. Auf der Fahrbahn ist keine Linie mehr; im Code gibt es keine Reste davon (`aim-line`,
+   `createAimLineTexture`, `BALANCE.aim`, `WORLD_COLORS.aimLine`, `updateAimLine`).
+2. Solange ein Tor sichtbar und nicht ausgelöst ist, ist **genau eine** Hälfte aufgehellt.
+3. Die aufgehellte Hälfte ist in **jedem** Fall die Hälfte, die beim Durchfahren angewandt
+   wird — auch bei genau mittiger Position, wo die rechte Seite gilt.
+4. Die Hervorhebung wandert ohne sichtbare Verzögerung mit, wenn der Finger bewegt wird.
+5. Stat-Tore behalten ihre Statfarbe, Waffen-Tore ihr Violett; die Hervorhebung ist eine
+   aufgehellte Fassung derselben Farbe, kein Weiß.
+6. Über drei Minuten Spielzeit hat **kein** Objekt mit einer Deckkraft über 0,02 einen Teil
+   oberhalb von `road.horizonY` — weder Gegner, noch Tore, noch deren Kopfzeile, noch
+   Projektile.
+7. Die bisherigen Messwerte bleiben gehalten: 0 überlappende Gegner über drei Minuten,
+   Tor-Sichtbarkeit rund 1,3 s.
+8. `npm run check` und `npm run build` laufen fehlerfrei durch.
 
-Kriterien 3 bis 8 prüft Claude am laufenden Spiel nach. Über Farbwirkung und darüber, ob die
-kürzere Vorwarnzeit trägt, entscheidet Thomas am iPhone.
+Kriterien 2, 3, 6 und 7 prüft Claude am laufenden Spiel nach — Kriterium 3 wie beim letzten
+Mal über viele Tordurchfahrten mit bewegtem Finger, mit dem Anspruch **null Abweichungen**.
+Ob die leuchtende Hälfte im Spiel gut ablesbar ist, entscheidet Thomas am iPhone.
+
+## Implementation Summary
+
+- Ziellinie einschließlich Textur, Konfiguration und Aktualisierung entfernt.
+- Gemeinsame Funktion `isLeftSelected()` steuert sowohl Torwirkung als auch die live
+  mitwandernde Aufhellung des ausgewählten Torrahmens; Stat- und Waffenfarben bleiben erhalten.
+- Gegner, Tore samt Kopfzeile und Projektile richten ihre Horizontbehandlung nun an der
+  Oberkante aus.
+- Verifiziert mit `npm run check`, `npm run build`, `git diff --check` und einer Suche nach
+  verbliebenen Linienresten.
+
+
+## Review-Ergebnis (Claude, am laufenden Spiel nachgemessen)
+
+Messlauf 7689 Bilder mit bewegtem Finger (links, Mitte, rechts im Wechsel):
+
+- **Kriterium 3, die kritische Stelle:** 14 Tordurchfahrten, **0 Abweichungen** zwischen
+  aufgehellter und angewandter Haelfte. Gemessen wurde nicht die Absicht im Code, sondern der
+  tatsaechliche Farbwert der beiden Torrahmen — welche Haelfte gezeichnet heller ist.
+- **Kriterium 2:** In **0** von 14 Faellen war keine Haelfte hervorgehoben, in **0** Faellen
+  waren beide gleich hell. Es ist also immer genau eine.
+- **Kriterium 6:** Maximale Deckkraft oberhalb des Horizonts: **0,00** bei Gegnern, Toren,
+  Kopfzeilen und Projektilen. Ueber dem Horizont ist nichts mehr sichtbar (vorher: Gegner
+  0,64 / Kopfzeile 1,00 / Projektile sichtbar bis 18 px darueber).
+- **Kriterium 7:** 0 Frames mit ueberlappenden Gegnern.
+- **Kriterium 1:** Keine Reste der Ziellinie im Code — weder Textur, Objekt, Balance-Wert
+  noch Farbe.
+- **Kriterium 8:** `npm run check` und `npm run build` selbst im Terminal, beide exit 0.
+
+Die gemeinsame Funktion `isLeftSelected(anchorX, width)` wird von der Hervorhebung **und**
+von `applyPair()` benutzt. Damit koennen Anzeige und Wirkung nicht auseinanderlaufen, auch
+nicht im Grenzfall genau mittig.
+
+**Offen bis zu Thomas' iPhone-Test:** ob der Helligkeitsunterschied zwischen den beiden
+Torhaelften am kleinen Bildschirm deutlich genug ist. Stellschraube dafuer waere ein
+einziger Wert: `gates.highlightLighten` (derzeit 0.45).

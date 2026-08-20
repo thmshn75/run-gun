@@ -9,6 +9,15 @@ export const STAT_COLORS: Record<StatKey, number> = {
 
 export const WEAPON_GATE_COLOR = 0xb18cff
 
+export function lighten(color: number, amount: number): number {
+  const clampedAmount = Math.min(1, Math.max(0, amount))
+  const channel = (shift: number): number => {
+    const value = (color >> shift) & 0xff
+    return Math.round(value + (0xff - value) * clampedAmount)
+  }
+  return (channel(16) << 16) | (channel(8) << 8) | channel(0)
+}
+
 export const WORLD_COLORS = {
   background: 0x2f7fd1,
   skyTop: 0x2f7fd1,
@@ -18,7 +27,6 @@ export const WORLD_COLORS = {
   road: 0x4a4f57,
   roadEdge: 0xe8ecf2,
   roadCenterLine: 0xd8e0ef,
-  aimLine: 0xd8e0ef,
   projectileShell: 0xe8590c,
   projectileCore: 0xffc078,
   shotgunShell: 0xffb347,

@@ -95,7 +95,8 @@ export class Spawner {
       if (!enemy.active) continue
       enemy.y += (enemySpeed * (enemy.getData('speedFactor') as number) * dt) / 1000
       enemy.x = this.scene.scale.width / 2 + (enemy.getData('lane') as number) * getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, enemy.y)
-      enemy.setAlpha(Math.min(1, Math.max(0, (enemy.y - BALANCE.road.horizonY) / BALANCE.road.entryFadePx)))
+      const topY = enemy.y - enemy.displayHeight / 2
+      enemy.setAlpha(Math.min(1, Math.max(0, (topY - BALANCE.road.horizonY) / BALANCE.road.entryFadePx)))
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       if ((enemy.getData('flashUntil') as number) <= this.elapsedMs) enemy.clearTint()
       if (enemy.y - enemy.displayHeight / 2 > this.scene.scale.height) this.recycle(enemy)
