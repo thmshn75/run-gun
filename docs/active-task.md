@@ -5,57 +5,75 @@
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**Das harte Dunstband am Horizont entfernen — der Himmelsverlauf läuft durchgehend aus.**
+**Der Himmel hat gar keinen Verlauf — er muss zeilenweise gezeichnet werden.**
 
-Thomas nach dem Test: „Den Dunststreifen weg oder viel dünner oder Farbe verlaufend."
+## Befund (gemessen, nicht vermutet)
 
-Umgesetzt wird die dritte Variante, weil sie die erste mit erledigt: Das Band verschwindet
-als eigenes Element, und der Verlauf des Himmels endet stattdessen selbst im hellen Dunstton.
-Es bleibt kein Streifen mit sichtbarer Kante, die Tiefenwirkung zum Horizont hin bleibt aber
-erhalten.
+Nach dem Entfernen des Dunstbands wurde der Himmel entlang einer senkrechten Linie
+ausgelesen. Ergebnis über die volle Höhe von y = 0 bis zum Horizont bei y = 149:
 
-## Was heute falsch aussieht
-
-`BootScene.createBackgroundTextures()` zeichnet den Himmel als Verlauf von `skyTop` nach
-`skyHorizon` und legt danach ein **hartes Rechteck** von 12 px Höhe in `horizonHaze` darüber:
-
-```ts
-graphics.fillStyle(WORLD_COLORS.horizonHaze)
-graphics.fillRect(0, horizonY - 12, width, 12)
+```
+y=  0  #2f7fd1      y= 60  #2f7fd1      y=120  #2f7fd1
+y= 20  #2f7fd1      y= 80  #2f7fd1      y=140  #2f7fd1
+y= 40  #2f7fd1      y=100  #2f7fd1      y=148  #2f7fd1
 ```
 
-Das erzeugt zwei sichtbare Kanten — eine dort, wo der Verlauf auf das Band trifft, und eine
-am Horizont selbst. Genau das liest sich als aufgeklebter Streifen.
+**Größter Helligkeitsunterschied zwischen zwei benachbarten Zeilen: 0.** Auch waagerecht
+(x = 2 bis x = 387) ist jeder Punkt exakt `#2f7fd1`. Der Himmel ist eine einzige Farbfläche;
+der Verlauf von `skyTop` nach `skyHorizon` hat **nie** funktioniert. Sichtbar wurde das erst,
+als das Dunstband wegfiel — es hatte die Fläche vorher gegliedert und Struktur vorgetäuscht.
+
+**Ursache:** `Graphics.fillGradientStyle()` ist in Phaser eine reine WebGL-Fähigkeit. Beim
+Weg über `generateTexture()` wird die Grafik über den Canvas-Pfad gezeichnet, und der kennt
+keine Verlaufsfüllung — er nimmt die erste übergebene Farbe (`topLeft`) für die ganze Fläche.
+
+Nebenbefund: Die vier Farben wurden zudem als `(skyTop, skyHorizon, skyTop, skyHorizon)`
+übergeben. Das entspricht in Phaser der Reihenfolge oben-links, oben-rechts, unten-links,
+unten-rechts — also einem Verlauf von **links nach rechts**, nicht von oben nach unten. Selbst
+in WebGL wäre der Verlauf falsch herum gelaufen.
 
 ## Änderung
 
-- Das `fillRect` für das Dunstband **entfällt ersatzlos**.
-- Der Himmelsverlauf endet stattdessen im hellen Dunstton: `WORLD_COLORS.skyHorizon` wird von
-  `0xbfe3f7` auf **`0xdfeef8`** gesetzt — den heutigen Wert von `horizonHaze`. Der Verlauf
-  läuft damit über die volle Höhe des Himmels von `skyTop` bis zu diesem hellen Ton aus.
-- `WORLD_COLORS.horizonHaze` entfällt, sofern danach nirgends mehr verwendet.
-- `skyTop` (`0x2f7fd1`) bleibt unverändert.
+In `BootScene.createBackgroundTextures()` den Himmel **zeilenweise** zeichnen statt über
+`fillGradientStyle`:
 
-Sonst ändert sich an Himmel, Boden, Fahrbahn und Geometrie **nichts**.
+- Über alle Zeilen von 0 bis `road.horizonY` laufen und je Zeile ein 1 px hohes Rechteck über
+  die volle Breite füllen.
+- Die Farbe je Zeile linear zwischen `WORLD_COLORS.skyTop` (oben) und
+  `WORLD_COLORS.skyHorizon` (am Horizont) mischen, kanalweise über Rot, Grün und Blau.
+- Für die Mischung eine benannte Hilfsfunktion verwenden oder die vorhandene in `colors.ts`
+  ergänzen (z. B. `mix(colorA, colorB, t)`); `lighten()` bleibt unverändert bestehen, es wird
+  weiterhin für die Torhervorhebung gebraucht.
+- `fillGradientStyle` entfällt an dieser Stelle ersatzlos.
+
+150 Rechtecke, **einmalig beim Start** — im laufenden Spiel passiert nichts davon.
 
 ## Ausdrücklich nicht ändern
 
-- Keine anderen Farben, insbesondere nicht Boden (`0x3f5a3a`) oder Fahrbahn (`0x4a4f57`).
-- `road.horizonY` (150) und `road.entryFadePx` (40) bleiben.
-- Kein zusätzlicher Verlauf im Boden, keine Nebel- oder Weichzeichnungseffekte, keine
-  zusätzliche Grafik am Horizont. Es wird etwas entfernt, nicht etwas hinzugefügt.
-- Die Einblendung von Gegnern, Toren und Projektilen an der Oberkante bleibt unangetastet.
+- Die Farbwerte `skyTop` (`0x2f7fd1`) und `skyHorizon` (`0xdfeef8`) bleiben, wie sie sind.
+- Kein Dunstband, kein zusätzliches Element am Horizont wieder einführen — die weiche
+  Aufhellung entsteht aus dem Verlauf selbst.
+- Boden, Fahrbahn, Geometrie und alle Spielobjekte bleiben unangetastet.
+- Der Boden bleibt eine einfarbige Fläche; er bekommt **keinen** Verlauf.
+
+## Reißleine
+
+Lässt sich der Verlauf so nicht erzeugen: **melden und stoppen**. Kein zulässiger Ersatz ist
+ein erneutes hartes Band, ein Bild aus einer externen Quelle, oder ein Verlauf, der zur
+Laufzeit je Bild neu gezeichnet wird.
 
 ## Akzeptanzkriterien
 
-1. Am Horizont ist kein Band mit sichtbarer Oberkante mehr zu erkennen; der Himmel wird von
-   oben nach unten gleichmäßig heller.
-2. Direkt oberhalb des Horizonts ist der Himmel hell (`0xdfeef8`), sodass die Tiefenwirkung
-   erhalten bleibt.
-3. Im Code gibt es kein `fillRect` für ein Dunstband mehr und keine ungenutzte Farbe.
-4. Boden, Fahrbahn und alle Spielobjekte sehen unverändert aus.
-5. `npm run check` und `npm run build` laufen fehlerfrei durch.
+1. Entlang einer senkrechten Linie durch den Himmel nimmt die Helligkeit von y = 0 bis zum
+   Horizont **stetig zu**; kein Rückschritt.
+2. Der Unterschied zwischen erster und letzter Zeile ist deutlich: oben `#2f7fd1`, direkt über
+   dem Horizont `#dfeef8` (Toleranz zwei Stufen je Kanal).
+3. Zwischen zwei benachbarten Zeilen springt die Helligkeit **nirgends** um mehr als 6 Stufen
+   (Summe über die drei Kanäle) — sonst ist es wieder eine Kante statt eines Verlaufs.
+4. Waagerecht ist der Himmel auf gleicher Höhe überall gleich; der Verlauf läuft nach unten,
+   nicht zur Seite.
+5. Es gibt kein `fillGradientStyle` mehr in `BootScene`.
+6. Boden, Fahrbahn und Spielobjekte sehen unverändert aus.
+7. `npm run check` und `npm run build` laufen fehlerfrei durch.
 
-Kriterium 1 und 2 prüft Claude am laufenden Spiel über die Pixelfarben entlang einer
-senkrechten Linie durch den Himmel: Der Farbverlauf muss von oben bis zum Horizont monoton
-heller werden, **ohne Sprung**. Ob es Thomas so gefällt, entscheidet er am iPhone.
+Kriterien 1 bis 4 misst Claude am laufenden Spiel direkt an den Pixelfarben.
