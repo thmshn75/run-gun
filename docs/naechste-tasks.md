@@ -31,22 +31,6 @@ hinteren Reihen sind dann optisch noch vor dem Tor. Beim Umsetzen von Befund 1 m
 Wenn die Spitze markiert ist, wird auch dieser Zeitpunkt nachvollziehbar — dann ist
 vermutlich keine eigene Änderung nötig. Erst nach Thomas' Test entscheiden.
 
-## Rückenansicht der Truppe — zweimal gescheitert (Thomas, 2026-08-20)
-
-Zum 3D-Thema: In den Vorbildern sieht man die eigene Truppe von hinten. `player.png` ist
-34 × 46 px Frontalansicht. Neues Bild in gleicher Größe, dann bleibt die Kollisionshülle
-(`crowd.hullWidthFigures` × Figurenbreite) unverändert gültig — reiner Bildtausch.
-
-**Stand: zwei Anläufe, beide lieferten wieder eine Frontalansicht.** Die Reißleine wurde
-gezogen, `player.png` steht unverändert im Repo. Details in `docs/lessons.md`
-(Eintrag „Bildgenerator dreht Figuren nicht").
-
-Beim nächsten Anlauf: die Figur **von Grund auf** als Rückenansicht beschreiben, ohne
-Verweis auf das vorhandene Bild und ohne die Formulierung „dieselbe Figur, nur gedreht" —
-genau die erzeugt die Kopie. Nur diesen einen Punkt pro Lauf beauftragen. Alternative,
-falls es wieder scheitert: Thomas erzeugt das Bild selbst und legt es ab, Codex rechnet
-nur noch herunter und misst nach.
-
 ## 3D-Schritt 2: Figuren wachsen beim Näherkommen
 
 Der Teil, der aus den festen gemessenen Trefferflächen bewegliche Größen macht. Erst nach
