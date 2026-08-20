@@ -24,7 +24,7 @@ export const BALANCE = {
     start: 3,
     max: 30,
     // Maximum number of figures that fire together in one rotating salvo.
-    shootersPerSalvo: 5,
+    shootersPerSalvo: 8,
     rowSpacingY: 14,
     colSpacing: 24,
     minColSpacing: 11,
@@ -34,7 +34,7 @@ export const BALANCE = {
     // The collision hull stays fixed instead of growing with the formation.
     hullWidthFigures: 2.4,
     hullHeightFigures: 1.6,
-    damagePerExtraFigure: 0.12,
+    damagePerExtraFigure: 0.14,
     damageMultiplierCap: 4,
   },
   enemy: {
@@ -86,8 +86,8 @@ export const BALANCE = {
     collectDistance: 24,
   },
   pools: {
-    // 8 shots/s cap x 5 figures per salvo x ((anchor-Y 714 - despawn-Y 0) / 640px/s = 1.12s) = 45; 64 leaves margin.
-    projectiles: 64,
+    // 8 shots/s cap x 8 figures per salvo x ((anchor-Y 714 - despawn-Y 0) / 640px/s = 1.12s) = 72; 96 leaves margin.
+    projectiles: 96,
     // Start: 844px / 105px/s ≈ 8.0s at 1600ms intervals ≈ 5; late game: 844px / 200px/s ≈ 4.2s at 450ms intervals ≈ 9.4; 20 remains ample.
     enemies: 20,
     // Must be >= crowd.max because all figures are created once and then only shown or hidden.
