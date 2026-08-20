@@ -110,3 +110,50 @@ erhöht** — nicht die Schriftgröße gesenkt und nicht das Bild ausgetauscht.
 
 Kriterien 1 bis 9 prüft Claude am laufenden Spiel nach, Kriterium 5 über den Speicherstand
 vor und nach einem Neuladen. Ob das Bild gefällt, entscheidet Thomas.
+
+## Implementation Summary
+
+- `MenuScene` mit lokal gebündeltem Pixel-Art-Titelbild, Safe-Area-Layout, Kontostand,
+  drei Kaufzeilen und Spielknopf ergänzt; Käufe werden sofort gespeichert.
+- Szenenfluss auf Boot → Menü → Spiel → Game Over → Menü umgestellt; permanente Startwerte
+  beziehen ihre Werte nun zentral aus `balance.ts`.
+- Kauf- und Speicherlogik mit zwei zusätzlichen Vitest-Fällen für Preis, Maximalstufe und
+  Neuladen abgedeckt. `npm run check`, `npm run build` und `npm test` sind grün.
+
+
+---
+
+# NACHARBEIT (Claude, am laufenden Spiel geprüft)
+
+Das Menü steht, das Titelbild ist gut. **Ein Fehler:** Der SPIELEN-Knopf ragt links aus dem
+Bild — sichtbar ist nur „IELEN".
+
+## Befund
+
+`addButton()` zeichnet Rechteck und Beschriftung mit `setOrigin(0.5)`, erwartet also den
+**Mittelpunkt**. Der Aufruf für den Spielen-Knopf übergibt aber die **linke Kante**:
+
+```ts
+this.addButton(safeLeft + BALANCE.menu.sidePadding, playY,
+               safeWidth - 2 * BALANCE.menu.sidePadding, …)
+```
+
+Damit sitzt der Knopf mit seiner Mitte auf der linken Kante und die halbe Breite liegt
+ausserhalb des Bildschirms. Die KAUFEN-Knöpfe sind nicht betroffen, sie übergeben korrekt
+einen Mittelpunkt.
+
+## Verlangte Korrektur
+
+Den Spielen-Knopf mittig setzen: `safeLeft + safeWidth / 2`.
+
+**Zusätzlich, damit dieser Fehler nicht wiederkommt:** `addButton()` soll seine Erwartung im
+Namen tragen — Parameter `centerX` und `centerY` statt `x` und `y`, mit einem Kommentar
+darüber, dass beide den Mittelpunkt meinen. Ein Aufrufer, der eine Kante übergibt, fällt dann
+beim Lesen auf.
+
+## Zusätzliche Akzeptanzkriterien
+
+11. Der SPIELEN-Knopf liegt **vollständig** innerhalb der Safe-Area: linke Kante ≥ `safeLeft`,
+    rechte Kante ≤ `safeLeft + safeWidth`. Die Beschriftung ist vollständig lesbar.
+12. Die KAUFEN-Knöpfe liegen weiterhin vollständig innerhalb ihrer Zeile.
+13. Die Parameter von `addButton()` heissen so, dass die Bedeutung beim Aufruf erkennbar ist.
