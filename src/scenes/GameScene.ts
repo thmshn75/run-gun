@@ -140,7 +140,11 @@ export class GameScene extends Phaser.Scene {
     const enemyY = enemy.y
     const coinValue = enemy.getData('coinValue') as number
     this.weapons.recycle(projectile)
-    if (this.spawner.damage(enemy, this.runStats.get('damage') * this.getCrowdDamageMultiplier(), this.elapsedMs)) this.coins.spawnAt(enemyX, enemyY, coinValue)
+    if (!this.spawner.damage(enemy, this.runStats.get('damage') * this.getCrowdDamageMultiplier(), this.elapsedMs)) return
+    for (let index = 0; index < coinValue; index += 1) {
+      const offsetX = (index - (coinValue - 1) / 2) * 12
+      this.coins.spawnAt(Phaser.Math.Clamp(enemyX + offsetX, 7, this.scale.width - 7), enemyY)
+    }
   }
 
   private handlePlayerHit(enemy: Phaser.Physics.Arcade.Image): void {

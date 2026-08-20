@@ -27,13 +27,13 @@ export class Coins {
     return this.collected
   }
 
-  public spawnAt(x: number, y: number, value: number = BALANCE.coins.value): void {
+  public spawnAt(x: number, y: number): void {
     const coin = this.coins.find((candidate) => !candidate.active)
     if (coin === undefined) {
       this.warnPoolExhausted()
       return
     }
-    coin.setPosition(x, y).setData('value', value).setActive(true).setVisible(true).setAlpha(1).clearTint()
+    coin.setPosition(x, y).setActive(true).setVisible(true).setAlpha(1).clearTint()
   }
 
   public update(dt: number, anchorX: number, anchorY: number): void {
@@ -48,7 +48,7 @@ export class Coins {
         coin.y += ((anchorY - coin.y) / distance) * step
       }
       if (Phaser.Math.Distance.Between(coin.x, coin.y, anchorX, anchorY) < BALANCE.coins.collectDistance) {
-        this.collected += coin.getData('value') as number
+        this.collected += 1
         this.recycle(coin)
         this.onCollected()
       } else if (coin.y - coin.displayHeight / 2 > this.scene.scale.height) {

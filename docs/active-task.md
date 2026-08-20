@@ -6,141 +6,111 @@
 
 ## Task
 
-**Leichten Zombie fülliger machen (Nacharbeit aus Thomas' iPhone-Test 2026-08-20)**
+**Jeder Zombie lässt so viele Münzen fallen, wie er wert ist**
 
-Thomas hat den aktuellen Stand am iPhone freigegeben. Ein Befund: der **leichte Gegner
-wirkt zu dünn**. Es geht ausschließlich um die Optik, nicht um die Treffbarkeit — die
-Trefferfläche soll weiterhin exakt der sichtbaren Figur entsprechen, nicht großzügiger sein.
+Thomas' Beobachtung im iPhone-Test: Der Münzzähler springt immer nur um eins weiter, obwohl
+ein schwerer Zombie drei Münzen wert sein soll. Der Wert existiert heute nur als Zahl im
+Inneren einer einzelnen Münze — sichtbar ist er nie, und ob er beim Zähler ankommt, lässt
+sich beim Spielen nicht erkennen.
 
-Kleiner, klar umrissener Task. Nichts anderes anfassen.
+**Entscheidung (Thomas, 2026-08-20):** Der versteckte Münzwert entfällt. Stattdessen wirft
+ein sterbender Zombie **so viele einzelne Münzen ab, wie er wert ist** — der leichte und
+der Standardgegner je eine, der schwere drei. Jede eingesammelte Münze zählt genau eins.
+Damit ist der Unterschied sichtbar, und der Zähler zeigt exakt das Eingesammelte.
 
-## Ausgangslage
-
-- `src/assets/enemy-light.png` ist **26 × 36 px**, sichtbare Figurenbreite **14 px**
-  (`BALANCE.enemy.types[0].bodyWidth`).
-- Zum Vergleich: `enemy-standard.png` ist 32 × 44 px bei 21 px sichtbarer Breite,
-  `enemy-heavy.png` ist 42 × 52 px bei 40 px.
-- Der leichte Zombie **soll** der kleinste der drei bleiben — er ist der schnelle,
-  schwache Typ. Er wirkt aber im Verhältnis zu schmal: 14 von 26 px Bildbreite sind
-  Figur, beim Standard sind es 21 von 32.
+Kleiner, klar umrissener Task. Er berührt `coins.ts`, `GameScene.ts` und `balance.ts`.
+Er hat **nichts** mit E4b (Zusatzwaffen) zu tun; deren Spec in `docs/spec-e4b-entwurf.md`
+bleibt unberührt.
 
 ## Anforderungen
 
-### 1. Neues Sprite für den leichten Zombie
+### 1. `src/systems/coins.ts` — Wertmechanik entfällt
 
-Zielgröße: **30 × 42 px**, transparenter Hintergrund, Dateiname und Pfad bleiben
-unverändert (`src/assets/enemy-light.png` wird ersetzt).
+- `spawnAt(x, y)` verliert den Parameter `value`. Kein `setData('value', …)` mehr.
+- Beim Einsammeln wird `collected` um **1** erhöht statt um einen gespeicherten Wert.
+- `BALANCE.coins.value` entfällt ersatzlos aus `balance.ts` — der Wert wird nirgends mehr
+  gebraucht, und toter Code, der wie eine Stellschraube aussieht, führt später in die Irre.
 
-- **Dieselbe Figur, derselbe Stil, dieselbe Farbgebung** wie das jetzige Sprite —
-  es ist eine Nachbesserung, keine Neugestaltung. Wer das Bild sieht, soll denselben
-  Zombie erkennen, nur nicht mehr so mager.
-- Die Figur soll **breiter im Körper** werden (Schultern, Rumpf, Arme), nicht nur
-  insgesamt hochskaliert. Zielwert: sichtbare Figurenbreite **etwa 18–20 px** von
-  30 px Bildbreite — dasselbe Verhältnis wie beim Standardgegner.
-- Ansicht bleibt **von vorne** (die Gegner laufen von oben auf den Spieler zu).
-- Das Spiel läuft mit `pixelArt: true` (Nearest-Neighbor): klare Silhouette,
-  kräftige Farben, keine weichen Verläufe, keine Anti-Aliasing-Ränder.
+Grund für den Ausbau statt eines zusätzlichen Wegs: Der heutige Default-Parameter
+(`value: number = BALANCE.coins.value`) greift stillschweigend, sobald `undefined`
+ankommt. Ein Gegner ohne gesetzten Wert gäbe dann lautlos eine Münze statt drei — der
+Fehler wäre unsichtbar. Genau diese Klasse von stillem Fehlverhalten fällt mit dem
+Parameter weg.
 
-**Verfahren — verbindlich, nicht abkürzen:** Das Bild zuerst **groß** erzeugen
-(mindestens 4-fach, also ab 120 × 168 px) und **danach** auf 30 × 42 px herunterrechnen.
-Direkt in Zielgröße erzeugte Bilder waren in diesem Projekt schon einmal unbrauchbar
-(siehe `docs/lessons.md`, Eintrag vom 2026-08-20).
+### 2. `src/scenes/GameScene.ts` — mehrere Münzen je Kill
 
-Die große Zwischenversion und eine Vorschau in `assets/probe/zombies/` ablegen
-(der Ordner ist gitignored, wird also nicht eingecheckt). Vorschau: der neue leichte
-Zombie **neben** dem unveränderten Standard- und dem schweren Zombie, alle drei
-vierfach vergrößert, hinterlegt mit der Spielfeld-Hintergrundfarbe `#10131d`, damit
-Thomas die Größenverhältnisse beurteilen kann. Dateiname `vorschau-light-neu.png`.
+In `handleProjectileHit` wird beim tödlichen Treffer nicht mehr **eine** Münze mit einem
+Wert geworfen, sondern `coinValue` mal `spawnAt(...)` aufgerufen.
 
-### 2. `src/config/balance.ts` — Trefferfläche neu messen
+`coinValue` weiterhin **vor** dem Schadensaufruf vom Gegner lesen — nach dem Tod ist der
+Gegner recycelt. Das ist im heutigen Code bereits richtig gelöst und muss so bleiben.
 
-`BALANCE.enemy.types[0].bodyWidth` von `14` auf die **tatsächlich gemessene** sichtbare
-Breite des neuen Sprites setzen. Nicht schätzen, nicht aufrunden: die Breite des nicht
-transparenten Bereichs im fertigen 30 × 42-PNG auszählen und diesen Wert eintragen.
-Den Kommentar über `types` unverändert lassen — er sagt bereits, dass die Werte gemessen sind.
+**Die Münzen müssen versetzt liegen.** Drei Münzen auf demselben Punkt sehen aus wie eine,
+und der ganze Zweck des Umbaus wäre verfehlt. Vorgabe: die Münzen eines Kills um den
+Sterbepunkt herum verteilen, mit rund **12 px Abstand** zueinander, in einem festen
+Muster (nicht zufällig — Zufall pro Kill kostet nichts, bringt hier aber nichts und macht
+das Ergebnis schlechter prüfbar). Die X-Position jeder Münze auf den sichtbaren Bereich
+begrenzen, damit am Bildrand keine Münze außerhalb liegt und unerreichbar wird.
 
-`hp`, `speedFactor`, `contactDamage`, `coinValue` und die Wellengewichte bleiben **unverändert**.
+### 3. `src/config/balance.ts` — Münz-Pool neu herleiten
 
-### 3. Sonst nichts
+`pools.coins` steigt von **20 auf 48**. Die heutige Herleitung geht von einer Münze je
+Gegner aus und stimmt nicht mehr:
 
-Keine Änderungen an `BootScene.ts` (Import- und Texturschlüssel bleiben gleich, nur die
-Bilddatei dahinter ändert sich), keine Änderungen an Spawner, Balance-Werten außer
-`bodyWidth`, Waffen, Toren oder HUD.
+- Mehr Gegner töten als nachkommen geht nicht, also ist die Kill-Rate durch den kürzesten
+  Spawnabstand gedeckelt: 1 / 0,45 s = 2,22 Gegner pro Sekunde.
+- Schlimmster Fall sind lauter schwere Gegner: 3 Münzen je Kill.
+- Eine Münze fällt mit 180 px/s über die 844 px hohe Fläche, ist also bis zu 4,7 s sichtbar.
+  Die Rechnung unterstellt bewusst, dass der Magnet sie **nicht** einsammelt — er tut es
+  meist früher, aber darauf darf der Pool sich nicht verlassen.
+- Spitze = 2,22 × 3 × 4,7 = **31 gleichzeitig**. 48 lässt 54 % Reserve.
+
+Der Kommentar über `pools.coins` wird entsprechend ersetzt, gleiche Form wie die anderen
+Pool-Kommentare.
+
+Die Werte `coinValue` je Gegnertyp (1 / 1 / 3) bleiben **unverändert** — sie bedeuten ab
+jetzt „Anzahl Münzen" statt „Wert einer Münze". Der Kommentar an der Typtabelle soll das
+sagen, damit der Unterschied später nicht falsch gelesen wird.
+
+## Grenzen
+
+Nichts anderes anfassen. Insbesondere nicht: Magnetradius, Sammelabstand oder Fallgeschwin-
+digkeit ändern; das Aussehen der Münze ändern; die Gegnerwerte ändern; am HUD arbeiten;
+irgendetwas aus der E4b-Spec vorwegnehmen.
 
 ## Reißleine
 
-Lässt sich das Bild nach zwei Versuchen nicht in gleichbleibendem Stil erzeugen:
-**melden und stoppen**, das alte Sprite unverändert lassen.
+Reicht der Pool von 48 im Spielbetrieb nachweislich nicht (Dev-Warnung „Coin pool
+exhausted" erscheint), **melden statt selbst hochsetzen** — dann stimmt eine Annahme in der
+Herleitung nicht, und die gehört korrigiert, nicht überschrieben.
 
-**Kein zulässiger Ersatz ist:** das vorhandene 26 × 36-PNG hochskalieren; die Figur
-programmatisch aus Rechtecken, Kreisen oder anderen geometrischen Formen zeichnen;
-einen anderen Zombie-Entwurf liefern als den vorhandenen; die Trefferfläche größer
-setzen als die sichtbare Figur, um die Optik zu umgehen. Wird das Ziel nicht erreicht,
-ist die Meldung das Ergebnis — kein Ersatzprodukt.
+**Kein zulässiger Ersatz ist:** den Münzwert doch wieder in der Münze speichern; weniger
+Münzen werfen als der Gegner wert ist; Münzen ohne Versatz übereinanderlegen; die
+Fallgeschwindigkeit erhöhen, damit weniger gleichzeitig sichtbar sind.
 
 ## Akzeptanzkriterien
 
-1. `src/assets/enemy-light.png` ist 30 × 42 px, transparenter Hintergrund.
-2. Die sichtbare Figurenbreite liegt bei 18–20 px und ist in `bodyWidth` eingetragen —
-   der Wert stammt aus einer Messung am fertigen PNG, nicht aus einer Schätzung.
-3. Der leichte Zombie ist als derselbe Zombie erkennbar wie vorher, nur fülliger.
-4. Er bleibt sichtbar kleiner als der Standardgegner.
-5. `assets/probe/zombies/vorschau-light-neu.png` zeigt alle drei Gegner nebeneinander,
-   vierfach vergrößert, auf `#10131d`.
-6. `npm run check` und `npm run build` laufen fehlerfrei durch.
-7. Keine Datei außerhalb von `src/assets/enemy-light.png`, `src/config/balance.ts`,
-   `assets/probe/zombies/` und `docs/active-task.md` ist verändert.
-
-**Offen bis zu Thomas' Urteil:** Ob die neue Figur optisch passt, entscheidet Thomas
-am Vorschaubild und am iPhone. Codex' Selbsteinschätzung zählt nicht als Nachweis.
+1. Ein schwerer Zombie hinterlässt **drei sichtbar getrennte Münzen**, ein leichter und ein
+   Standardgegner je eine.
+2. Jede eingesammelte Münze erhöht den Zähler um genau eins; drei eingesammelte Münzen
+   ergeben drei.
+3. `spawnAt` hat keinen Wert-Parameter mehr, und `BALANCE.coins.value` existiert nicht mehr.
+4. `pools.coins` steht auf 48 und trägt die neue Herleitung als Kommentar.
+5. Keine Münze liegt außerhalb des sichtbaren Bereichs.
+6. Kein `create()`/`destroy()` im laufenden Spiel; die Münzen kommen weiterhin aus dem
+   einmalig angelegten Pool.
+7. `npm run check` und `npm run build` laufen fehlerfrei durch.
+8. `docs/spec-e4b-entwurf.md` ist unverändert.
 
 ## Implementation Summary
 
-- `enemy-light.png` aus der bereits freigegebenen großen Vorlage unverändert auf 28 × 38 px heruntergerechnet; sichtbare Breite am fertigen PNG gemessen: 18 px.
-- `bodyWidth` auf den Messwert 18 gesetzt; die Vorschau unter `assets/probe/zombies/vorschau-light-neu.png` ist mit dem kleineren Sprite neu erzeugt.
-- `npm run check` und `npm run build` erfolgreich; die optische Freigabe am iPhone bleibt bei Thomas.
+- `Coins.spawnAt` erzeugt keine Wertdaten mehr; jede eingesammelte Pool-Münze zählt genau eins.
+- Ein tödlicher Treffer wirft nun `coinValue` einzelne Münzen im festen 12-px-Raster ab; ihre X-Position bleibt zwischen den sichtbaren Münzrändern.
+- `coinValue` bedeutet in der Gegnertabelle jetzt ausdrücklich Anzahl der Münzen. Der Münz-Pool ist mit der Worst-Case-Herleitung auf 48 erhöht; `BALANCE.coins.value` ist entfernt.
+- `npm run check` und `npm run build` erfolgreich ausgeführt. E4b-Spec per Diff unverändert bestätigt.
 
-## Nacharbeit 1 (Claude-Review, 2026-08-20)
-
-Das neue Sprite ist gut geworden — die Figur ist deutlich fülliger und die hellere
-Farbgebung bleibt so, Thomas hat sie ausdrücklich freigegeben (der helle Zombie hebt sich
-besser vom dunklen Hintergrund ab, was beim schnellsten Gegnertyp von Vorteil ist).
-
-**Ein Punkt muss korrigiert werden: die Figur ist zu groß geraten.**
-
-Mit 30 × 42 px und 20 px Figurenbreite ist der leichte Gegner praktisch so groß wie der
-Standardgegner (32 × 44 px, 21 px Figurenbreite). Damit sind die beiden Typen im Spiel nicht
-mehr auf einen Blick zu unterscheiden, obwohl der eine 1 HP und der andere 3 HP hat.
-Das verletzt Akzeptanzkriterium 4 („bleibt sichtbar kleiner als der Standardgegner").
-
-Die Ursache liegt in der Spec, nicht in der Umsetzung: die Zielgröße 30 × 42 war zu
-großzügig gesetzt.
-
-### Was zu tun ist
-
-1. **`src/assets/enemy-light.png` auf 28 × 38 px** neu herunterrechnen — aus derselben
-   großen Vorlage `assets/probe/zombies/enemy-light-neu-gross-transparent.png`, die bereits
-   vorliegt. **Kein neues Bild erzeugen**, die Figur und ihre Farbgebung bleiben exakt wie
-   jetzt, es ändert sich nur die Zielgröße.
-2. **`BALANCE.enemy.types[0].bodyWidth`** auf die am fertigen 28 × 38-PNG **gemessene**
-   sichtbare Figurenbreite setzen. Erwartungswert etwa 18 px; maßgeblich ist die Messung,
-   nicht der Erwartungswert. Liegt der gemessene Wert über 19, ist die Figur im Bild zu
-   breit — dann die Vorlage vor dem Herunterrechnen seitlich so beschneiden, dass die
-   Figur etwa zwei Drittel der Bildbreite einnimmt, und erneut messen.
-3. **Vorschau `assets/probe/zombies/vorschau-light-neu.png` neu erzeugen**, gleiche Form wie
-   bisher: die drei Gegner nebeneinander, vierfach vergrößert, auf `#10131d`.
-
-### Grenzen
-
-Nichts anderes anfassen. Insbesondere nicht: die Farbgebung ändern, die Figur neu zeichnen,
-die anderen beiden Gegner-Sprites anfassen, `hp`/`speedFactor`/`contactDamage`/`coinValue`
-oder die Wellengewichte ändern.
-
-### Zusätzliches Akzeptanzkriterium
-
-13. `src/assets/enemy-light.png` ist 28 × 38 px; die gemessene Figurenbreite liegt bei
-    höchstens 19 px und steht so in `bodyWidth`. Die Figur ist gegenüber dem Standardgegner
-    im Vorschaubild klar als der kleinere Typ erkennbar.
+**Offen bis zu Thomas' iPhone-Test:** ob drei Münzen je schwerem Zombie sich gut anfühlen
+oder den Bildschirm zumüllen.
 
 ## Zuletzt abgeschlossen (2026-08-20)
 

@@ -38,7 +38,7 @@ export const BALANCE = {
     damageMultiplierCap: 4,
   },
   enemy: {
-    // Measured visible-figure widths per sprite; remeasure these whenever the images change.
+    // Measured visible-figure widths per sprite; coinValue is the number of dropped coins. Remeasure widths whenever the images change.
     types: [
       { key: 'light', texture: 'enemy-light', hp: 1, speedFactor: 1.35, contactDamage: 1, coinValue: 1, bodyWidth: 18 },
       { key: 'standard', texture: 'enemy-standard', hp: 3, speedFactor: 1, contactDamage: 1, coinValue: 1, bodyWidth: 21 },
@@ -91,7 +91,6 @@ export const BALANCE = {
     },
   },
   coins: {
-    value: 1,
     magnetRadius: 200,
     magnetSpeed: 900,
     collectDistance: 24,
@@ -103,8 +102,8 @@ export const BALANCE = {
     enemies: 48,
     // Must be >= crowd.max because all figures are created once and then only shown or hidden.
     crowd: 30,
-    // Max enemy kill rate is 1 / 0.45s; 844px / 180px/s = 4.7s coin visibility, so about 10.4; 20 remains enough (magnet collects faster).
-    coins: 20,
+    // Max kill rate is 1 / 0.45s x 3 coins per heavy enemy x 844px / 180px/s = 31.3; 48 leaves 54% reserve without relying on the magnet.
+    coins: 48,
     // Roughly 1.4s visible versus 9s spawn interval means at most one; two cover a delayed recycle.
     gatePairs: 2,
   },
