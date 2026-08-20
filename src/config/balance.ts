@@ -9,7 +9,7 @@ export const BALANCE = {
     anchorBottomOffset: 130,
   },
   stats: {
-    hp: { base: 3, cap: 12 },
+    hp: { base: 3, cap: 20 },
     damage: { base: 1, cap: 20 },
     shotsPerSec: { base: 3.5, cap: 8 },
     projectiles: { base: 1, cap: 5 },

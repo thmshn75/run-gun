@@ -138,7 +138,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateHud(): void {
-    this.hud.setText(`HP ${this.runStats.get('hp')}   ¢ ${this.coins.getCount()}   SPD ${Math.round(this.spawner.getEnemySpeed())}`)
+    const damage = Math.round(this.runStats.get('damage') * 10) / 10
+    const shotsPerSec = Math.round(this.runStats.get('shotsPerSec') * 10) / 10
+    this.hud.setText(
+      `HP ${this.runStats.get('hp')}   ¢ ${this.coins.getCount()}   SPD ${Math.round(this.spawner.getEnemySpeed())}\nDMG ${damage}   RATE ${shotsPerSec}`,
+    )
   }
 
   private drawSafeAreaDebug(): void {

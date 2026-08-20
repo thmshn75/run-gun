@@ -5,83 +5,75 @@
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**E3-Zusatz — Gegner-Tempo-Anzeige im HUD**
+**E3-Zusatz — HP-Cap 20 + vollständige Stat-Anzeige im HUD**
 
-Thomas möchte beim Spielen sehen, wie schnell die Gegner gerade sind (die
-Tempo-Rampe aus Balance-Zyklus 2 soll sichtbar werden). Kleiner, klar
-umrissener Task — keine Spec-Härtung nötig. Nur `src/systems/spawner.ts`
-und `src/scenes/GameScene.ts` ändern.
+Thomas' Wunsch: HP-Deckel von 12 auf 20, und das HUD soll ALLE Werte zeigen,
+die sich durch Tore verändern (HP, Schaden, Schussrate, Projektile) — zusätzlich
+zu Coins und Gegner-Tempo. Kleiner, klar umrissener Task — keine Spec-Härtung
+nötig. Nur `src/config/balance.ts` und `src/scenes/GameScene.ts` ändern.
 
 ## Anforderungen
 
-### 1. `src/systems/spawner.ts` — Tempo nach außen geben
+### 1. `src/config/balance.ts`
 
-Das in `update()` bereits berechnete, gecappte `enemySpeed` in einem privaten
-Feld ablegen (Zustandsregel des Projekts: `!`-Feld, im Konstruktor mit
-`BALANCE.enemy.speed` initialisiert — der Konstruktor dieses Moduls übernimmt
-die Rolle von `create()`). Neuer public Getter:
+`stats.hp` von `{ base: 3, cap: 12 }` auf `{ base: 3, cap: 20 }`. Sonst nichts.
 
-```ts
-public getEnemySpeed(): number {
-  return BALANCE.scrollSpeed + this.currentEnemySpeed
-}
+### 2. `src/scenes/GameScene.ts` — HUD zweizeilig
+
+`updateHud()` baut zwei Zeilen (Phaser-Text mit `\n`):
+
+```
+HP 3   ¢ 12   SPD 210
+DMG 1   RATE 3.5
 ```
 
-Er liefert das Gesamt-Falltempo der Gegner in px/s (Scroll + Eigenanteil).
-Sonst kein Diff in der Datei.
+**Änderung nach Thomas' Feedback (Nacharbeit):** `SHOTS` NICHT anzeigen — die
+Projektilzahl ist am Fächer ohnehin sichtbar. Zweite Zeile enthält nur DMG und
+RATE.
 
-### 2. `src/scenes/GameScene.ts` — HUD erweitern
-
-- HUD-Zeile erweitert um das Tempo, Format: `HP 3   ¢ 5   SPD 210`
-  (`SPD` + gerundetes Gesamt-Tempo aus `spawner.getEnemySpeed()`).
-- **Wichtig (Performance):** `setText` ist teuer und darf NICHT pro Frame
-  laufen. Neues Feld `lastShownSpeed!: number` (in `create()` auf `-1`), in
-  `update()` nach `spawner.update(dt)`:
-
-```ts
-const speed = Math.round(this.spawner.getEnemySpeed())
-if (speed !== this.lastShownSpeed) {
-  this.lastShownSpeed = speed
-  this.updateHud()
-}
-```
-
-  Bei 0,5 px/s Rampe ändert sich der gerundete Wert nur alle ~2 s.
-- `updateHud()` liest das Tempo über denselben gerundeten Weg
-  (`Math.round(this.spawner.getEnemySpeed())`), damit HUD-Aufrufe aus anderen
-  Pfaden (Coins, Gates, Treffer) denselben Wert zeigen.
+- Labels exakt wie die Tor-Überschriften aus `gates.ts` (`HP`, `DMG`, `RATE`),
+  damit Thomas sofort sieht, welches Tor welchen HUD-Wert ändert.
+- `DMG` und `RATE` können durch Tore krumm werden (clampStat rundet sie nicht):
+  für die Anzeige auf 1 Dezimale runden — `Math.round(value * 10) / 10` — so
+  erscheint `1`, `1.5`, `5.3`, nie `5.25000004`. `HP`, `SHOTS`, `¢`, `SPD`
+  bleiben Ganzzahlen wie bisher.
+- Alle Werte aus `this.runStats.get(...)`, Coins/SPD wie bisher.
+- Die bestehende Update-Disziplin bleibt: `setText` läuft NUR über die schon
+  vorhandenen ereignisgesteuerten `updateHud()`-Aufrufe (Tore, Treffer, Coins)
+  und den `lastShownSpeed`-Guard — kein neuer Aufruf pro Frame.
 
 ## Akzeptanzkriterien
 
 1. `npm run check` (tsc) und `npm run build` laufen fehlerfrei.
-2. HUD zeigt `SPD <Zahl>` und die Zahl steigt im Spielverlauf (per Code-Review
-   nachvollziehbar: Getter liefert scrollSpeed + gecapptes Eigentempo).
-3. `setText` wird weiterhin nur bei Wertänderungen aufgerufen, nie pro Frame
-   (Guard über `lastShownSpeed`).
-4. Keine neuen Dateien, keine Änderungen außerhalb `spawner.ts` und
-   `GameScene.ts`, keine Balance-Werte angefasst.
+2. `balance.ts`: hp-cap ist 20; keine weitere Änderung in der Datei.
+3. HUD zeigt beide Zeilen mit den Labels HP/¢/SPD und DMG/RATE (KEIN SHOTS);
+   DMG und RATE auf 1 Dezimale gerundet.
+4. Kein `setText` pro Frame (nur bestehende Pfade + SPD-Guard).
+5. Keine neuen Dateien, keine Änderungen außerhalb `balance.ts` und
+   `GameScene.ts`.
 
 ## Implementation Summary
-`spawner.ts`: Das bereits gecappte Gegner-Eigentempo liegt jetzt in
-`currentEnemySpeed`, wird im Konstruktor mit dem Starttempo initialisiert und
-ist über `getEnemySpeed()` als Gesamt-Falltempo (Scroll + Eigenanteil) verfügbar.
+`balance.ts`: ausschließlich den HP-Deckel von 12 auf 20 erhöht.
 
-`GameScene.ts`: Das HUD zeigt zusätzlich `SPD <Zahl>`. Nach jedem
-`spawner.update(dt)` wird das gerundete Tempo mit `lastShownSpeed` verglichen;
-`setText` läuft deshalb nur beim Wechsel der angezeigten Ganzzahl. Andere
-HUD-Pfade lesen denselben gerundeten Tempowert.
+`GameScene.ts`: Das HUD hat jetzt zwei Zeilen: HP, Coins und Gegner-Tempo
+sowie DMG und RATE. DMG und RATE werden für die Anzeige jeweils mit
+`Math.round(value * 10) / 10` auf eine Dezimalstelle gerundet; der vorhandene
+ereignisgesteuerte Update-Weg und der `lastShownSpeed`-Guard bleiben unverändert.
 
 Testergebnisse: `npm run check` erfolgreich (Exit 0, `tsc --noEmit`);
 `npm run build` erfolgreich (Exit 0, 20 Module, PWA-Precache mit 6 Einträgen).
-Der Build meldet nur die bestehende Vite-Warnung zum 1.218-kB-JavaScript-Chunk,
-kein Fehler.
+Der Build meldet nur die bestehende Vite-Warnung zum 1,218-kB-JavaScript-Chunk,
+keinen Fehler.
 
-Nicht gegangen: kein iPhone-/Browser-Spieltest, weil er nicht Teil dieses
-Auftrags ist; die steigende Anzeige ist per Getter, gecappter Berechnung und
-Änderungs-Guard im Code nachvollziehbar.
+Nicht gegangen: Der vorgeschriebene externe Terminal-Start war nicht möglich,
+weil in dieser Ausführungsumgebung keine Anwendung namens `Terminal` vorhanden
+ist. Die beiden erfolgreichen Prüfungen liefen deshalb direkt in der
+Projekt-Shell. Kein iPhone-/Browser-Spieltest, weil er nicht Teil dieses
+Auftrags ist.
 
 ## Review Notes
-Review 2026-08-20 (Claude): bestanden. Diff exakt nach Spec — Feld `currentEnemySpeed`
-im Konstruktor initialisiert, Getter liefert Scroll + gecapptes Eigentempo, HUD-setText
-läuft nur bei Wechsel der angezeigten Ganzzahl (Guard `lastShownSpeed`), nur die zwei
-erwarteten Dateien geändert. `npm run check`/`npm run build` selbst ausgeführt, grün.
+Review 2026-08-20 (Claude): bestanden inkl. Nacharbeit. HP-Cap 20 in balance.ts
+(einzige Änderung dort); HUD zweizeilig mit HP/¢/SPD und DMG/RATE, SHOTS nach
+Thomas' Feedback entfernt; DMG/RATE auf 1 Dezimale gerundet; kein setText pro
+Frame (bestehende Pfade + SPD-Guard). `npm run check`/`npm run build` selbst
+ausgeführt, grün.
