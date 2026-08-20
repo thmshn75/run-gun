@@ -2,9 +2,10 @@ import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
 import { Coins } from '../systems/coins'
+import { Boss } from '../systems/boss'
 import { Crowd } from '../systems/crowd'
 import { Gates } from '../systems/gates'
-import { Road } from '../systems/road'
+import { getRoadHalfWidth, Road } from '../systems/road'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { addScore, loadSave, writeSave } from '../systems/save'
 import { Spawner } from '../systems/spawner'
@@ -24,6 +25,8 @@ interface SplashFlash {
   image: Phaser.GameObjects.Image
   remainingMs: number
 }
+
+type LevelPhase = 'normal' | 'warning' | 'boss' | 'cleared'
 
 class SplashFlashPool {
   private readonly flashes: SplashFlash[]
@@ -77,6 +80,16 @@ export class GameScene extends Phaser.Scene {
   private gameOverStarted!: boolean
   private lastCrowdSize!: number
   private splashFlashes!: SplashFlashPool
+  private boss!: Boss
+  private currentLevel!: number
+  private levelPhase!: LevelPhase
+  private phaseRemainingMs!: number
+  private bossBarBackground!: Phaser.GameObjects.Rectangle
+  private bossBarFill!: Phaser.GameObjects.Rectangle
+  private bossBarWidth!: number
+  private levelOverlayBackground!: Phaser.GameObjects.Rectangle
+  private levelOverlay!: Phaser.GameObjects.Text
+  private lastUnknownCombatOverlapWarningAtMs!: number
 
   public constructor() {
     super('GameScene')
@@ -94,6 +107,10 @@ export class GameScene extends Phaser.Scene {
     this.lastPointerX = null
     this.gameOverStarted = false
     this.lastCrowdSize = -1
+    this.currentLevel = 1
+    this.levelPhase = 'normal'
+    this.phaseRemainingMs = BALANCE.level.normalPhaseSec * 1000
+    this.lastUnknownCombatOverlapWarningAtMs = -1000
     this.insets = readSafeAreaInsets()
     this.cameras.main.setBackgroundColor(WORLD_COLORS.background)
     this.road = new Road(this)
@@ -101,6 +118,7 @@ export class GameScene extends Phaser.Scene {
     const getAnchorPosition = (): Readonly<{ x: number; y: number }> => ({ x: this.crowd.getAnchorX(), y: this.crowd.getAnchorY() })
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
     this.spawner = new Spawner(this, this.runStats)
+    this.boss = new Boss(this, () => this.spawner.allocateSpawnId())
     this.coins = new Coins(this, () => this.updateHud())
     this.gates = new Gates(
       this,
@@ -147,17 +165,34 @@ export class GameScene extends Phaser.Scene {
       weapon: this.add.image(panelX + colW * 3.5, rowTwoY + 10, 'weapon-normal-hud').setOrigin(0.5),
     }
     Object.values(this.hud).forEach((segment) => segment.setDepth(BALANCE.hud.depthText))
+    const bossBarY = this.insets.top + BALANCE.hud.padding + BALANCE.hud.panelHeight + 8
+    this.bossBarWidth = getRoadHalfWidth(this.scale.width, this.scale.height, BALANCE.road.horizonY) * 2
+    const bossBarX = (this.scale.width - this.bossBarWidth) / 2
+    this.bossBarBackground = this.add.rectangle(bossBarX, bossBarY, this.bossBarWidth, 8, HUD_COLORS.bossBarBack).setOrigin(0, 0).setDepth(BALANCE.hud.depthText)
+    this.bossBarFill = this.add.rectangle(bossBarX, bossBarY, 0, 8, HUD_COLORS.bossBarFill).setOrigin(0, 0).setDepth(BALANCE.hud.depthText + 1)
+    this.bossBarBackground.setVisible(false)
+    this.bossBarFill.setVisible(false)
+    this.levelOverlayBackground = this.add.rectangle(this.scale.width / 2, this.scale.height / 2, this.scale.width, this.scale.height, HUD_COLORS.panel, 0.65)
+      .setDepth(BALANCE.hud.depthText + 2)
+      .setVisible(false)
+    this.levelOverlay = this.add.text(this.scale.width / 2, this.scale.height / 2, '', {
+      fontFamily: 'system-ui', fontSize: '34px', fontStyle: 'bold', color: this.colorFor(HUD_COLORS.bossOverlayText), stroke: HUD_COLORS.textDark, strokeThickness: 5,
+    }).setOrigin(0.5).setDepth(BALANCE.hud.depthText + 3).setVisible(false)
     this.crowd.setSize(this.runStats.get('hp'))
     this.lastCrowdSize = this.runStats.get('hp')
     this.updateHud()
     this.enableRelativeDrag()
-    this.physics.add.overlap(this.weapons.getProjectiles(), this.spawner.getEnemies(), (projectile, enemy) => {
-      this.handleProjectileHit(projectile as Phaser.Physics.Arcade.Image, enemy as Phaser.Physics.Arcade.Image)
+    this.physics.add.overlap(this.weapons.getProjectiles(), this.spawner.getEnemies(), (first, second) => {
+      this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
     })
-    // Zone must be first: Phaser passes (single object, group child) to this callback.
-    this.physics.add.overlap(this.crowd.getHullBounds(), this.spawner.getEnemies(), (_hull, enemy) => {
-      if (this.elapsedMs < this.iframeUntilMs) return
-      this.handlePlayerHit(enemy as Phaser.Physics.Arcade.Image)
+    this.physics.add.overlap(this.weapons.getProjectiles(), this.boss.getEnemy(), (first, second) => {
+      this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
+    })
+    this.physics.add.overlap(this.crowd.getHullBounds(), this.spawner.getEnemies(), (first, second) => {
+      this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
+    })
+    this.physics.add.overlap(this.crowd.getHullBounds(), this.boss.getProjectiles(), (first, second) => {
+      this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
     })
     if (BALANCE.debug) {
       this.drawSafeAreaDebug()
@@ -171,10 +206,13 @@ export class GameScene extends Phaser.Scene {
     this.road.update(dt)
     this.crowd.update()
     this.gates.update(dt)
+    this.updateLevelPhase(dt)
     this.weapons.update(dt)
     this.spawner.update(dt)
+    this.boss.update(dt)
     this.coins.update(dt, this.crowd.getAnchorX(), this.crowd.getAnchorY())
     this.splashFlashes.update(dt)
+    this.updateBossBar()
     if (this.runStats.get('hp') <= 0) {
       this.triggerGameOver()
       return
@@ -221,9 +259,52 @@ export class GameScene extends Phaser.Scene {
         const dy = candidate.y - impactY
         if (candidate.active && dx * dx + dy * dy <= radiusSquared) this.damageEnemy(candidate, splashDamage)
       }
+      const bossEnemy = this.boss.getEnemy()
+      const bossDx = bossEnemy.x - impactX
+      const bossDy = bossEnemy.y - impactY
+      if (bossEnemy.active && bossDx * bossDx + bossDy * bossDy <= radiusSquared) this.damageEnemy(bossEnemy, splashDamage)
       this.splashFlashes.spawn(impactX, impactY, config.splashRadiusPx)
     }
     this.weapons.recycle(projectile)
+  }
+
+  private handleCombatOverlap(first: Phaser.GameObjects.GameObject, second: Phaser.GameObjects.GameObject): void {
+    const playerProjectile = this.findObjectWithData(first, second, 'weapon')
+    if (playerProjectile !== undefined) {
+      const enemy = playerProjectile === first ? second : first
+      this.handleProjectileHit(playerProjectile as Phaser.Physics.Arcade.Image, enemy as Phaser.Physics.Arcade.Image)
+      return
+    }
+
+    const bossProjectile = this.findObjectWithData(first, second, 'damage')
+    if (bossProjectile !== undefined) {
+      if (this.elapsedMs < this.iframeUntilMs) return
+      this.handleBossProjectileHit(bossProjectile as Phaser.Physics.Arcade.Image)
+      return
+    }
+
+    const hull = this.crowd.getHullBounds()
+    if (first === hull || second === hull) {
+      if (this.elapsedMs < this.iframeUntilMs) return
+      const enemy = first === hull ? second : first
+      this.handlePlayerHit(enemy as Phaser.Physics.Arcade.Image)
+      return
+    }
+
+    if (import.meta.env.DEV && this.elapsedMs - this.lastUnknownCombatOverlapWarningAtMs >= 1000) {
+      console.warn('Unhandled combat overlap: neither object identifies as a player projectile, boss projectile, or player hull.')
+      this.lastUnknownCombatOverlapWarningAtMs = this.elapsedMs
+    }
+  }
+
+  private findObjectWithData(
+    first: Phaser.GameObjects.GameObject,
+    second: Phaser.GameObjects.GameObject,
+    key: string,
+  ): Phaser.GameObjects.GameObject | undefined {
+    if (first.getData(key) !== undefined) return first
+    if (second.getData(key) !== undefined) return second
+    return undefined
   }
 
   private damageEnemy(enemy: Phaser.Physics.Arcade.Image, damage: number): void {
@@ -242,13 +323,24 @@ export class GameScene extends Phaser.Scene {
     for (let index = 0; index < coinValue; index += 1) {
       this.coins.spawnAt(enemyX + coinOffsets[index] + groupOffsetX, enemyY)
     }
+    if (this.boss.isEnemy(enemy)) this.handleBossDefeated()
   }
 
   private handlePlayerHit(enemy: Phaser.Physics.Arcade.Image): void {
     if (!enemy.active) return
     const contactDamage = enemy.getData('contactDamage') as number
     this.spawner.recycle(enemy)
-    this.runStats.set('hp', this.runStats.get('hp') - contactDamage)
+    this.handlePlayerDamage(contactDamage)
+  }
+
+  private handleBossProjectileHit(projectile: Phaser.Physics.Arcade.Image): void {
+    if (!projectile.active) return
+    this.boss.recycleProjectile(projectile)
+    this.handlePlayerDamage(projectile.getData('damage') as number)
+  }
+
+  private handlePlayerDamage(damage: number): void {
+    this.runStats.set('hp', this.runStats.get('hp') - damage)
     this.syncCrowdSize()
     this.iframeUntilMs = this.elapsedMs + BALANCE.player.iframesMs
     this.nextBlinkAtMs = this.elapsedMs
@@ -261,9 +353,58 @@ export class GameScene extends Phaser.Scene {
     this.gameOverStarted = true
     const runCoins = this.coins.getCount()
     const saved = loadSave()
-    const withScore = addScore(saved, { coins: runCoins, level: 1, timeMs: this.elapsedMs })
-    writeSave({ ...withScore, coins: withScore.coins + runCoins, highestLevel: Math.max(withScore.highestLevel, 1) })
+    const withScore = addScore(saved, { coins: runCoins, level: this.currentLevel, timeMs: this.elapsedMs })
+    writeSave({ ...withScore, coins: withScore.coins + runCoins, highestLevel: Math.max(withScore.highestLevel, this.currentLevel) })
     this.scene.start('GameOverScene', { coins: runCoins })
+  }
+
+  private updateLevelPhase(dt: number): void {
+    if (this.levelPhase === 'boss') return
+    this.phaseRemainingMs -= dt
+    if (this.phaseRemainingMs > 0) return
+    if (this.levelPhase === 'normal') {
+      this.levelPhase = 'warning'
+      this.phaseRemainingMs = BALANCE.level.warningMs
+      this.spawner.setSpawningEnabled(false)
+      this.levelOverlayBackground.setVisible(false)
+      this.levelOverlay.setText('BOSS').setVisible(true)
+      return
+    }
+    if (this.levelPhase === 'warning') {
+      this.levelPhase = 'boss'
+      this.levelOverlayBackground.setVisible(false)
+      this.levelOverlay.setVisible(false)
+      this.boss.activate(this.currentLevel)
+      return
+    }
+    this.levelPhase = 'normal'
+    this.phaseRemainingMs = BALANCE.level.normalPhaseSec * 1000
+    this.levelOverlayBackground.setVisible(false)
+    this.levelOverlay.setVisible(false)
+    this.spawner.resetForLevel(this.currentLevel)
+  }
+
+  private handleBossDefeated(): void {
+    if (this.levelPhase !== 'boss') return
+    this.boss.deactivate()
+    this.currentLevel += 1
+    const saved = loadSave()
+    writeSave({ ...saved, highestLevel: Math.max(saved.highestLevel, this.currentLevel) })
+    this.levelPhase = 'cleared'
+    this.phaseRemainingMs = BALANCE.level.clearedMs
+    this.levelOverlayBackground.setVisible(true)
+    this.levelOverlay.setText(`LEVEL ${this.currentLevel - 1} GESCHAFFT`).setVisible(true)
+  }
+
+  private updateBossBar(): void {
+    const bossEnemy = this.boss.getEnemy()
+    const visible = this.levelPhase === 'boss' && bossEnemy.active
+    this.bossBarBackground.setVisible(visible)
+    this.bossBarFill.setVisible(visible)
+    if (!visible) return
+    const hp = bossEnemy.getData('hp') as number
+    const maxHp = BALANCE.boss.baseHp * Math.pow(BALANCE.boss.hpPerLevel, this.currentLevel - 1)
+    this.bossBarFill.setSize(this.bossBarWidth * Math.max(0, hp) / maxHp, 8)
   }
 
   private updateIframes(): void {

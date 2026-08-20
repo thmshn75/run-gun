@@ -22,6 +22,8 @@ export class Spawner {
   private intervalPlannedCount: number
   private lastSpawnMetricsAtMs: number
   private nextSpawnId: number
+  private spawningEnabled: boolean
+  private levelSpawnBonusMs: number
 
   public constructor(scene: Phaser.Scene, runStats: RunStats) {
     this.scene = scene
@@ -36,6 +38,8 @@ export class Spawner {
     this.intervalPlannedCount = 0
     this.lastSpawnMetricsAtMs = 0
     this.nextSpawnId = 1
+    this.spawningEnabled = true
+    this.levelSpawnBonusMs = 0
     for (let index = 0; index < BALANCE.pools.enemies; index += 1) {
       const enemy = scene.physics.add.image(0, 0, BALANCE.enemy.types[0].texture).setDepth(BALANCE.layers.gameplay)
       enemy.setActive(false).setVisible(false)
@@ -50,6 +54,25 @@ export class Spawner {
 
   public getEnemySpeed(): number {
     return this.runStats.get('speed')
+  }
+
+  public allocateSpawnId(): number {
+    const spawnId = this.nextSpawnId
+    this.nextSpawnId += 1
+    return spawnId
+  }
+
+  public setSpawningEnabled(enabled: boolean): void {
+    this.spawningEnabled = enabled
+    if (!enabled) this.deferredType = undefined
+  }
+
+  public resetForLevel(level: number): void {
+    this.elapsedMs = 0
+    this.spawnAccumulatorMs = 0
+    this.deferredType = undefined
+    this.levelSpawnBonusMs = Math.max(0, level - 1) * BALANCE.level.spawnBonusPerLevel
+    this.spawningEnabled = true
   }
 
   public recycle(enemy: Phaser.Physics.Arcade.Image): void {
@@ -71,13 +94,13 @@ export class Spawner {
 
   public update(dt: number): void {
     this.elapsedMs += dt
-    this.spawnAccumulatorMs += dt
-    if (this.deferredType !== undefined && this.spawn(this.deferredType) === 'spawned') this.deferredType = undefined
+    if (this.spawningEnabled) this.spawnAccumulatorMs += dt
+    if (this.spawningEnabled && this.deferredType !== undefined && this.spawn(this.deferredType) === 'spawned') this.deferredType = undefined
     const spawnIntervalMs = Math.max(
       BALANCE.enemy.spawnIntervalMinMs,
-      BALANCE.enemy.spawnIntervalMs - (this.elapsedMs / 1000) * BALANCE.enemy.spawnRampPerSec,
+      BALANCE.enemy.spawnIntervalMs - this.levelSpawnBonusMs - (this.elapsedMs / 1000) * BALANCE.enemy.spawnRampPerSec,
     )
-    while (this.spawnAccumulatorMs >= spawnIntervalMs) {
+    while (this.spawningEnabled && this.spawnAccumulatorMs >= spawnIntervalMs) {
       this.spawnAccumulatorMs -= spawnIntervalMs
       this.intervalPlannedCount += 1
       const type = chooseEnemyType(this.elapsedMs, () => Phaser.Math.RND.frac())
@@ -137,8 +160,7 @@ export class Spawner {
     enemy.setData('bodyHeight', type.bodyHeight)
     enemy.setData('flashUntil', 0)
     enemy.setData('lane', lane)
-    enemy.setData('spawnId', this.nextSpawnId)
-    this.nextSpawnId += 1
+    enemy.setData('spawnId', this.allocateSpawnId())
     this.intervalSpawnCount += 1
     return 'spawned'
   }

@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import enemyHeavyUrl from '../assets/enemy-heavy.png'
+import enemyBossUrl from '../assets/enemy-boss.png'
 import enemyLightUrl from '../assets/enemy-light.png'
 import enemyStandardUrl from '../assets/enemy-standard.png'
 import playerUrl from '../assets/player.png'
@@ -25,6 +26,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('enemy-light', enemyLightUrl)
     this.load.image('enemy-standard', enemyStandardUrl)
     this.load.image('enemy-heavy', enemyHeavyUrl)
+    this.load.image('enemy-boss', enemyBossUrl)
     this.load.image('weapon-normal-gate', weaponNormalGateUrl)
     this.load.image('weapon-shotgun-gate', weaponShotgunGateUrl)
     this.load.image('weapon-laser-gate', weaponLaserGateUrl)
@@ -89,6 +91,12 @@ export class BootScene extends Phaser.Scene {
     graphics.fillStyle(WORLD_COLORS.splashFlash)
     graphics.fillCircle(16, 16, 16)
     graphics.generateTexture('splash-flash', 32, 32)
+    graphics.clear()
+    graphics.fillStyle(WORLD_COLORS.bossProjectileShell)
+    graphics.fillRect(0, 0, 8, 16)
+    graphics.fillStyle(WORLD_COLORS.bossProjectileCore)
+    graphics.fillRect(2, 1, 4, 10)
+    graphics.generateTexture('projectile-boss', 8, 16)
     graphics.destroy()
   }
 

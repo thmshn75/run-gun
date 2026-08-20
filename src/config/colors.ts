@@ -44,6 +44,8 @@ export const WORLD_COLORS = {
   rocketBody: 0x8c96a5,
   rocketNose: 0xf03e3e,
   splashFlash: 0xffcf8a,
+  bossProjectileShell: 0xb83333,
+  bossProjectileCore: 0xffd0b0,
   coinRim: 0x5e4400,
   coinBody: 0xffd84c,
   gateBase: 0xffffff,
@@ -53,5 +55,8 @@ export const HUD_COLORS = {
   coins: 0xffd84c,
   panel: 0x080b12,
   panelStroke: 0x2a3550,
+  bossBarBack: 0x281417,
+  bossBarFill: 0xd94848,
+  bossOverlayText: 0xffffff,
   textDark: '#0b0f18',
 } as const

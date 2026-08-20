@@ -121,6 +121,30 @@ export const BALANCE = {
     spawnRampPerSec: 6,
     spawnLaneSafetyGap: 6,
   },
+  level: {
+    normalPhaseSec: 75,
+    warningMs: 1500,
+    clearedMs: 1800,
+    spawnBonusPerLevel: 150,
+  },
+  boss: {
+    // At 1 base damage, 3.5 shots/s and eight shooters the run deals about 28 DPS;
+    // 400 HP makes the first boss fall in a little over 14s before gate upgrades.
+    baseHp: 400,
+    hpPerLevel: 1.6,
+    approachSpeed: 90,
+    battleY: 300,
+    moveSpeed: 110,
+    fireIntervalMs: 1400,
+    burstCount: 3,
+    burstSpreadPx: 60,
+    projectileSpeed: 260,
+    projectileDamage: 1,
+    coinReward: 25,
+    // Measured opaque bounds of src/assets/enemy-boss.png, not the 120px canvas.
+    bodyWidth: 118,
+    bodyHeight: 118,
+  },
   feedback: {
     hitFlashMs: 80,
     gameOverRestartDelayMs: 400,
@@ -189,5 +213,6 @@ export const BALANCE = {
     coins: 48,
     // Roughly 1.4s visible versus 9s spawn interval means at most one; two cover a delayed recycle.
     gatePairs: 2,
+    bossProjectiles: 24,
   },
 } as const

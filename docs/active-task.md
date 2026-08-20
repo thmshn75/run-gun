@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -146,6 +146,7 @@ Länge stimmt, entscheidet Thomas am iPhone.
 - Boss-, Level- und Bossgeschoss-Pools ergänzt: 75-s-Normalphase, BOSS-Ankündigung, Kampf, Levelabschluss und Start der härteren nächsten Welle in derselben Szene.
 - Boss nutzt den bestehenden Schadensweg inklusive `spawnId`-Laser-Schutz, Trefferblitz, Münzdrop, Lebensbalken, iFrames und Blinken für Bossgeschosse.
 - Levelstand wird nach Boss-Sieg gespeichert; Game-Over-Scores erhalten die tatsächlich erreichte Levelnummer.
+- Jede Kampf-Kollision erkennt Spieler-Projektile an `weapon`, Boss-Geschosse an `damage` und die Truppenhülle an ihrer Instanz, statt sich auf Phasers Rückrufreihenfolge zu verlassen; unbekannte Paare warnen im DEV-Modus höchstens einmal pro Sekunde.
 - Verifiziert mit `npm run check`, `npm run build` und `npm test` (5 Tests bestanden).
 
 
@@ -212,3 +213,35 @@ Sekunde laut auf der Konsole gewarnt, statt still etwas Falsches zu tun.
 14. Nach dem Sieg beginnt Level 2, der Boss dort hat 640 Lebenspunkte, und `highestLevel`
     steht im Speicherstand auf 2.
 15. Die Reihenfolge der Rückrufargumente wird an keiner Stelle mehr vorausgesetzt.
+
+
+## Review-Ergebnis nach der Nacharbeit (Claude, am laufenden Spiel gemessen)
+
+Die Korrektur greift. Alle fuenfzehn Kriterien erfuellt.
+
+- **Kriterium 12 und 15:** Vier Ueberlappungen laufen jetzt ueber **eine** Erkennungsfunktion,
+  die die Objekte an ihren eigenen Daten unterscheidet statt an ihrer Position im Aufruf.
+  Ueber mehrere vollstaendige Laeufe: **0 Seitenfehler, 0 unbekannte Ueberlappungen**.
+- **Kriterium 2, 6, 14:** Boss-Lebenspunkte gemessen 400 / 640 / 1024 / 1638 fuer Level 1
+  bis 4 — exakt Faktor 1,6 je Level. Der Boss stirbt, Level 1 bis 10 liefen durch.
+- **Kriterium 3 (Laserdurchschlag), die kritischste Stelle:** 22 895 Ueberlappungen des
+  Lasers mit Gegnern und Boss, davon 18 039 korrekt uebersprungen, 4856 tatsaechliche
+  Schaeden — und **0 Verletzungen der Zusicherung**: In keinem einzigen Fall wurde Schaden
+  zugefuegt, obwohl die Marke schon gesetzt war.
+  *Hinweis fuer kuenftige Messungen:* Ein erster Anlauf meldete 936 vermeintliche
+  Doppelschaeden. Das war ein Fehler der Messung, nicht des Spiels — der Schluessel aus
+  Geschoss und Ziel unterscheidet zwei **verschiedene Schuesse** desselben
+  wiederverwendeten Geschosses nicht. Bei kurzlebigen Gegnern faellt das nie auf, beim
+  langlebigen Boss sofort. Gemessen werden muss die Zusicherung selbst, nicht ihr Abbild.
+- **Kriterium 1:** Nach der Ankuendigung **0** neue normale Gegner.
+- **Kriterium 4:** Lebensbalken bei y = 82, HUD-Leiste endet bei y = 74 — keine Ueberlappung.
+- **Kriterium 7:** `highestLevel` im Speicherstand stieg mit jedem geschafften Level bis 10.
+- **Kriterium 8:** Nach dem Tod steht im Bestenlisten-Eintrag `{coins: 74, level: 4}` — die
+  tatsaechlich erreichte Levelnummer, und die Muenzen sind auf dem Konto.
+- **Kriterium 13:** Boss-Geschosse trafen die Truppe (6 Treffer in einem Kampf).
+- **Kriterium 11:** `npm run check`, `npm run build`, `npm test` selbst im Terminal, alle
+  exit 0.
+
+**Nicht geprueft:** Ein Bildschirmfoto des Bosskampfs liess sich nicht sauber ablichten — mit
+den ueber 75 Sekunden erspielten Aufwertungen faellt der erste Boss zu schnell fuer eine
+getimte Aufnahme. Die Zahlen belegen den Kampf; das Aussehen sieht Thomas am Geraet.
