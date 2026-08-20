@@ -7,16 +7,14 @@ import type { RunStats } from './upgrades'
 export class Spawner {
   private readonly scene: Phaser.Scene
   private readonly runStats: RunStats
-  private readonly getSpawnRange: () => Readonly<{ min: number; max: number }>
   private readonly enemies: Phaser.Physics.Arcade.Group
   private spawnAccumulatorMs: number
   private elapsedMs: number
   private lastPoolWarningAtMs: number
 
-  public constructor(scene: Phaser.Scene, runStats: RunStats, getSpawnRange: () => Readonly<{ min: number; max: number }>) {
+  public constructor(scene: Phaser.Scene, runStats: RunStats) {
     this.scene = scene
     this.runStats = runStats
-    this.getSpawnRange = getSpawnRange
     this.enemies = scene.physics.add.group()
     this.spawnAccumulatorMs = 0
     this.elapsedMs = 0
@@ -86,10 +84,8 @@ export class Spawner {
     }
     const type = chooseEnemyType(this.elapsedMs, () => Phaser.Math.RND.frac())
     enemy.setTexture(type.texture)
-    const range = this.getSpawnRange()
-    const spawnX = Phaser.Math.Between(Math.round(range.min), Math.round(range.max))
     const y = -enemy.displayHeight / 2
-    const lane = (spawnX - this.scene.scale.width / 2) / (this.scene.scale.width / 2)
+    const lane = this.drawSpawnLane(type.bodyWidth, y)
     const x = this.scene.scale.width / 2 + lane * getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
     enemy.enableBody(true, x, y, true, true)
     const body = enemy.body as Phaser.Physics.Arcade.Body
@@ -100,9 +96,32 @@ export class Spawner {
     enemy.setData('speedFactor', type.speedFactor)
     enemy.setData('contactDamage', type.contactDamage)
     enemy.setData('coinValue', type.coinValue)
+    enemy.setData('bodyWidth', type.bodyWidth)
     enemy.setData('flashUntil', 0)
     enemy.setData('lane', lane)
     body.setVelocity(0, 0)
+  }
+
+  private drawSpawnLane(bodyWidth: number, y: number): number {
+    const roadHalfWidth = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
+    const maxLane = Math.max(0, (roadHalfWidth - bodyWidth / 2) / roadHalfWidth)
+    let lane = 0
+    for (let attempt = 0; attempt < BALANCE.enemy.spawnLaneMaxAttempts; attempt += 1) {
+      lane = Phaser.Math.FloatBetween(-maxLane, maxLane)
+      if (this.isSpawnLaneClear(lane, bodyWidth, roadHalfWidth)) break
+    }
+    return lane
+  }
+
+  private isSpawnLaneClear(lane: number, bodyWidth: number, roadHalfWidth: number): boolean {
+    const spawnX = this.scene.scale.width / 2 + lane * roadHalfWidth
+    return this.enemies.getChildren().every((child) => {
+      const enemy = child as Phaser.Physics.Arcade.Image
+      if (!enemy.active || enemy.y >= enemy.displayHeight + BALANCE.enemy.spawnLaneTopPadding) return true
+      const enemySpawnX = this.scene.scale.width / 2 + (enemy.getData('lane') as number) * roadHalfWidth
+      const minimumDistance = (bodyWidth + (enemy.getData('bodyWidth') as number)) / 2 + BALANCE.enemy.spawnLaneSafetyGap
+      return Math.abs(spawnX - enemySpawnX) >= minimumDistance
+    })
   }
 
   private warnPoolExhausted(): void {

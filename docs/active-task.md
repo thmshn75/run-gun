@@ -6,176 +6,113 @@
 
 ## Task
 
-**Betongraue Straße** (Rückenansicht der Truppe: Reißleine gezogen, siehe unten)
+**Straßenfarbe zurücknehmen und die Gegner wieder über die volle Fahrbahn verteilen**
 
-Zwei Optik-Nachbesserungen zum 3D-Schritt 1, beide von Thomas beauftragt (2026-08-20):
+Zwei Befunde aus Thomas' Test des perspektivischen Straßen-Umbaus (2026-08-20):
 
-1. Die Straße ist heute fast so dunkel wie ihre Umgebung und hebt sich kaum ab. Sie soll
-   **hellgrau wie Beton** werden.
-2. Die Spielfiguren schauen den Spieler frontal an. In den Vorbildern sieht man die eigene
-   Truppe **von hinten**. Das passt nicht zur perspektivischen Straße und wird nachgezogen.
-
-Beides betrifft nur das Aussehen. **Keine Spielmechanik anfassen.**
+1. Das Betongrau gefällt ihm nicht — die Straße soll wieder ihre ursprüngliche dunkle
+   Farbe bekommen.
+2. **Die Zombies erscheinen ständig doppelt nebeneinander.** Das ist ein echter Fehler,
+   verursacht durch die Spec des Straßen-Tasks.
 
 ## Anforderungen
 
-### 1. Straßenfarben
+### 1. Straßenfarben zurücksetzen
 
-In `src/config/colors.ts` unter `WORLD_COLORS`:
+In `src/config/colors.ts` unter `WORLD_COLORS` die Werte von vor dem Betongrau
+wiederherstellen:
 
-- `road`: von `0x172033` (dunkelblau) auf ein **helles Betongrau**, Vorschlag `0x9b9b94`.
-- `roadEdge`: von `0x34415d` auf einen **dunkleren** Grauton als die Fahrbahn, Vorschlag
-  `0x6e6e68`, damit der Rand vor der hellen Fläche als Kante lesbar bleibt.
-- `roadCenterLine`: von `0xd8e0ef` auf **reines Weiß** `0xffffff`. Auf hellgrauem Beton
-  wäre der bisherige, leicht bläuliche Ton kaum noch zu sehen.
+- `road`: `0x172033`
+- `roadEdge`: `0x34415d`
+- `roadCenterLine`: `0xd8e0ef`
 
-`WORLD_COLORS.background` bleibt **unverändert dunkel** — der Kontrast zwischen heller
-Fahrbahn und dunkler Umgebung ist es, der die Straße überhaupt sichtbar macht.
+Das ist eine Geschmacksentscheidung von Thomas und wird ohne Diskussion umgesetzt.
+Sonst nichts an `colors.ts` ändern.
 
-**Der kritische Punkt dabei ist der Kontrast zu den Figuren.** Der leichte Zombie ist seit
-heute hell-beige. Auf einer hellgrauen Straße kann er verschwinden — genau der Gegner, der
-am schnellsten läuft und deshalb am besten erkennbar sein muss. Deshalb ist ein
-Kontrollbild Pflicht (Abschnitt 3).
+### 2. Fehler: Gegner erscheinen zu dicht beieinander
 
-Ergibt die Kontrolle, dass der leichte Zombie auf der Fahrbahn schlecht erkennbar ist:
-**Straße dunkler machen** (in Richtung `0x86867f`), bis er sich abhebt — und im
-Abschlussbericht sagen, welcher Wert es geworden ist und warum. Den Zombie **nicht**
-umfärben, der ist von Thomas freigegeben.
+**Ursache — nachgerechnet, nicht vermutet.** Der Straßen-Task legte fest, dass die
+Fahrspur eines Gegners beim Spawnen aus `crowd.getAnchorRange()` abgeleitet wird. Das ist
+falsch: Dieser Bereich beschreibt, wie weit sich **die eigene Truppe** bewegen darf, und
+geht über nahezu die volle Bildbreite (25 bis 365 px, also 340 px). Die Umrechnung normiert
+ihn auf die halbe **Bild**breite (195 px), multipliziert das Ergebnis aber mit der halben
+**Straßen**breite am Spawnpunkt (87 px).
 
-### 2. Spielfigur in Rückenansicht
+Folge: Alle Gegner erscheinen in einem Streifen von nur 152 px statt über die volle
+Fahrbahn verteilt. Bei Gegnern, die selbst 21 bis 40 px breit sind, überlappen sie sich
+dadurch zwangsläufig — Thomas sieht sie „doppelt nebeneinander".
 
-`src/assets/player.png` wird ersetzt. Zielgröße bleibt **exakt 34 × 46 px** — dadurch
-bleiben Formation, Kollisionshülle (`crowd.hullWidthFigures` × Figurenbreite) und alle
-Abstände unverändert gültig. Es ist ein reiner Bildtausch, kein Umbau.
+Der Fehler liegt in der Spec des Straßen-Tasks, nicht in dessen Umsetzung.
 
-- **Dieselbe Figur wie heute**, nur von hinten gesehen: derselbe rot-orange Soldat,
-  dieselbe Silhouette, dieselbe Farbwelt. Es ist eine Drehung, keine Neugestaltung.
-- Von hinten heißt: man sieht Rücken, Hinterkopf und die Rückseite der Beine. Die Waffe
-  zeigt vom Betrachter weg nach vorne — sie darf seitlich sichtbar bleiben.
-- **Kein Gesicht.** Wenn nach dem Umbau noch Augen zu sehen sind, ist es keine
-  Rückenansicht.
-- Leicht von schräg oben, passend zur Straßenperspektive.
-- Das Spiel läuft mit `pixelArt: true`: klare Silhouette, kräftige Farben, keine weichen
-  Verläufe.
-- Die Figur muss sich **vor der neuen hellgrauen Straße** klar abheben. Rot-orange auf
-  Betongrau tut das — falls nicht, im Bericht melden.
+**Korrektur:** Die Fahrspur wird **gleichmäßig über die volle Fahrbahnbreite gezogen**,
+also als Zufallswert zwischen −1 (linker Rand) und +1 (rechter Rand). Sie wird **nicht**
+mehr aus `crowd.getAnchorRange()` abgeleitet — dieser Bereich hat mit der Fahrbahn nichts
+zu tun.
 
-**Verfahren — verbindlich:** Das Bild zuerst **groß** erzeugen (mindestens 4-fach, also ab
-136 × 184 px) und **danach** auf 34 × 46 px herunterrechnen. Direkt in Zielgröße erzeugte
-Bilder waren in diesem Projekt bereits zweimal unbrauchbar (`docs/lessons.md`, 2026-08-20).
-Die große Zwischenversion in `assets/probe/` ablegen (gitignored).
+Der bestehende Mechanismus bleibt sonst unverändert: Der Gegner behält seine Spur und
+fächert beim Näherkommen nach außen auf.
 
-### 3. Kontrollbild (Pflicht)
+Damit ein Gegner nicht halb neben der Fahrbahn erscheint, wird die Spur so begrenzt, dass
+seine **sichtbare Breite** am Spawnpunkt noch auf der Straße liegt (halbe `bodyWidth` des
+Typs gegen die halbe Straßenbreite rechnen).
 
-Nach `assets/probe/vorschau-strasse.png`: ein Ausschnitt der neuen Straße in Spielgröße mit
-**allen vier Figuren nebeneinander darauf** — die drei Zombies und die neue Spielfigur von
-hinten, in Originalgröße, auf der neuen Fahrbahnfarbe, mit dem dunklen Umgebungston an den
-Seiten. Daran beurteilt Thomas Farbe und Erkennbarkeit in einem Bild.
+### 3. Mindestabstand beim Erscheinen
+
+Auch bei gleichmäßiger Verteilung können zwei Gegner zufällig nebeneinander erscheinen —
+die Fahrbahn ist oben nun einmal schmal. Deshalb zusätzlich:
+
+Beim Spawnen prüfen, ob bereits ein aktiver Gegner **im oberen Bildbereich** (Vorschlag:
+`y` kleiner als seine eigene Höhe plus 20 px) eine zu ähnliche Spur hat. „Zu ähnlich"
+heißt: Der horizontale Abstand der beiden am Spawnpunkt beträgt weniger als die Summe ihrer
+halben `bodyWidth` plus einen Sicherheitsabstand von 6 px.
+
+Ist das der Fall, wird die Spur neu gezogen — **höchstens fünf Versuche**, danach wird der
+Gegner mit der zuletzt gezogenen Spur gespawnt. Kein Verwerfen des Spawns, keine
+Endlosschleife.
+
+Die Zahl der Versuche und der Sicherheitsabstand gehören nach `balance.ts` unter `enemy`,
+nicht in den Code.
 
 ## Grenzen
 
-Nichts anderes anfassen. Insbesondere **nicht**: Straßengeometrie, Gegnerführung, Torlogik,
-Münzen, `balance.ts`, Trefferflächen, Formationswerte oder Gegner-Sprites. Keine
-Größenänderung von Figuren — das bleibt 3D-Schritt 2. `docs/spec-e4b-entwurf.md` und
+Nichts anderes anfassen. Insbesondere **nicht**: die Straßengeometrie oder
+`road.topWidthRatio` ändern; Gegnerwerte (`hp`, `speedFactor`, `bodyWidth`, `coinValue`,
+Wellen) ändern; die Spawnrate ändern; `src/assets/player.png` anfassen (die Figur ist
+korrekt und bleibt); an Toren, Münzen oder Waffen arbeiten. `docs/spec-e4b-entwurf.md` und
 `docs/naechste-tasks.md` bleiben unverändert.
 
 ## Reißleine
 
-Lässt sich die Rückenansicht nach zwei Versuchen nicht in gleichbleibendem Stil erzeugen:
-**melden und stoppen**, die alte Frontalfigur unverändert lassen. Die Straßenfarbe ist davon
-unabhängig und wird trotzdem geliefert.
+Verteilen sich die Gegner nach der Korrektur immer noch sichtbar zu eng, liegt es an der
+schmalen Fahrbahn selbst. Dann **melden und stoppen** — die Lösung wäre, `topWidthRatio`
+von 0,46 anzuheben, und das ist eine Abwägung zwischen Tiefenwirkung und Spielbarkeit, die
+Thomas trifft.
 
-**Kein zulässiger Ersatz ist:** die vorhandene Frontalfigur spiegeln oder drehen; die Figur
-programmatisch aus geometrischen Formen zeichnen; eine andere Figur liefern als den
-vorhandenen Soldaten; die Zielgröße ändern; das Gesicht stehen lassen und als
-„Dreiviertelansicht" ausgeben.
+**Kein zulässiger Ersatz ist:** die Spawnrate senken, damit weniger Gegner gleichzeitig
+erscheinen; Gegner kleiner machen; die Perspektive abschalten; die Spur wieder aus dem
+Ankerbereich ableiten; mehr als fünf Wiederholungsversuche zulassen.
 
 ## Akzeptanzkriterien
 
-1. Die Fahrbahn ist hellgrau und hebt sich deutlich von der dunklen Umgebung ab.
-2. Randlinien und Mittellinie sind auf der hellen Fahrbahn klar erkennbar.
-3. `src/assets/player.png` ist 34 × 46 px und zeigt dieselbe Figur von hinten — kein
-   Gesicht, keine Augen.
-4. Alle drei Zombies sind auf der neuen Fahrbahn klar erkennbar, besonders der helle
-   leichte Gegner.
-5. `assets/probe/vorschau-strasse.png` zeigt alle vier Figuren auf der neuen Straße.
-6. Keine Änderung an Geometrie, Mechanik oder `balance.ts`.
-7. `npm run check` und `npm run build` laufen fehlerfrei durch.
+1. Die Straßenfarben stehen wieder auf `0x172033` / `0x34415d` / `0xd8e0ef`.
+2. Die Fahrspur wird gleichmäßig über die volle Fahrbahnbreite gezogen und **nicht** mehr
+   aus `crowd.getAnchorRange()` abgeleitet.
+3. Kein Gegner erscheint teilweise neben der Fahrbahn.
+4. Zwei gleichzeitig im oberen Bildbereich sichtbare Gegner überlappen sich nicht; der
+   Abstandstest nutzt die `bodyWidth` der beteiligten Typen.
+5. Die Wiederholung ist auf fünf Versuche begrenzt; ein Spawn wird nie verworfen.
+6. Sicherheitsabstand und Versuchszahl stehen in `balance.ts`.
+7. Gegner behalten weiterhin ihre Spur und fächern beim Näherkommen auf.
+8. `npm run check` und `npm run build` laufen fehlerfrei durch.
+
+**Offen bis zu Thomas' iPhone-Test:** ob sich die Gegner jetzt angenehm verteilen.
 
 ## Implementation Summary
 
-- `WORLD_COLORS.road` ist Betongrau `0x9b9b94`; Rand `0x6e6e68` und Mittellinie `0xffffff` bleiben darauf klar lesbar. Das Kontrollbild bestätigt auch den Kontrast des hellen leichten Zombies.
-- `src/assets/player.png` ist die rot-orange Spielerfigur in Rückenansicht (34 × 46 px), mit geschlossenem Helm, orangefarbenem Rucksack und seitlich nach vorn gerichteter Waffe. Gesicht und Augen sind nicht sichtbar.
-- `assets/probe/vorschau-strasse.png` enthält alle drei unveränderten Zombies und die neue Spielerfigur in Originalgröße auf der neuen Fahrbahn.
-- Nacharbeit 1: Das 136 × 184-Pixel-Zwischenbild wurde auf 34 × 46 px heruntergerechnet, anschließend auf 22 RGBA-Farben reduziert und der Alpha-Kanal auf 0 oder 255 geschwellen. `assets/probe/figur-schaerfe.png` zeigt links den bisherigen und rechts den neuen Sprite, jeweils 8-fach vergrößert.
-- `git diff --check`, `npm run check` und `npm run build` erfolgreich. Der sichtbare Terminal-Start war in dieser Umgebung nicht verfügbar; die identischen Prüfungen liefen direkt im Projekt.
-
-**Offen bis zu Thomas' iPhone-Test:** ob der Grauton stimmt und ob die Truppe von hinten
-richtig wirkt.
-
-## Ergebnis: Straße abgenommen, Rückenansicht vertagt
-
-Die Straßenfarben sind umgesetzt und abgenommen. Die Rückenansicht ist in zwei Anläufen
-gescheitert — beide Male kam wieder eine Frontalansicht zurück. Die Reißleine dieser Spec
-wurde gezogen, `src/assets/player.png` bleibt unverändert. Weiteres Vorgehen steht in
-`docs/naechste-tasks.md`, die Ursache in `docs/lessons.md`.
-
-## Nacharbeit 1 (Claude-Review, 2026-08-20) — nur Schärfe erreicht
-
-**Die Straßenfarben sind in Ordnung und bleiben, wie sie sind** (`road: 0x9b9b94`,
-`roadEdge: 0x6e6e68`, weiße Mittellinie). Das Kontrollbild zeigt: auch der helle leichte
-Zombie ist auf der Fahrbahn klar erkennbar. Dieser Teil ist abgenommen.
-
-**Die neue Spielfigur muss nachgearbeitet werden — zwei Mängel.**
-
-### Mangel 1: Das Bild ist matschig
-
-Ein direkter Vergleich mit der alten Figur (beide 9-fach vergrößert) zeigt es deutlich: Die
-alte Figur hat harte Pixelkanten, die neue ist weichgezeichnet, die Silhouette zerfließt.
-Das Spiel läuft mit `pixelArt: true`, also mit harten Kanten ohne Glättung — ein
-weichgezeichnetes Sprite passt nicht dazu und sieht bei jeder Vergrößerung schlechter aus.
-
-Ursache ist mit hoher Wahrscheinlichkeit das Herunterrechnen mit einem glättenden Filter.
-**Nach dem Verkleinern müssen die Kanten wieder hart gemacht werden:**
-- Die Transparenz auf hart schwellen: jeder Bildpunkt ist entweder ganz sichtbar oder ganz
-  durchsichtig, keine halbtransparenten Ränder.
-- Die Farben auf eine begrenzte Palette reduzieren (Größenordnung 16–24 Farben), so wie es
-  die vorhandenen Sprites auch sind.
-
-Prüfe das Ergebnis, indem du das fertige 34 × 46-PNG **8-fach vergrößert neben die alte
-Figur** legst (`assets/probe/figur-schaerfe.png`). Sind die Kanten der neuen Figur nicht
-genauso hart wie die der alten, ist die Nacharbeit nicht fertig.
-
-### Mangel 2: Man erkennt nicht, dass es eine Rückenansicht ist
-
-Das Gesicht ist korrekt verschwunden. Aber sonst fehlt jedes Merkmal, an dem man einen
-Rücken erkennt — die Figur wirkt wie eine unscharfe Frontalfigur ohne Kopf-Details.
-
-Eine Rückenansicht braucht sichtbare Rückenmerkmale:
-- **Helm von hinten**: geschlossene Kalotte, gern mit Nackenschutz. Keine Sichtöffnung.
-- **Rücken-Ausrüstung**: ein Rucksack, ein Tornister oder Gurte über dem Rücken. Das ist das
-  stärkste einzelne Erkennungsmerkmal und darf ruhig deutlich ausfallen.
-- **Keine Vorderseiten-Details**: keine Brusttaschen, keine Gürtelschnalle vorn, keine
-  Frontgurte.
-- Die Waffe zeigt vom Betrachter weg nach vorne und darf seitlich neben dem Körper
-  hervorstehen.
-
-Farbwelt, Größe (**exakt 34 × 46 px**) und Grundsilhouette bleiben wie beim vorhandenen
-roten Soldaten. Es bleibt eine Drehung derselben Figur, keine neue.
-
-### Grenzen der Nacharbeit
-
-Nur `src/assets/player.png` und die Probebilder anfassen. `colors.ts` bleibt unverändert,
-ebenso alles andere aus der Grenzen-Liste oben.
-
-### Zusätzliche Akzeptanzkriterien
-
-8. Das neue Sprite hat harte Kanten: keine halbtransparenten Randpixel, begrenzte Palette.
-9. `assets/probe/figur-schaerfe.png` zeigt alte und neue Figur 8-fach vergrößert
-   nebeneinander; die Kanten der neuen sind so hart wie die der alten.
-10. Die Figur ist als Rückenansicht erkennbar — Helm von hinten und Rücken-Ausrüstung sind
-    zu sehen, keine Vorderseiten-Details.
-
+- `WORLD_COLORS.road`, `roadEdge` und `roadCenterLine` stehen wieder auf `0x172033`, `0x34415d` und `0xd8e0ef`.
+- Der Spawner zieht die Gegner-Spur nun gleichmäßig innerhalb der am Spawnpunkt sichtbaren Fahrbahn; die Truppen-Ankerreichweite wird nicht mehr verwendet. Der Gegner behält die Spur weiterhin beim Auffächern nach außen.
+- Aktive Gegner im oberen Bildbereich blockieren zu nahe Spuren anhand beider `bodyWidth`-Werte. `spawnLaneMaxAttempts: 5`, `spawnLaneSafetyGap: 6` und der obere Prüfrand stehen unter `BALANCE.enemy`; ein Spawn wird nach dem letzten Versuch nie verworfen.
+- Erfolgreich: `git diff --check`, `npm run check` und `npm run build` (nur die bekannte nicht blockierende Vite-Warnung zur Bundlegröße). Kein iPhone-Test möglich, weil er Thomas' Gerät erfordert; die Spielgefühl-Prüfung bleibt wie spezifiziert offen.
 
 ## Zuletzt abgeschlossen (2026-08-20)
 

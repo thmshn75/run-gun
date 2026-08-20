@@ -64,6 +64,9 @@ export const BALANCE = {
     spawnIntervalMs: 1600,
     spawnIntervalMinMs: 450,
     spawnRampPerSec: 6,
+    spawnLaneMaxAttempts: 5,
+    spawnLaneSafetyGap: 6,
+    spawnLaneTopPadding: 20,
   },
   feedback: {
     hitFlashMs: 80,

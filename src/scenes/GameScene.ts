@@ -53,7 +53,7 @@ export class GameScene extends Phaser.Scene {
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
     const getAnchorPosition = (): Readonly<{ x: number; y: number }> => ({ x: this.crowd.getAnchorX(), y: this.crowd.getAnchorY() })
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
-    this.spawner = new Spawner(this, this.runStats, () => this.crowd.getAnchorRange())
+    this.spawner = new Spawner(this, this.runStats)
     this.coins = new Coins(this, () => this.updateHud())
     this.gates = new Gates(this, this.runStats, getAnchorPosition, () => this.updateHud(), () => Phaser.Math.RND.frac())
     const panelX = this.insets.left + BALANCE.hud.padding

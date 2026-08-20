@@ -31,6 +31,22 @@ hinteren Reihen sind dann optisch noch vor dem Tor. Beim Umsetzen von Befund 1 m
 Wenn die Spitze markiert ist, wird auch dieser Zeitpunkt nachvollziehbar — dann ist
 vermutlich keine eigene Änderung nötig. Erst nach Thomas' Test entscheiden.
 
+## Hintergrund gestalten (Thomas, 2026-08-20)
+
+Stand schon länger auf der Liste, hat jetzt aber einen konkreten Bezug: Die Straße wurde
+testweise betongrau gemacht und wieder auf das dunkle `0x172033` zurückgesetzt, weil der
+Ton nicht gefiel. Thomas' Begründung: **Er will ohnehin den Hintergrund ändern, dann hebt
+sich die Straße von selbst ab.**
+
+Daraus folgt für den Task: Fahrbahnfarbe und Umgebung **zusammen** entscheiden, nicht
+nacheinander. Heute ist die Straße (`road: 0x172033`) fast so dunkel wie ihre Umgebung
+(`background: 0x10131d`) — der Kontrast muss aus dem neuen Hintergrund kommen.
+
+Beim Festlegen der Farben mitprüfen: Der leichte Zombie ist hell-beige, die eigene Truppe
+rot-orange. Beide müssen sich vor Fahrbahn **und** Umgebung abheben. Ein Kontrollbild mit
+allen vier Figuren auf dem neuen Untergrund ist Pflicht — das hat beim Betongrau gut
+funktioniert.
+
 ## 3D-Schritt 2: Figuren wachsen beim Näherkommen
 
 Der Teil, der aus den festen gemessenen Trefferflächen bewegliche Größen macht. Erst nach
