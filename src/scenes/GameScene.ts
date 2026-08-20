@@ -1,63 +1,68 @@
 import Phaser from 'phaser'
-
-type SafeAreaInsets = Readonly<{ top: number; right: number; bottom: number; left: number }>
-
-function readSafeAreaInsets(): SafeAreaInsets {
-  const probe = document.createElement('div')
-  probe.setAttribute('aria-hidden', 'true')
-  probe.style.cssText = [
-    'position:fixed',
-    'visibility:hidden',
-    'pointer-events:none',
-    'padding-top:env(safe-area-inset-top)',
-    'padding-right:env(safe-area-inset-right)',
-    'padding-bottom:env(safe-area-inset-bottom)',
-    'padding-left:env(safe-area-inset-left)',
-  ].join(';')
-  document.body.append(probe)
-  const styles = getComputedStyle(probe)
-  const insets = {
-    top: Number.parseFloat(styles.paddingTop) || 0,
-    right: Number.parseFloat(styles.paddingRight) || 0,
-    bottom: Number.parseFloat(styles.paddingBottom) || 0,
-    left: Number.parseFloat(styles.paddingLeft) || 0,
-  }
-  probe.remove()
-  return insets
-}
+import { BALANCE } from '../config/balance'
+import { Crowd } from '../systems/crowd'
+import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
+import { Spawner } from '../systems/spawner'
+import { Weapons } from '../systems/weapons'
 
 export class GameScene extends Phaser.Scene {
-  private player!: Phaser.GameObjects.Image
-  private lastPointerX: number | null = null
+  private background!: Phaser.GameObjects.TileSprite
+  private crowd!: Crowd
+  private weapons!: Weapons
+  private spawner!: Spawner
+  private hp!: number
+  private elapsedMs!: number
+  private iframeUntilMs!: number
+  private nextBlinkAtMs!: number
+  private lastPointerX!: number | null
+  private hud!: Phaser.GameObjects.Text
+  private insets!: SafeAreaInsets
 
   public constructor() {
     super('GameScene')
   }
 
   public create(): void {
+    this.hp = BALANCE.player.startHp
+    this.elapsedMs = 0
+    this.iframeUntilMs = 0
+    this.nextBlinkAtMs = 0
+    this.lastPointerX = null
+    this.insets = readSafeAreaInsets()
     this.cameras.main.setBackgroundColor('#10131d')
-    this.player = this.add.image(this.scale.width / 2, this.scale.height - 130, 'player-placeholder')
-
-    const insets = readSafeAreaInsets()
-    this.drawSafeAreaDebug(insets)
+    this.background = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'background-tile').setOrigin(0, 0)
+    this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
+    this.weapons = new Weapons(this, () => ({ x: this.crowd.getAnchorX(), y: this.crowd.getAnchorY() }))
+    this.spawner = new Spawner(this)
+    this.hud = this.add.text(this.insets.left + BALANCE.feedback.hudPadding, this.insets.top + BALANCE.feedback.hudPadding, '', {
+      fontFamily: 'system-ui',
+      fontSize: '24px',
+      color: '#daf6ff',
+    })
+    this.updateHud()
     this.enableRelativeDrag()
+    this.physics.add.overlap(this.weapons.getProjectiles(), this.spawner.getEnemies(), (projectile, enemy) => {
+      this.handleProjectileHit(projectile as Phaser.Physics.Arcade.Image, enemy as Phaser.Physics.Arcade.Image)
+    })
+    // Zone must be first: Phaser passes (single object, group child) to this callback.
+    this.physics.add.overlap(this.crowd.getHullBounds(), this.spawner.getEnemies(), (_hull, enemy) => {
+      if (this.elapsedMs < this.iframeUntilMs) return
+      this.handlePlayerHit(enemy as Phaser.Physics.Arcade.Image)
+    })
+    if (BALANCE.debug) {
+      this.drawSafeAreaDebug()
+      console.debug(`GameScene children: ${this.children.length}`)
+    }
   }
 
-  private drawSafeAreaDebug(insets: SafeAreaInsets): void {
-    const frame = this.add.graphics()
-    frame.lineStyle(2, 0xffc857, 1)
-    frame.strokeRect(
-      insets.left,
-      insets.top,
-      this.scale.width - insets.left - insets.right,
-      this.scale.height - insets.top - insets.bottom,
-    )
-    this.add.text(
-      12,
-      12,
-      `Safe area  T:${insets.top} R:${insets.right} B:${insets.bottom} L:${insets.left}`,
-      { fontFamily: 'system-ui', fontSize: '13px', color: '#ffc857' },
-    )
+  public update(_time: number, rawDeltaMs: number): void {
+    const dt = Math.min(rawDeltaMs, BALANCE.maxDeltaMs)
+    this.elapsedMs += dt
+    this.background.tilePositionY -= (BALANCE.scrollSpeed * dt) / 1000
+    this.crowd.update()
+    this.weapons.update(dt)
+    this.spawner.update(dt)
+    this.updateIframes()
   }
 
   private enableRelativeDrag(): void {
@@ -66,13 +71,59 @@ export class GameScene extends Phaser.Scene {
     })
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (!pointer.isDown || this.lastPointerX === null) return
-      const deltaX = pointer.x - this.lastPointerX
-      const halfWidth = this.player.displayWidth / 2
-      this.player.x = Phaser.Math.Clamp(this.player.x + deltaX, halfWidth, this.scale.width - halfWidth)
+      this.crowd.setAnchorX(this.crowd.getAnchorX() + pointer.x - this.lastPointerX)
       this.lastPointerX = pointer.x
     })
     this.input.on('pointerup', () => {
       this.lastPointerX = null
     })
+  }
+
+  private handleProjectileHit(projectile: Phaser.Physics.Arcade.Image, enemy: Phaser.Physics.Arcade.Image): void {
+    if (!projectile.active || !enemy.active) return
+    this.weapons.recycle(projectile)
+    this.spawner.damage(enemy, BALANCE.weapon.projectileDamage, this.elapsedMs)
+  }
+
+  private handlePlayerHit(enemy: Phaser.Physics.Arcade.Image): void {
+    if (!enemy.active) return
+    this.spawner.recycle(enemy)
+    this.hp -= 1
+    this.iframeUntilMs = this.elapsedMs + BALANCE.player.iframesMs
+    this.nextBlinkAtMs = this.elapsedMs
+    this.updateHud()
+    if (this.hp <= 0) this.scene.start('GameOverScene')
+  }
+
+  private updateIframes(): void {
+    if (this.elapsedMs >= this.iframeUntilMs) {
+      this.crowd.setFiguresAlpha(1)
+      return
+    }
+    if (this.elapsedMs >= this.nextBlinkAtMs) {
+      this.crowd.setFiguresAlpha(Math.floor(this.elapsedMs / BALANCE.player.blinkIntervalMs) % 2 === 0 ? 0.35 : 1)
+      this.nextBlinkAtMs += BALANCE.player.blinkIntervalMs
+    }
+  }
+
+  private updateHud(): void {
+    this.hud.setText(`HP ${this.hp}`)
+  }
+
+  private drawSafeAreaDebug(): void {
+    const frame = this.add.graphics()
+    frame.lineStyle(2, 0xffc857, 1)
+    frame.strokeRect(
+      this.insets.left,
+      this.insets.top,
+      this.scale.width - this.insets.left - this.insets.right,
+      this.scale.height - this.insets.top - this.insets.bottom,
+    )
+    this.add.text(
+      BALANCE.feedback.hudPadding,
+      this.insets.top + BALANCE.feedback.hudPadding * 4,
+      `Safe area  T:${this.insets.top} R:${this.insets.right} B:${this.insets.bottom} L:${this.insets.left}`,
+      { fontFamily: 'system-ui', fontSize: '13px', color: '#ffc857' },
+    )
   }
 }

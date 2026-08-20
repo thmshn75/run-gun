@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { registerSW } from 'virtual:pwa-register'
 import './style.css'
 import { BootScene } from './scenes/BootScene'
+import { GameOverScene } from './scenes/GameOverScene'
 import { GameScene } from './scenes/GameScene'
 
 registerSW({ immediate: true })
@@ -25,7 +26,7 @@ const game = new Phaser.Game({
       debug: false,
     },
   },
-  scene: [BootScene, GameScene],
+  scene: [BootScene, GameScene, GameOverScene],
 })
 
 game.canvas.addEventListener('contextmenu', (event) => event.preventDefault())

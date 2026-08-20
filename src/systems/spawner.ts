@@ -1,0 +1,86 @@
+import Phaser from 'phaser'
+import { BALANCE } from '../config/balance'
+
+export class Spawner {
+  private readonly scene: Phaser.Scene
+  private readonly enemies: Phaser.Physics.Arcade.Group
+  private spawnAccumulatorMs: number
+  private elapsedMs: number
+  private lastPoolWarningAtMs: number
+
+  public constructor(scene: Phaser.Scene) {
+    this.scene = scene
+    this.enemies = scene.physics.add.group()
+    this.spawnAccumulatorMs = 0
+    this.elapsedMs = 0
+    this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
+
+    for (let index = 0; index < BALANCE.pools.enemies; index += 1) {
+      const enemy = scene.physics.add.image(0, 0, 'enemy')
+      enemy.setActive(false).setVisible(false)
+      enemy.disableBody(true, true)
+      this.enemies.add(enemy)
+    }
+  }
+
+  public getEnemies(): Phaser.Physics.Arcade.Group {
+    return this.enemies
+  }
+
+  public recycle(enemy: Phaser.Physics.Arcade.Image): void {
+    enemy.disableBody(true, true)
+    enemy.setActive(false).setVisible(false)
+  }
+
+  public damage(enemy: Phaser.Physics.Arcade.Image, damage: number, gameTimeMs: number): void {
+    const remainingHp = (enemy.getData('hp') as number) - damage
+    enemy.setData('hp', remainingHp)
+    enemy.setTintFill(0xffffff)
+    enemy.setData('flashUntil', gameTimeMs + BALANCE.feedback.hitFlashMs)
+    if (remainingHp <= 0) this.recycle(enemy)
+  }
+
+  public update(dt: number): void {
+    this.elapsedMs += dt
+    this.spawnAccumulatorMs += dt
+    const spawnIntervalMs = Math.max(
+      BALANCE.enemy.spawnIntervalMinMs,
+      BALANCE.enemy.spawnIntervalMs - (this.elapsedMs / 1000) * BALANCE.enemy.spawnRampPerSec,
+    )
+    while (this.spawnAccumulatorMs >= spawnIntervalMs) {
+      this.spawnAccumulatorMs -= spawnIntervalMs
+      this.spawn()
+    }
+
+    for (const child of this.enemies.getChildren()) {
+      const enemy = child as Phaser.Physics.Arcade.Image
+      if (!enemy.active) continue
+      enemy.y += ((BALANCE.scrollSpeed + BALANCE.enemy.speed) * dt) / 1000
+      ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
+      if ((enemy.getData('flashUntil') as number) <= this.elapsedMs) enemy.clearTint()
+      if (enemy.y - enemy.displayHeight / 2 > this.scene.scale.height) this.recycle(enemy)
+    }
+  }
+
+  private spawn(): void {
+    const enemy = this.enemies.getChildren().find((child) => !child.active) as Phaser.Physics.Arcade.Image | undefined
+    if (enemy === undefined) {
+      this.warnPoolExhausted()
+      return
+    }
+    const halfWidth = enemy.displayWidth / 2
+    const x = Phaser.Math.Between(halfWidth, this.scene.scale.width - halfWidth)
+    const y = -enemy.displayHeight / 2
+    enemy.enableBody(true, x, y, true, true)
+    enemy.setActive(true).setVisible(true).setAlpha(1).clearTint()
+    enemy.setData('hp', BALANCE.enemy.hp)
+    enemy.setData('flashUntil', 0)
+    ;(enemy.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0)
+  }
+
+  private warnPoolExhausted(): void {
+    if (!import.meta.env.DEV || this.elapsedMs - this.lastPoolWarningAtMs < BALANCE.feedback.poolWarningIntervalMs) return
+    console.warn('Enemy pool exhausted; spawn skipped.')
+    this.lastPoolWarningAtMs = this.elapsedMs
+  }
+}
