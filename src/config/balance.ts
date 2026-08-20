@@ -19,10 +19,12 @@ export const BALANCE = {
   },
   enemy: {
     hp: 3,
-    speed: 50,
-    spawnIntervalMs: 1200,
-    spawnIntervalMinMs: 600,
-    spawnRampPerSec: 3,
+    speed: 30,
+    speedRampPerSec: 0.5,
+    speedMax: 150,
+    spawnIntervalMs: 1600,
+    spawnIntervalMinMs: 450,
+    spawnRampPerSec: 6,
   },
   feedback: {
     hitFlashMs: 80,
@@ -49,17 +51,17 @@ export const BALANCE = {
   },
   coins: {
     value: 1,
-    magnetRadius: 140,
-    magnetSpeed: 600,
+    magnetRadius: 200,
+    magnetSpeed: 900,
     collectDistance: 24,
   },
   pools: {
     // 8 shots/s cap x 5 projectiles cap x ((anchor-Y 714 - despawn-Y 0) / 640px/s = 1.12s) = 45; 64 leaves margin.
     projectiles: 64,
-    // 844px / (180 + 50)px/s / 0.6s = 6.1 visible enemies; 20 leaves ample headroom.
+    // 844px / (180 + 150)px/s = 2.56s visible; one spawn every 0.45s = about 5.7 enemies; 20 remains ample.
     enemies: 20,
     crowd: 30,
-    // Max enemy kill rate is 1 / 0.6s; 844px / 180px/s = 4.7s coin visibility, so 1.67 x 4.7 = 7.8; 20 leaves margin.
+    // Max enemy kill rate is 1 / 0.45s; 844px / 180px/s = 4.7s coin visibility, so about 10.4; 20 remains enough (magnet collects faster).
     coins: 20,
     // Roughly 1.4s visible versus 9s spawn interval means at most one; two cover a delayed recycle.
     gatePairs: 2,

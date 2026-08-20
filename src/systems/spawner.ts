@@ -56,10 +56,14 @@ export class Spawner {
       this.spawn()
     }
 
+    const enemySpeed = Math.min(
+      BALANCE.enemy.speedMax,
+      BALANCE.enemy.speed + (this.elapsedMs / 1000) * BALANCE.enemy.speedRampPerSec,
+    )
     for (const child of this.enemies.getChildren()) {
       const enemy = child as Phaser.Physics.Arcade.Image
       if (!enemy.active) continue
-      enemy.y += ((BALANCE.scrollSpeed + BALANCE.enemy.speed) * dt) / 1000
+      enemy.y += ((BALANCE.scrollSpeed + enemySpeed) * dt) / 1000
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       if ((enemy.getData('flashUntil') as number) <= this.elapsedMs) enemy.clearTint()
       if (enemy.y - enemy.displayHeight / 2 > this.scene.scale.height) this.recycle(enemy)
