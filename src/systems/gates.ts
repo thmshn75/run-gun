@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { HUD_COLORS, STAT_COLORS } from '../config/colors'
+import { getRoadHalfWidth } from './road'
 import { clampStat, type RunStats, type StatKey } from './upgrades'
 
 export interface GateOp {
@@ -118,6 +119,7 @@ export class Gates {
   private readonly onStatsChanged: () => void
   private readonly rng: () => number
   private readonly pairs!: GatePair[]
+  private readonly baseGateWidth: number
   private statBag: StatKey[]
   private lastStat: StatKey | null
   private spawnAccumulatorMs!: number
@@ -138,6 +140,7 @@ export class Gates {
     this.onStatsChanged = onStatsChanged
     this.rng = rng
     this.pairs = []
+    this.baseGateWidth = (this.scene.scale.width - BALANCE.gates.gapBetween) / 2
     this.statBag = []
     this.lastStat = null
     this.spawnAccumulatorMs = 0
@@ -196,10 +199,7 @@ export class Gates {
     }
     const stat = this.nextStat()
     const operations = drawGatePair(stat, this.runStats.get(stat), this.rng)
-    const gateWidth = (this.scene.scale.width - BALANCE.gates.gapBetween) / 2
     const spawnY = -BALANCE.gates.gateHeight / 2
-    const leftX = gateWidth / 2
-    const rightX = gateWidth + BALANCE.gates.gapBetween + gateWidth / 2
     const statColor = STAT_COLORS[stat]
     const statColorCss = `#${statColor.toString(16).padStart(6, '0')}`
     pair.stat = stat
@@ -208,21 +208,32 @@ export class Gates {
     pair.active = true
     pair.triggered = false
     pair.flashUntilMs = 0
-    pair.left.setPosition(leftX, spawnY).setActive(true).setVisible(true).setAlpha(1).setTint(statColor)
-    pair.right.setPosition(rightX, spawnY).setActive(true).setVisible(true).setAlpha(1).setTint(statColor)
-    pair.leftText.setPosition(leftX, spawnY).setText(operations.left.label).setActive(true).setVisible(true).setAlpha(1).clearTint()
-    pair.rightText.setPosition(rightX, spawnY).setText(operations.right.label).setActive(true).setVisible(true).setAlpha(1).clearTint()
-    pair.statLabel.setPosition(this.scene.scale.width / 2, spawnY - BALANCE.gates.gateHeight / 2 - 14)
-      .setText(this.statLabel(stat)).setColor(statColorCss).setActive(true).setVisible(true).setAlpha(1).clearTint()
+    pair.left.setPosition(0, spawnY).setActive(true).setVisible(true).setAlpha(1).setTint(statColor)
+    pair.right.setPosition(0, spawnY).setActive(true).setVisible(true).setAlpha(1).setTint(statColor)
+    pair.leftText.setText(operations.left.label).setActive(true).setVisible(true).setAlpha(1).clearTint()
+    pair.rightText.setText(operations.right.label).setActive(true).setVisible(true).setAlpha(1).clearTint()
+    pair.statLabel.setText(this.statLabel(stat)).setColor(statColorCss).setActive(true).setVisible(true).setAlpha(1).clearTint()
+    this.layoutPair(pair)
     pair.prevBottomY = spawnY + BALANCE.gates.gateHeight / 2
   }
 
   private movePair(pair: GatePair, movement: number): void {
     pair.left.y += movement
-    pair.right.y += movement
-    pair.leftText.y += movement
-    pair.rightText.y += movement
-    pair.statLabel.y += movement
+    this.layoutPair(pair)
+  }
+
+  private layoutPair(pair: GatePair): void {
+    const centerX = this.scene.scale.width / 2
+    const y = pair.left.y
+    const gateWidth = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y) - BALANCE.gates.gapBetween / 2
+    const leftX = centerX - BALANCE.gates.gapBetween / 2 - gateWidth / 2
+    const rightX = centerX + BALANCE.gates.gapBetween / 2 + gateWidth / 2
+    const scaleX = gateWidth / this.baseGateWidth
+    pair.left.setPosition(leftX, y).setScale(scaleX, 1)
+    pair.right.setPosition(rightX, y).setScale(scaleX, 1)
+    pair.leftText.setPosition(leftX, y)
+    pair.rightText.setPosition(rightX, y)
+    pair.statLabel.setPosition(centerX, y - BALANCE.gates.gateHeight / 2 - 14)
   }
 
   private applyPair(pair: GatePair, anchorX: number): void {

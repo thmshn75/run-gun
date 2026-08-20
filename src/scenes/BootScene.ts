@@ -5,6 +5,7 @@ import enemyStandardUrl from '../assets/enemy-standard.png'
 import playerUrl from '../assets/player.png'
 import { BALANCE } from '../config/balance'
 import { WORLD_COLORS } from '../config/colors'
+import { getRoadHalfWidth } from '../systems/road'
 
 export class BootScene extends Phaser.Scene {
   public constructor() {
@@ -20,7 +21,7 @@ export class BootScene extends Phaser.Scene {
 
   public create(): void {
     this.createProjectileTexture()
-    this.createBackgroundTexture()
+    this.createRoadTextures()
     this.createGateTexture()
     this.createCoinTexture()
 
@@ -37,17 +38,29 @@ export class BootScene extends Phaser.Scene {
     graphics.destroy()
   }
 
-  private createBackgroundTexture(): void {
+  private createRoadTextures(): void {
+    const width = this.scale.width
+    const height = this.scale.height
+    const centerX = width / 2
+    const topHalfWidth = getRoadHalfWidth(width, height, 0)
+    const bottomHalfWidth = getRoadHalfWidth(width, height, height)
     const graphics = this.add.graphics()
-    graphics.fillStyle(WORLD_COLORS.background)
-    graphics.fillRect(0, 0, 64, 64)
-    graphics.fillStyle(WORLD_COLORS.backgroundLine)
-    graphics.fillRect(0, 12, 64, 2)
-    graphics.fillRect(0, 44, 64, 2)
-    graphics.fillStyle(WORLD_COLORS.backgroundDot)
-    graphics.fillRect(8, 28, 4, 2)
-    graphics.fillRect(42, 58, 4, 2)
-    graphics.generateTexture('background-tile', 64, 64)
+    graphics.fillStyle(WORLD_COLORS.road)
+    graphics.beginPath()
+    graphics.moveTo(centerX - topHalfWidth, 0)
+    graphics.lineTo(centerX + topHalfWidth, 0)
+    graphics.lineTo(centerX + bottomHalfWidth, height)
+    graphics.lineTo(centerX - bottomHalfWidth, height)
+    graphics.closePath()
+    graphics.fillPath()
+    graphics.lineStyle(BALANCE.road.edgeLineWidth, WORLD_COLORS.roadEdge)
+    graphics.lineBetween(centerX - topHalfWidth, 0, centerX - bottomHalfWidth, height)
+    graphics.lineBetween(centerX + topHalfWidth, 0, centerX + bottomHalfWidth, height)
+    graphics.generateTexture('road', width, height)
+    graphics.clear()
+    graphics.fillStyle(WORLD_COLORS.roadCenterLine)
+    graphics.fillRect(0, 0, BALANCE.road.centerLine.textureSizePx, BALANCE.road.centerLine.textureSizePx)
+    graphics.generateTexture('road-center-line', BALANCE.road.centerLine.textureSizePx, BALANCE.road.centerLine.textureSizePx)
     graphics.destroy()
   }
 

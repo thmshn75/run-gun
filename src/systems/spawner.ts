@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { chooseEnemyType } from './enemyTypes'
+import { getRoadHalfWidth } from './road'
 import type { RunStats } from './upgrades'
 
 export class Spawner {
@@ -70,6 +71,7 @@ export class Spawner {
       const enemy = child as Phaser.Physics.Arcade.Image
       if (!enemy.active) continue
       enemy.y += (enemySpeed * (enemy.getData('speedFactor') as number) * dt) / 1000
+      enemy.x = this.scene.scale.width / 2 + (enemy.getData('lane') as number) * getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, enemy.y)
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       if ((enemy.getData('flashUntil') as number) <= this.elapsedMs) enemy.clearTint()
       if (enemy.y - enemy.displayHeight / 2 > this.scene.scale.height) this.recycle(enemy)
@@ -84,12 +86,11 @@ export class Spawner {
     }
     const type = chooseEnemyType(this.elapsedMs, () => Phaser.Math.RND.frac())
     enemy.setTexture(type.texture)
-    const halfWidth = enemy.displayWidth / 2
     const range = this.getSpawnRange()
-    const lo = Math.max(halfWidth, Math.round(range.min))
-    const hi = Math.max(lo, Math.min(this.scene.scale.width - halfWidth, Math.round(range.max)))
-    const x = Phaser.Math.Between(lo, hi)
+    const spawnX = Phaser.Math.Between(Math.round(range.min), Math.round(range.max))
     const y = -enemy.displayHeight / 2
+    const lane = (spawnX - this.scene.scale.width / 2) / (this.scene.scale.width / 2)
+    const x = this.scene.scale.width / 2 + lane * getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
     enemy.enableBody(true, x, y, true, true)
     const body = enemy.body as Phaser.Physics.Arcade.Body
     body.setSize(type.bodyWidth, enemy.displayHeight, true)
@@ -100,6 +101,7 @@ export class Spawner {
     enemy.setData('contactDamage', type.contactDamage)
     enemy.setData('coinValue', type.coinValue)
     enemy.setData('flashUntil', 0)
+    enemy.setData('lane', lane)
     body.setVelocity(0, 0)
   }
 

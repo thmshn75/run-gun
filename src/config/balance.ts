@@ -2,6 +2,17 @@ export const BALANCE = {
   debug: false,
   maxDeltaMs: 100,
   scrollSpeed: 180,
+  road: {
+    topWidthRatio: 0.46,
+    bottomWidthRatio: 1,
+    edgeLineWidth: 2,
+    centerLine: {
+      segments: 12,
+      textureSizePx: 1,
+      widthOfHalfRoadRatio: 0.035,
+      lengthOfHalfRoadRatio: 0.22,
+    },
+  },
   player: {
     iframesMs: 1200,
     blinkIntervalMs: 100,
@@ -94,6 +105,8 @@ export const BALANCE = {
     magnetRadius: 200,
     magnetSpeed: 900,
     collectDistance: 24,
+    dropSpacing: 18,
+    edgeInset: 7,
   },
   pools: {
     // 8 shots/s cap x 8 figures per salvo x ((anchor-Y 714 - despawn-Y 0) / 640px/s = 1.12s) = 72; 96 leaves margin.

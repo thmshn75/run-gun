@@ -4,6 +4,7 @@ import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
 import { Coins } from '../systems/coins'
 import { Crowd } from '../systems/crowd'
 import { Gates } from '../systems/gates'
+import { Road } from '../systems/road'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { Spawner } from '../systems/spawner'
 import { RunStats } from '../systems/upgrades'
@@ -18,7 +19,7 @@ interface HudSegments {
 }
 
 export class GameScene extends Phaser.Scene {
-  private background!: Phaser.GameObjects.TileSprite
+  private road!: Road
   private crowd!: Crowd
   private weapons!: Weapons
   private spawner!: Spawner
@@ -48,7 +49,7 @@ export class GameScene extends Phaser.Scene {
     this.lastCrowdSize = -1
     this.insets = readSafeAreaInsets()
     this.cameras.main.setBackgroundColor(WORLD_COLORS.background)
-    this.background = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'background-tile').setOrigin(0, 0)
+    this.road = new Road(this)
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
     const getAnchorPosition = (): Readonly<{ x: number; y: number }> => ({ x: this.crowd.getAnchorX(), y: this.crowd.getAnchorY() })
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
@@ -107,7 +108,7 @@ export class GameScene extends Phaser.Scene {
   public update(_time: number, rawDeltaMs: number): void {
     const dt = Math.min(rawDeltaMs, BALANCE.maxDeltaMs)
     this.elapsedMs += dt
-    this.background.tilePositionY -= (BALANCE.scrollSpeed * dt) / 1000
+    this.road.update(dt)
     this.crowd.update()
     this.weapons.update(dt)
     this.spawner.update(dt)
@@ -141,9 +142,16 @@ export class GameScene extends Phaser.Scene {
     const coinValue = enemy.getData('coinValue') as number
     this.weapons.recycle(projectile)
     if (!this.spawner.damage(enemy, this.runStats.get('damage') * this.getCrowdDamageMultiplier(), this.elapsedMs)) return
+    const coinOffsets = Array.from({ length: coinValue }, (_value, index) => (index - (coinValue - 1) / 2) * BALANCE.coins.dropSpacing)
+    const firstCoinX = enemyX + coinOffsets[0]
+    const lastCoinX = enemyX + coinOffsets[coinOffsets.length - 1]
+    const groupOffsetX = firstCoinX < BALANCE.coins.edgeInset
+      ? BALANCE.coins.edgeInset - firstCoinX
+      : lastCoinX > this.scale.width - BALANCE.coins.edgeInset
+        ? this.scale.width - BALANCE.coins.edgeInset - lastCoinX
+        : 0
     for (let index = 0; index < coinValue; index += 1) {
-      const offsetX = (index - (coinValue - 1) / 2) * 12
-      this.coins.spawnAt(Phaser.Math.Clamp(enemyX + offsetX, 7, this.scale.width - 7), enemyY)
+      this.coins.spawnAt(enemyX + coinOffsets[index] + groupOffsetX, enemyY)
     }
   }
 
