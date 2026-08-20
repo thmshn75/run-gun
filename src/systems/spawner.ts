@@ -2,7 +2,12 @@ import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { chooseEnemyType } from './enemyTypes'
 import { getRoadHalfWidth } from './road'
+import { chooseSpawnLane, type SpawnLaneEnemy } from './spawnLanes'
 import type { RunStats } from './upgrades'
+
+type EnemyType = (typeof BALANCE.enemy.types)[number]
+
+type SpawnResult = 'spawned' | 'no-lane' | 'pool-exhausted'
 
 export class Spawner {
   private readonly scene: Phaser.Scene
@@ -11,6 +16,11 @@ export class Spawner {
   private spawnAccumulatorMs: number
   private elapsedMs: number
   private lastPoolWarningAtMs: number
+  private deferredType: EnemyType | undefined
+  private intervalSpawnCount: number
+  private intervalDeferredCount: number
+  private intervalPlannedCount: number
+  private lastSpawnMetricsAtMs: number
 
   public constructor(scene: Phaser.Scene, runStats: RunStats) {
     this.scene = scene
@@ -19,6 +29,11 @@ export class Spawner {
     this.spawnAccumulatorMs = 0
     this.elapsedMs = 0
     this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
+    this.deferredType = undefined
+    this.intervalSpawnCount = 0
+    this.intervalDeferredCount = 0
+    this.intervalPlannedCount = 0
+    this.lastSpawnMetricsAtMs = 0
     for (let index = 0; index < BALANCE.pools.enemies; index += 1) {
       const enemy = scene.physics.add.image(0, 0, BALANCE.enemy.types[0].texture)
       enemy.setActive(false).setVisible(false)
@@ -55,14 +70,22 @@ export class Spawner {
   public update(dt: number): void {
     this.elapsedMs += dt
     this.spawnAccumulatorMs += dt
+    if (this.deferredType !== undefined && this.spawn(this.deferredType) === 'spawned') this.deferredType = undefined
     const spawnIntervalMs = Math.max(
       BALANCE.enemy.spawnIntervalMinMs,
       BALANCE.enemy.spawnIntervalMs - (this.elapsedMs / 1000) * BALANCE.enemy.spawnRampPerSec,
     )
     while (this.spawnAccumulatorMs >= spawnIntervalMs) {
       this.spawnAccumulatorMs -= spawnIntervalMs
-      this.spawn()
+      this.intervalPlannedCount += 1
+      const type = chooseEnemyType(this.elapsedMs, () => Phaser.Math.RND.frac())
+      if (this.deferredType !== undefined) continue
+      if (this.spawn(type) === 'no-lane') {
+        this.deferredType = type
+        this.intervalDeferredCount += 1
+      }
     }
+    this.logSpawnMetrics()
 
     const enemySpeed = this.getEnemySpeed()
     for (const child of this.enemies.getChildren()) {
@@ -76,20 +99,27 @@ export class Spawner {
     }
   }
 
-  private spawn(): void {
+  private spawn(type: EnemyType): SpawnResult {
     const enemy = this.enemies.getChildren().find((child) => !child.active) as Phaser.Physics.Arcade.Image | undefined
     if (enemy === undefined) {
       this.warnPoolExhausted()
-      return
+      return 'pool-exhausted'
     }
-    const type = chooseEnemyType(this.elapsedMs, () => Phaser.Math.RND.frac())
     enemy.setTexture(type.texture)
-    const y = -enemy.displayHeight / 2
-    const lane = this.drawSpawnLane(type.bodyWidth, y)
+    const y = -type.bodyHeight / 2
+    const lane = chooseSpawnLane(
+      this.getActiveLaneEnemies(),
+      { ...type, y },
+      getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, 0),
+      this.scene.scale.height,
+      () => Phaser.Math.RND.frac(),
+      BALANCE.enemy.spawnLaneSafetyGap,
+    )
+    if (lane === undefined) return 'no-lane'
     const x = this.scene.scale.width / 2 + lane * getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
     enemy.enableBody(true, x, y, true, true)
     const body = enemy.body as Phaser.Physics.Arcade.Body
-    body.setSize(type.bodyWidth, enemy.displayHeight, true)
+    body.setSize(type.bodyWidth, type.bodyHeight, true)
     body.updateFromGameObject()
     enemy.setActive(true).setVisible(true).setAlpha(1).clearTint()
     enemy.setData('hp', type.hp)
@@ -97,31 +127,37 @@ export class Spawner {
     enemy.setData('contactDamage', type.contactDamage)
     enemy.setData('coinValue', type.coinValue)
     enemy.setData('bodyWidth', type.bodyWidth)
+    enemy.setData('bodyHeight', type.bodyHeight)
     enemy.setData('flashUntil', 0)
     enemy.setData('lane', lane)
     body.setVelocity(0, 0)
+    this.intervalSpawnCount += 1
+    return 'spawned'
   }
 
-  private drawSpawnLane(bodyWidth: number, y: number): number {
-    const roadHalfWidth = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
-    const maxLane = Math.max(0, (roadHalfWidth - bodyWidth / 2) / roadHalfWidth)
-    let lane = 0
-    for (let attempt = 0; attempt < BALANCE.enemy.spawnLaneMaxAttempts; attempt += 1) {
-      lane = Phaser.Math.FloatBetween(-maxLane, maxLane)
-      if (this.isSpawnLaneClear(lane, bodyWidth, roadHalfWidth)) break
-    }
-    return lane
-  }
-
-  private isSpawnLaneClear(lane: number, bodyWidth: number, roadHalfWidth: number): boolean {
-    const spawnX = this.scene.scale.width / 2 + lane * roadHalfWidth
-    return this.enemies.getChildren().every((child) => {
+  private getActiveLaneEnemies(): SpawnLaneEnemy[] {
+    return this.enemies.getChildren().flatMap((child) => {
       const enemy = child as Phaser.Physics.Arcade.Image
-      if (!enemy.active || enemy.y >= enemy.displayHeight + BALANCE.enemy.spawnLaneTopPadding) return true
-      const enemySpawnX = this.scene.scale.width / 2 + (enemy.getData('lane') as number) * roadHalfWidth
-      const minimumDistance = (bodyWidth + (enemy.getData('bodyWidth') as number)) / 2 + BALANCE.enemy.spawnLaneSafetyGap
-      return Math.abs(spawnX - enemySpawnX) >= minimumDistance
+      if (!enemy.active) return []
+      return [{
+        lane: enemy.getData('lane') as number,
+        y: enemy.y,
+        speedFactor: enemy.getData('speedFactor') as number,
+        bodyWidth: enemy.getData('bodyWidth') as number,
+        bodyHeight: enemy.getData('bodyHeight') as number,
+      }]
     })
+  }
+
+  private logSpawnMetrics(): void {
+    if (!import.meta.env.DEV || this.elapsedMs - this.lastSpawnMetricsAtMs < 10000) return
+    console.info(
+      `Enemy spawns (10 s): ${this.intervalSpawnCount}, deferred: ${this.intervalDeferredCount}, planned: ${this.intervalPlannedCount}`,
+    )
+    this.intervalSpawnCount = 0
+    this.intervalDeferredCount = 0
+    this.intervalPlannedCount = 0
+    this.lastSpawnMetricsAtMs = this.elapsedMs
   }
 
   private warnPoolExhausted(): void {

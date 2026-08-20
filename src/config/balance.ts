@@ -49,11 +49,11 @@ export const BALANCE = {
     damageMultiplierCap: 4,
   },
   enemy: {
-    // Measured visible-figure widths per sprite; coinValue is the number of dropped coins. Remeasure widths whenever the images change.
+    // Measured visible-figure dimensions per sprite; coinValue is the number of dropped coins. Remeasure both dimensions whenever the images change.
     types: [
-      { key: 'light', texture: 'enemy-light', hp: 1, speedFactor: 1.35, contactDamage: 1, coinValue: 1, bodyWidth: 18 },
-      { key: 'standard', texture: 'enemy-standard', hp: 3, speedFactor: 1, contactDamage: 1, coinValue: 1, bodyWidth: 21 },
-      { key: 'heavy', texture: 'enemy-heavy', hp: 9, speedFactor: 0.7, contactDamage: 2, coinValue: 3, bodyWidth: 40 },
+      { key: 'light', texture: 'enemy-light', hp: 1, speedFactor: 1.35, contactDamage: 1, coinValue: 1, bodyWidth: 18, bodyHeight: 38 },
+      { key: 'standard', texture: 'enemy-standard', hp: 3, speedFactor: 1, contactDamage: 1, coinValue: 1, bodyWidth: 21, bodyHeight: 42 },
+      { key: 'heavy', texture: 'enemy-heavy', hp: 9, speedFactor: 0.7, contactDamage: 2, coinValue: 3, bodyWidth: 40, bodyHeight: 49 },
     ],
     // The final wave (untilSec: 0) applies permanently once the earlier limits have passed.
     waves: [
@@ -64,9 +64,7 @@ export const BALANCE = {
     spawnIntervalMs: 1600,
     spawnIntervalMinMs: 450,
     spawnRampPerSec: 6,
-    spawnLaneMaxAttempts: 5,
     spawnLaneSafetyGap: 6,
-    spawnLaneTopPadding: 20,
   },
   feedback: {
     hitFlashMs: 80,
