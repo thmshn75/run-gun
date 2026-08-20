@@ -1,186 +1,104 @@
 # Active Task
 
 ## Status
-`APPROVED`
+`SPEC_READY`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**E5-3 — Startbildschirm mit erzeugtem Bild und permanenten Stufenkäufen.**
+**E5-4 — Bestenliste anzeigen, Speicherstand aus- und einlesen.**
 
-Dritter von vier Läufen für E5. Rahmen und Zahlen: `docs/e5-design.md`, Entscheidungen 2 und 4,
-sowie `docs/plan.md`, Abschnitt „Startbildschirm und Bestenliste" — **vor dem Bauen lesen**.
-E5-1 (Speicherstand) und E5-2 (Boss, Level) sind fertig und freigegeben.
+Letzter von vier Läufen für E5. Rahmen: `docs/e5-design.md` (Entscheidungen 1, 5) und
+`docs/plan.md`, Abschnitte „Startbildschirm und Bestenliste" sowie „Upgrade-System" —
+**vor dem Bauen lesen**. E5-1 bis E5-3 sind fertig und freigegeben.
 
-## Neue Szene `MenuScene`
+Die gesamte Logik dafür steht bereits in `save.ts` (`addScore`, `qualifiesForScores`,
+`parseSave`, `serializeSave`) und ist durch Tests abgedeckt. **Dieser Lauf baut die Anzeige
+und die Bedienung — die Speicherlogik wird nicht angefasst.**
 
-Heute startet `BootScene` direkt in die `GameScene`. Künftig startet sie in die `MenuScene`;
-von dort geht es per Tippen auf „SPIELEN" in den Run. Nach Game Over führt der Weg über die
-`GameOverScene` **zurück ins Menü**, nicht direkt in einen neuen Run.
+## Teil 1 — Bestenliste im Menü
 
-Aufbau von oben nach unten:
+Unter den drei Kaufzeilen, im heute leeren Bereich über dem SPIELEN-Knopf:
 
-1. **Titelbild** als Hintergrund über die volle Fläche.
-2. **Titel** „RUN & GUN" als Schrift darüber.
-3. **Kontostand** in Münzen, in der Münzfarbe des HUD.
-4. **Drei Kaufzeilen** (siehe unten).
-5. **Knopf „SPIELEN"**, deutlich abgesetzt, unterster Bereich.
+- Überschrift **BESTE LÄUFE**.
+- Bis zu **fünf** Zeilen (nicht zehn — mehr passt nicht lesbar in den freien Bereich;
+  gespeichert bleiben weiterhin zehn). Wert in `balance.ts`: `menu.scoresShown` = **5**.
+- Je Zeile: Platznummer, Münzzahl, erreichtes Level, Laufzeit als `m:ss`.
+- Ist die Liste leer, steht dort eine einzelne Zeile **„Noch kein Lauf gewertet."** — kein
+  leerer Kasten.
+- Gleiche Schrift- und Farbwelt wie die Kaufzeilen.
 
-Alles wird als Phaser-Objekte gezeichnet — **kein DOM, keine HTML-Elemente**. Safe-Area-Insets
-wie im HUD einrechnen, damit auf dem iPhone nichts unter der Statusleiste oder am unteren
-Rand klemmt.
+## Teil 2 — Bestenliste nach dem Game Over
 
-## Das Titelbild
+Die `GameOverScene` zeigt zusätzlich zur Münzzahl des Runs:
 
-**Erzeugt Codex** nach dem im Projekt bewährten Verfahren: groß erzeugen, freistellen falls
-nötig, dann auf Zielgröße herunterrechnen. Große Vorlage nach `assets/probe/titel-gross.png`
-(gitignored), fertiges Bild nach `src/assets/title.png`, **390 × 844 px**.
+- Den **Platz**, falls der Lauf es in die gespeicherten zehn geschafft hat: „PLATZ 3".
+- Ist er nicht in den zehn, steht dort nichts — kein „leider nicht".
+- Der eigene Eintrag wird in einer kurzen Liste der besten fünf **hervorgehoben**
+  (andere Farbe), damit der eigene Lauf im Vergleich sichtbar ist.
 
-**Motiv:** die rote Truppe von hinten auf der Straße, vor ihr Zombies, Tageslicht mit dem
-Himmel und Horizont des Spiels — dieselbe Welt, nur als Bild. Stil wie die vorhandenen
-Sprites: Pixel-Art, kräftige Farben, klare Konturen.
+## Teil 3 — Speicherstand aus- und einlesen
 
-**Kein Text im Bild.** Titel und Knöpfe zeichnet das Spiel darüber; im Bild wären sie nicht
-änderbar und würden nicht mit der Bildschirmgröße mitgehen.
+Im Menü, unterhalb der Bestenliste, zwei kleine Knöpfe: **SICHERN** und **LADEN**.
 
-**Ruhige Zone einplanen:** Im unteren Drittel muss das Bild flächig und kontrastarm sein,
-damit Kaufzeilen und Knopf darauf lesbar bleiben. Zusätzlich legt die Szene über das Bild eine
-halbdurchsichtige dunkle Fläche (`menu.overlayAlpha`, Vorschlag **0.45**) — Lesbarkeit darf
-nicht allein vom Bild abhängen.
+Zweck laut Plan: iOS kann Website-Daten ohne Vorwarnung verwerfen. Ohne diesen Weg wäre der
+gesamte Fortschritt eines Tages still weg.
 
-## Die drei Stufenkäufe
+### SICHERN
 
-Aus `docs/e5-design.md`, Entscheidung 4. Alles nach `balance.ts` unter `upgradesShop`:
+- Erzeugt den Text über `serializeSave(loadSave())`.
+- Zeigt ihn in einem Feld an, aus dem er sich markieren und kopieren lässt.
+  **Für dieses eine Feld ist ein DOM-`<textarea>` ausdrücklich erlaubt** — der Plan verlangt
+  es so, weil man aus einem Phaser-Text nichts kopieren kann. Es wird über dem Canvas
+  eingeblendet und beim Schließen wieder entfernt.
+- Zusätzlich `navigator.clipboard.writeText()` versuchen; schlägt es fehl, bleibt das Feld
+  der Weg. **Kein** `navigator.clipboard.readText()` — dessen Verhalten ist in einer
+  iOS-Standalone-PWA nicht verlässlich (Plan).
+- Ein Knopf **FERTIG** schließt die Ansicht.
 
-| Schlüssel | Beschriftung | Wirkung je Stufe | Grundwert → Höchstwert |
-|---|---|---|---|
-| `team` | TRUPPE | +1 Startfigur | 3 → 8 |
-| `damage` | SCHADEN | +0,5 Startschaden | 1 → 3,5 |
-| `rate` | FEUERRATE | +0,3 Schuss/s | 3,5 → 5,0 |
+### LADEN
 
-- Fünf Stufen je Aufwertung, gleiche Preisreihe: **50, 120, 250, 450, 750** Münzen.
-- Je Zeile: Beschriftung, fünf Stufenpunkte (gefüllt = gekauft), der Preis der **nächsten**
-  Stufe und ein Kaufknopf.
-- Reicht der Kontostand nicht, ist der Knopf sichtbar **gedämpft** und reagiert nicht.
-  Kein Fehlertext, kein Aufblinken — nicht kaufbar erklärt sich über die Zahl daneben.
-- Ist die letzte Stufe erreicht, steht statt des Preises „MAX" und der Knopf entfällt.
-- Ein Kauf zieht den Preis vom Konto ab, erhöht die Stufe um eins und **schreibt sofort**
-  über `writeSave`. Ein Absturz danach darf keinen bezahlten Kauf verschlucken.
-- Die Wirkung der Stufen auf die Startwerte ist in E5-1 bereits angeschlossen und wird
-  **nicht** erneut implementiert.
+- Zeigt ein leeres `<textarea>` zum Einfügen per Langdruck.
+- **ÜBERNEHMEN** prüft den Text mit `parseSave`:
+  - Gültig → schreiben, Ansicht schließen, Menü mit den neuen Werten neu aufbauen.
+  - Ungültig → **der bestehende Spielstand bleibt unangetastet**, und der Grund aus
+    `parseSave` wird unverändert angezeigt. Die Gründe sind bereits deutsche Sätze.
+- **ABBRECHEN** schließt ohne Änderung.
 
-## Anschluss der Szenen
+### Verbindlich
 
-- `BootScene` startet `MenuScene` statt `GameScene`.
-- `MenuScene` startet `GameScene` beim Tippen auf „SPIELEN".
-- `GameOverScene` kehrt beim Tippen ins Menü zurück und zeigt weiterhin die Münzen des Runs.
-  Der Text „Tippen für Neustart" wird zu **„Tippen für Menü"**.
+- Beide Ansichten legen ihre DOM-Elemente **beim Öffnen** an und entfernen sie **beim
+  Schließen** vollständig. Kein zurückbleibendes Element, das später Eingaben abfängt.
+- Solange eine Ansicht offen ist, sind die Menüknöpfe darunter nicht bedienbar.
+- Die Textfelder brauchen `font-size: 16px` oder mehr, sonst zoomt iOS-Safari beim
+  Hineintippen ungefragt in die Seite hinein.
 
-## Ausdrücklich nicht in diesem Lauf
+## Ausdrücklich nicht ändern
 
-- **Keine Bestenliste** — weder im Menü noch nach dem Game Over. Das ist E5-4.
-- **Kein Export/Import** — ebenfalls E5-4.
-- Keine Wahl der Startwaffe (die bleibt `NORMAL`, siehe Plan: gehört nicht in V1).
-- Keine Änderung an Spielmechanik, Boss, Gegnern, Waffen, Toren oder HUD.
-- Keine Tweens, kein Ton, keine Animation des Menüs.
+- Keine Änderung an `save.ts` — die Logik ist fertig und getestet.
+- Keine Namenseingabe für die Bestenliste (Plan, ausdrücklich nicht in V1).
+- Keine Änderung an Spielmechanik, Boss, Leveln, Kaufzeilen oder Titelbild.
+- Kein DOM außerhalb der beiden Sichern/Laden-Ansichten.
 
 ## Reißleine
 
-Lässt sich das Titelbild nicht in brauchbarer Qualität erzeugen: **melden und stoppen**. Kein
-zulässiger Ersatz ist ein programmatisch gezeichneter Hintergrund, ein einfarbiger Verlauf
-oder ein vergrößertes vorhandenes Sprite.
-
-Sind Kaufzeilen oder Knopf auf dem Bild nicht sicher lesbar, wird **`menu.overlayAlpha`
-erhöht** — nicht die Schriftgröße gesenkt und nicht das Bild ausgetauscht.
+Lässt sich das Textfeld nicht so einblenden, dass es auf dem iPhone bedienbar ist:
+**melden und stoppen**. Kein zulässiger Ersatz ist `clipboard.readText()`, ein Download als
+Datei oder ein Verzicht auf die Ladefunktion — ohne sie ist der Export wertlos.
 
 ## Akzeptanzkriterien
 
-1. Das Spiel startet im Menü, nicht im Run. Ein Tippen auf „SPIELEN" startet einen Run.
-2. Nach Game Over führt ein Tippen zurück ins Menü; die Münzen des Runs sind vorher auf dem
-   Konto gelandet und im Menü sichtbar.
-3. Das Titelbild ist 390 × 844 px, liegt lokal im Bündel und zeigt kein Wort Text.
-4. Die drei Kaufzeilen zeigen Stufe, Preis der nächsten Stufe und den Zustand des Knopfs
-   richtig; bei zu wenig Münzen ist der Knopf gedämpft und wirkungslos.
-5. Ein Kauf zieht genau den Preis ab, erhöht genau eine Stufe und ist **nach einem Neuladen
-   der Seite noch da**.
-6. Auf der letzten Stufe steht „MAX" und es lässt sich nichts mehr kaufen.
-7. Ein Run nach dem Kauf startet mit den erhöhten Werten (Truppe, Schaden, Feuerrate).
-8. Alle Texte und Knöpfe liegen innerhalb der Safe-Area und überlappen einander nicht.
-9. Kein DOM-Element; alles sind Phaser-Objekte.
-10. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
+1. Das Menü zeigt bis zu fünf Bestenlisten-Zeilen mit Platz, Münzen, Level und Zeit als
+   `m:ss`; bei leerer Liste stattdessen genau einen Hinweissatz.
+2. Nach einem Lauf, der es in die Liste schafft, zeigt Game Over den Platz und hebt den
+   eigenen Eintrag hervor; ein Lauf ausserhalb der zehn zeigt keinen Platz.
+3. SICHERN zeigt einen Text, der sich markieren lässt und `parseSave` besteht.
+4. LADEN mit diesem Text stellt den Stand wieder her — geprüft über: Stand ändern, laden,
+   Menüwerte stimmen wieder.
+5. LADEN mit kaputtem Text ändert den gespeicherten Stand **nicht** und zeigt den Grund an.
+6. Nach dem Schließen beider Ansichten ist **kein** zusätzliches DOM-Element mehr vorhanden.
+7. Die Textfelder haben mindestens 16 px Schriftgröße.
+8. Alle Menüelemente bleiben innerhalb der Safe-Area und überlappen einander nicht.
+9. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
 
-Kriterien 1 bis 9 prüft Claude am laufenden Spiel nach, Kriterium 5 über den Speicherstand
-vor und nach einem Neuladen. Ob das Bild gefällt, entscheidet Thomas.
-
-## Implementation Summary
-
-- `MenuScene` mit lokal gebündeltem Pixel-Art-Titelbild, Safe-Area-Layout, Kontostand,
-  drei Kaufzeilen und Spielknopf ergänzt; Käufe werden sofort gespeichert.
-- Szenenfluss auf Boot → Menü → Spiel → Game Over → Menü umgestellt; permanente Startwerte
-  beziehen ihre Werte nun zentral aus `balance.ts`.
-- Kauf- und Speicherlogik mit zwei zusätzlichen Vitest-Fällen für Preis, Maximalstufe und
-  Neuladen abgedeckt. `npm run check`, `npm run build` und `npm test` sind grün.
-- Nacharbeit: Der Mittelpunkt des SPIELEN-Knopfs wird mit `safeLeft + safeWidth / 2`
-  übergeben; `addButton()` benennt seinen Mittelpunkt nun ausdrücklich als `centerX`/`centerY`.
-
-
----
-
-# NACHARBEIT (Claude, am laufenden Spiel geprüft)
-
-Das Menü steht, das Titelbild ist gut. **Ein Fehler:** Der SPIELEN-Knopf ragt links aus dem
-Bild — sichtbar ist nur „IELEN".
-
-## Befund
-
-`addButton()` zeichnet Rechteck und Beschriftung mit `setOrigin(0.5)`, erwartet also den
-**Mittelpunkt**. Der Aufruf für den Spielen-Knopf übergibt aber die **linke Kante**:
-
-```ts
-this.addButton(safeLeft + BALANCE.menu.sidePadding, playY,
-               safeWidth - 2 * BALANCE.menu.sidePadding, …)
-```
-
-Damit sitzt der Knopf mit seiner Mitte auf der linken Kante und die halbe Breite liegt
-ausserhalb des Bildschirms. Die KAUFEN-Knöpfe sind nicht betroffen, sie übergeben korrekt
-einen Mittelpunkt.
-
-## Verlangte Korrektur
-
-Den Spielen-Knopf mittig setzen: `safeLeft + safeWidth / 2`.
-
-**Zusätzlich, damit dieser Fehler nicht wiederkommt:** `addButton()` soll seine Erwartung im
-Namen tragen — Parameter `centerX` und `centerY` statt `x` und `y`, mit einem Kommentar
-darüber, dass beide den Mittelpunkt meinen. Ein Aufrufer, der eine Kante übergibt, fällt dann
-beim Lesen auf.
-
-## Zusätzliche Akzeptanzkriterien
-
-11. Der SPIELEN-Knopf liegt **vollständig** innerhalb der Safe-Area: linke Kante ≥ `safeLeft`,
-    rechte Kante ≤ `safeLeft + safeWidth`. Die Beschriftung ist vollständig lesbar.
-12. Die KAUFEN-Knöpfe liegen weiterhin vollständig innerhalb ihrer Zeile.
-13. Die Parameter von `addButton()` heissen so, dass die Bedeutung beim Aufruf erkennbar ist.
-
-
-## Review-Ergebnis nach der Nacharbeit (Claude, am laufenden Spiel gemessen)
-
-Alle dreizehn Kriterien erfuellt.
-
-- **Kriterium 11 (Nacharbeit):** Der SPIELEN-Knopf liegt jetzt vollstaendig im Bild und ist
-  vollstaendig lesbar. `addButton()` heisst seine Parameter `centerX` / `centerY` und traegt
-  einen Kommentar dazu — ein Aufrufer, der eine Kante uebergibt, faellt beim Lesen auf.
-- **Kriterium 1 und 2:** Das Spiel startet im Menue. Nach dem Tod zeigt Game Over die Muenzen
-  des Runs und „Tippen fuer Menue"; danach steht im Menue `KONTO ¢ 23`.
-- **Kriterium 4 und 5:** Kauf gemessen: Konto 200 → 150, Truppe 0 → 1, Anzeige danach
-  `4 / 8` mit naechstem Preis 120. Nach dem Neuladen unveraendert vorhanden.
-- **Kriterium 4 (zu wenig Muenzen):** Bei 60 Muenzen und Preis 120 ist der Knopf gedaempft;
-  ein Klick darauf liess den Speicherstand **bitgleich**.
-- **Kriterium 6:** Auf der letzten Stufe `8 / 8`, alle Punkte gefuellt, `MAX` statt Preis,
-  kein Knopf.
-- **Kriterium 7:** Ein Run nach dem Kauf aller Stufen startet mit `TEAM 8`, `DMG 3.5`,
-  `RATE 5` — genau Grundwert plus fuenf Stufen.
-- **Kriterium 9:** Null DOM-Elemente neben dem Canvas.
-- **Kriterium 10:** `npm run check`, `npm run build`, `npm test` selbst im Terminal, alle
-  exit 0; sieben Tests, davon zwei neue fuer die Kauflogik ueber die Spec hinaus.
-
-**Titelbild:** 390 × 844 px aus einer 941 × 1672-Vorlage, ohne ein Wort Text. Die dunkle
-untere Haelfte ist die geforderte ruhige Zone.
+Kriterien 1 bis 8 prüft Claude am laufenden Spiel nach, Kriterium 5 mit einem absichtlich
+zerstörten Text und einem Vergleich des Speicherstands vorher und nachher.
