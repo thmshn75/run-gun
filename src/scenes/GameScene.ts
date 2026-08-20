@@ -23,6 +23,7 @@ export class GameScene extends Phaser.Scene {
   private hud!: Phaser.GameObjects.Text
   private insets!: SafeAreaInsets
   private gameOverStarted!: boolean
+  private lastShownSpeed!: number
 
   public constructor() {
     super('GameScene')
@@ -35,6 +36,7 @@ export class GameScene extends Phaser.Scene {
     this.nextBlinkAtMs = 0
     this.lastPointerX = null
     this.gameOverStarted = false
+    this.lastShownSpeed = -1
     this.insets = readSafeAreaInsets()
     this.cameras.main.setBackgroundColor('#10131d')
     this.background = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'background-tile').setOrigin(0, 0)
@@ -72,6 +74,11 @@ export class GameScene extends Phaser.Scene {
     this.crowd.update()
     this.weapons.update(dt)
     this.spawner.update(dt)
+    const speed = Math.round(this.spawner.getEnemySpeed())
+    if (speed !== this.lastShownSpeed) {
+      this.lastShownSpeed = speed
+      this.updateHud()
+    }
     this.coins.update(dt, this.crowd.getAnchorX(), this.crowd.getAnchorY())
     this.gates.update(dt)
     if (this.runStats.get('hp') <= 0) {
@@ -131,7 +138,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateHud(): void {
-    this.hud.setText(`HP ${this.runStats.get('hp')}   ¢ ${this.coins.getCount()}`)
+    this.hud.setText(`HP ${this.runStats.get('hp')}   ¢ ${this.coins.getCount()}   SPD ${Math.round(this.spawner.getEnemySpeed())}`)
   }
 
   private drawSafeAreaDebug(): void {

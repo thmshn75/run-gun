@@ -5,88 +5,83 @@
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**E3-Balance-Zyklus 2 — Schwierigkeits-Progression + stärkerer Coin-Magnet**
+**E3-Zusatz — Gegner-Tempo-Anzeige im HUD**
 
-Thomas' iPhone-Feedback: Start soll leichter sein, Schwierigkeit soll mit der
-Spielzeit steigen (Gegner schneller UND dichter), und der Coin-Magnet ist zu
-schwach (Münzen in der Nähe gehen verloren). Kleiner, klar umrissener Task —
-keine Spec-Härtung nötig.
+Thomas möchte beim Spielen sehen, wie schnell die Gegner gerade sind (die
+Tempo-Rampe aus Balance-Zyklus 2 soll sichtbar werden). Kleiner, klar
+umrissener Task — keine Spec-Härtung nötig. Nur `src/systems/spawner.ts`
+und `src/scenes/GameScene.ts` ändern.
 
 ## Anforderungen
 
-### 1. `src/config/balance.ts` — Zahlenänderungen
+### 1. `src/systems/spawner.ts` — Tempo nach außen geben
 
-Im `enemy`-Block:
-
-```ts
-enemy: {
-  hp: 3,
-  speed: 30,                 // vorher 50 — leichterer Start
-  speedRampPerSec: 0.5,      // NEU: px/s Zuwachs pro Spielsekunde
-  speedMax: 150,             // NEU: Cap für den Eigenanteil (Gesamt-Deckel 180+150=330 px/s)
-  spawnIntervalMs: 1600,     // vorher 1200 — leichterer Start
-  spawnIntervalMinMs: 450,   // vorher 600 — dichteres Endgame
-  spawnRampPerSec: 6,        // vorher 3 — steilere Dichte-Rampe (Minimum nach ~192 s)
-},
-```
-
-Im `coins`-Block: `magnetRadius: 200` (vorher 140), `magnetSpeed: 900` (vorher 600).
-`value` und `collectDistance` unverändert.
-
-### 2. `src/systems/spawner.ts` — Tempo-Rampe
-
-In `update()` vor der Bewegungs-Schleife EINMAL das aktuelle Tempo berechnen
-(nicht pro Gegner neu):
+Das in `update()` bereits berechnete, gecappte `enemySpeed` in einem privaten
+Feld ablegen (Zustandsregel des Projekts: `!`-Feld, im Konstruktor mit
+`BALANCE.enemy.speed` initialisiert — der Konstruktor dieses Moduls übernimmt
+die Rolle von `create()`). Neuer public Getter:
 
 ```ts
-const enemySpeed = Math.min(
-  BALANCE.enemy.speedMax,
-  BALANCE.enemy.speed + (this.elapsedMs / 1000) * BALANCE.enemy.speedRampPerSec,
-)
+public getEnemySpeed(): number {
+  return BALANCE.scrollSpeed + this.currentEnemySpeed
+}
 ```
 
-und in der Schleife `BALANCE.enemy.speed` durch `enemySpeed` ersetzen.
-Keine weiteren Strukturänderungen; Akkumulator-Muster und Recycling bleiben exakt
-wie sie sind. Kein `time.addEvent`, kein `delayedCall`, kein `destroy()`.
+Er liefert das Gesamt-Falltempo der Gegner in px/s (Scroll + Eigenanteil).
+Sonst kein Diff in der Datei.
 
-### 3. Pool-Kommentare in `balance.ts` aktualisieren
+### 2. `src/scenes/GameScene.ts` — HUD erweitern
 
-Die Herleitungs-Kommentare müssen zu den neuen Zahlen passen (Worst Case = Endgame):
+- HUD-Zeile erweitert um das Tempo, Format: `HP 3   ¢ 5   SPD 210`
+  (`SPD` + gerundetes Gesamt-Tempo aus `spawner.getEnemySpeed()`).
+- **Wichtig (Performance):** `setText` ist teuer und darf NICHT pro Frame
+  laufen. Neues Feld `lastShownSpeed!: number` (in `create()` auf `-1`), in
+  `update()` nach `spawner.update(dt)`:
 
-- `enemies`: 844px / (180 + 150)px/s = 2.56 s sichtbar; Spawn alle 0.45 s → ≈ 5.7
-  gleichzeitig; 20 bleibt reichlich.
-- `coins`: max. Kill-Rate 1 / 0.45 s; 844px / 180px/s = 4.7 s Sichtbarkeit →
-  ≈ 10.4; 20 bleibt ausreichend (Magnet sammelt real schneller ein).
+```ts
+const speed = Math.round(this.spawner.getEnemySpeed())
+if (speed !== this.lastShownSpeed) {
+  this.lastShownSpeed = speed
+  this.updateHud()
+}
+```
+
+  Bei 0,5 px/s Rampe ändert sich der gerundete Wert nur alle ~2 s.
+- `updateHud()` liest das Tempo über denselben gerundeten Weg
+  (`Math.round(this.spawner.getEnemySpeed())`), damit HUD-Aufrufe aus anderen
+  Pfaden (Coins, Gates, Treffer) denselben Wert zeigen.
 
 ## Akzeptanzkriterien
 
 1. `npm run check` (tsc) und `npm run build` laufen fehlerfrei.
-2. `balance.ts` enthält exakt die Werte aus Anforderung 1; `speedRampPerSec` und
-   `speedMax` liegen im `enemy`-Block.
-3. `spawner.ts`: Tempo-Berechnung einmal pro `update()`-Aufruf vor der Schleife,
-   mit `Math.min`-Cap; sonst kein Diff in der Datei.
-4. Pool-Kommentare entsprechen den neuen Zahlen.
-5. Keine neuen Dateien, keine Änderungen außerhalb `balance.ts` und `spawner.ts`.
+2. HUD zeigt `SPD <Zahl>` und die Zahl steigt im Spielverlauf (per Code-Review
+   nachvollziehbar: Getter liefert scrollSpeed + gecapptes Eigentempo).
+3. `setText` wird weiterhin nur bei Wertänderungen aufgerufen, nie pro Frame
+   (Guard über `lastShownSpeed`).
+4. Keine neuen Dateien, keine Änderungen außerhalb `spawner.ts` und
+   `GameScene.ts`, keine Balance-Werte angefasst.
 
 ## Implementation Summary
-`balance.ts`: Gegner-Starttempo auf 30 gesenkt, Tempo-Rampe mit 0,5 px/s je
-Spielsekunde und 150-px/s-Cap ergänzt; Spawn-Frequenz von 1.600 ms auf mindestens
-450 ms mit 6 ms/s-Rampe gesetzt. Coin-Magnet auf Radius 200 und Tempo 900 erhöht;
-die Pool-Herleitungen rechnen den Endgame-Fall.
+`spawner.ts`: Das bereits gecappte Gegner-Eigentempo liegt jetzt in
+`currentEnemySpeed`, wird im Konstruktor mit dem Starttempo initialisiert und
+ist über `getEnemySpeed()` als Gesamt-Falltempo (Scroll + Eigenanteil) verfügbar.
 
-`spawner.ts`: Das gecappte Gegner-Eigentempo wird je `update()` einmal berechnet
-und für alle aktiven Gegner verwendet; Akkumulator und Recycling sind unverändert.
+`GameScene.ts`: Das HUD zeigt zusätzlich `SPD <Zahl>`. Nach jedem
+`spawner.update(dt)` wird das gerundete Tempo mit `lastShownSpeed` verglichen;
+`setText` läuft deshalb nur beim Wechsel der angezeigten Ganzzahl. Andere
+HUD-Pfade lesen denselben gerundeten Tempowert.
 
-Testergebnisse: `npm run check` erfolgreich (Exit 0, `tsc --noEmit`); `npm run build`
-erfolgreich (Exit 0, 20 Module, PWA-Precache mit 6 Einträgen). Der Build meldet
-nur die bestehende Vite-Hinweiswarnung zum 1.218-kB-JavaScript-Chunk, kein Fehler.
+Testergebnisse: `npm run check` erfolgreich (Exit 0, `tsc --noEmit`);
+`npm run build` erfolgreich (Exit 0, 20 Module, PWA-Precache mit 6 Einträgen).
+Der Build meldet nur die bestehende Vite-Warnung zum 1.218-kB-JavaScript-Chunk,
+kein Fehler.
 
-Nicht prüfbar: iPhone-Gamefeel benötigt Thomas' Gerätetest nach Deploy; sonst
-gab es keine blockierten Prüfungen.
+Nicht gegangen: kein iPhone-/Browser-Spieltest, weil er nicht Teil dieses
+Auftrags ist; die steigende Anzeige ist per Getter, gecappter Berechnung und
+Änderungs-Guard im Code nachvollziehbar.
 
 ## Review Notes
-Review 2026-08-20 (Claude): bestanden. Diff exakt nach Spec — balance.ts trägt alle
-acht neuen Werte, spawner.ts berechnet das gecappte Tempo einmal pro update() vor
-der Schleife (sonst kein Diff), Pool-Kommentare rechnen den Endgame-Fall, nur die
-erwarteten Dateien geändert. `npm run check` und `npm run build` selbst ausgeführt,
-beide grün. Offen: iPhone-Gamefeel-Test durch Thomas nach Deploy.
+Review 2026-08-20 (Claude): bestanden. Diff exakt nach Spec — Feld `currentEnemySpeed`
+im Konstruktor initialisiert, Getter liefert Scroll + gecapptes Eigentempo, HUD-setText
+läuft nur bei Wechsel der angezeigten Ganzzahl (Guard `lastShownSpeed`), nur die zwei
+erwarteten Dateien geändert. `npm run check`/`npm run build` selbst ausgeführt, grün.
