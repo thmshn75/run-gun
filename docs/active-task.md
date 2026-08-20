@@ -1,152 +1,153 @@
 # Active Task
 
 ## Status
-`APPROVED`
+`SPEC_READY`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**Torwahl sichtbar machen — Zielhilfe an der Spitzenfigur und längere Rückmeldung am Tor.**
+**Himmel und Horizont: oben Tageshimmel, darunter der Horizont, neben der Fahrbahn Boden.**
 
-## Warum
+Thomas-Entscheidungen vom 2026-08-20: **Aufbau** = Horizont oben mit Himmel darüber, neben
+der Fahrbahn Boden (nicht: Straße schwebt im Himmel). **Stimmung** = heller Tag.
 
-Thomas nahm ein `+2`-Tor auf RATE und die Schussrate wurde langsamer. Der Rechenweg für RATE
-ist geprüft und korrekt — 6000 Tor-Ziehungen ohne Abweichung von Label zu Wirkung. Der Fehler
-liegt in der **Wahrnehmung, welche Seite überhaupt getroffen wurde**.
+Damit wird auch die offene Frage aus `docs/naechste-tasks.md` eingelöst: Die Fahrbahnfarbe
+wurde testweise betongrau gemacht und zurückgesetzt, weil Thomas den Kontrast aus dem neuen
+Hintergrund holen wollte. **Fahrbahn- und Umgebungsfarben werden deshalb in diesem Task
+zusammen entschieden, nicht nacheinander.**
 
-Zwei Befunde aus `docs/naechste-tasks.md`:
+## Was sich dadurch geometrisch ändert
 
-1. **Der Bezugspunkt ist schon richtig, aber unsichtbar.** Welche Seite zählt, entscheidet
-   `anchorX` — die Position der vordersten Figur (`crowd.ts`, Slot 0 sitzt mit `offsetX: 0`
-   und `offsetY: 0` exakt auf dem Anker). Der Bezugspunkt wird **nicht** geändert. Er muss
-   nur sichtbar werden, damit Thomas vor dem Durchfahren weiß, welche Seite er nimmt.
-2. **Die Rückmeldung ist zu kurz.** Das gewählte Tor blitzt `feedback.hitFlashMs` = 80 ms
-   weiß auf, also fünf Bilder — praktisch unsichtbar.
+Heute beginnt die Fahrbahn am oberen Bildrand (`y = 0`). Ein Horizont bedeutet, dass sie
+weiter unten beginnt. Oberhalb liegt Himmel, unterhalb links und rechts Boden.
 
-Thomas' Rahmen, verbindlich: **keine eingeblendeten Zahlen** („würde stören, da liegt ohnehin
-der Finger drauf"). Einer deutlich längeren Hervorhebung hat er ausdrücklich zugestimmt.
+- Neuer Balance-Wert `road.horizonY`, **150**. Herleitung: Auf dem iPhone liegt die
+  HUD-Leiste bei y ≈ 59 bis 121 (Safe-Area oben ≈ 47 px + 12 px Rand + 62 px Höhe). Ein
+  Horizont darüber wäre von der Leiste verdeckt. Bei 150 bleibt darunter ein frei sichtbarer
+  Himmelsstreifen, und oberhalb der Leiste ist ebenfalls Himmel zu sehen; die Leiste ist
+  halbdurchsichtig, der Himmel scheint durch.
+- `getRoadHalfWidth()` interpoliert künftig von `horizonY` bis `height` statt von `0` bis
+  `height` — **und klemmt Werte oberhalb des Horizonts auf die Horizontbreite**. Dadurch
+  liefern alle bestehenden Aufrufstellen (auch die mit `y = 0` in `spawnLanes`) weiterhin
+  denselben Wert wie bisher am oberen Rand, und die Spurlogik bleibt unverändert gültig.
+- Die Fahrbahn ist am Horizont **genauso breit wie heute am oberen Bildrand**
+  (`topWidthRatio: 0.46`). Es wird nichts auf einen Punkt zusammengezogen — sonst passt kein
+  Gegner mehr in die Spur und die Spurwahl aus `spawnLanes.ts` liefe leer.
 
-## Teil 1 — Ziellinie an der Spitzenfigur
+## Eintritt am Horizont statt von oben
 
-Eine dünne senkrechte Linie führt von der vordersten Figur nach oben und zeigt damit vor dem
-Durchfahren an, welche Torseite getroffen wird.
+Gegner und Tore können nicht mehr von außerhalb des Bildes hereinrutschen — dort ist jetzt
+Himmel. Sie erscheinen **am Horizont** und blenden auf, damit sie nicht aufpoppen.
 
-- **Textur:** Ein 1 × 1 px weißes Rechteck, einmalig in `BootScene` erzeugt
-  (`createAimLineTexture`, gleiche Machart wie die vorhandenen Texturen), Schlüssel `aim-line`.
-- **Objekt:** **Ein** `Image`, einmalig in `create()` angelegt, nie im Spiel erzeugt oder
-  zerstört. Ursprung `(0.5, 1)`, also unten mittig.
-- **Position je Bild:** `x = crowd.getAnchorX()`, `y = crowd.getAnchorY() - <halbe Figurenhöhe>`,
-  damit die Linie am Kopf der Spitzenfigur beginnt und nicht in ihr.
-- **Größe:** Breite aus `balance.ts` (`aim.widthPx`, Vorschlag **2**), Höhe reicht vom
-  Startpunkt bis zum oberen Bildrand (`y = 0`).
-- **Farbe und Deckkraft:** aus `colors.ts` und `balance.ts` (`aim.alpha`, Vorschlag **0.3**).
-  Ein heller, neutraler Ton — die Linie soll führen, nicht dominieren.
-- **Tiefe:** Über der Fahrbahn, aber **unter** Gegnern, Toren, Projektilen und Truppe. Die
-  Linie darf nichts verdecken; sie liegt auf der Straße, nicht über dem Geschehen.
-- Die Linie bewegt sich mit dem Finger mit, weil `anchorX` beim Ziehen wandert.
+- Gegner erscheinen bei `y = road.horizonY` statt bei `y = -bodyHeight / 2`.
+- Tore erscheinen bei `y = road.horizonY` statt bei `y = -gateHeight / 2`.
+- Neuer Wert `road.entryFadePx`, **40**: Über die ersten 40 px unterhalb des Horizonts steigt
+  die Deckkraft linear von 0 auf 1. Danach normal. Die Berechnung läuft über die
+  **zurückgelegte Strecke**, nicht über einen Zeitgeber — sonst hängt sie an der Bildrate.
+- Der Aufblend-Zustand darf die Trefferlogik **nicht** verändern: Ein Gegner ist ab dem
+  ersten Bild vollständig aktiv und trefferbar, nur eben noch durchscheinend.
 
-## Teil 2 — Längere Rückmeldung am gewählten Tor
+## Weitere Stellen, die der Horizont berührt
 
-- Eigener Wert in `balance.ts`: `gates.choiceFlashMs`, Vorschlag **250**. Der bestehende
-  `feedback.hitFlashMs` (80) bleibt unverändert — er gehört den Treffern an Gegnern und wird
-  nicht mitgezogen.
-- `applyPair()` setzt `flashUntilMs` künftig aus `gates.choiceFlashMs` statt aus
-  `feedback.hitFlashMs`.
-- **Randbedingung, die beim Wert zu beachten ist:** Das Tor läuft mit
-  `scrollSpeed + gates.extraSpeed` = 540 px/s weiter, sobald es ausgelöst hat, und wird bei
-  der Spielerhöhe (y ≈ 714) ausgelöst. Nach etwa **240 ms** hat es den unteren Bildrand
-  verlassen. Ein Wert deutlich über 250 ms bringt deshalb **nichts Sichtbares**, hält aber
-  ein Torpaar unnötig lange belegt — bei `pools.gatePairs: 2` und 9 s Abstand unkritisch,
-  aber sinnlos. Der Wert wird deshalb **nicht** über 300 gesetzt.
-- Das Tor wird weiterhin recycelt, sobald der Blitz abgelaufen ist. Zusätzlich recyceln,
-  sobald es den unteren Bildrand vollständig verlassen hat — sonst hängt bei einem später
-  erhöhten Wert ein unsichtbares Paar im Pool.
+Diese Punkte sind leicht zu übersehen und gehören ausdrücklich dazu:
 
-## Ausdrücklich nicht ändern
+- **Projektile** verschwinden heute bei `y + displayHeight / 2 < 0`. Künftig am Horizont
+  (`< road.horizonY`), sonst fliegen die Geschosse sichtbar in den Himmel hinein.
+- **Die Ziellinie** aus dem vorigen Task reicht heute bis `y = 0`. Künftig endet sie am
+  Horizont.
+- **Die Mittellinien-Segmente** in `road.ts` laufen heute über `y = height * progress²` von 0
+  bis `height`. Sie müssen künftig am Horizont beginnen; die perspektivische Stauchung bleibt.
+- **Die Fahrbahn-Textur** in `BootScene.createRoadTextures()` wird nur noch unterhalb des
+  Horizonts gezeichnet.
+- **Der Kamera-Hintergrund** (`WORLD_COLORS.background`) wird auf die obere Himmelsfarbe
+  gesetzt, damit an keiner Kante Dunkles durchblitzt.
 
-- **Keine Zahlen einblenden**, nirgends — weder über dem Tor, noch an der Figur, noch als
-  Vorschau der Wirkung. Das ist Thomas' ausdrückliche Vorgabe.
-- Der Bezugspunkt der Torwahl (`anchorX`) und der Auslösezeitpunkt bleiben, wie sie sind.
-- Die Tor-Mathematik, die Auswahlregeln und die Waffen-Tore bleiben unberührt.
-- `feedback.hitFlashMs` bleibt bei 80 ms.
-- Die Formation (`computeFormation`) wird nicht angefasst.
+## Gate-Lesezeit — die einzige Kompensation in diesem Task
 
-## Befund 3 — bewusst offen gelassen
+Der Weg eines Tores verkürzt sich von 749 px auf 564 px. Bei unveränderten 540 px/s
+(`scrollSpeed` 180 + `gates.extraSpeed` 360) sinkt die Zeit, in der ein Tor sichtbar ist, von
+**1,39 s auf 1,04 s** — ein Viertel weniger Lesezeit, direkt nachdem die Torlesbarkeit im
+vorigen Task verbessert wurde.
 
-Das Tor greift, sobald seine Unterkante die Höhe der Spitzenfigur passiert; die hinteren
-Reihen der Truppe sind dann optisch noch vor dem Tor. Sobald die Spitze markiert ist, wird
-dieser Zeitpunkt vermutlich von selbst nachvollziehbar. **Erst nach Thomas' Test entscheiden,
-ob hier überhaupt etwas zu tun ist** — jetzt nichts ändern.
+Deshalb: `gates.extraSpeed` von 360 auf **227** senken. Rechnung: 564 px ÷ 1,39 s = 406 px/s
+Gesamtgeschwindigkeit, minus `scrollSpeed` 180 = 226,6 → 227. Damit ist ein Tor exakt so lange
+sichtbar wie heute. Den vorhandenen Kommentar zur Torstrecke entsprechend nachziehen.
+
+## Was **nicht** kompensiert wird — und warum
+
+Ich hatte Thomas zunächst angekündigt, die Fahrgeschwindigkeit auszugleichen, damit ein Gegner
+genauso lange bis zu ihm braucht wie heute. **Das wird hier bewusst nicht gemacht.** Grund:
+Der Ausgleich müsste `scrollSpeed`, alle drei `stats.speed`-Werte und die Schrot-Reichweite
+gleichzeitig um 23 % senken. Das verlangsamt sichtbar den Bildlauf der Fahrbahn — also genau
+das, was das Tempogefühl des Spiels ausmacht — und es vermischt eine Balance-Änderung mit
+einer Optikänderung, sodass eine spätere Verschlechterung nicht mehr zuzuordnen wäre.
+
+**Messbare Folge, die so bleibt:** Ein Standard-Gegner braucht bei Grundgeschwindigkeit vom
+Erscheinen bis zur Truppe künftig **5,4 s statt 7,0 s** (564 px statt 736 px bei 105 px/s).
+Die Vorwarnzeit sinkt um 23 %.
+
+Ist das am iPhone zu hart, wird **ein einziger Wert** gesenkt: `stats.speed.base`. Das ist
+Thomas' Entscheidung nach seinem Test, nicht Codex' und nicht Claudes.
+
+## Farben
+
+Alle neuen Farben nach `colors.ts` unter `WORLD_COLORS`. Startwerte, die Codex einsetzt:
+
+| Zweck | Wert | Anmerkung |
+|---|---|---|
+| Himmel oben | `0x2f7fd1` | kräftiges Tagesblau |
+| Himmel am Horizont | `0xbfe3f7` | hell, fast weiß |
+| Horizontdunst | `0xdfeef8` | schmales helles Band direkt am Horizont |
+| Boden | `0x3f5a3a` | gedämpftes Grün, deutlich dunkler als der Himmel |
+| Fahrbahn | `0x4a4f57` | Asphaltgrau statt des heutigen `0x172033` |
+| Fahrbahnrand | `0xe8ecf2` | helle Begrenzungslinie statt `0x34415d` |
+
+Himmel und Boden werden als **je eine einmalig in `BootScene` erzeugte Textur** angelegt
+(Verlauf im Himmel), nicht pro Bild gezeichnet. Beide liegen auf einer Ebene **unter**
+`BALANCE.layers.road`; das Ebenensystem aus dem vorigen Task wird dafür um einen Eintrag
+`background` ergänzt.
+
+## Pflicht: Kontrollbild
+
+Vor dem Abschluss ein Kontrollbild erzeugen und unter `assets/probe/hintergrund-kontrolle.png`
+ablegen (Ordner liegt in `.gitignore`): die vier Figuren — Spielertruppe, leichter, mittlerer
+und schwerer Zombie — auf der neuen Fahrbahn, dazu ein Ausschnitt mit Himmel, Horizont und
+Boden. Beim Betongrau-Versuch hat genau dieses Vorgehen den Ausschlag gegeben.
+
+**Zu prüfen ist am Kontrollbild:** Der leichte Zombie ist hell-beige, die eigene Truppe
+rot-orange. Beide müssen sich vor der neuen Fahrbahn **und** vor dem Boden klar abheben.
+
+## Reißleine
+
+Hebt sich eine der vier Figuren auf dem neuen Untergrund nicht ab: **melden und stoppen**.
+
+**Kein zulässiger Ersatz ist:**
+- Die Sprites der Figuren ändern, um den Kontrast herzustellen.
+- Den Himmel dunkler machen, bis es passt — Thomas hat „heller Tag" gewählt.
+- Eine Kontur oder einen Schatten um die Figuren legen.
+- Den Horizont weiter nach oben schieben, um dem Problem auszuweichen.
+
+Die Fahrbahnfarbe ist der Wert, an dem gedreht werden darf — aber die Entscheidung darüber
+trifft Thomas am Kontrollbild, nicht Codex im Alleingang.
 
 ## Akzeptanzkriterien
 
-1. Eine senkrechte Linie führt von der vordersten Figur bis zum oberen Bildrand und folgt dem
-   Finger beim Ziehen ohne sichtbare Verzögerung.
-2. Die Linie verdeckt weder Gegner noch Tore, Projektile oder Truppe — sie liegt darunter.
-3. Beim Durchfahren eines Tores ist an der Linie eindeutig ablesbar, welche Seite getroffen
-   wird, und das Ergebnis stimmt mit der tatsächlich angewandten Seite überein.
-4. Das gewählte Tor bleibt sichtbar hervorgehoben, solange es auf dem Bildschirm ist —
-   nachweisbar über `gates.choiceFlashMs` ≥ 240 ms statt der bisherigen 80 ms.
-5. Es werden nirgends Zahlen eingeblendet.
-6. Kein `create()`/`destroy()` im laufenden Spiel; die Linie ist ein einziges Objekt.
-7. Die Stat-Tore und die Waffen-Tore verhalten sich sonst unverändert.
-8. `npm run check` und `npm run build` laufen fehlerfrei durch.
+1. Oberhalb von `road.horizonY` ist Himmel mit Verlauf zu sehen, darunter links und rechts
+   der Fahrbahn Boden. Am Horizont liegt ein schmales helles Dunstband.
+2. Die Fahrbahn beginnt am Horizont und ist dort genauso breit wie heute am oberen Bildrand.
+3. Gegner und Tore erscheinen am Horizont und blenden über die ersten 40 px auf; nichts
+   springt sichtbar ins Bild und nichts erscheint oberhalb des Horizonts.
+4. Ein Gegner ist vom ersten Bild an trefferbar, auch während er noch durchscheinend ist.
+5. Projektile verschwinden am Horizont, nicht erst am oberen Bildrand; kein Geschoss ist im
+   Himmel zu sehen.
+6. Die Ziellinie endet am Horizont.
+7. Ein Tor ist genauso lange sichtbar wie vorher — nachweisbar über `gates.extraSpeed` = 227
+   und eine Sichtbarkeitsdauer von rund 1,39 s.
+8. Die Spurwahl der Gegner funktioniert unverändert: 0 überlappende Gegner und eine
+   Aufschub-Quote unter 5 % über drei Minuten, wie im Task vom 2026-08-20 gemessen.
+9. Das Kontrollbild liegt vor und zeigt alle vier Figurentypen auf dem neuen Untergrund.
+10. Kein `create()`/`destroy()` im laufenden Spiel; Himmel und Boden sind je ein einmalig
+    erzeugtes Objekt.
+11. `npm run check` und `npm run build` laufen fehlerfrei durch.
 
-Kriterium 3 prüft Claude am laufenden Spiel nach: Über viele Tordurchfahrten wird verglichen,
-auf welcher Seite die Linie stand und welche Seite angewandt wurde — sie müssen in **jedem**
-Fall übereinstimmen. Ob die Linie im Spiel angenehm ist und ob die Hervorhebung jetzt reicht,
-entscheidet Thomas am iPhone.
-
-## Danach als Nächstes
-
-**Himmel und Horizont** (Thomas-Entscheidung 2026-08-20): oben ein Horizont mit hellem
-Tageshimmel darüber, neben der Fahrbahn Boden. Wird als eigener Task spezifiziert, sobald
-dieser hier durch ist — er verschiebt die Oberkante der Straße und berührt deshalb Straße,
-Gegner-Eintritt und Tore.
-
-## Implementation Summary
-
-- Eine einmal erzeugte, getönte `aim-line` folgt pro Bild dem unveränderten `anchorX` und
-  reicht vom Kopf der Spitzenfigur bis zum oberen Bildrand. Eigene Ebenen halten sie über der
-  Fahrbahn und unter Truppe, Toren, Gegnern, Projektilen, Münzen und Effekten.
-- `gates.choiceFlashMs` beträgt 250 ms; nur die Tor-Auswahl verwendet diesen Wert.
-  `feedback.hitFlashMs` bleibt unverändert bei 80 ms für Gegner-Treffer.
-- Verifiziert: `npm run check` erfolgreich; `npm run build` erfolgreich (nur bestehender
-  Vite-Hinweis zur Chunk-Größe). Kein separater Test-Runner vorhanden.
-- Offen für die Abnahme am Gerät: Claude prüft die Übereinstimmung von Ziellinie und
-  angewandter Torseite im laufenden Spiel; Thomas beurteilt Sichtbarkeit und Dauer am iPhone.
-
-
-## Review-Ergebnis (Claude, am laufenden Spiel nachgemessen)
-
-**Kriterium 3 (die wichtigste Stelle):** 13 Tordurchfahrten mit bewegtem Finger, links und
-rechts. Die Linie stand in **jedem** Fall exakt auf `anchorX` (Abweichung 0,0 px), und die
-Seite, auf der die Linie stand, war in **jedem** Fall die angewandte Seite.
-**0 Abweichungen.**
-
-**Reihenfolge im Bild:** Die Linie liegt auf Ebene 1, Tore und Gegner auf Ebene 2 — sie
-verdeckt nachweislich nichts. Codex hat dafuer ein eigenes Ebenen-System (`BALANCE.layers`)
-eingefuehrt und alle Spielobjekte darauf umgestellt; das ist mehr als verlangt, aber die
-saubere Loesung, weil die Reihenfolge vorher implizit von der Erzeugungsreihenfolge abhing.
-
-**Aktualisierung ohne Verzoegerung:** `updateAimLine()` laeuft in `GameScene.update()`
-unmittelbar vor `gates.update()`. Die Linie zeigt damit den Stand, mit dem im selben Bild
-auch die Torwahl entschieden wird.
-
-**Hervorhebung:** `choiceFlashMs` liegt bei 250 ms und wird auch so gemessen (alle 13
-Durchfahrten exakt 250). `feedback.hitFlashMs` bleibt bei 80 ms fuer Treffer an Gegnern.
-
-**Bau:** `npm run check` und `npm run build` selbst im Terminal ausgefuehrt, beide exit 0.
-
-**Abweichung von der Spec, bewusst nicht nachgebessert:** Verlangt war, ein ausgeloestes
-Torpaar zusaetzlich zu recyceln, sobald es den unteren Bildrand verlaesst. Der vorhandene
-Abgang steht als `else if` hinter der Blitz-Bedingung und greift fuer ausgeloeste Paare
-deshalb nicht. Bei `choiceFlashMs` = 250 ms ohne Wirkung, weil der Blitz ohnehin kurz nach
-dem Bildrand endet; erst ein deutlich hoeherer Wert wuerde ein unsichtbares Paar im Pool
-halten. Bei zwei Torpaaren und 9 s Abstand folgenlos — beim naechsten Anfassen der Tore
-mitziehen.
-
-**Beobachtung fuer Thomas' Test:** Steht die Truppe genau mittig, liegt die Ziellinie auf der
-gestrichelten Mittellinie der Fahrbahn und ist dort schwerer zu unterscheiden. Genau in
-dieser Position zaehlt die **rechte** Seite (`anchorX < Bildmitte` ist dann falsch). Wenn dich
-das im Spiel stoert, ist die Gegenmassnahme eine andere Farbe oder eine leichte seitliche
-Versetzung der Mittellinie — beides klein.
+Kriterien 3 bis 8 prüft Claude am laufenden Spiel nach. Über Farbwirkung und darüber, ob die
+kürzere Vorwarnzeit trägt, entscheidet Thomas am iPhone.
