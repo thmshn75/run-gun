@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { STAT_COLORS, clampStat, type RunStats, type StatKey } from './upgrades'
+import { HUD_COLORS, STAT_COLORS } from '../config/colors'
+import { clampStat, type RunStats, type StatKey } from './upgrades'
 
 export interface GateOp {
   label: string
@@ -121,12 +122,12 @@ export class Gates {
     const left = this.scene.add.image(0, 0, 'gate').setActive(false).setVisible(false)
     const right = this.scene.add.image(0, 0, 'gate').setActive(false).setVisible(false)
     const textStyle: Phaser.Types.GameObjects.Text.TextStyle = {
-      fontFamily: 'system-ui', fontSize: '34px', color: '#f7f4ff', stroke: '#211640', strokeThickness: 3,
+      fontFamily: 'system-ui', fontSize: '34px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 4, fontStyle: 'bold',
     }
     const leftText = this.scene.add.text(0, 0, '', textStyle).setOrigin(0.5).setActive(false).setVisible(false)
     const rightText = this.scene.add.text(0, 0, '', textStyle).setOrigin(0.5).setActive(false).setVisible(false)
     const statLabel = this.scene.add.text(0, 0, '', {
-      fontFamily: 'system-ui', fontSize: '16px', color: '#e8e4ff', stroke: '#211640', strokeThickness: 2,
+      fontFamily: 'system-ui', fontSize: '17px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 3, fontStyle: 'bold',
     }).setOrigin(0.5).setActive(false).setVisible(false)
     return {
       left, right, leftText, rightText, statLabel, active: false, stat: 'hp',

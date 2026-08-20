@@ -13,7 +13,7 @@ export const BALANCE = {
     damage: { base: 1, cap: 20, floor: 1 },
     shotsPerSec: { base: 3.5, cap: 8, floor: 1 },
     projectiles: { base: 1, cap: 5, floor: 1 },
-    speed: { base: 150, cap: 350, floor: 100 },
+    speed: { base: 105, cap: 305, floor: 70 },
   },
   weapon: {
     projectileSpeed: 640,
@@ -27,9 +27,22 @@ export const BALANCE = {
   },
   feedback: {
     hitFlashMs: 80,
-    hudPadding: 12,
     gameOverRestartDelayMs: 400,
     poolWarningIntervalMs: 1000,
+  },
+  hud: {
+    padding: 12,
+    panelHeight: 62,
+    panelRadius: 12,
+    panelAlpha: 0.55,
+    panelStrokeAlpha: 0.6,
+    sidePad: 14,
+    rowOneOffsetY: 9,
+    rowTwoOffsetY: 38,
+    primaryFontPx: 22,
+    statFontPx: 15,
+    depthPanel: 90,
+    depthText: 91,
   },
   gates: {
     // Must stay above 2x the roughly 1.4s visibility duration, or raise pools.gatePairs.
@@ -57,7 +70,7 @@ export const BALANCE = {
   pools: {
     // 8 shots/s cap x 5 projectiles cap x ((anchor-Y 714 - despawn-Y 0) / 640px/s = 1.12s) = 45; 64 leaves margin.
     projectiles: 64,
-    // At t≈192s the spawn minimum is reached and the slowest speed is about 196px/s; 844px / 196px/s = 4.3s visible, or about 9.6 enemies; 20 remains ample.
+    // Start: 844px / 105px/s ≈ 8.0s at 1600ms intervals ≈ 5; late game: 844px / 200px/s ≈ 4.2s at 450ms intervals ≈ 9.4; 20 remains ample.
     enemies: 20,
     crowd: 30,
     // Max enemy kill rate is 1 / 0.45s; 844px / 180px/s = 4.7s coin visibility, so about 10.4; 20 remains enough (magnet collects faster).

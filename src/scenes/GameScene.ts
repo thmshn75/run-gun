@@ -1,11 +1,12 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
 import { Coins } from '../systems/coins'
 import { Crowd } from '../systems/crowd'
 import { Gates } from '../systems/gates'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { Spawner } from '../systems/spawner'
-import { STAT_COLORS, RunStats } from '../systems/upgrades'
+import { RunStats } from '../systems/upgrades'
 import { Weapons } from '../systems/weapons'
 
 interface HudSegments {
@@ -14,6 +15,7 @@ interface HudSegments {
   speed: Phaser.GameObjects.Text
   damage: Phaser.GameObjects.Text
   rate: Phaser.GameObjects.Text
+  shots: Phaser.GameObjects.Text
 }
 
 export class GameScene extends Phaser.Scene {
@@ -46,7 +48,7 @@ export class GameScene extends Phaser.Scene {
     this.gameOverStarted = false
     this.lastShownSpeed = -1
     this.insets = readSafeAreaInsets()
-    this.cameras.main.setBackgroundColor('#10131d')
+    this.cameras.main.setBackgroundColor(WORLD_COLORS.background)
     this.background = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'background-tile').setOrigin(0, 0)
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
     const getAnchorPosition = (): Readonly<{ x: number; y: number }> => ({ x: this.crowd.getAnchorX(), y: this.crowd.getAnchorY() })
@@ -54,20 +56,38 @@ export class GameScene extends Phaser.Scene {
     this.spawner = new Spawner(this, this.runStats)
     this.coins = new Coins(this, () => this.updateHud())
     this.gates = new Gates(this, this.runStats, getAnchorPosition, () => this.updateHud(), () => Phaser.Math.RND.frac())
-    const hudX = this.insets.left + BALANCE.feedback.hudPadding
-    const hudY = this.insets.top + BALANCE.feedback.hudPadding
-    const hudStyle: Phaser.Types.GameObjects.Text.TextStyle = {
+    const panelX = this.insets.left + BALANCE.hud.padding
+    const panelY = this.insets.top + BALANCE.hud.padding
+    const panelW = this.scale.width - this.insets.left - this.insets.right - 2 * BALANCE.hud.padding
+    const panelH = BALANCE.hud.panelHeight
+    const panel = this.add.graphics()
+    panel.fillStyle(HUD_COLORS.panel, BALANCE.hud.panelAlpha)
+    panel.fillRoundedRect(panelX, panelY, panelW, panelH, BALANCE.hud.panelRadius)
+    panel.lineStyle(1, HUD_COLORS.panelStroke, BALANCE.hud.panelStrokeAlpha)
+    panel.strokeRoundedRect(panelX, panelY, panelW, panelH, BALANCE.hud.panelRadius)
+    panel.setDepth(BALANCE.hud.depthPanel)
+    const primaryHudStyle: Phaser.Types.GameObjects.Text.TextStyle = {
       fontFamily: 'system-ui',
-      fontSize: '20px',
+      fontSize: `${BALANCE.hud.primaryFontPx}px`,
+      fontStyle: 'bold',
     }
-    const colorFor = (stat: keyof typeof STAT_COLORS): string => `#${STAT_COLORS[stat].toString(16).padStart(6, '0')}`
+    const statHudStyle: Phaser.Types.GameObjects.Text.TextStyle = {
+      fontFamily: 'system-ui',
+      fontSize: `${BALANCE.hud.statFontPx}px`,
+      fontStyle: 'bold',
+    }
+    const rowOneY = panelY + BALANCE.hud.rowOneOffsetY
+    const rowTwoY = panelY + BALANCE.hud.rowTwoOffsetY
+    const colW = panelW / 4
     this.hud = {
-      hp: this.add.text(hudX, hudY, '', { ...hudStyle, color: colorFor('hp') }),
-      coins: this.add.text(hudX + 112, hudY, '', { ...hudStyle, color: '#f9dc65' }),
-      speed: this.add.text(hudX + 228, hudY, '', { ...hudStyle, color: '#ced4da' }),
-      damage: this.add.text(hudX, hudY + 28, '', { ...hudStyle, color: colorFor('damage') }),
-      rate: this.add.text(hudX + 112, hudY + 28, '', { ...hudStyle, color: colorFor('shotsPerSec') }),
+      hp: this.add.text(panelX + BALANCE.hud.sidePad, rowOneY, '', { ...primaryHudStyle, color: this.colorFor(STAT_COLORS.hp) }).setOrigin(0, 0),
+      coins: this.add.text(panelX + panelW - BALANCE.hud.sidePad, rowOneY, '', { ...primaryHudStyle, color: this.colorFor(HUD_COLORS.coins) }).setOrigin(1, 0),
+      damage: this.add.text(panelX + colW * 0.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.damage) }).setOrigin(0.5, 0),
+      rate: this.add.text(panelX + colW * 1.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.shotsPerSec) }).setOrigin(0.5, 0),
+      shots: this.add.text(panelX + colW * 2.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.projectiles) }).setOrigin(0.5, 0),
+      speed: this.add.text(panelX + colW * 3.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.speed) }).setOrigin(0.5, 0),
     }
+    Object.values(this.hud).forEach((text) => text.setDepth(BALANCE.hud.depthText))
     this.updateHud()
     this.enableRelativeDrag()
     this.physics.add.overlap(this.weapons.getProjectiles(), this.spawner.getEnemies(), (projectile, enemy) => {
@@ -162,6 +182,7 @@ export class GameScene extends Phaser.Scene {
     this.hud.speed.setText(`SPD ${this.getSpdShown()}`)
     this.hud.damage.setText(`DMG ${damage}`)
     this.hud.rate.setText(`RATE ${shotsPerSec}`)
+    this.hud.shots.setText(`SHOTS ${this.runStats.get('projectiles')}`)
   }
 
   private getSpdShown(): number {
@@ -170,7 +191,7 @@ export class GameScene extends Phaser.Scene {
 
   private drawSafeAreaDebug(): void {
     const frame = this.add.graphics()
-    frame.lineStyle(2, 0xffc857, 1)
+    frame.lineStyle(2, HUD_COLORS.coins, 1)
     frame.strokeRect(
       this.insets.left,
       this.insets.top,
@@ -178,10 +199,14 @@ export class GameScene extends Phaser.Scene {
       this.scale.height - this.insets.top - this.insets.bottom,
     )
     this.add.text(
-      BALANCE.feedback.hudPadding,
-      this.insets.top + BALANCE.feedback.hudPadding * 4,
+      BALANCE.hud.padding,
+      this.insets.top + BALANCE.hud.padding * 4,
       `Safe area  T:${this.insets.top} R:${this.insets.right} B:${this.insets.bottom} L:${this.insets.left}`,
-      { fontFamily: 'system-ui', fontSize: '13px', color: '#ffc857' },
+      { fontFamily: 'system-ui', fontSize: '13px', color: this.colorFor(HUD_COLORS.coins) },
     )
+  }
+
+  private colorFor(color: number): string {
+    return `#${color.toString(16).padStart(6, '0')}`
   }
 }

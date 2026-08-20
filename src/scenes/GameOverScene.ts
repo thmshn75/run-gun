@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import { HUD_COLORS } from '../config/colors'
 import { readSafeAreaInsets } from '../systems/safeArea'
 
 export class GameOverScene extends Phaser.Scene {
@@ -28,7 +29,7 @@ export class GameOverScene extends Phaser.Scene {
     this.add.text(centerX, centerY + 52, `Coins: ${this.coins}`, {
       fontFamily: 'system-ui',
       fontSize: '22px',
-      color: '#f9dc65',
+      color: `#${HUD_COLORS.coins.toString(16).padStart(6, '0')}`,
     }).setOrigin(0.5)
     this.add.text(centerX, centerY + 92, 'Tippen für Neustart', {
       fontFamily: 'system-ui',
