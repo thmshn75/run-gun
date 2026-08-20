@@ -19,7 +19,7 @@ export const BALANCE = {
   },
   enemy: {
     hp: 3,
-    speed: 100,
+    speed: 50,
     spawnIntervalMs: 1200,
     spawnIntervalMinMs: 600,
     spawnRampPerSec: 3,
@@ -56,7 +56,7 @@ export const BALANCE = {
   pools: {
     // 8 shots/s cap x 5 projectiles cap x ((anchor-Y 714 - despawn-Y 0) / 640px/s = 1.12s) = 45; 64 leaves margin.
     projectiles: 64,
-    // 844px / (180 + 100)px/s / 0.6s = 5.1 visible enemies; 20 leaves ample headroom.
+    // 844px / (180 + 50)px/s / 0.6s = 6.1 visible enemies; 20 leaves ample headroom.
     enemies: 20,
     crowd: 30,
     // Max enemy kill rate is 1 / 0.6s; 844px / 180px/s = 4.7s coin visibility, so 1.67 x 4.7 = 7.8; 20 leaves margin.
