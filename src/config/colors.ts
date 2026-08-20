@@ -18,11 +18,20 @@ export function lighten(color: number, amount: number): number {
   return (channel(16) << 16) | (channel(8) << 8) | channel(0)
 }
 
+export function mix(colorA: number, colorB: number, amount: number): number {
+  const clampedAmount = Math.min(1, Math.max(0, amount))
+  const channel = (shift: number): number => {
+    const start = (colorA >> shift) & 0xff
+    const end = (colorB >> shift) & 0xff
+    return Math.round(start + (end - start) * clampedAmount)
+  }
+  return (channel(16) << 16) | (channel(8) << 8) | channel(0)
+}
+
 export const WORLD_COLORS = {
   background: 0x2f7fd1,
   skyTop: 0x2f7fd1,
-  skyHorizon: 0xbfe3f7,
-  horizonHaze: 0xdfeef8,
+  skyHorizon: 0xdfeef8,
   ground: 0x3f5a3a,
   road: 0x4a4f57,
   roadEdge: 0xe8ecf2,

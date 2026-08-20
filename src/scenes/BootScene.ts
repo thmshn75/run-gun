@@ -12,7 +12,7 @@ import weaponRocketHudUrl from '../assets/weapon-rocket-hud.png'
 import weaponShotgunGateUrl from '../assets/weapon-shotgun-gate.png'
 import weaponShotgunHudUrl from '../assets/weapon-shotgun-hud.png'
 import { BALANCE } from '../config/balance'
-import { WORLD_COLORS } from '../config/colors'
+import { mix, WORLD_COLORS } from '../config/colors'
 import { getRoadHalfWidth } from '../systems/road'
 
 export class BootScene extends Phaser.Scene {
@@ -49,15 +49,11 @@ export class BootScene extends Phaser.Scene {
     const width = this.scale.width
     const horizonY = BALANCE.road.horizonY
     const graphics = this.add.graphics()
-    graphics.fillGradientStyle(
-      WORLD_COLORS.skyTop,
-      WORLD_COLORS.skyHorizon,
-      WORLD_COLORS.skyTop,
-      WORLD_COLORS.skyHorizon,
-    )
-    graphics.fillRect(0, 0, width, horizonY)
-    graphics.fillStyle(WORLD_COLORS.horizonHaze)
-    graphics.fillRect(0, horizonY - 12, width, 12)
+    for (let y = 0; y < horizonY; y += 1) {
+      const progress = y / (horizonY - 1)
+      graphics.fillStyle(mix(WORLD_COLORS.skyTop, WORLD_COLORS.skyHorizon, progress))
+      graphics.fillRect(0, y, width, 1)
+    }
     graphics.generateTexture('sky', width, horizonY)
     graphics.clear()
     graphics.fillStyle(WORLD_COLORS.ground)

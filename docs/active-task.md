@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -77,3 +77,38 @@ Laufzeit je Bild neu gezeichnet wird.
 7. `npm run check` und `npm run build` laufen fehlerfrei durch.
 
 Kriterien 1 bis 4 misst Claude am laufenden Spiel direkt an den Pixelfarben.
+
+## Implementation Summary
+
+- Der Himmel wird in `BootScene.createBackgroundTextures()` einmalig mit 150 horizontalen
+  1-px-Rechtecken erzeugt. Die neue Funktion `mix()` mischt `skyTop` und `skyHorizon`
+  kanalweise und erreicht beide Endfarben exakt.
+- `fillGradientStyle` und das frühere Dunstband sind entfernt; Boden, Fahrbahn und
+  Spielobjekte wurden nicht verändert.
+- Verifiziert mit `npm run check`, `npm run build`, `git diff --check`, einer Quellcode-Suche
+  nach `fillGradientStyle` in `BootScene` sowie einer Berechnung der 150 Farbzeilen
+  (monoton, maximaler RGB-Schritt 4).
+
+
+## Review-Ergebnis (Claude, an den Pixelfarben gemessen)
+
+Senkrechte Linie durch den Himmel bei x = 5, von y = 0 bis zum Horizont:
+
+```
+y=  0  #2f7fd1      y= 60  #75abe0      y=120  #bcd8f0
+y= 30  #5195d9      y= 90  #98c1e8      y=149  #deedf8
+```
+
+- **Kriterium 1:** durchgehend heller, **kein einziger Rueckschritt** ueber 150 Zeilen.
+- **Kriterium 2:** oben `#2f7fd1`, am Horizont `#deedf8` — Zielwert `#dfeef8`, Abweichung
+  eine Stufe je Kanal, innerhalb der Toleranz. Gesamtzunahme 324 Helligkeitsstufen.
+- **Kriterium 3:** groesster Schritt zwischen zwei benachbarten Messzeilen 6 Stufen, an der
+  Grenze — und das nur durch die Skalierung der Messung (900 Bildzeilen auf 844 Spielzeilen).
+  Rechnerisch sind es 324 / 149 = **2,2 Stufen je Spielzeile**. Keine sichtbare Kante.
+- **Kriterium 4:** Auf gleicher Hoehe genau **eine** Farbe ueber die volle Breite — der
+  Verlauf laeuft nach unten, nicht zur Seite. Das war vorher nicht so.
+- **Kriterium 5:** kein `fillGradientStyle` mehr im Code.
+- **Kriterium 7:** `npm run check` und `npm run build` selbst im Terminal, beide exit 0.
+
+Vorher zum Vergleich: jede Zeile und jede Spalte exakt `#2f7fd1`, Unterschied zwischen
+benachbarten Zeilen 0.
