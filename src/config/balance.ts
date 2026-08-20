@@ -38,10 +38,11 @@ export const BALANCE = {
     damageMultiplierCap: 4,
   },
   enemy: {
+    // Measured visible-figure widths per sprite; remeasure these whenever the images change.
     types: [
-      { key: 'light', texture: 'enemy-light', hp: 1, speedFactor: 1.35, contactDamage: 1, coinValue: 1 },
-      { key: 'standard', texture: 'enemy-standard', hp: 3, speedFactor: 1, contactDamage: 1, coinValue: 1 },
-      { key: 'heavy', texture: 'enemy-heavy', hp: 9, speedFactor: 0.7, contactDamage: 2, coinValue: 3 },
+      { key: 'light', texture: 'enemy-light', hp: 1, speedFactor: 1.35, contactDamage: 1, coinValue: 1, bodyWidth: 14 },
+      { key: 'standard', texture: 'enemy-standard', hp: 3, speedFactor: 1, contactDamage: 1, coinValue: 1, bodyWidth: 21 },
+      { key: 'heavy', texture: 'enemy-heavy', hp: 9, speedFactor: 0.7, contactDamage: 2, coinValue: 3, bodyWidth: 40 },
     ],
     // The final wave (untilSec: 0) applies permanently once the earlier limits have passed.
     waves: [

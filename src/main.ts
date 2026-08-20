@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { registerSW } from 'virtual:pwa-register'
 import './style.css'
+import { BALANCE } from './config/balance'
 import { BootScene } from './scenes/BootScene'
 import { GameOverScene } from './scenes/GameOverScene'
 import { GameScene } from './scenes/GameScene'
@@ -56,7 +57,7 @@ const game = new Phaser.Game({
   physics: {
     default: 'arcade',
     arcade: {
-      debug: false,
+      debug: BALANCE.debug,
     },
   },
   scene: [BootScene, GameScene, GameOverScene],

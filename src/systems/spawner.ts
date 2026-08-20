@@ -92,7 +92,7 @@ export class Spawner {
     const y = -enemy.displayHeight / 2
     enemy.enableBody(true, x, y, true, true)
     const body = enemy.body as Phaser.Physics.Arcade.Body
-    body.setSize(enemy.displayWidth, enemy.displayHeight)
+    body.setSize(type.bodyWidth, enemy.displayHeight, true)
     body.updateFromGameObject()
     enemy.setActive(true).setVisible(true).setAlpha(1).clearTint()
     enemy.setData('hp', type.hp)
