@@ -139,3 +139,76 @@ vorhandener Gegner.
 Kriterien 1 bis 9 prüft Claude am laufenden Spiel nach, Kriterium 3 über eine Zählung der
 tatsächlichen Schadensereignisse je Projektil und Ziel. Ob der Kampf Spaß macht und die
 Länge stimmt, entscheidet Thomas am iPhone.
+
+## Implementation Summary
+
+- Boss-Sprite erzeugt, transparent nach `src/assets/enemy-boss.png` übernommen und seine sichtbaren Maße (118 × 118 px) in `balance.ts` hinterlegt.
+- Boss-, Level- und Bossgeschoss-Pools ergänzt: 75-s-Normalphase, BOSS-Ankündigung, Kampf, Levelabschluss und Start der härteren nächsten Welle in derselben Szene.
+- Boss nutzt den bestehenden Schadensweg inklusive `spawnId`-Laser-Schutz, Trefferblitz, Münzdrop, Lebensbalken, iFrames und Blinken für Bossgeschosse.
+- Levelstand wird nach Boss-Sieg gespeichert; Game-Over-Scores erhalten die tatsächlich erreichte Levelnummer.
+- Verifiziert mit `npm run check`, `npm run build` und `npm test` (5 Tests bestanden).
+
+
+---
+
+# NACHARBEIT (Claude, am laufenden Spiel gemessen)
+
+Der Bosskampf ist **unlösbar**: Der Boss nimmt keinen Schaden, und das Spiel wirft dabei
+Fehler.
+
+## Befund
+
+Gemessen über einen vollständigen Lauf bis in die Bossphase:
+
+```
+TypeError: Cannot read properties of undefined (reading 'damageFactor')
+  at GameScene.handleProjectileHit (GameScene.ts:232)
+  at World.collideSpriteVsGroup (phaser.js)
+```
+
+Ursache: `physics.add.overlap(this.weapons.getProjectiles(), this.boss.getEnemy(), …)`
+registriert eine **Gruppe gegen ein einzelnes Objekt**. Phaser erkennt das und ruft intern
+`collideSpriteVsGroup` auf — die Rückruffunktion bekommt dadurch
+**(einzelnes Objekt, Gruppenkind)**, also `(Boss, Projektil)` statt `(Projektil, Boss)`.
+`handleProjectileHit` liest daraufhin die Waffe vom Boss, findet nichts, und
+`BALANCE.weapon[undefined].damageFactor` wirft.
+
+Folgen, alle gemessen:
+- Boss verliert über 75 s Bosskampf **keinen einzigen Lebenspunkt**.
+- Boss-Geschosse treffen die Truppe **nie** (0 Treffer), weil die geworfene Ausnahme den
+  restlichen Kollisionsdurchlauf desselben Bildes abbricht.
+- Kein Levelwechsel, kein Speicherstand — die ganze Kette dahinter ist tot.
+
+**Das ist ein Wiederholungsfehler.** Genau diese Falle steht bereits als Kommentar im Code
+(`// Zone must be first: Phaser passes (single object, group child) to this callback`) und
+im projektübergreifenden Logbuch.
+
+## Verlangte Korrektur — die Falle strukturell beseitigen
+
+Nicht die Reihenfolge an dieser einen Stelle korrigieren. Die Reihenfolge richtig zu **raten**
+ist genau das, was schon zweimal schiefgegangen ist.
+
+Stattdessen: eine kleine Hilfsfunktion, die die beiden Rückrufargumente **an ihren eigenen
+Daten erkennt**, statt sich auf ihre Position zu verlassen.
+
+- Ein Spieler-Projektil ist daran erkennbar, dass es `getData('weapon')` liefert.
+- Ein Boss-Geschoss ist daran erkennbar, dass es `getData('damage')` liefert.
+
+Beide Überlappungen für den Boss laufen künftig über diese Erkennung. Das gilt auch für die
+Überlappung von Boss-Geschossen mit der Truppenhülle.
+
+Die bestehende Überlappung Projektile ↔ normale Gegner bleibt unverändert, weil dort Gruppe
+gegen Gruppe steht und die Reihenfolge nachweislich stimmt — sie wird aber ebenfalls auf die
+Hilfsfunktion umgestellt, damit es im Code nur **einen** Weg gibt.
+
+Zusätzlich: Erkennt die Hilfsfunktion keines der beiden Objekte, wird im DEV-Modus einmal pro
+Sekunde laut auf der Konsole gewarnt, statt still etwas Falsches zu tun.
+
+## Zusätzliche Akzeptanzkriterien
+
+12. Der Boss verliert Lebenspunkte und lässt sich besiegen; im laufenden Spiel entstehen
+    **keine** Konsolenfehler.
+13. Boss-Geschosse treffen die Truppe nachweislich mindestens einmal pro Bosskampf.
+14. Nach dem Sieg beginnt Level 2, der Boss dort hat 640 Lebenspunkte, und `highestLevel`
+    steht im Speicherstand auf 2.
+15. Die Reihenfolge der Rückrufargumente wird an keiner Stelle mehr vorausgesetzt.
