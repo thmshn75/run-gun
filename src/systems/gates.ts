@@ -141,7 +141,7 @@ export class Gates {
       this.warnPoolExhausted()
       return
     }
-    const stat = pick<StatKey>(['hp', 'damage', 'shotsPerSec', 'projectiles'], this.rng)
+    const stat = pick<StatKey>(['hp', 'damage', 'shotsPerSec', 'projectiles', 'speed'], this.rng)
     const operations = drawGatePair(stat, this.runStats.get(stat), this.rng)
     const gateWidth = (this.scene.scale.width - BALANCE.gates.gapBetween) / 2
     const spawnY = -BALANCE.gates.gateHeight / 2
@@ -199,7 +199,7 @@ export class Gates {
   }
 
   private statLabel(stat: StatKey): string {
-    return { hp: 'HP', damage: 'DMG', shotsPerSec: 'RATE', projectiles: 'SHOTS' }[stat]
+    return { hp: 'HP', damage: 'DMG', shotsPerSec: 'RATE', projectiles: 'SHOTS', speed: 'SPD' }[stat]
   }
 
   private warnPoolExhausted(): void {

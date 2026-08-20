@@ -1,22 +1,22 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import type { RunStats } from './upgrades'
 
 export class Spawner {
   private readonly scene: Phaser.Scene
+  private readonly runStats: RunStats
   private readonly enemies: Phaser.Physics.Arcade.Group
   private spawnAccumulatorMs: number
   private elapsedMs: number
   private lastPoolWarningAtMs: number
-  private currentEnemySpeed!: number
 
-  public constructor(scene: Phaser.Scene) {
+  public constructor(scene: Phaser.Scene, runStats: RunStats) {
     this.scene = scene
+    this.runStats = runStats
     this.enemies = scene.physics.add.group()
     this.spawnAccumulatorMs = 0
     this.elapsedMs = 0
     this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
-    this.currentEnemySpeed = BALANCE.enemy.speed
-
     for (let index = 0; index < BALANCE.pools.enemies; index += 1) {
       const enemy = scene.physics.add.image(0, 0, 'enemy')
       enemy.setActive(false).setVisible(false)
@@ -30,7 +30,10 @@ export class Spawner {
   }
 
   public getEnemySpeed(): number {
-    return BALANCE.scrollSpeed + this.currentEnemySpeed
+    return Math.min(
+      BALANCE.stats.speed.cap,
+      this.runStats.get('speed') + (this.elapsedMs / 1000) * BALANCE.enemy.speedRampPerSec,
+    )
   }
 
   public recycle(enemy: Phaser.Physics.Arcade.Image): void {
@@ -62,14 +65,11 @@ export class Spawner {
       this.spawn()
     }
 
-    this.currentEnemySpeed = Math.min(
-      BALANCE.enemy.speedMax,
-      BALANCE.enemy.speed + (this.elapsedMs / 1000) * BALANCE.enemy.speedRampPerSec,
-    )
+    const enemySpeed = this.getEnemySpeed()
     for (const child of this.enemies.getChildren()) {
       const enemy = child as Phaser.Physics.Arcade.Image
       if (!enemy.active) continue
-      enemy.y += ((BALANCE.scrollSpeed + this.currentEnemySpeed) * dt) / 1000
+      enemy.y += (enemySpeed * dt) / 1000
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       if ((enemy.getData('flashUntil') as number) <= this.elapsedMs) enemy.clearTint()
       if (enemy.y - enemy.displayHeight / 2 > this.scene.scale.height) this.recycle(enemy)
