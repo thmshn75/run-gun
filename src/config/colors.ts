@@ -4,7 +4,6 @@ export const STAT_COLORS: Record<StatKey, number> = {
   hp: 0x3ddc84,
   damage: 0xff9f45,
   shotsPerSec: 0x34d1e0,
-  projectiles: 0xb78cff,
   speed: 0xff4fa3,
 }
 

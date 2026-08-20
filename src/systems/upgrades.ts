@@ -1,9 +1,9 @@
 import { BALANCE } from '../config/balance'
 
-export type StatKey = 'hp' | 'damage' | 'shotsPerSec' | 'projectiles' | 'speed'
+export type StatKey = 'hp' | 'damage' | 'shotsPerSec' | 'speed'
 
 export function clampStat(stat: StatKey, value: number): number {
-  const roundedValue = stat === 'hp' || stat === 'projectiles' || stat === 'speed'
+  const roundedValue = stat === 'hp' || stat === 'speed'
     ? Math.round(value)
     : Math.round(value * 10) / 10
   const { cap, floor } = BALANCE.stats[stat]
@@ -18,7 +18,6 @@ export class RunStats {
       hp: BALANCE.stats.hp.base,
       damage: BALANCE.stats.damage.base,
       shotsPerSec: BALANCE.stats.shotsPerSec.base,
-      projectiles: BALANCE.stats.projectiles.base,
       speed: BALANCE.stats.speed.base,
     }
   }

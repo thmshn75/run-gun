@@ -12,11 +12,13 @@ export class Crowd {
   private readonly figureHeight: number
   private anchorX: number
   private readonly anchorY: number
+  private salvoCursor: number
 
   public constructor(scene: Phaser.Scene, anchorX: number, anchorY: number) {
     this.scene = scene
     this.anchorX = anchorX
     this.anchorY = anchorY
+    this.salvoCursor = 0
     this.members = []
 
     const firstSprite = scene.add.image(anchorX, anchorY, 'player')
@@ -67,6 +69,7 @@ export class Crowd {
         .setVisible(true)
         .setAlpha(1)
     }
+    this.salvoCursor = 0
   }
 
   public setAnchorX(x: number): void {
@@ -97,12 +100,22 @@ export class Crowd {
     }
   }
 
-  public getShooterPositions(maxShooters: number): Array<{ x: number; y: number }> {
-    return this.members
-      .filter((member) => member.sprite.active)
-      .sort((left, right) => left.row - right.row || Math.abs(left.offsetX) - Math.abs(right.offsetX) || left.offsetX - right.offsetX)
-      .slice(0, Math.max(0, Math.floor(maxShooters)))
-      .map((member) => ({ x: member.sprite.x, y: member.sprite.y }))
+  public getNextSalvoPositions(maxPerSalvo: number): Array<{ x: number; y: number }> {
+    const activeMembers = this.members.filter((member) => member.sprite.active)
+    if (activeMembers.length === 0) {
+      this.salvoCursor = 0
+      return []
+    }
+
+    const count = Math.min(activeMembers.length, Math.max(0, Math.floor(maxPerSalvo)))
+    const start = this.salvoCursor % activeMembers.length
+    const origins: Array<{ x: number; y: number }> = []
+    for (let offset = 0; offset < count; offset += 1) {
+      const member = activeMembers[(start + offset) % activeMembers.length]
+      origins.push({ x: member.sprite.x, y: member.sprite.y })
+    }
+    this.salvoCursor = (start + count) % activeMembers.length
+    return origins
   }
 
   public update(): void {

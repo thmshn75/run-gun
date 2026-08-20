@@ -85,7 +85,7 @@ public/              Manifest-Assets, Icons (192/512), Apple-Touch-Icon, .nojeky
 
 ## Upgrade-System
 
-- **Gates im Run:** Paarweise Tore; Wahl durch Position des Ankers beim Durchlaufen. Wirkungen in E3: HP, Damage, FireRate, Projectiles. In E4 kommen Truppen- und Waffen-Tore dazu; das HP-Tor wird dabei zum Truppen-Tor, weil die Truppengröße dann die Lebensanzeige ist.
+- **Gates im Run:** Paarweise Tore; Wahl durch Position des Ankers beim Durchlaufen. Wirkungen in E3: HP, Damage, FireRate, Projectiles, Gegnertempo. In E4 wurde das HP-Tor zum Truppen-Tor (TEAM), weil die Truppengröße die Lebensanzeige ist; der eigene Projektil-Stat (GUNS) ist dabei ersatzlos entfallen (Thomas-Entscheidung 2026-08-20, siehe Abschnitt Truppe). Es bleiben vier Tor-Stats: TEAM, DMG, RATE, SPD. In E4b kommen die Waffen-Tore dazu.
 - **Coins:** Gegner droppen Coins → automatisch eingesammelt (Magnetradius), Zählung im HUD.
 - **Permanent zwischen Levels:** einfache Stufenkäufe im Menü (z. B. Start-Damage, Start-HP), Preise steigen pro Stufe. Alles in `balance.ts`.
 - Save nach jedem Levelabschluss und bei Game Over.
@@ -121,10 +121,14 @@ Der Reiz der Tore soll aus dem Rechnen unter Zeitdruck kommen, nicht aus dem Abl
   das HP-System aus E2 nahtlos — kein Umbau, nur eine andere Darstellung derselben Zahl.
 - **Formation:** versetzte Reihen um den Anker; Breite gedeckelt auf Spielfeldbreite minus Marge.
   Wächst die Truppe, wird die Formation dichter, nicht breiter.
-- **Feuerkraft ist von der Figurenzahl entkoppelt.** Nur die vordersten `CROWD_SHOOTERS` Figuren
-  (Startwert 5) erzeugen Projektile; jede weitere Figur erhöht stattdessen den Schaden pro
-  Projektil. Grund: Würde jede Figur einzeln feuern, wächst die Projektilzahl linear mit der
-  Truppe — das iPhone bräche genau in dem Moment ein, in dem das Spiel am besten läuft.
+- **Alle Figuren feuern sichtbar, die Feuerkraft bleibt gedeckelt** (Thomas-Entscheidung
+  2026-08-20, ersetzt die frühere Regel „nur die vordersten Figuren schießen"). Pro Salve
+  feuern höchstens `CROWD_SHOOTERS_PER_SALVO` Figuren (Startwert 5) gleichzeitig; die Salve
+  wandert reihum durch die Truppe, sodass jede Figur an die Reihe kommt — bei voller Truppe
+  alle sechs Salven. Die Projektilzahl bleibt damit unabhängig von der Truppengröße; jede
+  Figur über der Salvengröße erhöht stattdessen den Schaden pro Projektil. Grund: Würde jede
+  Figur gleichzeitig feuern, wären es bei 30 Figuren rund 270 Projektile im Bild statt 45 —
+  das iPhone bräche genau in dem Moment ein, in dem das Spiel am besten läuft.
 - **Kollision gegen eine Box, nicht gegen N Boxen:** Treffer werden gegen die Formations-Hülle
   geprüft, nicht gegen jede Einzelfigur.
 

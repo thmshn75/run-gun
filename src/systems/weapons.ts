@@ -4,7 +4,7 @@ import type { RunStats } from './upgrades'
 
 export class Weapons {
   private readonly projectiles: Phaser.Physics.Arcade.Group
-  private readonly getShooterPositions: (maxShooters: number) => Array<{ x: number; y: number }>
+  private readonly getSalvoPositions: (maxPerSalvo: number) => Array<{ x: number; y: number }>
   private readonly runStats: RunStats
   private fireAccumulatorMs: number
   private lastPoolWarningAtMs: number
@@ -12,10 +12,10 @@ export class Weapons {
 
   public constructor(
     scene: Phaser.Scene,
-    getShooterPositions: (maxShooters: number) => Array<{ x: number; y: number }>,
+    getSalvoPositions: (maxPerSalvo: number) => Array<{ x: number; y: number }>,
     runStats: RunStats,
   ) {
-    this.getShooterPositions = getShooterPositions
+    this.getSalvoPositions = getSalvoPositions
     this.runStats = runStats
     this.projectiles = scene.physics.add.group()
     this.fireAccumulatorMs = 0
@@ -57,8 +57,7 @@ export class Weapons {
   }
 
   private fire(): void {
-    const shooterCount = Math.min(this.runStats.get('projectiles'), BALANCE.crowd.shooters)
-    const origins = this.getShooterPositions(shooterCount)
+    const origins = this.getSalvoPositions(BALANCE.crowd.shootersPerSalvo)
     const freeProjectiles = this.projectiles.getChildren()
       .filter((child) => !child.active)
       .slice(0, origins.length) as Phaser.Physics.Arcade.Image[]

@@ -15,7 +15,6 @@ export const BALANCE = {
     hp: { base: 3, cap: 30, floor: 0 },
     damage: { base: 1, cap: 20, floor: 1 },
     shotsPerSec: { base: 3.5, cap: 8, floor: 1 },
-    projectiles: { base: 1, cap: 5, floor: 1 },
     speed: { base: 105, cap: 305, floor: 70 },
   },
   weapon: {
@@ -24,7 +23,8 @@ export const BALANCE = {
   crowd: {
     start: 3,
     max: 30,
-    shooters: 5,
+    // Maximum number of figures that fire together in one rotating salvo.
+    shootersPerSalvo: 5,
     rowSpacingY: 14,
     colSpacing: 24,
     minColSpacing: 11,
@@ -39,7 +39,6 @@ export const BALANCE = {
   },
   enemy: {
     hp: 3,
-    speedRampPerSec: 0.5,
     spawnIntervalMs: 1600,
     spawnIntervalMinMs: 450,
     spawnRampPerSec: 6,
@@ -87,7 +86,7 @@ export const BALANCE = {
     collectDistance: 24,
   },
   pools: {
-    // 8 shots/s cap x 5 GUNS (shooter count) cap x ((anchor-Y 714 - despawn-Y 0) / 640px/s = 1.12s) = 45; 64 leaves margin.
+    // 8 shots/s cap x 5 figures per salvo x ((anchor-Y 714 - despawn-Y 0) / 640px/s = 1.12s) = 45; 64 leaves margin.
     projectiles: 64,
     // Start: 844px / 105px/s ≈ 8.0s at 1600ms intervals ≈ 5; late game: 844px / 200px/s ≈ 4.2s at 450ms intervals ≈ 9.4; 20 remains ample.
     enemies: 20,

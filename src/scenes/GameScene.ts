@@ -15,7 +15,6 @@ interface HudSegments {
   speed: Phaser.GameObjects.Text
   damage: Phaser.GameObjects.Text
   rate: Phaser.GameObjects.Text
-  shots: Phaser.GameObjects.Text
 }
 
 export class GameScene extends Phaser.Scene {
@@ -52,7 +51,7 @@ export class GameScene extends Phaser.Scene {
     this.background = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'background-tile').setOrigin(0, 0)
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
     const getAnchorPosition = (): Readonly<{ x: number; y: number }> => ({ x: this.crowd.getAnchorX(), y: this.crowd.getAnchorY() })
-    this.weapons = new Weapons(this, (maxShooters) => this.crowd.getShooterPositions(maxShooters), this.runStats)
+    this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
     this.spawner = new Spawner(this, this.runStats, () => this.crowd.getAnchorRange())
     this.coins = new Coins(this, () => this.updateHud())
     this.gates = new Gates(this, this.runStats, getAnchorPosition, () => this.updateHud(), () => Phaser.Math.RND.frac())
@@ -78,14 +77,13 @@ export class GameScene extends Phaser.Scene {
     }
     const rowOneY = panelY + BALANCE.hud.rowOneOffsetY
     const rowTwoY = panelY + BALANCE.hud.rowTwoOffsetY
-    const colW = panelW / 4
+    const colW = panelW / 3
     this.hud = {
       hp: this.add.text(panelX + BALANCE.hud.sidePad, rowOneY, '', { ...primaryHudStyle, color: this.colorFor(STAT_COLORS.hp) }).setOrigin(0, 0),
       coins: this.add.text(panelX + panelW - BALANCE.hud.sidePad, rowOneY, '', { ...primaryHudStyle, color: this.colorFor(HUD_COLORS.coins) }).setOrigin(1, 0),
       damage: this.add.text(panelX + colW * 0.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.damage) }).setOrigin(0.5, 0),
       rate: this.add.text(panelX + colW * 1.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.shotsPerSec) }).setOrigin(0.5, 0),
-      shots: this.add.text(panelX + colW * 2.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.projectiles) }).setOrigin(0.5, 0),
-      speed: this.add.text(panelX + colW * 3.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.speed) }).setOrigin(0.5, 0),
+      speed: this.add.text(panelX + colW * 2.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.speed) }).setOrigin(0.5, 0),
     }
     Object.values(this.hud).forEach((text) => text.setDepth(BALANCE.hud.depthText))
     this.crowd.setSize(this.runStats.get('hp'))
@@ -181,7 +179,6 @@ export class GameScene extends Phaser.Scene {
     this.hud.speed.setText(`SPD ${Math.round(this.runStats.get('speed'))}`)
     this.hud.damage.setText(`DMG ${damage}`)
     this.hud.rate.setText(`RATE ${shotsPerSec}`)
-    this.hud.shots.setText(`GUNS ${this.runStats.get('projectiles')}`)
   }
 
   private syncCrowdSize(): void {
@@ -195,7 +192,7 @@ export class GameScene extends Phaser.Scene {
     const crowdSize = this.runStats.get('hp')
     return Math.min(
       BALANCE.crowd.damageMultiplierCap,
-      1 + Math.max(0, crowdSize - BALANCE.crowd.shooters) * BALANCE.crowd.damagePerExtraFigure,
+      1 + Math.max(0, crowdSize - BALANCE.crowd.shootersPerSalvo) * BALANCE.crowd.damagePerExtraFigure,
     )
   }
 

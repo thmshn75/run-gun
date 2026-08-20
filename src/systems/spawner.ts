@@ -32,10 +32,7 @@ export class Spawner {
   }
 
   public getEnemySpeed(): number {
-    return Math.min(
-      BALANCE.stats.speed.cap,
-      this.runStats.get('speed') + (this.elapsedMs / 1000) * BALANCE.enemy.speedRampPerSec,
-    )
+    return this.runStats.get('speed')
   }
 
   public recycle(enemy: Phaser.Physics.Arcade.Image): void {

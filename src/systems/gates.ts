@@ -97,7 +97,7 @@ export function drawGatePair(stat: StatKey, current: number, rng: () => number):
       const right = drawDirectionalOp(current, rng, direction)
       if (isValidPair(left, right)) return { left, right }
     }
-    // At integer bounds (notably GUNS 1), several different percentage and multiplier
+    // At integer bounds, several different percentage and multiplier
     // labels can round to the same value. Keep the choice real in that discrete case.
     const sign = direction === 'up' ? 1 : -1
     const left = { label: `${sign > 0 ? '+' : '−'}1`, apply: (value: number) => value + sign }
@@ -252,7 +252,7 @@ export class Gates {
   }
 
   private statLabel(stat: StatKey): string {
-    return { hp: 'TEAM', damage: 'DMG', shotsPerSec: 'RATE', projectiles: 'GUNS', speed: 'SPD' }[stat]
+    return { hp: 'TEAM', damage: 'DMG', shotsPerSec: 'RATE', speed: 'SPD' }[stat]
   }
 
   private nextStat(): StatKey {
@@ -264,7 +264,7 @@ export class Gates {
   }
 
   private refillBag(): void {
-    const stats: StatKey[] = ['hp', 'damage', 'shotsPerSec', 'projectiles', 'speed']
+    const stats: StatKey[] = ['hp', 'damage', 'shotsPerSec', 'speed']
     for (let index = stats.length - 1; index > 0; index -= 1) {
       const swapIndex = Math.floor(this.rng() * (index + 1))
       ;[stats[index], stats[swapIndex]] = [stats[swapIndex], stats[index]]
