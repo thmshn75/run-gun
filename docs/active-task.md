@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 <!-- Uebernommen aus docs/spec-e4b-entwurf.md am 2026-08-20, unveraendert.
@@ -379,3 +379,68 @@ Spurwahl liegt jetzt als reine Funktion in `src/systems/spawnLanes.ts`, und Gegn
 stehen auf `body.moves = false`. Beides bleibt unangetastet. Die in Abschnitt E verlangte
 fortlaufende `spawnId` kommt als zusaetzliches `setData` in `spawn()` dazu — die
 bestehenden Datenfelder und die Poollogik bleiben, wie sie sind.
+
+## Implementation Summary
+
+- Vier Waffen mit festen Teilpools (96/128/96/24), Spawn-ID-gestuetzter Laser-Trefferliste,
+  Schrot-Reichweite, Raketenflaechenschaden und 12er-Einschlagflash-Pool umgesetzt.
+- Jedes vierte Tor ist jetzt ein Waffen-Tor; der Wechsel gilt vor dem Waffen-Update im selben
+  Frame. Das HUD zeigt die aktive Waffe als vierte Spalte, ohne `RunStats` oder `StatKey` zu aendern.
+- Geprueft: `git diff --check`, `npm run check` und `npm run build` erfolgreich. Der Build erzeugt
+  nur die bestehende Vite-Hinweiswarnung fuer einen Chunk ueber 500 kB.
+- Nicht lokal pruefbar: iPhone-Performance bei voller Truppe plus Schrot, Waffen-Gamefeel und
+  Entscheidungsqualitaet der Tore; diese Punkte sind laut Spezifikation Thomas' iPhone-Test vorbehalten.
+
+
+## Review-Ergebnis (Claude, am laufenden Spiel nachgemessen)
+
+Alle 15 Akzeptanzkriterien geprueft. Messungen bei voller Truppe (30 Figuren) und
+Feuerrate am Cap (8/s), jede Waffe einzeln erzwungen.
+
+**Pools — gemessene Spitze gegen hergeleitete Groesse, 0 Erschoepfungswarnungen:**
+
+| Waffe | gemessene Spitze | Pool | hergeleitete Spitze |
+|---|---|---|---|
+| Normal | 48 | 96 | 72 |
+| Schrot | **112** | 128 | 112 |
+| Laser | 72 | 96 | 72 |
+| Rakete | 9 | 24 | 15 |
+
+Der Schrot erreicht die hergeleitete Spitze exakt — die Herleitung ueber die gleichzeitig
+fliegenden Salven war noetig, ein Pool nach Durchschnitt (79) waere uebergelaufen.
+
+**Laser-Durchschlag (Kriterium 6, kritischste Stelle):** 593 Ueberlappungs-Aufrufe,
+davon nur **494 tatsaechliche Schadensereignisse** und **0 Doppelschaeden** ueber 494
+verschiedene Projektil-Gegner-Paare. Die Trefferliste greift. `laserRecycled: 0` —
+der Laser wird beim Treffer nie recycelt (Kriterium 7).
+
+**Waffen-Tore (Kriterium 9):** 22 Tore beobachtet, davon 6 Waffen-Tore an genau jeder
+vierten Position. **0 Regelverstoesse** — nie die aktuelle Waffe, nie zweimal dieselbe.
+16 Stat-Tore funktionierten unveraendert weiter (Kriterium 10).
+
+**Alte Ladung (Kriterium 11):** Bei sechs beobachteten Wechseln flogen bis zu 32
+Projektile der alten Waffe weiter; 300 ms nach dem Wechsel waren davon noch bis zu 16 aktiv.
+
+**Rakete (Kriterium 8):** Flaechenschaden toetete mehrfach mehr als einen Gegner pro
+Einschlag. Einschlag-Flash: Pool 12, 72 Aktivierungen in 40 s, hoechstens 3 gleichzeitig,
+Deckkraft startet bei 1 und laeuft ueber die mitgefuehrte Restzeit aus.
+
+**HUD (Kriterium 12):** Im unguenstigsten Fall (`DMG 17.5`, `RATE 7.5`, `SPD 305`,
+Waffenname) sitzen die vier Spalten bei 26-90, 119-179, 210-271 und 301-363 px innerhalb
+des Panels (12-378). Kleinster Abstand 29 px, **keine Ueberlappung**, nichts abgeschnitten.
+
+**Optik (Kriterium 13):** Die vier Geschosse sind im Bildvergleich klar unterscheidbar;
+der Schrot-Faecher ist als Faecher lesbar, nicht als Klumpen.
+
+**Bau (Kriterium 14):** `npm run check` und `npm run build` selbst im Terminal ausgefuehrt,
+beide exit 0. Keine neuen Abhaengigkeiten, keine externen Requests (Kriterium 15).
+
+**Nebenbefund, bewusst nicht nachgebessert:** Die Schriftgroesse der zweiten HUD-Zeile
+steht als `BALANCE.hud.statFontPx - 1` im Code statt als eigener Wert in `balance.ts`.
+Funktional richtig, aber der tatsaechliche Wert ist dadurch nicht mehr an einer Stelle
+ablesbar. Beim naechsten Anfassen des HUD mitziehen.
+
+**Offen bis zu Thomas' iPhone-Test:** Bildrate bei voller Truppe plus Schrot (der
+Wechselmoment mit rund 122 gleichzeitig fliegenden Projektilen), ob sich die drei Waffen
+spuerbar unterschiedlich anfuehlen und ob die Torwahl eine echte Entscheidung ist.
+Reissleine dafuer steht oben im Abschnitt „Reissleine".

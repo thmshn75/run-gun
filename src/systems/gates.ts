@@ -1,8 +1,9 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { HUD_COLORS, STAT_COLORS } from '../config/colors'
+import { HUD_COLORS, STAT_COLORS, WEAPON_GATE_COLOR } from '../config/colors'
 import { getRoadHalfWidth } from './road'
 import { clampStat, type RunStats, type StatKey } from './upgrades'
+import { WEAPON_LABELS, type WeaponKey } from './weapons'
 
 export interface GateOp {
   label: string
@@ -16,7 +17,10 @@ interface GatePair {
   rightText: Phaser.GameObjects.Text
   statLabel: Phaser.GameObjects.Text
   active: boolean
+  kind: 'stat' | 'weapon'
   stat: StatKey
+  leftWeapon: WeaponKey
+  rightWeapon: WeaponKey
   leftOp: GateOp
   rightOp: GateOp
   prevBottomY: number
@@ -117,6 +121,8 @@ export class Gates {
   private readonly runStats: RunStats
   private readonly getAnchorPosition: () => Readonly<{ x: number; y: number }>
   private readonly onStatsChanged: () => void
+  private readonly getWeapon: () => WeaponKey
+  private readonly onWeaponSelected: (weapon: WeaponKey) => void
   private readonly rng: () => number
   private readonly pairs!: GatePair[]
   private readonly baseGateWidth: number
@@ -126,6 +132,7 @@ export class Gates {
   private nextSpawnDelayMs!: number
   private elapsedMs!: number
   private lastPoolWarningAtMs!: number
+  private spawnCount: number
 
   public constructor(
     scene: Phaser.Scene,
@@ -133,12 +140,16 @@ export class Gates {
     getAnchorPosition: () => Readonly<{ x: number; y: number }>,
     onStatsChanged: () => void,
     rng: () => number,
+    getWeapon: () => WeaponKey,
+    onWeaponSelected: (weapon: WeaponKey) => void,
   ) {
     this.scene = scene
     this.runStats = runStats
     this.getAnchorPosition = getAnchorPosition
     this.onStatsChanged = onStatsChanged
     this.rng = rng
+    this.getWeapon = getWeapon
+    this.onWeaponSelected = onWeaponSelected
     this.pairs = []
     this.baseGateWidth = (this.scene.scale.width - BALANCE.gates.gapBetween) / 2
     this.statBag = []
@@ -147,6 +158,7 @@ export class Gates {
     this.nextSpawnDelayMs = BALANCE.gates.firstSpawnDelayMs
     this.elapsedMs = 0
     this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
+    this.spawnCount = 0
 
     for (let index = 0; index < BALANCE.pools.gatePairs; index += 1) this.pairs.push(this.createPair())
   }
@@ -185,7 +197,7 @@ export class Gates {
       fontFamily: 'system-ui', fontSize: '17px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 3, fontStyle: 'bold',
     }).setOrigin(0.5).setActive(false).setVisible(false)
     return {
-      left, right, leftText, rightText, statLabel, active: false, stat: 'hp',
+      left, right, leftText, rightText, statLabel, active: false, kind: 'stat', stat: 'hp', leftWeapon: 'normal', rightWeapon: 'normal',
       leftOp: { label: '', apply: (value) => value }, rightOp: { label: '', apply: (value) => value },
       prevBottomY: 0, triggered: false, flashUntilMs: 0,
     }
@@ -197,24 +209,46 @@ export class Gates {
       this.warnPoolExhausted()
       return
     }
-    const stat = this.nextStat()
-    const operations = drawGatePair(stat, this.runStats.get(stat), this.rng)
+    this.spawnCount += 1
+    const isWeaponGate = this.spawnCount % BALANCE.gates.weaponGateEvery === 0
     const spawnY = -BALANCE.gates.gateHeight / 2
-    const statColor = STAT_COLORS[stat]
-    const statColorCss = `#${statColor.toString(16).padStart(6, '0')}`
-    pair.stat = stat
-    pair.leftOp = operations.left
-    pair.rightOp = operations.right
     pair.active = true
     pair.triggered = false
     pair.flashUntilMs = 0
-    pair.left.setPosition(0, spawnY).setActive(true).setVisible(true).setAlpha(1).setTint(statColor)
-    pair.right.setPosition(0, spawnY).setActive(true).setVisible(true).setAlpha(1).setTint(statColor)
-    pair.leftText.setText(operations.left.label).setActive(true).setVisible(true).setAlpha(1).clearTint()
-    pair.rightText.setText(operations.right.label).setActive(true).setVisible(true).setAlpha(1).clearTint()
-    pair.statLabel.setText(this.statLabel(stat)).setColor(statColorCss).setActive(true).setVisible(true).setAlpha(1).clearTint()
+    if (isWeaponGate) this.configureWeaponGate(pair, spawnY)
+    else this.configureStatGate(pair, spawnY)
     this.layoutPair(pair)
     pair.prevBottomY = spawnY + BALANCE.gates.gateHeight / 2
+  }
+
+  private configureStatGate(pair: GatePair, spawnY: number): void {
+    const stat = this.nextStat()
+    const operations = drawGatePair(stat, this.runStats.get(stat), this.rng)
+    const statColor = STAT_COLORS[stat]
+    const statColorCss = `#${statColor.toString(16).padStart(6, '0')}`
+    pair.kind = 'stat'
+    pair.stat = stat
+    pair.leftOp = operations.left
+    pair.rightOp = operations.right
+    pair.left.setPosition(0, spawnY).setActive(true).setVisible(true).setAlpha(1).setTint(statColor)
+    pair.right.setPosition(0, spawnY).setActive(true).setVisible(true).setAlpha(1).setTint(statColor)
+    pair.leftText.setFontSize('34px').setText(operations.left.label).setActive(true).setVisible(true).setAlpha(1).clearTint()
+    pair.rightText.setFontSize('34px').setText(operations.right.label).setActive(true).setVisible(true).setAlpha(1).clearTint()
+    pair.statLabel.setText(this.statLabel(stat)).setColor(statColorCss).setActive(true).setVisible(true).setAlpha(1).clearTint()
+  }
+
+  private configureWeaponGate(pair: GatePair, spawnY: number): void {
+    const currentWeapon = this.getWeapon()
+    const choices = this.drawWeaponPair(currentWeapon)
+    const colorCss = `#${WEAPON_GATE_COLOR.toString(16).padStart(6, '0')}`
+    pair.kind = 'weapon'
+    pair.leftWeapon = choices.left
+    pair.rightWeapon = choices.right
+    pair.left.setPosition(0, spawnY).setActive(true).setVisible(true).setAlpha(1).setTint(WEAPON_GATE_COLOR)
+    pair.right.setPosition(0, spawnY).setActive(true).setVisible(true).setAlpha(1).setTint(WEAPON_GATE_COLOR)
+    pair.leftText.setFontSize('26px').setText(WEAPON_LABELS[choices.left]).setActive(true).setVisible(true).setAlpha(1).clearTint()
+    pair.rightText.setFontSize('26px').setText(WEAPON_LABELS[choices.right]).setActive(true).setVisible(true).setAlpha(1).clearTint()
+    pair.statLabel.setText('WAFFE').setColor(colorCss).setActive(true).setVisible(true).setAlpha(1).clearTint()
   }
 
   private movePair(pair: GatePair, movement: number): void {
@@ -240,6 +274,12 @@ export class Gates {
     pair.triggered = true
     pair.flashUntilMs = this.elapsedMs + BALANCE.feedback.hitFlashMs
     const selectedLeft = anchorX < this.scene.scale.width / 2
+    if (pair.kind === 'weapon') {
+      this.onWeaponSelected(selectedLeft ? pair.leftWeapon : pair.rightWeapon)
+      ;(selectedLeft ? pair.left : pair.right).setTintFill(0xffffff)
+      ;(selectedLeft ? pair.leftText : pair.rightText).setTintFill(0xffffff)
+      return
+    }
     const selected = selectedLeft ? pair.leftOp : pair.rightOp
     const current = this.runStats.get(pair.stat)
     const leftResult = clampStat(pair.stat, pair.leftOp.apply(current))
@@ -251,6 +291,15 @@ export class Gates {
     ;(selectedLeft ? pair.left : pair.right).setTintFill(0xffffff)
     ;(selectedLeft ? pair.leftText : pair.rightText).setTintFill(0xffffff)
     this.onStatsChanged()
+  }
+
+  private drawWeaponPair(currentWeapon: WeaponKey): { left: WeaponKey; right: WeaponKey } {
+    const available = (['normal', 'shotgun', 'laser', 'rocket'] as WeaponKey[]).filter((weapon) => weapon !== currentWeapon)
+    const leftIndex = Math.min(available.length - 1, Math.floor(this.rng() * available.length))
+    const left = available[leftIndex]
+    const rightIndex = Math.min(available.length - 2, Math.floor(this.rng() * (available.length - 1)))
+    const right = available[rightIndex >= leftIndex ? rightIndex + 1 : rightIndex]
+    return { left, right }
   }
 
   private recycle(pair: GatePair): void {

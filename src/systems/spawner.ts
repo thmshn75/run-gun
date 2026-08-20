@@ -21,6 +21,7 @@ export class Spawner {
   private intervalDeferredCount: number
   private intervalPlannedCount: number
   private lastSpawnMetricsAtMs: number
+  private nextSpawnId: number
 
   public constructor(scene: Phaser.Scene, runStats: RunStats) {
     this.scene = scene
@@ -34,6 +35,7 @@ export class Spawner {
     this.intervalDeferredCount = 0
     this.intervalPlannedCount = 0
     this.lastSpawnMetricsAtMs = 0
+    this.nextSpawnId = 1
     for (let index = 0; index < BALANCE.pools.enemies; index += 1) {
       const enemy = scene.physics.add.image(0, 0, BALANCE.enemy.types[0].texture)
       enemy.setActive(false).setVisible(false)
@@ -133,6 +135,8 @@ export class Spawner {
     enemy.setData('bodyHeight', type.bodyHeight)
     enemy.setData('flashUntil', 0)
     enemy.setData('lane', lane)
+    enemy.setData('spawnId', this.nextSpawnId)
+    this.nextSpawnId += 1
     this.intervalSpawnCount += 1
     return 'spawned'
   }

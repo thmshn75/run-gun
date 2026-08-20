@@ -20,7 +20,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   public create(): void {
-    this.createProjectileTexture()
+    this.createProjectileTextures()
     this.createRoadTextures()
     this.createGateTexture()
     this.createCoinTexture()
@@ -28,13 +28,33 @@ export class BootScene extends Phaser.Scene {
     this.scene.start('GameScene')
   }
 
-  private createProjectileTexture(): void {
+  private createProjectileTextures(): void {
     const graphics = this.add.graphics()
     graphics.fillStyle(WORLD_COLORS.projectileShell)
     graphics.fillRect(0, 0, 6, 14)
     graphics.fillStyle(WORLD_COLORS.projectileCore)
     graphics.fillRect(1, 1, 4, 9)
-    graphics.generateTexture('projectile', 6, 14)
+    graphics.generateTexture('projectile-normal', 6, 14)
+    graphics.clear()
+    graphics.fillStyle(WORLD_COLORS.shotgunShell)
+    graphics.fillRect(0, 0, 4, 6)
+    graphics.fillStyle(WORLD_COLORS.shotgunCore)
+    graphics.fillRect(1, 1, 2, 3)
+    graphics.generateTexture('projectile-shotgun', 4, 6)
+    graphics.clear()
+    graphics.fillStyle(WORLD_COLORS.laser)
+    graphics.fillRect(0, 0, 3, 20)
+    graphics.generateTexture('projectile-laser', 3, 20)
+    graphics.clear()
+    graphics.fillStyle(WORLD_COLORS.rocketBody)
+    graphics.fillRect(0, 3, 8, 13)
+    graphics.fillStyle(WORLD_COLORS.rocketNose)
+    graphics.fillTriangle(0, 3, 8, 3, 4, 0)
+    graphics.generateTexture('projectile-rocket', 8, 16)
+    graphics.clear()
+    graphics.fillStyle(WORLD_COLORS.splashFlash)
+    graphics.fillCircle(16, 16, 16)
+    graphics.generateTexture('splash-flash', 32, 32)
     graphics.destroy()
   }
 

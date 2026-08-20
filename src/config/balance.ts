@@ -29,7 +29,55 @@ export const BALANCE = {
     speed: { base: 105, cap: 305, floor: 70 },
   },
   weapon: {
-    projectileSpeed: 640,
+    normal: {
+      rateFactor: 1,
+      damageFactor: 1,
+      shootersPerSalvo: 8,
+      bulletsPerShot: 1,
+      fanAngleDeg: 0,
+      projectileSpeed: 640,
+      rangePx: 0,
+      pierces: false,
+      splashRadiusPx: 0,
+      splashDamageFactor: 0,
+    },
+    shotgun: {
+      rateFactor: 0.4,
+      damageFactor: 1.5,
+      shootersPerSalvo: 8,
+      bulletsPerShot: 7,
+      fanAngleDeg: 34,
+      projectileSpeed: 640,
+      rangePx: 280,
+      pierces: false,
+      splashRadiusPx: 0,
+      splashDamageFactor: 0,
+    },
+    laser: {
+      rateFactor: 1.4,
+      damageFactor: 0.4,
+      shootersPerSalvo: 8,
+      bulletsPerShot: 1,
+      fanAngleDeg: 0,
+      projectileSpeed: 900,
+      rangePx: 0,
+      pierces: true,
+      splashRadiusPx: 0,
+      splashDamageFactor: 0,
+    },
+    rocket: {
+      rateFactor: 0.25,
+      damageFactor: 2.5,
+      shootersPerSalvo: 3,
+      bulletsPerShot: 1,
+      fanAngleDeg: 0,
+      projectileSpeed: 300,
+      rangePx: 0,
+      pierces: false,
+      splashRadiusPx: 70,
+      splashDamageFactor: 1.5,
+    },
+    splashFlashMs: 180,
   },
   crowd: {
     start: 3,
@@ -94,6 +142,7 @@ export const BALANCE = {
     gateHeight: 70,
     gapBetween: 8,
     maxRedraws: 8,
+    weaponGateEvery: 4,
     ops: {
       kinds: ['multiply', 'divide', 'add', 'percent'],
       multipliers: [1.5, 2],
@@ -110,8 +159,18 @@ export const BALANCE = {
     edgeInset: 7,
   },
   pools: {
-    // 8 shots/s cap x 8 figures per salvo x ((anchor-Y 714 - despawn-Y 0) / 640px/s = 1.12s) = 72; 96 leaves margin.
-    projectiles: 96,
+    projectiles: {
+      // Peak: ceil(1.12s flight / 0.125s interval) = 9 salvos x 8 shooters x 1 bullet = 72; 96 leaves 33% reserve.
+      normal: 96,
+      // Peak: ceil(0.44s flight / 0.3125s interval) = 2 salvos x 8 shooters x 7 bullets = 112; 128 leaves 14% reserve.
+      shotgun: 128,
+      // Peak: ceil(0.79s flight / 0.089s interval) = 9 salvos x 8 shooters x 1 bullet = 72; 96 leaves 33% reserve.
+      laser: 96,
+      // Peak: ceil(2.38s flight / 0.5s interval) = 5 salvos x 3 shooters x 1 bullet = 15; 24 leaves 60% reserve.
+      rocket: 24,
+    },
+    // Peak: 2 salvos/s x 3 rockets x 0.18s = 1.1 flashes; 12 leaves generous reserve.
+    splashFlashes: 12,
     // Heavy enemies at the 70 SPD floor move at 49px/s, so crossing 844px takes 17.2s; at 450ms spawns that permits up to 39 concurrent enemies. 48 leaves reserve.
     enemies: 48,
     // Must be >= crowd.max because all figures are created once and then only shown or hidden.

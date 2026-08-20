@@ -7,6 +7,8 @@ export const STAT_COLORS: Record<StatKey, number> = {
   speed: 0xff4fa3,
 }
 
+export const WEAPON_GATE_COLOR = 0xb18cff
+
 export const WORLD_COLORS = {
   background: 0x10131d,
   backgroundLine: 0x172033,
@@ -16,6 +18,12 @@ export const WORLD_COLORS = {
   roadCenterLine: 0xd8e0ef,
   projectileShell: 0xe8590c,
   projectileCore: 0xffc078,
+  shotgunShell: 0xffb347,
+  shotgunCore: 0xffe08a,
+  laser: 0x7af4ff,
+  rocketBody: 0x8c96a5,
+  rocketNose: 0xf03e3e,
+  splashFlash: 0xffcf8a,
   coinRim: 0x5e4400,
   coinBody: 0xffd84c,
   gateBase: 0xffffff,
