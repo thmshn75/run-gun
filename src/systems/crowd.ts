@@ -16,13 +16,13 @@ export class Crowd {
     this.anchorY = anchorY
     this.members = []
 
-    const firstSprite = scene.add.image(anchorX, anchorY, 'player-placeholder')
+    const firstSprite = scene.add.image(anchorX, anchorY, 'player')
     const hullWidth = firstSprite.displayWidth
     const hullHeight = firstSprite.displayHeight
     firstSprite.setActive(false).setVisible(false)
 
     for (let index = 0; index < BALANCE.pools.crowd; index += 1) {
-      const sprite = index === 0 ? firstSprite : scene.add.image(anchorX, anchorY, 'player-placeholder')
+      const sprite = index === 0 ? firstSprite : scene.add.image(anchorX, anchorY, 'player')
       sprite.setActive(false).setVisible(false)
       this.members.push({ sprite, offsetX: 0, offsetY: 0 })
     }

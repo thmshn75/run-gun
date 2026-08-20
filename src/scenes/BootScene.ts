@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import playerUrl from '../assets/player.png'
 import { BALANCE } from '../config/balance'
 
 export class BootScene extends Phaser.Scene {
@@ -6,8 +7,11 @@ export class BootScene extends Phaser.Scene {
     super('BootScene')
   }
 
+  public preload(): void {
+    this.load.image('player', playerUrl)
+  }
+
   public create(): void {
-    this.createPlayerTexture()
     this.createProjectileTexture()
     this.createEnemyTexture()
     this.createBackgroundTexture()
@@ -15,16 +19,6 @@ export class BootScene extends Phaser.Scene {
     this.createCoinTexture()
 
     this.scene.start('GameScene')
-  }
-
-  private createPlayerTexture(): void {
-    const graphics = this.add.graphics()
-    graphics.fillStyle(0x56d6ff)
-    graphics.fillRect(0, 0, 34, 46)
-    graphics.fillStyle(0xdaf6ff)
-    graphics.fillRect(6, 6, 22, 12)
-    graphics.generateTexture('player-placeholder', 34, 46)
-    graphics.destroy()
   }
 
   private createProjectileTexture(): void {
