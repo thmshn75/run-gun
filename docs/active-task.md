@@ -8,8 +8,11 @@
 kein aktiver Task
 
 <!-- Nächster Task: E2 — Spielbarer Kern. Voraussetzung laut Plan: Thomas' iPhone-Test
-     von E1 (dafür GitHub-Repo anlegen, siehe Todo). E1 wurde am 2026-08-19 APPROVED
-     und committet (a73cbc3); Review-Notes stehen in der Git-Historie dieses Files. -->
+     von E1. E1 wurde am 2026-08-19 APPROVED und committet (a73cbc3); Review-Notes
+     stehen in der Git-Historie dieses Files.
+     Repo + Pages seit 2026-08-20 live: https://github.com/thmshn75/run-gun
+     → veröffentlicht unter https://thmshn75.github.io/run-gun/ (Deploy via Actions,
+     erster Lauf grün). -->
 
 ## Kontext
 _Warum dieser Task? Was ist der Zusammenhang?_
