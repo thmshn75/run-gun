@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -102,3 +102,34 @@ Datei oder ein Verzicht auf die Ladefunktion — ohne sie ist der Export wertlos
 
 Kriterien 1 bis 8 prüft Claude am laufenden Spiel nach, Kriterium 5 mit einem absichtlich
 zerstörten Text und einem Vergleich des Speicherstands vorher und nachher.
+
+## Implementation Summary
+
+- Menü zeigt bis zu fünf Läufe mit Platz, Münzen, Level und Laufzeit sowie den Leerzustand;
+  SICHERN/LADEN öffnen jeweils eine beim Schließen vollständig entfernte DOM-Ansicht.
+- Game Over erhält den erreichten Platz, zeigt die Kurzliste und hebt den eigenen gespeicherten
+  Lauf hervor; ein Run außerhalb der Top Ten erhält keinen Platz.
+- Import validiert vor dem Schreiben und behält bei Fehler den bisherigen Stand; der Test deckt
+  diesen unveränderten Speicherstand zusätzlich ab.
+
+
+## Review-Ergebnis (Claude, am laufenden Spiel gemessen)
+
+Alle neun Kriterien erfuellt.
+
+- **Kriterium 1:** Leere Liste zeigt genau den Satz „Noch kein Lauf gewertet."; gefuellte Liste
+  zeigt fuenf Zeilen mit Platz, Muenzen, Level und Zeit als `m:ss` — bei sechs gespeicherten
+  Eintraegen also korrekt nur die besten fuenf.
+- **Kriterium 2:** Nach einem Lauf zeigt Game Over `PLATZ 7`, darunter die besten Laeufe mit
+  dem **eigenen Eintrag gelb hervorgehoben**.
+- **Kriterium 3 und 7:** SICHERN zeigt ein Textfeld mit `font-size: 16px` und dem
+  vollstaendigen Spielstand (328 Zeichen), der `parseSave` besteht.
+- **Kriterium 4:** Stand auf 7 Muenzen und leere Liste gesetzt, dann den gesicherten Text
+  geladen — der Speicherstand ist danach **zeichengleich** der gesicherte.
+- **Kriterium 5, die wichtigste Stelle:** Mit `{kaputt,,,` als Eingabe blieb der gespeicherte
+  Stand **bitgleich** erhalten, und im Feld stand der Grund: „Text ist kein gueltiger
+  Spielstand."
+- **Kriterium 6:** Vor dem Oeffnen 1 DOM-Element neben dem Canvas, waehrend der Ansicht 6,
+  nach dem Schliessen wieder **1**. Es bleibt nichts zurueck, das spaeter Eingaben abfaengt.
+- **Kriterium 9:** `npm run check`, `npm run build`, `npm test` selbst im Terminal, alle
+  exit 0; acht Tests.

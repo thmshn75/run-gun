@@ -77,6 +77,15 @@ describe('save system', () => {
     ]) expect(parseSave(text).ok).toBe(false)
   })
 
+  it('keeps the stored game untouched after a rejected import', () => {
+    const saved = { ...defaultSave(), coins: 88, upgrades: { team: 1, damage: 0, rate: 0 } }
+    writeSave(saved)
+    const parsed = parseSave('{kaputt')
+    if (parsed.ok) writeSave(parsed.data)
+    expect(parsed).toEqual({ ok: false, reason: 'Text ist kein gültiger Spielstand.' })
+    expect(loadSave()).toEqual(saved)
+  })
+
   it('drops unknown fields from valid imports', () => {
     const result = parseSave(JSON.stringify({ ...defaultSave(), unexpected: 'discard me' }))
     expect(result.ok).toBe(true)

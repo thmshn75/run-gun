@@ -7,7 +7,7 @@ import { Crowd } from '../systems/crowd'
 import { Gates } from '../systems/gates'
 import { getRoadHalfWidth, Road } from '../systems/road'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
-import { addScore, loadSave, writeSave } from '../systems/save'
+import { addScore, loadSave, qualifiesForScores, writeSave } from '../systems/save'
 import { Spawner } from '../systems/spawner'
 import { getUpgradeStartValue, RunStats } from '../systems/upgrades'
 import { Weapons, type WeaponKey } from '../systems/weapons'
@@ -353,9 +353,12 @@ export class GameScene extends Phaser.Scene {
     this.gameOverStarted = true
     const runCoins = this.coins.getCount()
     const saved = loadSave()
+    const scorePlace = qualifiesForScores(saved, runCoins)
+      ? saved.scores.filter((score) => score.coins >= runCoins).length + 1
+      : undefined
     const withScore = addScore(saved, { coins: runCoins, level: this.currentLevel, timeMs: this.elapsedMs })
     writeSave({ ...withScore, coins: withScore.coins + runCoins, highestLevel: Math.max(withScore.highestLevel, this.currentLevel) })
-    this.scene.start('GameOverScene', { coins: runCoins })
+    this.scene.start('GameOverScene', { coins: runCoins, scorePlace })
   }
 
   private updateLevelPhase(dt: number): void {
