@@ -24,9 +24,14 @@ _Kein laufender Task._
 
 Reihenfolge und Details in `docs/plan.md` und `docs/naechste-tasks.md`.
 
-- **E5 — Boss, Level, Persistenz.** Der einzige echte Rest bis zur Definition „fertig":
-  mehrere vollständige Runs offline **inklusive Boss**, Fortschritt übersteht Force-Quit,
-  Save-Export/Import als Pflichtteil (iOS kann Website-Daten ohne Vorwarnung verwerfen).
+- **E5 — Boss, Level, Persistenz, Startbildschirm, Bestenliste.** Der einzige echte Rest bis
+  zur Definition „fertig": mehrere vollständige Runs offline **inklusive Boss**, Fortschritt
+  übersteht Force-Quit, Save-Export/Import als Pflichtteil (iOS kann Website-Daten ohne
+  Vorwarnung verwerfen). Dazu neu aufgenommen (Thomas-Entscheidung 2026-08-21): ein
+  **Startbildschirm mit einem von Codex erzeugten Bild** und eine **lokale Bestenliste**.
+  Beides ist in `docs/plan.md` im Abschnitt „Startbildschirm und Bestenliste" spezifiziert.
+  **Eine Entscheidung steht dort noch offen:** wonach gewertet wird — Vorschlag sind die in
+  einem Run gesammelten Münzen, plus Level und Laufzeit als Zusatzangabe.
 - **E4c** — Gegner als Truppen.
 - **3D-Schritt 2** — Figuren wachsen beim Näherkommen. Nur, wenn Thomas Schritt 1 nicht reicht.
 - **E6 — V1-Abnahme.**

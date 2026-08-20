@@ -10,6 +10,11 @@ spezifiziert und laufen als neue Etappe **E4** nach dem Balancing. Die frühere 
 „kein `+Soldiers`-Upgrade" ist damit aufgehoben. Der Rest des Deckels gilt unverändert:
 keine weiteren Features, bevor die Definition „fertig" erreicht ist.
 
+**Scope-Erweiterung V1.2 (Thomas-Entscheidung 2026-08-21):** Zwei weitere Punkte kommen
+bewusst dazu und laufen in **E5** mit — ein **Startbildschirm mit einem von Codex erzeugten
+Bild** und eine **lokale Bestenliste auf dem Gerät**. Beides ist unten im Abschnitt
+„Startbildschirm und Bestenliste" spezifiziert. Der Rest des Deckels gilt unverändert.
+
 **Klarstellung „privat":** Ab dem Deploy bedeutet privat „unbeworben", nicht „nicht-öffentlich" —
 public Repo + Pages-URL sind technisch für jeden erreichbar. Quellcode, Tuning-Werte und
 Code-Kommentare sind damit öffentlich sichtbar. Ist das nicht gewollt: Cloudflare Pages statt
@@ -25,7 +30,9 @@ zahlen oder einen externen Dienst zu konfigurieren.
 ## Nicht-Ziele V1
 
 - Keine Sounds-Pflicht (nur wenn CC0-Assets + sauberer iOS-Audio-Unlock trivial machbar; V1 darf stumm sein)
-- Keine Highscore-Server, keine Telemetrie, keine Cookies, keine externen APIs
+- Keine Highscore-**Server**, keine Telemetrie, keine Cookies, keine externen APIs.
+  Die lokale Bestenliste aus V1.2 widerspricht dem nicht: Sie liegt ausschliesslich im
+  Speicher des Geraets, wird nie versendet und braucht kein Backend.
 - Kein Android-/Desktop-Feinschliff (muss nur nicht kaputt sein; primär iPhone/Safari)
 
 ## Stack & Entscheidungen
@@ -89,6 +96,9 @@ public/              Manifest-Assets, Icons (192/512), Apple-Touch-Icon, .nojeky
 - **Coins:** Gegner droppen Coins → automatisch eingesammelt (Magnetradius), Zählung im HUD.
 - **Permanent zwischen Levels:** einfache Stufenkäufe im Menü (z. B. Start-Damage, Start-HP), Preise steigen pro Stufe. Alles in `balance.ts`.
 - Save nach jedem Levelabschluss und bei Game Over.
+- **Die Bestenliste liegt im selben Save-Objekt** `rungun_save_v1` und wird damit vom
+  Export/Import mit erfasst. Eine getrennte Ablage waere der sichere Weg, sie beim
+  naechsten Datenverlust von iOS zu verlieren, waehrend der Rest gerettet ist.
 - **Export/Import (Pflichtteil von E5):** Export als JSON-Text über Share-Sheet/Kopieren. Import über ein sichtbares `<textarea>` mit manuellem Einfügen (Long-Press-Paste) — **kein** `navigator.clipboard.readText()`, dessen Verhalten in einer iOS-Standalone-PWA nicht verlässlich ist (kann still leer zurückkommen). Vor jedem Überschreiben validiert `save.ts` JSON-Struktur und Versionsfeld; bei Fehler klare Meldung, der bestehende Save bleibt unangetastet.
 
 ## Tor-Mathematik (Thomas-Entscheidung 2026-08-20)
@@ -150,6 +160,45 @@ Leichte Gegner haben 1 HP, sind mit Faktor 1,35 schnell und geben 1 Münze; Stan
 - Alle Waffenwerte in `balance.ts`; **getrennter Projektil-Pool je Typ**, jeder mit eigener
   dokumentierter Herleitung.
 
+## Startbildschirm und Bestenliste (Thomas-Entscheidung 2026-08-21)
+
+Beides läuft in E5 mit, weil es dieselbe Speicherung und dieselbe Menü-Szene braucht wie die
+permanenten Upgrades und die Startwaffe.
+
+### Startbildschirm
+
+- Eine eigene Szene **vor** der GameScene. Heute startet `BootScene` direkt ins Spiel; künftig
+  startet sie in den Startbildschirm, von dort geht es per Tippen in den Run.
+- Der Startbildschirm trägt ohnehin schon zwei im Plan vorgesehene Dinge: die **Stufenkäufe**
+  für permanente Upgrades und die **Wahl der Startwaffe**. Er wird also nicht zusätzlich
+  gebaut, sondern bekommt ein Gesicht.
+- **Das Bild erzeugt Codex** nach dem im Projekt bewährten Verfahren: groß erzeugen, freistellen
+  falls nötig, dann auf Zielgröße herunterrechnen; große Vorlage nach `assets/probe/`, das
+  fertige Bild nach `src/assets/`. Direkt in Zielgröße erzeugen hat im Projekt schon einmal ein
+  unbrauchbares Ergebnis geliefert (`docs/lessons.md`).
+- **Motiv:** passend zum Spiel — die Truppe auf der Straße, Zombies im Hintergrund, Tageslicht
+  wie im Spiel. Kein Text im Bild; Titel und Knöpfe zeichnet das Spiel darüber, sonst sind sie
+  nicht änderbar und skalieren nicht mit.
+- Das Bild wird **lokal gebündelt** wie alle anderen Assets. Keine Requests zur Laufzeit.
+- Format: Hochformat, muss die volle Fläche 390 × 844 abdecken, ohne dass Titel oder Knöpfe
+  auf unruhigem Untergrund stehen — beim Erzeugen eine ruhige Zone einplanen.
+
+### Bestenliste
+
+- **Rein lokal** im Gerät, im selben Save-Objekt wie der übrige Fortschritt. Kein Server, kein
+  Versand, keine Namenseingabe von außen.
+- **Vorschlag für die Wertung, beim Spezifizieren von E5 von Thomas zu bestätigen:** gewertet
+  wird die in einem Run gesammelte **Münzzahl**, dazu als Zusatzangabe das erreichte Level und
+  die Laufzeit. Münzen sind die Größe, die der Spieler ohnehin im HUD verfolgt.
+- **Zehn Einträge**, absteigend. Ein neuer Run kommt nur hinein, wenn er besser ist als der
+  zehnte; sonst ändert sich nichts.
+- Angezeigt auf dem Startbildschirm und nach dem Game Over, dort mit hervorgehobenem eigenen
+  Eintrag, wenn der Run es in die Liste geschafft hat.
+- **Keine Namenseingabe in V1** — es ist Thomas' Gerät und Thomas' Liste. Eine Tastatur in einer
+  iOS-Standalone-PWA ist zudem eine eigene Fehlerquelle.
+- Die Liste ist Teil von Export und Import. Sonst überlebt der Fortschritt einen Datenverlust
+  und die Bestenliste nicht.
+
 ## Etappen (je ein Codex-Task, Claude reviewt, Thomas testet am iPhone)
 
 **Feedback-Loop, gilt für jede Etappe:** Codex kann iPhone-Kriterien (Gamefeel, Performance,
@@ -163,7 +212,7 @@ Desktop-Preview zählen nicht als Nachweis.
 | **E2 — Spielbarer Kern** | Auto-Run-Scrolling, Auto-Fire, einfache Gegner, Kollision, HP + iFrames, Game Over/Restart; Objekt-Pools nach Spezifikation oben | Pool-Checkpunkte im Review bestanden (kein `destroy()`/`create()` im Hot Path); Loop läuft am iPhone flüssig und Steuerung fühlt sich direkt an (Thomas-Urteil) |
 | **E3 — Gates, Coins, Balancing** | Upgrade-Gates **nach Abschnitt „Tor-Mathematik"** (gemischte Operatoren, zustandsabhängig gezogene Paare, neutrale Beschriftung), Coin-Drop + HUD, Balance-Iteration über `balance.ts` | Pool-Checkpunkte gelten auch für Coins und Gates (kein `destroy()`/`create()` im Hot Path); Torpaare sind aus dem aktuellen Wert hergeleitet (dieselbe Stelle im Level liefert bei anderem Stand ein anderes Paar) und es führen nie beide Seiten eines Paares auf 0; 2–3-Minuten-Run erzeugt spürbares „stärker werden" (Thomas-Urteil, max. 3 Balance-Zyklen — siehe Reißleinen) |
 | **E4 — Truppe & Waffentypen** | Truppe nach Abschnitt „Truppe" (Formation, Truppengröße als Lebensanzeige, gedeckelte Schützenzahl), Truppen-Tore mit gemischten Operatoren, drei Zusatzwaffen nach Abschnitt „Waffentypen" + Waffen-Tore | Truppen-Pool-Checkpunkt bestanden (`CROWD_MAX` einmalig erzeugt, kein `create()`/`destroy()` zur Laufzeit); Projektilzahl bleibt bei maximaler Truppe im selben Rahmen wie bei einer Figur (im Code nachweisbar über `CROWD_SHOOTERS`); volle Truppe + Schrotflinte ruckelt am iPhone nicht (Thomas-Urteil); Torwahl fühlt sich als Entscheidung an, nicht als Reflex (Thomas-Urteil) |
-| **E5 — Boss, Level, Persistenz** | Boss, Levelabschluss → nächstes Level, permanente Upgrades, localStorage-Save **plus Save-Export/Import nach Spezifikation im Abschnitt Upgrade-System** | Mehrere Runs hintereinander; Fortschritt übersteht Force-Quit + Neustart; Export → Löschen → Import stellt den Stand wieder her; korrupter/unvollständiger Import-Text erzeugt eine Fehlermeldung und lässt den bestehenden Save unangetastet |
+| **E5 — Boss, Level, Persistenz, Startbildschirm, Bestenliste** | Boss, Levelabschluss → nächstes Level, permanente Upgrades, localStorage-Save **plus Save-Export/Import nach Spezifikation im Abschnitt Upgrade-System**; dazu **Startbildschirm mit erzeugtem Bild** und **lokale Bestenliste** nach dem Abschnitt „Startbildschirm und Bestenliste" | Mehrere Runs hintereinander; Fortschritt übersteht Force-Quit + Neustart; Export → Löschen → Import stellt den Stand wieder her; korrupter/unvollständiger Import-Text erzeugt eine Fehlermeldung und lässt den bestehenden Save unangetastet; das Spiel startet auf dem Startbildschirm statt direkt im Run; ein besserer Run erscheint danach in der Bestenliste, ein schlechterer verdrängt keinen Eintrag; die Liste übersteht Force-Quit + Neustart und ist im Export enthalten |
 | **E6 — V1-Abnahme** | Finale Icons, README (Start/Build/Deploy), Aufräumen | Update-Pfad: neue Version wird nach Force-Quit + Neuöffnen sichtbar; Netzwerk-Null-Check: Safari Web Inspector (USB) zeigt im Online-Normalbetrieb keine Requests an fremde Hosts; `.map`-Dateien nicht im Deploy; Definition „fertig" komplett erfüllt |
 
 E1 zieht das Infrastruktur-Risiko (Subpfad, SW, Installation) bewusst an den Anfang: Scheitert
@@ -185,7 +234,7 @@ das Deploy-Setup, fällt es in der billigsten Etappe auf — nicht am Ende, wenn
 - **Reißleine E3 (Spielspaß):** Maximal 3 Balance-Zyklen mit konkreten `balance.ts`-Änderungen. Macht der Run danach immer noch keinen Spaß, ist das Problem strukturell (Encounter-/Gate-Design) — dann Design-Entscheidung mit Thomas statt endlosem Zahlendrehen.
 - **Reißleine E4 (Truppen-Performance):** Ruckelt die volle Truppe am iPhone, wird `CROWD_MAX` gesenkt (30 → 20 → 12) und `CROWD_SHOOTERS` bleibt unangetastet. Erst wenn auch 12 Figuren ruckeln, ist das Problem nicht die Zahl, sondern die Zeichenweise — dann Formation als eine gemeinsame Textur statt N Sprites prüfen. Die Mechanik selbst wird nicht zurückgebaut.
 - **Reißleine E4 (Waffen):** Zwei Zusatzwaffen mit spürbar unterschiedlichem Gefühl sind mehr wert als drei, die sich gleich anfühlen. Fühlt sich eine nach einem Balance-Zyklus immer noch wie eine Variante des Standards an, fliegt sie raus statt weiter getunt zu werden.
-- **Feature-Deckel:** MVP-Punkte 1–14 aus der Spec plus die beiden Erweiterungen V1.1 (Truppe, Waffentypen) sind der Deckel. Kein Feature außerhalb, bevor Definition „fertig" erfüllt ist.
+- **Feature-Deckel:** MVP-Punkte 1–14 aus der Spec plus die Erweiterungen V1.1 (Truppe, Waffentypen) und V1.2 (Startbildschirm mit Bild, lokale Bestenliste) sind der Deckel. Kein Feature außerhalb, bevor Definition „fertig" erfüllt ist.
 
 ## Kosten- und Privacy-Check (Abo-/Kostenlos-Regel)
 
