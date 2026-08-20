@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "check": "tsc --noEmit",
-    "make-icons": "node scripts/make-icons.mjs"
+    "make-icons": "python3 scripts/make-icons.py"
   },
   "dependencies": {
     "phaser": "3.90.0"
