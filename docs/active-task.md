@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -58,3 +58,14 @@ Precache-Manifest nicht als lesbarer String in `sw.js` liegt: nicht raten und ni
 wechseln — stoppen und melden, welche Struktur `sw.js` tatsächlich hat.
 **Kein zulässiger Ersatz:** Runtime-Caching (`runtimeCaching`) statt Precache — beim ersten
 Offline-Start nach Installation wäre der Cache leer, genau der Fall, der hier repariert wird.
+
+## Implementation Summary
+
+- Workbox precacht nun JavaScript, CSS, HTML, PNGs und das Webmanifest; beide Manifest-Icons
+  sind zusätzlich als Assets aufgenommen. Die bestehende Service-Worker-Aktivierung blieb
+  unverändert.
+- `tests/precache.test.ts` vergleicht nach einem Build die tatsächlichen `dist/`-Dateien mit
+  dem Precache und hält zugleich das Fehlen von Source-Maps fest. `npm run test:dist` baut
+  vorher und lief erfolgreich durch.
+- Einzeldatei-Check: größte Datei `assets/index-C9AWj2aB.js` mit 1.325.180 Bytes, daher kein
+  Workbox-Limit nötig. README enthält die beiden manuellen iPhone-Abnahme-Checks.

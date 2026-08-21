@@ -32,3 +32,14 @@ Vorschau wird der Service Worker erzeugt; im Dev-Server fehlt er absichtlich.
    enthält den Pfad `/run-gun/`.
 
 Vor einem Deploy lokal `npm run build` und `npm run check` ausführen.
+
+## Abnahme-Checks (E6)
+
+**Offline-Start:** Das installierte Spiel per USB mit Safari Web Inspector verbinden,
+im Netzwerk-Tab die Verbindung des iPhones deaktivieren und mehrere Läufe starten. Die
+Request-Liste muss dabei leer bleiben; die Strings `phaser.io` und `bit.ly` im Bundle sind
+nur Phasers Konsolen-Banner, keine Anfragen.
+
+**Update sichtbar:** Nach einem Deploy das installierte Spiel einmal öffnen, dann per
+Force-Quit vollständig beenden und erneut starten. Die neue Version muss danach sichtbar
+sein; so wird geprüft, dass der aktualisierte Service Worker übernommen wurde.
