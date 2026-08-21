@@ -45,3 +45,19 @@ Jede Nutzerkorrektur wird hier als Regel eingetragen. Zu Sitzungsbeginn lesen.
 ### 2026-08-21 — Argumentreihenfolge einer Physik-Rueckruffunktion zum zweiten Mal falsch angenommen
 - **Fehler:** `physics.add.overlap(gruppe, einzelObjekt, callback)` liefert die Argumente als `(einzelObjekt, gruppenkind)` — umgekehrt zur Registrierungsreihenfolge. Der Trefferbehandler las die Waffe vom Boss statt vom Projektil, warf jedes Bild eine Ausnahme, der Boss nahm keinen Schaden, und die geworfene Ausnahme brach zusaetzlich den restlichen Kollisionsdurchlauf ab, sodass auch die Boss-Geschosse die Truppe nie trafen. Dieselbe Falle war im selben Projekt schon einmal aufgetreten und stand als Kommentar zwei Zeilen darueber im Code.
 - **Regel:** Die Reihenfolge der Rueckrufargumente einer Physik-Ueberlappung nie voraussetzen — auch nicht, wenn man sie beim letzten Mal nachgeschlagen hat. Die beteiligten Objekte werden **an ihren eigenen Daten erkannt** (welches traegt die Waffenmarke, welches die Schadensmarke), nicht an ihrer Position im Aufruf. Ein Kommentar, der die richtige Reihenfolge festhaelt, verhindert den Fehler nachweislich nicht; eine Hilfsfunktion, die ihn unmoeglich macht, schon. Und: Eine Ausnahme in einem Kollisions-Rueckruf reisst still weitere Kollisionspruefungen desselben Bildes mit — der sichtbare Schaden ist dann groesser als die Fehlerstelle und zeigt woanders hin.
+
+### 2026-08-21 — Zahlen fuer eine Nutzerentscheidung geschaetzt statt gerechnet
+Die Auswahlvorschau zur Boss-Daempfung nannte Kampfdauern (24/20/17/15 s), die aus dem Kopf
+geschaetzt waren. Die anschliessende Rechnung mit den echten `balance.ts`-Werten ergab
+40/29/23/20 s — eine Abweichung von bis zu 67 %. Thomas hat auf dieser Basis entschieden.
+**Regel:** Zahlen, die in einer Entscheidungsvorlage stehen, sind Balance-Modellrechnungen und
+unterliegen derselben Pflicht wie die in der Spec: erst aus `balance.ts` ableiten, dann
+anzeigen. Ist das vor der Frage nicht leistbar, die Vorschau ohne Zahlen formulieren statt mit
+geschaetzten.
+
+### 2026-08-21 — Auswahloption ohne Zuordnung beschriftet, Rueckfrage ausgeloest
+Die Vorschau `│ ×2 │ +7 │ LASER │` zeigte die Anordnung der drei Torspuren, aber nicht, welche
+Spur was bewirkt. Thomas verstand es als "die Waffe steckt in einem Rechen-Tor" und
+widersprach — obwohl die gewaehlte Variante genau sein Anliegen umsetzte.
+**Regel:** In einer Auswahlvorschau bekommt jedes Element eine Wirkungsbeschriftung, nicht nur
+eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element tut.
