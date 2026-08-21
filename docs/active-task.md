@@ -1,368 +1,268 @@
 # Active Task
 
 ## Status
-`APPROVED`
+`SPEC_READY`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
-> **Nacharbeit 1 (2026-08-21).** Teil 1, 2 und 3 sind umgesetzt und im Review in Ordnung;
-> `npm run check`, `npm run build` und `npm test` (60 Tests) laufen grün. **Offen ist allein
-> Akzeptanzkriterium 9, die Performance-Messung** — sie scheitert daran, dass die laufende
-> Spielszene von außen nicht erreichbar ist. Dafür der neue Abschnitt „Teil 4" unten. Alles
-> andere in diesem Dokument bleibt unangetastet.
-
 ## Task
-**Waffe in die Boss-Rechnung aufnehmen, Reichweiten von Schrot und Flamme erhöhen,
-Levelanzeige ins HUD.**
+**Teil 1: Schaden und Feuerrate in der Boss-Rechnung messen statt raten (Bug).
+Teil 2: Kulisse am Straßenrand — Bäume und Häuser, die vorbeiziehen.**
 
-Thomas' iPhone-Test vom 2026-08-21: „Level 1 Boss mit Laser nicht besiegbar" und „das Level soll
-auch im HUD in der Mitte stehen".
-
-**Das ist kein weiterer Balance-Anlauf auf die Kampfdauer.** Die Reißleine aus dem letzten Task
-verbietet, an `teamDampening`, `fightSecAtMaxTeam` oder `maxFightSec` zu drehen — daran wird
-auch nichts gedreht. Hier fehlt eine **Größe in der Formel**: Die Boss-Lebenspunkte werden
-immer mit `weapon.normal` gerechnet, egal welche Waffe der Spieler trägt. Das ist ein
-Strukturfehler derselben Art wie die geratene Truppengröße, nur bei der zweiten Variablen.
+Thomas' iPhone-Test vom 2026-08-21: „konnte Level 1 Boss nicht besiegen, 3 Team und Rakete und
+Rate down funktioniert halt nicht" sowie „im grünen Bereich hätte ich gerne Bäume und Häuser die
+vorbeiziehen wie am Titelbild".
 
 ---
 
-# Teil 1 — Die Waffe fehlt in der Rechnung
+# Teil 1 — Der dritte und letzte Rest derselben Fehlerklasse
 
 ## Befund
 
-`getBossPlan` und `getBlockerPlan` multiplizieren fest mit
-`BALANCE.weapon.normal.damageFactor` und `BALANCE.weapon.normal.bulletsPerShot` und rechnen die
-Schützenzahl über `crowd.shootersPerSalvo` (8). Die getragene Waffe kommt nicht vor. Tatsächlich
-liegen die Waffen um den **Faktor 18** auseinander — gerechnet als
-`shootersPerSalvo × rateFactor × damageFactor × bulletsPerShot`, normiert auf `normal`:
+Die Boss-Rechnung kannte drei Größen, die sie hätte messen können, und hat sie geraten. Zwei
+sind behoben, **eine fehlt noch**:
 
-| Waffe | Schützen | Feuerkraft ggü. normal | Bosskampf dauert heute |
-|---|---|---|---|
-| Schrot | 8 | 4,200 | 0,24× |
-| Flamme | 3 | 1,148 | 0,87× |
-| Normal | 8 | 1,000 | 1,00× |
-| **Laser** | 8 | **0,560** | **1,79×** |
-| Kettenblitz | 6 | 0,551 | 1,81× |
-| Rakete | 3 | 0,234 | 4,27× |
-| Minigun | 3 | 0,231 | 4,33× |
+| Größe | Woher heute | Status |
+|---|---|---|
+| Truppengröße | ~~aus dem Kaufstand geraten~~ → `runStats.get('hp')` | behoben (`b36fdb0`) |
+| Waffe | ~~immer `weapon.normal`~~ → tatsächliche Waffe | behoben (`8472f94`) |
+| **Schaden und Feuerrate** | **aus Kaufstand + Levelaufschlag geraten** | **offen** |
 
-Die Level-1-Auslegung ist 40 s (kleine Truppe). Mit Laser werden daraus **71 s**. Der Boss
-beginnt nach `boss.pressureDelayMs` (36 s) vorzurücken und steht nach weiteren
-`(634 − 300) / advanceSpeed (34) = 9,8 s`, also ab **Sekunde 45,8**, auf dem Spieler und macht
-Dauerschaden. Ein 71-Sekunden-Kampf ist damit nicht zu gewinnen. Genau das beschreibt Thomas.
-Mit Rakete oder Minigun wären es 171 s.
+In `getBossPlan` und `getBlockerPlan` steht weiterhin:
 
-Splash- und Kettenschaden sind bewusst **nicht** in der Tabelle: Gegen ein Einzelziel bringt
-`splashRadiusPx` keinen Zusatzschaden, und `chainCount` findet kein zweites Ziel.
+```ts
+const damage = Math.min(reference.damageCap, damageUpgrade.base + upgrades.damage * ... + (level-1) * ...)
+const rate   = Math.min(reference.rateCap,   rateUpgrade.base   + upgrades.rate   * ... + (level-1) * ...)
+```
 
-## Entscheidung: Truppe und Waffe getrennt dämpfen
+Das ist eine **Annahme über den Kaufstand**, nicht der Wert, mit dem der Spieler schießt. Die
+DMG- und RATE-Tore verändern `runStats` im Run in beide Richtungen — genau darum geht es bei der
+Tor-Mathematik. Wer ein RATE-Tor nach unten nimmt, schießt langsamer, der Boss bekommt aber
+unverändert die Lebenspunkte für die angenommene Feuerrate.
 
-Eine gemeinsame Dämpfung funktioniert nicht — nachgerechnet: Truppe (Faktor 16) und Waffe
-(Faktor 18) ergeben zusammen Faktor 75, und ein einzelner Exponent, der das ins Zielfenster
-bringt, macht die Truppenstärke unspürbar. Das widerspräche Thomas' Entscheidung vom selben Tag.
+Thomas' Fall nachgerechnet — Level 1, frischer Spielstand, Truppe 3, Rakete:
 
-Deshalb zwei getrennte Exponenten, und zwar aus einem inhaltlichen Grund:
+| Tatsächliche Werte | Kampf dauert | |
+|---|---|---|
+| damage 1, rate 3 (= die Annahme) | 40,0 s | gerade noch schaffbar |
+| damage 1, rate 1,5 (RATE einmal runter) | **80,0 s** | nicht schaffbar |
+| damage 1, rate 1 (RATE zweimal runter) | **120,0 s** | nicht schaffbar |
+| damage 0,7, rate 1 (RATE und DMG runter) | **171,4 s** | nicht schaffbar |
 
-- **Die Truppe ist verdient** — sie wächst durch gute Torentscheidungen im Run. Sie bleibt bei
-  `teamDampening = 0.41`, also deutlich spürbar. **Unverändert.**
-- **Die Waffe ist Zufall** — sie fällt aus einem Tor oder hinter einer Sperre. Sie darf den Boss
-  nicht unschaffbar machen, soll aber nicht völlig folgenlos sein. Neu:
-  **`weaponDampening = 0.8`**, also zu 80 % ausgeglichen.
+Der Boss wird ab Sekunde 45,8 tödlich. Alles über 40 s ist verloren.
 
 ## Umsetzung
 
-### 1.1 Zwei Kennzahlen statt einer
+### 1.1 Die letzten zwei geratenen Größen verschwinden
 
-In `src/systems/bossPlan.ts`. `getTeamFirepower` bleibt **unverändert** — sie ist die
-Truppen-Kennzahl und wird weiter für die Truppen-Dämpfung benutzt. Neu dazu:
+`getBossPlan` und `getBlockerPlan` bekommen `damage` und `rate` **als Parameter**, aus
+`runStats.get('damage')` und `runStats.get('shotsPerSec')`. Die Herleitung aus
+`upgradesShop.*.base + upgrades.* + (level − 1) × *PerLevel` entfällt in der DPS-Rechnung.
 
-```ts
-// Feuerkraft der Waffe, normiert auf die Normalwaffe. Normal = 1.0, Schrot = 4.2,
-// Minigun = 0.231. Splash und Kette fehlen bewusst: gegen ein Einzelziel wirken sie nicht.
-export function getWeaponFirepower(weapon: WeaponKey): number {
-  const config = BALANCE.weapon[weapon]
-  return (config.shootersPerSalvo / BALANCE.crowd.shootersPerSalvo)
-    * config.rateFactor * config.damageFactor * config.bulletsPerShot
-}
+`referenceFirepower.damagePerLevel`, `damageCap`, `ratePerLevel` und `rateCap` werden dadurch
+für den DPS nicht mehr gebraucht — **sie bleiben aber als Anker für die Dämpfung erhalten**
+(Abschnitt 1.3) und behalten ihre Werte. Kein toter Code: Wer sie streicht, bricht die Dämpfung.
 
-// Der tatsächliche Schadensausstoß, mit dem der Spieler wirklich schießt.
-// Hier zählt die echte Schützenzahl der Waffe, nicht die der Truppe.
-export function getCombatFirepower(teamSize: number, weapon: WeaponKey): number {
-  const config = BALANCE.weapon[weapon]
-  return Math.min(teamSize, config.shootersPerSalvo)
-    * getCrowdDamageMultiplier(teamSize)
-    * config.rateFactor * config.damageFactor * config.bulletsPerShot
-}
-```
+### 1.2 Ein Clamp beendet die Serie strukturell
 
-`getWeaponFirepower` steuert **nur die Dämpfung**, `getCombatFirepower` liefert den **echten
-DPS**. Die beiden sind nicht dasselbe: Bei einer Truppe unter der Schützenzahl der Waffe
-(`min(2, 3)` bei der Rakete) weicht der echte Ausstoß vom normierten Verhältnis ab. Wer beide
-zusammenlegt, bekommt bei kleinen Truppen falsche Lebenspunkte.
-
-### 1.2 Neuer Wert in `balance.ts`
+Bisher wurde nach unten nichts begrenzt und nach oben nur durch `maxFightSec`. Neu ist die
+Kampfdauer **beidseitig geklemmt**:
 
 ```ts
-// Ausgleich der Waffenstärke in den Boss-Lebenspunkten. 0 = Waffe wird ignoriert
-// (der Fehler, an dem Level 1 mit Laser unschaffbar war), 1 = voll ausgeglichen,
-// jede Waffe legt den Boss gleich schnell. 0.8 lässt die Waffe spürbar, ohne dass eine
-// schwache Waffe den Kampf über den Zeitdruck hinaus zieht.
-weaponDampening: 0.8,
+// Untergrenze, damit ein starker Run den Boss nicht wieder zerplatzen lässt — das war der
+// Ausgangsfehler. Obergrenze, damit kein Run über das Zeitdruckfenster hinausläuft.
+minFightSec: 15,
+maxFightSec: 40,   // unverändert
 ```
 
-`teamDampening`, `fightSecAtMaxTeam` und `maxFightSec` bleiben **unangetastet** (0.41 / 20 / 40).
-
-### 1.3 Die Formel in `getBossPlan`
-
-`getBossPlan(level, upgrades, teamSize)` bekommt einen vierten Parameter **`weapon: WeaponKey`**.
-
 ```
-referenceDps = getCombatFirepower(teamSize, weapon) × damage(level) × rate(level)
-fightSec     = min(maxFightSec,
-                   fightSecAtMaxTeam
-                   × (getTeamFirepower(crowd.max) / getTeamFirepower(teamSize)) ^ teamDampening
-                   × (1 / getWeaponFirepower(weapon)) ^ (1 − weaponDampening))
-maxHp        = min(hpCap, round(referenceDps × fightSec))
+echterDps = getCombatFirepower(teamSize, weapon) × damage × rate      // alles gemessen
+fightSec  = clamp(minFightSec, maxFightSec, fightSecAtMaxTeam × Truppenterm × Waffenterm × Statterm)
+maxHp     = min(hpCap, round(echterDps × fightSec))
 ```
 
-Der Waffen-Term ist `1` für die Normalwaffe — `fightSecAtMaxTeam = 20` behält damit seine
-Bedeutung: 20 Sekunden bei maximaler Truppe **und Normalwaffe**. Der Kommentar an dem Wert ist
-entsprechend zu ergänzen.
+**Das ist der eigentliche Fix.** Weil `maxHp` aus dem *echten* Ausstoß gebildet wird, ist die
+tatsächliche Kampfdauer exakt `fightSec` — und die liegt per Konstruktion zwischen 15 und 40
+Sekunden. Für **jede** Kombination aus Truppe, Waffe, Schaden, Feuerrate, Level und Kaufstand,
+ohne dass man Fälle durchprobieren muss. Damit ist diese Fehlerklasse geschlossen, nicht nur der
+gemeldete Fall.
 
-Nachgerechnet ergibt das (Ausschnitt, alle 49 Kombinationen liegen zwischen 15 und 40 s):
+### 1.3 Der neue Stat-Term
 
-| Truppe | Normal | Schrot | Laser | Rakete | Minigun | Flamme | Blitz |
-|---|---|---|---|---|---|---|---|
-| 2 | 40 s | 40 s | 40 s | 40 s | 40 s | 40 s | 40 s |
-| 6 | 40 s | 30 s | 40 s | 40 s | 40 s | 39 s | 40 s |
-| 12 | 29 s | 22 s | 33 s | 39 s | 39 s | 29 s | 33 s |
-| 20 | 24 s | 18 s | 26 s | 32 s | 32 s | 23 s | 27 s |
-| 30 | 20 s | 15 s | 22 s | 27 s | 27 s | 19 s | 23 s |
+Analog zum Waffen-Term. Die bisher **geratenen** Werte bleiben als Bezugspunkt — sie
+beschreiben, was ein durchschnittlicher Run an dieser Stelle hätte:
 
-**Kein Fall überschreitet 40 s**, und der Boss wird erst ab Sekunde 45,8 gefährlich. Die
-4 Sekunden Puffer sind knapp gewollt — so wirkt der Zeitdruck aus E8 spürbar, ohne zu töten.
+```
+Statterm = (angenommenDamage × angenommenRate / (echtDamage × echtRate)) ^ (1 − statDampening)
+```
 
-**Diese Kopplung ist zu dokumentieren:** `maxFightSec` (40) muss unter
-`pressureDelayMs / 1000 + (battleY-Weg / advanceSpeed)` (45,8) bleiben. Wer künftig
-`pressureDelayMs`, `advanceSpeed`, `battleY` oder `advanceStopBeforeAnchorPx` ändert, muss
-`maxFightSec` nachziehen. Als Kommentar an `maxFightSec` schreiben.
+```ts
+// Wie stark erspielte Schadens- und Feuerratenwerte die Bosskampfdauer beeinflussen.
+// Gleiche Begründung wie beim Waffen-Wert: spürbar, aber nie so weit, dass ein schlechter
+// Torlauf den Kampf über das Zeitdruckfenster hinauszieht. Der Clamp fängt die Extreme.
+statDampening: 0.8,
+```
 
-### 1.4 Aufrufer
+`teamDampening` (0.41), `weaponDampening` (0.8) und `fightSecAtMaxTeam` (20) bleiben
+**unverändert**. Nachgerechnet ergibt das:
 
-`src/scenes/GameScene.ts` Zeile 610 reicht die getragene Waffe mit durch
-(`this.weapons.getWeapon()`), analog zur Truppengröße. Die Waffe kann sich während des
-Bosskampfs nicht ändern — Tore und Sperren laufen in der Bossphase nicht —, der Plan bleibt
-also korrekt eingefroren.
+| Fall | Dauer |
+|---|---|
+| **Thomas: Truppe 3, Rakete, rate 1** | **40,0 s** (vorher 120,0 s) |
+| Truppe 3, Normalwaffe, rate 1 | 40,0 s |
+| Truppe 12, Normalwaffe, dmg 3, rate 4 | 22,3 s |
+| Truppe 30, Schrot, dmg 20, rate 8 (Top-Run) | 15,0 s |
+| Truppe 30, Minigun, dmg 1, rate 1 | 33,4 s |
+| Truppe 2, Minigun, dmg 1, rate 1 (schlimmster Fall) | 40,0 s |
 
-### 1.5 Sperren ziehen mit, weiterhin ungedämpft
+### 1.4 Sperren
 
-`getBlockerPlan` hat denselben Fehler: Mit Laser hält eine Sperre 3,6 s statt der vorgesehenen
-2,0 s, mit Minigun 8,7 s. Sie bekommt ebenfalls die Waffe und benutzt `getCombatFirepower` —
-**ohne jede Dämpfung**, damit die Zerstörungsdauer für jede Waffe konstant 2,0 s bleibt. Die
-Sperre ist ein Hindernis mit fester Kosten-Nutzen-Rechnung, keine Belohnung.
+`getBlockerPlan` bekommt `damage` und `rate` genauso aus `runStats` — **ohne Dämpfung und ohne
+Clamp**, damit eine Sperre für jeden Zustand konstant 2,0 s hält. Aufrufer in
+`src/systems/blockers.ts` reicht die Werte beim Spawn durch, wie schon Truppe und Waffe.
+
+### 1.5 Verhältnis zur Reißleine des letzten Tasks
+
+Die Reißleine verbietet, an `teamDampening`, `fightSecAtMaxTeam` oder `maxFightSec` zu drehen.
+**Daran wird nichts gedreht.** Hier werden zwei Größen von *geraten* auf *gemessen* umgestellt —
+derselbe Bug wie bei Truppe und Waffe, nur bei der letzten verbliebenen Variablen. Der neue
+Clamp ist keine Feinjustierung, sondern die Garantie, dass die Frage nicht ein viertes Mal
+aufkommt.
 
 ---
 
-# Teil 2 — Schrot und Flamme erreichen den Boss nicht
+# Teil 2 — Kulisse am Straßenrand
 
-## Befund
+## Ziel
 
-Der Boss steht bei `boss.battleY = 300`, der Anker bei `844 − 130 = 714`. Abstand: **414 px**.
-`rangePx` recycelt Projektile, sobald sie diese Strecke zurückgelegt haben
-(`src/systems/weapons.ts`, Zeile 136). Schrot hat 280 px, Flamme 190 px — **beide treffen den
-Boss die ersten 36 Sekunden überhaupt nicht**, bis er vorgerückt ist.
-
-Ohne Behebung würde Teil 1 die Lage sogar verschlimmern: Die Schrotflinte gilt dort als
-stärkste Waffe und bekäme den zähesten Boss — den sie nicht trifft.
-
-## Entscheidung (Thomas, 2026-08-21)
-
-**Die Reichweiten werden erhöht, der Boss bleibt, wo er ist.** Verworfen wurden: Boss näher
-stellen (weniger Ausweichzeit) und ein Mittelweg. Thomas ist bekannt und akzeptiert, dass beide
-Waffen dadurch auch gegen normale Gegner weiter reichen und ihren Nahkampf-Charakter verlieren.
-
-- `weapon.shotgun.rangePx`: 280 → **430**
-- `weapon.flamethrower.rangePx`: 190 → **430**
-
-430 statt 414, damit ein Projektil, das leicht schräg fliegt (Schrot fächert 34°, Flamme 52°),
-den Boss noch erreicht.
-
-## Folge: beide Projektil-Pools reichen nicht mehr
-
-Längere Reichweite heißt längere Flugzeit heißt mehr Projektile gleichzeitig im Bild. Neu
-gerechnet bei `shotsPerSec`-Cap 8:
-
-| Waffe | Salven/s | Flugzeit neu | Spitzenbedarf | Pool heute | Pool neu |
-|---|---|---|---|---|---|
-| Schrot | 3,2 | 430/640 = 0,672 s | 120,4 | 144 | **168** (39 % Reserve) |
-| Flamme | 14,4 | 430/620 = 0,694 s | 149,8 | 88 | **200** (33 % Reserve) |
-
-Die Kommentare über den Werten in `pools.projectiles` sind mit der neuen Rechnung zu ersetzen.
-
-## Das muss gemessen werden, nicht angenommen
-
-**150 gleichzeitig aktive Flammen-Projektile sind der höchste Wert, den dieses Spiel je hatte** —
-bisheriges Maximum waren 112 (Schrot). Genau in diesem Bereich lag am 2026-08-21 das Ruckeln.
-Seit `64fc795` prüft die Kollision zwar nur noch gegen die aktive Waffe, aber 150 Projektile
-gegen bis zu 88 Gegner sind trotzdem die dichteste Last im Spiel.
-
-Vor der Fertigmeldung ist eine Messung Pflicht, nach dem Verfahren aus `docs/UEBERGABE.md`:
-Playwright mit CDP, `Emulation.setCPUThrottlingRate {rate: 8}`, Frame-Zeiten über
-`requestAnimationFrame` sammeln, **mit Flammenwerfer bei voller Truppe in einem späten Level**.
-Screenshot als Gegenprobe, dass wirklich das Spiel lief und nicht das Menü. Gemessene
-Frame-Zeit in den Abschlussbericht.
-
----
-
-# Teil 3 — Levelanzeige im HUD
+Der grüne Bereich links und rechts der Straße ist heute eine leere Fläche. Er soll aussehen wie
+auf dem Titelbild (`src/assets/title.png`): Bäume, Büsche, Steine, Häuser und Zäune, die mit der
+Straße vorbeiziehen. Reine Kulisse — **kein Spielelement**.
 
 ## Umsetzung
 
-Das HUD-Panel hat in Zeile 1 links die Truppengröße (`hp`, Origin links) und rechts die Münzen
-(Origin rechts). **Die Mitte ist frei** — dorthin kommt die Levelanzeige:
+### 2.1 Bilder
 
-- Position `panelX + panelW / 2`, `rowOneY`, Origin `(0.5, 0)`.
-- Stil: `primaryHudStyle` wie Truppe und Münzen, damit die Zeile einheitlich wirkt.
-- Text: `LEVEL <n>`, wobei `<n>` die tatsächliche Levelnummer ist (`currentLevel`), nicht die
-  Design-Levelnummer aus der Zwölfer-Schleife. Ab Level 13 steht dort also 13, nicht 1.
-- Farbe: eine eigene, ruhige HUD-Farbe aus `src/config/colors.ts`. **Nicht** eine der
-  Stat-Farben wiederverwenden — die stehen im HUD für Truppe, Schaden, Feuerrate und Tempo und
-  bekämen sonst eine zweite Bedeutung.
-- Wird bei jedem Levelwechsel mit aktualisiert (`updateHud()`), wie die anderen Felder.
-- Das bestehende `levelOverlay` („LEVEL X GESCHAFFT") bleibt unverändert. Es ist die
-  Zwischenmeldung, nicht die Daueranzeige.
+Codex erzeugt die Sprites im Stil von `src/assets/title.png` (Pixel-Art, gleiche Farbwelt,
+gleiche Kantenhärte). Mindestens fünf verschiedene, damit sich das Muster nicht sofort
+wiederholt:
 
-Prüfen, dass `LEVEL 12` bei `primaryFontPx` (22 px) zwischen Truppe und Münzen passt, ohne sie
-zu überlappen — die Zeile ist `panelW` breit, links und rechts stehen je etwa 60 px Text.
-Reicht der Platz nicht, wird die Levelanzeige auf `secondaryFontPx` verkleinert, **nicht** eines
-der anderen Felder verschoben.
+- ein Laubbaum, ein zweiter Baum in anderer Form/Größe
+- ein Busch oder eine Grasgruppe
+- ein Stein oder Felsblock
+- ein kleines Haus oder eine Hütte
+
+Alle mit transparentem Hintergrund, Fußpunkt unten mittig (Origin `(0.5, 1)`), damit sie auf dem
+Boden stehen und nicht schweben. Größe so, dass ein Baum am unteren Bildrand etwa 90–130 px hoch
+wirkt; die Perspektive macht ihn oben kleiner.
+
+### 2.2 Bewegung und Perspektive
+
+Eigenes System `src/systems/scenery.ts` nach dem Muster der bestehenden Systeme:
+
+- Objekte erscheinen bei `road.horizonY` und wandern mit `BALANCE.scrollSpeed` nach unten —
+  **dieselbe Geschwindigkeit wie die Straße**, sonst schwimmt die Kulisse gegen den Untergrund.
+- Die Größe wächst mit der Perspektive, hergeleitet aus derselben Funktion, die die Straße
+  benutzt: `getRoadHalfWidth(width, height, y)`. Am Horizont ist die Straße `topWidthRatio 0.46`
+  breit, unten `bottomWidthRatio 1` — der Maßstab eines Kulissenobjekts folgt genau diesem
+  Verhältnis. Keine zweite, eigene Perspektivformel.
+- **Seitliche Position:** außerhalb der Straße. Der linke Rand der Straße bei Höhe `y` liegt bei
+  `width/2 − getRoadHalfWidth(…, y)`, der rechte spiegelbildlich. Ein Objekt steht mit einem
+  Zufallsabstand von `scenery.marginPx` bis `scenery.marginPx + scenery.spreadPx` **außerhalb**
+  dieser Kante. Weil die Straße nach unten breiter wird, wandern die Objekte dabei automatisch
+  nach außen aus dem Bild — genau wie auf dem Titelbild.
+- Ein Objekt, dessen Oberkante unter `scale.height` liegt oder das seitlich vollständig aus dem
+  Bild gelaufen ist, wird recycelt.
+- Erscheinungsrhythmus: `scenery.spawnIntervalMs` mit einer Zufallsstreuung, Seite (links/rechts)
+  und Art werden gezogen. Beide Seiten unabhängig, damit keine Symmetrie entsteht.
+
+### 2.3 Ebene
+
+Neue Ebene in `BALANCE.layers` **zwischen** `background (-1)` und `road (0)`, damit die Kulisse
+über dem Boden, aber unter Straße, Gegnern, Toren und Truppe liegt. Nichts darf ein Spielelement
+verdecken — die Kulisse steht ohnehin neben der Straße, aber die Ebene sichert es ab.
+
+### 2.4 Pool, mit Herleitung
+
+Wie jedes andere System: alle Objekte einmal im Konstruktor, kein `create()`/`destroy()` zur
+Laufzeit.
+
+Herleitung: Ein Objekt braucht von `horizonY` (150) bis zum unteren Rand (844) `694 px` bei
+`scrollSpeed 180 px/s`, also **3,86 s**. Bei `spawnIntervalMs = 900` und zwei Seiten sind das
+`3,86 / 0,9 × 2 = 8,6` gleichzeitig sichtbare Objekte. **Pool `scenery: 16`** lässt 86 % Reserve
+für die Zufallsstreuung im Rhythmus.
+
+Kulissenobjekte sind reine Bilder ohne Physikkörper und ohne Kollisionsprüfung — sie kosten
+Zeichenzeit, keine Rechenzeit. Die Regel „nie alle Pools in eine Physik-Gruppe legen" wird nicht
+berührt, weil hier gar keine Physik im Spiel ist.
+
+### 2.5 Nicht mitnehmen
+
+Keine Wolken, keine Skyline, keine Vögel, keine Animation der Objekte. Das Titelbild zeigt eine
+Skyline am Horizont — die ist Teil des Bildes, nicht Teil dieses Tasks. Feature-Deckel aus
+`docs/plan.md` gilt.
 
 ---
-
-# Teil 4 — Entwickler-Zugang für Messungen
-
-## Befund
-
-Akzeptanzkriterium 9 verlangt eine Frame-Zeit-Messung mit **Flammenwerfer bei voller Truppe**.
-Der Flammenwerfer ist erst ab Level 3 erreichbar und nur über ein Tor oder eine Sperre — per
-Playwright ist dieser Zustand nicht in vertretbarer Zeit herstellbar. Die Phaser-Instanz aus
-`src/main.ts` ist an keine erreichbare Stelle gebunden, also lässt sich der Zustand auch nicht
-von außen setzen. Damit ist das Kriterium ohne Vorarbeit nicht erfüllbar — und das gilt für
-**jede künftige Messung**, nicht nur für diese.
-
-## Verlangte Umsetzung
-
-Ein Handle, das **ausschließlich im Entwicklungsmodus** existiert:
-
-1. In `src/main.ts`, hinter `if (import.meta.env.DEV)`:
-   `(window as unknown as { __runGun?: Phaser.Game }).__runGun = game`
-2. In `src/scenes/GameScene.ts`, ebenfalls hinter `import.meta.env.DEV`, eine Methode
-   `public debugSetState(options: { level?: number; teamSize?: number; weapon?: WeaponKey }): void`,
-   die Level, Truppengröße und Waffe über die vorhandenen Wege setzt — `equipWeapon()`,
-   `runStats.set('hp', …)` und den bestehenden Levelwechsel. **Keine neuen Seitenwege**: Die
-   Methode ruft, was das Spiel ohnehin ruft, damit ein gesetzter Zustand derselbe ist wie ein
-   erspielter.
-
-**Das ist ein Messwerkzeug, kein Feature.** Bedingungen:
-
-- Im Produktions-Build darf nichts davon übrig bleiben. Nachweisbar über
-  `grep -r "__runGun\|debugSetState" dist/` nach `npm run build` — kein Treffer.
-- Kein Aufruf aus dem Spielcode heraus; die Methode wird ausschließlich von außen benutzt.
-- Der Weg gehört anschließend in `docs/UEBERGABE.md` unter „Leistung messen", damit die nächste
-  Sitzung ihn nicht erneut erfinden muss.
-
-## Zusätzliches Akzeptanzkriterium
-
-13. `window.__runGun` und `GameScene.debugSetState` existieren im Dev-Server und ermöglichen es,
-    Level, Truppengröße und Waffe von der Browser-Konsole aus zu setzen. Nach `npm run build`
-    findet `grep -r "__runGun\|debugSetState" dist/` **keinen** Treffer. Der Weg ist in
-    `docs/UEBERGABE.md` dokumentiert.
 
 ## Ausdrücklich nicht ändern
 
-- `teamDampening` (0.41), `fightSecAtMaxTeam` (20), `maxFightSec` (40) — die Reißleine des
-  letzten Tasks gilt.
-- `boss.battleY`, `pressureDelayMs`, `advanceSpeed`, `advanceStopBeforeAnchorPx` — Thomas hat
-  sich gegen einen näheren Boss entschieden.
-- Die Bossphasen, Begleiter-Grenzen, die Truppen-Mechanik, die Tor-Mathematik, E10.
-- `rangePx` der übrigen Waffen (Laser, Rakete, Minigun, Blitz stehen auf 0 = unbegrenzt und
-  bleiben so).
+- `teamDampening` (0.41), `weaponDampening` (0.8), `fightSecAtMaxTeam` (20), `maxFightSec` (40).
+- Die Bossphasen, das Vorrücken, `pressureDelayMs`, `battleY`, Begleiter-Grenzen.
+- Die Tor-Mathematik, E10, die Reichweiten und Poolgrößen aus `8472f94`.
+- Der Entwickler-Zugang `window.__runGun` / `debugSetState` — er wird für die Abnahme gebraucht.
+- Straße, Horizont und Perspektivformel. Die Kulisse benutzt sie, sie ändert sie nicht.
 
 ---
 
 ## Akzeptanzkriterien
 
-1. `getWeaponFirepower` und `getCombatFirepower` sind exportiert; `getBossPlan` und
-   `getBlockerPlan` benutzen `getCombatFirepower` und rechnen nirgends mehr fest mit
-   `weapon.normal`.
-2. Unit-Test über **alle sieben Waffen** und die Truppengrößen 2, 4, 6, 8, 12, 20, 30, für die
-   Level 1, 6 und 12 und für frischen wie voll gekauften Spielstand: `referenceFightSec` liegt
-   zwischen **15 und 40 Sekunden**. Kein Fall darf herausfallen — das sind die Fälle, in denen
-   der Boss heute unschaffbar ist.
-3. Unit-Test: `referenceFightSec` überschreitet nie `maxFightSec`, und `maxFightSec` ist kleiner
-   als `pressureDelayMs / 1000 + (battleY-Weg / advanceSpeed)`. Der Test rechnet diese Grenze
-   aus den Balance-Werten aus, statt 45,8 als Zahl einzusetzen.
-4. Unit-Test: Eine stärkere Waffe verkürzt den Kampf bei gleicher Truppe (Monotonie über
-   `getWeaponFirepower`), und die Truppen-Monotonie aus dem letzten Task bleibt erhalten.
-5. `getWeaponFirepower('normal')` ist exakt 1; `getWeaponFirepower('shotgun')` ist 4,2.
-6. `getBlockerPlan` liefert für **jede** Waffe, jede geprüfte Truppengröße und jedes Level eine
-   Zerstörungsdauer zwischen 1,5 und 2,5 s — bei ungedämpfter Rechnung also durchgehend 2,0 s.
-7. `weapon.shotgun.rangePx` und `weapon.flamethrower.rangePx` stehen auf 430; ein Test weist
-   nach, dass beide größer sind als der Abstand `anchorY − boss.battleY`, aus den Balance-Werten
-   berechnet.
-8. `pools.projectiles.shotgun = 168` und `pools.projectiles.flamethrower = 200`, Kommentare mit
-   der neuen Flugzeit-Rechnung. Ein Test weist nach, dass beide Pools über dem aus den
-   Balance-Werten berechneten Spitzenbedarf liegen.
-9. **Gemessen, nicht geschätzt:** Frame-Zeit mit Flammenwerfer bei voller Truppe unter
-   8-facher CPU-Drosselung, mit Screenshot-Gegenprobe, Ergebnis im Abschlussbericht.
-10. Die Levelanzeige steht mittig in Zeile 1 des HUD, zeigt die tatsächliche Levelnummer und
-    überlappt weder Truppe noch Münzen.
-11. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch; bestehende Tests
-    werden auf die neuen Signaturen umgestellt, nicht gelöscht.
-12. **Nur nach Thomas' iPhone-Test erfüllbar:** Level-1-Boss ist mit **jeder** Waffe zu
-    besiegen, insbesondere mit Laser, Rakete und Minigun.
+1. `getBossPlan` und `getBlockerPlan` erhalten `damage` und `rate` als Parameter; in ihrer
+   DPS-Rechnung kommt keine Herleitung aus `upgradesShop` oder `*PerLevel` mehr vor.
+2. Die Aufrufer reichen `runStats.get('damage')` und `runStats.get('shotsPerSec')` durch.
+3. `minFightSec: 15` existiert; `fightSec` ist beidseitig geklemmt.
+4. **Der entscheidende Test:** Über das Kreuzprodukt aus Truppengrößen `[2, 3, 6, 12, 20, 30]`,
+   **allen sieben Waffen**, Schadenswerten `[1, 3, 10, 20]`, Feuerraten `[1, 1.5, 3, 8]`, Leveln
+   `[1, 6, 12]` und beiden Kaufständen liegt `referenceFightSec` **immer** zwischen 15 und 40
+   Sekunden. Das sind über 8.000 Fälle — der Test läuft sie durch, statt Stichproben zu nehmen.
+5. Ein Test für Thomas' konkreten Fall: Level 1, frischer Spielstand, Truppe 3, Rakete,
+   `damage = 1`, `rate = 1` → `referenceFightSec ≤ 40` und `maxHp` liegt unter dem Wert, den die
+   alte geratene Rechnung ergeben hätte.
+6. `getBlockerPlan` liefert über dasselbe Kreuzprodukt eine Zerstörungsdauer zwischen 1,5 und
+   2,5 s.
+7. Kulissenobjekte erscheinen links und rechts **außerhalb** der Straßenkante — ein Test weist
+   über `getRoadHalfWidth` nach, dass kein Objekt bei seiner Höhe in die Straße ragt.
+8. Der Maßstab eines Kulissenobjekts folgt derselben Perspektive wie die Straßenbreite; im Test
+   nachgewiesen, dass er bei `horizonY` kleiner ist als am unteren Rand und dem Verhältnis der
+   Straßenbreiten entspricht.
+9. `pools.scenery` existiert mit der Herleitung im Kommentar; im Review nachweisbar, dass die
+   Kulissen-Objekte nur im Konstruktor erzeugt werden.
+10. Die Kulisse liegt auf einer Ebene unter `layers.road` und verdeckt kein Spielelement.
+11. Mindestens fünf verschiedene Kulissen-Sprites im Stil von `title.png`, mit transparentem
+    Hintergrund und Fußpunkt-Origin.
+12. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
+13. **Nur nach Thomas' iPhone-Test erfüllbar:** Level-1-Boss ist auch mit kleiner Truppe,
+    schwacher Waffe und gesenkter Feuerrate zu besiegen; die Kulisse wirkt wie auf dem
+    Titelbild und lenkt nicht vom Spielgeschehen ab.
 
 ---
 
 ## Reißleine
 
-**Ruckelt der Flammenwerfer nach der Reichweitenerhöhung am iPhone**, wird zuerst
-`weapon.flamethrower.bulletsPerShot` gesenkt (5 → 4 → 3) und der Pool entsprechend nachgezogen.
-Das trifft die Projektilzahl direkt und lässt Reichweite und Feuerrate unangetastet. **Kein
-zulässiger Ersatz:** die Reichweite wieder senken (dann trifft die Waffe den Boss nicht mehr —
-das war der Ausgangsfehler), oder die Kollisionsprüfung wieder verbreitern.
+**Teil 1 ist mit dem Clamp abgeschlossen.** Sollte ein Bosskampf danach immer noch nicht zu
+gewinnen sein, liegt es **nicht** an den Lebenspunkten — die Dauer ist dann per Konstruktion
+höchstens 40 Sekunden und der Boss wird erst ab 45,8 Sekunden tödlich. Dann ist entweder der
+tatsächliche Schaden nicht der berechnete (Trefferprüfung messen, nicht Zahlen drehen) oder der
+Spieler stirbt vorher an Bossgeschossen und Begleitern — das ist eine Frage des Kampfverhaltens,
+über die Thomas entscheidet. **Kein zulässiger Ersatz:** an `statDampening`, `teamDampening`,
+`weaponDampening`, `minFightSec` oder `maxFightSec` drehen.
 
-**Ist der Boss danach mit einer Waffe immer noch nicht zu schaffen**, wird `weaponDampening`
-einmalig auf 0.9 erhöht (Waffe fast voll ausgeglichen). Reicht auch das nicht, liegt es nicht an
-den Lebenspunkten, sondern daran, dass die Waffe den Boss nicht trifft oder nicht trifft, was
-sie soll — dann Trefferprüfung messen statt Zahlen drehen.
+**Ruckelt die Kulisse am iPhone**, wird `scenery.spawnIntervalMs` erhöht (900 → 1400 → 2000) und
+der Pool entsprechend verkleinert. **Kein zulässiger Ersatz:** die Perspektivrechnung
+vereinfachen oder die Kulisse auf eine Seite beschränken — dann sieht es falsch aus statt
+sparsam. Bleibt es zäh, fliegt Teil 2 raus; er ist Kosmetik und darf das Spielgefühl nicht
+kosten.
 
-**Zeitbudget:** Steht die getrennte Dämpfung nach zwei Nacharbeitszyklen nicht (Kampfdauern
-außerhalb 15–40 s in den Tests), auf die einfachste Form zurückfallen, die das Fenster hält:
-`weaponDampening = 1`, also Waffe voll ausgeglichen, jede Waffe legt den Boss gleich schnell.
-Die Waffe wirkt dann nur noch im normalen Level — und Thomas entscheidet, ob ihm das reicht.
-
-
----
-
-## Messergebnis zu Akzeptanzkriterium 9 (Claude, 2026-08-21)
-
-Gemessen im Dev-Server mit Playwright und CDP, `Emulation.setCPUThrottlingRate {rate: 8}`,
-290 ausgewertete Bilder je Durchlauf. Schlimmster Fall erzwungen: Truppe 30, Level 12,
-`shotsPerSec` am Cap 8, `damage` am Boden 1 (damit Gegner ueberleben und sich stauen).
-
-| Waffe | Median | p95 | max | Geschosse gleichzeitig | Gegner gleichzeitig |
-|---|---|---|---|---|---|
-| Normalwaffe | 16,7 ms | 18,6 ms | 18,7 ms | 32 | 14 |
-| **Flammenwerfer** | **16,7 ms** | 18,5 ms | 18,7 ms | **107** | 8 |
-| Schrot | 16,7 ms | 18,5 ms | 18,6 ms | 96 | 9 |
-
-16,7 ms ist das Bildbudget bei 60 Hz — das Spiel bleibt unter der Grenze, ohne Ausreisser nach
-oben. Zum Vergleich: Der Ruckel-Zustand vom selben Tag lag bei 267 ms; die Methode ist also
-nachweislich empfindlich genug, um Ueberlast zu zeigen.
-
-Die 107 liegen unter dem gerechneten Spitzenbedarf von 149,8, weil pro Salve nur
-`shootersPerSalvo = 3` Figuren feuern und die Salve durch die Truppe rotiert. Die Poolgroesse
-200 bleibt damit konservativ richtig.
-
-Screenshot-Gegenprobe: laufendes Spiel mit Truppe 30, Level 12 und sichtbarem Geschossband —
-nicht das Menue. Die neue Levelanzeige steht darin mittig in der oberen HUD-Zeile.
+**Zeitbudget Teil 2:** Sitzt die Kulisse nach zwei Nacharbeitszyklen optisch nicht (Objekte
+schweben, ragen in die Straße, springen beim Erscheinen), liegt es an der Kopplung von
+Perspektive und Fußpunkt. Dann die Positionsrechnung als reine Funktion nach
+`src/systems/sceneryLayout.ts` ziehen und dort isoliert gegen Tests bringen, statt im
+Zusammenspiel mit Phaser weiterzusuchen.
