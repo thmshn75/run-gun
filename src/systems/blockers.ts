@@ -3,7 +3,6 @@ import { BALANCE } from '../config/balance'
 import { HUD_COLORS } from '../config/colors'
 import { computeBlockerPlacement } from './blockerPlacement'
 import { getBlockerIntervalMs, getBlockerPlan } from './blockerPlan'
-import type { BossUpgradeLevels } from './bossPlan'
 import { getLevelPlan, type LevelPlan } from './levelPlan'
 import { getRoadHalfWidth } from './road'
 import type { WeaponKey } from './weapons'
@@ -19,11 +18,12 @@ interface BlockerPair {
 
 export class Blockers {
   private readonly scene: Phaser.Scene
-  private readonly bossUpgrades: BossUpgradeLevels
   private readonly requestEnemy: () => boolean
   private readonly chooseWeapon: (currentWeapon: WeaponKey) => WeaponKey
   private readonly getCurrentWeapon: () => WeaponKey
   private readonly getTeamSize: () => number
+  private readonly getDamage: () => number
+  private readonly getShotsPerSec: () => number
   private readonly rng: () => number
   private readonly pairs: BlockerPair[]
   private readonly blockerGroup: Phaser.Physics.Arcade.Group
@@ -36,19 +36,21 @@ export class Blockers {
 
   public constructor(
     scene: Phaser.Scene,
-    bossUpgrades: BossUpgradeLevels,
     requestEnemy: () => boolean,
     chooseWeapon: (currentWeapon: WeaponKey) => WeaponKey,
     getCurrentWeapon: () => WeaponKey,
     getTeamSize: () => number,
+    getDamage: () => number,
+    getShotsPerSec: () => number,
     rng: () => number,
   ) {
     this.scene = scene
-    this.bossUpgrades = bossUpgrades
     this.requestEnemy = requestEnemy
     this.chooseWeapon = chooseWeapon
     this.getCurrentWeapon = getCurrentWeapon
     this.getTeamSize = getTeamSize
+    this.getDamage = getDamage
+    this.getShotsPerSec = getShotsPerSec
     this.rng = rng
     this.pairs = []
     this.blockerGroup = scene.physics.add.group()
@@ -164,7 +166,7 @@ export class Blockers {
     if (placement.width < BALANCE.blockers.minWidthPx) return
     const y = BALANCE.road.horizonY
     const x = this.scene.scale.width / 2 + placement.centerOffset
-    const plan = getBlockerPlan(this.levelPlan.level, this.bossUpgrades, this.getTeamSize(), this.getCurrentWeapon())
+    const plan = getBlockerPlan(this.getTeamSize(), this.getCurrentWeapon(), this.getDamage(), this.getShotsPerSec())
     pair.active = true
     pair.broken = false
     pair.weapon = this.chooseWeapon(this.getCurrentWeapon())

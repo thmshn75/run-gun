@@ -16,13 +16,6 @@ function seededRng(seed: number): () => number {
   }
 }
 
-function referenceDps(level: number, upgrades: { team: number; damage: number; rate: number }, teamSize: number, weapon: WeaponKey): number {
-  const reference = BALANCE.boss.referenceFirepower
-  const damage = Math.min(reference.damageCap, BALANCE.upgradesShop.damage.base + upgrades.damage * BALANCE.upgradesShop.damage.effectPerLevel + (level - 1) * reference.damagePerLevel)
-  const rate = Math.min(reference.rateCap, BALANCE.upgradesShop.rate.base + upgrades.rate * BALANCE.upgradesShop.rate.effectPerLevel + (level - 1) * reference.ratePerLevel)
-  return getCombatFirepower(teamSize, weapon) * damage * rate
-}
-
 describe('blockers', () => {
   it('always leaves a full crowd hull plus margin inside the road over 500 placements', () => {
     const minGapPx = BALANCE.crowd.hullWidthFigures * BALANCE.blockers.figureWidthPx + BALANCE.blockers.passageMarginPx
@@ -36,22 +29,32 @@ describe('blockers', () => {
     }
   })
 
-  it('uses actual spawn-time weapon and team firepower for 1.5–2.5 second kills', () => {
-    const full = BALANCE.upgradesShop.prices.length
-    const purchaseStates = [{ team: 0, damage: 0, rate: 0 }, { team: full, damage: full, rate: full }]
+  it('uses measured run stats for 1.5–2.5 second kills across the full cross product', () => {
+    let cases = 0
     for (const level of [1, 6, 12]) {
-      for (const upgrades of purchaseStates) {
+      for (const purchaseState of [
+        { damage: 0, rate: 0 },
+        { damage: BALANCE.upgradesShop.prices.length, rate: 0 },
+        { damage: 0, rate: BALANCE.upgradesShop.prices.length },
+        { damage: BALANCE.upgradesShop.prices.length, rate: BALANCE.upgradesShop.prices.length },
+      ]) {
         for (const weapon of weaponKeys) {
-          for (const teamSize of [2, 4, 6, 8, 12, 20, 30]) {
-            const plan = getBlockerPlan(level, upgrades, teamSize, weapon)
-            const dps = referenceDps(level, upgrades, teamSize, weapon)
-            expect(plan.referenceDps).toBeCloseTo(dps)
-            expect(plan.referenceDestroySec).toBeGreaterThanOrEqual(BALANCE.blockers.minDestroySec)
-            expect(plan.referenceDestroySec).toBeLessThanOrEqual(BALANCE.blockers.maxDestroySec)
+          for (const teamSize of [2, 3, 6, 12, 20, 30]) {
+            for (const damage of [1, 3, 10, 20]) {
+              for (const rate of [1, 1.5, 3, 8]) {
+                const plan = getBlockerPlan(teamSize, weapon, damage, rate)
+                const dps = getCombatFirepower(teamSize, weapon) * damage * rate
+                expect(plan.referenceDps, `L${level}, damage upgrade ${purchaseState.damage}, rate upgrade ${purchaseState.rate}`).toBeCloseTo(dps)
+                expect(plan.referenceDestroySec).toBeGreaterThanOrEqual(BALANCE.blockers.minDestroySec)
+                expect(plan.referenceDestroySec).toBeLessThanOrEqual(BALANCE.blockers.maxDestroySec)
+                cases += 1
+              }
+            }
           }
         }
       }
     }
+    expect(cases).toBe(8064)
   })
 
   it('only assigns blocker cadence to the level-table entries that reserve blockers', () => {

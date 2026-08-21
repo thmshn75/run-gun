@@ -11,6 +11,7 @@ import { getCrowdDamageMultiplier } from '../systems/crowdDamage'
 import { Gates } from '../systems/gates'
 import { getLevelPlan } from '../systems/levelPlan'
 import { getRoadHalfWidth, Road } from '../systems/road'
+import { Scenery } from '../systems/scenery'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { addScore, loadSave, qualifiesForScores, writeSave } from '../systems/save'
 import { Spawner } from '../systems/spawner'
@@ -111,6 +112,7 @@ class ChainFlashPool {
 
 export class GameScene extends Phaser.Scene {
   private road!: Road
+  private scenery!: Scenery
   private crowd!: Crowd
   private weapons!: Weapons
   private spawner!: Spawner
@@ -175,17 +177,19 @@ export class GameScene extends Phaser.Scene {
     this.insets = readSafeAreaInsets(this.game.canvas)
     this.cameras.main.setBackgroundColor(WORLD_COLORS.background)
     this.road = new Road(this)
+    this.scenery = new Scenery(this, () => Phaser.Math.RND.frac())
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
     const getAnchorPosition = (): Readonly<{ x: number; y: number }> => ({ x: this.crowd.getAnchorX(), y: this.crowd.getAnchorY() })
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
     this.spawner = new Spawner(this, this.runStats)
     this.blockers = new Blockers(
       this,
-      this.bossUpgrades,
       () => this.spawner.requestBlockerEnemy(),
       (currentWeapon) => this.spawner.chooseBlockerWeapon(currentWeapon),
       () => this.weapons.getWeapon(),
       () => this.runStats.get('hp'),
+      () => this.runStats.get('damage'),
+      () => this.runStats.get('shotsPerSec'),
       () => Phaser.Math.RND.frac(),
     )
     this.boss = new Boss(
@@ -273,6 +277,7 @@ export class GameScene extends Phaser.Scene {
     const dt = Math.min(rawDeltaMs, BALANCE.maxDeltaMs)
     this.elapsedMs += dt
     this.road.update(dt)
+    this.scenery.update(dt)
     this.crowd.update()
     this.gates.update(dt)
     this.updateLevelPhase(dt)
@@ -609,7 +614,14 @@ export class GameScene extends Phaser.Scene {
       this.levelPhase = 'boss'
       this.levelOverlayBackground.setVisible(false)
       this.levelOverlay.setVisible(false)
-      this.boss.activate(this.currentLevel, this.bossUpgrades, this.runStats.get('hp'), this.weapons.getWeapon())
+      this.boss.activate(
+        this.currentLevel,
+        this.bossUpgrades,
+        this.runStats.get('hp'),
+        this.weapons.getWeapon(),
+        this.runStats.get('damage'),
+        this.runStats.get('shotsPerSec'),
+      )
       return
     }
     this.startLevel()

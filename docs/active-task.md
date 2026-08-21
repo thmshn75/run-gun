@@ -1,8 +1,13 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
+
+> **Nacharbeit 1 (2026-08-21, nach Claude-Review).** Teil 1 und Teil 2 sind umgesetzt und im
+> Review in Ordnung — Formel, Clamp, Kulisse, Sprites und Perspektive stimmen. **Offen ist
+> allein Abschnitt 1.6 unten**, ein Rest aus der alten Formel, der die 15-Sekunden-Garantie
+> bricht. Alles andere bleibt unangetastet.
 
 ## Task
 **Teil 1: Schaden und Feuerrate in der Boss-Rechnung messen statt raten (Bug).
@@ -128,6 +133,57 @@ derselbe Bug wie bei Truppe und Waffe, nur bei der letzten verbliebenen Variable
 Clamp ist keine Feinjustierung, sondern die Garantie, dass die Frage nicht ein viertes Mal
 aufkommt.
 
+### 1.6 `boss.hpCap` bricht die Garantie und muss weg
+
+**Befund aus dem Review:** In `getBossPlan` steht weiterhin
+
+```ts
+const maxHp = Math.min(BALANCE.boss.hpCap, Math.round(referenceDps * fightSec))
+```
+
+`hpCap = 30000` stammt aus der alten Formel, in der die Lebenspunkte aus **geratenen** Werten
+entstanden und deshalb nach oben explodieren konnten. Mit dem Clamp aus 1.2 ist diese Deckelung
+nicht nur überflüssig, sondern **schädlich**: Sie kappt genau die Lebenspunkte, die ein starker
+Run braucht, damit sein Kampf 15 Sekunden dauert.
+
+Nachgerechnet:
+
+| Zustand | HP nach Formel | HP nach `hpCap` | echte Dauer |
+|---|---|---|---|
+| Truppe 30, Schrot, dmg 20, rate 8 | 322.560 | 30.000 | **1,4 s** |
+| Truppe 30, Normal, dmg 20, rate 8 | 76.800 | 30.000 | **5,9 s** |
+| Truppe 30, Normal, dmg 10, rate 8 | 38.400 | 30.000 | **11,7 s** |
+| Truppe 30, Normal, dmg 8, rate 8 | 30.720 | 30.000 | **14,6 s** |
+| Truppe 20, Normal, dmg 10, rate 6 | 19.296 | 19.296 | 15,0 s |
+
+Der Boss platzt bei einem guten Run also weiterhin in 1,4 Sekunden — **exakt der Ausgangsfehler
+dieser ganzen Reihe**, nur an einer anderen Stelle.
+
+**Verlangte Umsetzung:**
+
+1. **`boss.hpCap` entfällt ersatzlos**, in `balance.ts` und in `bossPlan.ts`. Kein toter Wert.
+   Eine obere Grenze braucht es nicht mehr: `maxHp` ist per Konstruktion `echterDps × höchstens
+   maxFightSec` und damit immer genau so groß, wie der Kampf dauern soll.
+2. **`referenceFightSec` gibt die tatsächliche Dauer zurück**, also `maxHp / referenceDps`, nicht
+   den Sollwert `fightSec`. Sonst meldet der Plan eine Dauer, die das Spiel nicht einhält — und
+   genau daran ist dieser Fehler im Test vorbeigelaufen.
+
+**Der Kreuzprodukt-Test aus Akzeptanzkriterium 4 muss entsprechend nachgezogen werden:** Er
+prüft heute `plan.referenceFightSec` und hätte den `hpCap` deshalb nie gefunden. Künftig prüft
+er **`plan.maxHp / plan.referenceDps`** gegen das Fenster 15–40 s. Weil `maxHp` auf ganze Lebenspunkte
+gerundet wird, ist eine Toleranz nötig.
+
+**Korrektur (Claude, nach Codex' Rückmeldung): die Toleranz beträgt 0,5 s, nicht 0,1 s.** Die
+0,1 s waren zu eng gerechnet und in einem Fall nachweislich nicht einhaltbar. Hergeleitet: Der
+Rundungsfehler beträgt höchstens 0,5 Lebenspunkte, die Zeitabweichung also
+`0,5 / kleinstmöglicher Schadensausstoß`. Der kleinste Ausstoß im ganzen Spiel ist **Laser bei
+Truppe 2, Schaden 1, Feuerrate 1 = 1,12 Schaden/s**, das ergibt **0,446 s**. Eine Toleranz von
+0,5 s deckt das ab und bleibt mit 40,5 s weit unter der tödlichen Grenze von 45,8 s.
+
+Diese Herleitung gehört als Kommentar an die Prüfung, damit die Toleranz nicht später
+stillschweigend vergrößert wird. Wer sie über 0,5 s hinaus anhebt, deckt einen echten Fehler zu.
+
+
 ---
 
 # Teil 2 — Kulisse am Straßenrand
@@ -238,8 +294,11 @@ Skyline am Horizont — die ist Teil des Bildes, nicht Teil dieses Tasks. Featur
 10. Die Kulisse liegt auf einer Ebene unter `layers.road` und verdeckt kein Spielelement.
 11. Mindestens fünf verschiedene Kulissen-Sprites im Stil von `title.png`, mit transparentem
     Hintergrund und Fußpunkt-Origin.
-12. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
-13. **Nur nach Thomas' iPhone-Test erfüllbar:** Level-1-Boss ist auch mit kleiner Truppe,
+12. `boss.hpCap` existiert nicht mehr, weder in `balance.ts` noch in `bossPlan.ts`.
+13. `plan.referenceFightSec` entspricht `plan.maxHp / plan.referenceDps` (Toleranz 0,5 s, hergeleitet in 1.6), und
+    der Kreuzprodukt-Test aus Kriterium 4 prüft diesen Quotienten statt des Sollwerts.
+14. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
+15. **Nur nach Thomas' iPhone-Test erfüllbar:** Level-1-Boss ist auch mit kleiner Truppe,
     schwacher Waffe und gesenkter Feuerrate zu besiegen; die Kulisse wirkt wie auf dem
     Titelbild und lenkt nicht vom Spielgeschehen ab.
 
@@ -266,3 +325,32 @@ schweben, ragen in die Straße, springen beim Erscheinen), liegt es an der Koppl
 Perspektive und Fußpunkt. Dann die Positionsrechnung als reine Funktion nach
 `src/systems/sceneryLayout.ts` ziehen und dort isoliert gegen Tests bringen, statt im
 Zusammenspiel mit Phaser weiterzusuchen.
+
+## Implementation Summary
+
+- Boss- und Sperren-DPS verwenden beim Spawn die gemessenen `runStats`-Werte für Schaden und Feuerrate. Die Bossdauer ist mit `minFightSec: 15`, `maxFightSec: 40` und `statDampening: 0.8` beidseitig geklemmt.
+- Fünf transparente Pixel-Art-Kulissensprites sowie ein physikfreier 16er-Pool ziehen perspektivisch neben der Straße vorbei; die Position und Größe folgen `getRoadHalfWidth`.
+- Tests decken das vollständige 8.064-Fälle-Kreuzprodukt, Sperren-Dauer sowie Straßenabstand, Perspektive, Pool und Ebene der Kulisse ab.
+
+
+---
+
+## Messergebnis (Claude, 2026-08-21)
+
+Playwright mit CDP, `Emulation.setCPUThrottlingRate {rate: 8}`, 290 ausgewertete Bilder je
+Durchlauf. Schlimmster Fall erzwungen: Truppe 30, Level 12, `shotsPerSec` am Cap 8, `damage` am
+Boden 1. **Kulisse aktiv.**
+
+| Waffe | Median | p95 | max | Geschosse gleichzeitig |
+|---|---|---|---|---|
+| Normalwaffe | 16,7 ms | 18,5 ms | 18,7 ms | 18 |
+| Flammenwerfer | 16,7 ms | 18,5 ms | 18,7 ms | 105 |
+| Schrot | 16,7 ms | 18,5 ms | 18,7 ms | 112 |
+
+Unveraendert gegenueber der Messung ohne Kulisse (`8472f94`): 16,7 ms Median, keine Ausreisser.
+Die Kulisse kostet messbar nichts — erwartbar, weil sie weder Physikkoerper noch
+Kollisionspruefung hat.
+
+Screenshot-Gegenprobe: laufendes Spiel mit Truppe 30, Level 12, sichtbarer Kulisse (Eiche,
+Tanne, Busch, Stein, Haeuschen) links und rechts ausserhalb der Strasse, mittiger Levelanzeige
+und einem zweispurigen DMG-Tor.

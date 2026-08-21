@@ -51,35 +51,43 @@ export function getBossCompanionLimit(level: number): number {
   return getLevelPlan(Math.max(1, Math.floor(level))).companionLimit
 }
 
-export function getBossPlan(level: number, upgrades: BossUpgradeLevels, teamSize: number, weapon: WeaponKey): BossPlan {
+export function getBossPlan(
+  level: number,
+  upgrades: BossUpgradeLevels,
+  teamSize: number,
+  weapon: WeaponKey,
+  damage: number,
+  rate: number,
+): BossPlan {
   const safeLevel = Math.max(1, Math.floor(level))
   const reference = BALANCE.boss.referenceFirepower
   const damageUpgrade = BALANCE.upgradesShop.damage
   const rateUpgrade = BALANCE.upgradesShop.rate
-  const damage = Math.min(
+  const assumedDamage = Math.min(
     reference.damageCap,
     damageUpgrade.base + upgrades.damage * damageUpgrade.effectPerLevel + (safeLevel - 1) * reference.damagePerLevel,
   )
-  const rate = Math.min(
+  const assumedRate = Math.min(
     reference.rateCap,
     rateUpgrade.base + upgrades.rate * rateUpgrade.effectPerLevel + (safeLevel - 1) * reference.ratePerLevel,
   )
   const referenceDps = getCombatFirepower(teamSize, weapon) * damage * rate
   const maxFirepower = getTeamFirepower(BALANCE.crowd.max)
-  const fightSec = Math.min(
-    reference.maxFightSec,
+  const statTerm = (assumedDamage * assumedRate / (damage * rate)) ** (1 - reference.statDampening)
+  const unclampedFightSec =
     reference.fightSecAtMaxTeam
-      * (maxFirepower / getTeamFirepower(teamSize)) ** reference.teamDampening
-      * (1 / getWeaponFirepower(weapon)) ** (1 - reference.weaponDampening),
-  )
-  const maxHp = Math.min(BALANCE.boss.hpCap, Math.round(referenceDps * fightSec))
+    * (maxFirepower / getTeamFirepower(teamSize)) ** reference.teamDampening
+    * (1 / getWeaponFirepower(weapon)) ** (1 - reference.weaponDampening)
+    * statTerm
+  const fightSec = Math.min(reference.maxFightSec, Math.max(reference.minFightSec, unclampedFightSec))
+  const maxHp = Math.round(referenceDps * fightSec)
 
   return {
     level: safeLevel,
     maxHp,
     phaseThresholdHp: maxHp / 2,
     referenceDps,
-    referenceFightSec: fightSec,
+    referenceFightSec: maxHp / referenceDps,
     phaseOne: BALANCE.boss.phaseOne,
     phaseTwo: BALANCE.boss.phaseTwo,
     companionIntervalMs: BALANCE.boss.companionIntervalMs,
