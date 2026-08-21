@@ -5,79 +5,83 @@
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**E8b — Boss auf starke Läufe auslegen.**
+**E8c — Boss-Lebenspunkte wachsen mit den gekauften Aufwertungen.**
 
-Thomas-Entscheidung vom 2026-08-21, nachdem die Reißleine von E8 gezogen wurde: Die
-Lebenspunkte des Bosses werden mit **aufgewerteter** Feuerrate und **aufgewertetem** Schaden
-gerechnet, nicht mit den Basiswerten. E8 selbst (Phasen, Begleiter, Zeitdruck, getrennte
-Unverwundbarkeit) ist abgenommen und wird **nicht** angefasst.
+Thomas-Entscheidung vom 2026-08-21. Ersetzt den Ansatz aus E8b, der auf eine feste
+Lebenspunktzahl setzte. **Die Änderungen aus E8b sind noch nicht committet** — dieser Task
+baut auf dem aktuellen Arbeitsstand auf und korrigiert ihn.
 
 ---
 
-## Befund aus dem gespielten Bosskampf
+## Befund: Warum eine feste Zahl nicht funktioniert
 
-Im Spiel gemessen (HUD während des Kampfs auf Level 1): **TEAM 22, RATE 5.2, DMG 1.5**. Die
-Referenzrechnung in `src/systems/bossPlan.ts` nimmt dagegen `rateStart: 3` und
-`damageStart: 1` an — also die Werte **ohne** Menü-Käufe und **ohne** Tore. Beide steigen im
-Lauf aber erheblich. Ergebnis heute bei 1426 Lebenspunkten:
+Zwischen einem frischen und einem voll gekauften Spielstand liegt beim Schaden Faktor 3,5
+(1 → 3,5) und bei der Feuerrate Faktor 1,5 (3 → 4,5), zusammen also **Faktor 5,25**. Eine
+feste Lebenspunktzahl ist deshalb zwangsläufig für die eine oder die andere Seite falsch:
 
-| Fall | Feuerkraft | Kampfdauer |
+| Auslegung | frischer Spielstand | voll gekaufter Spielstand |
 |---|---|---|
-| starker Lauf (volle Menü-Käufe, gute Tore) | 185 DPS | 7,7 s |
-| mittlerer Lauf (frischer Spielstand, nur Tore) | 81 DPS | 17,7 s |
-| schwacher Lauf (Truppe 8, keine Aufwertung) | 24 DPS | 59,4 s |
+| auf stark (13.052 HP, Stand E8b) | 162 s — unbesiegbar | 20 s |
+| auf mittel | 35 s | 6 s — zu leicht |
 
 ## Verlangte Umsetzung
 
-1. **Die Referenz-Feuerkraft modelliert künftig einen starken Lauf zum Bosszeitpunkt:** volle
-   permanente Käufe aus `upgradesShop` **plus** die Aufwertung durch Tore während der
-   Fahrtphase. Die drei Größen — Truppengröße, Feuerrate, Schaden — werden begründet gewählt
-   und als Kommentar hergeleitet. Die gemessenen Werte oben sind der Anhaltspunkt für Level 1.
+1. **`getBossPlan` bekommt die gekauften Aufwertungsstufen als Parameter** und berechnet die
+   Referenz-Feuerkraft daraus. Die Funktion bleibt **rein** und ohne Phaser-Abhängigkeit; die
+   Stufen werden übergeben, **nicht** in der Funktion aus dem Speicher gelesen.
 
-2. **Zielkampfdauer für diesen starken Fall: 20 Sekunden**, nicht 30. Begründung, die als
-   Kommentar mit in `balance.ts` gehört: Bei 20 Sekunden für den starken Lauf braucht ein
-   mittlerer Lauf rund 46 Sekunden. Das Vorrücken beginnt nach 36 Sekunden, der mittlere Lauf
-   steht also etwa 10 Sekunden unter Druck und kann den Boss trotzdem noch besiegen. Bei 30
-   Sekunden Ziel wären es 69 Sekunden und damit über 30 Sekunden unter Vorrück-Druck — das
-   überlebt keine Truppe, und der erste Boss wäre mit einem frischen Spielstand unschaffbar.
+2. **Die Referenz-Feuerkraft setzt sich künftig so zusammen:**
+   - **Schaden und Feuerrate** aus den tatsächlich gekauften Stufen, über `upgradesShop`
+     (`base + stufe × effectPerLevel`), zuzüglich des bereits vorhandenen Zuwachses je Level.
+   - **Truppengröße zum Bosszeitpunkt** als eigener Modellwert. Sie hängt fast nur von den
+     Toren ab, kaum vom Startwert aus dem Menü: Im gemessenen Kampf wuchs eine Starttruppe
+     von 7 auf **22**. Die Tore mischen multiplikative und additive Wirkung, kleine Truppen
+     wachsen dadurch relativ schneller — deshalb wird **ein** Modellwert für alle
+     Kaufstände angesetzt und als solcher kommentiert, nicht aus der Startgröße hochgerechnet.
+   - Die Zahl der gleichzeitig feuernden Figuren bleibt auf `crowd.shootersPerSalvo` begrenzt;
+     jede weitere Figur wirkt über `getCrowdDamageMultiplier` aus
+     `src/systems/crowdDamage.ts` — weiterhin der **einzige** Ort dieser Formel.
 
-3. **Feuerrate und Schaden der Referenz wachsen weiterhin mit dem Level**, wie heute über
-   `damagePerLevel`, `ratePerLevel` und die zugehörigen Obergrenzen. Nur das Startniveau
-   ändert sich.
+3. **Zielkampfdauer 20 Sekunden — für jeden Kaufstand.** Das ist der Kern dieser Änderung:
+   Ein frischer Spielstand trifft auf einen entsprechend schwächeren Boss.
 
-4. **Die Obergrenze der Lebenspunkte** wird auf das neue Niveau angehoben, damit sie nicht
-   schon auf mittleren Leveln greift und die Auslegung wieder aushebelt.
+4. **Die Aufwertungen bleiben spürbar.** Sie wirken unverändert gegen alle normalen Gegner und
+   Trupps; nur der Boss zieht mit. Das ist die bewusst gewählte Nebenwirkung und gehört als
+   Kommentar an die Formel — damit später niemand sie für einen Fehler hält und „korrigiert".
 
-5. **Die gemeinsame Multiplikatorfunktion `getCrowdDamageMultiplier` aus
-   `src/systems/crowdDamage.ts` bleibt der einzige Ort für diese Formel.** Beide Seiten nutzen
-   sie weiterhin.
+5. **`GameScene` übergibt die geladenen Stufen** an den Boss. Der Spielstand ändert sich
+   während eines Laufs nicht, ein Lesen beim Levelstart genügt.
+
+6. **Die Obergrenze der Lebenspunkte** wird auf das neue Niveau angepasst und darf auf keinem
+   der geprüften Level und bei keinem Kaufstand greifen.
 
 ## Ausdrücklich nicht ändern
 
-- Phasen, Begleiter, Zeitdruck, Vorrückgeschwindigkeit und die getrennten
-  Unverwundbarkeitszeiten aus E8 bleiben unverändert.
-- Der Truppen-Schadensbonus (`crowd.damagePerExtraFigure`, `crowd.damageMultiplierCap`) wird
-  **nicht** angetastet. Thomas hat sich ausdrücklich gegen diesen Weg entschieden.
-- Leveltabelle, Trupps, Tore, Waffen, Menü, Titelbildschirm und Speicherformat bleiben
-  unverändert.
+- Phasen, Begleiter, Zeitdruck und die getrennten Unverwundbarkeitszeiten aus E8.
+- Der Truppen-Schadensbonus (`crowd.damagePerExtraFigure`, `crowd.damageMultiplierCap`).
+- Preise und Wirkung der Aufwertungen im Menü.
+- Leveltabelle, Trupps, Tore, Waffen, Menü, Titelbildschirm, Speicherformat.
 
 ## Akzeptanzkriterien
 
-1. Die Referenzrechnung nutzt Feuerrate und Schaden auf aufgewertetem Niveau; die Herleitung
-   steht als Kommentar in `balance.ts`.
-2. Ein Unit-Test weist für Level 1, 6, 12 und 30 nach: Der **starke** Fall liegt bei 18–24
-   Sekunden.
-3. Ein Unit-Test weist für dieselben Level nach: Der **mittlere** Fall bleibt unter 50
-   Sekunden. Das ist die Sicherung dagegen, dass ein frischer Spielstand am ersten Boss
-   hängenbleibt — sie ist wichtiger als jede andere Zahl in dieser Spec.
-4. Die Obergrenze der Lebenspunkte greift auf keinem der geprüften Level.
-5. Die Formel für den Truppen-Schadensbonus steht weiterhin nur an einer Stelle und wird von
-   Spiel und Bossrechnung gemeinsam genutzt.
+1. `getBossPlan` ist weiterhin eine reine Funktion ohne Phaser-Abhängigkeit und nimmt die
+   Aufwertungsstufen als Parameter entgegen.
+2. Ein Unit-Test weist über das **Kreuzprodukt** aus den Leveln 1, 6, 12 und 30 und den
+   Kaufständen **„nichts gekauft"**, **„halb ausgebaut"** und **„voll ausgebaut"** nach, dass
+   die rechnerische Kampfdauer überall zwischen 18 und 24 Sekunden liegt. Das ersetzt die
+   bisherige Unterscheidung in starke und mittlere Läufe.
+3. Kein Testfall umgeht die echten Werte aus `upgradesShop`: Schaden und Feuerrate der
+   Kaufstände werden **aus `upgradesShop` abgeleitet**, nicht frei gewählt. Im letzten Anlauf
+   rechnete der Test mit Feuerrate 6, obwohl im Menü höchstens 4,5 kaufbar sind — dadurch sah
+   ein unspielbarer Boss im Test gesund aus.
+4. Die Obergrenze der Lebenspunkte greift bei keiner geprüften Kombination.
+5. Die Formel für den Truppen-Schadensbonus steht weiterhin nur in
+   `src/systems/crowdDamage.ts` und wird von Spiel und Bossrechnung gemeinsam genutzt.
 6. Phasen, Begleiter und Zeitdruck verhalten sich unverändert.
 7. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
 
-Kriterien 1 bis 5 und 7 prüfst du selbst über Tests und Diff. Kriterium 6 prüft Claude; ob der
-Boss sich am Ende richtig anfühlt, entscheidet Thomas am iPhone.
+Kriterien 1 bis 5 und 7 prüfst du selbst. Kriterium 6 prüft Claude am laufenden Spiel; wie sich
+der Boss anfühlt, entscheidet Thomas am iPhone.
 
 ## Implementation Summary
 
