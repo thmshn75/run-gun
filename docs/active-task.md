@@ -1,69 +1,60 @@
 # Active Task
 
 ## Status
-`APPROVED`
+`SPEC_READY`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**Boss-Salvengröße = Levelnummer auf den ersten Leveln: L1 ein Schuss, L2 zwei, L3 drei,
-ab L4 wie gehabt.**
+**E6 — V1-Abnahme, maschinenseitiger Teil: Offline-Cache repariert (Sprites fehlen im
+Precache) plus Abnahme-Nachweise.**
 
-Thomas, 2026-08-21: „Boss in Level 1 nur 1 Schuss, in Level 2 2 und in Level 3 3 und dann
-wie gehabt weiter."
+Befund vom 2026-08-21: `dist/sw.js` precached nur 6 Einträge (index.html, JS, CSS,
+apple-touch-icon.png, manifest). Die ~20 Spiel-PNGs unter `dist/assets/` (Gegner, Kulisse,
+Waffen, Titelbild) und die beiden Manifest-Icons fehlen. Beim ersten Offline-Start nach
+Installation schlagen die Bild-Loads in `BootScene` fehl — die Definition „fertig" (offline
+mehrere Runs) ist damit aktuell nicht erfüllt. Ursache: `vite-plugin-pwa`-Default-Glob
+(`**/*.{js,css,html}`) plus `includeAssets` nur mit `apple-touch-icon.png`.
 
 ---
 
 ## Auftrag
 
-Die Salvengröße beider Phasen wird zusätzlich durch die Levelnummer gedeckelt:
-
-- **Phase 1:** `burstCount = min(BALANCE.boss.phaseOne.burstCount, level)` → L1: 1, L2: 2, ab L3: 3 (wie gehabt).
-- **Phase 2:** `burstCount = min(bisherige Staffelformel, level)` → L1: 1, L2: 2, L3: 3,
-  L4–6: 4, ab L7: 5 — ab L3 identisch mit dem heutigen Stand.
-- `burstSpreadPx` beider Phasen bleibt **unverändert** (bei 1 Schuss ist die Breite ohnehin bedeutungslos).
-
-Umsetzung in `src/systems/bossPlan.ts`:
-1. Analog zu `getPhaseTwoProfile(level)` auch ein `getPhaseOneProfile(level)` einführen
-   (liefert `BALANCE.boss.phaseOne` mit level-gedeckeltem `burstCount`); `getBossPlan` nutzt
-   beide. `plan.phaseOne` ist damit nicht mehr die direkte `BALANCE`-Referenz — der bestehende
-   Test `expect(plan.phaseOne).toBe(BALANCE.boss.phaseOne)` muss auf Wertgleichheit bei
-   Level ≥ 3 umgestellt werden.
-2. In `getPhaseTwoProfile` den Level-Deckel ergänzen.
-3. Kein neuer Balance-Wert nötig: Der Deckel ist die Levelnummer selbst, keine Stellschraube.
-
-## Bekannte Falle: Division durch Null bei Einzelschuss
-
-`src/systems/boss.ts`, `fireBurst` (Zeile ~162):
-
-```ts
-const stepX = burstSpreadPx / (burstCount - 1)
-```
-
-Bei `burstCount === 1` ist das `Infinity`, und `startX + stepX * 0` ergibt in JavaScript
-`NaN` (`Infinity * 0 === NaN`) — das Projektil hätte keine gültige Position. **`fireBurst`
-muss den Fall `burstCount === 1` behandeln:** ein einzelner Schuss startet zentriert auf
-`this.enemy.x`. Das ist die einzige zulässige Änderung in `boss.ts`.
+1. In `vite.config.ts` den Workbox-Precache vervollständigen:
+   - `workbox.globPatterns: ['**/*.{js,css,html,png,webmanifest}']`
+   - `includeAssets: ['apple-touch-icon.png', 'icon-192.png', 'icon-512.png']`
+   - Sonst nichts an der PWA-Konfiguration ändern (`skipWaiting`/`clientsClaim` bleiben).
+2. Workbox warnt ab 2 MiB pro Datei (`maximumFileSizeToCacheInBytes`): prüfen, ob eine
+   Einzeldatei im `dist/` das reißt (der Phaser-Chunk liegt bei ~1,3 MiB — vermutlich nein).
+   Nur falls ja: Limit explizit setzen und im Config-Kommentar begründen.
+3. **Nachweis im Build statt Annahme:** Ein Skript-Test (`tests/precache.test.ts`), der NACH
+   einem Build `dist/sw.js` liest und prüft:
+   - Jede Datei aus `dist/` und `dist/assets/` mit Endung js/css/html/png/webmanifest ist im
+     Precache-Manifest enthalten (Dateiliste zur Testzeit aus dem Dateisystem gelesen, nicht
+     hart kodiert; `workbox-*.js` und `sw.js` selbst sind ausgenommen — sie sind der Cache-Code).
+   - Keine `.map`-Datei existiert in `dist/` (E6-Kriterium, heute erfüllt via `sourcemap: false`
+     — der Test hält es fest).
+   Damit `npm test` ohne vorherigen Build nicht fehlschlägt: Test überspringt sich mit
+   `describe.skipIf(!existsSync('dist/sw.js'))` und einem Log-Hinweis. In den
+   package.json-Scripts einen Eintrag `test:dist` ergänzen (`npm run build && vitest run`),
+   der im Abschlussbericht nachweislich gelaufen ist.
+4. README um einen kurzen Abschnitt „Abnahme-Checks (E6)" ergänzen: die zwei iPhone-Checks
+   (Netzwerk-Null im Safari Web Inspector über USB; Update sichtbar nach Force-Quit) mit je
+   2–3 Sätzen Durchführung. Hinweis aufnehmen: Die Strings `phaser.io`/`bit.ly` im Bundle sind
+   Phasers Konsolen-Banner, keine Requests — im Netzwerk-Check zählt die Request-Liste, nicht
+   der Quelltext.
 
 ## Akzeptanzkriterien
-1. `getBossPlan(1, …).phaseOne.burstCount === 1` und `.phaseTwo.burstCount === 1`;
-   Level 2 → 2/2; Level 3 → 3/3; Level 4 → 3/4; Level 7 → 3/5; Level 12 → 3/5.
-2. Ein Test ruft die Einzelschuss-Logik ab (direkt oder über die Profile) und stellt sicher,
-   dass bei `burstCount 1` keine `NaN`-/`Infinity`-Position entsteht — z. B. indem die
-   Positionsrechnung aus `fireBurst` als reine Funktion testbar gemacht wird
-   (`getBurstOffsets(burstCount, spreadPx): number[]`, von `fireBurst` benutzt).
-3. `burstSpreadPx`, `fireIntervalMs`, Kampfdauer-Staffelung, Geometrie-Test: unverändert grün.
-4. `npm run check`, `npm run build`, `npm test` sauber.
+1. `npm run build` erzeugt einen Precache, der alle PNGs aus `dist/` und `dist/assets/`
+   enthält; der neue Test weist es dateisystembasiert nach und ist über `npm run test:dist`
+   gelaufen (Ergebnis im Abschlussbericht).
+2. Keine `.map`-Dateien im `dist/`, per Test festgehalten.
+3. README enthält die zwei iPhone-Abnahme-Checks.
+4. `npm run check`, `npm run build`, `npm test` und `npm run test:dist` sauber.
+5. Keine neuen Abhängigkeiten, keine Laufzeit-Requests, keine weiteren Config-Änderungen.
 
 ## Reißleine
-Falls die Einzelschuss-Behandlung in `fireBurst` mehr als ~10 Zeilen Umbau erfordert, stoppen
-und melden statt `boss.ts` umzustrukturieren. **Kein zulässiger Ersatz:** `burstCount 1` durch
-`spread 0` mit 2 Schüssen simulieren oder den NaN-Fall unbehandelt lassen, „weil es optisch
-funktioniert".
-
-## Implementation Summary
-
-- Phase 1 und Phase 2 deckeln ihre Salvengröße jetzt mit der Levelnummer; Ausbreitung,
-  Feuerintervalle und Kampfdauer bleiben unverändert.
-- Die reine Offset-Berechnung setzt Einzelschüsse auf `0`, sodass sie genau auf der Boss-Mitte
-  starten und keine `NaN`-/`Infinity`-Position entsteht.
-- Verifiziert mit `npm run check`, `npm run build` und `npm test` (13 Dateien, 70 Tests grün).
+Falls `vite-plugin-pwa` die Glob-Erweiterung in dieser Projektversion anders benennt oder das
+Precache-Manifest nicht als lesbarer String in `sw.js` liegt: nicht raten und nicht das Plugin
+wechseln — stoppen und melden, welche Struktur `sw.js` tatsächlich hat.
+**Kein zulässiger Ersatz:** Runtime-Caching (`runtimeCaching`) statt Precache — beim ersten
+Offline-Start nach Installation wäre der Cache leer, genau der Fall, der hier repariert wird.
