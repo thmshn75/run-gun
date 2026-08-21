@@ -7,6 +7,7 @@ import { getWeaponRewardChoices } from '../src/systems/weaponChoices'
 type WeaponKey = keyof typeof BALANCE.weapon
 
 const newWeapons: readonly WeaponKey[] = ['minigun', 'flamethrower', 'chainlightning']
+const weaponKeys: readonly WeaponKey[] = ['normal', 'shotgun', 'laser', 'rocket', 'minigun', 'flamethrower', 'chainlightning']
 
 function flightSeconds(weapon: WeaponKey): number {
   const config = BALANCE.weapon[weapon]
@@ -26,12 +27,26 @@ describe('additional weapons', () => {
     expect(levelThree).toBeGreaterThan(0)
   })
 
-  it('keeps every new weapon below shotgun peak projectile load and its pool above that load', () => {
-    const shotgunPeak = peakProjectileLoad('shotgun')
-    for (const weapon of newWeapons) {
-      expect(peakProjectileLoad(weapon), weapon).toBeLessThan(shotgunPeak)
+  it('keeps every weapon pool above its balance-derived peak projectile load', () => {
+    for (const weapon of weaponKeys) {
       expect(BALANCE.pools.projectiles[weapon], weapon).toBeGreaterThan(peakProjectileLoad(weapon))
     }
+  })
+
+  it('lets shotgun and flamethrower reach the boss from the crowd anchor', () => {
+    const anchorY = 844 - BALANCE.player.anchorBottomOffset
+    const bossDistance = anchorY - BALANCE.boss.battleY
+    expect(BALANCE.weapon.shotgun.rangePx).toBe(430)
+    expect(BALANCE.weapon.flamethrower.rangePx).toBe(430)
+    expect(BALANCE.weapon.shotgun.rangePx).toBeGreaterThan(bossDistance)
+    expect(BALANCE.weapon.flamethrower.rangePx).toBeGreaterThan(bossDistance)
+  })
+
+  it('sets the expanded shotgun and flamethrower pools above their calculated peaks', () => {
+    expect(BALANCE.pools.projectiles.shotgun).toBe(168)
+    expect(BALANCE.pools.projectiles.flamethrower).toBe(200)
+    expect(BALANCE.pools.projectiles.shotgun).toBeGreaterThan(peakProjectileLoad('shotgun'))
+    expect(BALANCE.pools.projectiles.flamethrower).toBeGreaterThan(peakProjectileLoad('flamethrower'))
   })
 
   it('makes the three new weapons unavailable before level three and config-selected from level three onward', () => {

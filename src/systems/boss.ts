@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { getBossPhase, getBossPlan, type BossPlan, type BossUpgradeLevels } from './bossPlan'
 import { getRoadHalfWidth } from './road'
+import type { WeaponKey } from './weapons'
 
 export class Boss {
   private readonly scene: Phaser.Scene
@@ -67,9 +68,9 @@ export class Boss {
     return enemy === this.enemy
   }
 
-  public activate(level: number, upgrades: BossUpgradeLevels, teamSize: number): void {
+  public activate(level: number, upgrades: BossUpgradeLevels, teamSize: number, weapon: WeaponKey): void {
     const y = BALANCE.road.horizonY
-    this.plan = getBossPlan(level, upgrades, teamSize)
+    this.plan = getBossPlan(level, upgrades, teamSize, weapon)
     this.fightElapsedMs = 0
     this.fireAccumulatorMs = 0
     this.companionAccumulatorMs = 0

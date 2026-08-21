@@ -20,6 +20,7 @@ import { Weapons, type WeaponKey } from '../systems/weapons'
 interface HudSegments {
   hp: Phaser.GameObjects.Text
   coins: Phaser.GameObjects.Text
+  level: Phaser.GameObjects.Text
   speed: Phaser.GameObjects.Text
   damage: Phaser.GameObjects.Text
   rate: Phaser.GameObjects.Text
@@ -232,6 +233,7 @@ export class GameScene extends Phaser.Scene {
     this.hud = {
       hp: this.add.text(panelX + BALANCE.hud.sidePad, rowOneY, '', { ...primaryHudStyle, color: this.colorFor(STAT_COLORS.hp) }).setOrigin(0, 0),
       coins: this.add.text(panelX + panelW - BALANCE.hud.sidePad, rowOneY, '', { ...primaryHudStyle, color: this.colorFor(HUD_COLORS.coins) }).setOrigin(1, 0),
+      level: this.add.text(panelX + panelW / 2, rowOneY, '', { ...primaryHudStyle, color: this.colorFor(HUD_COLORS.level) }).setOrigin(0.5, 0),
       damage: this.add.text(panelX + colW * 0.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.damage) }).setOrigin(0.5, 0),
       rate: this.add.text(panelX + colW * 1.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.shotsPerSec) }).setOrigin(0.5, 0),
       speed: this.add.text(panelX + colW * 2.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.speed) }).setOrigin(0.5, 0),
@@ -607,15 +609,10 @@ export class GameScene extends Phaser.Scene {
       this.levelPhase = 'boss'
       this.levelOverlayBackground.setVisible(false)
       this.levelOverlay.setVisible(false)
-      this.boss.activate(this.currentLevel, this.bossUpgrades, this.runStats.get('hp'))
+      this.boss.activate(this.currentLevel, this.bossUpgrades, this.runStats.get('hp'), this.weapons.getWeapon())
       return
     }
-    this.levelPhase = 'normal'
-    this.phaseRemainingMs = getLevelPlan(this.currentLevel).normalPhaseSec * 1000
-    this.levelOverlayBackground.setVisible(false)
-    this.levelOverlay.setVisible(false)
-    this.spawner.resetForLevel(this.currentLevel)
-    this.blockers.resetForLevel(this.currentLevel)
+    this.startLevel()
   }
 
   private handleBossDefeated(): void {
@@ -631,6 +628,15 @@ export class GameScene extends Phaser.Scene {
     this.phaseRemainingMs = BALANCE.level.clearedMs
     this.levelOverlayBackground.setVisible(true)
     this.levelOverlay.setText(`LEVEL ${this.currentLevel - 1} GESCHAFFT`).setVisible(true)
+  }
+
+  private startLevel(): void {
+    this.levelPhase = 'normal'
+    this.phaseRemainingMs = getLevelPlan(this.currentLevel).normalPhaseSec * 1000
+    this.levelOverlayBackground.setVisible(false)
+    this.levelOverlay.setVisible(false)
+    this.spawner.resetForLevel(this.currentLevel)
+    this.blockers.resetForLevel(this.currentLevel)
   }
 
   private updateBossBar(): void {
@@ -661,6 +667,7 @@ export class GameScene extends Phaser.Scene {
     const shotsPerSec = Math.round(this.runStats.get('shotsPerSec') * 10) / 10
     this.hud.hp.setText(`TEAM ${this.runStats.get('hp')}`)
     this.hud.coins.setText(`¢ ${this.coins.getCount()}`)
+    this.hud.level.setText(`LEVEL ${this.currentLevel}`)
     this.hud.speed.setText(`SPD ${Math.round(this.runStats.get('speed'))}`)
     this.hud.damage.setText(`DMG ${damage}`)
     this.hud.rate.setText(`RATE ${shotsPerSec}`)
@@ -697,5 +704,34 @@ export class GameScene extends Phaser.Scene {
 
   private colorFor(color: number): string {
     return `#${color.toString(16).padStart(6, '0')}`
+  }
+}
+
+export interface GameScene {
+  debugSetState(options: { level?: number; teamSize?: number; weapon?: WeaponKey }): void
+}
+
+if (import.meta.env.DEV) {
+  GameScene.prototype.debugSetState = function (options): void {
+    const scene = this as unknown as {
+      equipWeapon(weapon: WeaponKey): void
+      runStats: { set(stat: 'hp', value: number): void }
+      currentLevel: number
+      boss: { deactivate(): void }
+      spawner: { recycleBossCompanions(): void }
+      startLevel(): void
+      syncBossColliders(): void
+      updateHud(): void
+    }
+    if (options.weapon !== undefined) scene.equipWeapon(options.weapon)
+    if (options.teamSize !== undefined) scene.runStats.set('hp', options.teamSize)
+    if (options.level !== undefined) {
+      scene.currentLevel = Math.max(1, Math.floor(options.level))
+      scene.boss.deactivate()
+      scene.spawner.recycleBossCompanions()
+      scene.startLevel()
+      scene.syncBossColliders()
+    }
+    scene.updateHud()
   }
 }

@@ -53,6 +53,7 @@ export const WORLD_COLORS = {
 
 export const HUD_COLORS = {
   coins: 0xffd84c,
+  level: 0xc4d4e8,
   panel: 0x080b12,
   panelStroke: 0x2a3550,
   bossBarBack: 0x281417,

@@ -68,4 +68,8 @@ const game = new Phaser.Game({
   scene: [BootScene, TitleScene, MenuScene, GameScene, GameOverScene],
 })
 
+if (import.meta.env.DEV) {
+  ;(window as unknown as { __runGun?: Phaser.Game }).__runGun = game
+}
+
 game.canvas.addEventListener('contextmenu', (event) => event.preventDefault())

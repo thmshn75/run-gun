@@ -72,6 +72,18 @@ Alle in `src/config/balance.ts`, alle mit Herleitung im Kommentar:
 - **Leistung messen:** Playwright + CDP, `Emulation.setCPUThrottlingRate {rate: 8}`, dann
   Frame-Zeiten per `requestAnimationFrame`; Hotspots per `Profiler.start`/`Profiler.stop`.
   Immer mit Screenshot gegenpruefen, dass wirklich das Spiel lief und nicht das Menue.
+  Im Dev-Server nach dem Start des Spiels in der Browser-Konsole setzen:
+  `window.__runGun.scene.getScene('GameScene').debugSetState({ level: 8, teamSize: 88, weapon: 'flamethrower' })`.
+  `level`, `teamSize` und `weapon` sind einzeln optional; der Zugang existiert nicht im Produktions-Build.
+  **Fuer den schlimmsten Fall reicht `debugSetState` nicht** — es setzt keine Stats. Zusaetzlich
+  `s.runStats.set('shotsPerSec', 8)` (Feuerrate ans Cap) und `s.runStats.set('damage', 1)`
+  (Gegner ueberleben und stauen sich). Ohne das misst man nur den Alltagsfall: am 2026-08-21
+  ergab die Messung ohne diesen Schritt 67 statt 107 gleichzeitiger Flammen-Geschosse.
+  **Browser-Falle:** `playwright-core` aus `/opt/homebrew/lib/node_modules/@playwright/mcp/`
+  verlangt Chromium 1224, lokal liegt 1217. Deshalb beim Start `executablePath` auf
+  `~/Library/Caches/ms-playwright/chromium_headless_shell-1217/chrome-headless-shell-mac-arm64/chrome-headless-shell`
+  setzen, statt `npx playwright install` laufen zu lassen. Das Modul ist CommonJS —
+  `import pw from '...'` plus `const { chromium } = pw`, nicht `import { chromium }`.
 - Spiel per Playwright pruefen: Screenshots nur nach `<projekt>/.playwright-mcp/`.
   Ins Spiel: START bei (195, 800), dann SPIELEN bei (195, 797).
 

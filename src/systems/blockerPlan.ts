@@ -1,5 +1,6 @@
 import { BALANCE } from '../config/balance'
-import { getTeamFirepower, type BossUpgradeLevels } from './bossPlan'
+import { getCombatFirepower, type BossUpgradeLevels } from './bossPlan'
+import type { WeaponKey } from './weapons'
 
 export type BlockerPlan = Readonly<{
   maxHp: number
@@ -12,7 +13,7 @@ export function getBlockerIntervalMs(designLevel: number): number {
   return BALANCE.blockers.spawnIntervalMsByDesignLevel[index]
 }
 
-export function getBlockerPlan(level: number, upgrades: BossUpgradeLevels, teamSize: number): BlockerPlan {
+export function getBlockerPlan(level: number, upgrades: BossUpgradeLevels, teamSize: number, weapon: WeaponKey): BlockerPlan {
   const safeLevel = Math.max(1, Math.floor(level))
   const reference = BALANCE.boss.referenceFirepower
   const damage = Math.min(
@@ -23,11 +24,7 @@ export function getBlockerPlan(level: number, upgrades: BossUpgradeLevels, teamS
     reference.rateCap,
     BALANCE.upgradesShop.rate.base + upgrades.rate * BALANCE.upgradesShop.rate.effectPerLevel + (safeLevel - 1) * reference.ratePerLevel,
   )
-  const referenceDps = getTeamFirepower(teamSize)
-    * damage
-    * rate
-    * BALANCE.weapon.normal.damageFactor
-    * BALANCE.weapon.normal.bulletsPerShot
+  const referenceDps = getCombatFirepower(teamSize, weapon) * damage * rate
   // Same purchased-stat and crowd multiplier reference as the boss: 2 s is centered
   // inside E9's 1.5–2.5 s target, so those two systems cannot drift apart silently.
   const maxHp = Math.round(referenceDps * BALANCE.blockers.referenceDestroySec)

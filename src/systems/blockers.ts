@@ -164,7 +164,7 @@ export class Blockers {
     if (placement.width < BALANCE.blockers.minWidthPx) return
     const y = BALANCE.road.horizonY
     const x = this.scene.scale.width / 2 + placement.centerOffset
-    const plan = getBlockerPlan(this.levelPlan.level, this.bossUpgrades, this.getTeamSize())
+    const plan = getBlockerPlan(this.levelPlan.level, this.bossUpgrades, this.getTeamSize(), this.getCurrentWeapon())
     pair.active = true
     pair.broken = false
     pair.weapon = this.chooseWeapon(this.getCurrentWeapon())

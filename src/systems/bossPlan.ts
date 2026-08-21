@@ -1,6 +1,7 @@
 import { BALANCE } from '../config/balance'
 import { getCrowdDamageMultiplier } from './crowdDamage'
 import { getLevelPlan } from './levelPlan'
+import type { WeaponKey } from './weapons'
 
 export type BossPhase = 1 | 2
 
@@ -31,11 +32,26 @@ export function getTeamFirepower(teamSize: number): number {
   return Math.min(teamSize, BALANCE.crowd.shootersPerSalvo) * getCrowdDamageMultiplier(teamSize)
 }
 
+// Weapon firepower normalized to normal. Splash and chaining intentionally do not count: a boss is one target.
+export function getWeaponFirepower(weapon: WeaponKey): number {
+  const config = BALANCE.weapon[weapon]
+  return (config.shootersPerSalvo / BALANCE.crowd.shootersPerSalvo)
+    * config.rateFactor * (config.damageFactor * config.bulletsPerShot)
+}
+
+// Actual combat output uses the weapon's real shooter count, which matters for small teams.
+export function getCombatFirepower(teamSize: number, weapon: WeaponKey): number {
+  const config = BALANCE.weapon[weapon]
+  return Math.min(teamSize, config.shootersPerSalvo)
+    * getCrowdDamageMultiplier(teamSize)
+    * config.rateFactor * config.damageFactor * config.bulletsPerShot
+}
+
 export function getBossCompanionLimit(level: number): number {
   return getLevelPlan(Math.max(1, Math.floor(level))).companionLimit
 }
 
-export function getBossPlan(level: number, upgrades: BossUpgradeLevels, teamSize: number): BossPlan {
+export function getBossPlan(level: number, upgrades: BossUpgradeLevels, teamSize: number, weapon: WeaponKey): BossPlan {
   const safeLevel = Math.max(1, Math.floor(level))
   const reference = BALANCE.boss.referenceFirepower
   const damageUpgrade = BALANCE.upgradesShop.damage
@@ -48,15 +64,13 @@ export function getBossPlan(level: number, upgrades: BossUpgradeLevels, teamSize
     reference.rateCap,
     rateUpgrade.base + upgrades.rate * rateUpgrade.effectPerLevel + (safeLevel - 1) * reference.ratePerLevel,
   )
-  const referenceDps = getTeamFirepower(teamSize)
-    * damage
-    * rate
-    * BALANCE.weapon.normal.damageFactor
-    * BALANCE.weapon.normal.bulletsPerShot
+  const referenceDps = getCombatFirepower(teamSize, weapon) * damage * rate
   const maxFirepower = getTeamFirepower(BALANCE.crowd.max)
   const fightSec = Math.min(
     reference.maxFightSec,
-    reference.fightSecAtMaxTeam * (maxFirepower / getTeamFirepower(teamSize)) ** reference.teamDampening,
+    reference.fightSecAtMaxTeam
+      * (maxFirepower / getTeamFirepower(teamSize)) ** reference.teamDampening
+      * (1 / getWeaponFirepower(weapon)) ** (1 - reference.weaponDampening),
   )
   const maxHp = Math.min(BALANCE.boss.hpCap, Math.round(referenceDps * fightSec))
 
@@ -65,7 +79,7 @@ export function getBossPlan(level: number, upgrades: BossUpgradeLevels, teamSize
     maxHp,
     phaseThresholdHp: maxHp / 2,
     referenceDps,
-    referenceFightSec: maxHp / referenceDps,
+    referenceFightSec: fightSec,
     phaseOne: BALANCE.boss.phaseOne,
     phaseTwo: BALANCE.boss.phaseTwo,
     companionIntervalMs: BALANCE.boss.companionIntervalMs,

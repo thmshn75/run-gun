@@ -1,8 +1,14 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
+
+> **Nacharbeit 1 (2026-08-21).** Teil 1, 2 und 3 sind umgesetzt und im Review in Ordnung;
+> `npm run check`, `npm run build` und `npm test` (60 Tests) laufen grün. **Offen ist allein
+> Akzeptanzkriterium 9, die Performance-Messung** — sie scheitert daran, dass die laufende
+> Spielszene von außen nicht erreichbar ist. Dafür der neue Abschnitt „Teil 4" unten. Alles
+> andere in diesem Dokument bleibt unangetastet.
 
 ## Task
 **Waffe in die Boss-Rechnung aufnehmen, Reichweiten von Schrot und Flamme erhöhen,
@@ -232,6 +238,45 @@ der anderen Felder verschoben.
 
 ---
 
+# Teil 4 — Entwickler-Zugang für Messungen
+
+## Befund
+
+Akzeptanzkriterium 9 verlangt eine Frame-Zeit-Messung mit **Flammenwerfer bei voller Truppe**.
+Der Flammenwerfer ist erst ab Level 3 erreichbar und nur über ein Tor oder eine Sperre — per
+Playwright ist dieser Zustand nicht in vertretbarer Zeit herstellbar. Die Phaser-Instanz aus
+`src/main.ts` ist an keine erreichbare Stelle gebunden, also lässt sich der Zustand auch nicht
+von außen setzen. Damit ist das Kriterium ohne Vorarbeit nicht erfüllbar — und das gilt für
+**jede künftige Messung**, nicht nur für diese.
+
+## Verlangte Umsetzung
+
+Ein Handle, das **ausschließlich im Entwicklungsmodus** existiert:
+
+1. In `src/main.ts`, hinter `if (import.meta.env.DEV)`:
+   `(window as unknown as { __runGun?: Phaser.Game }).__runGun = game`
+2. In `src/scenes/GameScene.ts`, ebenfalls hinter `import.meta.env.DEV`, eine Methode
+   `public debugSetState(options: { level?: number; teamSize?: number; weapon?: WeaponKey }): void`,
+   die Level, Truppengröße und Waffe über die vorhandenen Wege setzt — `equipWeapon()`,
+   `runStats.set('hp', …)` und den bestehenden Levelwechsel. **Keine neuen Seitenwege**: Die
+   Methode ruft, was das Spiel ohnehin ruft, damit ein gesetzter Zustand derselbe ist wie ein
+   erspielter.
+
+**Das ist ein Messwerkzeug, kein Feature.** Bedingungen:
+
+- Im Produktions-Build darf nichts davon übrig bleiben. Nachweisbar über
+  `grep -r "__runGun\|debugSetState" dist/` nach `npm run build` — kein Treffer.
+- Kein Aufruf aus dem Spielcode heraus; die Methode wird ausschließlich von außen benutzt.
+- Der Weg gehört anschließend in `docs/UEBERGABE.md` unter „Leistung messen", damit die nächste
+  Sitzung ihn nicht erneut erfinden muss.
+
+## Zusätzliches Akzeptanzkriterium
+
+13. `window.__runGun` und `GameScene.debugSetState` existieren im Dev-Server und ermöglichen es,
+    Level, Truppengröße und Waffe von der Browser-Konsole aus zu setzen. Nach `npm run build`
+    findet `grep -r "__runGun\|debugSetState" dist/` **keinen** Treffer. Der Weg ist in
+    `docs/UEBERGABE.md` dokumentiert.
+
 ## Ausdrücklich nicht ändern
 
 - `teamDampening` (0.41), `fightSecAtMaxTeam` (20), `maxFightSec` (40) — die Reißleine des
@@ -295,3 +340,29 @@ sie soll — dann Trefferprüfung messen statt Zahlen drehen.
 außerhalb 15–40 s in den Tests), auf die einfachste Form zurückfallen, die das Fenster hält:
 `weaponDampening = 1`, also Waffe voll ausgeglichen, jede Waffe legt den Boss gleich schnell.
 Die Waffe wirkt dann nur noch im normalen Level — und Thomas entscheidet, ob ihm das reicht.
+
+
+---
+
+## Messergebnis zu Akzeptanzkriterium 9 (Claude, 2026-08-21)
+
+Gemessen im Dev-Server mit Playwright und CDP, `Emulation.setCPUThrottlingRate {rate: 8}`,
+290 ausgewertete Bilder je Durchlauf. Schlimmster Fall erzwungen: Truppe 30, Level 12,
+`shotsPerSec` am Cap 8, `damage` am Boden 1 (damit Gegner ueberleben und sich stauen).
+
+| Waffe | Median | p95 | max | Geschosse gleichzeitig | Gegner gleichzeitig |
+|---|---|---|---|---|---|
+| Normalwaffe | 16,7 ms | 18,6 ms | 18,7 ms | 32 | 14 |
+| **Flammenwerfer** | **16,7 ms** | 18,5 ms | 18,7 ms | **107** | 8 |
+| Schrot | 16,7 ms | 18,5 ms | 18,6 ms | 96 | 9 |
+
+16,7 ms ist das Bildbudget bei 60 Hz — das Spiel bleibt unter der Grenze, ohne Ausreisser nach
+oben. Zum Vergleich: Der Ruckel-Zustand vom selben Tag lag bei 267 ms; die Methode ist also
+nachweislich empfindlich genug, um Ueberlast zu zeigen.
+
+Die 107 liegen unter dem gerechneten Spitzenbedarf von 149,8, weil pro Salve nur
+`shootersPerSalvo = 3` Figuren feuern und die Salve durch die Truppe rotiert. Die Poolgroesse
+200 bleibt damit konservativ richtig.
+
+Screenshot-Gegenprobe: laufendes Spiel mit Truppe 30, Level 12 und sichtbarem Geschossband —
+nicht das Menue. Die neue Levelanzeige steht darin mittig in der oberen HUD-Zeile.

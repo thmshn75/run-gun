@@ -101,7 +101,7 @@ export const BALANCE = {
       bulletsPerShot: 7,
       fanAngleDeg: 34,
       projectileSpeed: 640,
-      rangePx: 280,
+      rangePx: 430,
       pierces: false,
       splashRadiusPx: 0,
       splashDamageFactor: 0,
@@ -160,14 +160,14 @@ export const BALANCE = {
     },
     flamethrower: {
       minLevel: 3,
-      // 14.4 salvos/s x 3 shooters x 5 projectiles x 0.31s flight = 66.2; 72 leaves 9% reserve.
+      // 14.4 salvos/s x 3 shooters x 5 projectiles x 0.694s flight = 149.8; 200 leaves 33% reserve.
       rateFactor: 1.8,
       damageFactor: 0.34,
       shootersPerSalvo: 3,
       bulletsPerShot: 5,
       fanAngleDeg: 52,
       projectileSpeed: 620,
-      rangePx: 190,
+      rangePx: 430,
       pierces: false,
       splashRadiusPx: 0,
       splashDamageFactor: 0,
@@ -273,13 +273,18 @@ export const BALANCE = {
   },
   boss: {
     referenceFirepower: {
-      // Fight duration at the maximum crowd size. Smaller crowds take longer,
-      // limited by maxFightSec so a two-figure emergency team cannot stall a run.
+      // Fight duration at the maximum crowd size with the normal weapon. Smaller crowds take longer,
+      // limited by maxFightSec so a two-figure emergency team cannot stall a run. maxFightSec must
+      // remain below pressureDelayMs / 1000 + (anchorY - battleY) / advanceSpeed: changes to the
+      // boss pressure timing, position, speed, or crowd anchor must keep that safety margin intact.
       fightSecAtMaxTeam: 20,
       maxFightSec: 40,
       // 0 ignores crowd strength; 1 scales boss HP fully with it. This value halves
       // the fight from the smallest crowd to crowd.max without erasing the reward.
       teamDampening: 0.41,
+      // 0 ignores weapon strength (the Level-1 laser bug); 1 fully equalizes weapons. This keeps
+      // weapon luck noticeable without allowing a weak weapon to exceed the boss-pressure window.
+      weaponDampening: 0.8,
       damagePerLevel: 0.15,
       damageCap: 8,
       ratePerLevel: 0.1,
@@ -373,16 +378,16 @@ export const BALANCE = {
     projectiles: {
       // Peak: ceil(1.12s flight / 0.125s interval) = 9 salvos x 8 shooters x 1 bullet = 72; 96 leaves 33% reserve.
       normal: 96,
-      // Peak: ceil(0.44s flight / 0.3125s interval) = 2 salvos x 8 shooters x 7 bullets = 112; 144 leaves 29% reserve.
-      shotgun: 144,
+      // Peak: 3.2 salvos/s x 8 shooters x 7 bullets x 0.672s flight = 120.4; 168 leaves 39% reserve.
+      shotgun: 168,
       // Peak: ceil(0.79s flight / 0.089s interval) = 9 salvos x 8 shooters x 1 bullet = 72; 96 leaves 33% reserve.
       laser: 96,
       // Peak: ceil(2.38s flight / 0.5s interval) = 5 salvos x 3 shooters x 1 bullet = 15; 24 leaves 60% reserve.
       rocket: 24,
       // 17.6 salvos/s x 3 shooters x 1 projectile x 0.80s flight = 42.3; 56 leaves 32% reserve.
       minigun: 56,
-      // 14.4 salvos/s x 3 shooters x 5 projectiles x 0.31s flight = 66.2; 88 leaves 33% reserve.
-      flamethrower: 88,
+      // Peak: 14.4 salvos/s x 3 shooters x 5 projectiles x 0.694s flight = 149.8; 200 leaves 33% reserve.
+      flamethrower: 200,
       // 5.6 salvos/s x 6 shooters x 1 projectile x 0.92s flight = 30.9; 48 leaves 55% reserve.
       chainlightning: 48,
     },

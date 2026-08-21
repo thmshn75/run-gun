@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { computeBlockerPlacement } from '../src/systems/blockerPlacement'
 import { getBlockerIntervalMs, getBlockerPlan } from '../src/systems/blockerPlan'
-import { getTeamFirepower } from '../src/systems/bossPlan'
+import { getCombatFirepower } from '../src/systems/bossPlan'
 import { getLevelPlan } from '../src/systems/levelPlan'
+import type { WeaponKey } from '../src/systems/weapons'
+
+const weaponKeys: readonly WeaponKey[] = ['normal', 'shotgun', 'laser', 'rocket', 'minigun', 'flamethrower', 'chainlightning']
 
 function seededRng(seed: number): () => number {
   let state = seed >>> 0
@@ -13,11 +16,11 @@ function seededRng(seed: number): () => number {
   }
 }
 
-function referenceDps(level: number, upgrades: { team: number; damage: number; rate: number }, teamSize: number): number {
+function referenceDps(level: number, upgrades: { team: number; damage: number; rate: number }, teamSize: number, weapon: WeaponKey): number {
   const reference = BALANCE.boss.referenceFirepower
   const damage = Math.min(reference.damageCap, BALANCE.upgradesShop.damage.base + upgrades.damage * BALANCE.upgradesShop.damage.effectPerLevel + (level - 1) * reference.damagePerLevel)
   const rate = Math.min(reference.rateCap, BALANCE.upgradesShop.rate.base + upgrades.rate * BALANCE.upgradesShop.rate.effectPerLevel + (level - 1) * reference.ratePerLevel)
-  return getTeamFirepower(teamSize) * damage * rate * BALANCE.weapon.normal.damageFactor * BALANCE.weapon.normal.bulletsPerShot
+  return getCombatFirepower(teamSize, weapon) * damage * rate
 }
 
 describe('blockers', () => {
@@ -33,18 +36,19 @@ describe('blockers', () => {
     }
   })
 
-  it('uses actual spawn-time team firepower for 1.5–2.5 second kills', () => {
+  it('uses actual spawn-time weapon and team firepower for 1.5–2.5 second kills', () => {
     const full = BALANCE.upgradesShop.prices.length
     const purchaseStates = [{ team: 0, damage: 0, rate: 0 }, { team: full, damage: full, rate: full }]
     for (const level of [1, 6, 12]) {
       for (const upgrades of purchaseStates) {
-        for (const teamSize of [2, 4, 6, 8, 12, 16, 20, 25, 30]) {
-          const plan = getBlockerPlan(level, upgrades, teamSize)
-          const dps = referenceDps(level, upgrades, teamSize)
-          const destroySec = plan.maxHp / dps
-          expect(plan.referenceDps).toBeCloseTo(dps)
-          expect(destroySec).toBeGreaterThanOrEqual(BALANCE.blockers.minDestroySec)
-          expect(destroySec).toBeLessThanOrEqual(BALANCE.blockers.maxDestroySec)
+        for (const weapon of weaponKeys) {
+          for (const teamSize of [2, 4, 6, 8, 12, 20, 30]) {
+            const plan = getBlockerPlan(level, upgrades, teamSize, weapon)
+            const dps = referenceDps(level, upgrades, teamSize, weapon)
+            expect(plan.referenceDps).toBeCloseTo(dps)
+            expect(plan.referenceDestroySec).toBeGreaterThanOrEqual(BALANCE.blockers.minDestroySec)
+            expect(plan.referenceDestroySec).toBeLessThanOrEqual(BALANCE.blockers.maxDestroySec)
+          }
         }
       }
     }

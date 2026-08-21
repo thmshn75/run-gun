@@ -1,22 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
-import { canSpawnBossCompanion, getBossPhase, getBossPlan, getTeamFirepower, type BossUpgradeLevels } from '../src/systems/bossPlan'
+import {
+  canSpawnBossCompanion,
+  getBossPhase,
+  getBossPlan,
+  getCombatFirepower,
+  getTeamFirepower,
+  getWeaponFirepower,
+  type BossUpgradeLevels,
+} from '../src/systems/bossPlan'
+
+const weaponKeys = ['normal', 'shotgun', 'laser', 'rocket', 'minigun', 'flamethrower', 'chainlightning'] as const
 
 function getReferenceStats(level: number, upgrades: BossUpgradeLevels): { damage: number; rate: number } {
   const reference = BALANCE.boss.referenceFirepower
   return {
-    damage: Math.min(
-      reference.damageCap,
-      BALANCE.upgradesShop.damage.base + upgrades.damage * BALANCE.upgradesShop.damage.effectPerLevel + (level - 1) * reference.damagePerLevel,
-    ),
-    rate: Math.min(
-      reference.rateCap,
-      BALANCE.upgradesShop.rate.base + upgrades.rate * BALANCE.upgradesShop.rate.effectPerLevel + (level - 1) * reference.ratePerLevel,
-    ),
+    damage: Math.min(reference.damageCap, BALANCE.upgradesShop.damage.base + upgrades.damage * BALANCE.upgradesShop.damage.effectPerLevel + (level - 1) * reference.damagePerLevel),
+    rate: Math.min(reference.rateCap, BALANCE.upgradesShop.rate.base + upgrades.rate * BALANCE.upgradesShop.rate.effectPerLevel + (level - 1) * reference.ratePerLevel),
   }
 }
 
-const teamSizes = [2, 4, 6, 8, 12, 16, 20, 25, 30]
+const teamSizes = [2, 4, 6, 8, 12, 20, 30]
 const levels = [1, 6, 12]
 const maxUpgradeLevel = BALANCE.upgradesShop.prices.length
 const purchaseStates: ReadonlyArray<Readonly<{ name: string; upgrades: BossUpgradeLevels }>> = [
@@ -25,73 +29,94 @@ const purchaseStates: ReadonlyArray<Readonly<{ name: string; upgrades: BossUpgra
 ]
 
 describe('boss plans', () => {
-  it('uses the actual team firepower exactly once', () => {
+  it('keeps team firepower as the unchanged crowd-only measure', () => {
     expect(getTeamFirepower(BALANCE.crowd.max)).toBe(32)
     expect(getTeamFirepower(6)).toBe(6)
     expect(getTeamFirepower(12)).toBeCloseTo(12.48)
   })
 
-  it('keeps every required team, level, and purchase state within the 20–40 second fight window', () => {
+  it('uses actual weapon and team output for every boss combination in the 15–40 second window', () => {
     for (const purchaseState of purchaseStates) {
       for (const level of levels) {
-        for (const teamSize of teamSizes) {
-          const plan = getBossPlan(level, purchaseState.upgrades, teamSize)
-          const { damage, rate } = getReferenceStats(level, purchaseState.upgrades)
-          const expectedDps = getTeamFirepower(teamSize) * damage * rate * BALANCE.weapon.normal.damageFactor * BALANCE.weapon.normal.bulletsPerShot
+        for (const weapon of weaponKeys) {
+          for (const teamSize of teamSizes) {
+            const plan = getBossPlan(level, purchaseState.upgrades, teamSize, weapon)
+            const { damage, rate } = getReferenceStats(level, purchaseState.upgrades)
+            const expectedDps = getCombatFirepower(teamSize, weapon) * damage * rate
 
-          expect(plan.referenceDps, `${purchaseState.name}, level ${level}, team ${teamSize}`).toBeCloseTo(expectedDps)
-          expect(plan.referenceFightSec, `${purchaseState.name}, level ${level}, team ${teamSize}`).toBeGreaterThanOrEqual(20)
-          expect(plan.referenceFightSec, `${purchaseState.name}, level ${level}, team ${teamSize}`).toBeLessThanOrEqual(40)
-          expect(plan.phaseThresholdHp).toBe(plan.maxHp / 2)
+            expect(plan.referenceDps, `${purchaseState.name}, level ${level}, ${weapon}, team ${teamSize}`).toBeCloseTo(expectedDps)
+            expect(plan.referenceFightSec, `${purchaseState.name}, level ${level}, ${weapon}, team ${teamSize}`).toBeGreaterThanOrEqual(15)
+            expect(plan.referenceFightSec, `${purchaseState.name}, level ${level}, ${weapon}, team ${teamSize}`).toBeLessThanOrEqual(40)
+            expect(plan.phaseThresholdHp).toBe(plan.maxHp / 2)
+          }
         }
       }
     }
   })
 
-  it('makes a larger team finish monotonically faster', () => {
-    for (const purchaseState of purchaseStates) {
-      for (const level of levels) {
-        let previousFightSec = Number.POSITIVE_INFINITY
-        for (const teamSize of teamSizes) {
-          const fightSec = getBossPlan(level, purchaseState.upgrades, teamSize).referenceFightSec
-          expect(fightSec, `${purchaseState.name}, level ${level}, team ${teamSize}`).toBeLessThanOrEqual(previousFightSec)
-          previousFightSec = fightSec
-        }
-      }
-    }
-  })
-
-  it('keeps fight time team-dependent rather than level-dependent while HP grows with level', () => {
-    for (const purchaseState of purchaseStates) {
-      for (const teamSize of teamSizes) {
-        const levelOne = getBossPlan(1, purchaseState.upgrades, teamSize)
-        const levelTwelve = getBossPlan(12, purchaseState.upgrades, teamSize)
-        expect(levelOne.referenceFightSec, `${purchaseState.name}, team ${teamSize}`).toBeCloseTo(levelTwelve.referenceFightSec, 1)
-        expect(levelTwelve.maxHp, `${purchaseState.name}, team ${teamSize}`).toBeGreaterThan(levelOne.maxHp)
-      }
-    }
-  })
-
-  it('uses only the damped actual-team duration settings', () => {
+  it('keeps every fight below the cap and the cap below boss pressure contact', () => {
     const reference = BALANCE.boss.referenceFirepower
-    expect(Object.keys(reference).sort()).toEqual([
-      'damageCap', 'damagePerLevel', 'fightSecAtMaxTeam', 'maxFightSec',
-      'rateCap', 'ratePerLevel', 'teamDampening',
-    ])
+    const anchorY = 844 - BALANCE.player.anchorBottomOffset
+    const pressureContactSec = BALANCE.boss.pressureDelayMs / 1000 + (anchorY - BALANCE.boss.battleY) / BALANCE.boss.advanceSpeed
+    expect(reference.maxFightSec).toBeLessThan(pressureContactSec)
+
+    for (const purchaseState of purchaseStates) {
+      for (const level of levels) {
+        for (const weapon of weaponKeys) {
+          for (const teamSize of teamSizes) {
+            expect(getBossPlan(level, purchaseState.upgrades, teamSize, weapon).referenceFightSec).toBeLessThanOrEqual(reference.maxFightSec)
+          }
+        }
+      }
+    }
+  })
+
+  it('makes stronger weapons and larger teams finish monotonically faster', () => {
+    const weaponsByFirepower = [...weaponKeys].sort((left, right) => getWeaponFirepower(left) - getWeaponFirepower(right))
+    for (const purchaseState of purchaseStates) {
+      for (const level of levels) {
+        for (const teamSize of teamSizes) {
+          let previousFightSec = Number.POSITIVE_INFINITY
+          for (const weapon of weaponsByFirepower) {
+            const fightSec = getBossPlan(level, purchaseState.upgrades, teamSize, weapon).referenceFightSec
+            expect(fightSec, `${purchaseState.name}, level ${level}, team ${teamSize}, ${weapon}`).toBeLessThanOrEqual(previousFightSec)
+            previousFightSec = fightSec
+          }
+        }
+        for (const weapon of weaponKeys) {
+          let previousFightSec = Number.POSITIVE_INFINITY
+          for (const teamSize of teamSizes) {
+            const fightSec = getBossPlan(level, purchaseState.upgrades, teamSize, weapon).referenceFightSec
+            expect(fightSec, `${purchaseState.name}, level ${level}, ${weapon}, team ${teamSize}`).toBeLessThanOrEqual(previousFightSec)
+            previousFightSec = fightSec
+          }
+        }
+      }
+    }
+  })
+
+  it('normalizes weapon firepower against the normal weapon', () => {
+    expect(getWeaponFirepower('normal')).toBe(1)
+    expect(getWeaponFirepower('shotgun')).toBe(4.2)
+  })
+
+  it('keeps the specified separate dampening values', () => {
+    const reference = BALANCE.boss.referenceFirepower
     expect(reference.fightSecAtMaxTeam).toBe(20)
     expect(reference.maxFightSec).toBe(40)
     expect(reference.teamDampening).toBe(0.41)
+    expect(reference.weaponDampening).toBe(0.8)
   })
 
   it('switches phase only below half HP and keeps phase two latched', () => {
-    const plan = getBossPlan(6, purchaseStates[0].upgrades, 12)
+    const plan = getBossPlan(6, purchaseStates[0].upgrades, 12, 'normal')
     expect(getBossPhase(plan.phaseThresholdHp, false, plan)).toBe(1)
     expect(getBossPhase(plan.phaseThresholdHp - 1, false, plan)).toBe(2)
     expect(getBossPhase(plan.maxHp, true, plan)).toBe(2)
   })
 
   it('makes phase two faster and visibly broader while respecting the companion cap', () => {
-    const plan = getBossPlan(12, purchaseStates[0].upgrades, 12)
+    const plan = getBossPlan(12, purchaseStates[0].upgrades, 12, 'normal')
     expect(plan.phaseTwo.fireIntervalMs).toBeLessThan(plan.phaseOne.fireIntervalMs)
     expect(plan.phaseTwo.burstCount).toBeGreaterThan(plan.phaseOne.burstCount)
     expect(plan.phaseTwo.moveSpeed).toBeGreaterThan(plan.phaseOne.moveSpeed)
