@@ -3,6 +3,12 @@ import { getCrowdDamageMultiplier } from './crowdDamage'
 
 export type BossPhase = 1 | 2
 
+export type BossUpgradeLevels = Readonly<{
+  readonly team: number
+  readonly damage: number
+  readonly rate: number
+}>
+
 export type BossPlan = {
   readonly level: number
   readonly maxHp: number
@@ -19,11 +25,19 @@ export type BossPlan = {
   readonly advanceContactDamage: number
 }
 
-export function getBossPlan(level: number): BossPlan {
+export function getBossPlan(level: number, upgrades: BossUpgradeLevels): BossPlan {
   const safeLevel = Math.max(1, Math.floor(level))
   const reference = BALANCE.boss.referenceFirepower
-  const damage = Math.min(reference.damageCap, reference.damageStart + (safeLevel - 1) * reference.damagePerLevel)
-  const rate = Math.min(reference.rateCap, reference.rateStart + (safeLevel - 1) * reference.ratePerLevel)
+  const damageUpgrade = BALANCE.upgradesShop.damage
+  const rateUpgrade = BALANCE.upgradesShop.rate
+  const damage = Math.min(
+    reference.damageCap,
+    damageUpgrade.base + upgrades.damage * damageUpgrade.effectPerLevel + (safeLevel - 1) * reference.damagePerLevel,
+  )
+  const rate = Math.min(
+    reference.rateCap,
+    rateUpgrade.base + upgrades.rate * rateUpgrade.effectPerLevel + (safeLevel - 1) * reference.ratePerLevel,
+  )
   const activeShooters = Math.min(reference.teamAtBoss, BALANCE.crowd.shootersPerSalvo)
   const referenceDps = activeShooters
     * damage
@@ -31,6 +45,8 @@ export function getBossPlan(level: number): BossPlan {
     * getCrowdDamageMultiplier(reference.teamAtBoss)
     * BALANCE.weapon.normal.damageFactor
     * BALANCE.weapon.normal.bulletsPerShot
+  // Permanent upgrades remain stronger against regular enemies and squads. Only boss HP
+  // tracks their damage/rate values, so each purchase state keeps the intended 20 s fight.
   const maxHp = Math.min(BALANCE.boss.hpCap, Math.round(referenceDps * reference.targetFightSec))
 
   return {

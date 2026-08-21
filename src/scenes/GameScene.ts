@@ -3,6 +3,7 @@ import { BALANCE } from '../config/balance'
 import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
 import { Coins } from '../systems/coins'
 import { Boss } from '../systems/boss'
+import type { BossUpgradeLevels } from '../systems/bossPlan'
 import { Crowd } from '../systems/crowd'
 import { getCrowdDamageMultiplier } from '../systems/crowdDamage'
 import { Gates } from '../systems/gates'
@@ -73,6 +74,7 @@ export class GameScene extends Phaser.Scene {
   private coins!: Coins
   private gates!: Gates
   private runStats!: RunStats
+  private bossUpgrades!: BossUpgradeLevels
   private elapsedMs!: number
   private enemyContactIframeUntilMs!: number
   private bossProjectileIframeUntilMs!: number
@@ -102,6 +104,7 @@ export class GameScene extends Phaser.Scene {
   public create(): void {
     this.runStats = new RunStats()
     const save = loadSave()
+    this.bossUpgrades = { ...save.upgrades }
     this.runStats.set('hp', getUpgradeStartValue('team', save.upgrades.team))
     this.runStats.set('damage', getUpgradeStartValue('damage', save.upgrades.damage))
     this.runStats.set('shotsPerSec', getUpgradeStartValue('rate', save.upgrades.rate))
@@ -123,7 +126,7 @@ export class GameScene extends Phaser.Scene {
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
     const getAnchorPosition = (): Readonly<{ x: number; y: number }> => ({ x: this.crowd.getAnchorX(), y: this.crowd.getAnchorY() })
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
-    this.spawner = new Spawner(this, this.runStats)
+    this.spawner = new Spawner(this, this.runStats, this.bossUpgrades)
     this.boss = new Boss(
       this,
       () => this.spawner.allocateSpawnId(),
@@ -401,7 +404,7 @@ export class GameScene extends Phaser.Scene {
       this.levelPhase = 'boss'
       this.levelOverlayBackground.setVisible(false)
       this.levelOverlay.setVisible(false)
-      this.boss.activate(this.currentLevel)
+      this.boss.activate(this.currentLevel, this.bossUpgrades)
       return
     }
     this.levelPhase = 'normal'

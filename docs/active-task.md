@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -85,8 +85,47 @@ der Boss anfühlt, entscheidet Thomas am iPhone.
 
 ## Implementation Summary
 
-<!-- Von Codex auszufüllen -->
+- `getBossPlan` nimmt die beim Laufstart geladenen Kaufstufen entgegen und leitet Schaden
+  und Feuerrate direkt aus `upgradesShop` plus Levelzuwachs ab. Die 22er-Truppe bleibt ein
+  dokumentierter, kaufstandsunabhängiger Tor-Modellwert; der gemeinsame Truppenbonus bleibt
+  ausschließlich in `crowdDamage.ts`.
+- `GameScene` gibt diese unveränderlichen Laufstart-Stufen an Boss und Begleiterplanung weiter.
+  Boss-HP skaliert dadurch je Kaufstand auf 20 Sekunden, während normale Gegner und Trupps
+  unverändert von den Aufwertungen profitieren.
+- Die HP-Obergrenze beträgt 30.000 und liegt über allen geprüften Kombinationen. Der Test
+  deckt Level 1/6/12/30 mit keinem, halbem und vollem Ausbau ab und leitet die Werte direkt
+  aus `upgradesShop` ab.
 
 ## Verification
 
-<!-- Von Codex auszufüllen -->
+- `npm run check` erfolgreich (Exit 0).
+- `npm run build` erfolgreich (Exit 0); nur die bestehende Vite-Warnung für einen Chunk über
+  500 kB, kein Build-Fehler.
+- `npm test` erfolgreich (Exit 0): 7 Testdateien, 29 Tests bestanden. Die Boss-Testmatrix
+  prüft alle 12 Kombinationen aus drei Kaufständen und Level 1/6/12/30 auf 18–24 Sekunden
+  und darauf, dass die HP-Obergrenze nicht greift.
+- Kriterium 6 (Phasen, Begleiter, Zeitdruck im laufenden Spiel) bleibt wie spezifiziert beim
+  Claude-Lauf; das iPhone-Spielgefühl entscheidet Thomas.
+
+## Review-Ergebnis (Claude)
+
+Alle sieben Kriterien erfuellt.
+
+- **Kriterium 1, 3:** `getBossPlan(level, upgrades)` ist rein und ohne Phaser-Import. Der Test
+  leitet Schaden und Feuerrate ueber `upgradesShop.<key>.base + stufe * effectPerLevel` ab —
+  der geschoente Wert aus E8b (Feuerrate 6 bei einem Menue-Maximum von 4,5) ist damit
+  ausgeschlossen.
+- **Kriterium 2, 4:** Kontrollrechnung fuer Level 1 nachgerechnet: nichts gekauft 71 DPS gegen
+  1.421 HP, halb ausgebaut 170 DPS gegen 3.410 HP, voll ausgebaut 373 DPS gegen 7.459 HP —
+  **jeweils genau 20 Sekunden**. Die Obergrenze von 30.000 greift bei keiner Kombination.
+- **Kriterium 5:** `crowdDamage.ts` bleibt der einzige Ort der Formel.
+- **Kriterium 6:** Der Diff an `boss.ts` besteht nur aus der Uebergabe der Kaufstufen an
+  `getBossPlan`. Phasen, Begleiter und Zeitdruck sind unveraendert und wurden in E8 bereits am
+  laufenden Spiel geprueft.
+- **Kriterium 7:** `npm run check`, `npm run build`, `npm test` selbst im Terminal ausgefuehrt,
+  Exit 0, 29 Tests.
+
+**Realitaetsprobe mit dem gemessenen Lauf:** Volle Kaeufe, aber schlechte Schaden-Tore
+(HUD zeigte DMG 1.5 statt der moeglichen 3.5) ergeben 185 DPS gegen 7.459 HP, also **40
+Sekunden**. Das Vorruecken beginnt nach 36 Sekunden — ein solcher Lauf geraet also kurz vor
+dem Sieg unter Druck. Genau dieses Verhalten war das Ziel.

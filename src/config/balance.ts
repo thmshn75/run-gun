@@ -186,22 +186,20 @@ export const BALANCE = {
     ] satisfies readonly LevelDefinition[],
   },
   boss: {
-    // Model calculation, not a measured game value: a Level-1 ride has about eight gate
-    // pairs (first after 5s, then every 9s across 75s). 15 figures is a deliberately
-    // modest typical result after those gates: above one eight-figure salvo, but below the
-    // 30-figure ceiling of a strong run. NORMAL DPS uses active shooters x damage x rate
-    // x the shared crowd multiplier. HP targets 30 seconds and is capped at 7,500.
+    // Gates mix multiplicative and additive effects, so smaller starting teams grow
+    // relatively faster. 22 is therefore one measured boss-time team model for every
+    // purchase state, deliberately not extrapolated from the menu's team upgrade.
     referenceFirepower: {
-      teamAtBoss: 15,
-      damageStart: 1,
+      teamAtBoss: 22,
       damagePerLevel: 0.15,
-      damageCap: 3.5,
-      rateStart: 3,
+      damageCap: 8,
       ratePerLevel: 0.1,
-      rateCap: 4.5,
-      targetFightSec: 30,
+      rateCap: 8,
+      targetFightSec: 20,
     },
-    hpCap: 7500,
+    // The fully bought Level-30 reference fight reaches about 27,500 HP; this remains a
+    // safety ceiling without flattening any tested purchase-state/level combination.
+    hpCap: 30000,
     approachSpeed: 90,
     battleY: 300,
     phaseOne: {

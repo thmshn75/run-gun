@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { canSpawnBossCompanion, getBossPlan } from './bossPlan'
+import { canSpawnBossCompanion, getBossPlan, type BossUpgradeLevels } from './bossPlan'
 import { chooseEnemyType, type EnemyType } from './enemyTypes'
 import { getLevelPlan, type LevelPlan } from './levelPlan'
 import { getRoadHalfWidth } from './road'
@@ -17,6 +17,7 @@ type SpawnRequest =
 export class Spawner {
   private readonly scene: Phaser.Scene
   private readonly runStats: RunStats
+  private readonly bossUpgrades: BossUpgradeLevels
   private readonly enemies: Phaser.Physics.Arcade.Group
   private spawnAccumulatorMs: number
   private elapsedMs: number
@@ -30,9 +31,10 @@ export class Spawner {
   private spawningEnabled: boolean
   private levelPlan: LevelPlan
 
-  public constructor(scene: Phaser.Scene, runStats: RunStats) {
+  public constructor(scene: Phaser.Scene, runStats: RunStats, bossUpgrades: BossUpgradeLevels) {
     this.scene = scene
     this.runStats = runStats
+    this.bossUpgrades = bossUpgrades
     this.enemies = scene.physics.add.group()
     this.spawnAccumulatorMs = 0
     this.elapsedMs = 0
@@ -82,7 +84,7 @@ export class Spawner {
 
   // Boss summons deliberately reuse this pool while the regular clock stays disabled.
   public requestBossCompanion(): boolean {
-    const plan = getBossPlan(this.levelPlan.level)
+    const plan = getBossPlan(this.levelPlan.level, this.bossUpgrades)
     const activeCompanions = this.enemies.getChildren().filter((child) => child.active && child.getData('bossCompanion') === true).length
     if (!canSpawnBossCompanion(activeCompanions, plan)) return false
     const type = chooseEnemyType(this.levelPlan.enemyWeights, () => Phaser.Math.RND.frac())
