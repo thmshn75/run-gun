@@ -15,6 +15,14 @@ bewusst dazu und laufen in **E5** mit — ein **Startbildschirm mit einem von Co
 Bild** und eine **lokale Bestenliste auf dem Gerät**. Beides ist unten im Abschnitt
 „Startbildschirm und Bestenliste" spezifiziert. Der Rest des Deckels gilt unverändert.
 
+**Scope-Erweiterung V1.3 (Thomas-Entscheidung 2026-08-21, nach dem iPhone-Test):** Der Test hat
+gezeigt, dass ein Lauf ab dem zweiten Level nichts Neues mehr zeigt und der Boss ein reiner
+Lebenspunkte-Sack ist. Vier Punkte kommen deshalb bewusst dazu und laufen als Etappen
+**E7–E10**: **Levelaufbau mit eigenem Gesicht je Level**, **Gegner-Trupps**, **Boss mit Phasen**
+sowie **Sperren und mehrspurige Tore**. Alles unten im Abschnitt „Levelaufbau, Trupps, Boss,
+Sperren und Tore (V1.3)" spezifiziert. Der Rest des Deckels gilt unverändert: keine weiteren
+Features, bevor diese vier fertig sind.
+
 **Klarstellung „privat":** Ab dem Deploy bedeutet privat „unbeworben", nicht „nicht-öffentlich" —
 public Repo + Pages-URL sind technisch für jeden erreichbar. Quellcode, Tuning-Werte und
 Code-Kommentare sind damit öffentlich sichtbar. Ist das nicht gewollt: Cloudflare Pages statt
@@ -203,6 +211,129 @@ permanenten Upgrades und die Startwaffe.
 - Die Liste ist Teil von Export und Import. Sonst überlebt der Fortschritt einen Datenverlust
   und die Bestenliste nicht.
 
+## Levelaufbau, Trupps, Boss, Sperren und Tore (V1.3, Etappen E7–E10)
+
+### Befund aus dem iPhone-Test vom 2026-08-21
+
+Drei Ursachen, warum ein Lauf ab Level 2 gleichförmig wirkt:
+
+1. **Level haben kein Gesicht.** Zwischen Level 2 und Level 20 ändern sich nur zwei Zahlen:
+   Boss-Lebenspunkte (Faktor 1,6 pro Level) und Spawnabstand (150 ms kürzer pro Level).
+   Gegnerarten, Torarten und Bossverhalten sind in jedem Level identisch.
+2. **Die schwerste Gegnerwelle ist toter Code.** `chooseEnemyType` liest die Uhr *innerhalb*
+   des Levels, und `Spawner.resetForLevel` stellt diese Uhr bei jedem Levelwechsel auf 0.
+   Ein Level dauert 75 Sekunden, die dritte Welle (20/45/35, also 35 % schwere Gegner) gilt
+   aber erst ab Sekunde 90 — sie wird **nie** erreicht. Gespielt wird immer nur 70/30/0 und
+   40/45/15. Das ist ein Fehler, kein Balancing-Thema, und wird in E7 mitbehoben.
+3. **Der Boss hat genau ein Verhalten.** Dreier-Salve alle 1,4 s, langsame Geschosse,
+   seitliches Pendeln — ohne Phasen, ohne Begleiter, ohne Zeitdruck. Dazu greifen die 1200 ms
+   Unverwundbarkeit nach einem Treffer, wodurch von einer Dreier-Salve praktisch nur ein
+   Geschoss zählt. Mehr Lebenspunkte machen ihn länger, nicht schwerer.
+
+### Wie viele Level, und was unterscheidet sie
+
+Das Spiel bleibt **endlos** — es gibt keinen Abspann. Aber es bekommt **zwölf gestaltete
+Level**; ab Level 13 wiederholt sich die Gestaltung (Level 13 = Aufbau von Level 1) bei
+weiter steigender Härte. Zwölf ist gewählt, weil ein Level rund 75–90 Sekunden dauert: Das
+sind etwa 15–18 Minuten Spielzeit ohne Wiederholung, genug für viele Sitzungen, und wenig
+genug, dass jedes Level noch von Hand gestaltet werden kann.
+
+Ein Level wird durch eine Zeile in einer **Leveltabelle** in `balance.ts` beschrieben, nicht
+mehr durch verstreute Formeln. Diese Zeile bestimmt:
+
+| Feld | Bedeutung |
+|---|---|
+| Dauer | Sekunden Fahrt bis zur Boss-Warnung |
+| Gegnermischung | Gewichte für leicht/normal/schwer, **fest je Level statt nach Uhr** |
+| Spawnabstand | Startabstand und Untergrenze für dieses Level |
+| Trupps | welche Trupp-Arten vorkommen dürfen und wie oft |
+| Bossart | welche Variante mit welchen Phasen (ab E8) |
+| Sperren | ob und wie oft eine Sperre vorkommt (ab E9) |
+| Torbild | ein- oder mehrspurig, ob Waffentore vorkommen (ab E10) |
+
+Jenseits von Level 12 greift ein **Härtefaktor**: Gestaltung aus `((level − 1) mod 12) + 1`,
+Lebenspunkte und Tempo skalieren mit der tatsächlichen Levelnummer weiter. So bleibt es
+endlos, ohne dass irgendwann leere Level entstehen.
+
+**Grobe Dramaturgie der zwölf Level** (Feinwerte in `balance.ts`, nicht hier):
+
+- **1–2 Einstieg:** einzelne leichte und normale Gegner, ein Torpaar, ruhiger Boss.
+- **3–4 Trupps kommen dazu:** erste Keile aus leichten Gegnern.
+- **5–6 Druck:** schwere Gegner regelmäßig, Reihenformationen, Boss mit zweiter Phase.
+- **7–8 Sperren:** die ersten Sperren mit Waffe dahinter.
+- **9–10 Kombination:** Trupps und Sperren gleichzeitig, dreispurige Tore.
+- **11–12 Höhepunkt:** alles zusammen, Boss ruft Begleiter.
+
+### Gegner-Trupps
+
+Heute kommt jeder Gegner allein, und das ist im Code sogar **erzwungen**: `chooseSpawnLane`
+sucht für jeden neuen Gegner eine Spur mit Sicherheitsabstand zu allen anderen. Ein Trupp ist
+genau das Gegenteil — mehrere Gegner absichtlich dicht beieinander.
+
+- Ein Trupp wird als **eine Einheit** platziert: Die Spurwahl bekommt die **Gesamtbreite** des
+  Trupps und sucht dafür einen freien Platz. Die Mitglieder werden anschließend um die
+  gefundene Mitte verteilt. Wer jede Figur einzeln platzieren lässt, bekommt keinen Trupp,
+  sondern wieder Einzelgegner mit Abstand.
+- **Drei Arten**, mehr nicht: **Keil** (Spitze vorn, breiter nach hinten, leichte Gegner),
+  **Reihe** (mehrere nebeneinander auf gleicher Höhe, versperrt den Weg) und **Pulk**
+  (versetzter Block, gemischte Arten).
+- Trupps nutzen **denselben Gegner-Pool** wie Einzelgegner. Die Poolgröße wird auf den neuen
+  schlimmsten Fall neu hergeleitet und der Rechenweg als Kommentar hinterlegt — sonst
+  verschwinden Trupp-Mitglieder still, und das sähe aus wie ein Balance-Problem.
+- Passt ein Trupp nicht auf die Straße, wird er **verkleinert, nicht verschoben** — ein Trupp,
+  der halb neben der Straße steht, ist schlimmer als ein kleinerer Trupp.
+
+### Boss mit Phasen
+
+Der Boss wird nicht zäher, sondern anders. Drei Mittel, in dieser Reihenfolge:
+
+1. **Zwei Phasen.** Unter der Hälfte seiner Lebenspunkte wechselt er sichtbar das Verhalten:
+   kürzerer Feuerabstand, breiterer Fächer, schnelleres Pendeln. Der Wechsel ist erkennbar
+   (Farbwechsel oder kurzes Aufblitzen), sonst wirkt er wie ein Zufall.
+2. **Begleiter.** Der Boss ruft in Abständen normale Gegner. Das verhindert das reine
+   Draufhalten und nutzt das Trupp-System aus E7 wieder.
+3. **Zeitdruck.** Ist der Boss nach einer in `balance.ts` festgelegten Zeit nicht besiegt,
+   rückt er vor und wird gefährlich — statt beliebig lange auf der Stelle zu stehen.
+
+**Die Unverwundbarkeitszeit von 1200 ms wird für Bossgeschosse getrennt einstellbar**, sonst
+läuft jede Erhöhung der Feuerrate ins Leere. Der Wert für Gegnerkontakt bleibt unverändert.
+
+Die Lebenspunkte des Bosses werden dabei **gesenkt oder gedeckelt**, nicht weiter erhöht: Der
+heutige Faktor 1,6 pro Level ergibt in Level 8 bereits über 6700 Lebenspunkte, was den Kampf
+in eine Minute Dauerfeuer verwandeln würde. Ziel ist ein Kampf von 20–40 Sekunden auf jedem
+Level, unabhängig von der Levelnummer.
+
+### Sperren („Wände abschießen")
+
+Aus dem Genre übernommen (*Weapon Master*, *Smash Runner*): Eine Sperre steht quer über einen
+Teil der Straße und hat eigene Lebenspunkte. Dahinter liegt eine bessere Waffe.
+
+- **Der Reiz ist der Zielkonflikt, nicht das Hindernis.** Wer die Waffe will, muss früh auf die
+  Sperre schießen — und schießt in dieser Zeit **nicht** auf die Gegner. Deshalb erscheinen
+  Sperren immer **zusammen mit** anlaufenden Gegnern, nie in einer ruhigen Passage. Ohne diese
+  Gleichzeitigkeit ist die Sperre nur eine Verzögerung.
+- **Die Sperre versperrt nie die ganze Straße.** Es gibt immer einen freien Weg daneben. Wer
+  die Waffe nicht will oder nicht schafft, fährt vorbei und verliert nichts außer der Waffe.
+  Eine Sperre, die man durchschießen *muss*, wäre bei starkem Gegnerdruck eine Sackgasse.
+- Berührt die Truppe eine noch stehende Sperre, kostet das Figuren wie ein schwerer Gegner.
+- Lebenspunkte der Sperre in `balance.ts`, hergeleitet aus der Feuerkraft, die in diesem Level
+  realistisch erreichbar ist — nicht geraten.
+
+### Mehrspurige Tore
+
+Heute gibt es genau ein Torpaar nebeneinander. Künftig sind **zwei oder drei** Spuren möglich,
+höchstens drei.
+
+- **Nie mehr als drei.** Im Hochformat auf einem iPhone ist die Straße rund 390 px breit; vier
+  Tore ergäben Ziele unter 90 px, was für einen Daumen bei 1–1,5 Sekunden Zeit zu klein ist.
+- **Mitte rechnet, Seiten bewaffnen.** Die mittlere Spur trägt die Truppen-Rechnungen aus dem
+  Abschnitt „Tor-Mathematik" — unverändert, inklusive der Regel, dass nie beide Seiten auf 0
+  führen. Die äußeren Spuren tragen Waffen und Sperren.
+- Die Regel **einheitliche Torfarbe, keine Erklärtexte** aus „Tor-Mathematik" gilt weiter. Auch
+  ein Waffentor verrät nicht durch seine Farbe, ob es besser ist als die aktuelle Waffe.
+- Bei drei Spuren wird das Zeitfenster **nicht** verlängert. Wer drei Angebote nicht in der
+  Zeit abwägt, trifft eben eine schnellere Entscheidung — genau das ist der Reiz.
+
 ## Etappen (je ein Codex-Task, Claude reviewt, Thomas testet am iPhone)
 
 **Feedback-Loop, gilt für jede Etappe:** Codex kann iPhone-Kriterien (Gamefeel, Performance,
@@ -218,6 +349,10 @@ Desktop-Preview zählen nicht als Nachweis.
 | **E4 — Truppe & Waffentypen** | Truppe nach Abschnitt „Truppe" (Formation, Truppengröße als Lebensanzeige, gedeckelte Schützenzahl), Truppen-Tore mit gemischten Operatoren, drei Zusatzwaffen nach Abschnitt „Waffentypen" + Waffen-Tore | Truppen-Pool-Checkpunkt bestanden (`CROWD_MAX` einmalig erzeugt, kein `create()`/`destroy()` zur Laufzeit); Projektilzahl bleibt bei maximaler Truppe im selben Rahmen wie bei einer Figur (im Code nachweisbar über `CROWD_SHOOTERS`); volle Truppe + Schrotflinte ruckelt am iPhone nicht (Thomas-Urteil); Torwahl fühlt sich als Entscheidung an, nicht als Reflex (Thomas-Urteil) |
 | **E5 — Boss, Level, Persistenz, Startbildschirm, Bestenliste** | Boss, Levelabschluss → nächstes Level, permanente Upgrades, localStorage-Save **plus Save-Export/Import nach Spezifikation im Abschnitt Upgrade-System**; dazu **Startbildschirm mit erzeugtem Bild** und **lokale Bestenliste** nach dem Abschnitt „Startbildschirm und Bestenliste" | Mehrere Runs hintereinander; Fortschritt übersteht Force-Quit + Neustart; Zuruecksetzen fragt zurueck und setzt danach alles auf die Standardwerte; das Spiel startet auf dem Startbildschirm statt direkt im Run; ein besserer Run erscheint danach in der Bestenliste, ein schlechterer verdrängt keinen Eintrag; die Liste übersteht Force-Quit + Neustart und ist im Export enthalten |
 | **E6 — V1-Abnahme** | Finale Icons, README (Start/Build/Deploy), Aufräumen | Update-Pfad: neue Version wird nach Force-Quit + Neuöffnen sichtbar; Netzwerk-Null-Check: Safari Web Inspector (USB) zeigt im Online-Normalbetrieb keine Requests an fremde Hosts; `.map`-Dateien nicht im Deploy; Definition „fertig" komplett erfüllt |
+| **E7 — Leveltabelle & Gegner-Trupps** | Leveltabelle in `balance.ts` (zwölf gestaltete Level, Schleife ab 13 mit Härtefaktor); Gegnerwahl hängt am Level statt an der Uhr — behebt zugleich die nie erreichte dritte Welle; Trupp-Formationen Keil/Reihe/Pulk, als Einheit platziert | Reine Funktionen `getLevelPlan(level)` und die Trupp-Anordnung sind ohne Phaser testbar; Unit-Tests für Level 1, 12, 13 und 25 und für Trupps, die nachweisen: kein Mitglied überlappt ein anderes, keines steht neben der Straße; die dritte Gegnermischung kommt nachweislich im Spiel vor; Gegnerpool-Herleitung auf den neuen schlimmsten Fall aktualisiert; Level 1, 5 und 9 fühlen sich unterschiedlich an (Thomas-Urteil am iPhone) |
+| **E8 — Boss mit Phasen** | Zweite Bossphase unter halben Lebenspunkten mit sichtbarem Wechsel; Begleiter-Gegner während des Kampfs; Zeitdruck durch Vorrücken; getrennte Unverwundbarkeitszeit für Bossgeschosse; Lebenspunkte gedeckelt statt weiter verdoppelt | Der Phasenwechsel ist ohne Erklärung erkennbar; ein Bosskampf dauert auf Level 1, 6 und 12 jeweils 20–40 Sekunden (im Spiel gemessen, nicht geschätzt); Begleiter nutzen den bestehenden Gegnerpool ohne `create()` zur Laufzeit; Boss ist fordernd, aber nicht unfair (Thomas-Urteil am iPhone) |
+| **E9 — Sperren** | Sperre mit eigenen Lebenspunkten quer über einen Teil der Straße, bessere Waffe dahinter, immer gemeinsam mit anlaufenden Gegnern; freier Weg daneben bleibt garantiert | Es gibt in jeder Sperren-Situation nachweislich einen freien Weg vorbei; Sperren erscheinen nie in einer gegnerfreien Passage; Sperren-Pool nach derselben Regel wie alle anderen Pools; die Entscheidung „Waffe holen oder Gegner bekämpfen" ist spürbar (Thomas-Urteil am iPhone) |
+| **E10 — Mehrspurige Tore** | Torbild wird zwei- oder dreispurig je Leveltabelle; Mitte trägt die Truppen-Rechnungen, Seiten tragen Waffen; einheitliche Torfarbe und Zeitfenster unverändert | Nie mehr als drei Spuren; kein Tor schmaler als 90 px bei 390 px Straßenbreite (im Test nachgewiesen); die Regel „nie beide Seiten auf 0" gilt weiterhin für die rechnenden Tore; Torwahl bleibt bei drei Spuren in der vorhandenen Zeit treffbar (Thomas-Urteil am iPhone) |
 
 E1 zieht das Infrastruktur-Risiko (Subpfad, SW, Installation) bewusst an den Anfang: Scheitert
 das Deploy-Setup, fällt es in der billigsten Etappe auf — nicht am Ende, wenn das Spiel fertig ist.
@@ -238,7 +373,11 @@ das Deploy-Setup, fällt es in der billigsten Etappe auf — nicht am Ende, wenn
 - **Reißleine E3 (Spielspaß):** Maximal 3 Balance-Zyklen mit konkreten `balance.ts`-Änderungen. Macht der Run danach immer noch keinen Spaß, ist das Problem strukturell (Encounter-/Gate-Design) — dann Design-Entscheidung mit Thomas statt endlosem Zahlendrehen.
 - **Reißleine E4 (Truppen-Performance):** Ruckelt die volle Truppe am iPhone, wird `CROWD_MAX` gesenkt (30 → 20 → 12) und `CROWD_SHOOTERS` bleibt unangetastet. Erst wenn auch 12 Figuren ruckeln, ist das Problem nicht die Zahl, sondern die Zeichenweise — dann Formation als eine gemeinsame Textur statt N Sprites prüfen. Die Mechanik selbst wird nicht zurückgebaut.
 - **Reißleine E4 (Waffen):** Zwei Zusatzwaffen mit spürbar unterschiedlichem Gefühl sind mehr wert als drei, die sich gleich anfühlen. Fühlt sich eine nach einem Balance-Zyklus immer noch wie eine Variante des Standards an, fliegt sie raus statt weiter getunt zu werden.
-- **Feature-Deckel:** MVP-Punkte 1–14 aus der Spec plus die Erweiterungen V1.1 (Truppe, Waffentypen) und V1.2 (Startbildschirm mit Bild, lokale Bestenliste) sind der Deckel. Kein Feature außerhalb, bevor Definition „fertig" erfüllt ist.
+- **Reißleine E7 (Trupp-Performance):** Ruckelt ein voller Pulk am iPhone, wird die Trupp-Größe in `balance.ts` gesenkt (8 → 6 → 4), nicht die Mechanik zurückgebaut. Erst wenn auch ein Vierer ruckelt, liegt es nicht an der Zahl.
+- **Reißleine E8 (Boss):** Maximal zwei Balance-Zyklen für die Kampfdauer. Liegt sie danach immer noch außerhalb von 20–40 Sekunden, ist nicht die Zahl falsch, sondern die Schadensskalierung der Truppe — dann Design-Entscheidung mit Thomas statt weiter an den Lebenspunkten drehen.
+- **Reißleine E9 (Sperren):** Fühlt sich die Sperre nach einem Zyklus wie eine reine Verzögerung an statt wie eine Entscheidung, liegt es an der Gleichzeitigkeit mit Gegnern — erst diese verschärfen, und erst danach über die Lebenspunkte der Sperre nachdenken. Bleibt es zäh, fliegt E9 raus und E10 rückt vor.
+- **Reißleine E10 (Tore):** Werden drei Spuren am iPhone unzuverlässig getroffen, bleibt es bei zwei. Das Zeitfenster wird dafür nicht verlängert — das würde die Tor-Mathematik entwerten.
+- **Feature-Deckel:** MVP-Punkte 1–14 aus der Spec plus die Erweiterungen V1.1 (Truppe, Waffentypen), V1.2 (Startbildschirm mit Bild, lokale Bestenliste) und V1.3 (Leveltabelle, Trupps, Boss-Phasen, Sperren, mehrspurige Tore) sind der Deckel. Kein Feature außerhalb, bevor Definition „fertig" erfüllt ist.
 
 ## Kosten- und Privacy-Check (Abo-/Kostenlos-Regel)
 

@@ -1,170 +1,177 @@
 # Active Task
 
 ## Status
-`APPROVED`
+`SPEC_READY`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**Menü aufräumen: Sichern/Laden ersatzlos raus, Zurücksetzen rein, Fußbereich reparieren,
-Titelbild aufhellen.**
+**E7 — Leveltabelle und Gegner-Trupps.**
 
-Thomas-Entscheidungen vom 2026-08-21 nach dem Test am iPhone.
+Erste Etappe der Scope-Erweiterung V1.3 (siehe `docs/plan.md`, Abschnitt „Levelaufbau, Trupps,
+Boss, Sperren und Tore"). Ziel: Jedes Level bekommt ein eigenes Gesicht, und Gegner kommen
+nicht mehr nur einzeln.
+
+**Boss, Tore, Sperren und Waffen werden in dieser Etappe nicht angefasst.** Sie folgen in
+E8–E10. Wer hier schon am Boss dreht, macht den Review unmöglich.
 
 ---
 
-# Teil 1 — Überlappende Knöpfe (Fehler)
+# Teil 1 — Leveltabelle statt verstreuter Formeln
 
 ## Befund
 
-Auf dem iPhone liegen die Knöpfe des Fußbereichs **übereinander**.
+Heute unterscheiden sich Level nur durch zwei Zahlen: Boss-Lebenspunkte (Faktor 1,6 pro Level)
+und Spawnabstand (`level.spawnBonusPerLevel`, 150 ms kürzer pro Level). Gegnerarten sind in
+jedem Level identisch.
 
-Ursache ist ein gemischter Bezugspunkt: Die Sichern-Reihe sitzt bei
-`insets.top + menu.saveLoadButtonsY` — also vom **oberen** Rand aus. Der Spielen-Knopf sitzt
-bei `height - insets.bottom - …` — also vom **unteren**. Mit den iPhone-Rändern (oben 47,
-unten 34) ergibt das eine Überlappung von **11 px**; am Desktop sind beide Ränder 0 und die
-Elemente berühren sich knapp nicht.
+**Dazu ein echter Fehler:** `chooseEnemyType` in `src/systems/enemyTypes.ts` wählt die
+Gegnerart nach `elapsedMs`, und `Spawner.resetForLevel` setzt `elapsedMs` bei jedem
+Levelwechsel auf 0. Ein Level dauert 75 Sekunden (`level.normalPhaseSec`), die dritte Welle
+in `enemy.waves` gilt aber erst ab Sekunde 90 (`untilSec: 0` nach `untilSec: 90`). **Diese
+Welle wird nie erreicht** — die 35 % schweren Gegner sind toter Code. Das wird hier mitbehoben.
 
-**Genau deshalb konnte keine Prüfung am Desktop diesen Fehler finden.**
+## Verlangte Umsetzung
 
-## Verlangte Korrektur
+1. **Neue reine Funktion `getLevelPlan(level: number): LevelPlan`** in einer neuen Datei
+   `src/systems/levelPlan.ts`, **ohne Phaser-Abhängigkeit**, damit sie testbar ist.
 
-1. **Der Fußbereich wird von unten nach oben aufgebaut.** Der Spielen-Knopf sitzt unten, alles
-   darüber staffelt sich mit festen Abständen nach oben. Kein Element des Fußbereichs wird
-   mehr vom oberen Rand aus positioniert.
-2. **Die vertikale Anordnung wird als reine Funktion herausgezogen**, zum Beispiel
-   `computeMenuLayout(height, insets, scoreLines)`, ohne Phaser-Abhängigkeit.
-3. **Unit-Tests dieser Funktion** mit mindestens zwei Randfällen — `{ top: 0, bottom: 0 }` und
-   `{ top: 47, bottom: 34 }` — die prüfen: **kein Bereich überlappt einen anderen**, und alles
-   liegt innerhalb der Safe-Area. Das ist der eigentliche Schutz gegen eine Wiederholung.
+2. **Neue Leveltabelle in `src/config/balance.ts`** mit **zwölf** Einträgen. Pro Eintrag
+   mindestens: Dauer der Fahrtphase in Sekunden, Gewichte für leicht/normal/schwer,
+   Start-Spawnabstand und Untergrenze, sowie welche Trupp-Arten in welcher Häufigkeit
+   vorkommen dürfen.
 
----
+3. **Schleife ab Level 13:** Die Gestaltung kommt aus `((level − 1) mod 12) + 1`. Zusätzlich
+   ein **Härtefaktor**, der mit der echten Levelnummer wächst und Spawnabstand sowie
+   Trupp-Größe beeinflusst. **Der Härtefaktor bekommt eine Obergrenze in `balance.ts`** —
+   ohne Deckel wäre Level 40 nicht mehr spielbar, sondern nur noch eine Wand.
 
-# Teil 2 — Sichern und Laden ersatzlos entfernen
+4. **Die zeitbasierte Wellenstruktur `enemy.waves` wird entfernt, nicht danebengestellt.**
+   `chooseEnemyType` bekommt die Gewichte künftig als Parameter statt sie selbst aus der Uhr
+   abzuleiten. Bleiben beide Wege im Code, entscheidet später der Zufall, welcher greift —
+   und genau daraus ist der oben beschriebene Fehler entstanden. Die bestehenden Tests zu
+   `chooseEnemyType` werden entsprechend mitgezogen, nicht gelöscht.
 
-Thomas: „Nimm laden und speichern komplett raus".
+5. `elapsedMs` im Spawner bleibt erhalten, hat aber nur noch **eine** Aufgabe: das allmähliche
+   Verkürzen des Spawnabstands innerhalb eines Levels (`spawnRampPerSec`). Das im Code
+   kommentieren, sonst wandert die Gegnerwahl beim nächsten Umbau wieder dorthin zurück.
 
-Zu entfernen:
-
-- Die Knöpfe SICHERN und LADEN im Menü.
-- Die gesamte eingeblendete Ansicht mit Textfeld, samt der DOM-Elemente. **Danach benutzt das
-  Spiel überhaupt kein DOM mehr** — der Kommentar dazu im Code entfällt entsprechend.
-- Die Erinnerungszeile „Seit N Läufen nicht gesichert." und das Feld `runsSinceExport` im
-  Speicherstand samt der Stelle, die es hochzählt.
-- Die Zeile über den Zustand des Dauerspeichers.
-- `serializeSave` bleibt, weil `writeSave` es benutzt. `parseSave` bleibt, weil `loadSave` es
-  benutzt. Nur die Bedienung verschwindet, nicht die Prüfung.
-
-**Was bleibt:** die automatische Speicherung, die Zweitkopie unter `rungun_save_v1_backup` und
-die Anfrage auf Dauerspeicher. Der Schutz vor Beschädigung bleibt also vollständig erhalten.
-
-**Ehrliche Folge, als Kommentar an `save.ts` festzuhalten:** Ohne Ausleseweg ist der
-Fortschritt verloren, wenn iOS die Websitedaten verwirft oder die App vom Homescreen entfernt
-wird. Das ist eine bewusste Entscheidung von Thomas, keine Auslassung.
-
-Ein Spielstandstext mit einem übrig gebliebenen `runsSinceExport` muss weiterhin **angenommen**
-werden — unbekannte Felder werden ohnehin verworfen. Dafür bleibt ein Testfall.
+6. **Dramaturgie der zwölf Level** — die konkreten Zahlen wählst du, die Reihenfolge ist
+   vorgegeben und nicht verhandelbar:
+   - **1–2:** einzelne leichte und normale Gegner, keine Trupps, ruhiger Einstieg.
+   - **3–4:** erste Keile aus leichten Gegnern.
+   - **5–6:** schwere Gegner regelmäßig, Reihenformationen.
+   - **7–8:** höherer Druck, Pulks kommen dazu.
+   - **9–10:** Trupps häufiger und größer, Mischung aus allen Arten.
+   - **11–12:** Höhepunkt, dichteste Mischung.
+   Level 7–12 dürfen bereits Platz für Sperren (E9) und mehrspurige Tore (E10) in der Tabelle
+   vorsehen; diese Felder bleiben in E7 wirkungslos und sind als solche zu kommentieren.
 
 ---
 
-# Teil 3 — Knopf „Spielstände zurücksetzen"
+# Teil 2 — Gegner-Trupps
 
-Thomas: „Und dafür einen Button mit der Funktion Spielstände zurücksetzen".
+## Befund
 
-- Ein Knopf **ZURÜCKSETZEN** im Fußbereich, oberhalb von SPIELEN, in gedämpfter Farbe — er
-  konkurriert nicht mit dem Spielen-Knopf.
-- Ein Tippen **löscht nicht sofort**. Es erscheint eine Rückfrage mitten im Bild:
-  „Alles zurücksetzen? Münzen, Aufwertungen und Bestenliste gehen verloren." mit den beiden
-  Knöpfen **JA, LÖSCHEN** und **ABBRECHEN**.
-- Erst „JA, LÖSCHEN" setzt den Speicherstand auf die Standardwerte, schreibt ihn (samt
-  Zweitkopie) und baut das Menü neu auf.
-- Die Rückfrage wird mit Phaser-Objekten gezeichnet, **nicht** mit DOM.
-- Solange die Rückfrage offen ist, sind die Knöpfe darunter nicht bedienbar.
+Trupps sind heute nicht nur abwesend, sie sind **aktiv verhindert**: `chooseSpawnLane` in
+`src/systems/spawnLanes.ts` sucht für jeden neuen Gegner eine Spur mit Sicherheitsabstand
+(`spawnLaneSafetyGap`) zu allen anderen aktiven Gegnern. Ein Trupp ist genau das Gegenteil.
 
-**Grund für die Rückfrage:** Ein Fehlgriff auf einem Telefon ist schnell passiert, und ohne
-Ausleseweg gibt es danach keinen Weg zurück.
+## Verlangte Umsetzung
 
----
+1. **Neue reine Funktion für die Anordnung**, zum Beispiel
+   `computeSquadOffsets(kind, size, spacing): readonly { laneOffset, yOffset }[]`, in einer
+   neuen Datei `src/systems/squads.ts`, **ohne Phaser-Abhängigkeit**. Sie liefert nur relative
+   Versätze zur Trupp-Mitte, keine Bildschirmkoordinaten.
 
-# Teil 4 — Titelbild im Spiel aufhellen
+2. **Drei Arten, mehr nicht:**
+   - **Keil:** Spitze vorn, nach hinten breiter. Leichte Gegner.
+   - **Reihe:** mehrere nebeneinander auf gleicher Höhe. Versperrt spürbar den Weg.
+   - **Pulk:** versetzter Block aus gemischten Arten.
 
-Thomas: „auch die Titelbild Helligkeit im Spiel höher".
+3. **Der Trupp wird als eine Einheit platziert.** `chooseSpawnLane` wird **genau einmal** pro
+   Trupp aufgerufen, mit der **Gesamtbreite** des Trupps als `bodyWidth`. Die Mitglieder werden
+   danach um die gefundene Mitte verteilt und **umgehen die Einzelspur-Prüfung**.
+   **Ein Aufruf pro Mitglied ist ausdrücklich falsch** — das Ergebnis wären wieder
+   Einzelgegner mit Sicherheitsabstand, also genau das, was diese Etappe beseitigen soll.
 
-Das Bild selbst ist hell; abgedunkelt wird es durch die halbdurchsichtige schwarze Fläche
-darüber (`menu.overlayAlpha` = 0.45).
+4. **Alles oder nichts.** Ein Trupp wird nur gespawnt, wenn im Gegner-Pool **genug freie
+   Objekte für alle Mitglieder** vorhanden sind und die Spurwahl einen Platz findet.
+   Andernfalls wird der ganze Trupp auf den nächsten Versuch verschoben (wie heute schon
+   `deferredType`). Ein halb gespawnter Keil sieht aus wie ein Zeichenfehler, nicht wie ein
+   Gegner.
 
-- `menu.overlayAlpha` auf **0.20** senken.
-- Die Bestenliste und ihre Überschrift stehen heute ohne eigenen Hintergrund direkt auf dem
-  Bild. Sie bekommen denselben halbdurchsichtigen Zeilenhintergrund wie die Kaufzeilen, damit
-  sie auf dem helleren Bild lesbar bleiben.
-- Reicht die Lesbarkeit trotzdem nicht, wird **der Hintergrund dieser Zeilen kräftiger** —
-  nicht die Fläche über dem ganzen Bild wieder dunkler.
+5. **Ein Trupp zählt als ein Spawn-Ereignis, und danach folgt eine Pause.** Ohne diese Pause
+   verdoppelt oder verdreifacht ein Trupp die Gegnerdichte schlagartig, weil der normale
+   Spawn-Takt unverändert weiterläuft. Die Länge der Pause gehört als eigener Wert nach
+   `balance.ts`, hergeleitet aus der Trupp-Größe.
+
+6. **Passt ein Trupp nicht auf die Straße, wird er verkleinert, nicht verschoben.** Die
+   Straße ist am Horizont schmal (`road.topWidthRatio` 0,46); ein breiter Trupp muss dort
+   Mitglieder abgeben statt halb neben der Fahrbahn zu erscheinen.
+
+7. **Poolgröße neu herleiten.** `pools.enemies` steht heute auf 48 mit einer dokumentierten
+   Rechnung für Einzelgegner. Diese Rechnung wird auf den neuen schlimmsten Fall aktualisiert
+   (dichtestes Level × größter Trupp × Verweildauer schwerer Gegner) und der Rechenweg wie
+   bisher als Kommentar hinterlegt. Läuft der Pool leer, greift die bestehende
+   Dev-Konsolenwarnung — sie muss auch für verhinderte Trupps anschlagen.
+
+8. Trupp-Mitglieder sind **normale Gegner** mit den bestehenden Eigenschaften. Es gibt keinen
+   neuen Gegnertyp und keine neue Kollisionsart.
 
 ---
 
 ## Ausdrücklich nicht ändern
 
-- Keine Spielbalance, keine Werte von Boss, Gegnern, Waffen oder Toren.
-- Die automatische Speicherung, die Zweitkopie und die Dauerspeicher-Anfrage bleiben.
-- Das Titelbild als Datei und die Icons bleiben unverändert.
-- Die Trefferprüfung aus `729df4d` bleibt unangetastet.
+- **Der Boss bleibt vollständig unberührt** — Lebenspunkte, Verhalten, Skalierung. Das ist E8.
+- **Die Tore bleiben unberührt** (`src/systems/gates.ts`), auch die Tor-Mathematik. Das ist E10.
+- **Die Trefferprüfung aus Commit `729df4d`** (Treffer nur bei echter Berührung einer Figur)
+  wird nicht angefasst.
+- Die Truppe des Spielers, die Waffen, das Menü, die Bestenliste und die Speicherung bleiben
+  unverändert. Der Speicherstand bekommt kein neues Feld.
+- Keine externen Requests, keine neuen Abhängigkeiten, keine neuen Bilddateien.
 
 ## Reißleine
 
-Sind Kaufzeilen oder Bestenliste nach dem Aufhellen nicht sicher lesbar: **den Hintergrund der
-Zeilen kräftiger machen und melden**, nicht die Fläche über dem Bild wieder abdunkeln.
+Ruckelt ein voller Pulk am iPhone, wird die Trupp-Größe in `balance.ts` gesenkt (8 → 6 → 4).
+**Die Mechanik wird nicht zurückgebaut.** Erst wenn auch ein Vierer ruckelt, liegt es nicht an
+der Zahl, sondern an der Zeichenweise — dann melden statt weiter drehen.
+
+Zeitbudget: Bekommst du die Trupp-Platzierung nach zwei Anläufen nicht sauber in die
+bestehende Spurwahl integriert, baue die Trupp-Platzierung als **eigenen Weg neben**
+`chooseSpawnLane` (Trupp reserviert seinen Bereich, Einzelgegner meiden ihn) und melde das —
+statt `chooseSpawnLane` immer weiter umzubauen und dabei die Einzelgegner zu beschädigen.
 
 ## Akzeptanzkriterien
 
-1. Mit Rändern `{ top: 47, bottom: 34 }` überlappt **kein** Menüelement ein anderes und nichts
-   ragt aus der Safe-Area — nachgewiesen durch Unit-Tests der Layout-Funktion.
-2. Dasselbe gilt für Ränder `{ top: 0, bottom: 0 }`.
-3. Es gibt keine Knöpfe für Sichern und Laden mehr, keine eingeblendete Textansicht und **kein
-   DOM-Element** außer dem Canvas — auch nicht kurzzeitig.
-4. Im Speicherstand gibt es kein `runsSinceExport` mehr; ein Text, der es noch enthält, wird
-   weiterhin angenommen.
-5. Der Knopf ZURÜCKSETZEN fragt zurück; ABBRECHEN lässt den Speicherstand **bitgleich**.
-6. „JA, LÖSCHEN" setzt Münzen, Aufwertungen, höchstes Level und Bestenliste auf die
-   Standardwerte, und das gilt auch nach einem Neuladen der Seite.
-7. `menu.overlayAlpha` steht auf 0.20; Bestenliste und Überschrift haben einen eigenen
-   Hintergrund und sind lesbar.
-8. Die automatische Speicherung und die Zweitkopie funktionieren unverändert.
-9. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
+1. `getLevelPlan` ist eine reine Funktion ohne Phaser-Import und durch Unit-Tests abgedeckt,
+   die mindestens **Level 1, 12, 13 und 25** prüfen. Nachgewiesen wird: Level 13 hat dieselbe
+   Gestaltung wie Level 1, aber einen höheren Härtefaktor, und der Härtefaktor überschreitet
+   seine Obergrenze nie.
+2. Die Gegnermischung hängt am Level, nicht an der Uhr. `enemy.waves` existiert nicht mehr.
+   Ein Unit-Test weist nach, dass die Mischung mit hohem Schwer-Anteil in mindestens einem
+   der zwölf Level tatsächlich vorkommt — der Fehler aus dem Befund ist damit ausgeschlossen.
+3. Die Trupp-Anordnung ist eine reine Funktion ohne Phaser-Import. Unit-Tests weisen für alle
+   drei Arten und für die größte vorgesehene Trupp-Größe nach: **kein Mitglied überlappt ein
+   anderes**, und **kein Mitglied liegt außerhalb der am Horizont verfügbaren Straßenbreite**.
+4. `chooseSpawnLane` wird pro Trupp genau einmal aufgerufen, mit der Gesamtbreite. Im Code
+   nachweisbar, nicht nur behauptet.
+5. Ein Trupp erscheint entweder vollständig oder gar nicht. Bei zu kleinem Pool oder fehlendem
+   Platz wird er verschoben, nicht gestückelt.
+6. Nach einem Trupp folgt eine Pause im Spawn-Takt; der Wert steht in `balance.ts` und ist
+   dort hergeleitet.
+7. Die Herleitung von `pools.enemies` ist auf den neuen schlimmsten Fall aktualisiert und als
+   Kommentar nachvollziehbar.
+8. Level 1, 5 und 9 zeigen im Spiel sichtbar unterschiedliche Gegnerbilder.
+9. Boss, Tore, Waffen, Truppe, Menü und Speicherstand verhalten sich unverändert.
+10. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
 
-Kriterien 1 und 2 prüft Claude über die Unit-Tests, Kriterien 3 bis 8 am laufenden Spiel.
+Kriterien 1–7 und 10 prüfst du selbst über Tests und Diff. Kriterien 8 und 9 prüft Claude am
+laufenden Spiel; die endgültige Gamefeel-Freigabe gibt Thomas am iPhone.
 
 ## Implementation Summary
 
-- Der Fußbereich wird durch `computeMenuLayout` von der unteren Safe-Area-Kante aus aufgebaut; Tests decken Desktop- und iPhone-Ränder ab.
-- Sichern/Laden, die zugehörigen DOM-Ansichten, `runsSinceExport` und die Speicher-Hinweise sind entfernt. Der alte Feldname wird beim Einlesen weiter verworfen.
-- ZURÜCKSETZEN hat eine Phaser-Rückfrage und setzt beide lokalen Spielstandskopien auf die Standardwerte zurück; Titel-Overlay und Bestenlisten-Hintergründe sind angepasst.
+<!-- Von Codex auszufüllen -->
 
 ## Verification
 
-- `npm run check`, `npm run build` und `npm test` erfolgreich; 3 Testdateien mit 19 Tests bestanden.
-- Der Live-Nachweis für Kriterien 3 bis 8 ist noch offen, weil in dieser Sitzung kein Browser verfügbar war. Der Status bleibt deshalb bis zu dieser Prüfung `SPEC_READY`.
-
-
-## Review-Ergebnis (Claude, am laufenden Spiel gemessen)
-
-Codex hat den Status ehrlich auf `SPEC_READY` gelassen, weil die Browser-Pruefung Claude
-zugewiesen war. Alle neun Kriterien sind erfuellt.
-
-- **Kriterium 1 und 2:** Unit-Tests der Layout-Funktion fuer beide Randfaelle. Zusaetzlich im
-  Browser mit **erzwungenen iPhone-Raendern** (oben 47, unten 34) nachgesehen: ZURUECKSETZEN
-  sitzt ueber SPIELEN, **keine Ueberlappung**, nichts ragt heraus.
-- **Kriterium 3:** Waehrend des gesamten Ablaufs — Menue, Rueckfrage, nach dem Loeschen —
-  steht die Zahl der DOM-Elemente neben dem Canvas konstant auf **1**. Auch die
-  Safe-Area-Messung legt keines mehr an; sie liest jetzt CSS-Variablen vom Canvas statt ein
-  eigenes Element einzuhaengen. Diese Aenderung stand nicht in der Spec, ist aber genau die
-  Voraussetzung dafuer, dass „kein DOM" ueberhaupt erfuellbar ist.
-- **Kriterium 4:** Der neu geschriebene Stand enthaelt kein `runsSinceExport` mehr; ein Text,
-  der es noch enthaelt, wird weiterhin angenommen.
-- **Kriterium 5:** Nach ABBRECHEN ist der Speicherstand **bitgleich**.
-- **Kriterium 6:** Nach „JA, LOESCHEN" stehen Muenzen 0, alle Stufen 0, hoechstes Level 1 und
-  eine leere Bestenliste — in Haupteintrag **und** Zweitkopie, und unveraendert nach dem
-  Neuladen.
-- **Kriterium 7:** Titelbild deutlich heller; Bestenliste und Ueberschrift haben einen eigenen
-  Hintergrund und sind lesbar.
-- **Kriterium 8:** Das Zuruecksetzen schrieb beide Schluessel — die automatische Speicherung
-  samt Zweitkopie arbeitet unveraendert.
-- **Kriterium 9:** `npm run check`, `npm run build`, `npm test` gruen, 19 Tests.
+<!-- Von Codex auszufüllen -->
