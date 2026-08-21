@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -59,3 +59,11 @@ Falls die Einzelschuss-Behandlung in `fireBurst` mehr als ~10 Zeilen Umbau erfor
 und melden statt `boss.ts` umzustrukturieren. **Kein zulässiger Ersatz:** `burstCount 1` durch
 `spread 0` mit 2 Schüssen simulieren oder den NaN-Fall unbehandelt lassen, „weil es optisch
 funktioniert".
+
+## Implementation Summary
+
+- Phase 1 und Phase 2 deckeln ihre Salvengröße jetzt mit der Levelnummer; Ausbreitung,
+  Feuerintervalle und Kampfdauer bleiben unverändert.
+- Die reine Offset-Berechnung setzt Einzelschüsse auf `0`, sodass sie genau auf der Boss-Mitte
+  starten und keine `NaN`-/`Infinity`-Position entsteht.
+- Verifiziert mit `npm run check`, `npm run build` und `npm test` (13 Dateien, 70 Tests grün).

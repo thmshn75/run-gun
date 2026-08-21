@@ -7,6 +7,10 @@ export type BossPhase = 1 | 2
 
 type BossPhaseTwoConfig = typeof BALANCE.boss.phaseTwo
 
+export type BossPhaseOneProfile = Omit<typeof BALANCE.boss.phaseOne, 'burstCount'> & Readonly<{
+  burstCount: number
+}>
+
 export type BossPhaseTwoProfile = Omit<
   BossPhaseTwoConfig,
   'burstCount' | 'burstCountAtLevelOne' | 'burstCountPerThreeLevels'
@@ -28,7 +32,7 @@ export type BossPlan = {
   readonly phaseThresholdHp: number
   readonly referenceDps: number
   readonly referenceFightSec: number
-  readonly phaseOne: typeof BALANCE.boss.phaseOne
+  readonly phaseOne: BossPhaseOneProfile
   readonly phaseTwo: BossPhaseTwoProfile
   readonly companionIntervalMs: number
   readonly companionLimit: number
@@ -74,6 +78,14 @@ export function getMaxFightSec(level: number): number {
   )
 }
 
+export function getPhaseOneProfile(level: number): BossPhaseOneProfile {
+  const safeLevel = Math.max(1, Math.floor(level))
+  return {
+    ...BALANCE.boss.phaseOne,
+    burstCount: Math.min(BALANCE.boss.phaseOne.burstCount, safeLevel),
+  }
+}
+
 export function getPhaseTwoProfile(level: number): BossPhaseTwoProfile {
   const safeLevel = Math.max(1, Math.floor(level))
   const {
@@ -88,7 +100,11 @@ export function getPhaseTwoProfile(level: number): BossPhaseTwoProfile {
 
   return {
     ...unchangedPhaseTwo,
-    burstCount: Math.min(burstCount, burstCountAtLevelOne + Math.floor((safeLevel - 1) / 3) * burstCountPerThreeLevels),
+    burstCount: Math.min(
+      burstCount,
+      safeLevel,
+      burstCountAtLevelOne + Math.floor((safeLevel - 1) / 3) * burstCountPerThreeLevels,
+    ),
     burstSpreadPx: Math.min(burstSpreadPx, burstSpreadPxAtLevelOne + burstSpreadPxPerLevel * (safeLevel - 1)),
   }
 }
@@ -130,7 +146,7 @@ export function getBossPlan(
     phaseThresholdHp: maxHp / 2,
     referenceDps,
     referenceFightSec: maxHp / referenceDps,
-    phaseOne: BALANCE.boss.phaseOne,
+    phaseOne: getPhaseOneProfile(safeLevel),
     phaseTwo: getPhaseTwoProfile(safeLevel),
     companionIntervalMs: BALANCE.boss.companionIntervalMs,
     companionLimit: getBossCompanionLimit(safeLevel),

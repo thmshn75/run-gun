@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import { getBurstOffsets } from './bossBurst'
 import { getBossPhase, getBossPlan, type BossPlan, type BossUpgradeLevels } from './bossPlan'
 import { getRoadHalfWidth } from './road'
 import type { WeaponKey } from './weapons'
@@ -160,12 +161,10 @@ export class Boss {
   }
 
   private fireBurst(burstCount: number, burstSpreadPx: number): void {
-    const startX = this.enemy.x - burstSpreadPx / 2
-    const stepX = burstSpreadPx / (burstCount - 1)
-    for (let index = 0; index < burstCount; index += 1) {
+    for (const offsetX of getBurstOffsets(burstCount, burstSpreadPx)) {
       const projectile = this.projectileList.find((candidate) => !candidate.active)
       if (projectile === undefined) return
-      projectile.enableBody(true, startX + stepX * index, this.enemy.y + this.enemy.displayHeight / 2, true, true)
+      projectile.enableBody(true, this.enemy.x + offsetX, this.enemy.y + this.enemy.displayHeight / 2, true, true)
       projectile.setActive(true).setVisible(true).setAlpha(1)
       projectile.setData('damage', BALANCE.boss.projectileDamage)
       const body = projectile.body as Phaser.Physics.Arcade.Body

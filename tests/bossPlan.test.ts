@@ -1,12 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
+import { getBurstOffsets } from '../src/systems/bossBurst'
 import {
   canSpawnBossCompanion,
   getBossPhase,
   getBossPlan,
   getCombatFirepower,
   getMaxFightSec,
+  getPhaseOneProfile,
   getPhaseTwoProfile,
   getTeamFirepower,
   getWeaponFirepower,
@@ -27,12 +29,19 @@ const purchaseStates: ReadonlyArray<Readonly<{ name: string; upgrades: BossUpgra
 ]
 
 describe('boss plans', () => {
-  it('scales the phase-two salvo profile from level one to the existing caps', () => {
+  it('caps both boss salvo profiles by level before retaining their existing caps', () => {
     expect(BALANCE.boss.phaseTwo.burstSpreadPxAtLevelOne).toBe(60)
     expect(BALANCE.boss.phaseTwo.burstSpreadPxPerLevel).toBe(9)
     expect(BALANCE.boss.phaseTwo.burstCountAtLevelOne).toBe(3)
     expect(BALANCE.boss.phaseTwo.burstCountPerThreeLevels).toBe(1)
-    expect(getPhaseTwoProfile(1)).toMatchObject({ burstCount: 3, burstSpreadPx: 60 })
+    expect(getPhaseOneProfile(1)).toMatchObject({ burstCount: 1, burstSpreadPx: 60 })
+    expect(getPhaseTwoProfile(1)).toMatchObject({ burstCount: 1, burstSpreadPx: 60 })
+    expect(getPhaseOneProfile(2)).toMatchObject({ burstCount: 2, burstSpreadPx: 60 })
+    expect(getPhaseTwoProfile(2)).toMatchObject({ burstCount: 2, burstSpreadPx: 69 })
+    expect(getPhaseOneProfile(3)).toMatchObject({ burstCount: 3, burstSpreadPx: 60 })
+    expect(getPhaseTwoProfile(3)).toMatchObject({ burstCount: 3, burstSpreadPx: 78 })
+    expect(getPhaseTwoProfile(4)).toMatchObject({ burstCount: 4, burstSpreadPx: 87 })
+    expect(getPhaseTwoProfile(7)).toMatchObject({ burstCount: 5, burstSpreadPx: 114 })
     expect(getPhaseTwoProfile(12)).toMatchObject({ burstCount: 5, burstSpreadPx: 150 })
 
     let previous = getPhaseTwoProfile(1)
@@ -42,6 +51,31 @@ describe('boss plans', () => {
       expect(profile.burstSpreadPx).toBeGreaterThanOrEqual(previous.burstSpreadPx)
       previous = profile
     }
+  })
+
+  it('uses the capped profiles in boss plans at every requested level', () => {
+    const expectedBurstCounts = [
+      { level: 1, phaseOne: 1, phaseTwo: 1 },
+      { level: 2, phaseOne: 2, phaseTwo: 2 },
+      { level: 3, phaseOne: 3, phaseTwo: 3 },
+      { level: 4, phaseOne: 3, phaseTwo: 4 },
+      { level: 7, phaseOne: 3, phaseTwo: 5 },
+      { level: 12, phaseOne: 3, phaseTwo: 5 },
+    ]
+
+    for (const expected of expectedBurstCounts) {
+      const plan = getBossPlan(expected.level, purchaseStates[0].upgrades, 12, 'normal', 1, 3)
+      expect(plan.phaseOne.burstCount).toBe(expected.phaseOne)
+      expect(plan.phaseTwo.burstCount).toBe(expected.phaseTwo)
+    }
+  })
+
+  it('keeps a single boss projectile centered with finite coordinates', () => {
+    const offsets = getBurstOffsets(1, BALANCE.boss.phaseOne.burstSpreadPx)
+    const projectileXs = offsets.map((offset) => 320 + offset)
+    expect(offsets).toEqual([0])
+    expect(projectileXs).toEqual([320])
+    expect(projectileXs.every(Number.isFinite)).toBe(true)
   })
 
   it('keeps a 20-pixel dodge-and-hit window through level three using the real player width', () => {
@@ -149,7 +183,7 @@ describe('boss plans', () => {
   it('makes phase two faster and visibly broader while respecting the companion cap', () => {
     const plan = getBossPlan(12, purchaseStates[0].upgrades, 12, 'normal', 1, 3)
     expect(plan.phaseTwo).toEqual(getPhaseTwoProfile(plan.level))
-    expect(plan.phaseOne).toBe(BALANCE.boss.phaseOne)
+    expect(plan.phaseOne).toEqual(BALANCE.boss.phaseOne)
     expect(plan.phaseTwo.fireIntervalMs).toBeLessThan(plan.phaseOne.fireIntervalMs)
     expect(plan.phaseTwo.burstCount).toBeGreaterThan(plan.phaseOne.burstCount)
     expect(plan.phaseTwo.moveSpeed).toBeGreaterThan(plan.phaseOne.moveSpeed)
