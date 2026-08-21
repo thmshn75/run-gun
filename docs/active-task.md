@@ -1,356 +1,169 @@
 # Active Task
 
 ## Status
-`APPROVED`
+`SPEC_READY`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
-> **Nacharbeit 1 (2026-08-21, nach Claude-Review).** Teil 1 und Teil 2 sind umgesetzt und im
-> Review in Ordnung — Formel, Clamp, Kulisse, Sprites und Perspektive stimmen. **Offen ist
-> allein Abschnitt 1.6 unten**, ein Rest aus der alten Formel, der die 15-Sekunden-Garantie
-> bricht. Alles andere bleibt unangetastet.
-
 ## Task
-**Teil 1: Schaden und Feuerrate in der Boss-Rechnung messen statt raten (Bug).
-Teil 2: Kulisse am Straßenrand — Bäume und Häuser, die vorbeiziehen.**
+**Teil 1: Kulisse bewegt sich nach der falschen Kurve (Bug).
+Teil 2: Hochhäuser statt Landhäuser — Stadtkulisse links und rechts.**
 
-Thomas' iPhone-Test vom 2026-08-21: „konnte Level 1 Boss nicht besiegen, 3 Team und Rakete und
-Rate down funktioniert halt nicht" sowie „im grünen Bereich hätte ich gerne Bäume und Häuser die
-vorbeiziehen wie am Titelbild".
+Thomas' iPhone-Test vom 2026-08-21: „die Bäume und Häuser sind zu schnell, sollen langsamer sein
+und die Häuser sollten eher so wie Hochhäuser sein, links und rechts, als wenn man durch eine
+Stadt läuft".
 
 ---
 
-# Teil 1 — Der dritte und letzte Rest derselben Fehlerklasse
+## Teil 1 — Bewegungskurve der Kulisse an die Straße angleichen
 
-## Befund
+### Befund (nicht raten, der richtige Wert steht bereits im Code)
+Die Fahrbahnmarkierungen in `src/systems/road.ts` bewegen sich **perspektivisch**:
 
-Die Boss-Rechnung kannte drei Größen, die sie hätte messen können, und hat sie geraten. Zwei
-sind behoben, **eine fehlt noch**:
+```ts
+// road.ts:31 und road.ts:44
+const progressDelta = (BALANCE.scrollSpeed * dt) / (this.scene.scale.height * 1000)
+const y = BALANCE.road.horizonY + (height - BALANCE.road.horizonY) * progress * progress
+```
 
-| Größe | Woher heute | Status |
+Die Kulisse in `src/systems/scenery.ts:52` bewegt sich dagegen **linear**:
+
+```ts
+object.image.y += (BALANCE.scrollSpeed * dt) / 1000
+```
+
+Damit rast ein Kulissenobjekt am Horizont mit vollen 180 px/s los, während die Mittellinie dort
+nahezu stillsteht. Genau das nimmt Thomas als „zu schnell" wahr. Es ist kein Balance-Wert,
+sondern eine Inkonsistenz zwischen zwei Systemen, die dieselbe Bodenebene darstellen.
+
+### Auftrag
+Die Kulisse übernimmt die Bewegungskurve der Straße **unverändert**. Konkret:
+
+1. `SceneryObject` bekommt ein Feld `progress: number` (statt der y-Position als Zustand).
+2. Beim Spawn: `progress = 0`.
+3. In `update`: `object.progress += (BALANCE.scrollSpeed * dt) / (this.scene.scale.height * 1000)`,
+   danach `object.image.y = BALANCE.road.horizonY + (height - BALANCE.road.horizonY) * object.progress * object.progress`.
+4. **`progress` darf über 1 hinauslaufen** — nicht auf 1 clampen und nicht wie bei der Straße auf 0
+   zurücksetzen. Sonst bleiben Objekte am unteren Bildrand stehen und werden nie recycelt.
+   Die bestehende Recycle-Bedingung (unten raus oder seitlich raus) bleibt wie sie ist.
+5. Die gemeinsame Formel gehört **in eine Funktion**, die Road und Scenery beide benutzen
+   (z. B. `getScrollY(height, progress)` und `getScrollProgressDelta(height, dt)` in
+   `src/systems/roadGeometry.ts`). Zwei Kopien derselben Kurve sind genau der Fehler, der hier
+   gerade behoben wird. `road.ts` auf die neue Funktion umstellen, ohne sein Verhalten zu ändern.
+
+### Erwartete Wirkung (nachrechnen, nicht schätzen)
+Bei `width 390 / height 844`, `horizonY 150`, `scrollSpeed 180`:
+- Geschwindigkeit am Horizont: **0 px/s** statt 180 px/s.
+- Geschwindigkeit bei halber Strecke: ca. 148 px/s.
+- Sichtbare Lebensdauer eines Objekts (bis es seitlich aus dem Bild wandert, ca. `y = 607`):
+  **von 2,54 s auf 3,80 s**, also rund 50 % länger im Bild.
+
+Diese Zahlen sind eine Herleitung, kein Akzeptanzkriterium — maßgeblich ist, dass Kulisse und
+Mittellinie **dieselbe** Funktion benutzen.
+
+### Was hier ausdrücklich NICHT gemacht wird
+- **`BALANCE.scrollSpeed` nicht senken.** Das ist das Tempo des ganzen Spiels, nicht das der Kulisse.
+- **Keinen eigenen Kulissen-Geschwindigkeitsfaktor einführen.** Bäume und Häuser stehen auf
+  derselben Bodenebene wie die Straße; jede Abweichung von deren Tempo ist optisch falsch und
+  würde als Rutschen wahrgenommen.
+
+---
+
+## Teil 2 — Hochhäuser statt Landhäuser
+
+### Sprites (von Codex mit dem Bildwerkzeug zu erzeugen)
+Drei neue Pixel-Art-Hochhäuser im Stil der vorhandenen Kulissen-Sprites, transparenter
+Hintergrund, Frontansicht, Fußpunkt exakt an der Unterkante des Bildes (Origin ist `(0.5, 1)`):
+
+| Datei | Zielmaß | Motiv |
 |---|---|---|
-| Truppengröße | ~~aus dem Kaufstand geraten~~ → `runStats.get('hp')` | behoben (`b36fdb0`) |
-| Waffe | ~~immer `weapon.normal`~~ → tatsächliche Waffe | behoben (`8472f94`) |
-| **Schaden und Feuerrate** | **aus Kaufstand + Levelaufschlag geraten** | **offen** |
+| `src/assets/scenery-tower-a.png` | ca. 160 × 400 px | schmales Wohnhochhaus, gleichmäßiges Fensterraster, warme Fensterlichter |
+| `src/assets/scenery-tower-b.png` | ca. 224 × 320 px | breiterer Büroblock, dunkle Glasfront, Dachaufbau |
+| `src/assets/scenery-tower-c.png` | ca. 176 × 480 px | schlanker Turm mit Antenne, andere Fassadenfarbe |
 
-In `getBossPlan` und `getBlockerPlan` steht weiterhin:
+Drei sichtbar unterschiedliche Silhouetten und Farben, damit eine Reihe nicht wie eine Tapete
+wirkt. `scenery-cottage.png` **nicht löschen** — die Art bleibt erhalten, wird aber seltener
+(siehe Gewichtung). Registrierung in `src/scenes/BootScene.ts` analog zu den bestehenden
+`scenery-*`-Sprites.
 
-```ts
-const damage = Math.min(reference.damageCap, damageUpgrade.base + upgrades.damage * ... + (level-1) * ...)
-const rate   = Math.min(reference.rateCap,   rateUpgrade.base   + upgrades.rate   * ... + (level-1) * ...)
-```
+### Größen in `scenery.ts`
+`baseHeightPx` ist die Höhe **am Horizont**; unten skaliert sie über `getSceneryScale` hoch
+(sichtbares Maximum ca. Faktor 1,77, bevor das Objekt seitlich aus dem Bild wandert).
 
-Das ist eine **Annahme über den Kaufstand**, nicht der Wert, mit dem der Spieler schießt. Die
-DMG- und RATE-Tore verändern `runStats` im Run in beide Richtungen — genau darum geht es bei der
-Tor-Mathematik. Wer ein RATE-Tor nach unten nimmt, schießt langsamer, der Boss bekommt aber
-unverändert die Lebenspunkte für die angenommene Feuerrate.
+- `scenery-tower-a`: `baseHeightPx: 150`
+- `scenery-tower-b`: `baseHeightPx: 120`
+- `scenery-tower-c`: `baseHeightPx: 185`
 
-Thomas' Fall nachgerechnet — Level 1, frischer Spielstand, Truppe 3, Rakete:
+Zum Vergleich: Eiche 54, Nadelbaum 58. Die Türme ragen damit deutlich über den Horizont —
+gewollt, das ist der Stadteindruck.
 
-| Tatsächliche Werte | Kampf dauert | |
-|---|---|---|
-| damage 1, rate 3 (= die Annahme) | 40,0 s | gerade noch schaffbar |
-| damage 1, rate 1,5 (RATE einmal runter) | **80,0 s** | nicht schaffbar |
-| damage 1, rate 1 (RATE zweimal runter) | **120,0 s** | nicht schaffbar |
-| damage 0,7, rate 1 (RATE und DMG runter) | **171,4 s** | nicht schaffbar |
+### Gewichtung statt Gleichverteilung
+Die Auswahl in `spawn()` ist heute uniform über fünf Arten. Sie bekommt ein Gewicht pro Art,
+damit die Stadt dominiert, ohne dass Grün verschwindet:
 
-Der Boss wird ab Sekunde 45,8 tödlich. Alles über 40 s ist verloren.
-
-## Umsetzung
-
-### 1.1 Die letzten zwei geratenen Größen verschwinden
-
-`getBossPlan` und `getBlockerPlan` bekommen `damage` und `rate` **als Parameter**, aus
-`runStats.get('damage')` und `runStats.get('shotsPerSec')`. Die Herleitung aus
-`upgradesShop.*.base + upgrades.* + (level − 1) × *PerLevel` entfällt in der DPS-Rechnung.
-
-`referenceFirepower.damagePerLevel`, `damageCap`, `ratePerLevel` und `rateCap` werden dadurch
-für den DPS nicht mehr gebraucht — **sie bleiben aber als Anker für die Dämpfung erhalten**
-(Abschnitt 1.3) und behalten ihre Werte. Kein toter Code: Wer sie streicht, bricht die Dämpfung.
-
-### 1.2 Ein Clamp beendet die Serie strukturell
-
-Bisher wurde nach unten nichts begrenzt und nach oben nur durch `maxFightSec`. Neu ist die
-Kampfdauer **beidseitig geklemmt**:
-
-```ts
-// Untergrenze, damit ein starker Run den Boss nicht wieder zerplatzen lässt — das war der
-// Ausgangsfehler. Obergrenze, damit kein Run über das Zeitdruckfenster hinausläuft.
-minFightSec: 15,
-maxFightSec: 40,   // unverändert
-```
-
-```
-echterDps = getCombatFirepower(teamSize, weapon) × damage × rate      // alles gemessen
-fightSec  = clamp(minFightSec, maxFightSec, fightSecAtMaxTeam × Truppenterm × Waffenterm × Statterm)
-maxHp     = min(hpCap, round(echterDps × fightSec))
-```
-
-**Das ist der eigentliche Fix.** Weil `maxHp` aus dem *echten* Ausstoß gebildet wird, ist die
-tatsächliche Kampfdauer exakt `fightSec` — und die liegt per Konstruktion zwischen 15 und 40
-Sekunden. Für **jede** Kombination aus Truppe, Waffe, Schaden, Feuerrate, Level und Kaufstand,
-ohne dass man Fälle durchprobieren muss. Damit ist diese Fehlerklasse geschlossen, nicht nur der
-gemeldete Fall.
-
-### 1.3 Der neue Stat-Term
-
-Analog zum Waffen-Term. Die bisher **geratenen** Werte bleiben als Bezugspunkt — sie
-beschreiben, was ein durchschnittlicher Run an dieser Stelle hätte:
-
-```
-Statterm = (angenommenDamage × angenommenRate / (echtDamage × echtRate)) ^ (1 − statDampening)
-```
-
-```ts
-// Wie stark erspielte Schadens- und Feuerratenwerte die Bosskampfdauer beeinflussen.
-// Gleiche Begründung wie beim Waffen-Wert: spürbar, aber nie so weit, dass ein schlechter
-// Torlauf den Kampf über das Zeitdruckfenster hinauszieht. Der Clamp fängt die Extreme.
-statDampening: 0.8,
-```
-
-`teamDampening` (0.41), `weaponDampening` (0.8) und `fightSecAtMaxTeam` (20) bleiben
-**unverändert**. Nachgerechnet ergibt das:
-
-| Fall | Dauer |
+| Art | Gewicht |
 |---|---|
-| **Thomas: Truppe 3, Rakete, rate 1** | **40,0 s** (vorher 120,0 s) |
-| Truppe 3, Normalwaffe, rate 1 | 40,0 s |
-| Truppe 12, Normalwaffe, dmg 3, rate 4 | 22,3 s |
-| Truppe 30, Schrot, dmg 20, rate 8 (Top-Run) | 15,0 s |
-| Truppe 30, Minigun, dmg 1, rate 1 | 33,4 s |
-| Truppe 2, Minigun, dmg 1, rate 1 (schlimmster Fall) | 40,0 s |
+| `scenery-tower-a` | 3 |
+| `scenery-tower-b` | 3 |
+| `scenery-tower-c` | 3 |
+| `scenery-oak` | 2 |
+| `scenery-conifer` | 2 |
+| `scenery-bush` | 1 |
+| `scenery-stone` | 1 |
+| `scenery-cottage` | 1 |
 
-### 1.4 Sperren
+Ergibt 56 % Hochhaus. Die Gewichte gehören als Feld `weight` an `SceneryKind`, die Ziehung als
+gewichtete Auswahl über die vorhandene `this.rng()` — **kein zweiter Zufallsgenerator**, der Seed
+muss reproduzierbar bleiben.
 
-`getBlockerPlan` bekommt `damage` und `rate` genauso aus `runStats` — **ohne Dämpfung und ohne
-Clamp**, damit eine Sperre für jeden Zustand konstant 2,0 s hält. Aufrufer in
-`src/systems/blockers.ts` reicht die Werte beim Spawn durch, wie schon Truppe und Waffe.
+### Dichte
+`BALANCE.scenery.spawnIntervalMs` von `900` auf `650` senken (dichtere Häuserzeile) und
+`BALANCE.scenery.spreadPx` von `48` auf `20` (Häuser stehen an der Straßenkante statt verstreut
+im Grün). `marginPx` bleibt bei `12`.
 
-### 1.5 Verhältnis zur Reißleine des letzten Tasks
+Seitliche Überlappung zweier Türme ist **erlaubt und erwünscht** — eine geschlossene Häuserfront
+ist genau der Effekt. Es darf aber kein Objekt in die Straße ragen; der bestehende Test
+`keeps every sampled roadside object fully outside the road` muss weiter grün sein.
 
-Die Reißleine verbietet, an `teamDampening`, `fightSecAtMaxTeam` oder `maxFightSec` zu drehen.
-**Daran wird nichts gedreht.** Hier werden zwei Größen von *geraten* auf *gemessen* umgestellt —
-derselbe Bug wie bei Truppe und Waffe, nur bei der letzten verbliebenen Variablen. Der neue
-Clamp ist keine Feinjustierung, sondern die Garantie, dass die Frage nicht ein viertes Mal
-aufkommt.
+### Poolgröße messen, nicht schätzen
+`BALANCE.pools.scenery` steht auf 16. Mit längerer Lebensdauer (Teil 1) und kürzerem
+Spawn-Intervall reicht das nicht mehr. Die neue Größe **wird gemessen**:
 
-### 1.6 `boss.hpCap` bricht die Garantie und muss weg
+Einen Test schreiben, der die Spawn-/Recycle-Logik über mindestens 120 Sekunden Spielzeit
+simuliert (feste dt-Schritte, deterministischer RNG, `width 390 / height 844`) und die maximale
+Zahl gleichzeitig aktiver Objekte ermittelt. `BALANCE.pools.scenery` = dieses Maximum + 4 Reserve.
+Der Test prüft anschließend, dass `spawn()` in der Simulation **nie** an einem leeren Pool
+scheitert. Kein `create()`/`destroy()` im Hot Path — die Preallocation im Konstruktor bleibt.
 
-**Befund aus dem Review:** In `getBossPlan` steht weiterhin
-
-```ts
-const maxHp = Math.min(BALANCE.boss.hpCap, Math.round(referenceDps * fightSec))
-```
-
-`hpCap = 30000` stammt aus der alten Formel, in der die Lebenspunkte aus **geratenen** Werten
-entstanden und deshalb nach oben explodieren konnten. Mit dem Clamp aus 1.2 ist diese Deckelung
-nicht nur überflüssig, sondern **schädlich**: Sie kappt genau die Lebenspunkte, die ein starker
-Run braucht, damit sein Kampf 15 Sekunden dauert.
-
-Nachgerechnet:
-
-| Zustand | HP nach Formel | HP nach `hpCap` | echte Dauer |
-|---|---|---|---|
-| Truppe 30, Schrot, dmg 20, rate 8 | 322.560 | 30.000 | **1,4 s** |
-| Truppe 30, Normal, dmg 20, rate 8 | 76.800 | 30.000 | **5,9 s** |
-| Truppe 30, Normal, dmg 10, rate 8 | 38.400 | 30.000 | **11,7 s** |
-| Truppe 30, Normal, dmg 8, rate 8 | 30.720 | 30.000 | **14,6 s** |
-| Truppe 20, Normal, dmg 10, rate 6 | 19.296 | 19.296 | 15,0 s |
-
-Der Boss platzt bei einem guten Run also weiterhin in 1,4 Sekunden — **exakt der Ausgangsfehler
-dieser ganzen Reihe**, nur an einer anderen Stelle.
-
-**Verlangte Umsetzung:**
-
-1. **`boss.hpCap` entfällt ersatzlos**, in `balance.ts` und in `bossPlan.ts`. Kein toter Wert.
-   Eine obere Grenze braucht es nicht mehr: `maxHp` ist per Konstruktion `echterDps × höchstens
-   maxFightSec` und damit immer genau so groß, wie der Kampf dauern soll.
-2. **`referenceFightSec` gibt die tatsächliche Dauer zurück**, also `maxHp / referenceDps`, nicht
-   den Sollwert `fightSec`. Sonst meldet der Plan eine Dauer, die das Spiel nicht einhält — und
-   genau daran ist dieser Fehler im Test vorbeigelaufen.
-
-**Der Kreuzprodukt-Test aus Akzeptanzkriterium 4 muss entsprechend nachgezogen werden:** Er
-prüft heute `plan.referenceFightSec` und hätte den `hpCap` deshalb nie gefunden. Künftig prüft
-er **`plan.maxHp / plan.referenceDps`** gegen das Fenster 15–40 s. Weil `maxHp` auf ganze Lebenspunkte
-gerundet wird, ist eine Toleranz nötig.
-
-**Korrektur (Claude, nach Codex' Rückmeldung): die Toleranz beträgt 0,5 s, nicht 0,1 s.** Die
-0,1 s waren zu eng gerechnet und in einem Fall nachweislich nicht einhaltbar. Hergeleitet: Der
-Rundungsfehler beträgt höchstens 0,5 Lebenspunkte, die Zeitabweichung also
-`0,5 / kleinstmöglicher Schadensausstoß`. Der kleinste Ausstoß im ganzen Spiel ist **Laser bei
-Truppe 2, Schaden 1, Feuerrate 1 = 1,12 Schaden/s**, das ergibt **0,446 s**. Eine Toleranz von
-0,5 s deckt das ab und bleibt mit 40,5 s weit unter der tödlichen Grenze von 45,8 s.
-
-Diese Herleitung gehört als Kommentar an die Prüfung, damit die Toleranz nicht später
-stillschweigend vergrößert wird. Wer sie über 0,5 s hinaus anhebt, deckt einen echten Fehler zu.
-
-
----
-
-# Teil 2 — Kulisse am Straßenrand
-
-## Ziel
-
-Der grüne Bereich links und rechts der Straße ist heute eine leere Fläche. Er soll aussehen wie
-auf dem Titelbild (`src/assets/title.png`): Bäume, Büsche, Steine, Häuser und Zäune, die mit der
-Straße vorbeiziehen. Reine Kulisse — **kein Spielelement**.
-
-## Umsetzung
-
-### 2.1 Bilder
-
-Codex erzeugt die Sprites im Stil von `src/assets/title.png` (Pixel-Art, gleiche Farbwelt,
-gleiche Kantenhärte). Mindestens fünf verschiedene, damit sich das Muster nicht sofort
-wiederholt:
-
-- ein Laubbaum, ein zweiter Baum in anderer Form/Größe
-- ein Busch oder eine Grasgruppe
-- ein Stein oder Felsblock
-- ein kleines Haus oder eine Hütte
-
-Alle mit transparentem Hintergrund, Fußpunkt unten mittig (Origin `(0.5, 1)`), damit sie auf dem
-Boden stehen und nicht schweben. Größe so, dass ein Baum am unteren Bildrand etwa 90–130 px hoch
-wirkt; die Perspektive macht ihn oben kleiner.
-
-### 2.2 Bewegung und Perspektive
-
-Eigenes System `src/systems/scenery.ts` nach dem Muster der bestehenden Systeme:
-
-- Objekte erscheinen bei `road.horizonY` und wandern mit `BALANCE.scrollSpeed` nach unten —
-  **dieselbe Geschwindigkeit wie die Straße**, sonst schwimmt die Kulisse gegen den Untergrund.
-- Die Größe wächst mit der Perspektive, hergeleitet aus derselben Funktion, die die Straße
-  benutzt: `getRoadHalfWidth(width, height, y)`. Am Horizont ist die Straße `topWidthRatio 0.46`
-  breit, unten `bottomWidthRatio 1` — der Maßstab eines Kulissenobjekts folgt genau diesem
-  Verhältnis. Keine zweite, eigene Perspektivformel.
-- **Seitliche Position:** außerhalb der Straße. Der linke Rand der Straße bei Höhe `y` liegt bei
-  `width/2 − getRoadHalfWidth(…, y)`, der rechte spiegelbildlich. Ein Objekt steht mit einem
-  Zufallsabstand von `scenery.marginPx` bis `scenery.marginPx + scenery.spreadPx` **außerhalb**
-  dieser Kante. Weil die Straße nach unten breiter wird, wandern die Objekte dabei automatisch
-  nach außen aus dem Bild — genau wie auf dem Titelbild.
-- Ein Objekt, dessen Oberkante unter `scale.height` liegt oder das seitlich vollständig aus dem
-  Bild gelaufen ist, wird recycelt.
-- Erscheinungsrhythmus: `scenery.spawnIntervalMs` mit einer Zufallsstreuung, Seite (links/rechts)
-  und Art werden gezogen. Beide Seiten unabhängig, damit keine Symmetrie entsteht.
-
-### 2.3 Ebene
-
-Neue Ebene in `BALANCE.layers` **zwischen** `background (-1)` und `road (0)`, damit die Kulisse
-über dem Boden, aber unter Straße, Gegnern, Toren und Truppe liegt. Nichts darf ein Spielelement
-verdecken — die Kulisse steht ohnehin neben der Straße, aber die Ebene sichert es ab.
-
-### 2.4 Pool, mit Herleitung
-
-Wie jedes andere System: alle Objekte einmal im Konstruktor, kein `create()`/`destroy()` zur
-Laufzeit.
-
-Herleitung: Ein Objekt braucht von `horizonY` (150) bis zum unteren Rand (844) `694 px` bei
-`scrollSpeed 180 px/s`, also **3,86 s**. Bei `spawnIntervalMs = 900` und zwei Seiten sind das
-`3,86 / 0,9 × 2 = 8,6` gleichzeitig sichtbare Objekte. **Pool `scenery: 16`** lässt 86 % Reserve
-für die Zufallsstreuung im Rhythmus.
-
-Kulissenobjekte sind reine Bilder ohne Physikkörper und ohne Kollisionsprüfung — sie kosten
-Zeichenzeit, keine Rechenzeit. Die Regel „nie alle Pools in eine Physik-Gruppe legen" wird nicht
-berührt, weil hier gar keine Physik im Spiel ist.
-
-### 2.5 Nicht mitnehmen
-
-Keine Wolken, keine Skyline, keine Vögel, keine Animation der Objekte. Das Titelbild zeigt eine
-Skyline am Horizont — die ist Teil des Bildes, nicht Teil dieses Tasks. Feature-Deckel aus
-`docs/plan.md` gilt.
-
----
-
-## Ausdrücklich nicht ändern
-
-- `teamDampening` (0.41), `weaponDampening` (0.8), `fightSecAtMaxTeam` (20), `maxFightSec` (40).
-- Die Bossphasen, das Vorrücken, `pressureDelayMs`, `battleY`, Begleiter-Grenzen.
-- Die Tor-Mathematik, E10, die Reichweiten und Poolgrößen aus `8472f94`.
-- Der Entwickler-Zugang `window.__runGun` / `debugSetState` — er wird für die Abnahme gebraucht.
-- Straße, Horizont und Perspektivformel. Die Kulisse benutzt sie, sie ändert sie nicht.
+Dafür muss die Platzierungs-/Lebensdauer-Logik testbar sein, ohne Phaser zu starten: falls
+nötig die reine Rechnung nach `sceneryLayout.ts` ziehen (wie schon bei `getSceneryPlacement`)
+und aus `scenery.ts` heraus aufrufen.
 
 ---
 
 ## Akzeptanzkriterien
-
-1. `getBossPlan` und `getBlockerPlan` erhalten `damage` und `rate` als Parameter; in ihrer
-   DPS-Rechnung kommt keine Herleitung aus `upgradesShop` oder `*PerLevel` mehr vor.
-2. Die Aufrufer reichen `runStats.get('damage')` und `runStats.get('shotsPerSec')` durch.
-3. `minFightSec: 15` existiert; `fightSec` ist beidseitig geklemmt.
-4. **Der entscheidende Test:** Über das Kreuzprodukt aus Truppengrößen `[2, 3, 6, 12, 20, 30]`,
-   **allen sieben Waffen**, Schadenswerten `[1, 3, 10, 20]`, Feuerraten `[1, 1.5, 3, 8]`, Leveln
-   `[1, 6, 12]` und beiden Kaufständen liegt `referenceFightSec` **immer** zwischen 15 und 40
-   Sekunden. Das sind über 8.000 Fälle — der Test läuft sie durch, statt Stichproben zu nehmen.
-5. Ein Test für Thomas' konkreten Fall: Level 1, frischer Spielstand, Truppe 3, Rakete,
-   `damage = 1`, `rate = 1` → `referenceFightSec ≤ 40` und `maxHp` liegt unter dem Wert, den die
-   alte geratene Rechnung ergeben hätte.
-6. `getBlockerPlan` liefert über dasselbe Kreuzprodukt eine Zerstörungsdauer zwischen 1,5 und
-   2,5 s.
-7. Kulissenobjekte erscheinen links und rechts **außerhalb** der Straßenkante — ein Test weist
-   über `getRoadHalfWidth` nach, dass kein Objekt bei seiner Höhe in die Straße ragt.
-8. Der Maßstab eines Kulissenobjekts folgt derselben Perspektive wie die Straßenbreite; im Test
-   nachgewiesen, dass er bei `horizonY` kleiner ist als am unteren Rand und dem Verhältnis der
-   Straßenbreiten entspricht.
-9. `pools.scenery` existiert mit der Herleitung im Kommentar; im Review nachweisbar, dass die
-   Kulissen-Objekte nur im Konstruktor erzeugt werden.
-10. Die Kulisse liegt auf einer Ebene unter `layers.road` und verdeckt kein Spielelement.
-11. Mindestens fünf verschiedene Kulissen-Sprites im Stil von `title.png`, mit transparentem
-    Hintergrund und Fußpunkt-Origin.
-12. `boss.hpCap` existiert nicht mehr, weder in `balance.ts` noch in `bossPlan.ts`.
-13. `plan.referenceFightSec` entspricht `plan.maxHp / plan.referenceDps` (Toleranz 0,5 s, hergeleitet in 1.6), und
-    der Kreuzprodukt-Test aus Kriterium 4 prüft diesen Quotienten statt des Sollwerts.
-14. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
-15. **Nur nach Thomas' iPhone-Test erfüllbar:** Level-1-Boss ist auch mit kleiner Truppe,
-    schwacher Waffe und gesenkter Feuerrate zu besiegen; die Kulisse wirkt wie auf dem
-    Titelbild und lenkt nicht vom Spielgeschehen ab.
-
----
+1. Kulisse und Fahrbahnmarkierung benutzen **dieselbe** Bewegungsfunktion aus `roadGeometry.ts`;
+   in `scenery.ts` steht keine eigene y-Fortschreibung mehr.
+2. `scenery.ts` clampt `progress` nicht auf 1; Objekte wandern vollständig aus dem Bild und
+   werden recycelt. Ein Test belegt, dass nach 120 s Simulation kein Objekt dauerhaft am unteren
+   Rand hängt.
+3. `BALANCE.scrollSpeed` ist unverändert `180`.
+4. Drei neue Hochhaus-Sprites existieren, sind in `BootScene.ts` geladen und in `sceneryKinds`
+   mit den oben genannten `baseHeightPx` eingetragen.
+5. Die Artenwahl ist gewichtet, benutzt weiterhin `this.rng()` und ist bei gleichem Seed
+   reproduzierbar. Ein Test belegt die Verteilung grob (Hochhaus-Anteil zwischen 45 % und 65 %
+   über 2.000 Ziehungen).
+6. `BALANCE.pools.scenery` ist aus der Simulation hergeleitet, nicht geschätzt; die Herleitung
+   steht als Kommentar an der Konstante (wie bei `bossProjectiles`).
+7. Der bestehende Test `keeps every sampled roadside object fully outside the road` ist grün —
+   auch mit den neuen, breiteren Sprites. Der Test in `scenery.test.ts`, der
+   `expect(BALANCE.pools.scenery).toBe(16)` festnagelt, wird auf den neuen Wert nachgezogen.
+8. `npm run check`, `npm run build` und `npm test` laufen sauber durch.
+9. Keine neuen Laufzeit-Requests, keine neuen Abhängigkeiten.
 
 ## Reißleine
-
-**Teil 1 ist mit dem Clamp abgeschlossen.** Sollte ein Bosskampf danach immer noch nicht zu
-gewinnen sein, liegt es **nicht** an den Lebenspunkten — die Dauer ist dann per Konstruktion
-höchstens 40 Sekunden und der Boss wird erst ab 45,8 Sekunden tödlich. Dann ist entweder der
-tatsächliche Schaden nicht der berechnete (Trefferprüfung messen, nicht Zahlen drehen) oder der
-Spieler stirbt vorher an Bossgeschossen und Begleitern — das ist eine Frage des Kampfverhaltens,
-über die Thomas entscheidet. **Kein zulässiger Ersatz:** an `statDampening`, `teamDampening`,
-`weaponDampening`, `minFightSec` oder `maxFightSec` drehen.
-
-**Ruckelt die Kulisse am iPhone**, wird `scenery.spawnIntervalMs` erhöht (900 → 1400 → 2000) und
-der Pool entsprechend verkleinert. **Kein zulässiger Ersatz:** die Perspektivrechnung
-vereinfachen oder die Kulisse auf eine Seite beschränken — dann sieht es falsch aus statt
-sparsam. Bleibt es zäh, fliegt Teil 2 raus; er ist Kosmetik und darf das Spielgefühl nicht
-kosten.
-
-**Zeitbudget Teil 2:** Sitzt die Kulisse nach zwei Nacharbeitszyklen optisch nicht (Objekte
-schweben, ragen in die Straße, springen beim Erscheinen), liegt es an der Kopplung von
-Perspektive und Fußpunkt. Dann die Positionsrechnung als reine Funktion nach
-`src/systems/sceneryLayout.ts` ziehen und dort isoliert gegen Tests bringen, statt im
-Zusammenspiel mit Phaser weiterzusuchen.
-
-## Implementation Summary
-
-- Boss- und Sperren-DPS verwenden beim Spawn die gemessenen `runStats`-Werte für Schaden und Feuerrate. Die Bossdauer ist mit `minFightSec: 15`, `maxFightSec: 40` und `statDampening: 0.8` beidseitig geklemmt.
-- Fünf transparente Pixel-Art-Kulissensprites sowie ein physikfreier 16er-Pool ziehen perspektivisch neben der Straße vorbei; die Position und Größe folgen `getRoadHalfWidth`.
-- Tests decken das vollständige 8.064-Fälle-Kreuzprodukt, Sperren-Dauer sowie Straßenabstand, Perspektive, Pool und Ebene der Kulisse ab.
-
-
----
-
-## Messergebnis (Claude, 2026-08-21)
-
-Playwright mit CDP, `Emulation.setCPUThrottlingRate {rate: 8}`, 290 ausgewertete Bilder je
-Durchlauf. Schlimmster Fall erzwungen: Truppe 30, Level 12, `shotsPerSec` am Cap 8, `damage` am
-Boden 1. **Kulisse aktiv.**
-
-| Waffe | Median | p95 | max | Geschosse gleichzeitig |
-|---|---|---|---|---|
-| Normalwaffe | 16,7 ms | 18,5 ms | 18,7 ms | 18 |
-| Flammenwerfer | 16,7 ms | 18,5 ms | 18,7 ms | 105 |
-| Schrot | 16,7 ms | 18,5 ms | 18,7 ms | 112 |
-
-Unveraendert gegenueber der Messung ohne Kulisse (`8472f94`): 16,7 ms Median, keine Ausreisser.
-Die Kulisse kostet messbar nichts — erwartbar, weil sie weder Physikkoerper noch
-Kollisionspruefung hat.
-
-Screenshot-Gegenprobe: laufendes Spiel mit Truppe 30, Level 12, sichtbarer Kulisse (Eiche,
-Tanne, Busch, Stein, Haeuschen) links und rechts ausserhalb der Strasse, mittiger Levelanzeige
-und einem zweispurigen DMG-Tor.
+Wenn die gewichtete Auswahl oder die Pool-Simulation nach **zwei Anläufen** nicht sauber testbar
+ist, ohne Phaser zu instanziieren: Teil 1 allein abliefern (der ist unabhängig und behebt Thomas'
+Hauptbeschwerde), Teil 2 zurückstellen und im Abschlussbericht sagen, woran es lag.
+**Kein zulässiger Ersatz** ist: die Poolgröße doch zu schätzen, den Verteilungstest wegzulassen,
+oder Teil 2 ohne Test einzubauen. Ebenfalls kein Ersatz: `scrollSpeed` senken, um „langsamer"
+zu erreichen.
