@@ -3,6 +3,7 @@ import { BALANCE } from '../config/balance'
 import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
 import { Blockers } from '../systems/blockers'
 import { Coins } from '../systems/coins'
+import { selectChainLightningTargets } from '../systems/chainLightning'
 import { Boss } from '../systems/boss'
 import type { BossUpgradeLevels } from '../systems/bossPlan'
 import { Crowd } from '../systems/crowd'
@@ -26,6 +27,11 @@ interface HudSegments {
 }
 
 interface SplashFlash {
+  image: Phaser.GameObjects.Image
+  remainingMs: number
+}
+
+interface ChainFlash {
   image: Phaser.GameObjects.Image
   remainingMs: number
 }
@@ -67,6 +73,41 @@ class SplashFlashPool {
   }
 }
 
+class ChainFlashPool {
+  private readonly flashes: ChainFlash[]
+  private nextIndex: number
+
+  public constructor(scene: Phaser.Scene) {
+    this.flashes = []
+    this.nextIndex = 0
+    for (let index = 0; index < BALANCE.pools.chainFlashes; index += 1) {
+      const image = scene.add.image(0, 0, 'chain-flash').setDepth(BALANCE.layers.gameplay + 1).setActive(false).setVisible(false)
+      this.flashes.push({ image, remainingMs: 0 })
+    }
+  }
+
+  public spawn(x: number, y: number): void {
+    for (let attempts = 0; attempts < this.flashes.length; attempts += 1) {
+      const index = this.nextIndex
+      this.nextIndex = index + 1 === this.flashes.length ? 0 : index + 1
+      const flash = this.flashes[index]
+      if (flash.remainingMs > 0) continue
+      flash.remainingMs = BALANCE.weapon.chainFlashMs
+      flash.image.setPosition(x, y).setAlpha(1).setActive(true).setVisible(true)
+      return
+    }
+  }
+
+  public update(dt: number): void {
+    for (const flash of this.flashes) {
+      if (flash.remainingMs <= 0) continue
+      flash.remainingMs = Math.max(0, flash.remainingMs - dt)
+      flash.image.setAlpha(flash.remainingMs / BALANCE.weapon.chainFlashMs)
+      if (flash.remainingMs === 0) flash.image.setActive(false).setVisible(false)
+    }
+  }
+}
+
 export class GameScene extends Phaser.Scene {
   private road!: Road
   private crowd!: Crowd
@@ -87,6 +128,7 @@ export class GameScene extends Phaser.Scene {
   private gameOverStarted!: boolean
   private lastCrowdSize!: number
   private splashFlashes!: SplashFlashPool
+  private chainFlashes!: ChainFlashPool
   private boss!: Boss
   private blockers!: Blockers
   private currentLevel!: number
@@ -152,6 +194,7 @@ export class GameScene extends Phaser.Scene {
       () => Phaser.Math.RND.frac(),
     )
     this.splashFlashes = new SplashFlashPool(this)
+    this.chainFlashes = new ChainFlashPool(this)
     const panelX = this.insets.left + BALANCE.hud.padding
     const panelY = this.insets.top + BALANCE.hud.padding
     const panelW = this.scale.width - this.insets.left - this.insets.right - 2 * BALANCE.hud.padding
@@ -244,6 +287,7 @@ export class GameScene extends Phaser.Scene {
     this.boss.update(dt)
     this.coins.update(dt, this.crowd.getAnchorX(), this.crowd.getAnchorY())
     this.splashFlashes.update(dt)
+    this.chainFlashes.update(dt)
     this.updateBossBar()
     if (this.runStats.get('hp') <= 0) {
       this.triggerGameOver()
@@ -282,6 +326,7 @@ export class GameScene extends Phaser.Scene {
     const impactX = enemy.x
     const impactY = enemy.y
     this.damageEnemy(enemy, damage)
+    this.applyChainLightning(enemy, config, damage)
     if (config.splashRadiusPx > 0) {
       const radiusSquared = config.splashRadiusPx * config.splashRadiusPx
       const splashDamage = this.runStats.get('damage') * this.getCrowdDamageMultiplier() * config.splashDamageFactor
@@ -328,6 +373,35 @@ export class GameScene extends Phaser.Scene {
       this.splashFlashes.spawn(impactX, impactY, config.splashRadiusPx)
     }
     this.weapons.recycle(projectile)
+  }
+
+  private applyChainLightning(
+    source: Phaser.Physics.Arcade.Image,
+    config: (typeof BALANCE.weapon)[WeaponKey],
+    directDamage: number,
+  ): void {
+    if (config.chainCount === 0) return
+    const targets = this.spawner.getEnemies().getChildren()
+      .filter((child) => child.active)
+      .map((child) => child as Phaser.Physics.Arcade.Image)
+    const bossEnemy = this.boss.getEnemy()
+    if (bossEnemy.active) targets.push(bossEnemy)
+    const byId = new Map(targets.map((target) => [target.getData('spawnId') as number, target]))
+    const sourceId = source.getData('spawnId') as number
+    const jumps = selectChainLightningTargets(
+      sourceId,
+      source.x,
+      source.y,
+      targets.map((target) => ({ id: target.getData('spawnId') as number, x: target.x, y: target.y })),
+      config.chainRadiusPx,
+      config.chainCount,
+    )
+    for (const jump of jumps) {
+      const target = byId.get(jump.id)
+      if (target === undefined || !target.active) continue
+      this.damageEnemy(target, directDamage * config.chainDamageFactor)
+      this.chainFlashes.spawn(target.x, target.y)
+    }
   }
 
   private handleCombatOverlap(first: Phaser.GameObjects.GameObject, second: Phaser.GameObjects.GameObject): void {

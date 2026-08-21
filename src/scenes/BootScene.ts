@@ -7,10 +7,16 @@ import playerUrl from '../assets/player.png'
 import titleUrl from '../assets/title.png'
 import weaponLaserGateUrl from '../assets/weapon-laser-gate.png'
 import weaponLaserHudUrl from '../assets/weapon-laser-hud.png'
+import weaponMinigunGateUrl from '../assets/weapon-minigun-gate.png'
+import weaponMinigunHudUrl from '../assets/weapon-minigun-hud.png'
 import weaponNormalGateUrl from '../assets/weapon-normal-gate.png'
 import weaponNormalHudUrl from '../assets/weapon-normal-hud.png'
 import weaponRocketGateUrl from '../assets/weapon-rocket-gate.png'
 import weaponRocketHudUrl from '../assets/weapon-rocket-hud.png'
+import weaponFlamethrowerGateUrl from '../assets/weapon-flamethrower-gate.png'
+import weaponFlamethrowerHudUrl from '../assets/weapon-flamethrower-hud.png'
+import weaponChainlightningGateUrl from '../assets/weapon-chainlightning-gate.png'
+import weaponChainlightningHudUrl from '../assets/weapon-chainlightning-hud.png'
 import weaponShotgunGateUrl from '../assets/weapon-shotgun-gate.png'
 import weaponShotgunHudUrl from '../assets/weapon-shotgun-hud.png'
 import { BALANCE } from '../config/balance'
@@ -33,10 +39,16 @@ export class BootScene extends Phaser.Scene {
     this.load.image('weapon-shotgun-gate', weaponShotgunGateUrl)
     this.load.image('weapon-laser-gate', weaponLaserGateUrl)
     this.load.image('weapon-rocket-gate', weaponRocketGateUrl)
+    this.load.image('weapon-minigun-gate', weaponMinigunGateUrl)
+    this.load.image('weapon-flamethrower-gate', weaponFlamethrowerGateUrl)
+    this.load.image('weapon-chainlightning-gate', weaponChainlightningGateUrl)
     this.load.image('weapon-normal-hud', weaponNormalHudUrl)
     this.load.image('weapon-shotgun-hud', weaponShotgunHudUrl)
     this.load.image('weapon-laser-hud', weaponLaserHudUrl)
     this.load.image('weapon-rocket-hud', weaponRocketHudUrl)
+    this.load.image('weapon-minigun-hud', weaponMinigunHudUrl)
+    this.load.image('weapon-flamethrower-hud', weaponFlamethrowerHudUrl)
+    this.load.image('weapon-chainlightning-hud', weaponChainlightningHudUrl)
   }
 
   public create(): void {
@@ -90,9 +102,33 @@ export class BootScene extends Phaser.Scene {
     graphics.fillTriangle(0, 3, 8, 3, 4, 0)
     graphics.generateTexture('projectile-rocket', 8, 16)
     graphics.clear()
+    graphics.fillStyle(0x5d6068)
+    graphics.fillRect(0, 0, 3, 12)
+    graphics.fillStyle(0xffa33a)
+    graphics.fillRect(1, 0, 1, 8)
+    graphics.generateTexture('projectile-minigun', 3, 12)
+    graphics.clear()
+    graphics.fillStyle(0xff6400)
+    graphics.fillCircle(5, 5, 5)
+    graphics.fillStyle(0xffe06a)
+    graphics.fillCircle(5, 5, 3)
+    graphics.generateTexture('projectile-flamethrower', 10, 10)
+    graphics.clear()
+    graphics.fillStyle(0x9cf7ff)
+    graphics.fillRect(0, 0, 4, 15)
+    graphics.fillStyle(0xffffff)
+    graphics.fillRect(1, 1, 2, 10)
+    graphics.generateTexture('projectile-chainlightning', 4, 15)
+    graphics.clear()
     graphics.fillStyle(WORLD_COLORS.splashFlash)
     graphics.fillCircle(16, 16, 16)
     graphics.generateTexture('splash-flash', 32, 32)
+    graphics.clear()
+    graphics.fillStyle(0x8cf5ff)
+    graphics.fillCircle(12, 12, 12)
+    graphics.fillStyle(0xffffff)
+    graphics.fillCircle(12, 12, 5)
+    graphics.generateTexture('chain-flash', 24, 24)
     graphics.clear()
     graphics.fillStyle(WORLD_COLORS.bossProjectileShell)
     graphics.fillRect(0, 0, 8, 16)

@@ -2,16 +2,19 @@ import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import type { RunStats } from './upgrades'
 
-export type WeaponKey = 'normal' | 'shotgun' | 'laser' | 'rocket'
+export type WeaponKey = 'normal' | 'shotgun' | 'laser' | 'rocket' | 'minigun' | 'flamethrower' | 'chainlightning'
 
 export const WEAPON_LABELS: Record<WeaponKey, string> = {
   normal: 'NORMAL',
   shotgun: 'SCHROT',
   laser: 'LASER',
   rocket: 'RAKETE',
+  minigun: 'MINIGUN',
+  flamethrower: 'FLAMME',
+  chainlightning: 'BLITZ',
 }
 
-const WEAPON_KEYS: readonly WeaponKey[] = ['normal', 'shotgun', 'laser', 'rocket']
+export const WEAPON_KEYS: readonly WeaponKey[] = ['normal', 'shotgun', 'laser', 'rocket', 'minigun', 'flamethrower', 'chainlightning']
 
 interface ProjectileSegment {
   start: number
@@ -46,6 +49,9 @@ export class Weapons {
       shotgun: { start: 0, end: 0, nextIndex: 0 },
       laser: { start: 0, end: 0, nextIndex: 0 },
       rocket: { start: 0, end: 0, nextIndex: 0 },
+      minigun: { start: 0, end: 0, nextIndex: 0 },
+      flamethrower: { start: 0, end: 0, nextIndex: 0 },
+      chainlightning: { start: 0, end: 0, nextIndex: 0 },
     }
     this.fireAccumulatorMs = 0
     this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs

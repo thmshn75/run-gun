@@ -79,6 +79,7 @@ export const BALANCE = {
   },
   weapon: {
     normal: {
+      minLevel: 1,
       rateFactor: 1,
       damageFactor: 1,
       shootersPerSalvo: 8,
@@ -89,8 +90,12 @@ export const BALANCE = {
       pierces: false,
       splashRadiusPx: 0,
       splashDamageFactor: 0,
+      chainCount: 0,
+      chainRadiusPx: 0,
+      chainDamageFactor: 0,
     },
     shotgun: {
+      minLevel: 1,
       rateFactor: 0.4,
       damageFactor: 1.5,
       shootersPerSalvo: 8,
@@ -101,8 +106,12 @@ export const BALANCE = {
       pierces: false,
       splashRadiusPx: 0,
       splashDamageFactor: 0,
+      chainCount: 0,
+      chainRadiusPx: 0,
+      chainDamageFactor: 0,
     },
     laser: {
+      minLevel: 1,
       rateFactor: 1.4,
       damageFactor: 0.4,
       shootersPerSalvo: 8,
@@ -113,8 +122,12 @@ export const BALANCE = {
       pierces: true,
       splashRadiusPx: 0,
       splashDamageFactor: 0,
+      chainCount: 0,
+      chainRadiusPx: 0,
+      chainDamageFactor: 0,
     },
     rocket: {
+      minLevel: 1,
       rateFactor: 0.25,
       damageFactor: 2.5,
       shootersPerSalvo: 3,
@@ -125,8 +138,63 @@ export const BALANCE = {
       pierces: false,
       splashRadiusPx: 70,
       splashDamageFactor: 1.5,
+      chainCount: 0,
+      chainRadiusPx: 0,
+      chainDamageFactor: 0,
+    },
+    minigun: {
+      minLevel: 3,
+      // 17.6 salvos/s x 3 shooters x 1 projectile x 0.80s flight = 42.3; 56 leaves 32% reserve.
+      rateFactor: 2.2,
+      damageFactor: 0.28,
+      shootersPerSalvo: 3,
+      bulletsPerShot: 1,
+      fanAngleDeg: 0,
+      projectileSpeed: 900,
+      rangePx: 0,
+      pierces: false,
+      splashRadiusPx: 0,
+      splashDamageFactor: 0,
+      chainCount: 0,
+      chainRadiusPx: 0,
+      chainDamageFactor: 0,
+    },
+    flamethrower: {
+      minLevel: 3,
+      // 14.4 salvos/s x 3 shooters x 5 projectiles x 0.31s flight = 66.2; 72 leaves 9% reserve.
+      rateFactor: 1.8,
+      damageFactor: 0.34,
+      shootersPerSalvo: 3,
+      bulletsPerShot: 5,
+      fanAngleDeg: 52,
+      projectileSpeed: 620,
+      rangePx: 190,
+      pierces: false,
+      splashRadiusPx: 0,
+      splashDamageFactor: 0,
+      chainCount: 0,
+      chainRadiusPx: 0,
+      chainDamageFactor: 0,
+    },
+    chainlightning: {
+      minLevel: 3,
+      // 5.6 salvos/s x 6 shooters x 1 projectile x 0.92s flight = 30.9; 48 leaves 55% reserve.
+      rateFactor: 0.7,
+      damageFactor: 1.05,
+      shootersPerSalvo: 6,
+      bulletsPerShot: 1,
+      fanAngleDeg: 0,
+      projectileSpeed: 780,
+      rangePx: 0,
+      pierces: false,
+      splashRadiusPx: 0,
+      splashDamageFactor: 0,
+      chainCount: 3,
+      chainRadiusPx: 118,
+      chainDamageFactor: 0.55,
     },
     splashFlashMs: 180,
+    chainFlashMs: 120,
   },
   crowd: {
     start: 3,
@@ -154,9 +222,9 @@ export const BALANCE = {
     heightPx: 54,
     rewardBehindOffsetPx: 82,
     contactDamage: 2,
-    // Each design level owns its cadence. The early levels stay quiet until Level 3,
-    // where weapon blockers become the first alternate-weapon source.
-    spawnIntervalMsByDesignLevel: [0, 0, 21000, 19000, 17500, 16000, 15500, 14000, 12500, 11250, 10000, 9000],
+    // Each design level owns its cadence. Levels 1 and 2 get a rare early choice;
+    // Level 3 remains the clear step up where alternate weapons enter the pool.
+    spawnIntervalMsByDesignLevel: [60000, 36000, 21000, 19000, 17500, 16000, 15500, 14000, 12500, 11250, 10000, 9000],
     referenceDestroySec: 2,
     minDestroySec: 1.5,
     maxDestroySec: 2.5,
@@ -190,8 +258,8 @@ export const BALANCE = {
       pausePerMemberMs: 130,
     },
     plans: [
-      { normalPhaseSec: 75, enemyWeights: [75, 25, 0], spawnIntervalMs: 1750, spawnIntervalMinMs: 1050, squadChance: 0, squads: [], companionLimit: 0, reserved: { blockers: false, gateLanes: 1 } },
-      { normalPhaseSec: 78, enemyWeights: [60, 40, 0], spawnIntervalMs: 1650, spawnIntervalMinMs: 950, squadChance: 0, squads: [], companionLimit: 0, reserved: { blockers: false, gateLanes: 1 } },
+      { normalPhaseSec: 75, enemyWeights: [75, 25, 0], spawnIntervalMs: 1750, spawnIntervalMinMs: 1050, squadChance: 0, squads: [], companionLimit: 0, reserved: { blockers: true, gateLanes: 1 } },
+      { normalPhaseSec: 78, enemyWeights: [60, 40, 0], spawnIntervalMs: 1650, spawnIntervalMinMs: 950, squadChance: 0, squads: [], companionLimit: 0, reserved: { blockers: true, gateLanes: 1 } },
       { normalPhaseSec: 78, enemyWeights: [65, 30, 5], spawnIntervalMs: 1550, spawnIntervalMinMs: 850, squadChance: 0.20, squads: [{ kind: 'wedge', weight: 1, size: 3 }], companionLimit: 0, reserved: { blockers: true, gateLanes: 1 } },
       { normalPhaseSec: 80, enemyWeights: [55, 35, 10], spawnIntervalMs: 1450, spawnIntervalMinMs: 780, squadChance: 0.28, squads: [{ kind: 'wedge', weight: 1, size: 4 }], companionLimit: 0, reserved: { blockers: true, gateLanes: 1 } },
       { normalPhaseSec: 80, enemyWeights: [35, 45, 20], spawnIntervalMs: 1350, spawnIntervalMinMs: 700, squadChance: 0.28, squads: [{ kind: 'row', weight: 1, size: 3 }], companionLimit: 1, reserved: { blockers: true, gateLanes: 1 } },
@@ -305,9 +373,17 @@ export const BALANCE = {
       laser: 96,
       // Peak: ceil(2.38s flight / 0.5s interval) = 5 salvos x 3 shooters x 1 bullet = 15; 24 leaves 60% reserve.
       rocket: 24,
+      // 17.6 salvos/s x 3 shooters x 1 projectile x 0.80s flight = 42.3; 56 leaves 32% reserve.
+      minigun: 56,
+      // 14.4 salvos/s x 3 shooters x 5 projectiles x 0.31s flight = 66.2; 72 leaves 9% reserve.
+      flamethrower: 72,
+      // 5.6 salvos/s x 6 shooters x 1 projectile x 0.92s flight = 30.9; 48 leaves 55% reserve.
+      chainlightning: 48,
     },
     // Peak: 2 salvos/s x 3 rockets x 0.18s = 1.1 flashes; 12 leaves generous reserve.
     splashFlashes: 12,
+    // At most 5.6 salvos/s x 3 shooters x 3 chain jumps x 0.12s = 6.1; 16 leaves reserve.
+    chainFlashes: 16,
     // Worst case: a heavy at the 49px/s speed floor stays about 14.2 s on the 694px road.
     // An eight-member squad pauses 1.69 s, so ceil(14.2 / 1.69) x 8 = 72 active enemies;
     // 88 leaves 22% reserve for mixed single spawns and delayed recycling.

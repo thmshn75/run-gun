@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -107,8 +107,44 @@ unterschiedlich anfühlen und ob das iPhone die Last trägt, entscheidet Thomas 
 
 ## Implementation Summary
 
-<!-- Von Codex auszufüllen -->
+- Sperren erscheinen ab Level 1 im 60-Sekunden-Abstand, ab Level 2 alle 36 Sekunden und ab Level 3 unverändert alle 21 Sekunden. Die bestehende E9-Kopplung an gleichzeitig spawnende Gegner und den freien Durchgang bleibt unverändert.
+- Minigun, Flammenwerfer und Kettenblitz sind ab Level 3 konfigurationsgesteuert verfügbar. Minigun feuert schnell mit wenig Schaden, der Flammenwerfer drei kurze Fünfer-Fächer und der Kettenblitz trifft bis zu drei nahe Gegner mit reduziertem Sprungschaden.
+- Jede neue Waffe hat einen eigenen Projektileintrag, Pool samt dokumentierter Lastrechnung, erzeugte Gate-/HUD-Symbole und eine eigene Projektiltextur. Der Kettenblitz nutzt einen kleinen Aufblitz-Pool, ohne zusätzliche Projektile anzulegen.
+- Die Sperrenauswahl liest alle Waffen und ihr Mindestlevel aus `balance.ts`; die aktuell getragene Waffe bleibt ausgeschlossen.
 
 ## Verification
 
-<!-- Von Codex auszufüllen -->
+- `npm run check` erfolgreich (TypeScript fehlerfrei).
+- `npm test` erfolgreich: 11 Testdateien, 43 Tests bestanden. Die neuen Tests prüfen Sperrenintervalle, Projektillast und Poolreserve, Level-Freigabe aus der Konfiguration sowie einmalige Kettenblitz-Ziele ohne Zusatzgeschoss.
+- `npm run build` erfolgreich; die neuen Symbol-Dateien sind im Produktions-Bundle enthalten. Vite meldet weiterhin nur die bereits allgemeine Chunk-Größenwarnung.
+- Nicht automatisch geprüft: Spielgefühl und iPhone-Leistung; diese Akzeptanz liegt laut Aufgabe bei Thomas. Der sichtbare Terminal-Start war wegen einer macOS-AppleScript-Verbindungsstörung nicht möglich, daher liefen die rein lokalen Prüfungen direkt im Projektordner.
+
+## Review-Ergebnis (Claude)
+
+Alle acht Kriterien erfuellt.
+
+- **Kriterium 1:** Sperren-Abstaende 60 s / 36 s / 21 s fuer die Level 1 / 2 / 3 — ab Level 1
+  vorhanden und mit steigender Haeufigkeit, wie verlangt.
+- **Kriterium 2, 6:** Spitzenlast selbst nachgerechnet, gegen die Schrotflinte als Referenz
+  (78,4 gleichzeitige Projektile): **Minigun 40,7 — Flammenwerfer 66,2 — Kettenblitz 29,9.**
+  Alle drei liegen darunter. Erreicht wird das ueber `shootersPerSalvo` 3 / 3 / 6 statt 8, wie
+  vorgegeben. Jede Waffe hat einen eigenen Pool mit dokumentierter Herleitung.
+- **Kriterium 3, 4:** Mindestlevel stehen in `balance.ts` (`minLevel: 3`), und
+  `blockerWeaponChoices.ts` liest sie aus der Konfiguration statt aus einer Liste im Code.
+- **Kriterium 5:** Der Kettenblitz nutzt einen Aufblitz-Pool statt zusaetzlicher Projektile;
+  ein Test prueft, dass jeder Gegner pro Schuss hoechstens einmal getroffen wird.
+- **Symbole:** Alle drei im Pixel-Art-Stil und im gleichen Format wie die vorhandenen
+  (150x44). Sichtgeprueft — Minigun mit rotierenden Laeufen, Flammenwerfer mit Tank und
+  Flamme, Kettenblitz mit blauen Blitzen. Klar voneinander unterscheidbar.
+- **Kriterium 7, 8:** Die vier vorhandenen Waffen sind im Diff unveraendert.
+  `npm run check`, `npm run build`, `npm test` selbst im Terminal ausgefuehrt, Exit 0,
+  11 Testdateien, 43 Tests.
+
+**Offener Nebenpunkt, in die naechste Etappe uebernommen:** Der Flammenwerfer-Pool hat mit 72
+Plaetzen gegen 66,2 benoetigte nur **9 % Reserve**; die uebrigen Waffen liegen bei 32 bis 60 %.
+`docs/plan.md` verlangt eine Marge ueber dem theoretischen Maximum. Bei voller Feuerrate und
+verzoegertem Recycling koennten einzelne Flammen still verschwinden.
+
+**Nicht am laufenden Spiel geprueft:** Die neuen Waffen erscheinen ab Level 3. Dieses Level ist
+im Test nicht erreichbar, ohne das Spiel wirklich zu spielen — die Sichtpruefung im Lauf und
+die Leistung am iPhone liegen bei Thomas.
