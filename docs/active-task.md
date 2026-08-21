@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -94,8 +94,48 @@ Kollisionsfunktionen deutlich unter den heutigen 58 %.
 
 ## Implementation Summary
 
-<!-- Von Codex auszufüllen -->
+- Jede der sieben Waffen besitzt jetzt eine eigene Arcade-Physikgruppe. `getProjectiles()`
+  liefert weiterhin den Gesamtbestand fuer Bewegung und Recycling, ist aber aus allen
+  Kollisionspfaden entfernt.
+- `GameScene` registriert Projektile nur gegen die Gruppe der aktiven Waffe. Beim Aufheben
+  einer neuen Waffe werden die noch aktiven Projektile der alten Waffe recycelt, die drei
+  projektilbasierten Collider entfernt und fuer die neue Gruppe passend neu angelegt.
+- Boss-Collider (Boss, Boss-Projektile) bestehen nur in der Bossphase. Sperren- und
+  Belohnungs-Collider werden nur angelegt, solange mindestens ein Sperrenpaar aktiv ist,
+  und danach wieder zerstoert.
+- Zwei Regressionstests sichern Gruppenaufteilung, Wechselpfad und die bedingte
+  Registrierung ab. Bestehende Tests wurden nicht inhaltlich geaendert.
 
 ## Verification
 
-<!-- Von Codex auszufüllen -->
+- `npm run check` erfolgreich (TypeScript ohne Fehler).
+- `npm run build` erfolgreich; einzig die bestehende Vite-Hinweiswarnung fuer einen Chunk
+  ueber 500 kB.
+- `npm test` erfolgreich: 11 Dateien, 45 Tests bestanden.
+- `git diff --check` erfolgreich.
+- CPU-Profil und Achtfach-Drosselung wurden nicht hier ausgefuehrt: laut Auftrag misst Claude
+  diese Laufzeitakzeptanz im Browser/iPhone nach.
+
+## Review-Ergebnis (Claude, im Browser nachgemessen)
+
+**Das Ruckeln ist behoben.** Alle sechs Kriterien erfuellt.
+
+| Messung bei achtfach gedrosselter CPU | Frame-Zeit | Bilder/s |
+|---|---|---|
+| `346665a` (von Thomas als gut bewertet) | 217 ms | 4,6 |
+| `4f4b288` (ruckelnder Stand) | 267 ms | 3,7 |
+| **nach dieser Korrektur** | **16,7 ms** | **59,9** |
+
+- **Kollisionsanteil im CPU-Profil: von 58 % auf 3,3 % gefallen.** Die CPU ist jetzt zu 91 %
+  unbeschaeftigt, wo vorher `collideSpriteVsGroup` allein die Haelfte der Zeit verbrauchte.
+- **Gegenprobe gemacht:** Ein Bildschirmfoto waehrend der Messung belegt das laufende Spiel
+  mit Gegnern, Toren und Truppe — die Messung stammt nicht versehentlich aus dem Menue.
+- **Kriterium 4:** Bestehende Tests wurden **nicht** inhaltlich geaendert, nur ergaenzt.
+  45 Tests gruen, `npm run check` und `npm run build` erfolgreich.
+
+**Anmerkung zur Testqualitaet:** Die beiden neuen Regressionstests pruefen den **Quelltext**
+per `readFileSync` auf bestimmte Zeichenketten, nicht das Verhalten. Das haelt die Struktur
+fest, bricht aber bei jeder Umformulierung und beweist die Wirkung nicht. Der eigentliche
+Nachweis ist die Messung oben. Ein echter Verhaltenstest waere besser, braucht aber eine
+Phaser-Instanz im Test — als moegliche spaetere Verbesserung notiert, kein Mangel dieser
+Korrektur.

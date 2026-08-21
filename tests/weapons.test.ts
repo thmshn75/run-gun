@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { selectChainLightningTargets } from '../src/systems/chainLightning'
@@ -59,5 +60,30 @@ describe('additional weapons', () => {
     expect(jumps).toEqual(expect.arrayContaining([{ id: 2, x: 18, y: 0 }]))
     // A jump is only a selected damage target; the one physical shot stays the configured projectile.
     expect(BALANCE.weapon.chainlightning.bulletsPerShot).toBe(1)
+  })
+
+  it('keeps collision checks on the active weapon group and replaces them after a weapon pickup', () => {
+    const weaponsSource = readFileSync(new URL('../src/systems/weapons.ts', import.meta.url), 'utf8')
+    const gameSceneSource = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
+
+    for (const weapon of ['normal', 'shotgun', 'laser', 'rocket', 'minigun', 'flamethrower', 'chainlightning']) {
+      expect(weaponsSource).toContain(`${weapon}: scene.physics.add.group()`)
+    }
+    expect(weaponsSource).toContain('this.recycleWeaponProjectiles(this.activeWeapon)')
+    expect(gameSceneSource).not.toContain('this.weapons.getProjectiles()')
+    expect(gameSceneSource).toContain('const projectiles = this.weapons.getProjectileGroup()')
+    expect(gameSceneSource).toContain('this.weapons.setWeapon(weapon)')
+    expect(gameSceneSource).toContain('this.replaceProjectileColliders()')
+  })
+
+  it('only registers boss and blocker colliders while their targets are active', () => {
+    const gameSceneSource = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
+
+    expect(gameSceneSource).toContain("if (this.levelPhase === 'boss')")
+    expect(gameSceneSource).toContain('this.projectileBossCollider?.destroy()')
+    expect(gameSceneSource).toContain('this.bossProjectileCollider?.destroy()')
+    expect(gameSceneSource).toContain('if (this.blockers.hasActivePair())')
+    expect(gameSceneSource).toContain('this.projectileBlockerCollider?.destroy()')
+    expect(gameSceneSource).toContain('this.crowdRewardCollider?.destroy()')
   })
 })

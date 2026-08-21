@@ -24,7 +24,7 @@ interface ProjectileSegment {
 
 export class Weapons {
   private readonly scene: Phaser.Scene
-  private readonly projectiles: Phaser.Physics.Arcade.Group
+  private readonly projectileGroups: Record<WeaponKey, Phaser.Physics.Arcade.Group>
   private readonly projectileList: Phaser.Physics.Arcade.Image[]
   private readonly segments: Record<WeaponKey, ProjectileSegment>
   private readonly getSalvoPositions: (maxPerSalvo: number) => Array<{ x: number; y: number }>
@@ -42,7 +42,15 @@ export class Weapons {
     this.scene = scene
     this.getSalvoPositions = getSalvoPositions
     this.runStats = runStats
-    this.projectiles = scene.physics.add.group()
+    this.projectileGroups = {
+      normal: scene.physics.add.group(),
+      shotgun: scene.physics.add.group(),
+      laser: scene.physics.add.group(),
+      rocket: scene.physics.add.group(),
+      minigun: scene.physics.add.group(),
+      flamethrower: scene.physics.add.group(),
+      chainlightning: scene.physics.add.group(),
+    }
     this.projectileList = []
     this.segments = {
       normal: { start: 0, end: 0, nextIndex: 0 },
@@ -67,7 +75,7 @@ export class Weapons {
         if (key === 'laser') projectile.setData('hitSpawnIds', new Set<number>())
         projectile.setActive(false).setVisible(false)
         projectile.disableBody(true, true)
-        this.projectiles.add(projectile)
+        this.projectileGroups[key].add(projectile)
         this.projectileList.push(projectile)
       }
       segment.end = this.projectileList.length
@@ -75,16 +83,23 @@ export class Weapons {
     }
   }
 
-  public getProjectiles(): Phaser.Physics.Arcade.Group {
-    return this.projectiles
+  public getProjectiles(): readonly Phaser.Physics.Arcade.Image[] {
+    return this.projectileList
+  }
+
+  public getProjectileGroup(weapon = this.activeWeapon): Phaser.Physics.Arcade.Group {
+    return this.projectileGroups[weapon]
   }
 
   public getWeapon(): WeaponKey {
     return this.activeWeapon
   }
 
-  public setWeapon(weapon: WeaponKey): void {
+  public setWeapon(weapon: WeaponKey): boolean {
+    if (weapon === this.activeWeapon) return false
+    this.recycleWeaponProjectiles(this.activeWeapon)
     this.activeWeapon = weapon
+    return true
   }
 
   public getWeaponConfig(weapon: WeaponKey): (typeof BALANCE.weapon)[WeaponKey] {
@@ -162,6 +177,11 @@ export class Weapons {
       if (!projectile.active) return projectile
     }
     return undefined
+  }
+
+  private recycleWeaponProjectiles(weapon: WeaponKey): void {
+    const segment = this.segments[weapon]
+    for (let index = segment.start; index < segment.end; index += 1) this.recycle(this.projectileList[index])
   }
 
   private warnPoolExhausted(weapon: WeaponKey): void {

@@ -140,6 +140,13 @@ export class GameScene extends Phaser.Scene {
   private levelOverlayBackground!: Phaser.GameObjects.Rectangle
   private levelOverlay!: Phaser.GameObjects.Text
   private lastUnknownCombatOverlapWarningAtMs!: number
+  private projectileEnemyCollider!: Phaser.Physics.Arcade.Collider
+  private projectileBossCollider: Phaser.Physics.Arcade.Collider | undefined
+  private projectileBlockerCollider: Phaser.Physics.Arcade.Collider | undefined
+  private crowdBossCollider: Phaser.Physics.Arcade.Collider | undefined
+  private crowdBlockerCollider: Phaser.Physics.Arcade.Collider | undefined
+  private crowdRewardCollider: Phaser.Physics.Arcade.Collider | undefined
+  private bossProjectileCollider: Phaser.Physics.Arcade.Collider | undefined
 
   public constructor() {
     super('GameScene')
@@ -244,30 +251,12 @@ export class GameScene extends Phaser.Scene {
     this.lastCrowdSize = this.runStats.get('hp')
     this.updateHud()
     this.enableRelativeDrag()
-    this.physics.add.overlap(this.weapons.getProjectiles(), this.spawner.getEnemies(), (first, second) => {
-      this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
-    })
-    this.physics.add.overlap(this.weapons.getProjectiles(), this.boss.getEnemy(), (first, second) => {
-      this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
-    })
-    this.physics.add.overlap(this.weapons.getProjectiles(), this.blockers.getBlockers(), (first, second) => {
-      this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
-    })
+    this.replaceProjectileColliders()
     this.physics.add.overlap(this.crowd.getHullBounds(), this.spawner.getEnemies(), (first, second) => {
       this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
     })
-    this.physics.add.overlap(this.crowd.getHullBounds(), this.boss.getEnemy(), (first, second) => {
-      this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
-    })
-    this.physics.add.overlap(this.crowd.getHullBounds(), this.blockers.getBlockers(), (first, second) => {
-      this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
-    })
-    this.physics.add.overlap(this.crowd.getHullBounds(), this.blockers.getRewards(), (first, second) => {
-      this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
-    })
-    this.physics.add.overlap(this.crowd.getHullBounds(), this.boss.getProjectiles(), (first, second) => {
-      this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
-    })
+    this.syncBossColliders()
+    this.syncBlockerColliders()
     if (BALANCE.debug) {
       this.drawSafeAreaDebug()
       console.debug(`GameScene children: ${this.children.length}`)
@@ -285,6 +274,8 @@ export class GameScene extends Phaser.Scene {
     this.spawner.update(dt)
     this.blockers.update(dt)
     this.boss.update(dt)
+    this.syncBossColliders()
+    this.syncBlockerColliders()
     this.coins.update(dt, this.crowd.getAnchorX(), this.crowd.getAnchorY())
     this.splashFlashes.update(dt)
     this.chainFlashes.update(dt)
@@ -308,6 +299,76 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointerup', () => {
       this.lastPointerX = null
     })
+  }
+
+  private addCombatOverlap(
+    first: Phaser.Types.Physics.Arcade.ArcadeColliderType,
+    second: Phaser.Types.Physics.Arcade.ArcadeColliderType,
+  ): Phaser.Physics.Arcade.Collider {
+    return this.physics.add.overlap(first, second, (overlapFirst, overlapSecond) => {
+      this.handleCombatOverlap(overlapFirst as Phaser.GameObjects.GameObject, overlapSecond as Phaser.GameObjects.GameObject)
+    })
+  }
+
+  private replaceProjectileColliders(): void {
+    this.projectileEnemyCollider?.destroy()
+    this.projectileBossCollider?.destroy()
+    this.projectileBlockerCollider?.destroy()
+    this.projectileBossCollider = undefined
+    this.projectileBlockerCollider = undefined
+
+    const projectiles = this.weapons.getProjectileGroup()
+    this.projectileEnemyCollider = this.addCombatOverlap(projectiles, this.spawner.getEnemies())
+    if (this.levelPhase === 'boss') this.projectileBossCollider = this.addCombatOverlap(projectiles, this.boss.getEnemy())
+    if (this.blockers.hasActivePair()) this.projectileBlockerCollider = this.addCombatOverlap(projectiles, this.blockers.getBlockers())
+  }
+
+  private syncBossColliders(): void {
+    if (this.levelPhase === 'boss') {
+      if (this.projectileBossCollider === undefined) {
+        this.projectileBossCollider = this.addCombatOverlap(this.weapons.getProjectileGroup(), this.boss.getEnemy())
+      }
+      if (this.crowdBossCollider === undefined) {
+        this.crowdBossCollider = this.addCombatOverlap(this.crowd.getHullBounds(), this.boss.getEnemy())
+      }
+      if (this.bossProjectileCollider === undefined) {
+        this.bossProjectileCollider = this.addCombatOverlap(this.crowd.getHullBounds(), this.boss.getProjectiles())
+      }
+      return
+    }
+    this.projectileBossCollider?.destroy()
+    this.crowdBossCollider?.destroy()
+    this.bossProjectileCollider?.destroy()
+    this.projectileBossCollider = undefined
+    this.crowdBossCollider = undefined
+    this.bossProjectileCollider = undefined
+  }
+
+  private syncBlockerColliders(): void {
+    if (this.blockers.hasActivePair()) {
+      if (this.projectileBlockerCollider === undefined) {
+        this.projectileBlockerCollider = this.addCombatOverlap(this.weapons.getProjectileGroup(), this.blockers.getBlockers())
+      }
+      if (this.crowdBlockerCollider === undefined) {
+        this.crowdBlockerCollider = this.addCombatOverlap(this.crowd.getHullBounds(), this.blockers.getBlockers())
+      }
+      if (this.crowdRewardCollider === undefined) {
+        this.crowdRewardCollider = this.addCombatOverlap(this.crowd.getHullBounds(), this.blockers.getRewards())
+      }
+      return
+    }
+    this.projectileBlockerCollider?.destroy()
+    this.crowdBlockerCollider?.destroy()
+    this.crowdRewardCollider?.destroy()
+    this.projectileBlockerCollider = undefined
+    this.crowdBlockerCollider = undefined
+    this.crowdRewardCollider = undefined
+  }
+
+  private equipWeapon(weapon: WeaponKey): void {
+    if (!this.weapons.setWeapon(weapon)) return
+    this.replaceProjectileColliders()
+    this.updateHud()
   }
 
   private handleProjectileHit(projectile: Phaser.Physics.Arcade.Image, enemy: Phaser.Physics.Arcade.Image): void {
@@ -430,8 +491,7 @@ export class GameScene extends Phaser.Scene {
       if (this.blockers.isReward(target)) {
         const weapon = this.blockers.collect(target)
         if (weapon !== undefined) {
-          this.weapons.setWeapon(weapon)
-          this.updateHud()
+          this.equipWeapon(weapon)
         }
         return
       }
@@ -563,6 +623,7 @@ export class GameScene extends Phaser.Scene {
     const saved = loadSave()
     writeSave({ ...saved, highestLevel: Math.max(saved.highestLevel, this.currentLevel) })
     this.levelPhase = 'cleared'
+    this.syncBossColliders()
     this.phaseRemainingMs = BALANCE.level.clearedMs
     this.levelOverlayBackground.setVisible(true)
     this.levelOverlay.setText(`LEVEL ${this.currentLevel - 1} GESCHAFFT`).setVisible(true)

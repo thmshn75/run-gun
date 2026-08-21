@@ -62,6 +62,8 @@ export class Blockers {
 
   public getRewards(): Phaser.Physics.Arcade.Group { return this.rewardGroup }
 
+  public hasActivePair(): boolean { return this.pairs.some((pair) => pair.active) }
+
   public resetForLevel(level: number): void {
     this.deactivateAll()
     this.levelPlan = getLevelPlan(level)
