@@ -1,145 +1,116 @@
 # Active Task
 
 ## Status
-`APPROVED`
+`SPEC_READY`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**Drei Punkte aus Thomas' Test: Boss bleibt weiß, Division besser lesbar, PWA-Icon aus dem
-Titelbild.**
+**Start mit einer Figur und Feuerrate 3; dazu automatische Absicherung des Spielstands.**
+
+Drei Punkte aus Thomas' Test vom 2026-08-21.
 
 ---
 
-# Teil 1 — Der Boss bleibt ein weißer Umriss (Fehler)
+# Teil 1 — Startwerte
 
-Thomas: „der Boss am Level Ende funktioniert zwar ist aber nur ein weißer Umriss".
+- `stats.hp.base` von **3 auf 1**: Ein Run beginnt mit einer einzigen Figur.
+- `stats.shotsPerSec.base` von **3.5 auf 3**.
 
-## Befund
+Sonst wird an der Balance **nichts** geändert — keine Gegnerwerte, keine Torwerte, keine
+Boss-Lebenspunkte.
 
-Der Trefferblitz wird mit **zwei verschiedenen Uhren** behandelt:
+**Folge, die mitgezogen werden muss:** Die Aufwertung „Truppe" gibt +1 Startfigur je Stufe.
+Mit Grundwert 1 reicht sie künftig von **1 bis 6** statt von 3 bis 8. Die Anzeige im Menü
+rechnet ohnehin aus dem Grundwert und folgt automatisch; in `docs/e5-design.md`,
+Entscheidung 4, ist die Tabelle entsprechend zu berichtigen (1 → 6 und 3 → 5 Schuss/s).
 
-- Gesetzt in `spawner.ts:87`: `enemy.setData('flashUntil', gameTimeMs + hitFlashMs)` —
-  `gameTimeMs` ist `GameScene.elapsedMs`, also die **Szenenuhr** (nach 80 s ≈ 80 000).
-- Gelöscht in `boss.ts:96`: `if (flashUntil <= this.elapsedMs) clearTint()` — `this.elapsedMs`
-  ist die **eigene Uhr des Bosses**, die in `activate()` (Zeile 54) bei jedem Bosskampf auf 0
-  zurückgesetzt wird.
+---
 
-Nach dem ersten Treffer steht also `flashUntil` bei etwa 80 000, während die Bossuhr bei 5
-steht. Die Bedingung wird nie wahr, `clearTint()` läuft nie, und `setTintFill(0xffffff)` malt
-den Boss dauerhaft als weiße Fläche. Genau das sieht Thomas.
+# Teil 2 — Automatische Absicherung des Spielstands
 
-**Derselbe Fehler steckt auch bei den normalen Gegnern**, nur unauffälliger: `resetForLevel`
-(Zeile 71) setzt `Spawner.elapsedMs` ebenfalls auf 0. Ab Level 2 bleibt damit **jeder**
-getroffene Gegner weiß, bis er stirbt — bei kurzlebigen Gegnern fällt es kaum auf, ist aber
-derselbe Defekt.
+Thomas: „hier brauchen wir eine automatische Speicherung am Handy".
 
-## Verlangte Korrektur — die Kopplung an eine fremde Uhr abschaffen
+Gespeichert wird bereits automatisch — nach jedem Level, bei Game Over und sofort bei jedem
+Kauf. Das eigentliche Anliegen ist, dass dieser Speicher nicht verschwindet. Drei Maßnahmen,
+alle kostenlos und ohne Server:
 
-Nicht die Uhren angleichen. Zwei Uhren, die zufällig gleich laufen müssen, sind genau das
-Problem.
+## 2a — Dauerspeicher anfordern
 
-Stattdessen: **Restzeit statt Zeitpunkt.** Das Feld `flashUntil` wird zu
-`flashRemainingMs` und in `update(dt)` um `dt` heruntergezählt; erreicht es 0, wird die
-Tönung gelöscht. Damit braucht die Stelle, die den Blitz löscht, **gar keine Uhr mehr**.
+WebKit kennt seit iOS 17 `navigator.storage.persist()`. Wird der Modus gewährt, ist der
+Speicher der Seite von der üblichen automatischen Räumung ausgenommen. **Bei Web-Apps auf dem
+Homescreen ist genau das eine der Bedingungen, nach denen WebKit die Anfrage bewilligt**
+(WebKit-Blog „Updates to Storage Policy").
 
-Dieses Muster ist im Projekt bereits im Einsatz — der Einschlag-Flash der Rakete
-(`SplashFlashPool` in `GameScene.ts`) macht es genau so. Es gibt danach nur noch einen Weg.
+- Beim Start des Spiels einmalig `navigator.storage.persist()` aufrufen, falls vorhanden.
+- Das Ergebnis merken und über `navigator.storage.persisted()` beim Menüaufbau abfragen.
+- **Nie darauf verlassen und nie darauf warten:** Der Aufruf läuft nebenher, das Spiel startet
+  unabhängig davon. Ältere Geräte und Browser ohne diese Möglichkeit dürfen keinen Fehler
+  erzeugen.
 
-Betroffen: `spawner.ts` (Setzen und Herunterzählen), `boss.ts` (Herunterzählen). Der Parameter
-`gameTimeMs` von `Spawner.damage` wird dadurch überflüssig und entfällt; die Aufrufer in
-`GameScene` werden entsprechend angepasst.
+## 2b — Zweitkopie gegen Beschädigung
+
+Bei jedem Schreiben zusätzlich eine Kopie unter `rungun_save_v1_backup` ablegen.
+Beim Laden: Ist der Haupteintrag fehlend oder ungültig, **aber die Zweitkopie gültig**, wird
+die Zweitkopie genommen und sofort wieder als Haupteintrag geschrieben.
+
+Das schützt gegen einen beschädigten Eintrag, **nicht** gegen das Löschen aller Websitedaten —
+beide liegen im selben Speicherbereich. Genau so ist es im Code zu kommentieren, damit später
+niemand die Zweitkopie für eine Sicherung hält, die sie nicht ist.
+
+## 2c — Sichtbarer Hinweis im Menü
+
+Eine Zeile unter der Bestenliste, klein und unaufdringlich:
+
+- Ist Dauerspeicher gewährt: **„Speicher gesichert"**.
+- Sonst: **„Speicher nicht gesichert — sichere deinen Stand gelegentlich."**
+
+Zusätzlich mitzählen, wie viele Läufe seit der letzten Sicherung über den SICHERN-Knopf
+vergangen sind (`runsSinceExport` im Speicherstand, bei SICHERN auf 0). Ab
+`menu.exportReminderRuns` = **10** Läufen steht dort stattdessen:
+**„Seit N Läufen nicht gesichert."**
+
+Das ist ein Hinweis, keine Sperre — es blockiert nichts und öffnet nichts von selbst.
+
+## Was ausdrücklich **nicht** gebaut wird
+
+- **Kein Server, kein Konto, keine Cloud.** Widerspricht dem Plan und wäre nicht kostenlos.
+- **Kein automatischer Datei-Download** als Sicherung: iOS verlangt dafür eine Nutzergeste,
+  ein Versuch ohne Geste wird stillschweigend verworfen.
+- **Kein `navigator.clipboard.readText()`** — bleibt aus den bekannten Gründen verboten.
+- Keine Verschlüsselung, keine Manipulationssicherung.
+
+**Ehrliche Grenze, die im Code als Kommentar festzuhalten ist:** Löscht der Nutzer die
+Website-Daten oder entfernt die App vom Homescreen, ist der Stand weg. Dagegen hilft
+ausschließlich die Sicherung über SICHERN. Keine der drei Maßnahmen ändert daran etwas.
+
+## Erweiterung des Speicherstands
+
+`SaveData` bekommt ein Feld `runsSinceExport: number` (Grundwert 0). `parseSave` prüft es wie
+die anderen Zahlen; **fehlt es in einem älteren Text, gilt 0 und der Text bleibt gültig** —
+ein Spielstand aus der Version von gestern darf nicht plötzlich abgelehnt werden. Dafür ein
+eigener Testfall.
+
+---
 
 ## Reißleine
 
-Bleibt eine Figur nach der Änderung weiß oder blitzt gar nicht mehr: **melden und stoppen**.
-Kein zulässiger Ersatz ist es, `setTintFill` durch etwas anderes zu ersetzen, den Blitz
-wegzulassen oder die Uhren doch wieder aneinander zu binden.
-
----
-
-# Teil 2 — Division im Tor als `/` statt `÷`
-
-Thomas: „plus und dividiert ist in den Toren schwer erkennbar - hier das dividiert mit /
-darstellen".
-
-- In `gates.ts` die Beschriftung der Divisionstore von `÷2` auf **`/2`** ändern. Betroffen
-  sind beide Stellen, an denen ein Divisions-Label entsteht (`drawGateOp` und
-  `drawDirectionalOp`).
-- `×` für Multiplikation bleibt unverändert — es ist von `+` gut zu unterscheiden.
-- Die Rechenwirkung ändert sich **nicht**, nur die Beschriftung.
-
----
-
-# Teil 3 — PWA-Icon aus dem Titelbild
-
-Thomas: „Icon von pwa soll wie das Titelbild sein".
-
-Heute erzeugt `scripts/make-icons.py` die Icons aus `src/assets/player.png` mit einem
-gezeichneten Hintergrund. Künftig entstehen sie aus **`src/assets/title.png`**.
-
-- Quelle ist die Datei im Repo (`src/assets/title.png`, 390 × 844), **nicht** die große
-  Vorlage aus `assets/probe/` — die liegt in `.gitignore` und fehlt nach einem frischen Klon.
-- Ein **quadratischer Ausschnitt** aus dem Titelbild, der die drei Figuren gut gefüllt zeigt.
-  Der Ausschnitt gehört als benannte Konstante ins Skript, mit einem Satz dazu, warum genau
-  dieser Bereich.
-- Daraus die drei Dateien wie bisher: `public/icon-192.png`, `public/icon-512.png`,
-  `public/apple-touch-icon.png` (180 px).
-- **Vollständig deckend, kein transparenter Rand.** iOS setzt hinter ein durchsichtiges
-  Apple-Touch-Icon Schwarz und rundet die Ecken selbst — ein eigener Rahmen oder eigene runde
-  Ecken sähen doppelt aus.
-- Skaliert wird mit einem Verfahren, das die Pixel-Optik erhält (Nearest Neighbour), nicht
-  weichgezeichnet.
-- Zur Prüfung ein Kontaktbild der drei Icons nach `assets/probe/icons-kontrolle.png` legen.
-
-Das Skript bleibt über `npm run make-icons` aufrufbar und wird in diesem Lauf **einmal
-ausgeführt**, damit die neuen Dateien im Repo liegen.
-
----
-
-## Ausdrücklich nicht ändern
-
-- Keine Spielbalance, keine Werte von Boss, Gegnern, Waffen oder Toren.
-- Keine anderen Beschriftungen der Tore außer der Division.
-- Kein neues Bild erzeugen — das Titelbild existiert bereits.
-- Das Manifest bleibt unverändert; nur die Bilddateien werden ersetzt.
+Lässt sich `navigator.storage.persist()` nicht ohne Fehler aufrufen oder blockiert es den
+Start: **den Aufruf entfernen und melden**. Kein zulässiger Ersatz ist es, den Start zu
+verzögern, bis eine Antwort da ist.
 
 ## Akzeptanzkriterien
 
-1. Der Boss ist während des gesamten Kampfs normal gefärbt und blitzt bei einem Treffer nur
-   kurz weiß auf; nach `feedback.hitFlashMs` = 80 ms ist er wieder normal.
-2. Auch ab Level 2 bleibt kein getroffener Gegner dauerhaft weiß.
-3. Im Code gibt es kein `flashUntil` mehr und keine Stelle, die den Blitz gegen eine Uhr
-   vergleicht; `Spawner.damage` hat keinen Zeitparameter mehr.
-4. Divisionstore zeigen `/2` statt `÷2`; die Wirkung ist unverändert.
-5. `public/icon-192.png`, `public/icon-512.png` und `public/apple-touch-icon.png` zeigen einen
-   Ausschnitt des Titelbilds, sind quadratisch, vollständig deckend und in der jeweils
-   richtigen Größe.
-6. Das Kontaktbild liegt unter `assets/probe/icons-kontrolle.png`.
-7. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
+1. Ein Run startet mit genau **einer** Figur und `RATE 3`.
+2. Die Aufwertung „Truppe" zeigt im Menü den Bereich 1 bis 6; fünf Stufen führen auf 6 Figuren.
+3. `navigator.storage.persist()` wird beim Start aufgerufen; das Spiel startet auch dann
+   normal, wenn die Möglichkeit fehlt oder abgelehnt wird.
+4. Bei jedem Schreiben liegt eine gültige Zweitkopie unter `rungun_save_v1_backup`.
+5. Wird der Haupteintrag zerstört, die Zweitkopie aber nicht, startet das Spiel mit dem
+   Stand aus der Zweitkopie und schreibt ihn wieder als Haupteintrag.
+6. Sind beide zerstört, startet das Spiel mit Standardwerten und ohne Fehler.
+7. Das Menü zeigt eine der drei Hinweiszeilen, passend zum Zustand.
+8. Ein Spielstandstext **ohne** `runsSinceExport` wird weiterhin angenommen.
+9. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch; die neuen Fälle
+   4, 5, 6 und 8 sind als Tests abgedeckt.
 
-Kriterien 1, 2 und 4 prüft Claude am laufenden Spiel nach — Kriterium 1 über eine Messung der
-Tönung des Bosses über die Zeit, nicht über den Augenschein. Ob das Icon gefällt, entscheidet
-Thomas.
-
-## Implementation Summary
-
-- Trefferblitze nutzen jetzt eine pro Figur heruntergezählte Restzeit; `Spawner.damage` hat keinen Zeitparameter mehr.
-- Divisionstore verwenden `/`, und die drei PWA-Icons werden aus dem dokumentierten quadratischen Titelbild-Ausschnitt mit Nearest Neighbour erzeugt.
-- `npm run make-icons`, `npm run check`, `npm run build` und `npm test` waren erfolgreich; das Kontaktbild liegt unter `assets/probe/icons-kontrolle.png`.
-
-
-## Review-Ergebnis (Claude, am laufenden Spiel gemessen)
-
-- **Kriterium 1 und 2, der Boss-Fehler:** Laengste ununterbrochene Weissphase des Bosses
-  **10 Bilder**, bei normalen Gegnern **4 Bilder** — beides der regulaere Trefferblitz von
-  80 ms, beim Boss durch schnell aufeinanderfolgende Treffer etwas verlaengert. Vorher blieb
-  der Boss nach dem ersten Treffer **dauerhaft** weiss. Auch nach mehreren Levelwechseln
-  bleibt kein Gegner weiss.
-- **Kriterium 3:** Kein `flashUntil` mehr im Code, keine Stelle vergleicht den Blitz gegen
-  eine Uhr, `Spawner.damage` hat keinen Zeitparameter mehr.
-- **Kriterium 4:** Unter den im Lauf beobachteten Torbeschriftungen stehen `/2`, `×2`, `×1.5`,
-  `+53`, `−79`, `+50 %`, `−30 %` — die Division erscheint als Schraegstrich, kein `÷` mehr.
-- **Kriterium 5 und 6:** Icons in 192, 512 und 180 px, quadratisch und deckend, Ausschnitt mit
-  den drei Figuren aus dem Titelbild; Kontrollbild liegt unter
-  `assets/probe/icons-kontrolle.png`.
-- **Kriterium 7:** `npm run check`, `npm run build`, `npm test` selbst im Terminal, alle exit 0.
+Kriterien 1 bis 7 prüft Claude am laufenden Spiel nach.
