@@ -5,7 +5,6 @@ import enemyLightUrl from '../assets/enemy-light.png'
 import enemyStandardUrl from '../assets/enemy-standard.png'
 import playerUrl from '../assets/player.png'
 import sceneryBushUrl from '../assets/scenery-bush.png'
-import sceneryCottageUrl from '../assets/scenery-cottage.png'
 import sceneryConiferUrl from '../assets/scenery-conifer.png'
 import sceneryOakUrl from '../assets/scenery-oak.png'
 import sceneryStoneUrl from '../assets/scenery-stone.png'
@@ -47,7 +46,6 @@ export class BootScene extends Phaser.Scene {
     this.load.image('scenery-conifer', sceneryConiferUrl)
     this.load.image('scenery-bush', sceneryBushUrl)
     this.load.image('scenery-stone', sceneryStoneUrl)
-    this.load.image('scenery-cottage', sceneryCottageUrl)
     this.load.image('scenery-tower-a', sceneryTowerAUrl)
     this.load.image('scenery-tower-b', sceneryTowerBUrl)
     this.load.image('scenery-tower-c', sceneryTowerCUrl)

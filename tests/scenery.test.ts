@@ -54,41 +54,51 @@ describe('scenery layout', () => {
     expect(drained.activeObjectCount).toBe(0)
   })
 
-  it('uses reproducible weighted scenery selection with a tower-majority streetscape', () => {
+  it('uses reproducible weighted scenery selection with an 82-percent tower canyon', () => {
     const rng = createRng(0x77ab)
     const choices = Array.from({ length: 2_000 }, () => pickSceneryKind(sceneryKinds, rng).texture)
     const repeatRng = createRng(0x77ab)
     const repeatedChoices = Array.from({ length: 2_000 }, () => pickSceneryKind(sceneryKinds, repeatRng).texture)
     const towerCount = choices.filter((texture) => texture.startsWith('scenery-tower-')).length
     expect(repeatedChoices).toEqual(choices)
-    expect(towerCount / choices.length).toBeGreaterThan(0.45)
-    expect(towerCount / choices.length).toBeLessThan(0.65)
+    expect(towerCount / choices.length).toBeGreaterThan(0.78)
+    expect(towerCount / choices.length).toBeLessThan(0.86)
   })
 
   it('derives the scenery pool from a 120-second deterministic spawn and recycle simulation', () => {
     const measured = simulateSceneryPool(sceneryKinds, createRng(0x5eeda11), width, height, 64, 120_000, fixedDt)
     const sizedPool = simulateSceneryPool(sceneryKinds, createRng(0x5eeda11), width, height, BALANCE.pools.scenery, 120_000, fixedDt)
-    expect(measured.maxActive).toBe(16)
+    expect(BALANCE.scenery.marginPx).toBe(4)
+    expect(BALANCE.scenery.spreadPx).toBe(6)
+    expect(BALANCE.scenery.spawnIntervalMs).toBe(400)
+    expect(measured.maxActive).toBe(26)
+    expect(measured.maxActive).toBeLessThanOrEqual(40)
     expect(BALANCE.pools.scenery).toBe(measured.maxActive + 4)
     expect(sizedPool.failedSpawns).toBe(0)
   })
 
-  it('registers three transparent tower sprites with their specified horizon heights', () => {
+  it('registers the tower canyon and removes the cottage asset completely', () => {
     const bootSource = readFileSync(new URL('../src/scenes/BootScene.ts', import.meta.url), 'utf8')
     for (const tower of [
       ['scenery-tower-a', 150],
       ['scenery-tower-b', 120],
       ['scenery-tower-c', 185],
     ] as const) {
-      expect(sceneryKinds).toContainEqual(expect.objectContaining({ texture: tower[0], baseHeightPx: tower[1], weight: 3 }))
+      expect(sceneryKinds).toContainEqual(expect.objectContaining({ texture: tower[0], baseHeightPx: tower[1], weight: 6 }))
       expect(bootSource).toContain(`this.load.image('${tower[0]}'`)
       expect(existsSync(new URL(`../src/assets/${tower[0]}.png`, import.meta.url))).toBe(true)
     }
+    for (const nature of ['scenery-oak', 'scenery-conifer', 'scenery-bush', 'scenery-stone']) {
+      expect(sceneryKinds).toContainEqual(expect.objectContaining({ texture: nature, weight: 1 }))
+    }
+    expect(sceneryKinds.some((kind) => kind.texture === 'scenery-cottage')).toBe(false)
+    expect(bootSource).not.toContain('scenery-cottage')
+    expect(existsSync(new URL('../src/assets/scenery-cottage.png', import.meta.url))).toBe(false)
   })
 
   it('preallocates all scenery images once in its constructor and places them below the road', () => {
     const source = readFileSync(new URL('../src/systems/scenery.ts', import.meta.url), 'utf8')
-    expect(BALANCE.pools.scenery).toBe(20)
+    expect(BALANCE.pools.scenery).toBe(30)
     expect(BALANCE.layers.scenery).toBeGreaterThan(BALANCE.layers.background)
     expect(BALANCE.layers.scenery).toBeLessThan(BALANCE.layers.road)
     expect(source.match(/scene\.add\.image/g)).toHaveLength(1)

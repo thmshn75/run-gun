@@ -5,6 +5,7 @@ import {
   getBossPhase,
   getBossPlan,
   getCombatFirepower,
+  getMaxFightSec,
   getTeamFirepower,
   getWeaponFirepower,
   type BossUpgradeLevels,
@@ -45,7 +46,7 @@ describe('boss plans', () => {
                 const actualFightSec = plan.maxHp / plan.referenceDps
                 // Rounding maxHp by at most 0.5 HP at the minimum 1.12 DPS (laser, team 2, damage/rate 1) deviates by 0.446 s, so allow 0.5 s.
                 expect(actualFightSec, label).toBeGreaterThanOrEqual(BALANCE.boss.referenceFirepower.minFightSec - 0.5)
-                expect(actualFightSec, label).toBeLessThanOrEqual(BALANCE.boss.referenceFirepower.maxFightSec + 0.5)
+                expect(actualFightSec, label).toBeLessThanOrEqual(getMaxFightSec(level) + 0.5)
                 expect(plan.referenceFightSec, label).toBeCloseTo(actualFightSec, 1)
                 expect(plan.phaseThresholdHp, label).toBe(plan.maxHp / 2)
                 cases += 1
@@ -58,32 +59,45 @@ describe('boss plans', () => {
     expect(cases).toBe(8064)
   })
 
-  it('keeps Thomas’s level-one team-3 rocket run within 40 seconds and below the old guessed HP', () => {
+  it('keeps Thomas’s level-one team-3 rocket run within its 18-second cap and below the old guessed HP', () => {
     const upgrades = purchaseStates[0].upgrades
     const actual = getBossPlan(1, upgrades, 3, 'rocket', 1, 1)
     const oldGuessedDps = getCombatFirepower(3, 'rocket') * BALANCE.upgradesShop.damage.base * BALANCE.upgradesShop.rate.base
     const oldGuessedFightSec = Math.min(
-      BALANCE.boss.referenceFirepower.maxFightSec,
+      BALANCE.boss.referenceFirepower.maxFightSecCap,
       BALANCE.boss.referenceFirepower.fightSecAtMaxTeam
         * (getTeamFirepower(BALANCE.crowd.max) / getTeamFirepower(3)) ** BALANCE.boss.referenceFirepower.teamDampening
         * (1 / getWeaponFirepower('rocket')) ** (1 - BALANCE.boss.referenceFirepower.weaponDampening),
     )
     const oldGuessedHp = Math.round(oldGuessedDps * oldGuessedFightSec)
-    expect(actual.referenceFightSec).toBeLessThanOrEqual(40)
+    expect(actual.referenceFightSec).toBeLessThanOrEqual(getMaxFightSec(1) + 0.5)
     expect(actual.maxHp).toBeLessThan(oldGuessedHp)
   })
 
-  it('keeps the specified separate dampening values and pressure safety margin', () => {
+  it('keeps the specified dampening values and level-scaled pressure safety margin', () => {
     const reference = BALANCE.boss.referenceFirepower
     const anchorY = 844 - BALANCE.player.anchorBottomOffset
-    const pressureContactSec = BALANCE.boss.pressureDelayMs / 1000 + (anchorY - BALANCE.boss.battleY) / BALANCE.boss.advanceSpeed
+    const stopY = anchorY - BALANCE.boss.advanceStopBeforeAnchorPx
+    const pressureContactSec = BALANCE.boss.pressureDelayMs / 1000 + (stopY - BALANCE.boss.battleY) / BALANCE.boss.advanceSpeed
     expect(reference.fightSecAtMaxTeam).toBe(20)
     expect(reference.minFightSec).toBe(15)
-    expect(reference.maxFightSec).toBe(40)
+    expect(reference.maxFightSecAtLevelOne).toBe(18)
+    expect(reference.maxFightSecPerLevel).toBe(2)
+    expect(reference.maxFightSecCap).toBe(40)
     expect(reference.teamDampening).toBe(0.41)
     expect(reference.weaponDampening).toBe(0.8)
     expect(reference.statDampening).toBe(0.8)
-    expect(reference.maxFightSec).toBeLessThan(pressureContactSec)
+    expect(BALANCE.boss.pressureDelayMs).toBe(36_000)
+    expect(BALANCE.boss.advanceSpeed).toBe(34)
+    expect(BALANCE.boss.battleY).toBe(300)
+    expect(BALANCE.boss.advanceStopBeforeAnchorPx).toBe(80)
+    expect(pressureContactSec).toBeCloseTo(45.8, 1)
+    expect(getMaxFightSec(1)).toBe(18)
+    expect(getMaxFightSec(12)).toBe(40)
+    for (let level = 1; level <= 12; level += 1) {
+      expect(getMaxFightSec(level)).toBeGreaterThanOrEqual(reference.minFightSec)
+      expect(getMaxFightSec(level)).toBeLessThan(pressureContactSec)
+    }
   })
 
   it('normalizes weapon firepower against the normal weapon', () => {

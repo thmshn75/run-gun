@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -155,3 +155,9 @@ schätzen, oder Objekte im Hot Path zu erzeugen statt vorzuhalten.
 Für Teil 1 gilt: Wenn die Umstellung auf `getMaxFightSec` den 8.064-Fälle-Test nicht grün bekommt,
 **nicht** den Test aufweichen und **nicht** `minFightSec` senken — stattdessen melden, welche
 Kombination die Grenze reißt und mit welchem Wert.
+
+## Implementation Summary
+`getMaxFightSec` staffelt die Boss-Kampfdauer von 18 s in Level 1 bis zum 40-s-Deckel ab Level 12;
+die 8.064 Fälle sowie die tatsächliche Stopppositions-Sicherheitsgrenze sind getestet. Die Kulisse
+nutzt nur noch Türme (je Gewicht 6) und vier Naturarten (je 1), das Cottage ist entfernt; die neue
+120-s-Simulation misst bei 400 ms Spawnintervall 26 aktive Objekte, daher beträgt der Pool 30.

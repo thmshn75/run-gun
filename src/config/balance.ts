@@ -53,9 +53,9 @@ export const BALANCE = {
     gameplay: 2,
   },
   scenery: {
-    marginPx: 12,
-    spreadPx: 20,
-    spawnIntervalMs: 650,
+    marginPx: 4,
+    spreadPx: 6,
+    spawnIntervalMs: 400,
   },
   stats: {
     hp: { base: 2, cap: 30, floor: 0 },
@@ -280,12 +280,14 @@ export const BALANCE = {
   boss: {
     referenceFirepower: {
       // Fight duration at the maximum crowd size with the normal weapon. Smaller crowds take longer,
-      // limited by maxFightSec so a two-figure emergency team cannot stall a run. maxFightSec must
-      // remain below pressureDelayMs / 1000 + (anchorY - battleY) / advanceSpeed: changes to the
-      // boss pressure timing, position, speed, or crowd anchor must keep that safety margin intact.
+      // capped by the level-scaled maximum so a two-figure emergency team cannot stall a run. The cap
+      // must remain below the boss's stopped-position pressure threshold: changes to pressure timing,
+      // position, speed, or crowd anchor must keep that safety margin intact.
       fightSecAtMaxTeam: 20,
       minFightSec: 15,
-      maxFightSec: 40,
+      maxFightSecAtLevelOne: 18,
+      maxFightSecPerLevel: 2,
+      maxFightSecCap: 40,
       // 0 ignores crowd strength; 1 scales boss HP fully with it. This value halves
       // the fight from the smallest crowd to crowd.max without erasing the reward.
       teamDampening: 0.41,
@@ -414,9 +416,9 @@ export const BALANCE = {
     // Slowest blocker travel is (844 - 150) / 180 = 3.9s. The shortest L12 cadence
     // is 9s, so one is normally enough; two cover a delayed recycle without allocations.
     blockers: 2,
-    // The fixed 120s, 16.667ms-step, 390x844 scenery simulation reaches 16 concurrent objects;
-    // 20 retains the measured peak plus the required four-object reserve for rhythm variance.
-    scenery: 20,
+    // The fixed 120s, 16.667ms-step, 390x844 scenery simulation reaches 26 concurrent objects
+    // at the 400ms canyon cadence; 30 retains the measured peak plus four-object reserve.
+    scenery: 30,
     // Phase two: ceil(2.1s flight / 0.82s interval) x 5 = 15; 24 leaves reserve.
     bossProjectiles: 24,
   },

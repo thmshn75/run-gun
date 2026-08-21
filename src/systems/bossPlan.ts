@@ -51,6 +51,18 @@ export function getBossCompanionLimit(level: number): number {
   return getLevelPlan(Math.max(1, Math.floor(level))).companionLimit
 }
 
+export function getMaxFightSec(level: number): number {
+  const safeLevel = Math.max(1, Math.floor(level))
+  const reference = BALANCE.boss.referenceFirepower
+  return Math.max(
+    reference.minFightSec,
+    Math.min(
+      reference.maxFightSecCap,
+      reference.maxFightSecAtLevelOne + reference.maxFightSecPerLevel * (safeLevel - 1),
+    ),
+  )
+}
+
 export function getBossPlan(
   level: number,
   upgrades: BossUpgradeLevels,
@@ -79,7 +91,7 @@ export function getBossPlan(
     * (maxFirepower / getTeamFirepower(teamSize)) ** reference.teamDampening
     * (1 / getWeaponFirepower(weapon)) ** (1 - reference.weaponDampening)
     * statTerm
-  const fightSec = Math.min(reference.maxFightSec, Math.max(reference.minFightSec, unclampedFightSec))
+  const fightSec = Math.min(getMaxFightSec(safeLevel), Math.max(reference.minFightSec, unclampedFightSec))
   const maxHp = Math.round(referenceDps * fightSec)
 
   return {
