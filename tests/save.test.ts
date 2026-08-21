@@ -5,6 +5,7 @@ import {
   loadSave,
   parseSave,
   qualifiesForScores,
+  resetSave,
   serializeSave,
   writeSave,
   type SaveData,
@@ -61,7 +62,6 @@ describe('save system', () => {
       upgrades: { team: 2, damage: 3, rate: 4 },
       highestLevel: 5,
       scores: [{ coins: 12, level: 2, timeMs: 3456 }],
-      runsSinceExport: 4,
     }
     writeSave(save)
     expect(loadSave()).toEqual(save)
@@ -102,7 +102,7 @@ describe('save system', () => {
   })
 
   it('recovers a broken primary save from a valid backup and restores the primary entry', () => {
-    const saved = { ...defaultSave(), coins: 88, runsSinceExport: 10 }
+    const saved = { ...defaultSave(), coins: 88 }
     storage.setItem(SAVE_KEY, '{broken')
     storage.setItem(BACKUP_SAVE_KEY, serializeSave(saved))
 
@@ -117,9 +117,24 @@ describe('save system', () => {
     expect(loadSave()).toEqual(defaultSave())
   })
 
-  it('accepts save texts from before runsSinceExport existed', () => {
-    const { runsSinceExport: _runsSinceExport, ...legacySave } = defaultSave()
-    expect(parseSave(JSON.stringify(legacySave))).toEqual({ ok: true, data: defaultSave() })
+  it('accepts old save texts with runsSinceExport and discards the field', () => {
+    const result = parseSave(JSON.stringify({ ...defaultSave(), runsSinceExport: 10 }))
+    expect(result).toEqual({ ok: true, data: defaultSave() })
+  })
+
+  it('resets and persists both save copies', () => {
+    writeSave({
+      ...defaultSave(),
+      coins: 91,
+      upgrades: { team: 2, damage: 3, rate: 4 },
+      highestLevel: 8,
+      scores: [{ coins: 91, level: 8, timeMs: 1000 }],
+    })
+
+    expect(resetSave()).toEqual(defaultSave())
+    expect(loadSave()).toEqual(defaultSave())
+    expect(storage.getItem(SAVE_KEY)).toBe(serializeSave(defaultSave()))
+    expect(storage.getItem(BACKUP_SAVE_KEY)).toBe(serializeSave(defaultSave()))
   })
 
   it('keeps the ten best scores without mutating its input', () => {

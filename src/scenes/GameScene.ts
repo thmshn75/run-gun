@@ -111,7 +111,7 @@ export class GameScene extends Phaser.Scene {
     this.levelPhase = 'normal'
     this.phaseRemainingMs = BALANCE.level.normalPhaseSec * 1000
     this.lastUnknownCombatOverlapWarningAtMs = -1000
-    this.insets = readSafeAreaInsets()
+    this.insets = readSafeAreaInsets(this.game.canvas)
     this.cameras.main.setBackgroundColor(WORLD_COLORS.background)
     this.road = new Road(this)
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
@@ -364,7 +364,6 @@ export class GameScene extends Phaser.Scene {
       ...withScore,
       coins: withScore.coins + runCoins,
       highestLevel: Math.max(withScore.highestLevel, this.currentLevel),
-      runsSinceExport: withScore.runsSinceExport + 1,
     })
     this.scene.start('GameOverScene', { coins: runCoins, scorePlace })
   }

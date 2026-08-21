@@ -14,7 +14,6 @@ export interface SaveData {
   }
   highestLevel: number
   scores: ScoreEntry[]
-  runsSinceExport: number
 }
 
 const SAVE_KEY = 'rungun_save_v1'
@@ -29,7 +28,6 @@ export function defaultSave(): SaveData {
     upgrades: { team: 0, damage: 0, rate: 0 },
     highestLevel: 1,
     scores: [],
-    runsSinceExport: 0,
   }
 }
 
@@ -51,7 +49,7 @@ export function writeSave(data: SaveData): void {
   try {
     const text = serializeSave(data)
     localStorage.setItem(SAVE_KEY, text)
-    // This only repairs one damaged local entry. Both keys are in the same localStorage; deleting website data or the Home Screen app removes both copies, and SICHERN is the only recovery for that.
+    // Thomas hat bewusst keinen Ausleseweg: Werden Websitedaten gelöscht oder die Homescreen-App entfernt, gehen beide lokalen Kopien verloren.
     localStorage.setItem(BACKUP_SAVE_KEY, text)
   } catch {
     if (import.meta.env.DEV) console.warn('Spielstand konnte nicht gespeichert werden.')
@@ -67,7 +65,7 @@ export function parseSave(text: string): { ok: true; data: SaveData } | { ok: fa
   }
   if (!isRecord(value)) return { ok: false, reason: 'Text ist kein gültiger Spielstand.' }
   if (value.version !== 1) return { ok: false, reason: 'Spielstand stammt aus einer anderen Version.' }
-  if (!isNonNegativeNumber(value.coins) || !isFiniteNumberAtLeast(value.highestLevel, 1) || (value.runsSinceExport !== undefined && !isNonNegativeNumber(value.runsSinceExport))) {
+  if (!isNonNegativeNumber(value.coins) || !isFiniteNumberAtLeast(value.highestLevel, 1)) {
     return { ok: false, reason: 'Spielstand enthält ungültige Zahlen.' }
   }
   if (!isRecord(value.upgrades) || !isUpgradeLevel(value.upgrades.team) || !isUpgradeLevel(value.upgrades.damage) || !isUpgradeLevel(value.upgrades.rate)) {
@@ -93,13 +91,18 @@ export function parseSave(text: string): { ok: true; data: SaveData } | { ok: fa
         level: clampNonNegative(entry.level),
         timeMs: clampNonNegative(entry.timeMs),
       })),
-      runsSinceExport: value.runsSinceExport === undefined ? 0 : clampNonNegative(value.runsSinceExport),
     },
   }
 }
 
 export function serializeSave(data: SaveData): string {
   return JSON.stringify(data)
+}
+
+export function resetSave(): SaveData {
+  const reset = defaultSave()
+  writeSave(reset)
+  return reset
 }
 
 export function addScore(data: SaveData, entry: ScoreEntry): SaveData {

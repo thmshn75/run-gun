@@ -1,9 +1,9 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { HUD_COLORS, MENU_COLORS } from '../config/colors'
+import { computeMenuLayout } from '../systems/menuLayout'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
-import { loadSave, parseSave, serializeSave, writeSave, type SaveData, type ScoreEntry } from '../systems/save'
-import { onPersistentStorageStatusChanged, readPersistentStorageStatus } from '../systems/storagePersistence'
+import { loadSave, resetSave, writeSave, type SaveData, type ScoreEntry } from '../systems/save'
 import {
   getShopUpgradeKeys,
   getUpgradePrice,
@@ -16,10 +16,8 @@ export class MenuScene extends Phaser.Scene {
   private save!: SaveData
   private insets!: SafeAreaInsets
   private balanceText!: Phaser.GameObjects.Text
-  private persistentStorageGranted = false
-  private unsubscribePersistentStorageStatus?: () => void
   private readonly shopObjects: Phaser.GameObjects.GameObject[] = []
-  private saveView?: HTMLDivElement
+  private readonly confirmationObjects: Phaser.GameObjects.GameObject[] = []
 
   public constructor() {
     super('MenuScene')
@@ -27,15 +25,17 @@ export class MenuScene extends Phaser.Scene {
 
   public create(): void {
     this.save = loadSave()
-    this.insets = readSafeAreaInsets()
+    this.insets = readSafeAreaInsets(this.game.canvas)
+    this.input.setTopOnly(true)
     const width = this.scale.width
     const height = this.scale.height
     const safeWidth = width - this.insets.left - this.insets.right
     const safeLeft = this.insets.left
+    const layout = this.layout()
 
     this.add.image(width / 2, height / 2, 'title').setDisplaySize(width, height)
     this.add.rectangle(width / 2, height / 2, width, height, 0x000000, BALANCE.menu.overlayAlpha)
-    this.add.text(width / 2, this.insets.top + BALANCE.menu.titleY, 'RUN & GUN', {
+    this.add.text(width / 2, layout.title.top + layout.title.height / 2, 'RUN & GUN', {
       fontFamily: 'system-ui',
       fontSize: '38px',
       fontStyle: 'bold',
@@ -43,7 +43,7 @@ export class MenuScene extends Phaser.Scene {
       stroke: '#0b0f18',
       strokeThickness: 6,
     }).setOrigin(0.5)
-    this.balanceText = this.add.text(width / 2, this.insets.top + BALANCE.menu.balanceY, '', {
+    this.balanceText = this.add.text(width / 2, layout.balance.top + layout.balance.height / 2, '', {
       fontFamily: 'system-ui',
       fontSize: '23px',
       fontStyle: 'bold',
@@ -52,21 +52,15 @@ export class MenuScene extends Phaser.Scene {
       strokeThickness: 4,
     }).setOrigin(0.5)
 
-    const playY = height - this.insets.bottom - BALANCE.menu.playButtonBottom - BALANCE.menu.playButtonHeight / 2
-    this.addButton(safeLeft + safeWidth / 2, playY, safeWidth - 2 * BALANCE.menu.sidePadding, BALANCE.menu.playButtonHeight, 'SPIELEN', true, () => {
+    this.addButton(safeLeft + safeWidth / 2, layout.playButton.top + layout.playButton.height / 2, safeWidth - 2 * BALANCE.menu.sidePadding, layout.playButton.height, 'SPIELEN', true, () => {
       this.scene.start('GameScene')
     })
+    this.addButton(safeLeft + safeWidth / 2, layout.resetButton.top + layout.resetButton.height / 2, safeWidth - 2 * BALANCE.menu.sidePadding, layout.resetButton.height, 'ZURÜCKSETZEN', true, () => {
+      this.openResetConfirmation()
+    }, undefined, true)
     this.renderShop()
-    const updatePersistentStorageStatus = (granted: boolean) => {
-      this.persistentStorageGranted = granted
-      if (this.scene.isActive()) this.renderShop()
-    }
-    this.unsubscribePersistentStorageStatus = onPersistentStorageStatusChanged(updatePersistentStorageStatus)
-    void readPersistentStorageStatus().then(updatePersistentStorageStatus)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.unsubscribePersistentStorageStatus?.()
-      this.unsubscribePersistentStorageStatus = undefined
-      this.closeSaveView()
+      this.closeResetConfirmation()
     })
   }
 
@@ -77,54 +71,31 @@ export class MenuScene extends Phaser.Scene {
     const safeWidth = this.scale.width - this.insets.left - this.insets.right
     const rowX = safeLeft + BALANCE.menu.sidePadding
     const rowWidth = safeWidth - 2 * BALANCE.menu.sidePadding
-    const startY = this.insets.top + BALANCE.menu.rowStartY
+    const layout = this.layout()
 
     getShopUpgradeKeys().forEach((key, index) => {
-      const y = startY + index * (BALANCE.menu.rowHeight + BALANCE.menu.rowGap)
-      this.renderUpgradeRow(key, rowX, y, rowWidth)
+      this.renderUpgradeRow(key, rowX, layout.upgradeRows[index].top, rowWidth)
     })
-    this.renderScores(rowX)
-    this.renderStorageNotice(rowX)
-    this.renderSaveLoadButtons(safeLeft, safeWidth)
+    this.renderScores(rowX, rowWidth, layout)
   }
 
-  private renderScores(x: number): void {
-    this.track(this.add.text(x, this.insets.top + BALANCE.menu.scoresTitleY, 'BESTE LÄUFE', {
+  private renderScores(x: number, width: number, layout: ReturnType<MenuScene['layout']>): void {
+    const scores = this.save.scores.slice(0, BALANCE.menu.scoresShown)
+    const lines = scores.length === 0
+      ? ['Noch kein Lauf gewertet.']
+      : scores.map((score, index) => this.scoreText(index + 1, score))
+
+    this.track(this.add.rectangle(x, layout.scoresTitle.top, width, layout.scoresTitle.height, MENU_COLORS.row, 0.9).setOrigin(0, 0))
+    this.track(this.add.text(x + 12, layout.scoresTitle.top + 4, 'BESTE LÄUFE', {
       fontFamily: 'system-ui', fontSize: '17px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.text),
     }))
-    if (this.save.scores.length === 0) {
-      this.track(this.add.text(x, this.insets.top + BALANCE.menu.scoresFirstLineY, 'Noch kein Lauf gewertet.', {
-        fontFamily: 'system-ui', fontSize: '15px', color: this.colorFor(MENU_COLORS.mutedText),
-      }))
-      return
-    }
-
-    this.save.scores.slice(0, BALANCE.menu.scoresShown).forEach((score, index) => {
-      this.track(this.add.text(x, this.insets.top + BALANCE.menu.scoresFirstLineY + index * BALANCE.menu.scoresLineHeight, this.scoreText(index + 1, score), {
-        fontFamily: 'system-ui', fontSize: '15px', color: this.colorFor(MENU_COLORS.text),
+    lines.forEach((line, index) => {
+      const bounds = layout.scoreLines[index]
+      this.track(this.add.rectangle(x, bounds.top, width, bounds.height, MENU_COLORS.row, 0.9).setOrigin(0, 0))
+      this.track(this.add.text(x + 12, bounds.top + 2, line, {
+        fontFamily: 'system-ui', fontSize: '15px', color: this.colorFor(scores.length === 0 ? MENU_COLORS.mutedText : MENU_COLORS.text),
       }))
     })
-  }
-
-  private renderStorageNotice(x: number): void {
-    const y = this.insets.top + BALANCE.menu.scoresFirstLineY + Math.max(1, this.save.scores.length) * BALANCE.menu.scoresLineHeight + 4
-    const text = this.save.runsSinceExport >= 10
-      ? `Seit ${this.save.runsSinceExport} Läufen nicht gesichert.`
-      : this.persistentStorageGranted
-        ? 'Speicher gesichert'
-        : 'Speicher nicht gesichert — sichere deinen Stand gelegentlich.'
-    this.track(this.add.text(x, y, text, {
-      fontFamily: 'system-ui', fontSize: '12px', color: this.colorFor(MENU_COLORS.mutedText),
-    }))
-  }
-
-  private renderSaveLoadButtons(safeLeft: number, safeWidth: number): void {
-    const width = (safeWidth - 2 * BALANCE.menu.sidePadding - BALANCE.menu.saveLoadButtonGap) / 2
-    const left = safeLeft + BALANCE.menu.sidePadding + width / 2
-    const right = left + width + BALANCE.menu.saveLoadButtonGap
-    const y = this.insets.top + BALANCE.menu.saveLoadButtonsY
-    this.addButton(left, y, width, BALANCE.menu.saveLoadButtonHeight, 'SICHERN', true, () => this.openExportView(), this.shopObjects)
-    this.addButton(right, y, width, BALANCE.menu.saveLoadButtonHeight, 'LADEN', true, () => this.openImportView(), this.shopObjects)
   }
 
   private renderUpgradeRow(key: ShopUpgradeKey, x: number, y: number, width: number): void {
@@ -166,85 +137,37 @@ export class MenuScene extends Phaser.Scene {
     this.renderShop()
   }
 
-  private openExportView(): void {
-    this.save = { ...loadSave(), runsSinceExport: 0 }
-    writeSave(this.save)
-    const text = serializeSave(this.save)
-    const { view, textarea } = this.createSaveView('SPIELSTAND SICHERN', 'Der Text ist zum Kopieren markierbar. Kopieren wurde zusätzlich versucht.')
-    textarea.value = text
-    textarea.readOnly = true
-    textarea.setAttribute('aria-label', 'Spielstand zum Kopieren')
-    const clipboard = navigator.clipboard
-    if (clipboard !== undefined) void clipboard.writeText(text).catch(() => undefined)
-    this.addDomButton(view, 'FERTIG', () => {
-      this.closeSaveView()
+  private openResetConfirmation(): void {
+    if (this.confirmationObjects.length > 0) return
+    const width = this.scale.width
+    const height = this.scale.height
+    const safeWidth = width - this.insets.left - this.insets.right
+    const centerX = this.insets.left + safeWidth / 2
+    const centerY = (height + this.insets.top - this.insets.bottom) / 2
+    const panelWidth = safeWidth - 2 * BALANCE.menu.sidePadding
+    const blocker = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.65).setDepth(10).setInteractive()
+    blocker.on('pointerdown', () => undefined)
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, 244, MENU_COLORS.row, 1).setDepth(11)
+      .setStrokeStyle(2, MENU_COLORS.rowStroke, 1)
+    const question = this.add.text(centerX, centerY - 70, 'Alles zurücksetzen?', {
+      fontFamily: 'system-ui', fontSize: '23px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
+    }).setOrigin(0.5).setDepth(12)
+    const explanation = this.add.text(centerX, centerY - 32, 'Münzen, Aufwertungen und Bestenliste\ngehen verloren.', {
+      fontFamily: 'system-ui', fontSize: '16px', align: 'center', color: this.colorFor(MENU_COLORS.text),
+    }).setOrigin(0.5).setDepth(12)
+    this.confirmationObjects.push(blocker, panel, question, explanation)
+    this.confirmationObjects.push(...this.addButton(centerX, centerY + 36, panelWidth - 32, 42, 'JA, LÖSCHEN', true, () => {
+      this.save = resetSave()
+      this.closeResetConfirmation()
       this.renderShop()
-    })
+    }, undefined, false, 12))
+    this.confirmationObjects.push(...this.addButton(centerX, centerY + 88, panelWidth - 32, 36, 'ABBRECHEN', true, () => {
+      this.closeResetConfirmation()
+    }, undefined, true, 12))
   }
 
-  private openImportView(): void {
-    const { view, textarea } = this.createSaveView('SPIELSTAND LADEN', 'Spielstand hier per Langdruck einfügen.')
-    textarea.setAttribute('aria-label', 'Spielstand zum Einfügen')
-    const error = document.createElement('div')
-    error.style.cssText = 'min-height: 24px; color: #ff9b9b; font-size: 16px; line-height: 1.35;'
-    view.append(error)
-    this.addDomButton(view, 'ÜBERNEHMEN', () => {
-      const parsed = parseSave(textarea.value)
-      if (!parsed.ok) {
-        error.textContent = parsed.reason
-        return
-      }
-      this.save = parsed.data
-      writeSave(this.save)
-      this.closeSaveView()
-      this.renderShop()
-    })
-    this.addDomButton(view, 'ABBRECHEN', () => this.closeSaveView(), true)
-  }
-
-  private createSaveView(title: string, description: string): { view: HTMLDivElement; textarea: HTMLTextAreaElement } {
-    this.closeSaveView()
-    const view = document.createElement('div')
-    view.style.cssText = [
-      'position: fixed', 'inset: 0', 'z-index: 10', 'box-sizing: border-box',
-      'display: flex', 'flex-direction: column', 'justify-content: center', 'gap: 14px',
-      'padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left))',
-      'background: rgba(16, 19, 29, 0.96)', 'color: #f4f6ff', 'font-family: system-ui, -apple-system, sans-serif',
-    ].join(';')
-    const heading = document.createElement('div')
-    heading.textContent = title
-    heading.style.cssText = 'font-size: 24px; font-weight: 700; text-align: center;'
-    const help = document.createElement('div')
-    help.textContent = description
-    help.style.cssText = 'font-size: 16px; line-height: 1.4; text-align: center; color: #daf6ff;'
-    const textarea = document.createElement('textarea')
-    textarea.rows = 9
-    textarea.spellcheck = false
-    textarea.style.cssText = [
-      'width: 100%', 'box-sizing: border-box', 'min-height: 190px', 'padding: 12px', 'border: 2px solid #62d0ff', 'border-radius: 8px',
-      'background: #ffffff', 'color: #10131d', 'font-family: ui-monospace, SFMono-Regular, Menlo, monospace', 'font-size: 16px', 'line-height: 1.35',
-    ].join(';')
-    view.append(heading, help, textarea)
-    document.body.append(view)
-    this.saveView = view
-    return { view, textarea }
-  }
-
-  private addDomButton(view: HTMLDivElement, label: string, onClick: () => void, secondary = false): void {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.textContent = label
-    button.style.cssText = [
-      'min-height: 44px', 'border-radius: 8px', `border: 2px solid ${secondary ? '#8b96a8' : '#62d0ff'}`,
-      `background: ${secondary ? '#30394a' : '#174b67'}`, 'color: #f4f6ff', 'font-size: 16px', 'font-weight: 700',
-    ].join(';')
-    button.addEventListener('click', onClick)
-    view.append(button)
-  }
-
-  private closeSaveView(): void {
-    this.saveView?.remove()
-    this.saveView = undefined
+  private closeResetConfirmation(): void {
+    this.confirmationObjects.splice(0).forEach((object) => object.destroy())
   }
 
   private scoreText(place: number, score: ScoreEntry): string {
@@ -266,18 +189,28 @@ export class MenuScene extends Phaser.Scene {
     enabled: boolean,
     onClick: () => void,
     trackedObjects?: Phaser.GameObjects.GameObject[],
-  ): void {
-    const target = this.add.rectangle(centerX, centerY, width, height, enabled ? MENU_COLORS.button : MENU_COLORS.disabledButton)
-      .setStrokeStyle(2, enabled ? MENU_COLORS.buttonStroke : MENU_COLORS.disabledStroke)
+    muted = false,
+    depth = 0,
+  ): Phaser.GameObjects.GameObject[] {
+    const buttonColor = muted ? MENU_COLORS.disabledButton : MENU_COLORS.button
+    const strokeColor = muted ? MENU_COLORS.disabledStroke : MENU_COLORS.buttonStroke
+    const target = this.add.rectangle(centerX, centerY, width, height, enabled ? buttonColor : MENU_COLORS.disabledButton)
+      .setStrokeStyle(2, enabled ? strokeColor : MENU_COLORS.disabledStroke)
       .setOrigin(0.5)
+      .setDepth(depth)
     const text = this.add.text(centerX, centerY, label, {
       fontFamily: 'system-ui', fontSize: label === 'SPIELEN' ? '24px' : '12px', fontStyle: 'bold',
       color: this.colorFor(enabled ? MENU_COLORS.title : MENU_COLORS.mutedText),
-    }).setOrigin(0.5)
+    }).setOrigin(0.5).setDepth(depth + 1)
     if (trackedObjects !== undefined) {
       trackedObjects.push(target, text)
     }
     if (enabled) target.setInteractive({ useHandCursor: true }).on('pointerdown', onClick)
+    return [target, text]
+  }
+
+  private layout(): ReturnType<typeof computeMenuLayout> {
+    return computeMenuLayout(this.scale.height, this.insets, Math.min(BALANCE.menu.scoresShown, Math.max(1, this.save.scores.length)))
   }
 
   private track<T extends Phaser.GameObjects.GameObject>(object: T): T {

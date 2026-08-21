@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -131,3 +131,40 @@ Zeilen kräftiger machen und melden**, nicht die Fläche über dem Bild wieder a
 9. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
 
 Kriterien 1 und 2 prüft Claude über die Unit-Tests, Kriterien 3 bis 8 am laufenden Spiel.
+
+## Implementation Summary
+
+- Der Fußbereich wird durch `computeMenuLayout` von der unteren Safe-Area-Kante aus aufgebaut; Tests decken Desktop- und iPhone-Ränder ab.
+- Sichern/Laden, die zugehörigen DOM-Ansichten, `runsSinceExport` und die Speicher-Hinweise sind entfernt. Der alte Feldname wird beim Einlesen weiter verworfen.
+- ZURÜCKSETZEN hat eine Phaser-Rückfrage und setzt beide lokalen Spielstandskopien auf die Standardwerte zurück; Titel-Overlay und Bestenlisten-Hintergründe sind angepasst.
+
+## Verification
+
+- `npm run check`, `npm run build` und `npm test` erfolgreich; 3 Testdateien mit 19 Tests bestanden.
+- Der Live-Nachweis für Kriterien 3 bis 8 ist noch offen, weil in dieser Sitzung kein Browser verfügbar war. Der Status bleibt deshalb bis zu dieser Prüfung `SPEC_READY`.
+
+
+## Review-Ergebnis (Claude, am laufenden Spiel gemessen)
+
+Codex hat den Status ehrlich auf `SPEC_READY` gelassen, weil die Browser-Pruefung Claude
+zugewiesen war. Alle neun Kriterien sind erfuellt.
+
+- **Kriterium 1 und 2:** Unit-Tests der Layout-Funktion fuer beide Randfaelle. Zusaetzlich im
+  Browser mit **erzwungenen iPhone-Raendern** (oben 47, unten 34) nachgesehen: ZURUECKSETZEN
+  sitzt ueber SPIELEN, **keine Ueberlappung**, nichts ragt heraus.
+- **Kriterium 3:** Waehrend des gesamten Ablaufs — Menue, Rueckfrage, nach dem Loeschen —
+  steht die Zahl der DOM-Elemente neben dem Canvas konstant auf **1**. Auch die
+  Safe-Area-Messung legt keines mehr an; sie liest jetzt CSS-Variablen vom Canvas statt ein
+  eigenes Element einzuhaengen. Diese Aenderung stand nicht in der Spec, ist aber genau die
+  Voraussetzung dafuer, dass „kein DOM" ueberhaupt erfuellbar ist.
+- **Kriterium 4:** Der neu geschriebene Stand enthaelt kein `runsSinceExport` mehr; ein Text,
+  der es noch enthaelt, wird weiterhin angenommen.
+- **Kriterium 5:** Nach ABBRECHEN ist der Speicherstand **bitgleich**.
+- **Kriterium 6:** Nach „JA, LOESCHEN" stehen Muenzen 0, alle Stufen 0, hoechstes Level 1 und
+  eine leere Bestenliste — in Haupteintrag **und** Zweitkopie, und unveraendert nach dem
+  Neuladen.
+- **Kriterium 7:** Titelbild deutlich heller; Bestenliste und Ueberschrift haben einen eigenen
+  Hintergrund und sind lesbar.
+- **Kriterium 8:** Das Zuruecksetzen schrieb beide Schluessel — die automatische Speicherung
+  samt Zweitkopie arbeitet unveraendert.
+- **Kriterium 9:** `npm run check`, `npm run build`, `npm test` gruen, 19 Tests.

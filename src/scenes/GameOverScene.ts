@@ -20,7 +20,7 @@ export class GameOverScene extends Phaser.Scene {
 
   public create(): void {
     this.elapsedMs = 0
-    const insets = readSafeAreaInsets()
+    const insets = readSafeAreaInsets(this.game.canvas)
     const centerX = this.scale.width / 2
     const centerY = (this.scale.height + insets.top - insets.bottom) / 2
     const topY = centerY - 220

@@ -1,25 +1,13 @@
 export type SafeAreaInsets = Readonly<{ top: number; right: number; bottom: number; left: number }>
 
-export function readSafeAreaInsets(): SafeAreaInsets {
-  const probe = document.createElement('div')
-  probe.setAttribute('aria-hidden', 'true')
-  probe.style.cssText = [
-    'position:fixed',
-    'visibility:hidden',
-    'pointer-events:none',
-    'padding-top:env(safe-area-inset-top)',
-    'padding-right:env(safe-area-inset-right)',
-    'padding-bottom:env(safe-area-inset-bottom)',
-    'padding-left:env(safe-area-inset-left)',
-  ].join(';')
-  document.body.append(probe)
-  const styles = getComputedStyle(probe)
+export function readSafeAreaInsets(canvas: HTMLCanvasElement): SafeAreaInsets {
+  const styles = getComputedStyle(canvas)
+  const readInset = (name: string): number => Number.parseFloat(styles.getPropertyValue(name)) || 0
   const insets = {
-    top: Number.parseFloat(styles.paddingTop) || 0,
-    right: Number.parseFloat(styles.paddingRight) || 0,
-    bottom: Number.parseFloat(styles.paddingBottom) || 0,
-    left: Number.parseFloat(styles.paddingLeft) || 0,
+    top: readInset('--safe-area-inset-top'),
+    right: readInset('--safe-area-inset-right'),
+    bottom: readInset('--safe-area-inset-bottom'),
+    left: readInset('--safe-area-inset-left'),
   }
-  probe.remove()
   return insets
 }
