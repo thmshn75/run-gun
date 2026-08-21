@@ -114,3 +114,43 @@ verzögern, bis eine Antwort da ist.
    4, 5, 6 und 8 sind als Tests abgedeckt.
 
 Kriterien 1 bis 7 prüft Claude am laufenden Spiel nach.
+
+## Implementation Summary
+
+- Startwerte sowie die fünf Stufen von Truppe und Feuerrate auf 1 → 6 beziehungsweise 3,0 → 4,5 angepasst.
+- Nebenläufige WebKit-Dauerspeicher-Anfrage, Menühinweis und Laufzähler seit SICHERN ergänzt.
+- Jeder Speicherstand erhält eine zweite lokale Kopie; bei beschädigtem Haupteintrag wird sie wiederhergestellt. Beide Kopien bleiben bei gelöschten Websitedaten verloren; dafür bleibt SICHERN nötig.
+- `npm run check`, `npm run build` und `npm test` erfolgreich; die Speicherfälle sind mit 12 Unit-Tests abgedeckt.
+
+
+---
+
+# NACHTRAG (Thomas, 2026-08-21)
+
+## Befund des Reviews: alles erfüllt
+
+Am laufenden Spiel gemessen, bevor der Nachtrag kam:
+
+- Zweitkopie entsteht bei jedem Schreiben und ist zeichengleich dem Haupteintrag.
+- Haupteintrag zerstört, Zweitkopie heil → das Spiel startet mit dem geretteten Stand und
+  **schreibt ihn wieder als Haupteintrag**.
+- Beide zerstört → Standardwerte, Spiel läuft, **kein Seitenfehler**.
+- `navigator.storage.persist()` ist vorhanden und wird aufgerufen; die Bewilligung ist im
+  Desktop-Browser erwartungsgemäß `false` und blockiert nichts.
+- Menü zeigt `TRUPPE 3 / 6`, `FEUERRATE 3 / 4.5` und die Zeile „Seit 12 Läufen nicht
+  gesichert."
+
+## Einzige Änderung
+
+Thomas nach dem Test: **„Dann starte mit 2 Team"**.
+
+- `stats.hp.base` von **1 auf 2**.
+- Damit reicht die Aufwertung „Truppe" von **2 bis 7**. In `docs/e5-design.md`,
+  Entscheidung 4, die Tabelle entsprechend berichtigen (2 → 7).
+- Sonst **nichts** ändern — Feuerrate bleibt bei 3, alle Maßnahmen zur Absicherung des
+  Spielstands bleiben unangetastet.
+
+## Zusätzliches Akzeptanzkriterium
+
+10. Ein Run startet mit genau **zwei** Figuren; das Menü zeigt bei der Truppe den Bereich
+    2 bis 7.
