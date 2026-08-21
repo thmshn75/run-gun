@@ -1,11 +1,10 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { getSceneryPlacement, type ScenerySide } from './sceneryLayout'
+import { getSceneryPlacement, getScenerySpawnIntervalMs, isSceneryOutsideViewport, pickSceneryKind, type SceneryKind, type ScenerySide } from './sceneryLayout'
+import { sceneryKinds } from './sceneryKinds'
+import { getScrollProgressDelta, getScrollY } from './roadGeometry'
 
-type SceneryKind = Readonly<{
-  texture: string
-  baseHeightPx: number
-}>
+export { sceneryKinds } from './sceneryKinds'
 
 type SceneryObject = {
   readonly image: Phaser.GameObjects.Image
@@ -13,15 +12,8 @@ type SceneryObject = {
   side: ScenerySide
   kind: SceneryKind
   randomDistance: number
+  progress: number
 }
-
-const sceneryKinds: readonly SceneryKind[] = [
-  { texture: 'scenery-oak', baseHeightPx: 54 },
-  { texture: 'scenery-conifer', baseHeightPx: 58 },
-  { texture: 'scenery-bush', baseHeightPx: 28 },
-  { texture: 'scenery-stone', baseHeightPx: 22 },
-  { texture: 'scenery-cottage', baseHeightPx: 36 },
-]
 
 export class Scenery {
   private readonly scene: Phaser.Scene
@@ -50,13 +42,21 @@ export class Scenery {
       this.rightSpawnRemainingMs += this.nextSpawnIntervalMs()
       this.spawn('right')
     }
+    const height = this.scene.scale.height
+    const progressDelta = getScrollProgressDelta(height, dt)
     for (const object of this.objects) {
       if (!object.active) continue
-      object.image.y += (BALANCE.scrollSpeed * dt) / 1000
+      object.progress += progressDelta
+      object.image.y = getScrollY(height, object.progress)
       this.applyPlacement(object)
-      const halfWidth = object.image.displayWidth / 2
-      if (object.image.y - object.image.displayHeight > this.scene.scale.height
-        || object.image.x + halfWidth < 0 || object.image.x - halfWidth > this.scene.scale.width) this.recycle(object)
+      if (isSceneryOutsideViewport(
+        this.scene.scale.width,
+        height,
+        object.image.x,
+        object.image.y,
+        object.image.displayWidth,
+        object.image.displayHeight,
+      )) this.recycle(object)
     }
   }
 
@@ -66,7 +66,7 @@ export class Scenery {
       .setDepth(BALANCE.layers.scenery)
       .setActive(false)
       .setVisible(false)
-    return { image, active: false, side: 'left', kind: sceneryKinds[0], randomDistance: 0 }
+    return { image, active: false, side: 'left', kind: sceneryKinds[0], randomDistance: 0, progress: 0 }
   }
 
   private spawn(side: ScenerySide): void {
@@ -74,20 +74,20 @@ export class Scenery {
     if (object === undefined) return
     object.active = true
     object.side = side
-    object.kind = sceneryKinds[Math.floor(this.rng() * sceneryKinds.length)]
+    object.kind = pickSceneryKind(sceneryKinds, this.rng)
     object.randomDistance = this.rng()
+    object.progress = 0
     object.image.setTexture(object.kind.texture).setPosition(0, BALANCE.road.horizonY).setActive(true).setVisible(true)
     this.applyPlacement(object)
   }
 
   private applyPlacement(object: SceneryObject): void {
-    const baseWidthPx = object.image.width * object.kind.baseHeightPx / object.image.height
     const placement = getSceneryPlacement(
       this.scene.scale.width,
       this.scene.scale.height,
       object.image.y,
       object.side,
-      baseWidthPx,
+      object.kind.baseWidthPx,
       BALANCE.scenery.marginPx,
       BALANCE.scenery.spreadPx,
       object.randomDistance,
@@ -101,6 +101,6 @@ export class Scenery {
   }
 
   private nextSpawnIntervalMs(): number {
-    return BALANCE.scenery.spawnIntervalMs * (0.75 + this.rng() * 0.5)
+    return getScenerySpawnIntervalMs(this.rng)
   }
 }

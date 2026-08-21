@@ -3,6 +3,13 @@ import { getRoadHalfWidth } from './roadGeometry'
 
 export type ScenerySide = 'left' | 'right'
 
+export type SceneryKind = Readonly<{
+  texture: string
+  baseHeightPx: number
+  baseWidthPx: number
+  weight: number
+}>
+
 export type SceneryPlacement = Readonly<{
   x: number
   scale: number
@@ -29,4 +36,29 @@ export function getSceneryPlacement(
   const outsideDistance = marginPx + spreadPx * random
   const x = roadEdge + (side === 'left' ? -1 : 1) * (outsideDistance + displayWidth / 2)
   return { x, scale, displayWidth }
+}
+
+export function pickSceneryKind(kinds: readonly SceneryKind[], rng: () => number): SceneryKind {
+  const totalWeight = kinds.reduce((sum, kind) => sum + kind.weight, 0)
+  let remainingWeight = rng() * totalWeight
+  for (const kind of kinds) {
+    remainingWeight -= kind.weight
+    if (remainingWeight < 0) return kind
+  }
+  return kinds[kinds.length - 1]
+}
+
+export function getScenerySpawnIntervalMs(rng: () => number): number {
+  return BALANCE.scenery.spawnIntervalMs * (0.75 + rng() * 0.5)
+}
+
+export function isSceneryOutsideViewport(
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  displayWidth: number,
+  displayHeight: number,
+): boolean {
+  return y - displayHeight > height || x + displayWidth / 2 < 0 || x - displayWidth / 2 > width
 }

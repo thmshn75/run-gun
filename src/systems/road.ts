@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { getRoadHalfWidth } from './roadGeometry'
+import { getRoadHalfWidth, getScrollProgressDelta, getScrollY } from './roadGeometry'
 
 export { getRoadHalfWidth } from './roadGeometry'
 
@@ -29,7 +29,7 @@ export class Road {
   }
 
   public update(dt: number): void {
-    const progressDelta = (BALANCE.scrollSpeed * dt) / (this.scene.scale.height * 1000)
+    const progressDelta = getScrollProgressDelta(this.scene.scale.height, dt)
     for (const centerLine of this.centerLines) {
       centerLine.progress += progressDelta
       if (centerLine.progress >= 1) centerLine.progress -= 1
@@ -41,7 +41,7 @@ export class Road {
     const width = this.scene.scale.width
     const height = this.scene.scale.height
     for (const centerLine of this.centerLines) {
-      const y = BALANCE.road.horizonY + (height - BALANCE.road.horizonY) * centerLine.progress * centerLine.progress
+      const y = getScrollY(height, centerLine.progress)
       const halfWidth = getRoadHalfWidth(width, height, y)
       centerLine.image
         .setPosition(width / 2, y)

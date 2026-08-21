@@ -54,8 +54,8 @@ export const BALANCE = {
   },
   scenery: {
     marginPx: 12,
-    spreadPx: 48,
-    spawnIntervalMs: 900,
+    spreadPx: 20,
+    spawnIntervalMs: 650,
   },
   stats: {
     hp: { base: 2, cap: 30, floor: 0 },
@@ -414,9 +414,9 @@ export const BALANCE = {
     // Slowest blocker travel is (844 - 150) / 180 = 3.9s. The shortest L12 cadence
     // is 9s, so one is normally enough; two cover a delayed recycle without allocations.
     blockers: 2,
-    // A scenery object travels 694px at 180px/s for 3.86s. At 900ms on two sides that is
-    // 3.86 / 0.9 * 2 = 8.6 visible objects; 16 leaves 86% reserve for rhythm variance.
-    scenery: 16,
+    // The fixed 120s, 16.667ms-step, 390x844 scenery simulation reaches 16 concurrent objects;
+    // 20 retains the measured peak plus the required four-object reserve for rhythm variance.
+    scenery: 20,
     // Phase two: ceil(2.1s flight / 0.82s interval) x 5 = 15; 24 leaves reserve.
     bossProjectiles: 24,
   },

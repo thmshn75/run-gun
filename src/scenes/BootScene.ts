@@ -9,6 +9,9 @@ import sceneryCottageUrl from '../assets/scenery-cottage.png'
 import sceneryConiferUrl from '../assets/scenery-conifer.png'
 import sceneryOakUrl from '../assets/scenery-oak.png'
 import sceneryStoneUrl from '../assets/scenery-stone.png'
+import sceneryTowerAUrl from '../assets/scenery-tower-a.png'
+import sceneryTowerBUrl from '../assets/scenery-tower-b.png'
+import sceneryTowerCUrl from '../assets/scenery-tower-c.png'
 import titleUrl from '../assets/title.png'
 import weaponLaserGateUrl from '../assets/weapon-laser-gate.png'
 import weaponLaserHudUrl from '../assets/weapon-laser-hud.png'
@@ -45,6 +48,9 @@ export class BootScene extends Phaser.Scene {
     this.load.image('scenery-bush', sceneryBushUrl)
     this.load.image('scenery-stone', sceneryStoneUrl)
     this.load.image('scenery-cottage', sceneryCottageUrl)
+    this.load.image('scenery-tower-a', sceneryTowerAUrl)
+    this.load.image('scenery-tower-b', sceneryTowerBUrl)
+    this.load.image('scenery-tower-c', sceneryTowerCUrl)
     this.load.image('weapon-normal-gate', weaponNormalGateUrl)
     this.load.image('weapon-shotgun-gate', weaponShotgunGateUrl)
     this.load.image('weapon-laser-gate', weaponLaserGateUrl)

@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -167,3 +167,8 @@ Hauptbeschwerde), Teil 2 zurückstellen und im Abschlussbericht sagen, woran es 
 **Kein zulässiger Ersatz** ist: die Poolgröße doch zu schätzen, den Verteilungstest wegzulassen,
 oder Teil 2 ohne Test einzubauen. Ebenfalls kein Ersatz: `scrollSpeed` senken, um „langsamer"
 zu erreichen.
+
+## Implementation Summary
+- Gemeinsame perspektivische Scroll-Kurve in `roadGeometry.ts`; Straße und Kulisse verwenden sie nun beide.
+- Kulisse nutzt ungebremsten `progress`, gewichtete Hochhaus-Auswahl und einen aus der 120-Sekunden-Simulation abgeleiteten 20er-Pool.
+- Drei transparente Hochhaus-Sprites (160×400, 224×320, 176×480) sind geladen; `npm run check`, `npm run build` und `npm test` sind grün.
