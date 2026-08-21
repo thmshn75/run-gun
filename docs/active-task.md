@@ -1,212 +1,81 @@
 # Active Task
 
 ## Status
-`APPROVED`
+`SPEC_READY`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**Start mit einer Figur und Feuerrate 3; dazu automatische Absicherung des Spielstands.**
+**Treffer an der Truppe nur noch, wenn wirklich eine Figur berührt wird.**
 
-Drei Punkte aus Thomas' Test vom 2026-08-21.
+## Befund (gemessen, Thomas' Beobachtung bestätigt)
 
----
+Thomas: „ich habe das Gefühl meine Truppe wird vom Boss immer getroffen auch wenn niemand
+berührt wird".
 
-# Teil 1 — Startwerte
+Nachgemessen über einen vollständigen Bosskampf, **70 Treffer** von Boss-Geschossen. Zu jedem
+Treffer wurde der Abstand des Geschosses zur nächstgelegenen sichtbaren Figur berechnet
+(0 = Berührung):
 
-- `stats.hp.base` von **3 auf 1**: Ein Run beginnt mit einer einzigen Figur.
-- `stats.shotsPerSec.base` von **3.5 auf 3**.
+- **70 von 70 Treffern ohne jede Berührung — 100 %.**
+- Typischer Abstand **11 bis 15 px**, größter **25,7 px**.
 
-Sonst wird an der Balance **nichts** geändert — keine Gegnerwerte, keine Torwerte, keine
-Boss-Lebenspunkte.
+Ursache: Die Kollisionshülle der Truppe (`crowd.getHullBounds()`) ist ein festes Rechteck von
+**82 × 74 px** (`hullWidthFigures: 2.4`, `hullHeightFigures: 1.6` mal Figurengröße 34 × 46).
+Sie sitzt mittig auf dem Anker und schrumpft **nicht** mit der Truppe. Bei kleiner Truppe liegt
+damit ein unsichtbarer Rahmen von rund 24 px seitlich und 14 px oben und unten um die Figuren,
+der alles einsammelt. Boss-Geschosse sind nur 8 px breit — der Rahmen fällt dort besonders auf.
 
-**Folge, die mitgezogen werden muss:** Die Aufwertung „Truppe" gibt +1 Startfigur je Stufe.
-Mit Grundwert 1 reicht sie künftig von **1 bis 6** statt von 3 bis 8. Die Anzeige im Menü
-rechnet ohnehin aus dem Grundwert und folgt automatisch; in `docs/e5-design.md`,
-Entscheidung 4, ist die Tabelle entsprechend zu berichtigen (1 → 6 und 3 → 5 Schuss/s).
+Dass die Hülle fest ist, war eine bewusste Entscheidung aus `docs/plan.md`: Eine mitwachsende
+Hülle würde eine große Truppe zu einem größeren Ziel machen. Diese Entscheidung bleibt.
+**Falsch ist nicht die feste Größe, sondern dass die Hülle allein über den Treffer entscheidet.**
 
----
+## Verlangte Korrektur — grobe Vorauswahl, feine Entscheidung
 
-# Teil 2 — Automatische Absicherung des Spielstands
+Die Hülle bleibt, wird aber zur **Vorauswahl** degradiert. Ob ein Treffer zählt, entscheidet
+erst eine zweite Prüfung gegen die **tatsächlich sichtbaren Figuren**.
 
-Thomas: „hier brauchen wir eine automatische Speicherung am Handy".
+- Neue Methode in `Crowd`, etwa `overlapsFigure(rect): boolean`: prüft ein Rechteck gegen die
+  Rechtecke aller **sichtbaren und aktiven** Figuren der Formation und liefert, ob mindestens
+  eine getroffen wird.
+- In `GameScene` wird bei einem Treffer an der Hülle — sowohl durch einen Gegner als auch
+  durch ein Boss-Geschoss — zusätzlich diese Prüfung durchgeführt. Fällt sie negativ aus,
+  passiert **nichts**: kein Schaden, keine Unverwundbarkeitszeit, kein Blinken, und das
+  Geschoss beziehungsweise der Gegner bleibt bestehen.
+- Die Hülle bleibt als Vorauswahl erhalten, damit nicht bei jedem Bild gegen bis zu
+  30 Figuren geprüft wird. Der Kommentar an der Hülle ist entsprechend zu ergänzen.
 
-Gespeichert wird bereits automatisch — nach jedem Level, bei Game Over und sofort bei jedem
-Kauf. Das eigentliche Anliegen ist, dass dieser Speicher nicht verschwindet. Drei Maßnahmen,
-alle kostenlos und ohne Server:
+**Aufwand:** Höchstens `crowd.max` = 30 Rechteckvergleiche, und nur in den Bildern, in denen
+die Hülle überhaupt berührt wird. Das ist unkritisch.
 
-## 2a — Dauerspeicher anfordern
+## Bewusste Folge, die Thomas kennen muss
 
-WebKit kennt seit iOS 17 `navigator.storage.persist()`. Wird der Modus gewährt, ist der
-Speicher der Seite von der üblichen automatischen Räumung ausgenommen. **Bei Web-Apps auf dem
-Homescreen ist genau das eine der Bedingungen, nach denen WebKit die Anfrage bewilligt**
-(WebKit-Blog „Updates to Storage Policy").
+Das Spiel wird dadurch **leichter**: Treffer, die es bisher gab, fallen weg. Genau das ist das
+Ziel — sie waren nicht nachvollziehbar. Fühlt sich das Spiel danach zu leicht an, wird an
+`boss.fireIntervalMs` oder `boss.burstCount` gedreht, **nicht** die Hülle wieder aufgeblasen.
 
-- Beim Start des Spiels einmalig `navigator.storage.persist()` aufrufen, falls vorhanden.
-- Das Ergebnis merken und über `navigator.storage.persisted()` beim Menüaufbau abfragen.
-- **Nie darauf verlassen und nie darauf warten:** Der Aufruf läuft nebenher, das Spiel startet
-  unabhängig davon. Ältere Geräte und Browser ohne diese Möglichkeit dürfen keinen Fehler
-  erzeugen.
+## Ausdrücklich nicht ändern
 
-## 2b — Zweitkopie gegen Beschädigung
-
-Bei jedem Schreiben zusätzlich eine Kopie unter `rungun_save_v1_backup` ablegen.
-Beim Laden: Ist der Haupteintrag fehlend oder ungültig, **aber die Zweitkopie gültig**, wird
-die Zweitkopie genommen und sofort wieder als Haupteintrag geschrieben.
-
-Das schützt gegen einen beschädigten Eintrag, **nicht** gegen das Löschen aller Websitedaten —
-beide liegen im selben Speicherbereich. Genau so ist es im Code zu kommentieren, damit später
-niemand die Zweitkopie für eine Sicherung hält, die sie nicht ist.
-
-## 2c — Sichtbarer Hinweis im Menü
-
-Eine Zeile unter der Bestenliste, klein und unaufdringlich:
-
-- Ist Dauerspeicher gewährt: **„Speicher gesichert"**.
-- Sonst: **„Speicher nicht gesichert — sichere deinen Stand gelegentlich."**
-
-Zusätzlich mitzählen, wie viele Läufe seit der letzten Sicherung über den SICHERN-Knopf
-vergangen sind (`runsSinceExport` im Speicherstand, bei SICHERN auf 0). Ab
-`menu.exportReminderRuns` = **10** Läufen steht dort stattdessen:
-**„Seit N Läufen nicht gesichert."**
-
-Das ist ein Hinweis, keine Sperre — es blockiert nichts und öffnet nichts von selbst.
-
-## Was ausdrücklich **nicht** gebaut wird
-
-- **Kein Server, kein Konto, keine Cloud.** Widerspricht dem Plan und wäre nicht kostenlos.
-- **Kein automatischer Datei-Download** als Sicherung: iOS verlangt dafür eine Nutzergeste,
-  ein Versuch ohne Geste wird stillschweigend verworfen.
-- **Kein `navigator.clipboard.readText()`** — bleibt aus den bekannten Gründen verboten.
-- Keine Verschlüsselung, keine Manipulationssicherung.
-
-**Ehrliche Grenze, die im Code als Kommentar festzuhalten ist:** Löscht der Nutzer die
-Website-Daten oder entfernt die App vom Homescreen, ist der Stand weg. Dagegen hilft
-ausschließlich die Sicherung über SICHERN. Keine der drei Maßnahmen ändert daran etwas.
-
-## Erweiterung des Speicherstands
-
-`SaveData` bekommt ein Feld `runsSinceExport: number` (Grundwert 0). `parseSave` prüft es wie
-die anderen Zahlen; **fehlt es in einem älteren Text, gilt 0 und der Text bleibt gültig** —
-ein Spielstand aus der Version von gestern darf nicht plötzlich abgelehnt werden. Dafür ein
-eigener Testfall.
-
----
+- Die Hülle wird **nicht** verkleinert und wächst **nicht** mit der Truppe.
+- Keine Änderung an Schaden, Unverwundbarkeitszeit, Blinken oder Gegnerwerten.
+- Keine Änderung an der Formation.
+- Die Trefferprüfung zwischen eigenen Projektilen und Gegnern bleibt unangetastet.
 
 ## Reißleine
 
-Lässt sich `navigator.storage.persist()` nicht ohne Fehler aufrufen oder blockiert es den
-Start: **den Aufruf entfernen und melden**. Kein zulässiger Ersatz ist es, den Start zu
-verzögern, bis eine Antwort da ist.
+Führt die zweite Prüfung dazu, dass Gegner die Truppe durchqueren, ohne je zu treffen:
+**melden und stoppen**. Kein zulässiger Ersatz ist es, die Prüfung wieder zu entfernen oder
+sie auf einen größeren Rahmen als die Figuren aufzuweiten.
 
 ## Akzeptanzkriterien
 
-1. Ein Run startet mit genau **einer** Figur und `RATE 3`.
-2. Die Aufwertung „Truppe" zeigt im Menü den Bereich 1 bis 6; fünf Stufen führen auf 6 Figuren.
-3. `navigator.storage.persist()` wird beim Start aufgerufen; das Spiel startet auch dann
-   normal, wenn die Möglichkeit fehlt oder abgelehnt wird.
-4. Bei jedem Schreiben liegt eine gültige Zweitkopie unter `rungun_save_v1_backup`.
-5. Wird der Haupteintrag zerstört, die Zweitkopie aber nicht, startet das Spiel mit dem
-   Stand aus der Zweitkopie und schreibt ihn wieder als Haupteintrag.
-6. Sind beide zerstört, startet das Spiel mit Standardwerten und ohne Fehler.
-7. Das Menü zeigt eine der drei Hinweiszeilen, passend zum Zustand.
-8. Ein Spielstandstext **ohne** `runsSinceExport` wird weiterhin angenommen.
-9. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch; die neuen Fälle
-   4, 5, 6 und 8 sind als Tests abgedeckt.
+1. Ein Treffer an der Truppe entsteht **nur**, wenn das Geschoss beziehungsweise der Gegner
+   mindestens eine sichtbare Figur tatsächlich überlappt.
+2. Über einen vollständigen Bosskampf gemessen: **0 Treffer ohne Berührung** (vorher 70 von 70).
+3. Es gibt weiterhin Treffer — ein Bosskampf ohne jeden Treffer wäre kein Erfolg, sondern ein
+   neuer Fehler. Mindestens ein Treffer pro Kampf, wenn die Truppe im Beschuss steht.
+4. Normale Gegner, die die Truppe berühren, verursachen unverändert Schaden.
+5. Unverwundbarkeitszeit und Blinken verhalten sich unverändert, wenn ein Treffer zählt.
+6. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
 
-Kriterien 1 bis 7 prüft Claude am laufenden Spiel nach.
-
-## Implementation Summary
-
-- Startwerte sowie die fünf Stufen von Truppe und Feuerrate auf 2 → 7 beziehungsweise 3,0 → 4,5 angepasst.
-- Nebenläufige WebKit-Dauerspeicher-Anfrage, Menühinweis und Laufzähler seit SICHERN ergänzt.
-- Jeder Speicherstand erhält eine zweite lokale Kopie; bei beschädigtem Haupteintrag wird sie wiederhergestellt. Beide Kopien bleiben bei gelöschten Websitedaten verloren; dafür bleibt SICHERN nötig.
-- `npm run check`, `npm run build` und `npm test` erfolgreich; die Speicherfälle sind mit 12 Unit-Tests abgedeckt.
-- Die drei Homescreen-Icons und das Kontrollbild wurden mit einem nach oben verschobenen Ausschnitt und 20 % Aufhellung neu erzeugt. `icon-512.png` misst 120,52/255 mittlere Helligkeit bei 23,34 % Fläche unter 60/255; alle Icons sind quadratisch und deckend.
-
-
----
-
-# NACHTRAG (Thomas, 2026-08-21)
-
-## Befund des Reviews: alles erfüllt
-
-Am laufenden Spiel gemessen, bevor der Nachtrag kam:
-
-- Zweitkopie entsteht bei jedem Schreiben und ist zeichengleich dem Haupteintrag.
-- Haupteintrag zerstört, Zweitkopie heil → das Spiel startet mit dem geretteten Stand und
-  **schreibt ihn wieder als Haupteintrag**.
-- Beide zerstört → Standardwerte, Spiel läuft, **kein Seitenfehler**.
-- `navigator.storage.persist()` ist vorhanden und wird aufgerufen; die Bewilligung ist im
-  Desktop-Browser erwartungsgemäß `false` und blockiert nichts.
-- Menü zeigt `TRUPPE 3 / 6`, `FEUERRATE 3 / 4.5` und die Zeile „Seit 12 Läufen nicht
-  gesichert."
-
-## Einzige Änderung
-
-Thomas nach dem Test: **„Dann starte mit 2 Team"**.
-
-- `stats.hp.base` von **1 auf 2**.
-- Damit reicht die Aufwertung „Truppe" von **2 bis 7**. In `docs/e5-design.md`,
-  Entscheidung 4, die Tabelle entsprechend berichtigen (2 → 7).
-- Sonst **nichts** ändern — Feuerrate bleibt bei 3, alle Maßnahmen zur Absicherung des
-  Spielstands bleiben unangetastet.
-
-## Zusätzliches Akzeptanzkriterium
-
-10. Ein Run startet mit genau **zwei** Figuren; das Menü zeigt bei der Truppe den Bereich
-    2 bis 7.
-
-
----
-
-# NACHTRAG 2 (Thomas, 2026-08-21) — Icon ist zu dunkel
-
-Thomas nach dem Blick auf den Homescreen: „Und das Icon Bild aufhellen - wirkt am Bildschirm
-sehr dunkel."
-
-## Befund, gemessen an den erzeugten Dateien
-
-- Mittlere Helligkeit **69 von 255**.
-- **65 % der Fläche** sind dunkler als 60.
-
-Ursache ist der Ausschnitt: Die dunkelgraue Fahrbahn nimmt den größten Teil des Quadrats ein,
-das helle Grün und der Himmel liegen fast vollständig außerhalb.
-
-## Verlangte Korrektur
-
-**Zuerst über den Ausschnitt, erst danach über die Helligkeit** — ein hellgerechnetes dunkles
-Bild wird grau und flau, ein besserer Ausschnitt ist von sich aus hell.
-
-1. Den quadratischen Ausschnitt **nach oben verschieben**, sodass deutlich mehr Wiese und
-   Himmel hineinfallen. Die drei Figuren bleiben das Hauptmotiv und sollen weiterhin
-   mindestens **ein Drittel der Icon-Höhe** einnehmen; sie dürfen im unteren Bereich sitzen.
-2. Reicht das nicht, den Ausschnitt zusätzlich moderat aufhellen — **höchstens 25 %**, damit
-   die Farben kräftig bleiben und das Bild nicht ausbleicht.
-3. Die Zielwerte unten sind im Skript als Kommentar festzuhalten, damit beim nächsten
-   Anfassen klar ist, wonach der Ausschnitt gewählt wurde.
-
-## Zusätzliche Akzeptanzkriterien
-
-11. Die mittlere Helligkeit von `public/icon-512.png` liegt bei **mindestens 115** von 255
-    (vorher 69).
-12. Höchstens **35 %** der Fläche sind dunkler als 60 (vorher 65 %).
-13. Die drei Figuren sind weiterhin klar erkennbar und nehmen mindestens ein Drittel der
-    Icon-Höhe ein.
-14. Alle drei Dateien werden neu erzeugt und sind weiterhin quadratisch, deckend und in der
-    richtigen Größe; das Kontrollbild unter `assets/probe/icons-kontrolle.png` wird erneuert.
-
-Kriterien 11 und 12 misst Claude an den erzeugten Dateien nach, Kriterium 13 am Kontrollbild.
-
-
-## Review-Ergebnis der Nachtraege (Claude, gemessen)
-
-- **Kriterium 10:** `stats.hp.base` steht auf 2; das Menue zeigt bei der Truppe den Bereich
-  2 bis 7.
-- **Kriterium 11 und 12, Icon:** mittlere Helligkeit **130** von 255 (Ziel >= 115, vorher 69);
-  dunkler als 60 sind noch **24 %** der Flaeche (Ziel <= 35 %, vorher 65 %).
-- **Kriterium 13:** Die drei Figuren stehen weiterhin gross im unteren Bereich, darueber
-  Wiese, Baeume, Stadt und Himmel.
-- **Kriterien 3 bis 7 (Speicher):** Zweitkopie entsteht bei jedem Schreiben; ein zerstoerter
-  Haupteintrag wird aus der Kopie wiederhergestellt und neu geschrieben; sind beide zerstoert,
-  startet das Spiel mit Standardwerten **ohne Seitenfehler**. `navigator.storage.persist()`
-  wird aufgerufen und blockiert nichts.
+Kriterien 1 bis 4 prüft Claude am laufenden Spiel mit derselben Messung wie beim Befund:
+Abstand zwischen Geschoss und nächster Figur im Moment jedes gezählten Treffers.
