@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { computeFormation } from './formation'
+import { overlapsVisibleFigure, type RectangleBounds } from './rectangles'
 
 type FormationMember = { readonly sprite: Phaser.GameObjects.Image; offsetX: number; offsetY: number; row: number }
 
@@ -96,6 +97,10 @@ export class Crowd {
 
   public getHullBounds(): Phaser.GameObjects.Zone {
     return this.hull
+  }
+
+  public overlapsFigure(rect: RectangleBounds): boolean {
+    return overlapsVisibleFigure(rect, this.members)
   }
 
   public setFiguresAlpha(alpha: number): void {

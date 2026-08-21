@@ -278,6 +278,7 @@ export class GameScene extends Phaser.Scene {
 
     const bossProjectile = this.findObjectWithData(first, second, 'damage')
     if (bossProjectile !== undefined) {
+      if (!this.crowd.overlapsFigure((bossProjectile as Phaser.Physics.Arcade.Image).getBounds())) return
       if (this.elapsedMs < this.iframeUntilMs) return
       this.handleBossProjectileHit(bossProjectile as Phaser.Physics.Arcade.Image)
       return
@@ -285,9 +286,11 @@ export class GameScene extends Phaser.Scene {
 
     const hull = this.crowd.getHullBounds()
     if (first === hull || second === hull) {
-      if (this.elapsedMs < this.iframeUntilMs) return
       const enemy = first === hull ? second : first
-      this.handlePlayerHit(enemy as Phaser.Physics.Arcade.Image)
+      const enemyImage = enemy as Phaser.Physics.Arcade.Image
+      if (!this.crowd.overlapsFigure(enemyImage.getBounds())) return
+      if (this.elapsedMs < this.iframeUntilMs) return
+      this.handlePlayerHit(enemyImage)
       return
     }
 
