@@ -1,13 +1,17 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { chooseEnemyType } from './enemyTypes'
+import { chooseEnemyType, type EnemyType } from './enemyTypes'
+import { getLevelPlan, type LevelPlan } from './levelPlan'
 import { getRoadHalfWidth } from './road'
 import { chooseSpawnLane, type SpawnLaneEnemy } from './spawnLanes'
+import { computeSquadOffsets, getSquadWidth } from './squads'
 import type { RunStats } from './upgrades'
 
-type EnemyType = (typeof BALANCE.enemy.types)[number]
-
 type SpawnResult = 'spawned' | 'no-lane' | 'pool-exhausted'
+
+type SpawnRequest =
+  | { readonly kind: 'single'; readonly type: EnemyType }
+  | { readonly kind: 'squad'; readonly squadKind: 'wedge' | 'row' | 'cluster'; readonly size: number }
 
 export class Spawner {
   private readonly scene: Phaser.Scene
@@ -16,14 +20,14 @@ export class Spawner {
   private spawnAccumulatorMs: number
   private elapsedMs: number
   private lastPoolWarningAtMs: number
-  private deferredType: EnemyType | undefined
+  private deferredSpawn: SpawnRequest | undefined
   private intervalSpawnCount: number
   private intervalDeferredCount: number
   private intervalPlannedCount: number
   private lastSpawnMetricsAtMs: number
   private nextSpawnId: number
   private spawningEnabled: boolean
-  private levelSpawnBonusMs: number
+  private levelPlan: LevelPlan
 
   public constructor(scene: Phaser.Scene, runStats: RunStats) {
     this.scene = scene
@@ -32,14 +36,14 @@ export class Spawner {
     this.spawnAccumulatorMs = 0
     this.elapsedMs = 0
     this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
-    this.deferredType = undefined
+    this.deferredSpawn = undefined
     this.intervalSpawnCount = 0
     this.intervalDeferredCount = 0
     this.intervalPlannedCount = 0
     this.lastSpawnMetricsAtMs = 0
     this.nextSpawnId = 1
     this.spawningEnabled = true
-    this.levelSpawnBonusMs = 0
+    this.levelPlan = getLevelPlan(1)
     for (let index = 0; index < BALANCE.pools.enemies; index += 1) {
       const enemy = scene.physics.add.image(0, 0, BALANCE.enemy.types[0].texture).setDepth(BALANCE.layers.gameplay)
       enemy.setActive(false).setVisible(false)
@@ -64,14 +68,14 @@ export class Spawner {
 
   public setSpawningEnabled(enabled: boolean): void {
     this.spawningEnabled = enabled
-    if (!enabled) this.deferredType = undefined
+    if (!enabled) this.deferredSpawn = undefined
   }
 
   public resetForLevel(level: number): void {
     this.elapsedMs = 0
     this.spawnAccumulatorMs = 0
-    this.deferredType = undefined
-    this.levelSpawnBonusMs = Math.max(0, level - 1) * BALANCE.level.spawnBonusPerLevel
+    this.deferredSpawn = undefined
+    this.levelPlan = getLevelPlan(level)
     this.spawningEnabled = true
   }
 
@@ -95,19 +99,17 @@ export class Spawner {
   public update(dt: number): void {
     this.elapsedMs += dt
     if (this.spawningEnabled) this.spawnAccumulatorMs += dt
-    if (this.spawningEnabled && this.deferredType !== undefined && this.spawn(this.deferredType) === 'spawned') this.deferredType = undefined
-    const spawnIntervalMs = Math.max(
-      BALANCE.enemy.spawnIntervalMinMs,
-      BALANCE.enemy.spawnIntervalMs - this.levelSpawnBonusMs - (this.elapsedMs / 1000) * BALANCE.enemy.spawnRampPerSec,
-    )
+    if (this.spawningEnabled && this.deferredSpawn !== undefined && this.spawn(this.deferredSpawn) === 'spawned') this.deferredSpawn = undefined
+    const spawnIntervalMs = this.getSpawnIntervalMs()
     while (this.spawningEnabled && this.spawnAccumulatorMs >= spawnIntervalMs) {
       this.spawnAccumulatorMs -= spawnIntervalMs
       this.intervalPlannedCount += 1
-      const type = chooseEnemyType(this.elapsedMs, () => Phaser.Math.RND.frac())
-      if (this.deferredType !== undefined) continue
-      if (this.spawn(type) === 'no-lane') {
-        this.deferredType = type
+      if (this.deferredSpawn !== undefined) continue
+      const request = this.chooseSpawnRequest()
+      if (this.spawn(request) !== 'spawned') {
+        this.deferredSpawn = request
         this.intervalDeferredCount += 1
+        break
       }
     }
     this.logSpawnMetrics()
@@ -128,7 +130,33 @@ export class Spawner {
     }
   }
 
-  private spawn(type: EnemyType): SpawnResult {
+  private getSpawnIntervalMs(): number {
+    // elapsedMs only ramps the interval within this level; enemy choice comes from levelPlan.
+    return Math.max(
+      this.levelPlan.spawnIntervalMinMs,
+      this.levelPlan.spawnIntervalMs - (this.elapsedMs / 1000) * BALANCE.enemy.spawnRampPerSec,
+    )
+  }
+
+  private chooseSpawnRequest(): SpawnRequest {
+    if (this.levelPlan.squads.length > 0 && Phaser.Math.RND.frac() < this.levelPlan.squadChance) {
+      const totalWeight = this.levelPlan.squads.reduce((sum, squad) => sum + squad.weight, 0)
+      let roll = Phaser.Math.RND.frac() * totalWeight
+      for (const squad of this.levelPlan.squads) {
+        roll -= squad.weight
+        if (roll < 0) return { kind: 'squad', squadKind: squad.kind, size: squad.size }
+      }
+      const squad = this.levelPlan.squads.at(-1)!
+      return { kind: 'squad', squadKind: squad.kind, size: squad.size }
+    }
+    return { kind: 'single', type: chooseEnemyType(this.levelPlan.enemyWeights, () => Phaser.Math.RND.frac()) }
+  }
+
+  private spawn(request: SpawnRequest): SpawnResult {
+    return request.kind === 'single' ? this.spawnSingle(request.type) : this.spawnSquad(request.squadKind, request.size)
+  }
+
+  private spawnSingle(type: EnemyType): SpawnResult {
     const enemy = this.enemies.getChildren().find((child) => !child.active) as Phaser.Physics.Arcade.Image | undefined
     if (enemy === undefined) {
       this.warnPoolExhausted()
@@ -145,7 +173,66 @@ export class Spawner {
       BALANCE.enemy.spawnLaneSafetyGap,
     )
     if (lane === undefined) return 'no-lane'
+    this.activateEnemy(enemy, type, lane, y)
+    this.intervalSpawnCount += 1
+    return 'spawned'
+  }
+
+  private spawnSquad(squadKind: 'wedge' | 'row' | 'cluster', requestedSize: number): SpawnResult {
+    const topRoadHalfWidth = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, BALANCE.road.horizonY)
+    let size = Math.min(requestedSize, BALANCE.level.squads.maxSize)
+    let offsets = computeSquadOffsets(squadKind, size, BALANCE.level.squads.spacingPx, BALANCE.level.squads.rowSpacingPx)
+    while (size >= BALANCE.level.squads.minSize && getSquadWidth(offsets, Math.max(...BALANCE.enemy.types.map((type) => type.bodyWidth))) > topRoadHalfWidth * 2) {
+      size -= 1
+      offsets = computeSquadOffsets(squadKind, size, BALANCE.level.squads.spacingPx, BALANCE.level.squads.rowSpacingPx)
+    }
+    if (size < BALANCE.level.squads.minSize) return 'no-lane'
+
+    const types = this.getSquadTypes(squadKind, offsets.length)
+    const available = this.enemies.getChildren().filter((child) => !child.active) as Phaser.Physics.Arcade.Image[]
+    if (available.length < offsets.length) {
+      this.warnPoolExhausted()
+      return 'pool-exhausted'
+    }
+
+    const y = BALANCE.road.horizonY - Math.min(...offsets.map((offset) => offset.yOffset))
+    const widestBodyWidth = Math.max(...types.map((type) => type.bodyWidth))
+    // Exactly one lane reservation for the complete squad; members never call chooseSpawnLane.
+    const lane = chooseSpawnLane(
+      this.getActiveLaneEnemies(),
+      { y, speedFactor: Math.max(...types.map((type) => type.speedFactor)), bodyWidth: getSquadWidth(offsets, widestBodyWidth), bodyHeight: Math.max(...types.map((type) => type.bodyHeight)) },
+      topRoadHalfWidth,
+      this.scene.scale.height,
+      () => Phaser.Math.RND.frac(),
+      BALANCE.enemy.spawnLaneSafetyGap,
+    )
+    if (lane === undefined) return 'no-lane'
+
+    offsets.forEach((offset, index) => {
+      const memberY = y + offset.yOffset
+      const memberLane = lane + offset.laneOffset / getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, memberY)
+      this.activateEnemy(available[index], types[index], memberLane, memberY)
+    })
+    this.intervalSpawnCount += offsets.length
+    const pauseMs = BALANCE.level.squads.pauseBaseMs + offsets.length * BALANCE.level.squads.pausePerMemberMs
+    this.spawnAccumulatorMs = Math.min(this.spawnAccumulatorMs, this.getSpawnIntervalMs() - pauseMs)
+    return 'spawned'
+  }
+
+  private getSquadTypes(squadKind: 'wedge' | 'row' | 'cluster', size: number): EnemyType[] {
+    const light = BALANCE.enemy.types.find((type) => type.key === 'light')!
+    if (squadKind === 'wedge') return Array.from({ length: size }, () => light)
+    const types = Array.from({ length: size }, () => chooseEnemyType(this.levelPlan.enemyWeights, () => Phaser.Math.RND.frac()))
+    if (squadKind === 'cluster' && types.every((type) => type.key === types[0].key)) {
+      const alternate = BALANCE.enemy.types.find((type, index) => this.levelPlan.enemyWeights[index] > 0 && type.key !== types[0].key)
+      if (alternate !== undefined) types[types.length - 1] = alternate
+    }
+    return types
+  }
+
+  private activateEnemy(enemy: Phaser.Physics.Arcade.Image, type: EnemyType, lane: number, y: number): void {
     const x = this.scene.scale.width / 2 + lane * getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
+    enemy.setTexture(type.texture)
     enemy.enableBody(true, x, y, true, true)
     const body = enemy.body as Phaser.Physics.Arcade.Body
     body.setSize(type.bodyWidth, type.bodyHeight, true)
@@ -163,8 +250,6 @@ export class Spawner {
     enemy.setData('flashRemainingMs', 0)
     enemy.setData('lane', lane)
     enemy.setData('spawnId', this.allocateSpawnId())
-    this.intervalSpawnCount += 1
-    return 'spawned'
   }
 
   private getActiveLaneEnemies(): SpawnLaneEnemy[] {

@@ -1,3 +1,22 @@
+export type SquadKind = 'wedge' | 'row' | 'cluster'
+
+export type LevelSquadAllowance = {
+  readonly kind: SquadKind
+  readonly weight: number
+  readonly size: number
+}
+
+export type LevelDefinition = {
+  readonly normalPhaseSec: number
+  readonly enemyWeights: readonly [number, number, number]
+  readonly spawnIntervalMs: number
+  readonly spawnIntervalMinMs: number
+  readonly squadChance: number
+  readonly squads: readonly LevelSquadAllowance[]
+  // These fields deliberately do nothing until E9/E10.
+  readonly reserved: { readonly blockers: boolean; readonly gateLanes: 1 | 3 }
+}
+
 export const BALANCE = {
   debug: false,
   maxDeltaMs: 100,
@@ -126,22 +145,42 @@ export const BALANCE = {
       { key: 'standard', texture: 'enemy-standard', hp: 3, speedFactor: 1, contactDamage: 1, coinValue: 1, bodyWidth: 21, bodyHeight: 42 },
       { key: 'heavy', texture: 'enemy-heavy', hp: 9, speedFactor: 0.7, contactDamage: 2, coinValue: 3, bodyWidth: 40, bodyHeight: 49 },
     ],
-    // The final wave (untilSec: 0) applies permanently once the earlier limits have passed.
-    waves: [
-      { untilSec: 30, weights: [70, 30, 0] },
-      { untilSec: 90, weights: [40, 45, 15] },
-      { untilSec: 0, weights: [20, 45, 35] },
-    ],
-    spawnIntervalMs: 1600,
-    spawnIntervalMinMs: 450,
+    // Enemy composition belongs to the level plan, never to elapsed spawn time.
     spawnRampPerSec: 6,
     spawnLaneSafetyGap: 6,
   },
   level: {
-    normalPhaseSec: 75,
     warningMs: 1500,
     clearedMs: 1800,
-    spawnBonusPerLevel: 150,
+    hardness: {
+      perLevel: 0.045,
+      max: 1.6,
+    },
+    squads: {
+      minSize: 2,
+      maxSize: 8,
+      spacingPx: 44,
+      rowSpacingPx: 54,
+      // A squad replaces one spawn event. Pause = 650 ms + 130 ms per member,
+      // so an eight-member squad receives 1,690 ms before the next event.
+      pauseBaseMs: 650,
+      pausePerMemberMs: 130,
+    },
+    plans: [
+      { normalPhaseSec: 75, enemyWeights: [75, 25, 0], spawnIntervalMs: 1750, spawnIntervalMinMs: 1050, squadChance: 0, squads: [], reserved: { blockers: false, gateLanes: 1 } },
+      { normalPhaseSec: 78, enemyWeights: [60, 40, 0], spawnIntervalMs: 1650, spawnIntervalMinMs: 950, squadChance: 0, squads: [], reserved: { blockers: false, gateLanes: 1 } },
+      { normalPhaseSec: 78, enemyWeights: [65, 30, 5], spawnIntervalMs: 1550, spawnIntervalMinMs: 850, squadChance: 0.20, squads: [{ kind: 'wedge', weight: 1, size: 3 }], reserved: { blockers: false, gateLanes: 1 } },
+      { normalPhaseSec: 80, enemyWeights: [55, 35, 10], spawnIntervalMs: 1450, spawnIntervalMinMs: 780, squadChance: 0.28, squads: [{ kind: 'wedge', weight: 1, size: 4 }], reserved: { blockers: false, gateLanes: 1 } },
+      { normalPhaseSec: 80, enemyWeights: [35, 45, 20], spawnIntervalMs: 1350, spawnIntervalMinMs: 700, squadChance: 0.28, squads: [{ kind: 'row', weight: 1, size: 3 }], reserved: { blockers: false, gateLanes: 1 } },
+      { normalPhaseSec: 82, enemyWeights: [25, 45, 30], spawnIntervalMs: 1250, spawnIntervalMinMs: 640, squadChance: 0.35, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'wedge', weight: 1, size: 4 }], reserved: { blockers: false, gateLanes: 1 } },
+      // blockers/gateLanes reserve the later E9/E10 layout without changing E7 gameplay.
+      { normalPhaseSec: 82, enemyWeights: [25, 40, 35], spawnIntervalMs: 1150, spawnIntervalMinMs: 580, squadChance: 0.42, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 1, size: 5 }], reserved: { blockers: true, gateLanes: 1 } },
+      { normalPhaseSec: 84, enemyWeights: [20, 40, 40], spawnIntervalMs: 1080, spawnIntervalMinMs: 540, squadChance: 0.48, squads: [{ kind: 'cluster', weight: 2, size: 5 }, { kind: 'row', weight: 1, size: 4 }], reserved: { blockers: true, gateLanes: 1 } },
+      { normalPhaseSec: 84, enemyWeights: [25, 35, 40], spawnIntervalMs: 980, spawnIntervalMinMs: 500, squadChance: 0.55, squads: [{ kind: 'wedge', weight: 1, size: 5 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 2, size: 6 }], reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 900, spawnIntervalMinMs: 460, squadChance: 0.60, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 6 }], reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 820, spawnIntervalMinMs: 420, squadChance: 0.65, squads: [{ kind: 'wedge', weight: 1, size: 6 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 8 }], reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 88, enemyWeights: [15, 35, 50], spawnIntervalMs: 760, spawnIntervalMinMs: 400, squadChance: 0.70, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 4, size: 8 }], reserved: { blockers: true, gateLanes: 3 } },
+    ] satisfies readonly LevelDefinition[],
   },
   boss: {
     // At 1 base damage, 3.5 shots/s and eight shooters the run deals about 28 DPS;
@@ -221,8 +260,10 @@ export const BALANCE = {
     },
     // Peak: 2 salvos/s x 3 rockets x 0.18s = 1.1 flashes; 12 leaves generous reserve.
     splashFlashes: 12,
-    // Heavy enemies at the 70 SPD floor move at 49px/s, so crossing 844px takes 17.2s; at 450ms spawns that permits up to 39 concurrent enemies. 48 leaves reserve.
-    enemies: 48,
+    // Worst case: a heavy at the 49px/s speed floor stays about 14.2 s on the 694px road.
+    // An eight-member squad pauses 1.69 s, so ceil(14.2 / 1.69) x 8 = 72 active enemies;
+    // 88 leaves 22% reserve for mixed single spawns and delayed recycling.
+    enemies: 88,
     // Must be >= crowd.max because all figures are created once and then only shown or hidden.
     crowd: 30,
     // Max kill rate is 1 / 0.45s x 3 coins per heavy enemy x 844px / 180px/s = 31.3; 48 leaves 54% reserve without relying on the magnet.

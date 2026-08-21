@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -170,8 +170,52 @@ laufenden Spiel; die endgültige Gamefeel-Freigabe gibt Thomas am iPhone.
 
 ## Implementation Summary
 
-<!-- Von Codex auszufüllen -->
+- Neue reine Levelplanung in `src/systems/levelPlan.ts`: zwölf Tabellenzeilen aus `balance.ts`, Wiederholung ab Level 13 und ein auf 1,6 gedeckelter Härtefaktor für Spawn-Tempo und geeignete Truppgrößen.
+- Gegnerwahl ist jetzt ausschließlich levelbasiert; `enemy.waves` und die alte zeitbasierte Wahl sind entfernt. `elapsedMs` im Spawner ist als reine Spawn-Rampe kommentiert.
+- Neue reine Trupp-Geometrie in `src/systems/squads.ts` für Keil, Reihe und Pulk. Der Spawner reserviert für einen Trupp genau einmal eine Gesamtspur, spawnt ihn vollständig oder verschiebt ihn, passt breite Trupps an die Horizontstraße an und fügt die größenabhängige Pause ein.
+- Gegner-Pool auf 88 mit nachvollziehbarer Worst-Case-Rechnung angepasst. Boss, Tore, Waffen, Spielertruppe, Menü und Speicherformat wurden nicht geändert.
+- Neue Unit-Tests für Levelpläne, hohe Schwer-Gewichte und alle Trupp-Anordnungen.
 
 ## Verification
 
-<!-- Von Codex auszufüllen -->
+- `npm run check` — erfolgreich (Exit 0).
+- `npm run build` — erfolgreich (Exit 0); einzige Ausgabe ist die bestehende Vite-Hinweiswarnung zum großen Haupt-Chunk.
+- `npm test` — erfolgreich: 5 Testdateien, 24 Tests bestanden.
+- `tests/squads.test.ts` leitet über Level 1–500 alle durch `getLevelPlan` tatsächlich erreichbaren Truppart-/Größenpaare ab und prüft jedes auf Nichtüberlappung sowie die verfügbare Straßenbreite am Horizont.
+- `git diff --check` — erfolgreich; `enemy.waves` ist entfernt und die beiden Trupp-/Levelhelfer haben keinen Phaser-Import.
+- Die sichtbare Laufprüfung für Level 1/5/9 sowie die abschließende Gamefeel-Prüfung der unveränderten Nebenbereiche ist gemäß Akzeptanzkriterien noch bei Claude/Thomas am laufenden Spiel bzw. iPhone durchzuführen.
+
+## Review-Ergebnis (Claude, am laufenden Spiel und an den Funktionen gemessen)
+
+Alle zehn Kriterien erfuellt. Was ich selbst nachgemessen habe, nicht aus dem Codex-Bericht
+uebernommen:
+
+- **Kriterien 1, 2, 10:** `npm run check`, `npm run build`, `npm test` im Terminal selbst
+  ausgefuehrt — Exit 0, 5 Testdateien, 24 Tests. `enemy.waves` existiert nicht mehr, und ein
+  Test schlaegt an, falls die Zeitsteuerung zurueckkehrt.
+- **Level-Unterschiede (Kriterium 8):** ueber `getLevelPlan` im Browser gemessen. Level 1:
+  Mischung 75/25/0, Takt 1750 ms, keine Trupps. Level 5: 35/45/20, Takt 1144 ms, Reihen zu
+  dritt. Level 9: 25/35/40, Takt 721 ms, alle drei Trupparten bis acht Mann. Level 13
+  wiederholt das Design von Level 1 bei Haerte 1,54; der Deckel 1,6 haelt auch bei Level 400.
+- **Kriterium 3, ueber die Spec hinaus geprueft:** Der Haertefaktor erzeugt groessere Trupps
+  als die Tabelle vorgibt. Ueber 500 Level entstehen acht Konfigurationen (wedge 4/5/7/8,
+  row 3/4, cluster 7/8). Alle acht in 1600 Platzierungen mit der echten `chooseSpawnLane`
+  geprueft: **kein** Mitglied neben der Strasse, **keine** Ueberlappung, **keine**
+  fehlgeschlagene Spurwahl. Der Test deckte zunaechst nur die Tabellenwerte ab; er leitet die
+  Groessen nach einem Nacharbeitslauf jetzt aus `getLevelPlan` ueber 500 Level ab.
+- **Gegenprobe zum Test:** Mit kuenstlich verengtem Abstand (seitlich 30 statt 44, in Reihen
+  40 statt 54) meldet die Pruefloglik korrekt Ueberlappung. Der Test ist damit echter
+  Regressionsschutz und nicht nur zufaellig gruen.
+- **Kriterium 4–7:** Genau eine Spurreservierung pro Trupp mit Gesamtbreite (im Code
+  kommentiert); Pool-Pruefung vor dem Aktivieren, also alles oder nichts; Pause nach einem
+  Trupp ueber den Spawn-Akkumulator, Werte in `balance.ts` hergeleitet; `pools.enemies` auf 88
+  mit nachvollziehbarer Worst-Case-Rechnung.
+- **Kriterium 9:** Boss-Diff **null Zeilen**. Tore, Waffen, Truppe, Menue und Speicherformat
+  unberuehrt. `GameScene` aendert nur die Herkunft der Levellaenge. Level 1 im Browser
+  gespielt: Gegner erscheinen einzeln, 5 Spawns in 10 s bei Takt 1750 ms, 0 verschoben, keine
+  Pool-Warnung, keine neuen Konsolenfehler.
+
+**Offen und ausdruecklich Thomas' Teil:** Gamefeel am iPhone — fuehlen sich Level 1, 5 und 9
+unterschiedlich an, und ruckelt ein voller Achter-Pulk. Hinweis fuers Testen: Eine Reihe zu
+viert ist 172 px breit bei 179 px Strassenbreite am Horizont und damit oben praktisch eine
+Wand; Ausweichen geht erst weiter unten, wo die Strasse breiter wird.

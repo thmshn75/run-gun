@@ -5,6 +5,7 @@ import { Coins } from '../systems/coins'
 import { Boss } from '../systems/boss'
 import { Crowd } from '../systems/crowd'
 import { Gates } from '../systems/gates'
+import { getLevelPlan } from '../systems/levelPlan'
 import { getRoadHalfWidth, Road } from '../systems/road'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { addScore, loadSave, qualifiesForScores, writeSave } from '../systems/save'
@@ -109,7 +110,7 @@ export class GameScene extends Phaser.Scene {
     this.lastCrowdSize = -1
     this.currentLevel = 1
     this.levelPhase = 'normal'
-    this.phaseRemainingMs = BALANCE.level.normalPhaseSec * 1000
+    this.phaseRemainingMs = getLevelPlan(this.currentLevel).normalPhaseSec * 1000
     this.lastUnknownCombatOverlapWarningAtMs = -1000
     this.insets = readSafeAreaInsets(this.game.canvas)
     this.cameras.main.setBackgroundColor(WORLD_COLORS.background)
@@ -388,7 +389,7 @@ export class GameScene extends Phaser.Scene {
       return
     }
     this.levelPhase = 'normal'
-    this.phaseRemainingMs = BALANCE.level.normalPhaseSec * 1000
+    this.phaseRemainingMs = getLevelPlan(this.currentLevel).normalPhaseSec * 1000
     this.levelOverlayBackground.setVisible(false)
     this.levelOverlay.setVisible(false)
     this.spawner.resetForLevel(this.currentLevel)
