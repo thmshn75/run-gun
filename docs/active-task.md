@@ -1,401 +1,234 @@
 # Active Task
 
 ## Status
-`APPROVED`
+`SPEC_READY`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
-> **Nacharbeit 2 (2026-08-21, nach Claude-Review des zweiten Laufs).** Nacharbeit 1 ist
-> erledigt: Torrahmen, unverzerrtes Icon und Icon-Pooling stimmen und bleiben unangetastet.
-> Offen ist **nur Abschnitt 4a „Beschriftung passt sich der Spurbreite an"** — neu unten. Alles
-> andere in diesem Dokument gilt unverändert und ist erfüllt.
-
 ## Task
-**E10 — Zwei- und dreispurige Tore.**
+**Boss-Lebenspunkte an der tatsächlichen Truppe bemessen, gedämpft.**
 
-Letzter Feature-Punkt aus `docs/plan.md`. Heute steht immer genau ein Torpaar auf der Straße.
-Künftig kommt ab Level 3 gelegentlich eine dritte Spur dazu, die eine andere Waffe anbietet.
-Das Feld `reserved.gateLanes` in der Leveltabelle wartet seit E7 auf genau diese Wirkung.
+Thomas' iPhone-Test vom 2026-08-21: „die Bosse sind jetzt zu schwach".
 
-Zwei Thomas-Entscheidungen vom 2026-08-21 sind bereits getroffen und stehen nicht mehr zur
-Debatte:
-
-1. **Das Rechen-Paar bleibt vollständig erhalten.** Die dritte Spur ist ein *Zusatz*, kein
-   Ersatz für eine der beiden Rechen-Seiten. Der Planwortlaut „Mitte rechnet, Seiten bewaffnen"
-   (`docs/plan.md`, Abschnitt „Mehrspurige Tore") hätte in diesen Leveln das Abwägen zwischen
-   zwei Zahlen abgeschafft — das ist der Kern des Spiels und bleibt.
-2. **Dreispurige Tore ab Level 3**, nicht erst ab Level 9. Grund: Sonst sieht Thomas die neue
-   Mechanik erst nach rund zehn Minuten Spielzeit.
+Das ist der **dritte** Anlauf auf die Kampfdauer. Die Reißleine E8 in `docs/plan.md` greift damit:
+„Liegt sie nach zwei Balance-Zyklen immer noch außerhalb von 20–40 Sekunden, ist nicht die Zahl
+falsch, sondern die Schadensskalierung der Truppe — dann Design-Entscheidung mit Thomas statt
+weiter an den Lebenspunkten drehen." Diese Entscheidung ist am 2026-08-21 getroffen worden und
+steht unten. **An `teamGrowthFactor` wird nicht noch einmal gedreht — der Wert verschwindet.**
 
 ---
 
-## Zielbild
+## Befund: die Referenz misst die falsche Größe
 
-Ein dreispuriges Tor sieht so aus — zwei Rechen-Spuren nebeneinander, eine Waffenspur außen:
+`getReferenceTeamAtBoss()` in `src/systems/bossPlan.ts` leitet die angenommene Truppenstärke
+ausschließlich aus dem **Kaufstand** ab:
 
+```ts
+const startTeam = teamUpgrade.base + upgrades.team * teamUpgrade.effectPerLevel  // 2 … 7
+return Math.min(BALANCE.crowd.max, startTeam * BALANCE.boss.referenceFirepower.teamGrowthFactor)
 ```
-┌─────────┬─────────┬─────────┐        ┌─────────┬─────────┬─────────┐
-│   ×2    │   +7    │  LASER  │        │ RAKETE  │   /2    │  +40 %  │
-└─────────┴─────────┴─────────┘        └─────────┴─────────┴─────────┘
-   108px     108px     108px              108px     108px     108px
-```
 
-Auf welcher Seite die Waffenspur steht, wird je Tor neu ausgewürfelt. Die beiden Rechen-Spuren
-stehen immer nebeneinander, nie durch die Waffenspur getrennt — sonst müsste der Blick beim
-Vergleichen über ein drittes Tor springen.
+Die Truppe am Boss hängt aber kaum am Kaufstand, sondern fast nur daran, was die Tore im Run
+ausgeworfen haben — sie wirken multiplikativ (`×2`, `×1.5`, `+50 %`). Ein frischer Spielstand
+kann mit 4 Figuren oder mit 25 am Boss ankommen; die Referenz sagt in beiden Fällen 6.
 
-Zweispuriges Tor = das heutige Bild, unverändert.
+Gerechnet mit den echten Werten aus `balance.ts` (`crowd.shootersPerSalvo = 8`,
+`damagePerExtraFigure = 0.14`, `damageMultiplierCap = 4`, `crowd.max = 30`) ergibt der heutige
+Stand diese Kampfdauern — Zielfenster laut Plan ist **20–40 s**:
+
+| Kaufstand | angenommene Truppe | echte Truppe 6 | 12 | 20 | 30 |
+|---|---|---|---|---|---|
+| 0 (frisch) | 6 | 20,0 s | **9,6 s** | **5,6 s** | **3,8 s** |
+| 5 (voll) | 21 | **75,2 s** | 36,2 s | 21,0 s | **14,1 s** |
+
+Der frische Spielstand ist der Normalfall, und dort platzt der Boss. Genau das beschreibt Thomas.
+Die vorige Fassung (`teamAtBoss: 22` fest) hatte denselben Fehler mit umgekehrtem Vorzeichen —
+75 Sekunden bei kleiner Truppe. Beide Male wurde eine **Annahme** justiert, statt die vorhandene
+**Messung** zu benutzen.
 
 ---
 
-## Befund: die Straßenbreite lässt genau drei Spuren zu
+## Entscheidung (Thomas, 2026-08-21)
 
-Gerechnet mit den echten Werten aus `src/config/balance.ts` und `src/main.ts`, nicht geschätzt:
+**Die Lebenspunkte richten sich nach der tatsächlichen Truppengröße beim Bossstart — gedämpft.**
 
-- Spielfeld 390 × 844 px; `road.horizonY = 150`, `road.topWidthRatio = 0.46`,
-  `road.bottomWidthRatio = 1`.
-- Der Anker steht bei `844 − player.anchorBottomOffset (130) = 714`.
-- Ausgelöst wird ein Tor, wenn seine **Unterkante** den Anker passiert
-  (`gates.ts`, `update()`), die Tormitte liegt dann bei `714 − gateHeight/2 (35) = 679`.
-- `getRoadHalfWidth(390, 844, 679)`: `progress = (679 − 150) / 694 = 0,762`,
-  halbe Breite `= (179,4 + 210,6 × 0,762) / 2 = 170,0` → **Straßenbreite 340 px** an der
-  Entscheidungsstelle.
+Verworfen wurden: volle Mitskalierung (jeder Kampf exakt gleich lang, Stärkerwerden beim Boss
+nicht spürbar) und feste Werte je Level (schwache Runs kommen gar nicht durch).
 
-Daraus mit `gates.gapBetween = 8`:
-
-| Spuren | Rechnung | Breite je Spur | Plan-Grenze 90 px |
-|---|---|---|---|
-| 2 | (340 − 8) / 2 | **166 px** | erfüllt |
-| 3 | (340 − 16) / 3 | **108 px** | erfüllt |
-| 4 | (340 − 24) / 4 | 79 px | **verletzt** |
-
-**Vier Spuren sind damit rechnerisch ausgeschlossen**, nicht nur per Regel. Der Typ muss das
-abbilden, damit die Grenze nicht später versehentlich überschritten wird.
+Gedämpft heißt: Eine stärkere Truppe verkürzt den Kampf spürbar, aber nicht proportional. Über
+die ganze Spanne von der kleinsten bis zur maximalen Truppe halbiert sich die Kampfdauer — von
+40 auf 20 Sekunden.
 
 ---
 
 ## Umsetzung
 
-### 1. Leveltabelle: `gateLanes` bekommt Wirkung
+### 1. Die Truppen-Feuerkraft als eigene Funktion
 
-In `src/config/balance.ts`:
-
-- Der Typ von `reserved.gateLanes` wechselt von `1 | 3` auf **`2 | 3`**. Die Zahl bedeutet ab
-  jetzt eindeutig **Anzahl der Tore nebeneinander**. Die bisherige `1` war als „ein Torpaar"
-  gemeint und ist mehrdeutig — sie verschwindet, es bleibt kein Altwert stehen.
-- **Level 1 und 2: `gateLanes: 2`.** Einstieg ohne Waffenwechsel, wie in der Dramaturgie in
-  `docs/plan.md` beschrieben.
-- **Level 3 bis 12: `gateLanes: 3`.**
-- Der Kommentar `// blockers/gateLanes reserve the later E9/E10 layout…` in der Leveltabelle
-  ist danach falsch und wird entfernt.
-
-Ab Level 13 greift wie gehabt die Design-Level-Zuordnung `((level − 1) mod 12) + 1`; Level 13
-ist damit zweispurig, weil Level 1 es ist. Nichts daran ändern.
-
-### 2. Nicht jedes Tor in einem Dreispur-Level ist dreispurig
-
-Ein Waffenwechsel in jedem Tor würde die Waffenwahl entwerten — sie gilt bis Run-Ende und soll
-eine Entscheidung bleiben, kein Dauerangebot. Deshalb ein neuer Wert in `balance.ts`:
+Neu in `src/systems/bossPlan.ts`, exportiert und ohne Phaser:
 
 ```ts
-gates: {
-  // Jedes n-te Tor in einem Dreispur-Level trägt die Waffenspur, die übrigen bleiben
-  // zweispurig. Level 3 (78 s Fahrt, erstes Tor nach 5 s, dann alle 9 s) hat 9 Tore;
-  // bei 3 ergibt das 3 Waffenangebote pro Level, dazu ~3 aus den Sperren (Kadenz 21 s).
-  // Das ist die erste Stellschraube, wenn der iPhone-Test „zu oft" sagt.
-  weaponLaneEvery: 3,
-  ...
+// Feuerkraft-Beitrag einer Truppe: gedeckelte Schützenzahl mal Truppen-Schadensbonus.
+// Das ist derselbe Term, mit dem die Truppe im Spiel tatsächlich Schaden macht.
+export function getTeamFirepower(teamSize: number): number {
+  return Math.min(teamSize, BALANCE.crowd.shootersPerSalvo) * getCrowdDamageMultiplier(teamSize)
 }
 ```
 
-Der Zähler läuft **pro Run über alle Tore**, nicht pro Level neu — sonst häufen sich die
-Waffenangebote an jedem Levelanfang. Zweispurige Level zählen nicht mit: In Level 1 und 2 wird
-der Zähler nicht erhöht, damit das erste Waffenangebot in Level 3 nicht sofort im ersten Tor
-steht.
+Nicht neu erfinden — das ist exakt der Term, der in `getBossPlan` und `getBlockerPlan` heute
+schon aus `activeShooters * getCrowdDamageMultiplier(...)` gebildet wird. Beide Stellen benutzen
+danach diese eine Funktion.
 
-**Zusätzliche Bedingung:** Die Waffenspur entfällt für dieses Tor, wenn
-`getWeaponRewardChoices(currentWeapon, level)` leer ist. Das Tor ist dann zweispurig. Kein
-Ersatz-Tor, kein Platzhalter.
+### 2. Neue Werte in `balance.ts`
 
-### 3. Woher die angebotene Waffe kommt
-
-`src/systems/blockerWeaponChoices.ts` wird zu **`src/systems/weaponChoices.ts`** umbenannt, die
-Funktion `getBlockerWeaponChoices` zu **`getWeaponRewardChoices`**. Sie wird ab jetzt von zwei
-Systemen benutzt (Sperren und Tore); der alte Name behauptet etwas Falsches. Aufrufer in
-`src/systems/spawner.ts` (`chooseBlockerWeapon`) und `src/scenes/GameScene.ts` mitziehen.
-
-Die Funktion bleibt inhaltlich unverändert: sie schließt die aktuell getragene Waffe aus und
-respektiert `weapon.<key>.minLevel`. Damit wird nie die eigene Waffe angeboten und nie eine, die
-für das Level noch gesperrt ist.
-
-Die Ziehung aus der Liste läuft über dieselbe `rng`, die `Gates` schon im Konstruktor bekommt —
-kein zweiter Zufallsgenerator.
-
-### 4. Darstellung der Waffenspur
-
-**Diese Fassung ersetzt die erste. Befund aus dem Review des ersten Laufs:**
-
-Die Waffenspur benutzt heute das Waffenbild *als* Tor:
-`lane.gate.setTexture('weapon-<key>-gate').setDisplaySize(laneWidth, gateHeight)` plus
-`setTint(WEAPON_GATE_COLOR)`. Das erzeugt zwei sichtbare Fehler:
-
-1. **Verzerrung.** Die Waffenbilder sind alle **150 × 44 px** (nachgemessen, alle sieben
-   `src/assets/weapon-*-gate.png`), Seitenverhältnis 3,41 : 1. Auf 108 × 70 gezwungen wird
-   daraus 1,54 : 1 — die Waffe wird auf 45 % ihrer relativen Breite gestaucht und in die Höhe
-   gezogen. Die Sperren aus E9 zeigen dieselben Bilder unskaliert in 150 × 44; so sind sie
-   gestaltet.
-2. **Einfärbung.** `setTint` multipliziert die Farbe in das Bild hinein. Das Waffensymbol wird
-   lila überfärbt, statt dass ein Torrahmen lila ist.
-
-Die Waffenspur muss aussehen wie die beiden anderen Tore — gleicher Rahmen, gleiche Höhe, nur
-andere Farbe und anderer Inhalt.
-
-**Verlangte Umsetzung:**
-
-1. **Torrahmen wie bei den Rechen-Spuren.** Die Waffenspur benutzt die Textur `gate`, getönt in
-   `WEAPON_GATE_COLOR`, auf die Spurbreite gebracht — exakt derselbe Aufruf wie bei einer
-   Rechen-Spur. Kein `setTexture('weapon-…')` mehr auf `lane.gate`.
-2. **Das Waffenbild kommt als eigenes Objekt obendrauf.** `GateLaneView` bekommt ein drittes
-   Feld `icon: Phaser.GameObjects.Image`, das in `createGroup()` **im Konstruktor** mit erzeugt
-   wird (also drei Icons je Gruppe, sechs im ganzen Pool). Kein `add.image()` in `spawn()`,
-   `configureGroup()`, `layoutGroup()` oder `update()` — die Pool-Regel gilt unverändert.
-3. **Seitenverhältnis wahren.** Die Icon-Breite ist `laneWidth − 2 × gates.weaponIconInsetPx`
-   (neuer Wert in `balance.ts`, Startwert **10**), die Höhe folgt daraus mit dem Faktor
-   `44 / 150`. Bei 108 px Spurbreite: 88 × 25,8 px. Rechnerisch aus der Texturgröße ableiten
-   (`icon.texture.getSourceImage()` oder `icon.width`/`icon.height` vor dem Skalieren), nicht
-   150 und 44 als Zahlen in den Code schreiben — sonst bricht es still, wenn die Bilder neu
-   gezeichnet werden.
-4. **Anordnung im 70 px hohen Tor:** Icon-Mitte auf `y − 16`, Text-Mitte auf `y + 18`. Beides
-   zusammen bleibt damit innerhalb des Rahmens.
-5. **Kein Tint auf dem Icon** (`clearTint()`), damit die Waffe erkennbar bleibt. Die
-   Hervorhebung der angesteuerten Spur (`gates.highlightLighten`) wirkt weiterhin nur auf
-   `lane.gate`, nicht auf das Icon.
-6. **Schriftgröße für Waffennamen: 20 px** statt 26 px. `MINIGUN` ist das längste Wort; bei
-   26 px bold überschreitet es die 108 px Spurbreite. Zusätzlich als Absicherung gegen jede
-   Schriftmetrik: Ist `text.displayWidth` größer als `laneWidth − 8`, wird der Text per
-   `setScale` auf dieses Maß gebracht. Das ist eine Zeile in `layoutGroup()` und kostet kein
-   neues Objekt.
-7. **Icon in `setGroupAlpha()` und `recycle()` mitführen**, damit es beim Einblenden mitzieht
-   und beim Recyceln verschwindet. Bei Rechen-Spuren ist es dauerhaft unsichtbar.
-
-**Farbe und Neutralität bleiben wie gehabt:** eine einzige feste Torfarbe
-(`WEAPON_GATE_COLOR = 0xb18cff`) für *jede* Waffe. Nicht pro Waffe verschieden — sonst lernt man
-nach drei Runs die Farbe statt hinzusehen.
-
-Das Stat-Kürzel über dem Tor (`TEAM` / `DMG` / `RATE` / `SPD`) steht weiterhin mittig über den
-beiden Rechen-Spuren, nicht über der Bildmitte. Das ist bereits korrekt umgesetzt und bleibt.
-
-### 4a. Beschriftung passt sich der Spurbreite an
-
-**Befund aus dem Review des zweiten Laufs — zwei Fehler mit derselben Ursache:**
-
-1. **Der Waffenname schrumpft dauerhaft.** `layoutGroup()` enthält
-   `if (lane.text.displayWidth > position.width - 8) lane.text.setScale(...)`. Der Maßstab wird
-   nie auf 1 zurückgesetzt, bevor neu gemessen wird. Das Tor entsteht bei `road.horizonY`
-   (150), dort ist die Straße nur `179,4 px` breit und eine Spur damit `(179,4 − 16) / 3 =
-   54,5 px`. `MINIGUN` bei 20 px bold ist rund 86 px breit und wird auf den Faktor `0,54`
-   gestaucht. Weil `displayWidth` danach kleiner ist als die Grenze, greift die Bedingung nie
-   wieder — der Name bleibt bis zum Entscheidungspunkt halb so groß, obwohl die Spur dort
-   108 px breit ist.
-2. **Die Rechen-Zahlen ragen über die Torränder.** Die Absicherung steht innerhalb von
-   `if (lane.kind === 'weapon')` und gilt deshalb nicht für die Zahlen. Bei 34 px bold ist
-   `+50 %` rund 90 px breit — das passte in die 85,7 px breite Zwei-Spur-Variante gerade noch,
-   sprengt aber die 54,5 px einer Drei-Spur-Spur am Horizont deutlich.
-
-**Verlangte Umsetzung:**
-
-1. **Neue reine Funktion** in `src/systems/gateLanes.ts` (kein Phaser-Import, damit direkt
-   testbar):
-   ```ts
-   // Liefert den Maßstab, mit dem eine Beschriftung ihrer natürlichen Breite in die Spur passt.
-   export function getLabelScale(naturalTextWidth: number, laneWidth: number, insetPx: number): number
-   ```
-   Ergebnis ist `1`, wenn der Text passt, sonst `(laneWidth − insetPx) / naturalTextWidth`.
-   Bei `naturalTextWidth <= 0` ist das Ergebnis `1` (kein Division-durch-Null).
-2. **In `layoutGroup()` für jede sichtbare Spur** — nicht nur für die Waffenspur:
-   `lane.text.setScale(1)` **vor** dem Messen, dann
-   `lane.text.setScale(getLabelScale(lane.text.displayWidth, position.width, BALANCE.gates.labelInsetPx))`.
-   So wird jeden Frame ab der natürlichen Breite neu gerechnet und die Schrift wächst mit der
-   Spur mit, statt einmalig einzufrieren.
-3. **Neuer Wert `gates.labelInsetPx: 8`** in `balance.ts` ersetzt die hartkodierte 8. Kommentar
-   dazu: seitlicher Rand, damit die Beschriftung den Torrahmen nicht berührt.
-4. Die Icon-Skalierung aus Abschnitt 4 bleibt, wie sie ist — sie wird ohnehin jeden Frame neu
-   aus `position.width` berechnet und wächst deshalb korrekt mit.
-
-**Der Test zu Abschnitt 4 wird auf Verhalten umgestellt.** `tests/weaponGatePresentation.test.ts`
-vergleicht heute ganze Codezeilen wörtlich (`expect(gatesSource).toContain('lane.icon.setTexture(…')`).
-Solche Prüfungen brechen bei jeder Umformulierung und sichern nichts ab — dieselbe Kritik steht
-schon in `docs/UEBERGABE.md` zu den Regressionstests aus `64fc795`. Verlangt ist stattdessen:
-
-- `getLabelScale` gegen die **echten** Spurbreiten testen: am Horizont
-  (`getRoadHalfWidth(390, 844, 150) * 2` → Spur 54,5 px) muss ein 86 px breiter Text
-  verkleinert werden, an der Entscheidungsstelle (`… , 679) * 2` → Spur 108 px) nicht mehr.
-  Der Test rechnet die Breiten über `getRoadHalfWidth` und `getGateLanes` aus, statt sie als
-  Zahlen einzusetzen.
-- Ein Test, der nachweist, dass derselbe Text bei wachsender Spurbreite einen **größeren oder
-  gleichen** Maßstab bekommt — genau die Eigenschaft, die im zweiten Lauf gefehlt hat.
-- Von den Quelltext-Prüfungen bleibt **nur** der Pool-Nachweis übrig (Icons entstehen
-  ausschließlich in `createGroup()`); die wörtlichen Zeilenvergleiche entfallen ersatzlos.
-
-### 5. Auswahl der Spur
-
-`isLeftSelected(anchorX, width)` teilt heute hart an der Bildschirmmitte (195 px) und kennt die
-tatsächlichen Torgrenzen nicht. Das trägt bei drei Spuren nicht mehr.
-
-Zwei neue **reine Funktionen** in `src/systems/gates.ts` (ohne Phaser-Import, damit direkt
-testbar):
+`boss.referenceFirepower.teamGrowthFactor` **entfällt ersatzlos** — kein toter Wert, der beim
+nächsten Umbau wiederbelebt wird. `targetFightSec: 20` bleibt, bekommt aber eine neue Bedeutung
+und deshalb einen neuen Namen. Neu:
 
 ```ts
-export interface GateLane { readonly centerX: number; readonly width: number }
-
-// Liefert 2 oder 3 Spuren, gleich breit, mittig auf der Straße, getrennt durch gapPx.
-export function getGateLanes(laneCount: 2 | 3, roadCenterX: number, roadWidth: number, gapPx: number): GateLane[]
-
-// Liefert den Index der getroffenen Spur. Liegt anchorX außerhalb aller Spuren,
-// gewinnt die nächstgelegene — der Anker kann per Drag neben die Straße geraten
-// (Straße 340px breit bei 390px Feld, Drag-Rand nur player.dragClampMargin = 8px).
-export function selectedLaneIndex(anchorX: number, lanes: readonly GateLane[]): number
+referenceFirepower: {
+  // Kampfdauer bei maximaler Truppe (crowd.max). Kleinere Truppen brauchen länger,
+  // gedeckelt durch maxFightSec. Ersetzt targetFightSec und teamGrowthFactor.
+  fightSecAtMaxTeam: 20,
+  // Obergrenze, damit eine Notfall-Truppe von 2 Figuren keinen 60-Sekunden-Kampf erzeugt.
+  maxFightSec: 40,
+  // Dämpfung der Truppenstärke. 0 = Boss ignoriert die Truppe (heutiger Fehler,
+  // Kampf platzt bei großer Truppe), 1 = Boss wächst voll mit (Kampf immer gleich lang).
+  // 0.41 ergibt genau die gewollte Halbierung von 40 s auf 20 s über die volle Spanne.
+  teamDampening: 0.41,
+  damagePerLevel: 0.15,
+  damageCap: 8,
+  ratePerLevel: 0.1,
+  rateCap: 8,
+},
 ```
 
-`isLeftSelected` wird durch `selectedLaneIndex` **ersetzt und gelöscht**, nicht danebengestellt.
-Begründung steht in `docs/lessons.md`: Ein toter Zweig wird beim nächsten Umbau versehentlich
-wiederbelebt — genau deshalb wurden am 2026-08-21 die Waffentore ersatzlos entfernt statt
-abgeschaltet. Der bestehende Test dazu in `tests/gates.test.ts` wird auf die neue Funktion
-umgeschrieben, nicht gelöscht.
+### 3. Die Berechnung in `getBossPlan`
 
-### 6. Pool
+`getBossPlan(level, upgrades)` bekommt einen dritten Parameter **`teamSize: number`** — die
+tatsächliche Truppengröße, also `runStats.get('hp')`.
 
-`pools.gatePairs: 2` heißt künftig **`pools.gateGroups: 2`**, weil eine Gruppe nicht mehr
-zwingend ein Paar ist.
+```
+firepower      = getTeamFirepower(teamSize)
+maxFirepower   = getTeamFirepower(BALANCE.crowd.max)          // = 32
+fightSec       = min(maxFightSec, fightSecAtMaxTeam × (maxFirepower / firepower) ^ teamDampening)
+referenceDps   = firepower × damage(level) × rate(level) × weapon.normal-Faktoren
+maxHp          = min(hpCap, round(referenceDps × fightSec))
+```
 
-Jede Gruppe erzeugt im Konstruktor **fest drei Tor-Bilder und drei Texte** plus ein Stat-Kürzel,
-auch wenn im aktuellen Level nur zwei sichtbar sind. Die dritte Spur wird bei zweispurigen Toren
-per `setActive(false).setVisible(false)` weggeschaltet. **Kein `create()` oder `destroy()` zur
-Laufzeit** — das ist die harte Pool-Regel aus `docs/plan.md` und gilt hier genauso.
+`damage(level)` und `rate(level)` bleiben unverändert, wie sie heute berechnet werden —
+inklusive Kaufstand und Levelaufschlag. **Nur der Truppen-Anteil wird gedämpft**, der
+Level-Anteil geht weiterhin voll in die Lebenspunkte ein. Sonst würden Bosse mit steigendem
+Level immer schneller fallen.
 
-Herleitung, dass zwei Gruppen weiter reichen: Ein Tor ist von `horizonY` (150) bis zum Anker
-(714) unterwegs, das sind 564 px bei `scrollSpeed (180) + gates.extraSpeed (227) = 407 px/s`,
-also **1,39 s**, plus `choiceFlashMs (250 ms)` = **1,64 s** belegt. Der Abstand zwischen zwei
-Toren ist `gates.spawnIntervalMs = 9000 ms`. Eine Gruppe genügt rechnerisch; die zweite deckt
-ein verzögertes Recycling. Objektzahl steigt von 2 × 5 = 10 auf 2 × 7 = 14.
+`referenceFightSec` im zurückgegebenen Plan ist danach `maxHp / referenceDps` und muss dem
+oben berechneten `fightSec` entsprechen (bis auf die Rundung von `maxHp`).
 
-### 7. Kollisions- und Zeichenlast
+Damit ergeben sich diese Kampfdauern, für **jeden** Kaufstand und **jedes** Level gleich:
 
-Die Tore laufen nicht über Arcade-Physik, sondern über den Y-Vergleich in `update()`. Die dritte
-Spur erhöht die Last daher **nicht** über die Kollisionsprüfung. Die Regel aus der Übergabe
-(„nie alle Pools in eine Physik-Gruppe legen") wird durch diesen Task nicht berührt und darf
-nicht als Anlass genommen werden, an den Physik-Gruppen etwas zu ändern.
+| Truppe beim Boss | 2 | 4 | 6 | 8 | 12 | 16 | 20 | 25 | 30 |
+|---|---|---|---|---|---|---|---|---|---|
+| Kampfdauer | 40,0 s | 40,0 s | 39,7 s | 35,3 s | 29,4 s | 25,9 s | 23,6 s | 21,4 s | 20,0 s |
 
-### 8. Zwei Projektil-Pools mit zu wenig Reserve (aus der Übergabe mitgenommen)
+Alle im Zielfenster 20–40 s. Die Halbierung über die Spanne ist die gewollte Belohnung fürs
+Stärkerwerden.
 
-`docs/plan.md` verlangt Reserve auf den berechneten Spitzenbedarf. Zwei Pools liegen darunter:
+### 4. Der Plan wird beim Bossstart eingefroren
 
-| Waffe | Spitzenbedarf | heute | Reserve heute | neu | Reserve neu |
-|---|---|---|---|---|---|
-| Flammenwerfer | 66,2 | 72 | 9 % | **88** | 33 % |
-| Schrotflinte | 112 | 128 | 14 % | **144** | 29 % |
+`getBossPlan` wird **einmal** aufgerufen, wenn der Boss erscheint (`src/systems/boss.ts`), mit
+der Truppengröße in genau diesem Moment. Verliert der Spieler während des Kampfes Figuren,
+ändern sich die Lebenspunkte des Bosses **nicht** — sonst würde der Boss mitten im Kampf
+schwächer werden und der Spieler würde für seine Verluste belohnt.
 
-Die Kommentare über den Werten in `pools.projectiles` sind entsprechend nachzuziehen. Das
-kostet nichts: Seit `64fc795` prüft die Kollision nur noch gegen die **aktive** Waffe, inaktive
-Pool-Objekte sind reiner Speicher.
+Der zweite Aufruf in `src/systems/spawner.ts` (Zeile 89) dient nur der Begleiter-Steuerung. Er
+darf keinen zweiten, abweichenden Lebenspunkte-Wert erzeugen: Entweder er bekommt dieselbe
+Truppengröße durchgereicht, oder die dort benötigten Felder (`companionLimit`,
+`companionIntervalMs`) werden aus einer eigenen, truppenunabhängigen Funktion gezogen. Codex
+wählt den Weg; zwei divergierende Lebenspunkte-Werte im Spiel sind ein Fehler.
+
+### 5. Sperren ziehen mit — aber ungedämpft
+
+`getBlockerPlan` in `src/systems/blockerPlan.ts` benutzt heute dieselbe kaufstandsbasierte
+Referenz und hat deshalb denselben Fehler: Bei großer Truppe zerfällt eine Sperre sofort, bei
+kleiner steht sie zu lange.
+
+Auch `getBlockerPlan` bekommt die **tatsächliche** Truppengröße beim Spawn der Sperre
+(`src/systems/blockers.ts`, Zeile 164). Aber **ohne Dämpfung**:
+
+```
+maxHp = round(getTeamFirepower(teamSize) × damage(level) × rate(level) × referenceDestroySec)
+```
+
+Damit hält eine Sperre immer die vorgesehenen 2 Sekunden — unabhängig von Truppe und
+Kaufstand. Das ist gewollt: Die Sperre ist ein Hindernis mit fester Kosten-Nutzen-Rechnung
+(„Waffe holen oder Gegner bekämpfen"), keine Belohnung für Stärke. Der Plan verlangt 1,5–2,5 s
+für alle geprüften Fälle; ohne Dämpfung ist es exakt 2,0 s.
+
+### 6. Waffen bleiben außen vor
+
+Die Referenz rechnet weiterhin mit `weapon.normal`. Wer mit einer stärkeren Waffe am Boss
+ankommt, legt ihn schneller — das ist die Belohnung für den Waffenwechsel und bleibt so. Nicht
+in die Formel aufnehmen.
 
 ---
 
 ## Ausdrücklich nicht ändern
 
-- **`drawGatePair` und `drawGateOp`/`drawDirectionalOp` bleiben Zeile für Zeile unangetastet.**
-  Die gesamte Tor-Mathematik — gemischte Operatoren, zustandsabhängige Ziehung, „nie beide
-  Seiten auf 0", die Rückfallkette bei erschöpften Ziehversuchen — gilt bei drei Spuren
-  unverändert für die zwei Rechen-Spuren. Die Waffenspur ist an dieser Ziehung nicht beteiligt.
-- **Das Zeitfenster.** `gates.spawnIntervalMs`, `gates.firstSpawnDelayMs` und
-  `gates.extraSpeed` bleiben, wie sie sind. Drei Angebote in derselben Zeit sind der Reiz, nicht
-  der Fehler.
-- Die Sperren aus E9 und ihre Waffenbelohnung. Sie bleiben die zweite Waffenquelle.
-- Boss, Leveldauer, Gegnermischung, Trupps, Preise der Aufwertungen.
-- Die Physik-Gruppen und der Kollisionsumfang aus `64fc795`.
+- Die Bossphasen, das Vorrücken, die getrennten Unverwundbarkeitszeiten, die Begleiter-Grenzen
+  je Level (`companionLimit`, ab Level 5).
+- `crowd.shootersPerSalvo`, `damagePerExtraFigure`, `damageMultiplierCap`, `crowd.max` — die
+  Truppen-Mechanik selbst ist nicht das Problem und wird nicht angefasst.
+- Die Tor-Mathematik und alles aus E10 (mehrspurige Tore), gerade committet als `c8e5607`.
+- Die Preise der Aufwertungen und die Leveltabelle.
 
 ---
 
 ## Akzeptanzkriterien
 
-1. `reserved.gateLanes` hat den Typ `2 | 3`; Level 1 und 2 stehen auf `2`, Level 3 bis 12 auf
-   `3`. Unit-Test über `getLevelPlan` für Level 1, 2, 3, 12, 13 und 25.
-2. `getGateLanes` liefert bei `laneCount = 3` und der echten Straßenbreite an der
-   Entscheidungsstelle (340 px, `gapPx = 8`) drei Spuren von je **mindestens 90 px**. Ein Test
-   rechnet die Breite über `getRoadHalfWidth(390, 844, 679)` aus, statt 340 als Konstante
-   einzusetzen — sonst bricht der Nachweis still, wenn jemand die Straßenform ändert.
-3. `getGateLanes` ist für keinen Eingabewert mit mehr als drei Spuren aufrufbar (Typ) und die
-   Spuren überlappen nicht, liegen mittig auf der Straße und füllen sie bis auf die Lücken aus.
-4. `selectedLaneIndex` liefert für die Mitte jeder Spur deren Index, für einen Punkt in einer
-   Lücke die nähere Spur, und für `anchorX` links bzw. rechts außerhalb der Straße die äußerste
-   Spur. Test mit zwei und mit drei Spuren.
-5. Bei drei Spuren stehen die beiden Rechen-Spuren immer **direkt nebeneinander**; die
-   Waffenspur ist entweder ganz links oder ganz rechts. Im Test über mehrere Ziehungen
-   nachweisen, dass beide Seiten vorkommen.
-6. Die Waffenspur zeigt nie die aktuell getragene Waffe und nie eine Waffe, deren `minLevel`
-   über dem Level liegt. Test über `getWeaponRewardChoices` für Level 1, 2, 3 und 12.
-7. Ein Waffenangebot erscheint in Dreispur-Leveln in jedem `gates.weaponLaneEvery`-ten Tor; die
-   Tore dazwischen sind zweispurig. In Level 1 und 2 erscheint keins und der Zähler bewegt sich
-   nicht.
-8. Durchfahren der Waffenspur wechselt die Waffe (`equipWeapon`), Durchfahren einer Rechen-Spur
-   wendet die Rechnung an — beides wie bisher, keine Doppelwirkung.
-9. `pools.gateGroups` existiert, `pools.gatePairs` nicht mehr. Im Review nachweisbar: kein
-   `scene.add.*` und kein `destroy()` innerhalb von `update()`, `spawn()` oder `recycle()` in
-   `src/systems/gates.ts`.
-10. `pools.projectiles.flamethrower = 88` und `pools.projectiles.shotgun = 144`, Kommentare mit
-    der neuen Reserve nachgezogen.
-11. `isLeftSelected` existiert nicht mehr; `npm run check` findet keinen unbenutzten Export.
-12. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch. Alle bestehenden
-    Tests bleiben grün, insbesondere die zu `drawGatePair`.
-14. Die Waffenspur zeigt den Torrahmen (`gate`) in `WEAPON_GATE_COLOR` und darauf das
-    unverzerrte Waffenbild: `icon.displayWidth / icon.displayHeight` weicht um höchstens 1 %
-    vom Seitenverhältnis der Quelltextur ab. Das Icon trägt keinen Tint.
-15. `src/systems/gates.ts` enthält kein `setTexture('weapon-` auf `lane.gate` mehr, und die
-    Icons werden ausschließlich in `createGroup()` erzeugt.
-16. Keine Beschriftung ragt über ihren Torrahmen hinaus, auf keiner Höhe der Fahrt und bei
-    zwei wie bei drei Spuren. Nachweis über `getLabelScale` gegen die aus `getRoadHalfWidth`
-    berechneten Spurbreiten am Horizont (150) und an der Entscheidungsstelle (679).
-17. Der Maßstab einer Beschriftung wächst mit der Spurbreite mit; er friert nicht auf dem Wert
-    vom Erscheinen ein. Eigener Test.
-18. `tests/weaponGatePresentation.test.ts` enthält keine wörtlichen Codezeilen-Vergleiche mehr
-    außer dem Pool-Nachweis.
-19. **Nur nach Thomas' iPhone-Test erfüllbar:** Drei Spuren werden in der vorhandenen Zeit
-    zuverlässig getroffen, und die Waffenangebote kommen nicht zu oft.
+1. `boss.referenceFirepower.teamGrowthFactor` und `targetFightSec` existieren nicht mehr;
+   `fightSecAtMaxTeam`, `maxFightSec` und `teamDampening` sind da. `npm run check` findet keine
+   verwaisten Verweise.
+2. `getTeamFirepower` ist exportiert und wird von `getBossPlan` **und** `getBlockerPlan`
+   benutzt — die Feuerkraft-Formel steht nur an einer Stelle.
+3. Unit-Test über die Kampfdauer: Für Truppengrößen **2, 4, 6, 8, 12, 16, 20, 25, 30** liegt
+   `plan.referenceFightSec` zwischen **20 und 40 Sekunden**, und zwar für die Level 1, 6 und 12
+   **und** für frischen wie voll gekauften Spielstand. Kein Fall darf herausfallen.
+4. Unit-Test über die Monotonie: Bei gleichem Level und Kaufstand sinkt `referenceFightSec`,
+   wenn die Truppe wächst — nie umgekehrt. Das ist die Eigenschaft, die „Stärke lohnt sich"
+   überhaupt erst herstellt.
+5. Unit-Test über die Unabhängigkeit: Bei **gleicher Truppengröße** liefert Level 1 und Level 12
+   dieselbe `referenceFightSec` (bis auf Rundung). Die Lebenspunkte selbst unterscheiden sich
+   sehr wohl.
+6. `getBlockerPlan` liefert für dieselben Truppengrößen, Level und Kaufstände eine
+   Zerstörungsdauer zwischen **1,5 und 2,5 Sekunden** — bei ungedämpfter Rechnung also
+   durchgehend 2,0 s.
+7. Der Boss-Plan wird beim Erscheinen des Bosses einmal gebildet und danach nicht neu berechnet;
+   im Review nachweisbar, dass `getBossPlan` nicht aus `update()` heraus aufgerufen wird.
+8. Es existiert kein zweiter, abweichender `maxHp`-Wert für denselben Bosskampf.
+9. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch. Die bestehenden
+   Tests in `tests/bossPlan.test.ts` und `tests/blockers.test.ts` werden auf die neue Signatur
+   umgestellt, nicht gelöscht.
+10. **Nur nach Thomas' iPhone-Test erfüllbar:** Der Boss ist auf Level 1, 6 und 12 fordernd,
+    aber nicht unfair — und er platzt nicht mehr sofort.
 
 ---
 
 ## Reißleine
 
-**Werden die drei Spuren am iPhone unzuverlässig getroffen, bleibt es bei zwei Spuren** — dann
-gehen alle Level auf `gateLanes: 2` zurück und die Waffen kommen weiterhin nur über die Sperren.
+**Das ist der dritte und letzte Balance-Anlauf auf die Kampfdauer.** Fühlt sich der Boss nach
+diesem Zyklus immer noch falsch an, wird **nicht** an `teamDampening`, `fightSecAtMaxTeam` oder
+`maxFightSec` weitergedreht.
 
 **Kein zulässiger Ersatz ist:**
-- das Zeitfenster verlängern (`spawnIntervalMs`, `extraSpeed`, `horizonY`) — das entwertet die
-  Tor-Mathematik, deren ganzer Reiz der Zeitdruck ist;
-- die Tore über die Straßenbreite hinaus verbreitern;
-- die Torfarbe nach gut/schlecht einfärben oder einen Erklärtext ergänzen;
-- die Waffenspur an die Stelle einer Rechen-Spur setzen (das war die verworfene Variante).
+- eine neue Annahme über die Truppengröße einführen (das war zweimal der Fehler);
+- die Lebenspunkte pauschal mit einem Faktor multiplizieren;
+- die Truppen-Mechanik (`shootersPerSalvo`, `damagePerExtraFigure`) verändern, um die Rechnung
+  passend zu machen — das trifft das ganze Spiel, nicht den Boss.
 
-**Kommen die Waffenangebote zu oft** (Thomas-Urteil), wird zuerst `gates.weaponLaneEvery`
-erhöht (3 → 4 → 5) und **nicht** an der Sperren-Kadenz gedreht. Erst wenn auch bei 5 der Wechsel
-beliebig wirkt, liegt es nicht an der Häufigkeit, sondern daran, dass ein Waffenwechsel zu
-folgenlos ist — dann Design-Entscheidung mit Thomas statt weiter an der Zahl drehen.
+**Stattdessen** liegt das Problem dann nicht bei den Lebenspunkten, sondern beim
+**Kampfverhalten**: Ein Boss, der 30 Sekunden dasteht und Salven abgibt, ist zäh statt fordernd.
+Dann Design-Entscheidung mit Thomas über Phasen, Vorrücken und Begleiter — nicht über Zahlen.
 
-**Zeitbudget:** Steht die Spur-Geometrie nach zwei Nacharbeitszyklen nicht (Spuren falsch
-positioniert, Auswahl trifft die falsche Spur), ist nicht die Rechnung das Problem, sondern die
-Vermischung von Layout und Auswahl in `Gates` — dann beide reinen Funktionen in eine eigene
-Datei `src/systems/gateLanes.ts` ziehen und dort isoliert gegen die Tests bringen.
-
-## Implementation Summary
-
-- Nacharbeit 2 umgesetzt: `getLabelScale` begrenzt jede sichtbare Torbeschriftung mit dem
-  konfigurierten seitlichen Rand und berechnet sie in jedem Layout-Durchlauf neu aus der
-  natürlichen Breite. Die Verhaltenstests decken die echten Spurbreiten am Horizont und an der
-  Entscheidungsstelle sowie wachsende Beschriftung bei breiterer Spur ab; als Quelltextprüfung
-  bleibt nur der Icon-Pool.
-- Nacharbeit 1 umgesetzt: Die Waffenspur verwendet wieder den getönten `gate`-Rahmen; ihr
-  Waffenbild ist ein gepooltes, tintfreies Icon mit erhaltenem Seitenverhältnis. Der Name ist
-  20 px groß und wird bei Bedarf auf die Spurbreite begrenzt.
-- Akzeptanzkriterien 14 und 15 sind durch `tests/weaponGatePresentation.test.ts` abgedeckt,
-  ohne die vorhandenen Tests anzufassen.
-- `npm run check`, `npm run build` und `npm test` sind erfolgreich; der iPhone-Praxistest
-  aus Akzeptanzkriterium 19 bleibt bei Thomas offen.
+**Zeitbudget:** Steht die Formel nach zwei Nacharbeitszyklen nicht (Kampfdauern außerhalb
+20–40 s in den Tests), ist die Dämpfungsformel selbst der Fehler. Dann auf die einfachste Form
+zurückfallen, die das Zielfenster hält: feste Kampfdauer von 30 Sekunden für alle
+Truppengrößen (`teamDampening = 1`), und Thomas entscheidet danach, ob ihm das reicht.
