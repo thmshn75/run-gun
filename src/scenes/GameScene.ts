@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
+import { Blockers } from '../systems/blockers'
 import { Coins } from '../systems/coins'
 import { Boss } from '../systems/boss'
 import type { BossUpgradeLevels } from '../systems/bossPlan'
@@ -87,6 +88,7 @@ export class GameScene extends Phaser.Scene {
   private lastCrowdSize!: number
   private splashFlashes!: SplashFlashPool
   private boss!: Boss
+  private blockers!: Blockers
   private currentLevel!: number
   private levelPhase!: LevelPhase
   private phaseRemainingMs!: number
@@ -127,6 +129,14 @@ export class GameScene extends Phaser.Scene {
     const getAnchorPosition = (): Readonly<{ x: number; y: number }> => ({ x: this.crowd.getAnchorX(), y: this.crowd.getAnchorY() })
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
     this.spawner = new Spawner(this, this.runStats, this.bossUpgrades)
+    this.blockers = new Blockers(
+      this,
+      this.bossUpgrades,
+      () => this.spawner.requestBlockerEnemy(),
+      (currentWeapon) => this.spawner.chooseBlockerWeapon(currentWeapon),
+      () => this.weapons.getWeapon(),
+      () => Phaser.Math.RND.frac(),
+    )
     this.boss = new Boss(
       this,
       () => this.spawner.allocateSpawnId(),
@@ -202,10 +212,19 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.weapons.getProjectiles(), this.boss.getEnemy(), (first, second) => {
       this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
     })
+    this.physics.add.overlap(this.weapons.getProjectiles(), this.blockers.getBlockers(), (first, second) => {
+      this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
+    })
     this.physics.add.overlap(this.crowd.getHullBounds(), this.spawner.getEnemies(), (first, second) => {
       this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
     })
     this.physics.add.overlap(this.crowd.getHullBounds(), this.boss.getEnemy(), (first, second) => {
+      this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
+    })
+    this.physics.add.overlap(this.crowd.getHullBounds(), this.blockers.getBlockers(), (first, second) => {
+      this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
+    })
+    this.physics.add.overlap(this.crowd.getHullBounds(), this.blockers.getRewards(), (first, second) => {
       this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
     })
     this.physics.add.overlap(this.crowd.getHullBounds(), this.boss.getProjectiles(), (first, second) => {
@@ -226,6 +245,7 @@ export class GameScene extends Phaser.Scene {
     this.updateLevelPhase(dt)
     this.weapons.update(dt)
     this.spawner.update(dt)
+    this.blockers.update(dt)
     this.boss.update(dt)
     this.coins.update(dt, this.crowd.getAnchorX(), this.crowd.getAnchorY())
     this.splashFlashes.update(dt)
@@ -285,10 +305,44 @@ export class GameScene extends Phaser.Scene {
     this.weapons.recycle(projectile)
   }
 
+  private handleProjectileBlockerHit(projectile: Phaser.Physics.Arcade.Image, blocker: Phaser.GameObjects.Rectangle): void {
+    if (!projectile.active || !blocker.active) return
+    const weapon = projectile.getData('weapon') as WeaponKey
+    const config = this.weapons.getWeaponConfig(weapon)
+    const damage = this.runStats.get('damage') * this.getCrowdDamageMultiplier() * config.damageFactor
+    if (config.pierces) {
+      const hitSpawnIds = projectile.getData('hitSpawnIds') as Set<number>
+      const spawnId = blocker.getData('spawnId') as number
+      if (hitSpawnIds.has(spawnId)) return
+      hitSpawnIds.add(spawnId)
+      this.blockers.damage(blocker, damage)
+      return
+    }
+    const impactX = blocker.x
+    const impactY = blocker.y
+    this.blockers.damage(blocker, damage)
+    if (config.splashRadiusPx > 0) {
+      const radiusSquared = config.splashRadiusPx * config.splashRadiusPx
+      const splashDamage = this.runStats.get('damage') * this.getCrowdDamageMultiplier() * config.splashDamageFactor
+      for (const child of this.blockers.getBlockers().getChildren()) {
+        const candidate = child as Phaser.GameObjects.Rectangle
+        const dx = candidate.x - impactX
+        const dy = candidate.y - impactY
+        if (candidate.active && dx * dx + dy * dy <= radiusSquared) this.blockers.damage(candidate, splashDamage)
+      }
+      this.splashFlashes.spawn(impactX, impactY, config.splashRadiusPx)
+    }
+    this.weapons.recycle(projectile)
+  }
+
   private handleCombatOverlap(first: Phaser.GameObjects.GameObject, second: Phaser.GameObjects.GameObject): void {
     const playerProjectile = this.findObjectWithData(first, second, 'weapon')
     if (playerProjectile !== undefined) {
       const enemy = playerProjectile === first ? second : first
+      if (this.blockers.isBlocker(enemy)) {
+        this.handleProjectileBlockerHit(playerProjectile as Phaser.Physics.Arcade.Image, enemy)
+        return
+      }
       this.handleProjectileHit(playerProjectile as Phaser.Physics.Arcade.Image, enemy as Phaser.Physics.Arcade.Image)
       return
     }
@@ -303,8 +357,23 @@ export class GameScene extends Phaser.Scene {
 
     const hull = this.crowd.getHullBounds()
     if (first === hull || second === hull) {
-      const enemy = first === hull ? second : first
-      const enemyImage = enemy as Phaser.Physics.Arcade.Image
+      const target = first === hull ? second : first
+      if (this.blockers.isReward(target)) {
+        const weapon = this.blockers.collect(target)
+        if (weapon !== undefined) {
+          this.weapons.setWeapon(weapon)
+          this.updateHud()
+        }
+        return
+      }
+      if (this.blockers.isBlocker(target)) {
+        if (!this.crowd.overlapsFigure(target.getBounds())) return
+        if (this.elapsedMs < this.enemyContactIframeUntilMs) return
+        const damage = this.blockers.hitCrowd(target)
+        if (damage !== undefined) this.handlePlayerDamage(damage, 'contact')
+        return
+      }
+      const enemyImage = target as Phaser.Physics.Arcade.Image
       if (!this.crowd.overlapsFigure(enemyImage.getBounds())) return
       if (this.elapsedMs < this.enemyContactIframeUntilMs) return
       this.handlePlayerHit(enemyImage)
@@ -396,6 +465,7 @@ export class GameScene extends Phaser.Scene {
       this.levelPhase = 'warning'
       this.phaseRemainingMs = BALANCE.level.warningMs
       this.spawner.setSpawningEnabled(false)
+      this.blockers.deactivateAll()
       this.levelOverlayBackground.setVisible(false)
       this.levelOverlay.setText('BOSS').setVisible(true)
       return
@@ -412,11 +482,13 @@ export class GameScene extends Phaser.Scene {
     this.levelOverlayBackground.setVisible(false)
     this.levelOverlay.setVisible(false)
     this.spawner.resetForLevel(this.currentLevel)
+    this.blockers.resetForLevel(this.currentLevel)
   }
 
   private handleBossDefeated(): void {
     if (this.levelPhase !== 'boss') return
     this.spawner.recycleBossCompanions()
+    this.blockers.deactivateAll()
     this.boss.deactivate()
     this.currentLevel += 1
     const saved = loadSave()

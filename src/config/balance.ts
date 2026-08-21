@@ -144,6 +144,21 @@ export const BALANCE = {
     damagePerExtraFigure: 0.14,
     damageMultiplierCap: 4,
   },
+  blockers: {
+    // Player sprite: 34px wide. 2.4 figure widths are the fixed collision hull;
+    // this extra margin keeps the visually available bypass usable while dragging.
+    passageMarginPx: 12,
+    figureWidthPx: 34,
+    minWidthPx: 46,
+    heightPx: 54,
+    rewardBehindOffsetPx: 82,
+    contactDamage: 2,
+    // Each design level owns its cadence. Zero keeps the reserved pre-E9 levels silent.
+    spawnIntervalMsByDesignLevel: [0, 0, 0, 0, 0, 0, 15500, 14000, 12500, 11250, 10000, 9000],
+    referenceDestroySec: 2,
+    minDestroySec: 1.5,
+    maxDestroySec: 2.5,
+  },
   enemy: {
     // Measured visible-figure dimensions per sprite; coinValue is the number of dropped coins. Remeasure both dimensions whenever the images change.
     types: [
@@ -304,6 +319,9 @@ export const BALANCE = {
     coins: 48,
     // Roughly 1.4s visible versus 9s spawn interval means at most one; two cover a delayed recycle.
     gatePairs: 2,
+    // Slowest blocker travel is (844 - 150) / 180 = 3.9s. The shortest L12 cadence
+    // is 9s, so one is normally enough; two cover a delayed recycle without allocations.
+    blockers: 2,
     // Phase two: ceil(2.1s flight / 0.82s interval) x 5 = 15; 24 leaves reserve.
     bossProjectiles: 24,
   },

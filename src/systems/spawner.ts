@@ -7,6 +7,7 @@ import { getRoadHalfWidth } from './road'
 import { chooseSpawnLane, type SpawnLaneEnemy } from './spawnLanes'
 import { computeSquadOffsets, getSquadWidth } from './squads'
 import type { RunStats } from './upgrades'
+import type { WeaponKey } from './weapons'
 
 type SpawnResult = 'spawned' | 'no-lane' | 'pool-exhausted'
 
@@ -89,6 +90,17 @@ export class Spawner {
     if (!canSpawnBossCompanion(activeCompanions, plan)) return false
     const type = chooseEnemyType(this.levelPlan.enemyWeights, () => Phaser.Math.RND.frac())
     return this.spawnSingle(type, true) === 'spawned'
+  }
+
+  // E9 uses the existing enemy scheduler so a blocker is never introduced into a quiet passage.
+  public requestBlockerEnemy(): boolean {
+    if (!this.spawningEnabled) return false
+    return this.spawn(this.chooseSpawnRequest()) === 'spawned'
+  }
+
+  public chooseBlockerWeapon(currentWeapon: WeaponKey): WeaponKey {
+    const choices: WeaponKey[] = ['normal', 'shotgun', 'laser', 'rocket'].filter((weapon): weapon is WeaponKey => weapon !== currentWeapon)
+    return choices[Math.min(choices.length - 1, Math.floor(Phaser.Math.RND.frac() * choices.length))]
   }
 
   public recycleBossCompanions(): void {

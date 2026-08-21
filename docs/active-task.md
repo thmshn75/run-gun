@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -108,8 +108,47 @@ iPhone.
 
 ## Implementation Summary
 
-<!-- Von Codex auszufüllen -->
+- E9-Sperren als eigener Zweier-Pool in `src/systems/blockers.ts`: Rechteck mit Rahmen,
+  eigene HP, schwerer Kontakt-Schaden und ein erst nach Zerstörung aktives vorhandenes
+  Waffen-Symbol. Recycling schaltet beide Objekte ohne Laufzeit-Allokationen ab.
+- `blockerPlacement.ts` liefert die Phaser-freie Platzierung mit garantiertem Durchlass;
+  `blockerPlan.ts` leitet HP aus derselben Boss-Referenzfeuerkraft ab. Frequenzen und
+  Pool-Herleitung stehen in `balance.ts`.
+- `Spawner` koppelt jede Sperren-Erzeugung an einen erfolgreichen Gegner-Spawn und zieht
+  nur eine andere Waffe als die aktuell getragene. `GameScene` behandelt Sperren getrennt
+  von Gegnern: keine Münzen, keine Abschüsse; die Freischalt-Waffe wird beim Kontakt gesetzt.
 
 ## Verification
 
-<!-- Von Codex auszufüllen -->
+- `npm run check` erfolgreich (TypeScript fehlerfrei).
+- `npm run build` erfolgreich (54 Module; nur bestehende nicht-blockierende Chunk-Größen-Warnung).
+- `npm test` erfolgreich: 9 Testdateien, 34 Tests. Neue Tests prüfen 500 Platzierungen,
+  die 1,5–2,5-s-Referenzdauer für Level 7/9/12 mit null/vollen Käufen sowie die
+  Level-Reservierung. `git diff --check` ist ebenfalls fehlerfrei.
+- Die Live-Kriterien 3, 4, 6 und 7 sind wie spezifiziert für Claude/Thomas am laufenden
+  Spiel offen; der sichtbare Terminal-Start scheiterte hier an der macOS-GUI-Verbindung,
+  daher liefen die identischen Prüfungen im Shell-Fallback.
+
+## Review-Ergebnis (Claude)
+
+Kriterien 1, 2, 5, 6, 7 und 8 erfuellt und geprueft.
+
+- **Kriterium 1, 2:** Unit-Tests ueber 500 Platzierungen und die Zerstoerungsdauer fuer
+  Level 7/9/12 bei null und vollem Ausbau.
+- **Kriterium 3:** `Spawner.requestBlockerEnemy()` erzeugt eine Sperre nur, wenn im selben
+  Zug ein Gegner erfolgreich gespawnt wurde — die geforderte Gleichzeitigkeit ist im Code
+  erzwungen, nicht nur beabsichtigt.
+- **Kriterium 4, 6:** `GameScene` behandelt Sperre und Belohnung ueber `isBlocker` und
+  `isReward` getrennt von Gegnern; keine Muenzen, keine Abschuesse.
+- **Kriterium 5:** Eigener Zweier-Pool ohne Laufzeit-Allokation.
+- **Kriterium 7:** `src/systems/gates.ts` ist **null Zeilen** im Diff.
+- **Kriterium 8:** `npm run check`, `npm run build`, `npm test` selbst im Terminal
+  ausgefuehrt, Exit 0, 9 Testdateien, 34 Tests.
+
+**Nicht am laufenden Spiel geprueft:** Sperren erscheinen erst ab Level 7. Dieses Level ist
+mit der aktuellen Boss-Balance nicht erreichbar (siehe Thomas' Test von Level 1), deshalb steht
+die Sichtpruefung aus. Sie wird nachgeholt, sobald die Balance-Korrektur greift.
+
+**Zusammenhang fuer den naechsten Task:** Die Lebenspunkte der Sperren leiten sich aus
+derselben Referenz-Feuerkraft ab wie die des Bosses. Wird diese Referenz korrigiert, aendern
+sich die Sperren mit — die 1,5-bis-2,5-Sekunden-Tests muessen danach weiterhin halten.
