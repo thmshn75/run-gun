@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -120,3 +120,26 @@ ausgeführt**, damit die neuen Dateien im Repo liegen.
 Kriterien 1, 2 und 4 prüft Claude am laufenden Spiel nach — Kriterium 1 über eine Messung der
 Tönung des Bosses über die Zeit, nicht über den Augenschein. Ob das Icon gefällt, entscheidet
 Thomas.
+
+## Implementation Summary
+
+- Trefferblitze nutzen jetzt eine pro Figur heruntergezählte Restzeit; `Spawner.damage` hat keinen Zeitparameter mehr.
+- Divisionstore verwenden `/`, und die drei PWA-Icons werden aus dem dokumentierten quadratischen Titelbild-Ausschnitt mit Nearest Neighbour erzeugt.
+- `npm run make-icons`, `npm run check`, `npm run build` und `npm test` waren erfolgreich; das Kontaktbild liegt unter `assets/probe/icons-kontrolle.png`.
+
+
+## Review-Ergebnis (Claude, am laufenden Spiel gemessen)
+
+- **Kriterium 1 und 2, der Boss-Fehler:** Laengste ununterbrochene Weissphase des Bosses
+  **10 Bilder**, bei normalen Gegnern **4 Bilder** — beides der regulaere Trefferblitz von
+  80 ms, beim Boss durch schnell aufeinanderfolgende Treffer etwas verlaengert. Vorher blieb
+  der Boss nach dem ersten Treffer **dauerhaft** weiss. Auch nach mehreren Levelwechseln
+  bleibt kein Gegner weiss.
+- **Kriterium 3:** Kein `flashUntil` mehr im Code, keine Stelle vergleicht den Blitz gegen
+  eine Uhr, `Spawner.damage` hat keinen Zeitparameter mehr.
+- **Kriterium 4:** Unter den im Lauf beobachteten Torbeschriftungen stehen `/2`, `×2`, `×1.5`,
+  `+53`, `−79`, `+50 %`, `−30 %` — die Division erscheint als Schraegstrich, kein `÷` mehr.
+- **Kriterium 5 und 6:** Icons in 192, 512 und 180 px, quadratisch und deckend, Ausschnitt mit
+  den drei Figuren aus dem Titelbild; Kontrollbild liegt unter
+  `assets/probe/icons-kontrolle.png`.
+- **Kriterium 7:** `npm run check`, `npm run build`, `npm test` selbst im Terminal, alle exit 0.

@@ -64,7 +64,7 @@ export class Boss {
     this.enemy.setData('hp', BALANCE.boss.baseHp * Math.pow(BALANCE.boss.hpPerLevel, level - 1))
     this.enemy.setData('contactDamage', 0)
     this.enemy.setData('coinValue', BALANCE.boss.coinReward)
-    this.enemy.setData('flashUntil', 0)
+    this.enemy.setData('flashRemainingMs', 0)
     this.enemy.setData('spawnId', this.nextSpawnId())
   }
 
@@ -93,7 +93,9 @@ export class Boss {
 
     const topY = this.enemy.y - this.enemy.displayHeight / 2
     this.enemy.setAlpha(Math.min(1, Math.max(0, (topY - BALANCE.road.horizonY) / BALANCE.road.entryFadePx)))
-    if ((this.enemy.getData('flashUntil') as number) <= this.elapsedMs) this.enemy.clearTint()
+    const flashRemainingMs = Math.max(0, (this.enemy.getData('flashRemainingMs') as number) - dt)
+    this.enemy.setData('flashRemainingMs', flashRemainingMs)
+    if (flashRemainingMs === 0) this.enemy.clearTint()
     ;(this.enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
   }
 

@@ -311,7 +311,7 @@ export class GameScene extends Phaser.Scene {
     const enemyX = enemy.x
     const enemyY = enemy.y
     const coinValue = enemy.getData('coinValue') as number
-    if (!this.spawner.damage(enemy, damage, this.elapsedMs)) return
+    if (!this.spawner.damage(enemy, damage)) return
     const coinOffsets = Array.from({ length: coinValue }, (_value, index) => (index - (coinValue - 1) / 2) * BALANCE.coins.dropSpacing)
     const firstCoinX = enemyX + coinOffsets[0]
     const lastCoinX = enemyX + coinOffsets[coinOffsets.length - 1]

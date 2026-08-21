@@ -1,55 +1,42 @@
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PLAYER_PATH = ROOT / 'src/assets/player.png'
+TITLE_PATH = ROOT / 'src/assets/title.png'
 OUTPUTS = {
     192: ROOT / 'public/icon-192.png',
     512: ROOT / 'public/icon-512.png',
     180: ROOT / 'public/apple-touch-icon.png',
 }
-BACKGROUND = '#10131d'
-BACKGROUND_LINE = '#172033'
-BACKGROUND_DOT = '#26344e'
-GLOW = '#e8590c'
+# This 390px square includes the three foreground survivors and the oncoming horde,
+# so the small icon stays recognisable without relying on the ignored source artwork.
+TITLE_CROP_BOX = (0, 155, 390, 545)
+CONTACT_SHEET_PATH = ROOT / 'assets/probe/icons-kontrolle.png'
 
 
-def background_tile() -> Image.Image:
-    tile = Image.new('RGB', (64, 64), BACKGROUND)
-    draw = ImageDraw.Draw(tile)
-    draw.rectangle((0, 12, 63, 13), fill=BACKGROUND_LINE)
-    draw.rectangle((0, 44, 63, 45), fill=BACKGROUND_LINE)
-    draw.rectangle((8, 28, 11, 29), fill=BACKGROUND_DOT)
-    draw.rectangle((42, 58, 45, 59), fill=BACKGROUND_DOT)
-    return tile
+def make_icon(size: int, title: Image.Image) -> Image.Image:
+    return title.crop(TITLE_CROP_BOX).resize((size, size), Image.Resampling.NEAREST).convert('RGB')
 
 
-def make_icon(size: int, player: Image.Image, tile: Image.Image) -> Image.Image:
-    icon = tile.resize((size, size), Image.Resampling.NEAREST).convert('RGBA')
-    glow = Image.new('RGBA', (size, size))
-    radius = round(size * 0.34)
-    center = size // 2
-    ImageDraw.Draw(glow).ellipse(
-        (center - radius, center - radius, center + radius, center + radius),
-        fill=GLOW + '5a',
-    )
-    glow = glow.filter(ImageFilter.GaussianBlur(radius=round(size * 0.08)))
-    icon = Image.alpha_composite(icon, glow)
-
-    player_height = round(size * 0.58)
-    player_width = round(player.width * player_height / player.height)
-    figure = player.resize((player_width, player_height), Image.Resampling.NEAREST)
-    icon.alpha_composite(figure, ((size - player_width) // 2, (size - player_height) // 2))
-    return icon.convert('RGB')
+def make_contact_sheet(icons: dict[int, Image.Image]) -> Image.Image:
+    preview_size = 192
+    contact_sheet = Image.new('RGB', (preview_size * 3, preview_size), '#ffffff')
+    for index, size in enumerate((192, 512, 180)):
+        preview = icons[size].resize((preview_size, preview_size), Image.Resampling.NEAREST)
+        contact_sheet.paste(preview, (index * preview_size, 0))
+    return contact_sheet
 
 
 def main() -> None:
-    player = Image.open(PLAYER_PATH).convert('RGBA')
-    tile = background_tile()
+    title = Image.open(TITLE_PATH).convert('RGB')
+    icons = {}
     for size, output in OUTPUTS.items():
-        make_icon(size, player, tile).save(output, optimize=True)
+        icons[size] = make_icon(size, title)
+        icons[size].save(output, optimize=True)
+    CONTACT_SHEET_PATH.parent.mkdir(parents=True, exist_ok=True)
+    make_contact_sheet(icons).save(CONTACT_SHEET_PATH, optimize=True)
 
 
 if __name__ == '__main__':

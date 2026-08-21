@@ -27,7 +27,7 @@ interface GatePair {
   rightOp: GateOp
   prevBottomY: number
   triggered: boolean
-  flashUntilMs: number
+  recycleAtMs: number
 }
 
 type GateOperatorKind = (typeof BALANCE.gates.ops.kinds)[number]
@@ -49,7 +49,7 @@ function drawGateOp(current: number, rng: () => number): GateOp {
   }
   if (kind === 'divide') {
     const divisor = pick(BALANCE.gates.ops.divisors, rng)
-    return { label: `÷${divisor}`, apply: (value) => value / divisor }
+    return { label: `/${divisor}`, apply: (value) => value / divisor }
   }
   if (kind === 'add') {
     const magnitude = Math.max(1, Math.round(current * pick(BALANCE.gates.ops.additiveRatios, rng)))
@@ -71,7 +71,7 @@ function drawDirectionalOp(current: number, rng: () => number, direction: GateDi
   }
   if (kind === 'divide') {
     const divisor = pick(BALANCE.gates.ops.divisors, rng)
-    return { label: `÷${divisor}`, apply: (value) => value / divisor }
+    return { label: `/${divisor}`, apply: (value) => value / divisor }
   }
   if (kind === 'add') {
     const magnitude = Math.max(1, Math.round(current * pick(BALANCE.gates.ops.additiveRatios, rng)))
@@ -187,7 +187,7 @@ export class Gates {
       if (!pair.triggered) this.updateHighlight(pair, anchor.x)
       if (!pair.triggered && pair.prevBottomY < anchor.y && bottomY >= anchor.y) this.applyPair(pair, anchor.x)
       pair.prevBottomY = bottomY
-      if (pair.triggered && this.elapsedMs >= pair.flashUntilMs) this.recycle(pair)
+      if (pair.triggered && this.elapsedMs >= pair.recycleAtMs) this.recycle(pair)
       else if (pair.left.y - pair.left.displayHeight / 2 > this.scene.scale.height) this.recycle(pair)
     }
   }
@@ -208,7 +208,7 @@ export class Gates {
     return {
       left, right, leftText, rightText, leftIcon, rightIcon, statLabel, active: false, kind: 'stat', stat: 'hp', leftWeapon: 'normal', rightWeapon: 'normal',
       leftOp: { label: '', apply: (value) => value }, rightOp: { label: '', apply: (value) => value },
-      prevBottomY: 0, triggered: false, flashUntilMs: 0,
+      prevBottomY: 0, triggered: false, recycleAtMs: 0,
     }
   }
 
@@ -223,7 +223,7 @@ export class Gates {
     const spawnY = BALANCE.road.horizonY
     pair.active = true
     pair.triggered = false
-    pair.flashUntilMs = 0
+    pair.recycleAtMs = 0
     if (isWeaponGate) this.configureWeaponGate(pair, spawnY)
     else this.configureStatGate(pair, spawnY)
     this.setPairAlpha(pair, 0)
@@ -309,7 +309,7 @@ export class Gates {
 
   private applyPair(pair: GatePair, anchorX: number): void {
     pair.triggered = true
-    pair.flashUntilMs = this.elapsedMs + BALANCE.gates.choiceFlashMs
+    pair.recycleAtMs = this.elapsedMs + BALANCE.gates.choiceFlashMs
     const selectedLeft = isLeftSelected(anchorX, this.scene.scale.width)
     if (pair.kind === 'weapon') {
       this.onWeaponSelected(selectedLeft ? pair.leftWeapon : pair.rightWeapon)

@@ -80,11 +80,11 @@ export class Spawner {
     enemy.setActive(false).setVisible(false)
   }
 
-  public damage(enemy: Phaser.Physics.Arcade.Image, damage: number, gameTimeMs: number): boolean {
+  public damage(enemy: Phaser.Physics.Arcade.Image, damage: number): boolean {
     const remainingHp = (enemy.getData('hp') as number) - damage
     enemy.setData('hp', remainingHp)
     enemy.setTintFill(0xffffff)
-    enemy.setData('flashUntil', gameTimeMs + BALANCE.feedback.hitFlashMs)
+    enemy.setData('flashRemainingMs', BALANCE.feedback.hitFlashMs)
     if (remainingHp <= 0) {
       this.recycle(enemy)
       return true
@@ -121,7 +121,9 @@ export class Spawner {
       const topY = enemy.y - enemy.displayHeight / 2
       enemy.setAlpha(Math.min(1, Math.max(0, (topY - BALANCE.road.horizonY) / BALANCE.road.entryFadePx)))
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
-      if ((enemy.getData('flashUntil') as number) <= this.elapsedMs) enemy.clearTint()
+      const flashRemainingMs = Math.max(0, (enemy.getData('flashRemainingMs') as number) - dt)
+      enemy.setData('flashRemainingMs', flashRemainingMs)
+      if (flashRemainingMs === 0) enemy.clearTint()
       if (enemy.y - enemy.displayHeight / 2 > this.scene.scale.height) this.recycle(enemy)
     }
   }
@@ -158,7 +160,7 @@ export class Spawner {
     enemy.setData('coinValue', type.coinValue)
     enemy.setData('bodyWidth', type.bodyWidth)
     enemy.setData('bodyHeight', type.bodyHeight)
-    enemy.setData('flashUntil', 0)
+    enemy.setData('flashRemainingMs', 0)
     enemy.setData('lane', lane)
     enemy.setData('spawnId', this.allocateSpawnId())
     this.intervalSpawnCount += 1
