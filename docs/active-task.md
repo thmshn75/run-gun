@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -75,8 +75,47 @@ die endgültige Optik beurteilt Thomas am iPhone.
 
 ## Implementation Summary
 
-<!-- Von Codex auszufüllen -->
+- `TitleScene` ergänzt und zwischen Boot- und Menüszene registriert. Boot startet nun den
+  bildschirmfüllenden Startbildschirm; START führt in das unveränderte Menü.
+- Titel und START-Knopf nutzen `computeTitleLayout(height, insets)` mit getrennten oberen bzw.
+  unteren Safe-Area-Bezugspunkten. Die Szene enthält nur Phaser-Canvas-Objekte, ohne Abdunklung
+  über dem Titelbild oder DOM-Elemente.
+- Unit-Tests für beide verlangten Safe-Area-Fälle ergänzt. Der Game-Over-Rückweg bleibt direkt
+  zum Menü unverändert.
 
 ## Verification
 
-<!-- Von Codex auszufüllen -->
+- `npm run check` erfolgreich.
+- `npm run build` erfolgreich; nur die bestehende Vite-Hinweiswarnung zu einem großen
+  JavaScript-Chunk, kein Build-Fehler.
+- `npm test` erfolgreich: 6 Testdateien, 26 Tests bestanden, einschließlich der neuen
+  `computeTitleLayout`-Tests für `{ top: 0, bottom: 0 }` und `{ top: 47, bottom: 34 }`.
+- Laufzeitprüfung von Start, START und Game-Over sowie iPhone-Optik sind gemäß Akzeptanzkriterien
+  für Claude bzw. Thomas vorgesehen und wurden hier nicht per Browser ausgeführt.
+
+## Review-Ergebnis (Claude, am laufenden Spiel gemessen)
+
+Alle sieben Kriterien erfuellt.
+
+- **Kriterium 1, 2:** Nach dem Laden erscheint der Titelbildschirm. Sichtbar sind nur die
+  Titelschrift und der Knopf START; das Titelbild liegt ohne Abdunklung ueber der ganzen
+  Flaeche darunter.
+- **Kriterium 3:** START oeffnet das Menue, das inhaltlich unveraendert ist (Kaufzeilen,
+  Bestenliste, ZURUECKSETZEN, SPIELEN). Der Diff bestaetigt das: `MenuScene` wurde nicht
+  angefasst, geaendert wurden nur `main.ts` (Szenenliste) und `BootScene.ts` (Startziel).
+- **Kriterium 4:** `GameOverScene` startet unveraendert `MenuScene`; die Datei ist nicht im
+  Diff.
+- **Kriterium 5:** Unit-Tests fuer beide Randfaelle. Zusaetzlich im Browser mit erzwungenen
+  iPhone-Raendern (oben 47, unten 34) nachgesehen: Titel unter der Notch, START ueber dem
+  Home-Indikator, keine Ueberlappung, nichts ausserhalb der Safe-Area.
+- **Kriterium 6:** Zahl der DOM-Elemente konstant 2 (Canvas plus Vite-Skript) auf dem
+  Titelbildschirm und nach dem Wechsel ins Menue. Kein neues DOM-Element.
+- **Kriterium 7:** `npm run check`, `npm run build`, `npm test` selbst im Terminal ausgefuehrt,
+  Exit 0, 6 Testdateien, 26 Tests.
+
+**Optischer Befund fuer Thomas:** Der Wunsch ist erfuellt, aber das Bild traegt die untere
+Haelfte nicht. Motiv (Stadt, Truppe, Zombies) sitzt im oberen Drittel, darunter folgt leerer
+dunkler Asphalt — das ist genau die ruhige Zone, die laut `docs/plan.md` bewusst fuer die
+Menue-Knoepfe eingeplant wurde. Auf dem Titelbildschirm ohne Knoepfe steht sie jetzt leer.
+Wer das voller haben will, braucht ein neues Bild mit Motiv ueber die volle Hoehe; das ist
+eine eigene Entscheidung und kein Mangel dieser Umsetzung.

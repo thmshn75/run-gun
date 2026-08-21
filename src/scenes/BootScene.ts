@@ -46,7 +46,7 @@ export class BootScene extends Phaser.Scene {
     this.createGateTexture()
     this.createCoinTexture()
 
-    this.scene.start('MenuScene')
+    this.scene.start('TitleScene')
   }
 
   private createBackgroundTextures(): void {
