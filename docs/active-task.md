@@ -1,174 +1,157 @@
 # Active Task
 
 ## Status
-`APPROVED`
+`SPEC_READY`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**Teil 1: Kulisse bewegt sich nach der falschen Kurve (Bug).
-Teil 2: Hochhäuser statt Landhäuser — Stadtkulisse links und rechts.**
+**Teil 1: Level-1-Boss ist tödlich — Kampfdauer nach Level staffeln.
+Teil 2: Häuserschlucht statt Streusiedlung — kleine Häuser raus, Türme dichter an die Straße.**
 
-Thomas' iPhone-Test vom 2026-08-21: „die Bäume und Häuser sind zu schnell, sollen langsamer sein
-und die Häuser sollten eher so wie Hochhäuser sein, links und rechts, als wenn man durch eine
-Stadt läuft".
+Thomas' iPhone-Test vom 2026-08-21: „level 1 boss ist zu schwer" (auf Rückfrage: **er stirbt**,
+nicht „es dauert zu lang"; gewählter Hebel: **nur Level 1 leichter**, spätere Level wie bisher)
+sowie „nimm die kleinen Häuser komplett weg, die großen bleiben und näher zur Strasse und näher
+zusammen wie eine Häuserschlucht in der Großstadt".
 
 ---
 
-## Teil 1 — Bewegungskurve der Kulisse an die Straße angleichen
+## Teil 1 — Kampfdauer nach Level staffeln
 
-### Befund (nicht raten, der richtige Wert steht bereits im Code)
-Die Fahrbahnmarkierungen in `src/systems/road.ts` bewegen sich **perspektivisch**:
+### Befund (gemessen, nicht geschätzt)
+Alle Level-1-Kombinationen aus `getBossPlan` wurden durchgerechnet (4 Truppengrößen × 7 Waffen ×
+3 Schaden/Rate-Stände). Ergebnis: **praktisch jede Kombination landet auf exakt 40,0 s** — dem
+Wert `maxFightSec`. Der Clamp ist also nicht das Sicherheitsnetz für Ausnahmefälle, für das er
+gehalten wurde, sondern der Normalfall auf Level 1.
 
-```ts
-// road.ts:31 und road.ts:44
-const progressDelta = (BALANCE.scrollSpeed * dt) / (this.scene.scale.height * 1000)
-const y = BALANCE.road.horizonY + (height - BALANCE.road.horizonY) * progress * progress
-```
+Aus `balance.ts` nachgerechnet (`anchorY = 844 - player.anchorBottomOffset = 714`):
+- Der Boss beginnt nach `pressureDelayMs / 1000 = 36 s` vorzurücken.
+- Er steht bei `stopY = anchorY - advanceStopBeforeAnchorPx = 634`, erreicht nach **45,8 s**,
+  und macht dort `advanceContactDamage = 2` an der Truppe.
+- Der bestehende Test prüft gegen `48,2 s` (Anker selbst) — das ist die großzügigere Schwelle;
+  gefährlich wird es real ab 45,8 s.
 
-Die Kulisse in `src/systems/scenery.ts:52` bewegt sich dagegen **linear**:
-
-```ts
-object.image.y += (BALANCE.scrollSpeed * dt) / 1000
-```
-
-Damit rast ein Kulissenobjekt am Horizont mit vollen 180 px/s los, während die Mittellinie dort
-nahezu stillsteht. Genau das nimmt Thomas als „zu schnell" wahr. Es ist kein Balance-Wert,
-sondern eine Inkonsistenz zwischen zwei Systemen, die dieselbe Bodenebene darstellen.
+Der Puffer zwischen berechneter Kampfdauer (40 s) und Gefahr (45,8 s) beträgt **5,8 s**. Die
+gesamte HP-Rechnung setzt voraus, dass **jeder** Schuss den Boss trifft. Daraus folgt: Die
+Trefferquote muss `40 / 45,8 = 87 %` betragen, sonst stirbt die Truppe. Wer den Boss-Projektilen
+seitlich ausweicht, erreicht 87 % nicht. Das ist die Ursache, nicht das Kampfverhalten.
 
 ### Auftrag
-Die Kulisse übernimmt die Bewegungskurve der Straße **unverändert**. Konkret:
+`maxFightSec` wird von einer Konstante zu einer **Funktion des Levels**:
 
-1. `SceneryObject` bekommt ein Feld `progress: number` (statt der y-Position als Zustand).
-2. Beim Spawn: `progress = 0`.
-3. In `update`: `object.progress += (BALANCE.scrollSpeed * dt) / (this.scene.scale.height * 1000)`,
-   danach `object.image.y = BALANCE.road.horizonY + (height - BALANCE.road.horizonY) * object.progress * object.progress`.
-4. **`progress` darf über 1 hinauslaufen** — nicht auf 1 clampen und nicht wie bei der Straße auf 0
-   zurücksetzen. Sonst bleiben Objekte am unteren Bildrand stehen und werden nie recycelt.
-   Die bestehende Recycle-Bedingung (unten raus oder seitlich raus) bleibt wie sie ist.
-5. Die gemeinsame Formel gehört **in eine Funktion**, die Road und Scenery beide benutzen
-   (z. B. `getScrollY(height, progress)` und `getScrollProgressDelta(height, dt)` in
-   `src/systems/roadGeometry.ts`). Zwei Kopien derselben Kurve sind genau der Fehler, der hier
-   gerade behoben wird. `road.ts` auf die neue Funktion umstellen, ohne sein Verhalten zu ändern.
+```
+maxFightSec(level) = min(40, 18 + 2 * (level - 1))
+```
 
-### Erwartete Wirkung (nachrechnen, nicht schätzen)
-Bei `width 390 / height 844`, `horizonY 150`, `scrollSpeed 180`:
-- Geschwindigkeit am Horizont: **0 px/s** statt 180 px/s.
-- Geschwindigkeit bei halber Strecke: ca. 148 px/s.
-- Sichtbare Lebensdauer eines Objekts (bis es seitlich aus dem Bild wandert, ca. `y = 607`):
-  **von 2,54 s auf 3,80 s**, also rund 50 % länger im Bild.
+- Level 1: **18 s** — Trefferquote muss nur noch `18 / 45,8 = 39 %` betragen.
+- Level 2: 20 s · Level 3: 22 s · Level 6: 28 s · Level 12: 40 s (wie bisher).
 
-Diese Zahlen sind eine Herleitung, kein Akzeptanzkriterium — maßgeblich ist, dass Kulisse und
-Mittellinie **dieselbe** Funktion benutzen.
+Umsetzung:
+1. In `src/config/balance.ts` `referenceFirepower.maxFightSec: 40` ersetzen durch die beiden
+   Stützwerte, aus denen die Gerade entsteht — `maxFightSecAtLevelOne: 18` und
+   `maxFightSecPerLevel: 2`, plus den bestehenden Deckel als `maxFightSecCap: 40`. Keine
+   Magic Numbers in der Funktion.
+2. In `src/systems/bossPlan.ts` eine exportierte Funktion `getMaxFightSec(level: number): number`
+   ergänzen und im Clamp statt `reference.maxFightSec` verwenden. `minFightSec: 15` bleibt.
+3. `getMaxFightSec` muss für Level 1 mindestens `minFightSec` liefern — sonst wäre der Clamp
+   widersprüchlich. 18 ≥ 15 ist erfüllt; ein Test sichert die Bedingung für alle 12 Level ab.
 
-### Was hier ausdrücklich NICHT gemacht wird
-- **`BALANCE.scrollSpeed` nicht senken.** Das ist das Tempo des ganzen Spiels, nicht das der Kulisse.
-- **Keinen eigenen Kulissen-Geschwindigkeitsfaktor einführen.** Bäume und Häuser stehen auf
-  derselben Bodenebene wie die Straße; jede Abweichung von deren Tempo ist optisch falsch und
-  würde als Rutschen wahrgenommen.
+### Tests
+Der bestehende Test `keeps the specified separate dampening values and pressure safety margin`
+nagelt `reference.maxFightSec === 40` fest und muss nachgezogen werden. Er prüft künftig:
+- `getMaxFightSec(1) === 18`, `getMaxFightSec(12) === 40`,
+- für **jedes** Level 1…12: `minFightSec <= getMaxFightSec(level) < pressureContactSec`,
+- zusätzlich neu: `getMaxFightSec(level)` liegt auch unter der **schärferen** Schwelle
+  `pressureDelayMs / 1000 + (stopY - battleY) / advanceSpeed` (= 45,8 s). Diese Schwelle ist die
+  real gefährliche, weil der Boss dort stehen bleibt und Kontaktschaden macht.
+
+Der bestehende Test, der über alle Kombinationen `actualFightSec <= maxFightSec + 0.5` prüft,
+wird auf `getMaxFightSec(level)` umgestellt und muss weiter über alle 8.064 Fälle grün sein.
+
+### Bekannte, bewusst offen gelassene Konsequenz
+Thomas hat „nur Level 1 leichter" gewählt. Damit bleibt für **hohe Level** (ab ca. Level 10) der
+alte enge Puffer bestehen: 40 s Kampf gegen 45,8 s Gefahr, also weiterhin 87 % Trefferquote nötig.
+Das ist bewusst so entschieden und **kein** Fehler, der in diesem Task zu beheben ist. Nicht
+eigenmächtig zusätzlich die hohen Level entschärfen.
 
 ---
 
-## Teil 2 — Hochhäuser statt Landhäuser
+## Teil 2 — Häuserschlucht
 
-### Sprites (von Codex mit dem Bildwerkzeug zu erzeugen)
-Drei neue Pixel-Art-Hochhäuser im Stil der vorhandenen Kulissen-Sprites, transparenter
-Hintergrund, Frontansicht, Fußpunkt exakt an der Unterkante des Bildes (Origin ist `(0.5, 1)`):
+### Kleine Häuser raus
+`scenery-cottage` verschwindet vollständig: Eintrag aus `src/systems/sceneryKinds.ts`, Import und
+`this.load.image`-Zeile aus `src/scenes/BootScene.ts`, und die Datei `src/assets/scenery-cottage.png`
+löschen. Kein totes Asset im Bundle stehen lassen.
 
-| Datei | Zielmaß | Motiv |
-|---|---|---|
-| `src/assets/scenery-tower-a.png` | ca. 160 × 400 px | schmales Wohnhochhaus, gleichmäßiges Fensterraster, warme Fensterlichter |
-| `src/assets/scenery-tower-b.png` | ca. 224 × 320 px | breiterer Büroblock, dunkle Glasfront, Dachaufbau |
-| `src/assets/scenery-tower-c.png` | ca. 176 × 480 px | schlanker Turm mit Antenne, andere Fassadenfarbe |
-
-Drei sichtbar unterschiedliche Silhouetten und Farben, damit eine Reihe nicht wie eine Tapete
-wirkt. `scenery-cottage.png` **nicht löschen** — die Art bleibt erhalten, wird aber seltener
-(siehe Gewichtung). Registrierung in `src/scenes/BootScene.ts` analog zu den bestehenden
-`scenery-*`-Sprites.
-
-### Größen in `scenery.ts`
-`baseHeightPx` ist die Höhe **am Horizont**; unten skaliert sie über `getSceneryScale` hoch
-(sichtbares Maximum ca. Faktor 1,77, bevor das Objekt seitlich aus dem Bild wandert).
-
-- `scenery-tower-a`: `baseHeightPx: 150`
-- `scenery-tower-b`: `baseHeightPx: 120`
-- `scenery-tower-c`: `baseHeightPx: 185`
-
-Zum Vergleich: Eiche 54, Nadelbaum 58. Die Türme ragen damit deutlich über den Horizont —
-gewollt, das ist der Stadteindruck.
-
-### Gewichtung statt Gleichverteilung
-Die Auswahl in `spawn()` ist heute uniform über fünf Arten. Sie bekommt ein Gewicht pro Art,
-damit die Stadt dominiert, ohne dass Grün verschwindet:
+### Türme dominieren, Grün bleibt Beiwerk
+Neue Gewichte in `sceneryKinds.ts` (Türme zusammen 82 %):
 
 | Art | Gewicht |
 |---|---|
-| `scenery-tower-a` | 3 |
-| `scenery-tower-b` | 3 |
-| `scenery-tower-c` | 3 |
-| `scenery-oak` | 2 |
-| `scenery-conifer` | 2 |
+| `scenery-tower-a` | 6 |
+| `scenery-tower-b` | 6 |
+| `scenery-tower-c` | 6 |
+| `scenery-oak` | 1 |
+| `scenery-conifer` | 1 |
 | `scenery-bush` | 1 |
 | `scenery-stone` | 1 |
-| `scenery-cottage` | 1 |
 
-Ergibt 56 % Hochhaus. Die Gewichte gehören als Feld `weight` an `SceneryKind`, die Ziehung als
-gewichtete Auswahl über die vorhandene `this.rng()` — **kein zweiter Zufallsgenerator**, der Seed
-muss reproduzierbar bleiben.
+Bäume, Busch und Stein bleiben als vereinzelte Straßenbepflanzung — sie sollen die Schlucht
+auflockern, nicht prägen. `baseHeightPx` aller Arten bleibt unverändert.
 
-### Dichte
-`BALANCE.scenery.spawnIntervalMs` von `900` auf `650` senken (dichtere Häuserzeile) und
-`BALANCE.scenery.spreadPx` von `48` auf `20` (Häuser stehen an der Straßenkante statt verstreut
-im Grün). `marginPx` bleibt bei `12`.
+### Näher an die Straße, näher zusammen
+In `src/config/balance.ts`:
+- `scenery.marginPx`: `12` → `4` (Fassaden stehen direkt an der Fahrbahnkante)
+- `scenery.spreadPx`: `20` → `6` (fast eine Flucht statt Streuung)
+- `scenery.spawnIntervalMs`: `650` → `400` (dichte Folge)
 
-Seitliche Überlappung zweier Türme ist **erlaubt und erwünscht** — eine geschlossene Häuserfront
-ist genau der Effekt. Es darf aber kein Objekt in die Straße ragen; der bestehende Test
-`keeps every sampled roadside object fully outside the road` muss weiter grün sein.
+Seitliche Überlappung der Türme ist der gewünschte Effekt. Der bestehende Test
+`keeps every sampled roadside object fully outside the road` muss trotzdem grün bleiben — bei
+`marginPx: 4` wird es knapp, aber kein Objekt darf in die Fahrbahn ragen.
 
-### Poolgröße messen, nicht schätzen
-`BALANCE.pools.scenery` steht auf 16. Mit längerer Lebensdauer (Teil 1) und kürzerem
-Spawn-Intervall reicht das nicht mehr. Die neue Größe **wird gemessen**:
+### Poolgröße erneut messen — mit Obergrenze
+Engerer Abstand zur Straße bedeutet, dass Objekte **länger** im Bild bleiben (sie wandern später
+seitlich hinaus), und das kürzere Spawn-Intervall erhöht die Zahl zusätzlich. Die vorhandene
+`simulateSceneryPool` erneut über 120 s laufen lassen und `BALANCE.pools.scenery` auf
+`maxActive + 4` setzen; der Kommentar an der Konstante wird auf den neuen Messwert aktualisiert.
+Der Test, der heute `measured.maxActive` auf `16` und `pools.scenery` auf `20` festnagelt, wird
+auf die neuen Messwerte nachgezogen.
 
-Einen Test schreiben, der die Spawn-/Recycle-Logik über mindestens 120 Sekunden Spielzeit
-simuliert (feste dt-Schritte, deterministischer RNG, `width 390 / height 844`) und die maximale
-Zahl gleichzeitig aktiver Objekte ermittelt. `BALANCE.pools.scenery` = dieses Maximum + 4 Reserve.
-Der Test prüft anschließend, dass `spawn()` in der Simulation **nie** an einem leeren Pool
-scheitert. Kein `create()`/`destroy()` im Hot Path — die Preallocation im Konstruktor bleibt.
-
-Dafür muss die Platzierungs-/Lebensdauer-Logik testbar sein, ohne Phaser zu starten: falls
-nötig die reine Rechnung nach `sceneryLayout.ts` ziehen (wie schon bei `getSceneryPlacement`)
-und aus `scenery.ts` heraus aufrufen.
+**Obergrenze:** Ergibt die Messung mehr als **40** gleichzeitig aktive Objekte, wird
+`spawnIntervalMs` in 50-ms-Schritten erhöht, bis der Messwert bei höchstens 40 liegt — und der
+tatsächlich verwendete Wert im Kommentar begründet. Herleitung der 40: das Spiel lief mit 16
+gleichzeitigen Kulissenobjekten flüssig; Kulissenobjekte sind einfache `Image`-Sprites ohne
+Physik und ohne Kollision, der Faktor 2,5 ist die Reserve, die dieser Task ohne neue
+Leistungsmessung ausschöpfen darf.
 
 ---
 
 ## Akzeptanzkriterien
-1. Kulisse und Fahrbahnmarkierung benutzen **dieselbe** Bewegungsfunktion aus `roadGeometry.ts`;
-   in `scenery.ts` steht keine eigene y-Fortschreibung mehr.
-2. `scenery.ts` clampt `progress` nicht auf 1; Objekte wandern vollständig aus dem Bild und
-   werden recycelt. Ein Test belegt, dass nach 120 s Simulation kein Objekt dauerhaft am unteren
-   Rand hängt.
-3. `BALANCE.scrollSpeed` ist unverändert `180`.
-4. Drei neue Hochhaus-Sprites existieren, sind in `BootScene.ts` geladen und in `sceneryKinds`
-   mit den oben genannten `baseHeightPx` eingetragen.
-5. Die Artenwahl ist gewichtet, benutzt weiterhin `this.rng()` und ist bei gleichem Seed
-   reproduzierbar. Ein Test belegt die Verteilung grob (Hochhaus-Anteil zwischen 45 % und 65 %
-   über 2.000 Ziehungen).
-6. `BALANCE.pools.scenery` ist aus der Simulation hergeleitet, nicht geschätzt; die Herleitung
-   steht als Kommentar an der Konstante (wie bei `bossProjectiles`).
-7. Der bestehende Test `keeps every sampled roadside object fully outside the road` ist grün —
-   auch mit den neuen, breiteren Sprites. Der Test in `scenery.test.ts`, der
-   `expect(BALANCE.pools.scenery).toBe(16)` festnagelt, wird auf den neuen Wert nachgezogen.
-8. `npm run check`, `npm run build` und `npm test` laufen sauber durch.
-9. Keine neuen Laufzeit-Requests, keine neuen Abhängigkeiten.
+1. `getMaxFightSec(1) === 18` und `getMaxFightSec(12) === 40`; die Konstanten 18, 2 und 40 stehen
+   in `balance.ts`, nicht in der Funktion.
+2. Für alle Level 1…12 gilt `minFightSec <= getMaxFightSec(level) < 45,8 s` (die stopY-Schwelle),
+   per Test abgesichert.
+3. Der Kombinationstest über alle 8.064 Fälle nutzt `getMaxFightSec(level)` und ist grün.
+4. `BALANCE.boss.pressureDelayMs`, `advanceSpeed`, `battleY` und `advanceStopBeforeAnchorPx` sind
+   **unverändert** — dieser Task dreht nur an der Kampfdauer.
+5. `scenery-cottage` existiert nirgends mehr: nicht in `sceneryKinds.ts`, nicht in `BootScene.ts`,
+   und die PNG-Datei ist gelöscht.
+6. Türme haben Gewicht 6, die vier Naturarten je 1; ein Test belegt einen Turmanteil zwischen
+   78 % und 86 % über 2.000 Ziehungen.
+7. `marginPx: 4`, `spreadPx: 6`, `spawnIntervalMs` wie gemessen (Start 400, ggf. erhöht).
+8. `BALANCE.pools.scenery` stammt aus der erneuten Simulation, der Messwert liegt bei höchstens 40,
+   und die Herleitung steht als Kommentar an der Konstante.
+9. Der Test `keeps every sampled roadside object fully outside the road` ist mit `marginPx: 4` grün.
+10. `npm run check`, `npm run build` und `npm test` laufen sauber durch.
+11. Keine neuen Laufzeit-Requests, keine neuen Abhängigkeiten.
 
 ## Reißleine
-Wenn die gewichtete Auswahl oder die Pool-Simulation nach **zwei Anläufen** nicht sauber testbar
-ist, ohne Phaser zu instanziieren: Teil 1 allein abliefern (der ist unabhängig und behebt Thomas'
-Hauptbeschwerde), Teil 2 zurückstellen und im Abschlussbericht sagen, woran es lag.
-**Kein zulässiger Ersatz** ist: die Poolgröße doch zu schätzen, den Verteilungstest wegzulassen,
-oder Teil 2 ohne Test einzubauen. Ebenfalls kein Ersatz: `scrollSpeed` senken, um „langsamer"
-zu erreichen.
+Wenn die Poolsimulation auch nach dreimaligem Erhöhen von `spawnIntervalMs` über 40 gleichzeitigen
+Objekten bleibt, ist die Annahme über den Zusammenhang von Abstand und Lebensdauer falsch:
+dann `marginPx` und `spreadPx` auf den alten Werten belassen, nur die Gewichte und das Entfernen
+des Cottage abliefern, und im Abschlussbericht die gemessene Kurve nennen.
+**Kein zulässiger Ersatz** ist: den Pool über 44 hinaus wachsen zu lassen, die Poolgröße zu
+schätzen, oder Objekte im Hot Path zu erzeugen statt vorzuhalten.
 
-## Implementation Summary
-- Gemeinsame perspektivische Scroll-Kurve in `roadGeometry.ts`; Straße und Kulisse verwenden sie nun beide.
-- Kulisse nutzt ungebremsten `progress`, gewichtete Hochhaus-Auswahl und einen aus der 120-Sekunden-Simulation abgeleiteten 20er-Pool.
-- Drei transparente Hochhaus-Sprites (160×400, 224×320, 176×480) sind geladen; `npm run check`, `npm run build` und `npm test` sind grün.
+Für Teil 1 gilt: Wenn die Umstellung auf `getMaxFightSec` den 8.064-Fälle-Test nicht grün bekommt,
+**nicht** den Test aufweichen und **nicht** `minFightSec` senken — stattdessen melden, welche
+Kombination die Grenze reißt und mit welchem Wert.
