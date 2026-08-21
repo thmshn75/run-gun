@@ -117,7 +117,7 @@ Kriterien 1 bis 7 prüft Claude am laufenden Spiel nach.
 
 ## Implementation Summary
 
-- Startwerte sowie die fünf Stufen von Truppe und Feuerrate auf 1 → 6 beziehungsweise 3,0 → 4,5 angepasst.
+- Startwerte sowie die fünf Stufen von Truppe und Feuerrate auf 2 → 7 beziehungsweise 3,0 → 4,5 angepasst.
 - Nebenläufige WebKit-Dauerspeicher-Anfrage, Menühinweis und Laufzähler seit SICHERN ergänzt.
 - Jeder Speicherstand erhält eine zweite lokale Kopie; bei beschädigtem Haupteintrag wird sie wiederhergestellt. Beide Kopien bleiben bei gelöschten Websitedaten verloren; dafür bleibt SICHERN nötig.
 - `npm run check`, `npm run build` und `npm test` erfolgreich; die Speicherfälle sind mit 12 Unit-Tests abgedeckt.
@@ -154,3 +154,44 @@ Thomas nach dem Test: **„Dann starte mit 2 Team"**.
 
 10. Ein Run startet mit genau **zwei** Figuren; das Menü zeigt bei der Truppe den Bereich
     2 bis 7.
+
+
+---
+
+# NACHTRAG 2 (Thomas, 2026-08-21) — Icon ist zu dunkel
+
+Thomas nach dem Blick auf den Homescreen: „Und das Icon Bild aufhellen - wirkt am Bildschirm
+sehr dunkel."
+
+## Befund, gemessen an den erzeugten Dateien
+
+- Mittlere Helligkeit **69 von 255**.
+- **65 % der Fläche** sind dunkler als 60.
+
+Ursache ist der Ausschnitt: Die dunkelgraue Fahrbahn nimmt den größten Teil des Quadrats ein,
+das helle Grün und der Himmel liegen fast vollständig außerhalb.
+
+## Verlangte Korrektur
+
+**Zuerst über den Ausschnitt, erst danach über die Helligkeit** — ein hellgerechnetes dunkles
+Bild wird grau und flau, ein besserer Ausschnitt ist von sich aus hell.
+
+1. Den quadratischen Ausschnitt **nach oben verschieben**, sodass deutlich mehr Wiese und
+   Himmel hineinfallen. Die drei Figuren bleiben das Hauptmotiv und sollen weiterhin
+   mindestens **ein Drittel der Icon-Höhe** einnehmen; sie dürfen im unteren Bereich sitzen.
+2. Reicht das nicht, den Ausschnitt zusätzlich moderat aufhellen — **höchstens 25 %**, damit
+   die Farben kräftig bleiben und das Bild nicht ausbleicht.
+3. Die Zielwerte unten sind im Skript als Kommentar festzuhalten, damit beim nächsten
+   Anfassen klar ist, wonach der Ausschnitt gewählt wurde.
+
+## Zusätzliche Akzeptanzkriterien
+
+11. Die mittlere Helligkeit von `public/icon-512.png` liegt bei **mindestens 115** von 255
+    (vorher 69).
+12. Höchstens **35 %** der Fläche sind dunkler als 60 (vorher 65 %).
+13. Die drei Figuren sind weiterhin klar erkennbar und nehmen mindestens ein Drittel der
+    Icon-Höhe ein.
+14. Alle drei Dateien werden neu erzeugt und sind weiterhin quadratisch, deckend und in der
+    richtigen Größe; das Kontrollbild unter `assets/probe/icons-kontrolle.png` wird erneuert.
+
+Kriterien 11 und 12 misst Claude an den erzeugten Dateien nach, Kriterium 13 am Kontrollbild.
