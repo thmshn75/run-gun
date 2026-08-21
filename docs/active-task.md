@@ -1,150 +1,101 @@
 # Active Task
 
 ## Status
-`APPROVED`
+`SPEC_READY`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**Sperren ab Level 1, steigende Häufigkeit, drei neue Waffen ab Level 3.**
+**Ruckeln beseitigen: Kollisionsprüfung auf die aktive Waffe beschränken.**
 
-Thomas-Entscheidung vom 2026-08-21: „ich möchte die tore schon ab level 1 aber die häufigkeit
-der waffen weniger und ab 2 häufiger und ab 3 zusätzliche waffen — Minigun, Flammenwerfer und
-was dir sonst noch einfällt".
+Thomas' iPhone-Test vom 2026-08-21: „irgendwas stimmt mit der neuen Version nicht, sie ruckelt
+… ist nicht wirklich spielbar."
+
+**Dies ist ein reiner Leistungs-Task. Am Spielverhalten darf sich nichts ändern.**
 
 ---
 
-# Teil 1 — Sperren ab Level 1
+## Befund: gemessen, nicht vermutet
 
-`blockers.spawnIntervalMsByDesignLevel` steht heute auf `[0, 0, 21000, …]`; die ersten beiden
-Level haben also keine Sperren und damit keinen Weg zu einer anderen Waffe.
+CPU-Profil im laufenden Spiel (Chrome, Level 1, 6 Sekunden):
 
-1. **Level 1 bekommt Sperren, aber selten** — deutlich seltener als Level 3, sodass in einem
-   Level-1-Durchlauf typischerweise **eine** Sperre erscheint, nicht mehrere.
-2. **Level 2 liegt spürbar darüber**, aber noch unter Level 3.
-3. Die übrigen Level bleiben wie sie sind.
-4. Die Regel aus E9 gilt unverändert: Eine Sperre erscheint **nie** ohne gleichzeitig
-   anlaufende Gegner, und daneben bleibt immer ein freier Weg.
+| Anteil an der Rechenzeit | Funktion |
+|---|---|
+| **49,7 %** | `collideSpriteVsGroup` (Phaser) |
+| **8,1 %** | `collideGroupVsGroup` (Phaser) |
+| 2,1 % | `separate` (Phaser) |
+| unter 1,5 % | jeweils der eigene Spielcode |
 
-# Teil 2 — Drei neue Waffen
+**Rund 60 % der Rechenzeit stecken in der Kollisionsprüfung.** Der Grund steht in
+`src/systems/weapons.ts`: Alle Projektile **aller sieben Waffen** werden in **eine einzige**
+Physik-Gruppe gelegt — heute 520 Objekte. Diese Gruppe geht in drei Prüfungen pro Bild ein
+(gegen Gegner, gegen Boss, gegen Sperren). Phaser läuft dabei über **jedes** Mitglied, auch
+über die mehr als 400 Projektile der Waffen, die gerade gar nicht getragen werden.
 
-Zu Standard, Schrot, Laser und Rakete kommen drei Typen dazu. Sie müssen sich **deutlich
-unterschiedlich anfühlen**, sonst ist eine davon überflüssig (Reißleine E4 in `docs/plan.md`).
+Frame-Zeiten bei achtfach gedrosselter CPU, gemessen an drei Ständen:
 
-| Typ | Charakter | Technische Umsetzung |
-|---|---|---|
-| **Minigun** | Sehr hohe Feuerrate, wenig Schaden je Schuss. Mäht leichte Gegner weg, tut sich gegen schwere schwer. | Hoher `rateFactor`, niedriger `damageFactor`, ein Projektil, hohe Geschossgeschwindigkeit |
-| **Flammenwerfer** | Breiter Kegel auf kurze Distanz, trifft mehrere gleichzeitig, zwingt näher an die Gegner heran. | Mehrere Projektile im Fächer, kleiner `rangePx`, hoher `rateFactor`, niedriger `damageFactor` |
-| **Kettenblitz** | Der Treffer springt vom getroffenen Gegner auf nahe Gegner über. Stark gegen die Trupp-Formationen aus E7, schwach gegen Einzelgegner. | Neue Waffen-Eigenschaften `chainCount` und `chainRadiusPx`; beim Treffer werden bis zu `chainCount` weitere Gegner im Radius mit verringertem Schaden getroffen |
+| Stand | Frame-Zeit |
+|---|---|
+| `346665a` (nach E7, von Thomas als gut bewertet) | 217 ms |
+| `f548e32` (vor den neuen Waffen) | 233 ms |
+| `4f4b288` (heute) | 267 ms |
 
-## Verbindliche Obergrenze für die Projektillast
+Der Anstieg ist die Summe mehrerer Etappen; die drei neuen Waffen waren der letzte Tropfen
+(+51 % Poolgröße in genau der teuersten Schleife).
 
-Bei voller Feuerrate und acht Schützen ergäbe eine Minigun rund **150**, ein Flammenwerfer
-rund **167** gleichzeitige Projektile. Die Schrotflinte — bisher der schlimmste Fall im Spiel —
-liegt bei **78**. Das Doppelte davon bricht dem iPhone genau im besten Moment das Genick.
+## Verlangte Umsetzung
 
-**Deshalb:** Beide Waffen bekommen eine **reduzierte Schützenzahl je Salve**
-(`shootersPerSalvo`), so wie es die Rakete mit 3 bereits vorlebt. Die Spitzenlast jeder neuen
-Waffe muss **unter dem Wert der Schrotflinte bleiben**. Der Rechenweg gehört als Kommentar an
-jede Waffe **und** an ihre Poolgröße — Salven pro Sekunde × Schützen × Projektile pro Schuss ×
-Flugzeit.
-
-Sichtbar bleibt trotzdem, dass alle Figuren feuern: Die Salve wandert wie bisher reihum durch
-die Truppe.
-
-## Weitere Vorgaben
-
-1. **Getrennter Projektil-Pool je neuer Waffe**, jeder mit eigener Herleitung — dieselbe Regel
-   wie für die vier vorhandenen.
-2. **Der Kettenblitz erzeugt für die Übersprünge keine zusätzlichen Projektile.** Die
-   Übersprünge sind reine Schadensanwendung im Radius, optisch begleitet von einem kurzen
-   Aufblitzen aus einem kleinen eigenen Pool — **kein Partikelsystem** (V1-Regel).
-   Ein Gegner darf pro Schuss **höchstens einmal** getroffen werden, sonst schaukelt sich der
-   Schaden in dichten Trupps unkontrolliert auf.
-3. **Waffen haben ein Mindestlevel.** Die drei neuen erscheinen erst ab Level 3. Die Auswahl
-   in `Spawner.chooseBlockerWeapon` liest künftig das Mindestlevel aus der Waffen-Konfiguration
-   statt einer fest verdrahteten Liste — sonst wird die nächste Waffe wieder vergessen.
-   Die Regel „nie die aktuell getragene Waffe" bleibt.
-4. **Symbole:** Für jede neue Waffe wird ein `weapon-<key>-gate`-Symbol im Stil der vorhandenen
-   erzeugt, dazu die nötigen Projektil-Texturen. Verfahren wie im Projekt üblich: groß
-   erzeugen, dann auf Zielgröße herunterrechnen; große Vorlage nach `assets/probe/`, das
-   fertige Bild nach `src/assets/` (siehe `docs/lessons.md`).
-5. **Die Waffenwerte gehören vollständig nach `balance.ts`**, wie bei den vorhandenen vier.
+1. **Jede Waffe bekommt ihre eigene Physik-Gruppe** statt einer gemeinsamen. Die Pools bleiben
+   wie sie sind — es ändert sich nur, in welcher Gruppe die Objekte liegen.
+2. **In die Kollisionsprüfung geht nur die Gruppe der aktiven Waffe.** Beim Waffenwechsel wird
+   die Prüfung auf die neue Gruppe umgehängt: alten Collider entfernen
+   (`Phaser.Physics.Arcade.Collider.destroy()` oder `physics.world.removeCollider`), neuen
+   anlegen. Damit sinkt die Zahl geprüfter Objekte von 520 auf 24 bis 128, je nach Waffe.
+3. **Prüfungen gegen Ziele, die es gerade nicht gibt, werden abgeschaltet:**
+   - Der Collider gegen den Boss ist nur während der Bossphase aktiv.
+   - Die Collider gegen Sperren und deren Belohnung sind nur aktiv, während eine Sperre im
+     Bild ist.
+   Ein Collider auf ein inaktives Ziel kostet trotzdem den vollen Durchlauf über die Gruppe.
+4. **`getProjectiles()` bleibt für alles erhalten, was den Gesamtbestand braucht** (etwa die
+   Bewegung im `update`). Nur die Kollisionsprüfung wird eingeschränkt.
 
 ## Ausdrücklich nicht ändern
 
-- Die vier vorhandenen Waffen und ihre Werte.
-- Tore, Boss, Leveltabelle im Übrigen, Trupps, Menü, Titelbildschirm, Speicherformat.
-- Die Regel, dass höchstens `crowd.shootersPerSalvo` Figuren gleichzeitig feuern und jede
-  weitere Figur stattdessen den Schaden erhöht.
+- **Kein Spielverhalten.** Trefferverhalten, Schaden, Reichweite, Waffenwerte, Poolgrößen,
+  Balance — alles bleibt. Das ist ein reiner Umbau der Kollisionsverdrahtung.
+- Die Trefferprüfung aus Commit `729df4d` (Treffer nur bei echter Berührung einer Figur).
+- Die Kettenblitz-Logik, die Sperren-Mechanik, die Trupps, den Boss.
+- Keine neuen Abhängigkeiten.
 
 ## Reißleine
 
-Ruckelt eine der neuen Waffen am iPhone, wird zuerst die **Schützenzahl je Salve** gesenkt,
-danach der `rateFactor` — die Waffe fliegt nicht raus. Fühlt sich dagegen eine der drei nach
-einem Balance-Zyklus wie eine Variante einer vorhandenen an, **fliegt sie raus statt weiter
-getunt zu werden** (Reißleine E4 aus `docs/plan.md`).
+Reicht die Umstellung nicht, ist der nächste Hebel die **Zahl der Kollisionspaare**, nicht die
+Spielbalance: Gegner und Sperren könnten in einer gemeinsamen Gruppe geprüft und danach
+unterschieden werden. **Poolgrößen oder Gegnerzahlen zu senken ist ausdrücklich nicht der
+erste Weg** — das wäre Scope-Abbau statt einer Behebung der Ursache.
 
 ## Akzeptanzkriterien
 
-1. In Level 1 erscheinen Sperren, aber seltener als in Level 2, und dort seltener als in
-   Level 3. Unit-Test über `blockers.spawnIntervalMsByDesignLevel`.
-2. Ein Unit-Test weist für **jede** Waffe nach, dass die rechnerische Spitzenlast an
-   gleichzeitigen Projektilen unter der der Schrotflinte liegt, und dass die Poolgröße über
-   dieser Spitzenlast liegt.
-3. Die drei neuen Waffen sind vor Level 3 nicht erreichbar; ab Level 3 sind sie in der Auswahl
-   an der Sperre enthalten. Unit-Test über die Auswahlfunktion.
-4. `Spawner.chooseBlockerWeapon` liest die verfügbaren Waffen aus der Konfiguration, nicht aus
-   einer im Code stehenden Liste.
-5. Der Kettenblitz trifft jeden Gegner höchstens einmal pro Schuss und erzeugt keine
-   zusätzlichen Projektile.
-6. Jede neue Waffe hat ein eigenes Symbol und einen eigenen Projektil-Pool mit dokumentierter
-   Herleitung.
-7. Die vier vorhandenen Waffen verhalten sich unverändert.
-8. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
+1. Jede Waffe hat eine eigene Physik-Gruppe; in den Kollisionsprüfungen steckt nie mehr als
+   die Gruppe der aktiven Waffe.
+2. Ein Wechsel der Waffe hängt die Prüfung korrekt um: Nach dem Wechsel treffen die Projektile
+   der neuen Waffe, und die der alten sind sauber recycelt. Unit-Test oder klar belegbarer
+   Codepfad.
+3. Der Collider gegen den Boss ist außerhalb der Bossphase nicht registriert; die Collider
+   gegen Sperre und Belohnung nur, während eine Sperre im Bild ist.
+4. Das Spielverhalten ist unverändert: Alle bestehenden Tests laufen ohne inhaltliche Anpassung
+   weiter durch. Werden Tests angepasst, ist im Bericht **einzeln zu begründen**, warum das
+   keine Verhaltensänderung ist.
+5. Es gibt keinen Weg mehr, über den eine inaktive Waffe in eine Kollisionsprüfung gerät.
+6. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
 
-Kriterien 1 bis 6 und 8 prüfst du selbst. Kriterium 7 prüft Claude; ob sich die neuen Waffen
-unterschiedlich anfühlen und ob das iPhone die Last trägt, entscheidet Thomas am Gerät.
+**Claude misst nach:** CPU-Profil und Frame-Zeit bei achtfacher Drosselung. Zielwert: **unter
+217 ms**, also besser als der von Thomas als gut bewertete Stand — und der Anteil der
+Kollisionsfunktionen deutlich unter den heutigen 58 %.
 
 ## Implementation Summary
 
-- Sperren erscheinen ab Level 1 im 60-Sekunden-Abstand, ab Level 2 alle 36 Sekunden und ab Level 3 unverändert alle 21 Sekunden. Die bestehende E9-Kopplung an gleichzeitig spawnende Gegner und den freien Durchgang bleibt unverändert.
-- Minigun, Flammenwerfer und Kettenblitz sind ab Level 3 konfigurationsgesteuert verfügbar. Minigun feuert schnell mit wenig Schaden, der Flammenwerfer drei kurze Fünfer-Fächer und der Kettenblitz trifft bis zu drei nahe Gegner mit reduziertem Sprungschaden.
-- Jede neue Waffe hat einen eigenen Projektileintrag, Pool samt dokumentierter Lastrechnung, erzeugte Gate-/HUD-Symbole und eine eigene Projektiltextur. Der Kettenblitz nutzt einen kleinen Aufblitz-Pool, ohne zusätzliche Projektile anzulegen.
-- Die Sperrenauswahl liest alle Waffen und ihr Mindestlevel aus `balance.ts`; die aktuell getragene Waffe bleibt ausgeschlossen.
+<!-- Von Codex auszufüllen -->
 
 ## Verification
 
-- `npm run check` erfolgreich (TypeScript fehlerfrei).
-- `npm test` erfolgreich: 11 Testdateien, 43 Tests bestanden. Die neuen Tests prüfen Sperrenintervalle, Projektillast und Poolreserve, Level-Freigabe aus der Konfiguration sowie einmalige Kettenblitz-Ziele ohne Zusatzgeschoss.
-- `npm run build` erfolgreich; die neuen Symbol-Dateien sind im Produktions-Bundle enthalten. Vite meldet weiterhin nur die bereits allgemeine Chunk-Größenwarnung.
-- Nicht automatisch geprüft: Spielgefühl und iPhone-Leistung; diese Akzeptanz liegt laut Aufgabe bei Thomas. Der sichtbare Terminal-Start war wegen einer macOS-AppleScript-Verbindungsstörung nicht möglich, daher liefen die rein lokalen Prüfungen direkt im Projektordner.
-
-## Review-Ergebnis (Claude)
-
-Alle acht Kriterien erfuellt.
-
-- **Kriterium 1:** Sperren-Abstaende 60 s / 36 s / 21 s fuer die Level 1 / 2 / 3 — ab Level 1
-  vorhanden und mit steigender Haeufigkeit, wie verlangt.
-- **Kriterium 2, 6:** Spitzenlast selbst nachgerechnet, gegen die Schrotflinte als Referenz
-  (78,4 gleichzeitige Projektile): **Minigun 40,7 — Flammenwerfer 66,2 — Kettenblitz 29,9.**
-  Alle drei liegen darunter. Erreicht wird das ueber `shootersPerSalvo` 3 / 3 / 6 statt 8, wie
-  vorgegeben. Jede Waffe hat einen eigenen Pool mit dokumentierter Herleitung.
-- **Kriterium 3, 4:** Mindestlevel stehen in `balance.ts` (`minLevel: 3`), und
-  `blockerWeaponChoices.ts` liest sie aus der Konfiguration statt aus einer Liste im Code.
-- **Kriterium 5:** Der Kettenblitz nutzt einen Aufblitz-Pool statt zusaetzlicher Projektile;
-  ein Test prueft, dass jeder Gegner pro Schuss hoechstens einmal getroffen wird.
-- **Symbole:** Alle drei im Pixel-Art-Stil und im gleichen Format wie die vorhandenen
-  (150x44). Sichtgeprueft — Minigun mit rotierenden Laeufen, Flammenwerfer mit Tank und
-  Flamme, Kettenblitz mit blauen Blitzen. Klar voneinander unterscheidbar.
-- **Kriterium 7, 8:** Die vier vorhandenen Waffen sind im Diff unveraendert.
-  `npm run check`, `npm run build`, `npm test` selbst im Terminal ausgefuehrt, Exit 0,
-  11 Testdateien, 43 Tests.
-
-**Offener Nebenpunkt, in die naechste Etappe uebernommen:** Der Flammenwerfer-Pool hat mit 72
-Plaetzen gegen 66,2 benoetigte nur **9 % Reserve**; die uebrigen Waffen liegen bei 32 bis 60 %.
-`docs/plan.md` verlangt eine Marge ueber dem theoretischen Maximum. Bei voller Feuerrate und
-verzoegertem Recycling koennten einzelne Flammen still verschwinden.
-
-**Nicht am laufenden Spiel geprueft:** Die neuen Waffen erscheinen ab Level 3. Dieses Level ist
-im Test nicht erreichbar, ohne das Spiel wirklich zu spielen — die Sichtpruefung im Lauf und
-die Leistung am iPhone liegen bei Thomas.
+<!-- Von Codex auszufüllen -->
