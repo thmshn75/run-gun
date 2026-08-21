@@ -30,15 +30,15 @@ export const BALANCE = {
     gameplay: 2,
   },
   stats: {
-    hp: { base: 3, cap: 30, floor: 0 },
+    hp: { base: 2, cap: 30, floor: 0 },
     damage: { base: 1, cap: 20, floor: 1 },
-    shotsPerSec: { base: 3.5, cap: 8, floor: 1 },
+    shotsPerSec: { base: 3, cap: 8, floor: 1 },
     speed: { base: 105, cap: 305, floor: 70 },
   },
   upgradesShop: {
-    team: { label: 'TRUPPE', base: 3, max: 8, effectPerLevel: 1 },
+    team: { label: 'TRUPPE', base: 2, max: 7, effectPerLevel: 1 },
     damage: { label: 'SCHADEN', base: 1, max: 3.5, effectPerLevel: 0.5 },
-    rate: { label: 'FEUERRATE', base: 3.5, max: 5, effectPerLevel: 0.3 },
+    rate: { label: 'FEUERRATE', base: 3, max: 4.5, effectPerLevel: 0.3 },
     prices: [50, 120, 250, 450, 750],
   },
   menu: {
@@ -54,7 +54,7 @@ export const BALANCE = {
     scoresTitleY: 502,
     scoresFirstLineY: 528,
     scoresLineHeight: 21,
-    saveLoadButtonsY: 662,
+    saveLoadButtonsY: 682,
     saveLoadButtonHeight: 36,
     saveLoadButtonGap: 10,
     playButtonHeight: 54,

@@ -6,6 +6,9 @@ import { BootScene } from './scenes/BootScene'
 import { GameOverScene } from './scenes/GameOverScene'
 import { GameScene } from './scenes/GameScene'
 import { MenuScene } from './scenes/MenuScene'
+import { requestPersistentStorage } from './systems/storagePersistence'
+
+requestPersistentStorage()
 
 const hadController = navigator.serviceWorker?.controller != null
 let pendingReload = false

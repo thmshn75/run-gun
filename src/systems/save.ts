@@ -14,9 +14,11 @@ export interface SaveData {
   }
   highestLevel: number
   scores: ScoreEntry[]
+  runsSinceExport: number
 }
 
 const SAVE_KEY = 'rungun_save_v1'
+const BACKUP_SAVE_KEY = 'rungun_save_v1_backup'
 const MAX_UPGRADE_LEVEL = 5
 const MAX_SCORES = 10
 
@@ -27,15 +29,19 @@ export function defaultSave(): SaveData {
     upgrades: { team: 0, damage: 0, rate: 0 },
     highestLevel: 1,
     scores: [],
+    runsSinceExport: 0,
   }
 }
 
 export function loadSave(): SaveData {
   try {
-    const text = localStorage.getItem(SAVE_KEY)
-    if (text === null) return defaultSave()
-    const parsed = parseSave(text)
-    return parsed.ok ? parsed.data : defaultSave()
+    const primary = readStoredSave(SAVE_KEY)
+    if (primary !== undefined) return primary
+
+    const backup = readStoredSave(BACKUP_SAVE_KEY)
+    if (backup === undefined) return defaultSave()
+    writeSave(backup)
+    return backup
   } catch {
     return defaultSave()
   }
@@ -43,7 +49,10 @@ export function loadSave(): SaveData {
 
 export function writeSave(data: SaveData): void {
   try {
-    localStorage.setItem(SAVE_KEY, serializeSave(data))
+    const text = serializeSave(data)
+    localStorage.setItem(SAVE_KEY, text)
+    // This only repairs one damaged local entry. Both keys are in the same localStorage; deleting website data or the Home Screen app removes both copies, and SICHERN is the only recovery for that.
+    localStorage.setItem(BACKUP_SAVE_KEY, text)
   } catch {
     if (import.meta.env.DEV) console.warn('Spielstand konnte nicht gespeichert werden.')
   }
@@ -58,7 +67,7 @@ export function parseSave(text: string): { ok: true; data: SaveData } | { ok: fa
   }
   if (!isRecord(value)) return { ok: false, reason: 'Text ist kein gültiger Spielstand.' }
   if (value.version !== 1) return { ok: false, reason: 'Spielstand stammt aus einer anderen Version.' }
-  if (!isNonNegativeNumber(value.coins) || !isFiniteNumberAtLeast(value.highestLevel, 1)) {
+  if (!isNonNegativeNumber(value.coins) || !isFiniteNumberAtLeast(value.highestLevel, 1) || (value.runsSinceExport !== undefined && !isNonNegativeNumber(value.runsSinceExport))) {
     return { ok: false, reason: 'Spielstand enthält ungültige Zahlen.' }
   }
   if (!isRecord(value.upgrades) || !isUpgradeLevel(value.upgrades.team) || !isUpgradeLevel(value.upgrades.damage) || !isUpgradeLevel(value.upgrades.rate)) {
@@ -84,6 +93,7 @@ export function parseSave(text: string): { ok: true; data: SaveData } | { ok: fa
         level: clampNonNegative(entry.level),
         timeMs: clampNonNegative(entry.timeMs),
       })),
+      runsSinceExport: value.runsSinceExport === undefined ? 0 : clampNonNegative(value.runsSinceExport),
     },
   }
 }
@@ -103,6 +113,13 @@ export function qualifiesForScores(data: SaveData, coins: number): boolean {
   if (data.scores.length < MAX_SCORES) return true
   const lowestScore = data.scores.reduce((lowest, entry) => Math.min(lowest, entry.coins), Infinity)
   return coins > lowestScore
+}
+
+function readStoredSave(key: string): SaveData | undefined {
+  const text = localStorage.getItem(key)
+  if (text === null) return undefined
+  const parsed = parseSave(text)
+  return parsed.ok ? parsed.data : undefined
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

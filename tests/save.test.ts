@@ -12,6 +12,7 @@ import {
 import { getUpgradePrice, getUpgradeStartValue, purchaseUpgrade } from '../src/systems/upgrades'
 
 const SAVE_KEY = 'rungun_save_v1'
+const BACKUP_SAVE_KEY = 'rungun_save_v1_backup'
 
 class MemoryStorage implements Storage {
   private readonly values = new Map<string, string>()
@@ -60,10 +61,18 @@ describe('save system', () => {
       upgrades: { team: 2, damage: 3, rate: 4 },
       highestLevel: 5,
       scores: [{ coins: 12, level: 2, timeMs: 3456 }],
+      runsSinceExport: 4,
     }
     writeSave(save)
     expect(loadSave()).toEqual(save)
     expect(parseSave(serializeSave(save))).toEqual({ ok: true, data: save })
+  })
+
+  it('writes a valid backup entry with every save', () => {
+    const saved = { ...defaultSave(), coins: 73 }
+    writeSave(saved)
+
+    expect(parseSave(storage.getItem(BACKUP_SAVE_KEY)!)).toEqual({ ok: true, data: saved })
   })
 
   it('rejects wrong versions and invalid numeric values', () => {
@@ -92,6 +101,27 @@ describe('save system', () => {
     if (result.ok) expect(result.data).not.toHaveProperty('unexpected')
   })
 
+  it('recovers a broken primary save from a valid backup and restores the primary entry', () => {
+    const saved = { ...defaultSave(), coins: 88, runsSinceExport: 10 }
+    storage.setItem(SAVE_KEY, '{broken')
+    storage.setItem(BACKUP_SAVE_KEY, serializeSave(saved))
+
+    expect(loadSave()).toEqual(saved)
+    expect(parseSave(storage.getItem(SAVE_KEY)!)).toEqual({ ok: true, data: saved })
+  })
+
+  it('returns defaults without an error when both save entries are broken', () => {
+    storage.setItem(SAVE_KEY, '{broken')
+    storage.setItem(BACKUP_SAVE_KEY, '{also broken')
+
+    expect(loadSave()).toEqual(defaultSave())
+  })
+
+  it('accepts save texts from before runsSinceExport existed', () => {
+    const { runsSinceExport: _runsSinceExport, ...legacySave } = defaultSave()
+    expect(parseSave(JSON.stringify(legacySave))).toEqual({ ok: true, data: defaultSave() })
+  })
+
   it('keeps the ten best scores without mutating its input', () => {
     const full = {
       ...defaultSave(),
@@ -109,15 +139,18 @@ describe('save system', () => {
 
   it('buys exactly one upgrade level and persists it across a reload', () => {
     const save = { ...defaultSave(), coins: 170 }
+    expect(getUpgradeStartValue('team', 0)).toBe(2)
+    expect(getUpgradeStartValue('rate', 0)).toBe(3)
     const bought = purchaseUpgrade(save, 'team')
     expect(bought).toEqual({ ...save, coins: 120, upgrades: { team: 1, damage: 0, rate: 0 } })
     expect(save).toEqual({ ...defaultSave(), coins: 170 })
     if (bought === undefined) throw new Error('Expected purchase to succeed')
     writeSave(bought)
     expect(loadSave()).toEqual(bought)
-    expect(getUpgradeStartValue('team', bought.upgrades.team)).toBe(4)
+    expect(getUpgradeStartValue('team', bought.upgrades.team)).toBe(3)
+    expect(getUpgradeStartValue('team', 5)).toBe(7)
     expect(getUpgradeStartValue('damage', 5)).toBe(3.5)
-    expect(getUpgradeStartValue('rate', 5)).toBe(5)
+    expect(getUpgradeStartValue('rate', 5)).toBe(4.5)
   })
 
   it('does not buy an unaffordable or fully upgraded shop item', () => {

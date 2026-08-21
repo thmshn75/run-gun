@@ -3,6 +3,7 @@ import { BALANCE } from '../config/balance'
 import { HUD_COLORS, MENU_COLORS } from '../config/colors'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { loadSave, parseSave, serializeSave, writeSave, type SaveData, type ScoreEntry } from '../systems/save'
+import { onPersistentStorageStatusChanged, readPersistentStorageStatus } from '../systems/storagePersistence'
 import {
   getShopUpgradeKeys,
   getUpgradePrice,
@@ -15,6 +16,8 @@ export class MenuScene extends Phaser.Scene {
   private save!: SaveData
   private insets!: SafeAreaInsets
   private balanceText!: Phaser.GameObjects.Text
+  private persistentStorageGranted = false
+  private unsubscribePersistentStorageStatus?: () => void
   private readonly shopObjects: Phaser.GameObjects.GameObject[] = []
   private saveView?: HTMLDivElement
 
@@ -54,7 +57,17 @@ export class MenuScene extends Phaser.Scene {
       this.scene.start('GameScene')
     })
     this.renderShop()
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.closeSaveView())
+    const updatePersistentStorageStatus = (granted: boolean) => {
+      this.persistentStorageGranted = granted
+      if (this.scene.isActive()) this.renderShop()
+    }
+    this.unsubscribePersistentStorageStatus = onPersistentStorageStatusChanged(updatePersistentStorageStatus)
+    void readPersistentStorageStatus().then(updatePersistentStorageStatus)
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.unsubscribePersistentStorageStatus?.()
+      this.unsubscribePersistentStorageStatus = undefined
+      this.closeSaveView()
+    })
   }
 
   private renderShop(): void {
@@ -71,6 +84,7 @@ export class MenuScene extends Phaser.Scene {
       this.renderUpgradeRow(key, rowX, y, rowWidth)
     })
     this.renderScores(rowX)
+    this.renderStorageNotice(rowX)
     this.renderSaveLoadButtons(safeLeft, safeWidth)
   }
 
@@ -90,6 +104,18 @@ export class MenuScene extends Phaser.Scene {
         fontFamily: 'system-ui', fontSize: '15px', color: this.colorFor(MENU_COLORS.text),
       }))
     })
+  }
+
+  private renderStorageNotice(x: number): void {
+    const y = this.insets.top + BALANCE.menu.scoresFirstLineY + Math.max(1, this.save.scores.length) * BALANCE.menu.scoresLineHeight + 4
+    const text = this.save.runsSinceExport >= 10
+      ? `Seit ${this.save.runsSinceExport} Läufen nicht gesichert.`
+      : this.persistentStorageGranted
+        ? 'Speicher gesichert'
+        : 'Speicher nicht gesichert — sichere deinen Stand gelegentlich.'
+    this.track(this.add.text(x, y, text, {
+      fontFamily: 'system-ui', fontSize: '12px', color: this.colorFor(MENU_COLORS.mutedText),
+    }))
   }
 
   private renderSaveLoadButtons(safeLeft: number, safeWidth: number): void {
@@ -141,14 +167,19 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private openExportView(): void {
-    const text = serializeSave(loadSave())
+    this.save = { ...loadSave(), runsSinceExport: 0 }
+    writeSave(this.save)
+    const text = serializeSave(this.save)
     const { view, textarea } = this.createSaveView('SPIELSTAND SICHERN', 'Der Text ist zum Kopieren markierbar. Kopieren wurde zusätzlich versucht.')
     textarea.value = text
     textarea.readOnly = true
     textarea.setAttribute('aria-label', 'Spielstand zum Kopieren')
     const clipboard = navigator.clipboard
     if (clipboard !== undefined) void clipboard.writeText(text).catch(() => undefined)
-    this.addDomButton(view, 'FERTIG', () => this.closeSaveView())
+    this.addDomButton(view, 'FERTIG', () => {
+      this.closeSaveView()
+      this.renderShop()
+    })
   }
 
   private openImportView(): void {

@@ -70,9 +70,9 @@ Drei Aufwertungen, je fünf Stufen, gleiche Preisreihe: **50, 120, 250, 450, 750
 
 | Aufwertung | Wirkung je Stufe | von → bis |
 |---|---|---|
-| Truppe | +1 Startfigur | 3 → 8 |
+| Truppe | +1 Startfigur | 2 → 7 |
 | Schaden | +0,5 Startschaden | 1 → 3,5 |
-| Feuerrate | +0,3 Schuss/s | 3,5 → 5,0 |
+| Feuerrate | +0,3 Schuss/s | 3,0 → 4,5 |
 
 Begründung für genau drei: Sie entsprechen den drei Statwerten, die im Run ohnehin über Tore
 verändert werden. Ein vierter Kauf auf Geschwindigkeit wäre eine Verschlechterung, weil

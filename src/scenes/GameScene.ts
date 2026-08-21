@@ -357,7 +357,12 @@ export class GameScene extends Phaser.Scene {
       ? saved.scores.filter((score) => score.coins >= runCoins).length + 1
       : undefined
     const withScore = addScore(saved, { coins: runCoins, level: this.currentLevel, timeMs: this.elapsedMs })
-    writeSave({ ...withScore, coins: withScore.coins + runCoins, highestLevel: Math.max(withScore.highestLevel, this.currentLevel) })
+    writeSave({
+      ...withScore,
+      coins: withScore.coins + runCoins,
+      highestLevel: Math.max(withScore.highestLevel, this.currentLevel),
+      runsSinceExport: withScore.runsSinceExport + 1,
+    })
     this.scene.start('GameOverScene', { coins: runCoins, scorePlace })
   }
 

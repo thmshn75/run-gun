@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from PIL import Image
+from PIL import ImageEnhance
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -10,14 +11,17 @@ OUTPUTS = {
     512: ROOT / 'public/icon-512.png',
     180: ROOT / 'public/apple-touch-icon.png',
 }
-# This 390px square includes the three foreground survivors and the oncoming horde,
-# so the small icon stays recognisable without relying on the ignored source artwork.
-TITLE_CROP_BOX = (0, 155, 390, 545)
+# This 390px square is shifted upward to include more sky and meadow while keeping
+# the three foreground survivors clearly readable in the lower half. Target: average
+# brightness >= 115/255 and no more than 35% of pixels darker than 60/255.
+TITLE_CROP_BOX = (0, 40, 390, 430)
+BRIGHTNESS_FACTOR = 1.2  # Moderate 20% lift; never exceed the requested 25%.
 CONTACT_SHEET_PATH = ROOT / 'assets/probe/icons-kontrolle.png'
 
 
 def make_icon(size: int, title: Image.Image) -> Image.Image:
-    return title.crop(TITLE_CROP_BOX).resize((size, size), Image.Resampling.NEAREST).convert('RGB')
+    crop = title.crop(TITLE_CROP_BOX)
+    return ImageEnhance.Brightness(crop).enhance(BRIGHTNESS_FACTOR).resize((size, size), Image.Resampling.NEAREST).convert('RGB')
 
 
 def make_contact_sheet(icons: dict[int, Image.Image]) -> Image.Image:

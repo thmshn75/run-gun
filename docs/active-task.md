@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -121,6 +121,7 @@ Kriterien 1 bis 7 prüft Claude am laufenden Spiel nach.
 - Nebenläufige WebKit-Dauerspeicher-Anfrage, Menühinweis und Laufzähler seit SICHERN ergänzt.
 - Jeder Speicherstand erhält eine zweite lokale Kopie; bei beschädigtem Haupteintrag wird sie wiederhergestellt. Beide Kopien bleiben bei gelöschten Websitedaten verloren; dafür bleibt SICHERN nötig.
 - `npm run check`, `npm run build` und `npm test` erfolgreich; die Speicherfälle sind mit 12 Unit-Tests abgedeckt.
+- Die drei Homescreen-Icons und das Kontrollbild wurden mit einem nach oben verschobenen Ausschnitt und 20 % Aufhellung neu erzeugt. `icon-512.png` misst 120,52/255 mittlere Helligkeit bei 23,34 % Fläche unter 60/255; alle Icons sind quadratisch und deckend.
 
 
 ---
@@ -195,3 +196,17 @@ Bild wird grau und flau, ein besserer Ausschnitt ist von sich aus hell.
     richtigen Größe; das Kontrollbild unter `assets/probe/icons-kontrolle.png` wird erneuert.
 
 Kriterien 11 und 12 misst Claude an den erzeugten Dateien nach, Kriterium 13 am Kontrollbild.
+
+
+## Review-Ergebnis der Nachtraege (Claude, gemessen)
+
+- **Kriterium 10:** `stats.hp.base` steht auf 2; das Menue zeigt bei der Truppe den Bereich
+  2 bis 7.
+- **Kriterium 11 und 12, Icon:** mittlere Helligkeit **130** von 255 (Ziel >= 115, vorher 69);
+  dunkler als 60 sind noch **24 %** der Flaeche (Ziel <= 35 %, vorher 65 %).
+- **Kriterium 13:** Die drei Figuren stehen weiterhin gross im unteren Bereich, darueber
+  Wiese, Baeume, Stadt und Himmel.
+- **Kriterien 3 bis 7 (Speicher):** Zweitkopie entsteht bei jedem Schreiben; ein zerstoerter
+  Haupteintrag wird aus der Kopie wiederhergestellt und neu geschrieben; sind beide zerstoert,
+  startet das Spiel mit Standardwerten **ohne Seitenfehler**. `navigator.storage.persist()`
+  wird aufgerufen und blockiert nichts.
