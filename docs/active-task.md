@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -134,8 +134,71 @@ Thomas am iPhone.
 
 ## Implementation Summary
 
-<!-- Von Codex auszufüllen -->
+- Neue reine Funktion `getBossPlan(level)` liefert gedeckelte HP, strenge Phasenschwelle,
+  Referenz-DPS/Kampfdauer, Phasenwerte, Begleiter-Takt und Zeitdruckwerte aus `balance.ts`.
+  Die HP folgen einer dokumentierten Modellrechnung für die Standardwaffe und sind bei 7.500 gedeckelt.
+- Die gemeinsame, Phaser-freie Funktion `getCrowdDamageMultiplier()` versorgt Treffer in der Szene
+  und die Boss-Referenzrechnung. Diese rechnet mit 15 Figuren nach der Fahrtphase, aber höchstens
+  acht gleichzeitig feuenden Figuren; zusätzliche Figuren erhöhen den Schadensmultiplikator.
+- Boss wechselt bei HP unter der Hälfte einmalig in Phase 2, blitzt kurz weiß auf und bleibt sichtbar
+  eingefärbt. Phase 2 feuert schneller, breiter und mit mehr Geschossen und pendelt schneller.
+- Begleiter werden auf Anforderung aus dem vorhandenen Gegner-Pool aktiviert, sind auf vier aktive
+  Einheiten begrenzt und werden beim Boss-Tod vor dem GESCHAFFT-Overlay recycelt.
+- Nach 36 Sekunden rückt der Boss bis vor den Trupp-Anker vor und erhält dann schweren Kontaktschaden.
+  Bossgeschosse haben ein eigenes 360-ms-Unverwundbarkeitsfenster; Kontakt bleibt bei 1.200 ms.
 
 ## Verification
 
-<!-- Von Codex auszufüllen -->
+- `npm run check` — fehlerfrei.
+- `npm run build` — fehlerfrei; einzig die bestehende, nicht blockierende Chunk-Größenwarnung von Vite.
+- `npm test` — 7 Testdateien, 31 Tests bestanden. `tests/bossPlan.test.ts` prüft Level 1, 6, 12 und 30,
+  die HP-Obergrenze, 20–40 s Referenz-Kampfdauer bis Level 400, die gemeinsame Multiplikatorfunktion,
+  Phasenlatch sowie Begleiter-Obergrenze.
+- Geänderte Balancewerte: Referenztruppe 15 statt 3–8 Figuren, HP-Obergrenze 7.500 statt 2.600.
+  Die Modellwerte lauten auf allen geprüften Leveln: 60 s für die schwache Acht-Figuren-Truppe,
+  30 s für die typische 15-Figuren-Truppe und 15 s für die starke 30-Figuren-Truppe. Die Tests
+  begrenzen diese Reihen auf 45–75 s bzw. 10–20 s, damit starke Läufe den Boss nicht unter 10 s besiegen.
+- `git diff --check` — fehlerfrei. Die Laufzeitkriterien 3, 4, 6, 7, 8 und 9 bleiben wie spezifiziert
+  für Claudes Spielprüfung; iPhone-Balance bleibt Thomas' Entscheidung.
+
+## Review-Ergebnis (Claude, am laufenden Spiel gemessen)
+
+Die **Mechanik** ist vollstaendig und korrekt; die **Kampfdauer** verfehlt das Zielband und
+ist eine Entscheidung fuer Thomas (siehe unten).
+
+- **Kriterium 1, 2, 10:** `npm run check`, `npm run build`, `npm test` selbst im Terminal
+  ausgefuehrt — Exit 0, 7 Testdateien, 31 Tests.
+- **Kriterium 3, 4:** `getBossPhase` prueft `phaseTwoStarted || hp < schwelle`; das Latch
+  verhindert ein Zurueckspringen. Phase 2 aendert vier Groessen: Feuerabstand 1400 -> 820 ms,
+  Geschosse 3 -> 5, Faecher 60 -> 150 px, Pendeltempo 110 -> 170. Farbwechsel plus Aufblitzen,
+  ohne Text.
+- **Kriterium 5, 6:** Begleiter kommen ueber einen Rueckruf aus dem bestehenden Gegner-Pool,
+  Obergrenze 4. `handleBossDefeated` ruft `recycleBossCompanions()` **vor** `deactivate()` und
+  vor dem Overlay.
+- **Kriterium 7:** Nach `pressureDelayMs` setzt `advanceTowardsCrowd` den Kontaktschaden und
+  faehrt bis `getAnchorY() - 80 px`; seitliches Ausweichen bleibt moeglich.
+- **Kriterium 8:** Zwei getrennte Felder, `enemyContactIframeUntilMs` (1200 ms, unveraendert)
+  und `bossProjectileIframeUntilMs` (360 ms).
+- **Kriterium 9:** Im Spiel geprueft — Tore, Truppe, HUD, Muenzen, Bestenliste und der
+  Uebergang nach Level 2 arbeiten unveraendert. Ein Bosskampf wurde vollstaendig gespielt und
+  gewonnen.
+
+### Offener Balance-Punkt: Kampfdauer (Reissleine gezogen)
+
+Der erste Nacharbeitslauf hat den fehlenden Truppen-Schadensmultiplikator behoben. Die
+Referenzrechnung nimmt aber weiterhin **Feuerrate und Schaden auf Basiswert** (Rate 3,
+Schaden 1) an, obwohl beide im Lauf durch Menue-Kaeufe und Tore steigen.
+
+Im gespielten Bosskampf zeigte das HUD **TEAM 22, RATE 5.2, DMG 1.5**. Daraus:
+
+| Fall | Feuerkraft | Kampfdauer bei 1426 HP |
+|---|---|---|
+| gemessen, volle Menue-Upgrades | 185 DPS | **7,7 s** |
+| neuer Spieler, nur Tore | 81 DPS | **17,7 s** |
+| schwacher Lauf, Truppe 8 | 24 DPS | **59,4 s** |
+
+Ziel waren 20–40 s. Die **Reissleine dieser Spec greift damit**: „Liegt sie nach zwei Zyklen
+immer noch ausserhalb, ist nicht die Zahl falsch, sondern die Schadensskalierung der Truppe —
+dann melden statt weiter an den Lebenspunkten drehen." Die Feuerkraft schwankt im Lauf um
+etwa Faktor 20; eine feste Lebenspunktzahl kann das nicht abbilden. Naechster Schritt ist
+Thomas' Entscheidung, kein weiterer Balance-Zyklus.

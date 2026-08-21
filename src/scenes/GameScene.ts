@@ -4,6 +4,7 @@ import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
 import { Coins } from '../systems/coins'
 import { Boss } from '../systems/boss'
 import { Crowd } from '../systems/crowd'
+import { getCrowdDamageMultiplier } from '../systems/crowdDamage'
 import { Gates } from '../systems/gates'
 import { getLevelPlan } from '../systems/levelPlan'
 import { getRoadHalfWidth, Road } from '../systems/road'
@@ -73,7 +74,9 @@ export class GameScene extends Phaser.Scene {
   private gates!: Gates
   private runStats!: RunStats
   private elapsedMs!: number
-  private iframeUntilMs!: number
+  private enemyContactIframeUntilMs!: number
+  private bossProjectileIframeUntilMs!: number
+  private blinkUntilMs!: number
   private nextBlinkAtMs!: number
   private lastPointerX!: number | null
   private hud!: HudSegments
@@ -103,7 +106,9 @@ export class GameScene extends Phaser.Scene {
     this.runStats.set('damage', getUpgradeStartValue('damage', save.upgrades.damage))
     this.runStats.set('shotsPerSec', getUpgradeStartValue('rate', save.upgrades.rate))
     this.elapsedMs = 0
-    this.iframeUntilMs = 0
+    this.enemyContactIframeUntilMs = 0
+    this.bossProjectileIframeUntilMs = 0
+    this.blinkUntilMs = 0
     this.nextBlinkAtMs = 0
     this.lastPointerX = null
     this.gameOverStarted = false
@@ -119,7 +124,12 @@ export class GameScene extends Phaser.Scene {
     const getAnchorPosition = (): Readonly<{ x: number; y: number }> => ({ x: this.crowd.getAnchorX(), y: this.crowd.getAnchorY() })
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
     this.spawner = new Spawner(this, this.runStats)
-    this.boss = new Boss(this, () => this.spawner.allocateSpawnId())
+    this.boss = new Boss(
+      this,
+      () => this.spawner.allocateSpawnId(),
+      () => this.spawner.requestBossCompanion(),
+      () => this.crowd.getAnchorY(),
+    )
     this.coins = new Coins(this, () => this.updateHud())
     this.gates = new Gates(
       this,
@@ -190,6 +200,9 @@ export class GameScene extends Phaser.Scene {
       this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
     })
     this.physics.add.overlap(this.crowd.getHullBounds(), this.spawner.getEnemies(), (first, second) => {
+      this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
+    })
+    this.physics.add.overlap(this.crowd.getHullBounds(), this.boss.getEnemy(), (first, second) => {
       this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
     })
     this.physics.add.overlap(this.crowd.getHullBounds(), this.boss.getProjectiles(), (first, second) => {
@@ -280,7 +293,7 @@ export class GameScene extends Phaser.Scene {
     const bossProjectile = this.findObjectWithData(first, second, 'damage')
     if (bossProjectile !== undefined) {
       if (!this.crowd.overlapsFigure((bossProjectile as Phaser.Physics.Arcade.Image).getBounds())) return
-      if (this.elapsedMs < this.iframeUntilMs) return
+      if (this.elapsedMs < this.bossProjectileIframeUntilMs) return
       this.handleBossProjectileHit(bossProjectile as Phaser.Physics.Arcade.Image)
       return
     }
@@ -290,7 +303,7 @@ export class GameScene extends Phaser.Scene {
       const enemy = first === hull ? second : first
       const enemyImage = enemy as Phaser.Physics.Arcade.Image
       if (!this.crowd.overlapsFigure(enemyImage.getBounds())) return
-      if (this.elapsedMs < this.iframeUntilMs) return
+      if (this.elapsedMs < this.enemyContactIframeUntilMs) return
       this.handlePlayerHit(enemyImage)
       return
     }
@@ -333,20 +346,23 @@ export class GameScene extends Phaser.Scene {
   private handlePlayerHit(enemy: Phaser.Physics.Arcade.Image): void {
     if (!enemy.active) return
     const contactDamage = enemy.getData('contactDamage') as number
-    this.spawner.recycle(enemy)
-    this.handlePlayerDamage(contactDamage)
+    if (!this.boss.isEnemy(enemy)) this.spawner.recycle(enemy)
+    this.handlePlayerDamage(contactDamage, 'contact')
   }
 
   private handleBossProjectileHit(projectile: Phaser.Physics.Arcade.Image): void {
     if (!projectile.active) return
     this.boss.recycleProjectile(projectile)
-    this.handlePlayerDamage(projectile.getData('damage') as number)
+    this.handlePlayerDamage(projectile.getData('damage') as number, 'boss-projectile')
   }
 
-  private handlePlayerDamage(damage: number): void {
+  private handlePlayerDamage(damage: number, source: 'contact' | 'boss-projectile'): void {
     this.runStats.set('hp', this.runStats.get('hp') - damage)
     this.syncCrowdSize()
-    this.iframeUntilMs = this.elapsedMs + BALANCE.player.iframesMs
+    const iframeMs = source === 'boss-projectile' ? BALANCE.player.bossProjectileIframesMs : BALANCE.player.iframesMs
+    if (source === 'boss-projectile') this.bossProjectileIframeUntilMs = this.elapsedMs + iframeMs
+    else this.enemyContactIframeUntilMs = this.elapsedMs + iframeMs
+    this.blinkUntilMs = Math.max(this.blinkUntilMs, this.elapsedMs + iframeMs)
     this.nextBlinkAtMs = this.elapsedMs
     this.updateHud()
     if (this.runStats.get('hp') <= 0) this.triggerGameOver()
@@ -397,6 +413,7 @@ export class GameScene extends Phaser.Scene {
 
   private handleBossDefeated(): void {
     if (this.levelPhase !== 'boss') return
+    this.spawner.recycleBossCompanions()
     this.boss.deactivate()
     this.currentLevel += 1
     const saved = loadSave()
@@ -414,12 +431,12 @@ export class GameScene extends Phaser.Scene {
     this.bossBarFill.setVisible(visible)
     if (!visible) return
     const hp = bossEnemy.getData('hp') as number
-    const maxHp = BALANCE.boss.baseHp * Math.pow(BALANCE.boss.hpPerLevel, this.currentLevel - 1)
+    const maxHp = bossEnemy.getData('maxHp') as number
     this.bossBarFill.setSize(this.bossBarWidth * Math.max(0, hp) / maxHp, 8)
   }
 
   private updateIframes(): void {
-    if (this.elapsedMs >= this.iframeUntilMs) {
+    if (this.elapsedMs >= this.blinkUntilMs) {
       this.crowd.setFiguresAlpha(1)
       return
     }
@@ -449,11 +466,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private getCrowdDamageMultiplier(): number {
-    const crowdSize = this.runStats.get('hp')
-    return Math.min(
-      BALANCE.crowd.damageMultiplierCap,
-      1 + Math.max(0, crowdSize - BALANCE.crowd.shootersPerSalvo) * BALANCE.crowd.damagePerExtraFigure,
-    )
+    return getCrowdDamageMultiplier(this.runStats.get('hp'))
   }
 
   private drawSafeAreaDebug(): void {

@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import { canSpawnBossCompanion, getBossPlan } from './bossPlan'
 import { chooseEnemyType, type EnemyType } from './enemyTypes'
 import { getLevelPlan, type LevelPlan } from './levelPlan'
 import { getRoadHalfWidth } from './road'
@@ -79,6 +80,22 @@ export class Spawner {
     this.spawningEnabled = true
   }
 
+  // Boss summons deliberately reuse this pool while the regular clock stays disabled.
+  public requestBossCompanion(): boolean {
+    const plan = getBossPlan(this.levelPlan.level)
+    const activeCompanions = this.enemies.getChildren().filter((child) => child.active && child.getData('bossCompanion') === true).length
+    if (!canSpawnBossCompanion(activeCompanions, plan)) return false
+    const type = chooseEnemyType(this.levelPlan.enemyWeights, () => Phaser.Math.RND.frac())
+    return this.spawnSingle(type, true) === 'spawned'
+  }
+
+  public recycleBossCompanions(): void {
+    for (const child of this.enemies.getChildren()) {
+      const enemy = child as Phaser.Physics.Arcade.Image
+      if (enemy.active && enemy.getData('bossCompanion') === true) this.recycle(enemy)
+    }
+  }
+
   public recycle(enemy: Phaser.Physics.Arcade.Image): void {
     enemy.disableBody(true, true)
     enemy.setActive(false).setVisible(false)
@@ -156,7 +173,7 @@ export class Spawner {
     return request.kind === 'single' ? this.spawnSingle(request.type) : this.spawnSquad(request.squadKind, request.size)
   }
 
-  private spawnSingle(type: EnemyType): SpawnResult {
+  private spawnSingle(type: EnemyType, bossCompanion = false): SpawnResult {
     const enemy = this.enemies.getChildren().find((child) => !child.active) as Phaser.Physics.Arcade.Image | undefined
     if (enemy === undefined) {
       this.warnPoolExhausted()
@@ -173,7 +190,7 @@ export class Spawner {
       BALANCE.enemy.spawnLaneSafetyGap,
     )
     if (lane === undefined) return 'no-lane'
-    this.activateEnemy(enemy, type, lane, y)
+    this.activateEnemy(enemy, type, lane, y, bossCompanion)
     this.intervalSpawnCount += 1
     return 'spawned'
   }
@@ -211,7 +228,7 @@ export class Spawner {
     offsets.forEach((offset, index) => {
       const memberY = y + offset.yOffset
       const memberLane = lane + offset.laneOffset / getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, memberY)
-      this.activateEnemy(available[index], types[index], memberLane, memberY)
+      this.activateEnemy(available[index], types[index], memberLane, memberY, false)
     })
     this.intervalSpawnCount += offsets.length
     const pauseMs = BALANCE.level.squads.pauseBaseMs + offsets.length * BALANCE.level.squads.pausePerMemberMs
@@ -230,7 +247,7 @@ export class Spawner {
     return types
   }
 
-  private activateEnemy(enemy: Phaser.Physics.Arcade.Image, type: EnemyType, lane: number, y: number): void {
+  private activateEnemy(enemy: Phaser.Physics.Arcade.Image, type: EnemyType, lane: number, y: number, bossCompanion: boolean): void {
     const x = this.scene.scale.width / 2 + lane * getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
     enemy.setTexture(type.texture)
     enemy.enableBody(true, x, y, true, true)
@@ -249,6 +266,7 @@ export class Spawner {
     enemy.setData('bodyHeight', type.bodyHeight)
     enemy.setData('flashRemainingMs', 0)
     enemy.setData('lane', lane)
+    enemy.setData('bossCompanion', bossCompanion)
     enemy.setData('spawnId', this.allocateSpawnId())
   }
 

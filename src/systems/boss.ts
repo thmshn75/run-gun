@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import { getBossPhase, getBossPlan, type BossPlan } from './bossPlan'
 import { getRoadHalfWidth } from './road'
 
 export class Boss {
@@ -8,23 +9,40 @@ export class Boss {
   private readonly projectiles: Phaser.Physics.Arcade.Group
   private readonly projectileList: Phaser.Physics.Arcade.Image[]
   private readonly nextSpawnId: () => number
-  private elapsedMs: number
+  private readonly requestBossCompanion: () => boolean
+  private readonly getAnchorY: () => number
+  private plan: BossPlan | undefined
+  private fightElapsedMs: number
   private fireAccumulatorMs: number
+  private companionAccumulatorMs: number
   private moveDirection: number
   private approaching: boolean
+  private phaseTwoStarted: boolean
+  private phaseFlashRemainingMs: number
 
-  public constructor(scene: Phaser.Scene, nextSpawnId: () => number) {
+  public constructor(
+    scene: Phaser.Scene,
+    nextSpawnId: () => number,
+    requestBossCompanion: () => boolean,
+    getAnchorY: () => number,
+  ) {
     this.scene = scene
     this.nextSpawnId = nextSpawnId
+    this.requestBossCompanion = requestBossCompanion
+    this.getAnchorY = getAnchorY
     this.enemy = scene.physics.add.image(0, 0, 'enemy-boss').setDepth(BALANCE.layers.gameplay)
     this.enemy.setActive(false).setVisible(false)
     this.enemy.disableBody(true, true)
     this.projectiles = scene.physics.add.group()
     this.projectileList = []
-    this.elapsedMs = 0
+    this.plan = undefined
+    this.fightElapsedMs = 0
     this.fireAccumulatorMs = 0
+    this.companionAccumulatorMs = 0
     this.moveDirection = 1
     this.approaching = false
+    this.phaseTwoStarted = false
+    this.phaseFlashRemainingMs = 0
 
     // Flight: (844 - 300)px / 260px/s = 2.1s. Three shots every 1.4s allow at most
     // five bursts (15 projectiles); 24 leaves reserve without runtime allocation.
@@ -51,17 +69,22 @@ export class Boss {
 
   public activate(level: number): void {
     const y = BALANCE.road.horizonY
-    this.elapsedMs = 0
+    this.plan = getBossPlan(level)
+    this.fightElapsedMs = 0
     this.fireAccumulatorMs = 0
+    this.companionAccumulatorMs = 0
     this.moveDirection = 1
     this.approaching = true
+    this.phaseTwoStarted = false
+    this.phaseFlashRemainingMs = 0
     this.enemy.enableBody(true, this.scene.scale.width / 2, y, true, true)
     this.enemy.setActive(true).setVisible(true).setAlpha(0).clearTint()
     const body = this.enemy.body as Phaser.Physics.Arcade.Body
     body.setSize(BALANCE.boss.bodyWidth, BALANCE.boss.bodyHeight, true)
     body.moves = false
     body.updateFromGameObject()
-    this.enemy.setData('hp', BALANCE.boss.baseHp * Math.pow(BALANCE.boss.hpPerLevel, level - 1))
+    this.enemy.setData('hp', this.plan.maxHp)
+    this.enemy.setData('maxHp', this.plan.maxHp)
     this.enemy.setData('contactDamage', 0)
     this.enemy.setData('coinValue', BALANCE.boss.coinReward)
     this.enemy.setData('flashRemainingMs', 0)
@@ -75,36 +98,51 @@ export class Boss {
   }
 
   public update(dt: number): void {
-    this.elapsedMs += dt
     this.updateProjectiles(dt)
     if (!this.enemy.active) return
+    const plan = this.plan
+    if (plan === undefined) return
 
     if (this.approaching) {
       this.enemy.y = Math.min(this.enemy.y + (BALANCE.boss.approachSpeed * dt) / 1000, BALANCE.boss.battleY)
       if (this.enemy.y === BALANCE.boss.battleY) this.approaching = false
     } else {
-      this.moveAcrossRoad(dt)
+      this.fightElapsedMs += dt
+      this.updatePhase(plan)
+      const phase = this.phaseTwoStarted ? plan.phaseTwo : plan.phaseOne
+      this.moveAcrossRoad(dt, phase.moveSpeed)
       this.fireAccumulatorMs += dt
-      while (this.fireAccumulatorMs >= BALANCE.boss.fireIntervalMs) {
-        this.fireAccumulatorMs -= BALANCE.boss.fireIntervalMs
-        this.fireBurst()
+      while (this.fireAccumulatorMs >= phase.fireIntervalMs) {
+        this.fireAccumulatorMs -= phase.fireIntervalMs
+        this.fireBurst(phase.burstCount, phase.burstSpreadPx)
       }
+      this.companionAccumulatorMs += dt
+      while (this.companionAccumulatorMs >= plan.companionIntervalMs) {
+        this.companionAccumulatorMs -= plan.companionIntervalMs
+        this.requestBossCompanion()
+      }
+      if (this.fightElapsedMs >= plan.pressureDelayMs) this.advanceTowardsCrowd(dt, plan)
     }
 
     const topY = this.enemy.y - this.enemy.displayHeight / 2
     this.enemy.setAlpha(Math.min(1, Math.max(0, (topY - BALANCE.road.horizonY) / BALANCE.road.entryFadePx)))
-    const flashRemainingMs = Math.max(0, (this.enemy.getData('flashRemainingMs') as number) - dt)
-    this.enemy.setData('flashRemainingMs', flashRemainingMs)
-    if (flashRemainingMs === 0) this.enemy.clearTint()
+    this.updateVisuals(dt, plan)
     ;(this.enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
   }
 
-  private moveAcrossRoad(dt: number): void {
+  private updatePhase(plan: BossPlan): void {
+    const phase = getBossPhase(this.enemy.getData('hp') as number, this.phaseTwoStarted, plan)
+    if (phase === 1 || this.phaseTwoStarted) return
+    this.phaseTwoStarted = true
+    this.phaseFlashRemainingMs = plan.phaseTwo.transitionFlashMs
+  }
+
+  private moveAcrossRoad(dt: number, speed: number): void {
     const halfRoad = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, this.enemy.y)
     const edge = Math.max(0, halfRoad - BALANCE.boss.bodyWidth / 2)
     const minX = this.scene.scale.width / 2 - edge
     const maxX = this.scene.scale.width / 2 + edge
-    this.enemy.x += (this.moveDirection * BALANCE.boss.moveSpeed * dt) / 1000
+    this.enemy.x += (this.moveDirection * speed * dt) / 1000
     if (this.enemy.x >= maxX) {
       this.enemy.x = maxX
       this.moveDirection = -1
@@ -114,10 +152,16 @@ export class Boss {
     }
   }
 
-  private fireBurst(): void {
-    const startX = this.enemy.x - BALANCE.boss.burstSpreadPx / 2
-    const stepX = BALANCE.boss.burstSpreadPx / (BALANCE.boss.burstCount - 1)
-    for (let index = 0; index < BALANCE.boss.burstCount; index += 1) {
+  private advanceTowardsCrowd(dt: number, plan: BossPlan): void {
+    this.enemy.setData('contactDamage', plan.advanceContactDamage)
+    const stopY = Math.max(BALANCE.boss.battleY, this.getAnchorY() - plan.advanceStopBeforeAnchorPx)
+    this.enemy.y = Math.min(this.enemy.y + (plan.advanceSpeed * dt) / 1000, stopY)
+  }
+
+  private fireBurst(burstCount: number, burstSpreadPx: number): void {
+    const startX = this.enemy.x - burstSpreadPx / 2
+    const stepX = burstSpreadPx / (burstCount - 1)
+    for (let index = 0; index < burstCount; index += 1) {
       const projectile = this.projectileList.find((candidate) => !candidate.active)
       if (projectile === undefined) return
       projectile.enableBody(true, startX + stepX * index, this.enemy.y + this.enemy.displayHeight / 2, true, true)
@@ -127,6 +171,21 @@ export class Boss {
       body.moves = false
       body.updateFromGameObject()
     }
+  }
+
+  private updateVisuals(dt: number, plan: BossPlan): void {
+    this.phaseFlashRemainingMs = Math.max(0, this.phaseFlashRemainingMs - dt)
+    const hitFlashRemainingMs = Math.max(0, (this.enemy.getData('flashRemainingMs') as number) - dt)
+    this.enemy.setData('flashRemainingMs', hitFlashRemainingMs)
+    if (this.phaseFlashRemainingMs > 0 || hitFlashRemainingMs > 0) {
+      this.enemy.setTintFill(0xffffff)
+      return
+    }
+    if (this.phaseTwoStarted) {
+      this.enemy.setTint(plan.phaseTwo.tint)
+      return
+    }
+    this.enemy.clearTint()
   }
 
   private updateProjectiles(dt: number): void {

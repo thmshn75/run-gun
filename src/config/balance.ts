@@ -36,6 +36,9 @@ export const BALANCE = {
   },
   player: {
     iframesMs: 1200,
+    // Boss projectiles need their own, shorter window: a salvo may now cost more
+    // than one figure, while enemy-contact protection remains deliberately intact.
+    bossProjectileIframesMs: 360,
     blinkIntervalMs: 100,
     dragClampMargin: 8,
     // Bewegungsrand als Vielfaches der halben Figurenbreite — bewusst NICHT an die
@@ -183,18 +186,48 @@ export const BALANCE = {
     ] satisfies readonly LevelDefinition[],
   },
   boss: {
-    // At 1 base damage, 3.5 shots/s and eight shooters the run deals about 28 DPS;
-    // 400 HP makes the first boss fall in a little over 14s before gate upgrades.
-    baseHp: 400,
-    hpPerLevel: 1.6,
+    // Model calculation, not a measured game value: a Level-1 ride has about eight gate
+    // pairs (first after 5s, then every 9s across 75s). 15 figures is a deliberately
+    // modest typical result after those gates: above one eight-figure salvo, but below the
+    // 30-figure ceiling of a strong run. NORMAL DPS uses active shooters x damage x rate
+    // x the shared crowd multiplier. HP targets 30 seconds and is capped at 7,500.
+    referenceFirepower: {
+      teamAtBoss: 15,
+      damageStart: 1,
+      damagePerLevel: 0.15,
+      damageCap: 3.5,
+      rateStart: 3,
+      ratePerLevel: 0.1,
+      rateCap: 4.5,
+      targetFightSec: 30,
+    },
+    hpCap: 7500,
     approachSpeed: 90,
     battleY: 300,
-    moveSpeed: 110,
-    fireIntervalMs: 1400,
-    burstCount: 3,
-    burstSpreadPx: 60,
+    phaseOne: {
+      fireIntervalMs: 1400,
+      burstCount: 3,
+      burstSpreadPx: 60,
+      moveSpeed: 110,
+    },
+    phaseTwo: {
+      fireIntervalMs: 820,
+      burstCount: 5,
+      burstSpreadPx: 150,
+      moveSpeed: 170,
+      tint: 0xff6a6a,
+      transitionFlashMs: 180,
+    },
     projectileSpeed: 260,
     projectileDamage: 1,
+    companionIntervalMs: 5200,
+    companionLimit: 4,
+    pressureDelayMs: 36000,
+    advanceSpeed: 34,
+    // The boss centre stops before the crowd anchor; its lower collision edge can
+    // still touch a stationary formation, but lateral escape remains available.
+    advanceStopBeforeAnchorPx: 80,
+    advanceContactDamage: 2,
     coinReward: 25,
     // Measured opaque bounds of src/assets/enemy-boss.png, not the 120px canvas.
     bodyWidth: 118,
@@ -270,6 +303,7 @@ export const BALANCE = {
     coins: 48,
     // Roughly 1.4s visible versus 9s spawn interval means at most one; two cover a delayed recycle.
     gatePairs: 2,
+    // Phase two: ceil(2.1s flight / 0.82s interval) x 5 = 15; 24 leaves reserve.
     bossProjectiles: 24,
   },
 } as const
