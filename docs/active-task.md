@@ -5,77 +5,111 @@
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**Treffer an der Truppe nur noch, wenn wirklich eine Figur berührt wird.**
+**Menü-Fußbereich: Knöpfe überlappen am iPhone. Dazu Sichern/Laden aus dem Hauptmenü
+verlagern und das Titelbild im Spiel aufhellen.**
 
-## Befund (gemessen, Thomas' Beobachtung bestätigt)
+---
 
-Thomas: „ich habe das Gefühl meine Truppe wird vom Boss immer getroffen auch wenn niemand
-berührt wird".
+# Teil 1 — Überlappende Knöpfe (Fehler)
 
-Nachgemessen über einen vollständigen Bosskampf, **70 Treffer** von Boss-Geschossen. Zu jedem
-Treffer wurde der Abstand des Geschosses zur nächstgelegenen sichtbaren Figur berechnet
-(0 = Berührung):
+## Befund
 
-- **70 von 70 Treffern ohne jede Berührung — 100 %.**
-- Typischer Abstand **11 bis 15 px**, größter **25,7 px**.
+Auf Thomas' iPhone liegen SICHERN und LADEN **auf** dem SPIELEN-Knopf.
 
-Ursache: Die Kollisionshülle der Truppe (`crowd.getHullBounds()`) ist ein festes Rechteck von
-**82 × 74 px** (`hullWidthFigures: 2.4`, `hullHeightFigures: 1.6` mal Figurengröße 34 × 46).
-Sie sitzt mittig auf dem Anker und schrumpft **nicht** mit der Truppe. Bei kleiner Truppe liegt
-damit ein unsichtbarer Rahmen von rund 24 px seitlich und 14 px oben und unten um die Figuren,
-der alles einsammelt. Boss-Geschosse sind nur 8 px breit — der Rahmen fällt dort besonders auf.
+Ursache ist ein gemischter Bezugspunkt:
 
-Dass die Hülle fest ist, war eine bewusste Entscheidung aus `docs/plan.md`: Eine mitwachsende
-Hülle würde eine große Truppe zu einem größeren Ziel machen. Diese Entscheidung bleibt.
-**Falsch ist nicht die feste Größe, sondern dass die Hülle allein über den Treffer entscheidet.**
+- Die Sichern-Reihe sitzt bei `insets.top + menu.saveLoadButtonsY` (682) — also **vom oberen
+  Rand** aus.
+- Der Spielen-Knopf sitzt bei `height - insets.bottom - menu.playButtonBottom - …` — also
+  **vom unteren Rand** aus.
 
-## Verlangte Korrektur — grobe Vorauswahl, feine Entscheidung
+Auf dem iPhone (oben 47, unten 34) landet die Sichern-Reihe bei 711 bis 747, der Spielen-Knopf
+bei 736 bis 790 — **11 px Überlappung**. Am Desktop sind beide Ränder 0, dort berühren sie
+sich knapp nicht. **Genau deshalb hat die Prüfung am Desktop den Fehler nicht finden können.**
 
-Die Hülle bleibt, wird aber zur **Vorauswahl** degradiert. Ob ein Treffer zählt, entscheidet
-erst eine zweite Prüfung gegen die **tatsächlich sichtbaren Figuren**.
+## Verlangte Korrektur
 
-- Neue Methode in `Crowd`, etwa `overlapsFigure(rect): boolean`: prüft ein Rechteck gegen die
-  Rechtecke aller **sichtbaren und aktiven** Figuren der Formation und liefert, ob mindestens
-  eine getroffen wird.
-- In `GameScene` wird bei einem Treffer an der Hülle — sowohl durch einen Gegner als auch
-  durch ein Boss-Geschoss — zusätzlich diese Prüfung durchgeführt. Fällt sie negativ aus,
-  passiert **nichts**: kein Schaden, keine Unverwundbarkeitszeit, kein Blinken, und das
-  Geschoss beziehungsweise der Gegner bleibt bestehen.
-- Die Hülle bleibt als Vorauswahl erhalten, damit nicht bei jedem Bild gegen bis zu
-  30 Figuren geprüft wird. Der Kommentar an der Hülle ist entsprechend zu ergänzen.
+1. **Der gesamte Fußbereich wird von unten nach oben aufgebaut.** Der Spielen-Knopf sitzt
+   unten, alles darüber staffelt sich mit festen Abständen nach oben. Kein Element des
+   Fußbereichs wird mehr vom oberen Rand aus positioniert.
+2. **Die vertikale Anordnung des Menüs wird als reine Funktion herausgezogen**, zum Beispiel
+   `computeMenuLayout(height, insets, scoreLines)`, die alle y-Positionen und Höhen liefert.
+   Keine Phaser-Abhängigkeit, damit sie ohne Browser prüfbar ist.
+3. **Unit-Tests für diese Funktion** mit mindestens zwei Randfällen:
+   - Ränder `{ top: 0, bottom: 0 }` (Desktop)
+   - Ränder `{ top: 47, bottom: 34 }` (iPhone)
+   Geprüft wird jeweils: **kein Bereich überlappt einen anderen**, und alle Bereiche liegen
+   innerhalb der Safe-Area. Das ist der eigentliche Schutz — am Desktop ist dieser Fehler
+   grundsätzlich unerreichbar.
 
-**Aufwand:** Höchstens `crowd.max` = 30 Rechteckvergleiche, und nur in den Bildern, in denen
-die Hülle überhaupt berührt wird. Das ist unkritisch.
+---
 
-## Bewusste Folge, die Thomas kennen muss
+# Teil 2 — Sichern und Laden aus dem Hauptmenü verlagern
 
-Das Spiel wird dadurch **leichter**: Treffer, die es bisher gab, fallen weg. Genau das ist das
-Ziel — sie waren nicht nachvollziehbar. Fühlt sich das Spiel danach zu leicht an, wird an
-`boss.fireIntervalMs` oder `boss.burstCount` gedreht, **nicht** die Hülle wieder aufgeblasen.
+Thomas fragt, ob Laden und Speichern überhaupt nötig sind. Antwort: Die Funktion bleibt, weil
+sie beim Wechsel auf ein neues iPhone der einzige Weg ist — aber sie muss nicht zwei Knöpfe im
+Hauptbild belegen.
+
+- Statt zweier Knöpfe **ein** kleiner Knopf **SPIELSTAND**, oberhalb von SPIELEN, in
+  gedämpfter Farbe (kein kräftiges Orange — er konkurriert nicht mit dem Spielen-Knopf).
+- Ein Tippen öffnet eine schlichte Ansicht mit **SICHERN**, **LADEN** und **ZURÜCK**.
+- Die bestehenden Abläufe für Sichern und Laden bleiben **unverändert**, samt Textfeld,
+  Prüfung und Meldungen. Es ändert sich nur, von wo aus sie erreichbar sind.
+
+## Hinweiszeile vereinfachen
+
+Die Zeile „Speicher nicht gesichert — sichere deinen Stand gelegentlich." **entfällt**. Sie
+steht dauerhaft da, ohne dass Thomas etwas dagegen tun kann, und liest sich wie eine Warnung.
+
+Es bleibt allein die Erinnerung **„Seit N Läufen nicht gesichert."**, sobald
+`menu.exportReminderRuns` = 10 erreicht ist. Vorher steht dort nichts.
+
+Die Anfrage auf Dauerspeicher (`navigator.storage.persist()`) bleibt bestehen — nur ihr
+Ergebnis wird nicht mehr angezeigt.
+
+---
+
+# Teil 3 — Titelbild im Spiel aufhellen
+
+Thomas: „auch die Titelbild Helligkeit im Spiel höher".
+
+Das Bild selbst ist hell; abgedunkelt wird es durch die halbdurchsichtige schwarze Fläche
+darüber (`menu.overlayAlpha` = 0.45), die für die Lesbarkeit der Kaufzeilen gedacht war.
+
+- `menu.overlayAlpha` von **0.45 auf 0.20** senken.
+- Die Kaufzeilen und die Bestenliste haben bereits eigene halbdurchsichtige Hintergründe.
+  Reicht die Lesbarkeit nicht, wird **der Hintergrund dieser Zeilen kräftiger**, nicht die
+  Fläche über dem ganzen Bild wieder dunkler.
+- Die Bestenliste und die Erinnerungszeile stehen heute **ohne** eigenen Hintergrund direkt
+  auf dem Bild. Sie bekommen denselben Zeilenhintergrund wie die Kaufzeilen, damit sie auf dem
+  helleren Bild lesbar bleiben.
+
+---
 
 ## Ausdrücklich nicht ändern
 
-- Die Hülle wird **nicht** verkleinert und wächst **nicht** mit der Truppe.
-- Keine Änderung an Schaden, Unverwundbarkeitszeit, Blinken oder Gegnerwerten.
-- Keine Änderung an der Formation.
-- Die Trefferprüfung zwischen eigenen Projektilen und Gegnern bleibt unangetastet.
+- Keine Spielbalance, keine Werte von Boss, Gegnern, Waffen oder Toren.
+- Die Abläufe von Sichern und Laden selbst, samt Prüfung, bleiben unverändert.
+- Das Titelbild als Datei bleibt unverändert; nur die Fläche darüber ändert sich.
+- Die Icons bleiben, wie sie sind.
 
 ## Reißleine
 
-Führt die zweite Prüfung dazu, dass Gegner die Truppe durchqueren, ohne je zu treffen:
-**melden und stoppen**. Kein zulässiger Ersatz ist es, die Prüfung wieder zu entfernen oder
-sie auf einen größeren Rahmen als die Figuren aufzuweiten.
+Sind Kaufzeilen oder Bestenliste nach dem Aufhellen nicht sicher lesbar: **den Hintergrund der
+Zeilen kräftiger machen und melden**, nicht die Fläche über dem Bild wieder abdunkeln.
 
 ## Akzeptanzkriterien
 
-1. Ein Treffer an der Truppe entsteht **nur**, wenn das Geschoss beziehungsweise der Gegner
-   mindestens eine sichtbare Figur tatsächlich überlappt.
-2. Über einen vollständigen Bosskampf gemessen: **0 Treffer ohne Berührung** (vorher 70 von 70).
-3. Es gibt weiterhin Treffer — ein Bosskampf ohne jeden Treffer wäre kein Erfolg, sondern ein
-   neuer Fehler. Mindestens ein Treffer pro Kampf, wenn die Truppe im Beschuss steht.
-4. Normale Gegner, die die Truppe berühren, verursachen unverändert Schaden.
-5. Unverwundbarkeitszeit und Blinken verhalten sich unverändert, wenn ein Treffer zählt.
+1. Mit Rändern `{ top: 47, bottom: 34 }` überlappt **kein** Menüelement ein anderes, und
+   nichts ragt aus der Safe-Area — nachgewiesen durch Unit-Tests der Layout-Funktion.
+2. Dasselbe gilt für Ränder `{ top: 0, bottom: 0 }`.
+3. Im Hauptmenü gibt es genau **einen** Knopf für den Spielstand; SICHERN und LADEN sind über
+   ihn erreichbar und funktionieren unverändert, inklusive der Prüfung kaputter Texte.
+4. Die Zeile über den Zustand des Dauerspeichers erscheint nicht mehr; die Erinnerung ab zehn
+   Läufen bleibt.
+5. `menu.overlayAlpha` steht auf 0.20; Kaufzeilen, Bestenliste und Erinnerungszeile sind
+   lesbar, weil sie einen eigenen Hintergrund haben.
 6. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
 
-Kriterien 1 bis 4 prüft Claude am laufenden Spiel mit derselben Messung wie beim Befund:
-Abstand zwischen Geschoss und nächster Figur im Moment jedes gezählten Treffers.
+Kriterien 1 und 2 prüft Claude über die Unit-Tests **und** an einer Messung im Browser mit
+erzwungenen Rändern; Kriterien 3 bis 5 am laufenden Spiel.
