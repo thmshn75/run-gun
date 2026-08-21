@@ -26,13 +26,16 @@ export type BossPlan = {
   readonly advanceContactDamage: number
 }
 
-export function getReferenceTeamAtBoss(upgrades: BossUpgradeLevels): number {
-  const teamUpgrade = BALANCE.upgradesShop.team
-  const startTeam = teamUpgrade.base + upgrades.team * teamUpgrade.effectPerLevel
-  return Math.min(BALANCE.crowd.max, startTeam * BALANCE.boss.referenceFirepower.teamGrowthFactor)
+// The same capped-shooter and crowd-bonus term used by the live combat damage.
+export function getTeamFirepower(teamSize: number): number {
+  return Math.min(teamSize, BALANCE.crowd.shootersPerSalvo) * getCrowdDamageMultiplier(teamSize)
 }
 
-export function getBossPlan(level: number, upgrades: BossUpgradeLevels): BossPlan {
+export function getBossCompanionLimit(level: number): number {
+  return getLevelPlan(Math.max(1, Math.floor(level))).companionLimit
+}
+
+export function getBossPlan(level: number, upgrades: BossUpgradeLevels, teamSize: number): BossPlan {
   const safeLevel = Math.max(1, Math.floor(level))
   const reference = BALANCE.boss.referenceFirepower
   const damageUpgrade = BALANCE.upgradesShop.damage
@@ -45,17 +48,17 @@ export function getBossPlan(level: number, upgrades: BossUpgradeLevels): BossPla
     reference.rateCap,
     rateUpgrade.base + upgrades.rate * rateUpgrade.effectPerLevel + (safeLevel - 1) * reference.ratePerLevel,
   )
-  const referenceTeam = getReferenceTeamAtBoss(upgrades)
-  const activeShooters = Math.min(referenceTeam, BALANCE.crowd.shootersPerSalvo)
-  const referenceDps = activeShooters
+  const referenceDps = getTeamFirepower(teamSize)
     * damage
     * rate
-    * getCrowdDamageMultiplier(referenceTeam)
     * BALANCE.weapon.normal.damageFactor
     * BALANCE.weapon.normal.bulletsPerShot
-  // Permanent upgrades remain stronger against regular enemies and squads. Only boss HP
-  // tracks their damage/rate values, so each purchase state keeps the intended 20 s fight.
-  const maxHp = Math.min(BALANCE.boss.hpCap, Math.round(referenceDps * reference.targetFightSec))
+  const maxFirepower = getTeamFirepower(BALANCE.crowd.max)
+  const fightSec = Math.min(
+    reference.maxFightSec,
+    reference.fightSecAtMaxTeam * (maxFirepower / getTeamFirepower(teamSize)) ** reference.teamDampening,
+  )
+  const maxHp = Math.min(BALANCE.boss.hpCap, Math.round(referenceDps * fightSec))
 
   return {
     level: safeLevel,
@@ -66,7 +69,7 @@ export function getBossPlan(level: number, upgrades: BossUpgradeLevels): BossPla
     phaseOne: BALANCE.boss.phaseOne,
     phaseTwo: BALANCE.boss.phaseTwo,
     companionIntervalMs: BALANCE.boss.companionIntervalMs,
-    companionLimit: getLevelPlan(safeLevel).companionLimit,
+    companionLimit: getBossCompanionLimit(safeLevel),
     pressureDelayMs: BALANCE.boss.pressureDelayMs,
     advanceSpeed: BALANCE.boss.advanceSpeed,
     advanceStopBeforeAnchorPx: BALANCE.boss.advanceStopBeforeAnchorPx,
@@ -78,6 +81,6 @@ export function getBossPhase(currentHp: number, phaseTwoStarted: boolean, plan: 
   return phaseTwoStarted || currentHp < plan.phaseThresholdHp ? 2 : 1
 }
 
-export function canSpawnBossCompanion(activeCompanions: number, plan: BossPlan): boolean {
-  return activeCompanions < plan.companionLimit
+export function canSpawnBossCompanion(activeCompanions: number, companionLimit: number): boolean {
+  return activeCompanions < companionLimit
 }

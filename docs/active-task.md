@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -232,3 +232,13 @@ Dann Design-Entscheidung mit Thomas über Phasen, Vorrücken und Begleiter — n
 20–40 s in den Tests), ist die Dämpfungsformel selbst der Fehler. Dann auf die einfachste Form
 zurückfallen, die das Zielfenster hält: feste Kampfdauer von 30 Sekunden für alle
 Truppengrößen (`teamDampening = 1`), und Thomas entscheidet danach, ob ihm das reicht.
+
+## Implementation Summary
+
+- Boss- und Sperrenpläne erhalten beim jeweiligen Spawn die tatsächliche Truppengröße und
+  verwenden die gemeinsame Funktion `getTeamFirepower()`. Die Boss-Kampfdauer wird mit
+  `teamDampening` zwischen 20 und 40 Sekunden berechnet; Sperren bleiben ungedämpft bei 2 Sekunden.
+- Der Boss-Plan entsteht nur beim Aktivieren des Bosses. Die Begleiter-Grenze liest nun direkt die
+  truppenunabhängige Levelvorgabe, statt einen zweiten Boss-Plan zu bilden.
+- `npm run check`, `npm run build` und `npm test` sind erfolgreich; die Suite umfasst 57 Tests.
+  Der iPhone-Spieltest für das subjektive Fairnessgefühl kann nur von Thomas ausgeführt werden.

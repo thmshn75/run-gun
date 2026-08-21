@@ -1,6 +1,5 @@
 import { BALANCE } from '../config/balance'
-import { getReferenceTeamAtBoss, type BossUpgradeLevels } from './bossPlan'
-import { getCrowdDamageMultiplier } from './crowdDamage'
+import { getTeamFirepower, type BossUpgradeLevels } from './bossPlan'
 
 export type BlockerPlan = Readonly<{
   maxHp: number
@@ -13,7 +12,7 @@ export function getBlockerIntervalMs(designLevel: number): number {
   return BALANCE.blockers.spawnIntervalMsByDesignLevel[index]
 }
 
-export function getBlockerPlan(level: number, upgrades: BossUpgradeLevels): BlockerPlan {
+export function getBlockerPlan(level: number, upgrades: BossUpgradeLevels, teamSize: number): BlockerPlan {
   const safeLevel = Math.max(1, Math.floor(level))
   const reference = BALANCE.boss.referenceFirepower
   const damage = Math.min(
@@ -24,12 +23,9 @@ export function getBlockerPlan(level: number, upgrades: BossUpgradeLevels): Bloc
     reference.rateCap,
     BALANCE.upgradesShop.rate.base + upgrades.rate * BALANCE.upgradesShop.rate.effectPerLevel + (safeLevel - 1) * reference.ratePerLevel,
   )
-  const referenceTeam = getReferenceTeamAtBoss(upgrades)
-  const activeShooters = Math.min(referenceTeam, BALANCE.crowd.shootersPerSalvo)
-  const referenceDps = activeShooters
+  const referenceDps = getTeamFirepower(teamSize)
     * damage
     * rate
-    * getCrowdDamageMultiplier(referenceTeam)
     * BALANCE.weapon.normal.damageFactor
     * BALANCE.weapon.normal.bulletsPerShot
   // Same purchased-stat and crowd multiplier reference as the boss: 2 s is centered

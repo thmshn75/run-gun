@@ -272,15 +272,18 @@ export const BALANCE = {
     ] satisfies readonly LevelDefinition[],
   },
   boss: {
-    // One measurement: a bought start team of 7 reached 22 at the boss. Use it as a
-    // provisional growth factor until more runs establish a better value.
     referenceFirepower: {
-      teamGrowthFactor: 3,
+      // Fight duration at the maximum crowd size. Smaller crowds take longer,
+      // limited by maxFightSec so a two-figure emergency team cannot stall a run.
+      fightSecAtMaxTeam: 20,
+      maxFightSec: 40,
+      // 0 ignores crowd strength; 1 scales boss HP fully with it. This value halves
+      // the fight from the smallest crowd to crowd.max without erasing the reward.
+      teamDampening: 0.41,
       damagePerLevel: 0.15,
       damageCap: 8,
       ratePerLevel: 0.1,
       rateCap: 8,
-      targetFightSec: 20,
     },
     // The fully bought Level-30 reference fight reaches about 27,500 HP; this remains a
     // safety ceiling without flattening any tested purchase-state/level combination.

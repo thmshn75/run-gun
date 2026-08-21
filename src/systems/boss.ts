@@ -67,9 +67,9 @@ export class Boss {
     return enemy === this.enemy
   }
 
-  public activate(level: number, upgrades: BossUpgradeLevels): void {
+  public activate(level: number, upgrades: BossUpgradeLevels, teamSize: number): void {
     const y = BALANCE.road.horizonY
-    this.plan = getBossPlan(level, upgrades)
+    this.plan = getBossPlan(level, upgrades, teamSize)
     this.fightElapsedMs = 0
     this.fireAccumulatorMs = 0
     this.companionAccumulatorMs = 0

@@ -177,13 +177,14 @@ export class GameScene extends Phaser.Scene {
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
     const getAnchorPosition = (): Readonly<{ x: number; y: number }> => ({ x: this.crowd.getAnchorX(), y: this.crowd.getAnchorY() })
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
-    this.spawner = new Spawner(this, this.runStats, this.bossUpgrades)
+    this.spawner = new Spawner(this, this.runStats)
     this.blockers = new Blockers(
       this,
       this.bossUpgrades,
       () => this.spawner.requestBlockerEnemy(),
       (currentWeapon) => this.spawner.chooseBlockerWeapon(currentWeapon),
       () => this.weapons.getWeapon(),
+      () => this.runStats.get('hp'),
       () => Phaser.Math.RND.frac(),
     )
     this.boss = new Boss(
@@ -606,7 +607,7 @@ export class GameScene extends Phaser.Scene {
       this.levelPhase = 'boss'
       this.levelOverlayBackground.setVisible(false)
       this.levelOverlay.setVisible(false)
-      this.boss.activate(this.currentLevel, this.bossUpgrades)
+      this.boss.activate(this.currentLevel, this.bossUpgrades, this.runStats.get('hp'))
       return
     }
     this.levelPhase = 'normal'

@@ -23,6 +23,7 @@ export class Blockers {
   private readonly requestEnemy: () => boolean
   private readonly chooseWeapon: (currentWeapon: WeaponKey) => WeaponKey
   private readonly getCurrentWeapon: () => WeaponKey
+  private readonly getTeamSize: () => number
   private readonly rng: () => number
   private readonly pairs: BlockerPair[]
   private readonly blockerGroup: Phaser.Physics.Arcade.Group
@@ -39,6 +40,7 @@ export class Blockers {
     requestEnemy: () => boolean,
     chooseWeapon: (currentWeapon: WeaponKey) => WeaponKey,
     getCurrentWeapon: () => WeaponKey,
+    getTeamSize: () => number,
     rng: () => number,
   ) {
     this.scene = scene
@@ -46,6 +48,7 @@ export class Blockers {
     this.requestEnemy = requestEnemy
     this.chooseWeapon = chooseWeapon
     this.getCurrentWeapon = getCurrentWeapon
+    this.getTeamSize = getTeamSize
     this.rng = rng
     this.pairs = []
     this.blockerGroup = scene.physics.add.group()
@@ -161,7 +164,7 @@ export class Blockers {
     if (placement.width < BALANCE.blockers.minWidthPx) return
     const y = BALANCE.road.horizonY
     const x = this.scene.scale.width / 2 + placement.centerOffset
-    const plan = getBlockerPlan(this.levelPlan.level, this.bossUpgrades)
+    const plan = getBlockerPlan(this.levelPlan.level, this.bossUpgrades, this.getTeamSize())
     pair.active = true
     pair.broken = false
     pair.weapon = this.chooseWeapon(this.getCurrentWeapon())
