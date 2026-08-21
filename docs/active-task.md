@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -116,8 +116,35 @@ jedes vierte Torpaar ein Waffen-Tor (`gates.weaponGateEvery`). Künftig kommen W
 
 ## Implementation Summary
 
-<!-- Von Codex auszufüllen -->
+- Boss-Referenztruppe wird aus der gekauften Starttruppe mit dem als Messwert kommentierten Wachstumsfaktor 3 abgeleitet; Boss- und Sperren-Plan nutzen dieselbe Berechnung.
+- Die Leveltabelle trägt nun die Begleiterobergrenze: Level 1–4 = 0, danach schrittweise bis 4 in Level 11–12. Sperren starten ab Level 3.
+- Normale Tore sind ausschließlich Stat-Tore; Waffen-Tor-Kadenz und -Auswahlzweig wurden entfernt. Waffen-Symbole für Sperren bleiben unverändert erhalten.
+- Tests decken die drei Kaufstände, Bossdauer/-HP, Sperren-Dauer, Begleiterstaffelung, Sperrenstart und das Fehlen der Waffen-Tore ab.
 
 ## Verification
 
-<!-- Von Codex auszufüllen -->
+- `npm run check` erfolgreich.
+- `npm test` erfolgreich: 10 Testdateien, 39 Tests.
+- `npm run build` erfolgreich; einzig die bestehende, nicht blockierende Vite-Warnung zu einem JavaScript-Chunk über 500 kB wurde ausgegeben.
+- `git diff --check` erfolgreich; Suche bestätigt: keine `teamAtBoss`-/`weaponGateEvery`-Verwendung in `src` oder `tests` und keine Waffenlogik in `src/systems/gates.ts`.
+
+## Review-Ergebnis (Claude)
+
+Alle acht Kriterien erfuellt.
+
+- **Kriterium 1, 2, 3:** Die Referenztruppe kommt jetzt aus `startTeam * teamGrowthFactor`,
+  gedeckelt bei `crowd.max`. Nachgerechnet fuer Level 1: nichts gekauft Start 2 -> Truppe 6 ->
+  **360 HP** (vorher 1.421), halb ausgebaut Truppe 12 -> 1.797 HP, voll ausgebaut Truppe 21 ->
+  7.106 HP. Alle drei ergeben 20 Sekunden.
+- **Robustheitsprobe:** Faellt die Truppe schlechter aus als angenommen, bleibt es spielbar —
+  bei Truppe 4 statt 6 dauert der Kampf 30 statt 118 Sekunden. Der Modellwert ist damit keine
+  scharfe Kante mehr.
+- **Kriterium 4:** Die Sperren nutzen dieselbe Ableitung und bleiben laut Test in der Spanne
+  von 1,5 bis 2,5 Sekunden.
+- **Kriterium 5:** `companionLimit` ist ein Feld der Leveltabelle: Level 1–4 null, dann 1, 1,
+  2, 2, 3, 3, 4, 4. Unit-Test vorhanden.
+- **Kriterium 6:** `src/systems/gates.ts` enthaelt keine Waffenlogik mehr; `weaponGateEvery`
+  existiert nirgends in `src` oder `tests`. Neuer `tests/gates.test.ts` haelt das fest.
+- **Kriterium 7:** Sperren ab Level 3, per Test geprueft.
+- **Kriterium 8:** `npm run check`, `npm run build`, `npm test` selbst im Terminal
+  ausgefuehrt, Exit 0, 10 Testdateien, 39 Tests.

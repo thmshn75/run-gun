@@ -150,11 +150,6 @@ export class GameScene extends Phaser.Scene {
       getAnchorPosition,
       () => this.updateHud(),
       () => Phaser.Math.RND.frac(),
-      () => this.weapons.getWeapon(),
-      (weapon) => {
-        this.weapons.setWeapon(weapon)
-        this.updateHud()
-      },
     )
     this.splashFlashes = new SplashFlashPool(this)
     const panelX = this.insets.left + BALANCE.hud.padding

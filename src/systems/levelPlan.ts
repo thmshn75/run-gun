@@ -10,6 +10,7 @@ export type LevelPlan = {
   readonly spawnIntervalMinMs: number
   readonly squadChance: number
   readonly squads: readonly LevelSquadAllowance[]
+  readonly companionLimit: number
   readonly reserved: { readonly blockers: boolean; readonly gateLanes: 1 | 3 }
 }
 
@@ -37,6 +38,7 @@ export function getLevelPlan(level: number): LevelPlan {
         ? squad.size
         : Math.min(BALANCE.level.squads.maxSize, Math.max(BALANCE.level.squads.minSize, Math.ceil(squad.size * hardness))),
     })),
+    companionLimit: definition.companionLimit,
     reserved: definition.reserved,
   }
 }

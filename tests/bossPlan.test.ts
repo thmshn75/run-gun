@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
-import { canSpawnBossCompanion, getBossPhase, getBossPlan, type BossUpgradeLevels } from '../src/systems/bossPlan'
+import { canSpawnBossCompanion, getBossPhase, getBossPlan, getReferenceTeamAtBoss, type BossUpgradeLevels } from '../src/systems/bossPlan'
 import { getCrowdDamageMultiplier } from '../src/systems/crowdDamage'
 
 function normalDps(teamSize: number, damage: number, rate: number): number {
@@ -49,13 +49,26 @@ describe('boss plans', () => {
         // This must stay coupled to upgradesShop: menu upgrades still dominate normal
         // enemies and squads, while a boss scales to the same purchased firepower.
         expect(plan.level, purchaseState.name).toBe(level)
-        expect(plan.referenceDps, purchaseState.name).toBeCloseTo(normalDps(BALANCE.boss.referenceFirepower.teamAtBoss, damage, rate))
-        expect(fightDurationSec(plan.maxHp, BALANCE.boss.referenceFirepower.teamAtBoss, damage, rate), purchaseState.name).toBeGreaterThanOrEqual(18)
-        expect(fightDurationSec(plan.maxHp, BALANCE.boss.referenceFirepower.teamAtBoss, damage, rate), purchaseState.name).toBeLessThanOrEqual(24)
+        const referenceTeam = getReferenceTeamAtBoss(purchaseState.upgrades)
+        expect(plan.referenceDps, purchaseState.name).toBeCloseTo(normalDps(referenceTeam, damage, rate))
+        expect(fightDurationSec(plan.maxHp, referenceTeam, damage, rate), purchaseState.name).toBeGreaterThanOrEqual(18)
+        expect(fightDurationSec(plan.maxHp, referenceTeam, damage, rate), purchaseState.name).toBeLessThanOrEqual(24)
         expect(plan.maxHp, purchaseState.name).toBeLessThan(BALANCE.boss.hpCap)
         expect(plan.phaseThresholdHp, purchaseState.name).toBe(plan.maxHp / 2)
       }
     }
+  })
+
+  it('derives distinct boss teams from nothing, half, and fully bought starting teams', () => {
+    const referenceTeams = purchaseStates.map((purchaseState) => getReferenceTeamAtBoss(purchaseState.upgrades))
+    expect(referenceTeams).toEqual([6, 12, 21])
+    expect(new Set(referenceTeams).size).toBe(referenceTeams.length)
+  })
+
+  it('keeps a fresh level-one boss far below the former 1,421 HP reference', () => {
+    const freshPlan = getBossPlan(1, purchaseStates[0].upgrades)
+    expect(freshPlan.maxHp).toBe(360)
+    expect(freshPlan.maxHp).toBeLessThan(1421 / 2)
   })
 
   it('switches phase only below half HP and keeps phase two latched', () => {

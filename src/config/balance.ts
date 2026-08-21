@@ -13,6 +13,7 @@ export type LevelDefinition = {
   readonly spawnIntervalMinMs: number
   readonly squadChance: number
   readonly squads: readonly LevelSquadAllowance[]
+  readonly companionLimit: number
   // These fields deliberately do nothing until E9/E10.
   readonly reserved: { readonly blockers: boolean; readonly gateLanes: 1 | 3 }
 }
@@ -153,8 +154,9 @@ export const BALANCE = {
     heightPx: 54,
     rewardBehindOffsetPx: 82,
     contactDamage: 2,
-    // Each design level owns its cadence. Zero keeps the reserved pre-E9 levels silent.
-    spawnIntervalMsByDesignLevel: [0, 0, 0, 0, 0, 0, 15500, 14000, 12500, 11250, 10000, 9000],
+    // Each design level owns its cadence. The early levels stay quiet until Level 3,
+    // where weapon blockers become the first alternate-weapon source.
+    spawnIntervalMsByDesignLevel: [0, 0, 21000, 19000, 17500, 16000, 15500, 14000, 12500, 11250, 10000, 9000],
     referenceDestroySec: 2,
     minDestroySec: 1.5,
     maxDestroySec: 2.5,
@@ -188,27 +190,26 @@ export const BALANCE = {
       pausePerMemberMs: 130,
     },
     plans: [
-      { normalPhaseSec: 75, enemyWeights: [75, 25, 0], spawnIntervalMs: 1750, spawnIntervalMinMs: 1050, squadChance: 0, squads: [], reserved: { blockers: false, gateLanes: 1 } },
-      { normalPhaseSec: 78, enemyWeights: [60, 40, 0], spawnIntervalMs: 1650, spawnIntervalMinMs: 950, squadChance: 0, squads: [], reserved: { blockers: false, gateLanes: 1 } },
-      { normalPhaseSec: 78, enemyWeights: [65, 30, 5], spawnIntervalMs: 1550, spawnIntervalMinMs: 850, squadChance: 0.20, squads: [{ kind: 'wedge', weight: 1, size: 3 }], reserved: { blockers: false, gateLanes: 1 } },
-      { normalPhaseSec: 80, enemyWeights: [55, 35, 10], spawnIntervalMs: 1450, spawnIntervalMinMs: 780, squadChance: 0.28, squads: [{ kind: 'wedge', weight: 1, size: 4 }], reserved: { blockers: false, gateLanes: 1 } },
-      { normalPhaseSec: 80, enemyWeights: [35, 45, 20], spawnIntervalMs: 1350, spawnIntervalMinMs: 700, squadChance: 0.28, squads: [{ kind: 'row', weight: 1, size: 3 }], reserved: { blockers: false, gateLanes: 1 } },
-      { normalPhaseSec: 82, enemyWeights: [25, 45, 30], spawnIntervalMs: 1250, spawnIntervalMinMs: 640, squadChance: 0.35, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'wedge', weight: 1, size: 4 }], reserved: { blockers: false, gateLanes: 1 } },
+      { normalPhaseSec: 75, enemyWeights: [75, 25, 0], spawnIntervalMs: 1750, spawnIntervalMinMs: 1050, squadChance: 0, squads: [], companionLimit: 0, reserved: { blockers: false, gateLanes: 1 } },
+      { normalPhaseSec: 78, enemyWeights: [60, 40, 0], spawnIntervalMs: 1650, spawnIntervalMinMs: 950, squadChance: 0, squads: [], companionLimit: 0, reserved: { blockers: false, gateLanes: 1 } },
+      { normalPhaseSec: 78, enemyWeights: [65, 30, 5], spawnIntervalMs: 1550, spawnIntervalMinMs: 850, squadChance: 0.20, squads: [{ kind: 'wedge', weight: 1, size: 3 }], companionLimit: 0, reserved: { blockers: true, gateLanes: 1 } },
+      { normalPhaseSec: 80, enemyWeights: [55, 35, 10], spawnIntervalMs: 1450, spawnIntervalMinMs: 780, squadChance: 0.28, squads: [{ kind: 'wedge', weight: 1, size: 4 }], companionLimit: 0, reserved: { blockers: true, gateLanes: 1 } },
+      { normalPhaseSec: 80, enemyWeights: [35, 45, 20], spawnIntervalMs: 1350, spawnIntervalMinMs: 700, squadChance: 0.28, squads: [{ kind: 'row', weight: 1, size: 3 }], companionLimit: 1, reserved: { blockers: true, gateLanes: 1 } },
+      { normalPhaseSec: 82, enemyWeights: [25, 45, 30], spawnIntervalMs: 1250, spawnIntervalMinMs: 640, squadChance: 0.35, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'wedge', weight: 1, size: 4 }], companionLimit: 1, reserved: { blockers: true, gateLanes: 1 } },
       // blockers/gateLanes reserve the later E9/E10 layout without changing E7 gameplay.
-      { normalPhaseSec: 82, enemyWeights: [25, 40, 35], spawnIntervalMs: 1150, spawnIntervalMinMs: 580, squadChance: 0.42, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 1, size: 5 }], reserved: { blockers: true, gateLanes: 1 } },
-      { normalPhaseSec: 84, enemyWeights: [20, 40, 40], spawnIntervalMs: 1080, spawnIntervalMinMs: 540, squadChance: 0.48, squads: [{ kind: 'cluster', weight: 2, size: 5 }, { kind: 'row', weight: 1, size: 4 }], reserved: { blockers: true, gateLanes: 1 } },
-      { normalPhaseSec: 84, enemyWeights: [25, 35, 40], spawnIntervalMs: 980, spawnIntervalMinMs: 500, squadChance: 0.55, squads: [{ kind: 'wedge', weight: 1, size: 5 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 2, size: 6 }], reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 900, spawnIntervalMinMs: 460, squadChance: 0.60, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 6 }], reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 820, spawnIntervalMinMs: 420, squadChance: 0.65, squads: [{ kind: 'wedge', weight: 1, size: 6 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 8 }], reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 88, enemyWeights: [15, 35, 50], spawnIntervalMs: 760, spawnIntervalMinMs: 400, squadChance: 0.70, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 4, size: 8 }], reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 82, enemyWeights: [25, 40, 35], spawnIntervalMs: 1150, spawnIntervalMinMs: 580, squadChance: 0.42, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 1, size: 5 }], companionLimit: 2, reserved: { blockers: true, gateLanes: 1 } },
+      { normalPhaseSec: 84, enemyWeights: [20, 40, 40], spawnIntervalMs: 1080, spawnIntervalMinMs: 540, squadChance: 0.48, squads: [{ kind: 'cluster', weight: 2, size: 5 }, { kind: 'row', weight: 1, size: 4 }], companionLimit: 2, reserved: { blockers: true, gateLanes: 1 } },
+      { normalPhaseSec: 84, enemyWeights: [25, 35, 40], spawnIntervalMs: 980, spawnIntervalMinMs: 500, squadChance: 0.55, squads: [{ kind: 'wedge', weight: 1, size: 5 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 2, size: 6 }], companionLimit: 3, reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 900, spawnIntervalMinMs: 460, squadChance: 0.60, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 6 }], companionLimit: 3, reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 820, spawnIntervalMinMs: 420, squadChance: 0.65, squads: [{ kind: 'wedge', weight: 1, size: 6 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 8 }], companionLimit: 4, reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 88, enemyWeights: [15, 35, 50], spawnIntervalMs: 760, spawnIntervalMinMs: 400, squadChance: 0.70, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 4, size: 8 }], companionLimit: 4, reserved: { blockers: true, gateLanes: 3 } },
     ] satisfies readonly LevelDefinition[],
   },
   boss: {
-    // Gates mix multiplicative and additive effects, so smaller starting teams grow
-    // relatively faster. 22 is therefore one measured boss-time team model for every
-    // purchase state, deliberately not extrapolated from the menu's team upgrade.
+    // One measurement: a bought start team of 7 reached 22 at the boss. Use it as a
+    // provisional growth factor until more runs establish a better value.
     referenceFirepower: {
-      teamAtBoss: 22,
+      teamGrowthFactor: 3,
       damagePerLevel: 0.15,
       damageCap: 8,
       ratePerLevel: 0.1,
@@ -237,7 +238,6 @@ export const BALANCE = {
     projectileSpeed: 260,
     projectileDamage: 1,
     companionIntervalMs: 5200,
-    companionLimit: 4,
     pressureDelayMs: 36000,
     advanceSpeed: 34,
     // The boss centre stops before the crowd anchor; its lower collision edge can
@@ -280,7 +280,6 @@ export const BALANCE = {
     gateHeight: 70,
     gapBetween: 8,
     maxRedraws: 8,
-    weaponGateEvery: 4,
     ops: {
       kinds: ['multiply', 'divide', 'add', 'percent'],
       multipliers: [1.5, 2],

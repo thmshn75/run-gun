@@ -1,5 +1,5 @@
 import { BALANCE } from '../config/balance'
-import type { BossUpgradeLevels } from './bossPlan'
+import { getReferenceTeamAtBoss, type BossUpgradeLevels } from './bossPlan'
 import { getCrowdDamageMultiplier } from './crowdDamage'
 
 export type BlockerPlan = Readonly<{
@@ -24,11 +24,12 @@ export function getBlockerPlan(level: number, upgrades: BossUpgradeLevels): Bloc
     reference.rateCap,
     BALANCE.upgradesShop.rate.base + upgrades.rate * BALANCE.upgradesShop.rate.effectPerLevel + (safeLevel - 1) * reference.ratePerLevel,
   )
-  const activeShooters = Math.min(reference.teamAtBoss, BALANCE.crowd.shootersPerSalvo)
+  const referenceTeam = getReferenceTeamAtBoss(upgrades)
+  const activeShooters = Math.min(referenceTeam, BALANCE.crowd.shootersPerSalvo)
   const referenceDps = activeShooters
     * damage
     * rate
-    * getCrowdDamageMultiplier(reference.teamAtBoss)
+    * getCrowdDamageMultiplier(referenceTeam)
     * BALANCE.weapon.normal.damageFactor
     * BALANCE.weapon.normal.bulletsPerShot
   // Same purchased-stat and crowd multiplier reference as the boss: 2 s is centered

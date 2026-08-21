@@ -35,4 +35,15 @@ describe('level plans', () => {
     expect(chooseEnemyType(heavyPlan!.enemyWeights, () => 0.99).key).toBe('heavy')
     expect('waves' in BALANCE.enemy).toBe(false)
   })
+
+  it('keeps bosses alone through level four, then ramps companion limits to four', () => {
+    expect([1, 2, 3, 4].map((level) => getLevelPlan(level).companionLimit)).toEqual([0, 0, 0, 0])
+    expect([5, 6, 7, 8, 9, 10, 11, 12].map((level) => getLevelPlan(level).companionLimit)).toEqual([1, 1, 2, 2, 3, 3, 4, 4])
+  })
+
+  it('reserves blockers from level three onward', () => {
+    expect(getLevelPlan(1).reserved.blockers).toBe(false)
+    expect(getLevelPlan(2).reserved.blockers).toBe(false)
+    expect(getLevelPlan(3).reserved.blockers).toBe(true)
+  })
 })

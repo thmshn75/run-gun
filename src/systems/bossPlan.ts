@@ -1,5 +1,6 @@
 import { BALANCE } from '../config/balance'
 import { getCrowdDamageMultiplier } from './crowdDamage'
+import { getLevelPlan } from './levelPlan'
 
 export type BossPhase = 1 | 2
 
@@ -25,6 +26,12 @@ export type BossPlan = {
   readonly advanceContactDamage: number
 }
 
+export function getReferenceTeamAtBoss(upgrades: BossUpgradeLevels): number {
+  const teamUpgrade = BALANCE.upgradesShop.team
+  const startTeam = teamUpgrade.base + upgrades.team * teamUpgrade.effectPerLevel
+  return Math.min(BALANCE.crowd.max, startTeam * BALANCE.boss.referenceFirepower.teamGrowthFactor)
+}
+
 export function getBossPlan(level: number, upgrades: BossUpgradeLevels): BossPlan {
   const safeLevel = Math.max(1, Math.floor(level))
   const reference = BALANCE.boss.referenceFirepower
@@ -38,11 +45,12 @@ export function getBossPlan(level: number, upgrades: BossUpgradeLevels): BossPla
     reference.rateCap,
     rateUpgrade.base + upgrades.rate * rateUpgrade.effectPerLevel + (safeLevel - 1) * reference.ratePerLevel,
   )
-  const activeShooters = Math.min(reference.teamAtBoss, BALANCE.crowd.shootersPerSalvo)
+  const referenceTeam = getReferenceTeamAtBoss(upgrades)
+  const activeShooters = Math.min(referenceTeam, BALANCE.crowd.shootersPerSalvo)
   const referenceDps = activeShooters
     * damage
     * rate
-    * getCrowdDamageMultiplier(reference.teamAtBoss)
+    * getCrowdDamageMultiplier(referenceTeam)
     * BALANCE.weapon.normal.damageFactor
     * BALANCE.weapon.normal.bulletsPerShot
   // Permanent upgrades remain stronger against regular enemies and squads. Only boss HP
@@ -58,7 +66,7 @@ export function getBossPlan(level: number, upgrades: BossUpgradeLevels): BossPla
     phaseOne: BALANCE.boss.phaseOne,
     phaseTwo: BALANCE.boss.phaseTwo,
     companionIntervalMs: BALANCE.boss.companionIntervalMs,
-    companionLimit: BALANCE.boss.companionLimit,
+    companionLimit: getLevelPlan(safeLevel).companionLimit,
     pressureDelayMs: BALANCE.boss.pressureDelayMs,
     advanceSpeed: BALANCE.boss.advanceSpeed,
     advanceStopBeforeAnchorPx: BALANCE.boss.advanceStopBeforeAnchorPx,

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { computeBlockerPlacement } from '../src/systems/blockerPlacement'
 import { getBlockerIntervalMs, getBlockerPlan } from '../src/systems/blockerPlan'
+import { getReferenceTeamAtBoss } from '../src/systems/bossPlan'
 import { getCrowdDamageMultiplier } from '../src/systems/crowdDamage'
 import { getLevelPlan } from '../src/systems/levelPlan'
 
@@ -17,10 +18,11 @@ function referenceDps(level: number, upgrades: { team: number; damage: number; r
   const reference = BALANCE.boss.referenceFirepower
   const damage = Math.min(reference.damageCap, BALANCE.upgradesShop.damage.base + upgrades.damage * BALANCE.upgradesShop.damage.effectPerLevel + (level - 1) * reference.damagePerLevel)
   const rate = Math.min(reference.rateCap, BALANCE.upgradesShop.rate.base + upgrades.rate * BALANCE.upgradesShop.rate.effectPerLevel + (level - 1) * reference.ratePerLevel)
-  return Math.min(reference.teamAtBoss, BALANCE.crowd.shootersPerSalvo)
+  const team = getReferenceTeamAtBoss(upgrades)
+  return Math.min(team, BALANCE.crowd.shootersPerSalvo)
     * damage
     * rate
-    * getCrowdDamageMultiplier(reference.teamAtBoss)
+    * getCrowdDamageMultiplier(team)
     * BALANCE.weapon.normal.damageFactor
     * BALANCE.weapon.normal.bulletsPerShot
 }
@@ -38,10 +40,11 @@ describe('blockers', () => {
     }
   })
 
-  it('uses the boss reference firepower for 1.5–2.5 second kills at levels 7, 9, and 12', () => {
+  it('uses the boss reference firepower for 1.5–2.5 second kills at levels 3, 9, and 12', () => {
     const full = BALANCE.upgradesShop.prices.length
-    const purchaseStates = [{ team: 0, damage: 0, rate: 0 }, { team: full, damage: full, rate: full }]
-    for (const level of [7, 9, 12]) {
+    const half = Math.floor(full / 2)
+    const purchaseStates = [{ team: 0, damage: 0, rate: 0 }, { team: half, damage: half, rate: half }, { team: full, damage: full, rate: full }]
+    for (const level of [3, 9, 12]) {
       for (const upgrades of purchaseStates) {
         const plan = getBlockerPlan(level, upgrades)
         const destroySec = plan.maxHp / referenceDps(level, upgrades)
