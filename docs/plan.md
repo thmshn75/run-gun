@@ -179,8 +179,12 @@ permanenten Upgrades und die Startwaffe.
 
 ### Startbildschirm
 
-- Eine eigene Szene **vor** der GameScene. Heute startet `BootScene` direkt ins Spiel; künftig
-  startet sie in den Startbildschirm, von dort geht es per Tippen in den Run.
+- **Zwei getrennte Szenen (Thomas-Entscheidung 2026-08-21, nach dem E7-Test):** ein
+  **Titelbildschirm** mit nur Titelschrift und einem Knopf START, und dahinter das **Menü** mit
+  Käufen, Bestenliste, ZURÜCKSETZEN und SPIELEN. Grund: Liegen Kaufzeilen und Bestenliste
+  direkt auf dem Bild, bleiben vom Stadtbild nur schmale Streifen sichtbar. Der Titelbildschirm
+  bekommt deshalb **keine** Fläche über dem ganzen Bild. Nach Game Over geht es weiterhin
+  direkt ins Menü, nicht auf den Titelbildschirm.
 - Der Startbildschirm trägt ohnehin schon zwei im Plan vorgesehene Dinge: die **Stufenkäufe**
   für permanente Upgrades und die **Wahl der Startwaffe**. Er wird also nicht zusätzlich
   gebaut, sondern bekommt ein Gesicht.

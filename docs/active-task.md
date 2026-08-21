@@ -1,221 +1,82 @@
 # Active Task
 
 ## Status
-`APPROVED`
+`SPEC_READY`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-**E7 — Leveltabelle und Gegner-Trupps.**
+**Eigener Startbildschirm vor dem Menü.**
 
-Erste Etappe der Scope-Erweiterung V1.3 (siehe `docs/plan.md`, Abschnitt „Levelaufbau, Trupps,
-Boss, Sperren und Tore"). Ziel: Jedes Level bekommt ein eigenes Gesicht, und Gegner kommen
-nicht mehr nur einzeln.
+Thomas-Entscheidung vom 2026-08-21 nach dem iPhone-Test von E7: Das Titelbild soll beim Start
+einmal ungestört zu sehen sein. Heute liegen Kaufzeilen, Bestenliste und drei Knöpfe direkt
+darauf, sodass vom Stadtbild nur schmale Streifen sichtbar bleiben.
 
-**Boss, Tore, Sperren und Waffen werden in dieser Etappe nicht angefasst.** Sie folgen in
-E8–E10. Wer hier schon am Boss dreht, macht den Review unmöglich.
+**E7 ist damit freigegeben.** Nach diesem Task geht es planmäßig mit E8 (Boss mit Phasen)
+weiter.
 
 ---
-
-# Teil 1 — Leveltabelle statt verstreuter Formeln
-
-## Befund
-
-Heute unterscheiden sich Level nur durch zwei Zahlen: Boss-Lebenspunkte (Faktor 1,6 pro Level)
-und Spawnabstand (`level.spawnBonusPerLevel`, 150 ms kürzer pro Level). Gegnerarten sind in
-jedem Level identisch.
-
-**Dazu ein echter Fehler:** `chooseEnemyType` in `src/systems/enemyTypes.ts` wählt die
-Gegnerart nach `elapsedMs`, und `Spawner.resetForLevel` setzt `elapsedMs` bei jedem
-Levelwechsel auf 0. Ein Level dauert 75 Sekunden (`level.normalPhaseSec`), die dritte Welle
-in `enemy.waves` gilt aber erst ab Sekunde 90 (`untilSec: 0` nach `untilSec: 90`). **Diese
-Welle wird nie erreicht** — die 35 % schweren Gegner sind toter Code. Das wird hier mitbehoben.
 
 ## Verlangte Umsetzung
 
-1. **Neue reine Funktion `getLevelPlan(level: number): LevelPlan`** in einer neuen Datei
-   `src/systems/levelPlan.ts`, **ohne Phaser-Abhängigkeit**, damit sie testbar ist.
+1. **Eine neue Szene `TitleScene`** zwischen `BootScene` und `MenuScene`. `BootScene` startet
+   künftig `TitleScene` statt `MenuScene` (heute `src/scenes/BootScene.ts`, Zeile 49). Die
+   Szene wird in `src/main.ts` in die Szenenliste aufgenommen.
 
-2. **Neue Leveltabelle in `src/config/balance.ts`** mit **zwölf** Einträgen. Pro Eintrag
-   mindestens: Dauer der Fahrtphase in Sekunden, Gewichte für leicht/normal/schwer,
-   Start-Spawnabstand und Untergrenze, sowie welche Trupp-Arten in welcher Häufigkeit
-   vorkommen dürfen.
+2. **Inhalt: ausschließlich Titelbild, Titelschrift und ein Knopf START.** Keine Kaufzeilen,
+   keine Bestenliste, kein Kontostand, kein ZURÜCKSETZEN. Wer diese Dinge sucht, findet sie
+   nach dem Tippen im Menü — unverändert.
 
-3. **Schleife ab Level 13:** Die Gestaltung kommt aus `((level − 1) mod 12) + 1`. Zusätzlich
-   ein **Härtefaktor**, der mit der echten Levelnummer wächst und Spawnabstand sowie
-   Trupp-Größe beeinflusst. **Der Härtefaktor bekommt eine Obergrenze in `balance.ts`** —
-   ohne Deckel wäre Level 40 nicht mehr spielbar, sondern nur noch eine Wand.
+3. **Das Bild bleibt unangetastet hell.** Die Fläche über dem ganzen Bild (`menu.overlayAlpha`,
+   heute 0.20) gilt **nicht** für diesen Bildschirm. Genau diese Abdunklung wäre der Grund,
+   warum das Bild wieder nicht wirkt. Titelschrift und Knopf bleiben trotzdem lesbar, weil die
+   Schrift bereits eine Kontur hat und der Knopf eine eigene Fläche mitbringt. Reicht das
+   nicht, bekommt **nur der Titeltext** einen eigenen schmalen Hintergrund — nicht die ganze
+   Fläche.
 
-4. **Die zeitbasierte Wellenstruktur `enemy.waves` wird entfernt, nicht danebengestellt.**
-   `chooseEnemyType` bekommt die Gewichte künftig als Parameter statt sie selbst aus der Uhr
-   abzuleiten. Bleiben beide Wege im Code, entscheidet später der Zufall, welcher greift —
-   und genau daraus ist der oben beschriebene Fehler entstanden. Die bestehenden Tests zu
-   `chooseEnemyType` werden entsprechend mitgezogen, nicht gelöscht.
+4. **Der Knopf wird von der unteren Safe-Area-Kante aus gesetzt, die Titelschrift von der
+   oberen.** Das ist die Lehre aus dem Überlappungsfehler im Menü (Commit `57b3e9f`): gemischte
+   Bezugspunkte fallen am Desktop nicht auf, am iPhone schon.
 
-5. `elapsedMs` im Spawner bleibt erhalten, hat aber nur noch **eine** Aufgabe: das allmähliche
-   Verkürzen des Spawnabstands innerhalb eines Levels (`spawnRampPerSec`). Das im Code
-   kommentieren, sonst wandert die Gegnerwahl beim nächsten Umbau wieder dorthin zurück.
+5. **Eine reine Funktion `computeTitleLayout(height, insets)`** ohne Phaser-Abhängigkeit
+   liefert die senkrechte Anordnung, analog zu `computeMenuLayout` in
+   `src/systems/menuLayout.ts`. Dazu Unit-Tests mit den Rändern `{ top: 0, bottom: 0 }` und
+   `{ top: 47, bottom: 34 }`.
 
-6. **Dramaturgie der zwölf Level** — die konkreten Zahlen wählst du, die Reihenfolge ist
-   vorgegeben und nicht verhandelbar:
-   - **1–2:** einzelne leichte und normale Gegner, keine Trupps, ruhiger Einstieg.
-   - **3–4:** erste Keile aus leichten Gegnern.
-   - **5–6:** schwere Gegner regelmäßig, Reihenformationen.
-   - **7–8:** höherer Druck, Pulks kommen dazu.
-   - **9–10:** Trupps häufiger und größer, Mischung aus allen Arten.
-   - **11–12:** Höhepunkt, dichteste Mischung.
-   Level 7–12 dürfen bereits Platz für Sperren (E9) und mehrspurige Tore (E10) in der Tabelle
-   vorsehen; diese Felder bleiben in E7 wirkungslos und sind als solche zu kommentieren.
+6. **START führt ins Menü.** Von dort führt SPIELEN wie bisher ins Spiel. **Nach Game Over
+   geht es weiterhin direkt ins Menü**, nicht auf den Startbildschirm — sonst steht nach jedem
+   Lauf ein zusätzlicher Tipp zwischen Thomas und dem nächsten Versuch.
 
----
-
-# Teil 2 — Gegner-Trupps
-
-## Befund
-
-Trupps sind heute nicht nur abwesend, sie sind **aktiv verhindert**: `chooseSpawnLane` in
-`src/systems/spawnLanes.ts` sucht für jeden neuen Gegner eine Spur mit Sicherheitsabstand
-(`spawnLaneSafetyGap`) zu allen anderen aktiven Gegnern. Ein Trupp ist genau das Gegenteil.
-
-## Verlangte Umsetzung
-
-1. **Neue reine Funktion für die Anordnung**, zum Beispiel
-   `computeSquadOffsets(kind, size, spacing): readonly { laneOffset, yOffset }[]`, in einer
-   neuen Datei `src/systems/squads.ts`, **ohne Phaser-Abhängigkeit**. Sie liefert nur relative
-   Versätze zur Trupp-Mitte, keine Bildschirmkoordinaten.
-
-2. **Drei Arten, mehr nicht:**
-   - **Keil:** Spitze vorn, nach hinten breiter. Leichte Gegner.
-   - **Reihe:** mehrere nebeneinander auf gleicher Höhe. Versperrt spürbar den Weg.
-   - **Pulk:** versetzter Block aus gemischten Arten.
-
-3. **Der Trupp wird als eine Einheit platziert.** `chooseSpawnLane` wird **genau einmal** pro
-   Trupp aufgerufen, mit der **Gesamtbreite** des Trupps als `bodyWidth`. Die Mitglieder werden
-   danach um die gefundene Mitte verteilt und **umgehen die Einzelspur-Prüfung**.
-   **Ein Aufruf pro Mitglied ist ausdrücklich falsch** — das Ergebnis wären wieder
-   Einzelgegner mit Sicherheitsabstand, also genau das, was diese Etappe beseitigen soll.
-
-4. **Alles oder nichts.** Ein Trupp wird nur gespawnt, wenn im Gegner-Pool **genug freie
-   Objekte für alle Mitglieder** vorhanden sind und die Spurwahl einen Platz findet.
-   Andernfalls wird der ganze Trupp auf den nächsten Versuch verschoben (wie heute schon
-   `deferredType`). Ein halb gespawnter Keil sieht aus wie ein Zeichenfehler, nicht wie ein
-   Gegner.
-
-5. **Ein Trupp zählt als ein Spawn-Ereignis, und danach folgt eine Pause.** Ohne diese Pause
-   verdoppelt oder verdreifacht ein Trupp die Gegnerdichte schlagartig, weil der normale
-   Spawn-Takt unverändert weiterläuft. Die Länge der Pause gehört als eigener Wert nach
-   `balance.ts`, hergeleitet aus der Trupp-Größe.
-
-6. **Passt ein Trupp nicht auf die Straße, wird er verkleinert, nicht verschoben.** Die
-   Straße ist am Horizont schmal (`road.topWidthRatio` 0,46); ein breiter Trupp muss dort
-   Mitglieder abgeben statt halb neben der Fahrbahn zu erscheinen.
-
-7. **Poolgröße neu herleiten.** `pools.enemies` steht heute auf 48 mit einer dokumentierten
-   Rechnung für Einzelgegner. Diese Rechnung wird auf den neuen schlimmsten Fall aktualisiert
-   (dichtestes Level × größter Trupp × Verweildauer schwerer Gegner) und der Rechenweg wie
-   bisher als Kommentar hinterlegt. Läuft der Pool leer, greift die bestehende
-   Dev-Konsolenwarnung — sie muss auch für verhinderte Trupps anschlagen.
-
-8. Trupp-Mitglieder sind **normale Gegner** mit den bestehenden Eigenschaften. Es gibt keinen
-   neuen Gegnertyp und keine neue Kollisionsart.
-
----
+7. **Kein DOM.** Das Spiel benutzt außer dem Canvas kein DOM-Element; das gilt auch für diese
+   Szene.
 
 ## Ausdrücklich nicht ändern
 
-- **Der Boss bleibt vollständig unberührt** — Lebenspunkte, Verhalten, Skalierung. Das ist E8.
-- **Die Tore bleiben unberührt** (`src/systems/gates.ts`), auch die Tor-Mathematik. Das ist E10.
-- **Die Trefferprüfung aus Commit `729df4d`** (Treffer nur bei echter Berührung einer Figur)
-  wird nicht angefasst.
-- Die Truppe des Spielers, die Waffen, das Menü, die Bestenliste und die Speicherung bleiben
-  unverändert. Der Speicherstand bekommt kein neues Feld.
-- Keine externen Requests, keine neuen Abhängigkeiten, keine neuen Bilddateien.
-
-## Reißleine
-
-Ruckelt ein voller Pulk am iPhone, wird die Trupp-Größe in `balance.ts` gesenkt (8 → 6 → 4).
-**Die Mechanik wird nicht zurückgebaut.** Erst wenn auch ein Vierer ruckelt, liegt es nicht an
-der Zahl, sondern an der Zeichenweise — dann melden statt weiter drehen.
-
-Zeitbudget: Bekommst du die Trupp-Platzierung nach zwei Anläufen nicht sauber in die
-bestehende Spurwahl integriert, baue die Trupp-Platzierung als **eigenen Weg neben**
-`chooseSpawnLane` (Trupp reserviert seinen Bereich, Einzelgegner meiden ihn) und melde das —
-statt `chooseSpawnLane` immer weiter umzubauen und dabei die Einzelgegner zu beschädigen.
+- Die `MenuScene` bleibt inhaltlich unverändert, inklusive `menu.overlayAlpha` von 0.20.
+- Die Leveltabelle und die Trupps aus E7 bleiben unberührt.
+- Boss, Tore, Waffen, Speicherstand und Bestenliste bleiben unverändert.
+- Das Titelbild als Datei wird nicht neu erzeugt und nicht bearbeitet.
 
 ## Akzeptanzkriterien
 
-1. `getLevelPlan` ist eine reine Funktion ohne Phaser-Import und durch Unit-Tests abgedeckt,
-   die mindestens **Level 1, 12, 13 und 25** prüfen. Nachgewiesen wird: Level 13 hat dieselbe
-   Gestaltung wie Level 1, aber einen höheren Härtefaktor, und der Härtefaktor überschreitet
-   seine Obergrenze nie.
-2. Die Gegnermischung hängt am Level, nicht an der Uhr. `enemy.waves` existiert nicht mehr.
-   Ein Unit-Test weist nach, dass die Mischung mit hohem Schwer-Anteil in mindestens einem
-   der zwölf Level tatsächlich vorkommt — der Fehler aus dem Befund ist damit ausgeschlossen.
-3. Die Trupp-Anordnung ist eine reine Funktion ohne Phaser-Import. Unit-Tests weisen für alle
-   drei Arten und für die größte vorgesehene Trupp-Größe nach: **kein Mitglied überlappt ein
-   anderes**, und **kein Mitglied liegt außerhalb der am Horizont verfügbaren Straßenbreite**.
-4. `chooseSpawnLane` wird pro Trupp genau einmal aufgerufen, mit der Gesamtbreite. Im Code
-   nachweisbar, nicht nur behauptet.
-5. Ein Trupp erscheint entweder vollständig oder gar nicht. Bei zu kleinem Pool oder fehlendem
-   Platz wird er verschoben, nicht gestückelt.
-6. Nach einem Trupp folgt eine Pause im Spawn-Takt; der Wert steht in `balance.ts` und ist
-   dort hergeleitet.
-7. Die Herleitung von `pools.enemies` ist auf den neuen schlimmsten Fall aktualisiert und als
-   Kommentar nachvollziehbar.
-8. Level 1, 5 und 9 zeigen im Spiel sichtbar unterschiedliche Gegnerbilder.
-9. Boss, Tore, Waffen, Truppe, Menü und Speicherstand verhalten sich unverändert.
-10. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
+1. Nach dem Laden erscheint der Startbildschirm, nicht das Menü.
+2. Auf dem Startbildschirm sind **nur** Titelschrift und der Knopf START zu sehen; das
+   Titelbild ist großflächig sichtbar und nicht durch eine Fläche über dem ganzen Bild
+   gedämpft.
+3. START öffnet das Menü; von dort startet SPIELEN das Spiel wie bisher.
+4. Nach Game Over erscheint weiterhin das Menü, nicht der Startbildschirm.
+5. Mit den Rändern `{ top: 47, bottom: 34 }` und mit `{ top: 0, bottom: 0 }` überlappen Titel
+   und Knopf einander nicht und liegen innerhalb der Safe-Area — nachgewiesen durch Unit-Tests
+   von `computeTitleLayout`.
+6. Während des gesamten Ablaufs gibt es kein DOM-Element außer dem Canvas.
+7. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch.
 
-Kriterien 1–7 und 10 prüfst du selbst über Tests und Diff. Kriterien 8 und 9 prüft Claude am
-laufenden Spiel; die endgültige Gamefeel-Freigabe gibt Thomas am iPhone.
+Kriterien 5 und 7 prüfst du selbst; Kriterien 1 bis 4 und 6 prüft Claude am laufenden Spiel,
+die endgültige Optik beurteilt Thomas am iPhone.
 
 ## Implementation Summary
 
-- Neue reine Levelplanung in `src/systems/levelPlan.ts`: zwölf Tabellenzeilen aus `balance.ts`, Wiederholung ab Level 13 und ein auf 1,6 gedeckelter Härtefaktor für Spawn-Tempo und geeignete Truppgrößen.
-- Gegnerwahl ist jetzt ausschließlich levelbasiert; `enemy.waves` und die alte zeitbasierte Wahl sind entfernt. `elapsedMs` im Spawner ist als reine Spawn-Rampe kommentiert.
-- Neue reine Trupp-Geometrie in `src/systems/squads.ts` für Keil, Reihe und Pulk. Der Spawner reserviert für einen Trupp genau einmal eine Gesamtspur, spawnt ihn vollständig oder verschiebt ihn, passt breite Trupps an die Horizontstraße an und fügt die größenabhängige Pause ein.
-- Gegner-Pool auf 88 mit nachvollziehbarer Worst-Case-Rechnung angepasst. Boss, Tore, Waffen, Spielertruppe, Menü und Speicherformat wurden nicht geändert.
-- Neue Unit-Tests für Levelpläne, hohe Schwer-Gewichte und alle Trupp-Anordnungen.
+<!-- Von Codex auszufüllen -->
 
 ## Verification
 
-- `npm run check` — erfolgreich (Exit 0).
-- `npm run build` — erfolgreich (Exit 0); einzige Ausgabe ist die bestehende Vite-Hinweiswarnung zum großen Haupt-Chunk.
-- `npm test` — erfolgreich: 5 Testdateien, 24 Tests bestanden.
-- `tests/squads.test.ts` leitet über Level 1–500 alle durch `getLevelPlan` tatsächlich erreichbaren Truppart-/Größenpaare ab und prüft jedes auf Nichtüberlappung sowie die verfügbare Straßenbreite am Horizont.
-- `git diff --check` — erfolgreich; `enemy.waves` ist entfernt und die beiden Trupp-/Levelhelfer haben keinen Phaser-Import.
-- Die sichtbare Laufprüfung für Level 1/5/9 sowie die abschließende Gamefeel-Prüfung der unveränderten Nebenbereiche ist gemäß Akzeptanzkriterien noch bei Claude/Thomas am laufenden Spiel bzw. iPhone durchzuführen.
-
-## Review-Ergebnis (Claude, am laufenden Spiel und an den Funktionen gemessen)
-
-Alle zehn Kriterien erfuellt. Was ich selbst nachgemessen habe, nicht aus dem Codex-Bericht
-uebernommen:
-
-- **Kriterien 1, 2, 10:** `npm run check`, `npm run build`, `npm test` im Terminal selbst
-  ausgefuehrt — Exit 0, 5 Testdateien, 24 Tests. `enemy.waves` existiert nicht mehr, und ein
-  Test schlaegt an, falls die Zeitsteuerung zurueckkehrt.
-- **Level-Unterschiede (Kriterium 8):** ueber `getLevelPlan` im Browser gemessen. Level 1:
-  Mischung 75/25/0, Takt 1750 ms, keine Trupps. Level 5: 35/45/20, Takt 1144 ms, Reihen zu
-  dritt. Level 9: 25/35/40, Takt 721 ms, alle drei Trupparten bis acht Mann. Level 13
-  wiederholt das Design von Level 1 bei Haerte 1,54; der Deckel 1,6 haelt auch bei Level 400.
-- **Kriterium 3, ueber die Spec hinaus geprueft:** Der Haertefaktor erzeugt groessere Trupps
-  als die Tabelle vorgibt. Ueber 500 Level entstehen acht Konfigurationen (wedge 4/5/7/8,
-  row 3/4, cluster 7/8). Alle acht in 1600 Platzierungen mit der echten `chooseSpawnLane`
-  geprueft: **kein** Mitglied neben der Strasse, **keine** Ueberlappung, **keine**
-  fehlgeschlagene Spurwahl. Der Test deckte zunaechst nur die Tabellenwerte ab; er leitet die
-  Groessen nach einem Nacharbeitslauf jetzt aus `getLevelPlan` ueber 500 Level ab.
-- **Gegenprobe zum Test:** Mit kuenstlich verengtem Abstand (seitlich 30 statt 44, in Reihen
-  40 statt 54) meldet die Pruefloglik korrekt Ueberlappung. Der Test ist damit echter
-  Regressionsschutz und nicht nur zufaellig gruen.
-- **Kriterium 4–7:** Genau eine Spurreservierung pro Trupp mit Gesamtbreite (im Code
-  kommentiert); Pool-Pruefung vor dem Aktivieren, also alles oder nichts; Pause nach einem
-  Trupp ueber den Spawn-Akkumulator, Werte in `balance.ts` hergeleitet; `pools.enemies` auf 88
-  mit nachvollziehbarer Worst-Case-Rechnung.
-- **Kriterium 9:** Boss-Diff **null Zeilen**. Tore, Waffen, Truppe, Menue und Speicherformat
-  unberuehrt. `GameScene` aendert nur die Herkunft der Levellaenge. Level 1 im Browser
-  gespielt: Gegner erscheinen einzeln, 5 Spawns in 10 s bei Takt 1750 ms, 0 verschoben, keine
-  Pool-Warnung, keine neuen Konsolenfehler.
-
-**Offen und ausdruecklich Thomas' Teil:** Gamefeel am iPhone — fuehlen sich Level 1, 5 und 9
-unterschiedlich an, und ruckelt ein voller Achter-Pulk. Hinweis fuers Testen: Eine Reihe zu
-viert ist 172 px breit bei 179 px Strassenbreite am Horizont und damit oben praktisch eine
-Wand; Ausweichen geht erst weiter unten, wo die Strasse breiter wird.
+<!-- Von Codex auszufüllen -->
