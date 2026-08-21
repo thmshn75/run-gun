@@ -40,14 +40,14 @@ Phase 2 wird nach Level gestaffelt, analog zur bereits gestaffelten Kampfdauer:
 
 1. Neue Konstanten in `BALANCE.boss.phaseTwo` (die bestehenden Endwerte bleiben als Deckel):
    - `burstSpreadPxAtLevelOne: 60`
-   - `burstSpreadPxPerLevel: 10`
+   - `burstSpreadPxPerLevel: 9`
    (Deckel ist das vorhandene `burstSpreadPx: 150`.)
    - `burstCountAtLevelOne: 3`
    - `burstCountPerThreeLevels: 1`
    (Deckel ist das vorhandene `burstCount: 5`.)
 2. In `src/systems/bossPlan.ts` eine exportierte Funktion `getPhaseTwoProfile(level)`, die
    `burstCount` und `burstSpreadPx` liefert:
-   - `burstSpreadPx(level) = min(150, 60 + 10 × (level − 1))` → L1: 60, L4: 90, L7: 120, ab L10: 150.
+   - `burstSpreadPx(level) = min(150, 60 + 9 × (level − 1))` → L1: 60, L3: 78, L4: 87, L7: 114, ab L11: 150.
    - `burstCount(level) = min(5, 3 + floor((level − 1) / 3))` → L1–3: 3, L4–6: 4, ab L7: 5.
 3. `getBossPlan` legt das Ergebnis in `plan.phaseTwo` (übrige Felder aus `BALANCE.boss.phaseTwo`
    unverändert übernehmen: `fireIntervalMs`, `moveSpeed`, `tint`, `transitionFlashMs`).
@@ -64,12 +64,11 @@ aus den Zahlen dieser Spec:
   PNG-Breite darf im Test als 34 gelesen oder aus der Datei gemessen werden).
 - Fenster(level) = (`bodyWidth / 2` + Hüllen-Halbbreite) − (`spread(level) / 2` + Hüllen-Halbbreite)
   = `bodyWidth / 2 − spread(level) / 2`.
-- Anforderung: Fenster ≥ **20 px** für Level 1–3. Mit spread 60 und bodyWidth 118 ergibt das
-  59 − 30 = 29 px — erfüllt. Der Test dokumentiert zusätzlich (als Kommentar), ab welchem Level
-  das Fenster schließt (spread ≥ 118, also ab Level 7 knapp, ab Level 10 null) und dass das die
+- Anforderung: Fenster ≥ **20 px** für Level 1–3. L1: 59 − 30 = 29 px, L2: 59 − 34,5 = 24,5 px, L3: 59 − 39 = 20 px — alle drei erfüllt (L3 exakt an der Schwelle, deshalb Vergleich mit >=, nicht >). Der Test dokumentiert zusätzlich (als Kommentar), ab welchem Level
+  das Fenster schließt (spread ≥ 118 ab Level 8, Fenster null ab ca. Level 8–9) und dass das die
   bewusste Tank-Schwelle ist.
 - Zweiter Test: `getPhaseTwoProfile(1)` = {count 3, spread 60}, `getPhaseTwoProfile(12)` =
-  {count 5, spread 150}, Monotonie über Level 1–12 (nie fallend).
+  {count 5, spread 150} (Deckel greift ab L11), Monotonie über Level 1–12 (nie fallend).
 
 Bestehende Tests: `bossPlan.test.ts` prüft `plan.phaseTwo` bisher als direkte Referenz auf
 `BALANCE.boss.phaseTwo` — falls ein Test darauf baut, auf das Profil umstellen. Der
