@@ -7,7 +7,7 @@ import { getRoadHalfWidth } from './road'
 import { chooseSpawnLane, type SpawnLaneEnemy } from './spawnLanes'
 import { computeSquadOffsets, getSquadWidth } from './squads'
 import type { RunStats } from './upgrades'
-import { getBlockerWeaponChoices } from './blockerWeaponChoices'
+import { getWeaponRewardChoices } from './weaponChoices'
 import type { WeaponKey } from './weapons'
 
 type SpawnResult = 'spawned' | 'no-lane' | 'pool-exhausted'
@@ -100,7 +100,7 @@ export class Spawner {
   }
 
   public chooseBlockerWeapon(currentWeapon: WeaponKey): WeaponKey {
-    const choices = getBlockerWeaponChoices(currentWeapon, this.levelPlan.level)
+    const choices = getWeaponRewardChoices(currentWeapon, this.levelPlan.level)
     return choices[Math.min(choices.length - 1, Math.floor(Phaser.Math.RND.frac() * choices.length))]
   }
 

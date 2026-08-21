@@ -1,16 +1,8 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import { getRoadHalfWidth } from './roadGeometry'
 
-export function getRoadHalfWidth(width: number, height: number, y: number): number {
-  const topWidth = width * BALANCE.road.topWidthRatio
-  const bottomWidth = width * BALANCE.road.bottomWidthRatio
-  const progress = Phaser.Math.Clamp(
-    (y - BALANCE.road.horizonY) / (height - BALANCE.road.horizonY),
-    0,
-    1,
-  )
-  return (topWidth + (bottomWidth - topWidth) * progress) / 2
-}
+export { getRoadHalfWidth } from './roadGeometry'
 
 type CenterLineSegment = {
   readonly image: Phaser.GameObjects.Image

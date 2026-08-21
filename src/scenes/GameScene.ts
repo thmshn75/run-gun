@@ -198,6 +198,9 @@ export class GameScene extends Phaser.Scene {
       this.runStats,
       getAnchorPosition,
       () => this.updateHud(),
+      () => this.currentLevel,
+      () => this.weapons.getWeapon(),
+      (weapon) => this.equipWeapon(weapon),
       () => Phaser.Math.RND.frac(),
     )
     this.splashFlashes = new SplashFlashPool(this)

@@ -11,7 +11,7 @@ export type LevelPlan = {
   readonly squadChance: number
   readonly squads: readonly LevelSquadAllowance[]
   readonly companionLimit: number
-  readonly reserved: { readonly blockers: boolean; readonly gateLanes: 1 | 3 }
+  readonly reserved: { readonly blockers: boolean; readonly gateLanes: 2 | 3 }
 }
 
 export function getLevelPlan(level: number): LevelPlan {

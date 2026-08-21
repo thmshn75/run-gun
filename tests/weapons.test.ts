@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { selectChainLightningTargets } from '../src/systems/chainLightning'
-import { getBlockerWeaponChoices } from '../src/systems/blockerWeaponChoices'
+import { getWeaponRewardChoices } from '../src/systems/weaponChoices'
 
 type WeaponKey = keyof typeof BALANCE.weapon
 
@@ -36,14 +36,24 @@ describe('additional weapons', () => {
 
   it('makes the three new weapons unavailable before level three and config-selected from level three onward', () => {
     for (const level of [1, 2]) {
-      const choices = getBlockerWeaponChoices('normal', level)
+      const choices = getWeaponRewardChoices('normal', level)
       expect(choices).not.toContain('normal')
       for (const weapon of newWeapons) expect(choices).not.toContain(weapon)
     }
-    const levelThreeChoices = getBlockerWeaponChoices('normal', 3)
+    const levelThreeChoices = getWeaponRewardChoices('normal', 3)
     for (const weapon of newWeapons) expect(levelThreeChoices).toContain(weapon)
     const expected = (Object.keys(BALANCE.weapon) as WeaponKey[]).filter((weapon) => weapon !== 'normal' && BALANCE.weapon[weapon].minLevel <= 3)
     expect(levelThreeChoices).toEqual(expected)
+  })
+
+  it('never rewards the equipped or level-locked weapon', () => {
+    for (const level of [1, 2, 3, 12]) {
+      for (const currentWeapon of Object.keys(BALANCE.weapon) as WeaponKey[]) {
+        const choices = getWeaponRewardChoices(currentWeapon, level)
+        expect(choices).not.toContain(currentWeapon)
+        for (const weapon of choices) expect(BALANCE.weapon[weapon].minLevel).toBeLessThanOrEqual(level)
+      }
+    }
   })
 
   it('chains to nearby unique enemies only and returns damage targets rather than projectiles', () => {

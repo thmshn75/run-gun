@@ -46,4 +46,8 @@ describe('level plans', () => {
     expect(getLevelPlan(2).reserved.blockers).toBe(true)
     expect(getLevelPlan(3).reserved.blockers).toBe(true)
   })
+
+  it('uses two gate lanes for levels one and two, then repeats the three-lane design schedule', () => {
+    expect([1, 2, 3, 12, 13, 25].map((level) => getLevelPlan(level).reserved.gateLanes)).toEqual([2, 2, 3, 3, 2, 2])
+  })
 })

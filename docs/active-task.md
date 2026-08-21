@@ -1,8 +1,13 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
+
+> **Nacharbeit 2 (2026-08-21, nach Claude-Review des zweiten Laufs).** Nacharbeit 1 ist
+> erledigt: Torrahmen, unverzerrtes Icon und Icon-Pooling stimmen und bleiben unangetastet.
+> Offen ist **nur Abschnitt 4a „Beschriftung passt sich der Spurbreite an"** — neu unten. Alles
+> andere in diesem Dokument gilt unverändert und ist erfüllt.
 
 ## Task
 **E10 — Zwei- und dreispurige Tore.**
@@ -127,20 +132,109 @@ kein zweiter Zufallsgenerator.
 
 ### 4. Darstellung der Waffenspur
 
-- Bild: `weapon-<key>-gate` (existiert bereits, wird in `BootScene` geladen und von den Sperren
-  benutzt). Es wird auf die Spurbreite skaliert wie die Rechen-Tore auch.
-- Text: `WEAPON_LABELS[key]` aus `src/systems/weapons.ts`, also `SCHROT`, `LASER`, `RAKETE`,
-  `MINIGUN`, `FLAMME`, `BLITZ`. Schriftgröße **26 px** statt der 34 px der Rechen-Tore, weil die
-  Wörter länger sind als eine Zahl und bei 108 px Spurbreite sonst überstehen.
-- **Farbe:** eine einzige, feste Torfarbe für *jede* Waffe, neu in `src/config/colors.ts`. Nicht
-  pro Waffe verschieden. Sonst lernt man nach drei Runs „türkis = Laser" und muss nicht mehr
-  hinschauen — genau das verbietet die Regel „einheitliche Torfarbe, keine Erklärtexte" aus
-  `docs/plan.md`, Abschnitt „Tor-Mathematik".
-- Die Hervorhebung der gerade angesteuerten Spur (`gates.highlightLighten`) gilt für alle drei
-  Spuren gleich.
-- Das Stat-Kürzel über dem Tor (`TEAM` / `DMG` / `RATE` / `SPD`) steht weiterhin **mittig über
-  den beiden Rechen-Spuren**, nicht über der Bildmitte — sonst zeigt es bei einer linken
-  Waffenspur auf das falsche Tor.
+**Diese Fassung ersetzt die erste. Befund aus dem Review des ersten Laufs:**
+
+Die Waffenspur benutzt heute das Waffenbild *als* Tor:
+`lane.gate.setTexture('weapon-<key>-gate').setDisplaySize(laneWidth, gateHeight)` plus
+`setTint(WEAPON_GATE_COLOR)`. Das erzeugt zwei sichtbare Fehler:
+
+1. **Verzerrung.** Die Waffenbilder sind alle **150 × 44 px** (nachgemessen, alle sieben
+   `src/assets/weapon-*-gate.png`), Seitenverhältnis 3,41 : 1. Auf 108 × 70 gezwungen wird
+   daraus 1,54 : 1 — die Waffe wird auf 45 % ihrer relativen Breite gestaucht und in die Höhe
+   gezogen. Die Sperren aus E9 zeigen dieselben Bilder unskaliert in 150 × 44; so sind sie
+   gestaltet.
+2. **Einfärbung.** `setTint` multipliziert die Farbe in das Bild hinein. Das Waffensymbol wird
+   lila überfärbt, statt dass ein Torrahmen lila ist.
+
+Die Waffenspur muss aussehen wie die beiden anderen Tore — gleicher Rahmen, gleiche Höhe, nur
+andere Farbe und anderer Inhalt.
+
+**Verlangte Umsetzung:**
+
+1. **Torrahmen wie bei den Rechen-Spuren.** Die Waffenspur benutzt die Textur `gate`, getönt in
+   `WEAPON_GATE_COLOR`, auf die Spurbreite gebracht — exakt derselbe Aufruf wie bei einer
+   Rechen-Spur. Kein `setTexture('weapon-…')` mehr auf `lane.gate`.
+2. **Das Waffenbild kommt als eigenes Objekt obendrauf.** `GateLaneView` bekommt ein drittes
+   Feld `icon: Phaser.GameObjects.Image`, das in `createGroup()` **im Konstruktor** mit erzeugt
+   wird (also drei Icons je Gruppe, sechs im ganzen Pool). Kein `add.image()` in `spawn()`,
+   `configureGroup()`, `layoutGroup()` oder `update()` — die Pool-Regel gilt unverändert.
+3. **Seitenverhältnis wahren.** Die Icon-Breite ist `laneWidth − 2 × gates.weaponIconInsetPx`
+   (neuer Wert in `balance.ts`, Startwert **10**), die Höhe folgt daraus mit dem Faktor
+   `44 / 150`. Bei 108 px Spurbreite: 88 × 25,8 px. Rechnerisch aus der Texturgröße ableiten
+   (`icon.texture.getSourceImage()` oder `icon.width`/`icon.height` vor dem Skalieren), nicht
+   150 und 44 als Zahlen in den Code schreiben — sonst bricht es still, wenn die Bilder neu
+   gezeichnet werden.
+4. **Anordnung im 70 px hohen Tor:** Icon-Mitte auf `y − 16`, Text-Mitte auf `y + 18`. Beides
+   zusammen bleibt damit innerhalb des Rahmens.
+5. **Kein Tint auf dem Icon** (`clearTint()`), damit die Waffe erkennbar bleibt. Die
+   Hervorhebung der angesteuerten Spur (`gates.highlightLighten`) wirkt weiterhin nur auf
+   `lane.gate`, nicht auf das Icon.
+6. **Schriftgröße für Waffennamen: 20 px** statt 26 px. `MINIGUN` ist das längste Wort; bei
+   26 px bold überschreitet es die 108 px Spurbreite. Zusätzlich als Absicherung gegen jede
+   Schriftmetrik: Ist `text.displayWidth` größer als `laneWidth − 8`, wird der Text per
+   `setScale` auf dieses Maß gebracht. Das ist eine Zeile in `layoutGroup()` und kostet kein
+   neues Objekt.
+7. **Icon in `setGroupAlpha()` und `recycle()` mitführen**, damit es beim Einblenden mitzieht
+   und beim Recyceln verschwindet. Bei Rechen-Spuren ist es dauerhaft unsichtbar.
+
+**Farbe und Neutralität bleiben wie gehabt:** eine einzige feste Torfarbe
+(`WEAPON_GATE_COLOR = 0xb18cff`) für *jede* Waffe. Nicht pro Waffe verschieden — sonst lernt man
+nach drei Runs die Farbe statt hinzusehen.
+
+Das Stat-Kürzel über dem Tor (`TEAM` / `DMG` / `RATE` / `SPD`) steht weiterhin mittig über den
+beiden Rechen-Spuren, nicht über der Bildmitte. Das ist bereits korrekt umgesetzt und bleibt.
+
+### 4a. Beschriftung passt sich der Spurbreite an
+
+**Befund aus dem Review des zweiten Laufs — zwei Fehler mit derselben Ursache:**
+
+1. **Der Waffenname schrumpft dauerhaft.** `layoutGroup()` enthält
+   `if (lane.text.displayWidth > position.width - 8) lane.text.setScale(...)`. Der Maßstab wird
+   nie auf 1 zurückgesetzt, bevor neu gemessen wird. Das Tor entsteht bei `road.horizonY`
+   (150), dort ist die Straße nur `179,4 px` breit und eine Spur damit `(179,4 − 16) / 3 =
+   54,5 px`. `MINIGUN` bei 20 px bold ist rund 86 px breit und wird auf den Faktor `0,54`
+   gestaucht. Weil `displayWidth` danach kleiner ist als die Grenze, greift die Bedingung nie
+   wieder — der Name bleibt bis zum Entscheidungspunkt halb so groß, obwohl die Spur dort
+   108 px breit ist.
+2. **Die Rechen-Zahlen ragen über die Torränder.** Die Absicherung steht innerhalb von
+   `if (lane.kind === 'weapon')` und gilt deshalb nicht für die Zahlen. Bei 34 px bold ist
+   `+50 %` rund 90 px breit — das passte in die 85,7 px breite Zwei-Spur-Variante gerade noch,
+   sprengt aber die 54,5 px einer Drei-Spur-Spur am Horizont deutlich.
+
+**Verlangte Umsetzung:**
+
+1. **Neue reine Funktion** in `src/systems/gateLanes.ts` (kein Phaser-Import, damit direkt
+   testbar):
+   ```ts
+   // Liefert den Maßstab, mit dem eine Beschriftung ihrer natürlichen Breite in die Spur passt.
+   export function getLabelScale(naturalTextWidth: number, laneWidth: number, insetPx: number): number
+   ```
+   Ergebnis ist `1`, wenn der Text passt, sonst `(laneWidth − insetPx) / naturalTextWidth`.
+   Bei `naturalTextWidth <= 0` ist das Ergebnis `1` (kein Division-durch-Null).
+2. **In `layoutGroup()` für jede sichtbare Spur** — nicht nur für die Waffenspur:
+   `lane.text.setScale(1)` **vor** dem Messen, dann
+   `lane.text.setScale(getLabelScale(lane.text.displayWidth, position.width, BALANCE.gates.labelInsetPx))`.
+   So wird jeden Frame ab der natürlichen Breite neu gerechnet und die Schrift wächst mit der
+   Spur mit, statt einmalig einzufrieren.
+3. **Neuer Wert `gates.labelInsetPx: 8`** in `balance.ts` ersetzt die hartkodierte 8. Kommentar
+   dazu: seitlicher Rand, damit die Beschriftung den Torrahmen nicht berührt.
+4. Die Icon-Skalierung aus Abschnitt 4 bleibt, wie sie ist — sie wird ohnehin jeden Frame neu
+   aus `position.width` berechnet und wächst deshalb korrekt mit.
+
+**Der Test zu Abschnitt 4 wird auf Verhalten umgestellt.** `tests/weaponGatePresentation.test.ts`
+vergleicht heute ganze Codezeilen wörtlich (`expect(gatesSource).toContain('lane.icon.setTexture(…')`).
+Solche Prüfungen brechen bei jeder Umformulierung und sichern nichts ab — dieselbe Kritik steht
+schon in `docs/UEBERGABE.md` zu den Regressionstests aus `64fc795`. Verlangt ist stattdessen:
+
+- `getLabelScale` gegen die **echten** Spurbreiten testen: am Horizont
+  (`getRoadHalfWidth(390, 844, 150) * 2` → Spur 54,5 px) muss ein 86 px breiter Text
+  verkleinert werden, an der Entscheidungsstelle (`… , 679) * 2` → Spur 108 px) nicht mehr.
+  Der Test rechnet die Breiten über `getRoadHalfWidth` und `getGateLanes` aus, statt sie als
+  Zahlen einzusetzen.
+- Ein Test, der nachweist, dass derselbe Text bei wachsender Spurbreite einen **größeren oder
+  gleichen** Maßstab bekommt — genau die Eigenschaft, die im zweiten Lauf gefehlt hat.
+- Von den Quelltext-Prüfungen bleibt **nur** der Pool-Nachweis übrig (Icons entstehen
+  ausschließlich in `createGroup()`); die wörtlichen Zeilenvergleiche entfallen ersatzlos.
 
 ### 5. Auswahl der Spur
 
@@ -252,7 +346,19 @@ Pool-Objekte sind reiner Speicher.
 11. `isLeftSelected` existiert nicht mehr; `npm run check` findet keinen unbenutzten Export.
 12. `npm run check`, `npm run build` und `npm test` laufen fehlerfrei durch. Alle bestehenden
     Tests bleiben grün, insbesondere die zu `drawGatePair`.
-13. **Nur nach Thomas' iPhone-Test erfüllbar:** Drei Spuren werden in der vorhandenen Zeit
+14. Die Waffenspur zeigt den Torrahmen (`gate`) in `WEAPON_GATE_COLOR` und darauf das
+    unverzerrte Waffenbild: `icon.displayWidth / icon.displayHeight` weicht um höchstens 1 %
+    vom Seitenverhältnis der Quelltextur ab. Das Icon trägt keinen Tint.
+15. `src/systems/gates.ts` enthält kein `setTexture('weapon-` auf `lane.gate` mehr, und die
+    Icons werden ausschließlich in `createGroup()` erzeugt.
+16. Keine Beschriftung ragt über ihren Torrahmen hinaus, auf keiner Höhe der Fahrt und bei
+    zwei wie bei drei Spuren. Nachweis über `getLabelScale` gegen die aus `getRoadHalfWidth`
+    berechneten Spurbreiten am Horizont (150) und an der Entscheidungsstelle (679).
+17. Der Maßstab einer Beschriftung wächst mit der Spurbreite mit; er friert nicht auf dem Wert
+    vom Erscheinen ein. Eigener Test.
+18. `tests/weaponGatePresentation.test.ts` enthält keine wörtlichen Codezeilen-Vergleiche mehr
+    außer dem Pool-Nachweis.
+19. **Nur nach Thomas' iPhone-Test erfüllbar:** Drei Spuren werden in der vorhandenen Zeit
     zuverlässig getroffen, und die Waffenangebote kommen nicht zu oft.
 
 ---
@@ -278,3 +384,18 @@ folgenlos ist — dann Design-Entscheidung mit Thomas statt weiter an der Zahl d
 positioniert, Auswahl trifft die falsche Spur), ist nicht die Rechnung das Problem, sondern die
 Vermischung von Layout und Auswahl in `Gates` — dann beide reinen Funktionen in eine eigene
 Datei `src/systems/gateLanes.ts` ziehen und dort isoliert gegen die Tests bringen.
+
+## Implementation Summary
+
+- Nacharbeit 2 umgesetzt: `getLabelScale` begrenzt jede sichtbare Torbeschriftung mit dem
+  konfigurierten seitlichen Rand und berechnet sie in jedem Layout-Durchlauf neu aus der
+  natürlichen Breite. Die Verhaltenstests decken die echten Spurbreiten am Horizont und an der
+  Entscheidungsstelle sowie wachsende Beschriftung bei breiterer Spur ab; als Quelltextprüfung
+  bleibt nur der Icon-Pool.
+- Nacharbeit 1 umgesetzt: Die Waffenspur verwendet wieder den getönten `gate`-Rahmen; ihr
+  Waffenbild ist ein gepooltes, tintfreies Icon mit erhaltenem Seitenverhältnis. Der Name ist
+  20 px groß und wird bei Bedarf auf die Spurbreite begrenzt.
+- Akzeptanzkriterien 14 und 15 sind durch `tests/weaponGatePresentation.test.ts` abgedeckt,
+  ohne die vorhandenen Tests anzufassen.
+- `npm run check`, `npm run build` und `npm test` sind erfolgreich; der iPhone-Praxistest
+  aus Akzeptanzkriterium 19 bleibt bei Thomas offen.
