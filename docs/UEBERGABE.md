@@ -1,71 +1,63 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-21 15:30
+Stand: 2026-08-21 17:45
 
-## Ziel
-Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat) bis V1. Plan: `docs/plan.md`.
-**Alle Feature-Etappen E1–E10 sind durch.** Offen ist nur E6 (V1-Abnahme) plus Thomas' Wuensche
-aus seinen iPhone-Tests.
+## Ziel und Stand
+Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **Alle Etappen E1–E10 plus
+maschinenseitiges E6 sind fertig, committet, gepusht, Deploy gruen.** Offen ist nur Thomas'
+iPhone-Abnahme; danach ist V1 fertig. Plan: `docs/plan.md`.
 
-## Harte Randbedingungen
-- Claude ist Architekt und Reviewer, schreibt **keinen** produktiven Code. Umsetzung ueber Codex
-  per Terminal-Handoff (Ablauf in `CLAUDE.md`).
-- Gamefeel, Optik und Performance gelten erst nach Thomas' iPhone-Test als erfuellt.
-- Objekt-Pools: kein `create()`/`destroy()` im Hot Path, jede Poolgroesse mit Herleitung.
-- **Nie eine Groesse raten, die das Spiel messen kann.** Diese Fehlerklasse hat am 2026-08-21
-  vier Runden gekostet: Truppe, Waffe, Schaden und Feuerrate waren nacheinander aus dem
-  Kaufstand hergeleitet statt aus `runStats`. Bei jeder neuen Balance-Rechnung zuerst pruefen,
-  ob der echte Wert zur Laufzeit verfuegbar ist.
-- Balance-Zahlen immer aus `balance.ts` ableiten — **auch die in Entscheidungsvorlagen fuer
-  Thomas** (siehe `docs/lessons.md`).
-- Reissleinen muessen benennen, was **kein** zulaessiger Ersatz ist.
+## Naechster Schritt: Thomas' iPhone-Abnahme (E6)
+Live-Stand: https://thmshn75.github.io/run-gun/
+1. Boss Level 1: Einzelschuss statt Salve, Kampf ~18 s — jetzt schaffbar?
+2. Haeuserschlucht: Tuerme dicht an der Strasse, 82 % Stadtanteil — richtig so?
+3. Offline: nach Installation Flugmodus an, mehrere Runs — laeuft alles? (Der Offline-Cache
+   war bis heute still kaputt: Sprites fehlten im Precache; gefixt, per Test abgesichert.)
+4. Netzwerk-Null-Check + Update nach Force-Quit: Anleitung im README, Abschnitt
+   „Abnahme-Checks (E6)".
+Wenn alles passt: V1 ist abgenommen, keine weiteren Aenderungen.
 
-## Fertig (alles gepusht, Arbeitsbaum sauber, Deploy gruen)
-- E1–E9, Ruckeln behoben (`64fc795`, von Thomas am iPhone bestaetigt).
-- **E10 mehrspurige Tore** (`c8e5607`): ab Level 3 traegt jedes dritte Tor eine dritte Spur mit
-  Waffenangebot; Level 1–2 zweispurig. Vier Spuren sind per Typ ausgeschlossen (waeren 79 px,
-  Plan-Grenze 90 px).
-- **Boss-Balance strukturell geschlossen** (`b36fdb0`, `8472f94`, `5fca620`): Truppe, Waffe,
-  Schaden und Feuerrate werden gemessen; Kampfdauer per Clamp garantiert **15–40 s** fuer jede
-  Kombination (Test ueber 8.064 Faelle). Der alte `hpCap` ist entfernt — er haette starke Runs
-  wieder in 1,4 s platzen lassen.
-- Reichweiten Schrot/Flamme auf 430 (erreichen den Boss bei 414 px Abstand), Pools nachgezogen.
-- Levelanzeige mittig in Zeile 1 des HUD.
-- **Kulisse am Strassenrand** (`5fca620`): fuenf Pixel-Art-Sprites, Perspektive ueber
-  `getRoadHalfWidth`, gemessen ohne Mehrkosten.
+## V2 (vorgemerkt, von Thomas gewuenscht, Start auf Zuruf)
+**Spuren-Umbau nach Genre-Vorbild** (Count Masters, Mob Control, Z Escape):
+mitlaufende zerschiessbare Waende links und rechts (Belohnung beim Wegschiessen),
+Waffen auf einer Seite, Upgrades auf der anderen, Gegner-Horden in der Mitte.
+Ersetzt das E10-Spurensystem und baut Tore, Blocker und Spawner um — als Etappenplan
+aufsetzen, nicht als ein Task. Kern-Mehrwert: permanenter Zielkonflikt (zur Wand steuern
+= nicht auf die Horde schiessen).
 
-## Offen — naechster Schritt zuerst
-1. **Thomas' iPhone-Test** des Live-Stands. Drei Fragen: Ist der Level-1-Boss jetzt auch mit
-   Rakete und heruntergedrehter Feuerrate zu besiegen? Sind drei Torspuren treffbar und die
-   Waffenangebote nicht zu haeufig? Ist die Kulisse gross genug — auf `title.png` wirken die
-   Baeume markanter als im Spiel.
-2. **E6 — V1-Abnahme:** finale Icons, README (Start/Build/Deploy), Netzwerk-Null-Check im Safari
-   Web Inspector ueber USB, `.map`-Dateien nicht im Deploy, Update nach Force-Quit sichtbar.
-3. Optional: Zwei alte Regressionstests aus `64fc795` pruefen Quelltext statt Verhalten.
+## Harte Randbedingungen (unveraendert)
+- Claude ist Architekt/Reviewer, schreibt keinen produktiven Code; Umsetzung via Codex im
+  Terminal (Ablauf in `CLAUDE.md`). Testlaeufe ebenfalls ins Terminal.
+- Nie eine Groesse raten, die das Spiel messen kann; Balance-Zahlen aus `balance.ts` ableiten.
+- Objekt-Pools: kein create()/destroy() im Hot Path, jede Poolgroesse mit Herleitung.
+- Reissleinen benennen, was KEIN zulaessiger Ersatz ist.
+- Gamefeel/Optik/Performance gelten erst nach Thomas' iPhone-Test als erfuellt.
 
-## Stellschrauben, falls der Test etwas beanstandet
-- Waffenangebote zu haeufig: `gates.weaponLaneEvery` 3 → 4 → 5.
-- Drei Spuren nicht treffbar: alle Level auf `gateLanes: 2`. Zeitfenster **nicht** verlaengern.
-- Kulisse zu klein: `baseHeightPx` je Art in `src/systems/scenery.ts`.
-- **Boss:** nicht mehr an Zahlen drehen. Die Dauer ist per Konstruktion ≤ 40 s, toedlich wird er
-  ab 45,8 s. Klemmt es trotzdem, liegt es am Kampfverhalten, nicht an den Lebenspunkten.
+## Heute gelernt (2026-08-21, Nachmittag)
+- **Boss-Balance ist dreistufig geloest:** Kampfdauer nach Level gestaffelt
+  (`getMaxFightSec`: 18 s + 2 s/Level, Deckel 40 s), Phase-2-Salve nach Level gestaffelt
+  (`getPhaseTwoProfile`: Breite 60 + 9 px/Level, Deckel 150; Anzahl 3→5) und Salvengroesse
+  = Levelnummer auf L1–L3 (beide Phasen). Ausweich-Geometrie ist per Test gesichert
+  (Fenster >= 20 px fuer L1–3, echte Figurbreite aus player.png gelesen).
+- **Ein Einzelschuss war eine NaN-Falle:** `spread / (count - 1)` bei count 1 →
+  `getBurstOffsets` in `src/systems/bossBurst.ts` behandelt das, mit Test.
+- **Kulisse:** bewegt sich jetzt auf derselben Kurve wie die Strasse (`getScrollY` in
+  `roadGeometry.ts`); Haeuserschlucht (3 Tuerme, Gewicht 6:1, marginPx 4, spreadPx 6,
+  Takt 400 ms, Pool 30 gemessen). Cottage geloescht.
+- **Codex stoppt bei widerspruechlicher Spec korrekt** statt zu raten (L3-Fenster 19 px vs.
+  geforderte 20) — Spec-Zahlen fuer JEDEN betroffenen Level durchrechnen, nicht nur L1.
+- **Offline-Regression der Klasse „Test veraltet still":** Der E1-Offline-Beleg galt vor den
+  PNG-Sprites; seitdem fehlten alle Sprites im Precache. Fix: `globPatterns` in
+  `vite.config.ts`, Nachweis-Test `tests/precache.test.ts` (`npm run test:dist`).
 
 ## Wichtige Dateien und Befehle
-- `docs/plan.md` · `docs/active-task.md` (APPROVED) · `docs/lessons.md`
-- Balance zentral in `src/config/balance.ts`; Boss-/Sperren-Formel in `src/systems/bossPlan.ts`.
-- `npm run check` · `npm run build` · `npm test` (62 Tests) · `npm run dev`
-- Live: https://thmshn75.github.io/run-gun/ · Deploy per GitHub Actions auf Push.
-- Testlaeufe und Codex-Handoffs ins Terminal, nicht in die Extension.
-- **Leistung messen** (Skript-Vorlage im Session-Scratchpad, Verfahren bewaehrt):
-  Playwright + CDP `Emulation.setCPUThrottlingRate {rate: 8}`, Frame-Zeiten per
-  `requestAnimationFrame`. Ins Spiel: START (195, 800), dann SPIELEN (195, 797). Dann
-  `window.__runGun.scene.getScene('GameScene').debugSetState({ level, teamSize, weapon })`
-  (nur im Dev-Build). **Schlimmster Fall nur mit** `s.runStats.set('shotsPerSec', 8)` und
-  `s.runStats.set('damage', 1)` — sonst misst man den Alltagsfall (67 statt 107 Geschosse).
-  **Browser-Falle:** `playwright-core` unter `/opt/homebrew/lib/node_modules/@playwright/mcp/`
-  will Chromium 1224, lokal liegt 1217 → `executablePath` auf die 1217er-Binary setzen. Modul
-  ist CommonJS: `import pw from '...'` plus `const { chromium } = pw`.
-  Immer Screenshot-Gegenprobe, dass wirklich das Spiel lief und nicht das Menue.
+- `docs/plan.md` · `docs/active-task.md` (IDLE) · `docs/lessons.md`
+- Balance: `src/config/balance.ts` · Boss: `src/systems/bossPlan.ts`, `bossBurst.ts`
+- Kulisse: `scenery.ts`, `sceneryKinds.ts`, `sceneryLayout.ts`, `scenerySimulation.ts`
+- `npm run check` · `npm run build` · `npm test` (72 Tests) · `npm run test:dist` · `npm run dev`
+- Deploy: GitHub Actions auf Push. Leistungsmessung: Verfahren siehe Git-Historie dieser
+  Datei (Playwright + CDP, Stand cb7bc02).
 
 ## Einstiegssatz
-"Lies `docs/UEBERGABE.md` und arbeite dort weiter."
+"Lies `docs/UEBERGABE.md` und arbeite dort weiter." — Fuer V2: "Lies `docs/UEBERGABE.md`
+und plane den V2-Spuren-Umbau als Etappen."
