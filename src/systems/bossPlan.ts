@@ -5,6 +5,17 @@ import type { WeaponKey } from './weapons'
 
 export type BossPhase = 1 | 2
 
+type BossPhaseTwoConfig = typeof BALANCE.boss.phaseTwo
+
+export type BossPhaseTwoProfile = Omit<
+  BossPhaseTwoConfig,
+  'burstCount' | 'burstCountAtLevelOne' | 'burstCountPerThreeLevels'
+  | 'burstSpreadPx' | 'burstSpreadPxAtLevelOne' | 'burstSpreadPxPerLevel'
+> & Readonly<{
+  burstCount: number
+  burstSpreadPx: number
+}>
+
 export type BossUpgradeLevels = Readonly<{
   readonly team: number
   readonly damage: number
@@ -18,7 +29,7 @@ export type BossPlan = {
   readonly referenceDps: number
   readonly referenceFightSec: number
   readonly phaseOne: typeof BALANCE.boss.phaseOne
-  readonly phaseTwo: typeof BALANCE.boss.phaseTwo
+  readonly phaseTwo: BossPhaseTwoProfile
   readonly companionIntervalMs: number
   readonly companionLimit: number
   readonly pressureDelayMs: number
@@ -63,6 +74,25 @@ export function getMaxFightSec(level: number): number {
   )
 }
 
+export function getPhaseTwoProfile(level: number): BossPhaseTwoProfile {
+  const safeLevel = Math.max(1, Math.floor(level))
+  const {
+    burstCount,
+    burstCountAtLevelOne,
+    burstCountPerThreeLevels,
+    burstSpreadPx,
+    burstSpreadPxAtLevelOne,
+    burstSpreadPxPerLevel,
+    ...unchangedPhaseTwo
+  } = BALANCE.boss.phaseTwo
+
+  return {
+    ...unchangedPhaseTwo,
+    burstCount: Math.min(burstCount, burstCountAtLevelOne + Math.floor((safeLevel - 1) / 3) * burstCountPerThreeLevels),
+    burstSpreadPx: Math.min(burstSpreadPx, burstSpreadPxAtLevelOne + burstSpreadPxPerLevel * (safeLevel - 1)),
+  }
+}
+
 export function getBossPlan(
   level: number,
   upgrades: BossUpgradeLevels,
@@ -101,7 +131,7 @@ export function getBossPlan(
     referenceDps,
     referenceFightSec: maxHp / referenceDps,
     phaseOne: BALANCE.boss.phaseOne,
-    phaseTwo: BALANCE.boss.phaseTwo,
+    phaseTwo: getPhaseTwoProfile(safeLevel),
     companionIntervalMs: BALANCE.boss.companionIntervalMs,
     companionLimit: getBossCompanionLimit(safeLevel),
     pressureDelayMs: BALANCE.boss.pressureDelayMs,

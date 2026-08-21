@@ -312,7 +312,11 @@ export const BALANCE = {
     phaseTwo: {
       fireIntervalMs: 820,
       burstCount: 5,
+      burstCountAtLevelOne: 3,
+      burstCountPerThreeLevels: 1,
       burstSpreadPx: 150,
+      burstSpreadPxAtLevelOne: 60,
+      burstSpreadPxPerLevel: 9,
       moveSpeed: 170,
       tint: 0xff6a6a,
       transitionFlashMs: 180,

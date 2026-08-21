@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -94,3 +94,13 @@ tatsächliche Geometrie aus `crowd.ts`/`weapons.ts` in den Test übernehmen und 
 so wählen, dass das Fenster ≥ 20 px bleibt; die Abweichung im Abschlussbericht begründen.
 **Kein zulässiger Ersatz** ist: die Kampfdauer weiter zu senken, Boss-HP zu ändern, das
 Feuerintervall zu strecken oder den Geometrie-Test wegzulassen.
+
+## Implementation Summary
+
+- Phase 2 skaliert nun über `getPhaseTwoProfile(level)`: Level 1 beginnt mit 3 Projektilen auf
+  60 px, Spread und Anzahl steigen nur bis zu den bestehenden Deckeln 150 px beziehungsweise 5.
+- `getBossPlan` übernimmt das Profil, während `boss.ts` weiterhin ausschließlich
+  `plan.phaseTwo` verwendet; Phase 1, Feuerintervall, Bewegung, Druckbeginn und Kampfdauer
+  blieben unverändert.
+- Die Tests prüfen die Deckel, die Monotonie und das Ausweich-/Trefferfenster bis Level 3 aus
+  der gemessenen PNG-Breite von `player.png`, der realen Hüllenbreite und der Boss-Körperbreite.

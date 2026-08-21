@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import {
@@ -6,6 +7,7 @@ import {
   getBossPlan,
   getCombatFirepower,
   getMaxFightSec,
+  getPhaseTwoProfile,
   getTeamFirepower,
   getWeaponFirepower,
   type BossUpgradeLevels,
@@ -25,6 +27,38 @@ const purchaseStates: ReadonlyArray<Readonly<{ name: string; upgrades: BossUpgra
 ]
 
 describe('boss plans', () => {
+  it('scales the phase-two salvo profile from level one to the existing caps', () => {
+    expect(BALANCE.boss.phaseTwo.burstSpreadPxAtLevelOne).toBe(60)
+    expect(BALANCE.boss.phaseTwo.burstSpreadPxPerLevel).toBe(9)
+    expect(BALANCE.boss.phaseTwo.burstCountAtLevelOne).toBe(3)
+    expect(BALANCE.boss.phaseTwo.burstCountPerThreeLevels).toBe(1)
+    expect(getPhaseTwoProfile(1)).toMatchObject({ burstCount: 3, burstSpreadPx: 60 })
+    expect(getPhaseTwoProfile(12)).toMatchObject({ burstCount: 5, burstSpreadPx: 150 })
+
+    let previous = getPhaseTwoProfile(1)
+    for (let level = 2; level <= 12; level += 1) {
+      const profile = getPhaseTwoProfile(level)
+      expect(profile.burstCount).toBeGreaterThanOrEqual(previous.burstCount)
+      expect(profile.burstSpreadPx).toBeGreaterThanOrEqual(previous.burstSpreadPx)
+      previous = profile
+    }
+  })
+
+  it('keeps a 20-pixel dodge-and-hit window through level three using the real player width', () => {
+    const playerPng = readFileSync(new URL('../src/assets/player.png', import.meta.url))
+    const playerWidth = playerPng.readUInt32BE(16)
+    const hullHalfWidth = playerWidth * BALANCE.crowd.hullWidthFigures / 2
+
+    for (let level = 1; level <= 3; level += 1) {
+      const profile = getPhaseTwoProfile(level)
+      const hitReach = BALANCE.boss.bodyWidth / 2 + hullHalfWidth
+      const dodgeReach = profile.burstSpreadPx / 2 + hullHalfWidth
+      expect(hitReach - dodgeReach).toBeGreaterThanOrEqual(20)
+    }
+
+    // The window intentionally closes from level 8 onward (spread >= 118): larger teams then use the tank strategy.
+  })
+
   it('keeps team firepower as the unchanged crowd-only measure', () => {
     expect(getTeamFirepower(BALANCE.crowd.max)).toBe(32)
     expect(getTeamFirepower(6)).toBe(6)
@@ -114,6 +148,8 @@ describe('boss plans', () => {
 
   it('makes phase two faster and visibly broader while respecting the companion cap', () => {
     const plan = getBossPlan(12, purchaseStates[0].upgrades, 12, 'normal', 1, 3)
+    expect(plan.phaseTwo).toEqual(getPhaseTwoProfile(plan.level))
+    expect(plan.phaseOne).toBe(BALANCE.boss.phaseOne)
     expect(plan.phaseTwo.fireIntervalMs).toBeLessThan(plan.phaseOne.fireIntervalMs)
     expect(plan.phaseTwo.burstCount).toBeGreaterThan(plan.phaseOne.burstCount)
     expect(plan.phaseTwo.moveSpeed).toBeGreaterThan(plan.phaseOne.moveSpeed)
