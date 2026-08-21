@@ -153,12 +153,12 @@ describe('save system', () => {
   })
 
   it('buys exactly one upgrade level and persists it across a reload', () => {
-    const save = { ...defaultSave(), coins: 170 }
+    const save = { ...defaultSave(), coins: 300 }
     expect(getUpgradeStartValue('team', 0)).toBe(2)
     expect(getUpgradeStartValue('rate', 0)).toBe(3)
     const bought = purchaseUpgrade(save, 'team')
-    expect(bought).toEqual({ ...save, coins: 120, upgrades: { team: 1, damage: 0, rate: 0 } })
-    expect(save).toEqual({ ...defaultSave(), coins: 170 })
+    expect(bought).toEqual({ ...save, coins: 100, upgrades: { team: 1, damage: 0, rate: 0 } })
+    expect(save).toEqual({ ...defaultSave(), coins: 300 })
     if (bought === undefined) throw new Error('Expected purchase to succeed')
     writeSave(bought)
     expect(loadSave()).toEqual(bought)
@@ -169,9 +169,9 @@ describe('save system', () => {
   })
 
   it('does not buy an unaffordable or fully upgraded shop item', () => {
-    expect(getUpgradePrice('damage', 0)).toBe(50)
+    expect(getUpgradePrice('damage', 0)).toBe(200)
     expect(getUpgradePrice('damage', 5)).toBeUndefined()
-    expect(purchaseUpgrade({ ...defaultSave(), coins: 49 }, 'damage')).toBeUndefined()
+    expect(purchaseUpgrade({ ...defaultSave(), coins: 199 }, 'damage')).toBeUndefined()
     expect(purchaseUpgrade({ ...defaultSave(), coins: 9999, upgrades: { team: 5, damage: 0, rate: 0 } }, 'team')).toBeUndefined()
   })
 })

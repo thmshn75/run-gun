@@ -61,7 +61,10 @@ export const BALANCE = {
     team: { label: 'TRUPPE', base: 2, max: 7, effectPerLevel: 1 },
     damage: { label: 'SCHADEN', base: 1, max: 3.5, effectPerLevel: 0.5 },
     rate: { label: 'FEUERRATE', base: 3, max: 4.5, effectPerLevel: 0.3 },
-    prices: [50, 120, 250, 450, 750],
+    // Conservative level-table income per run: level 3 ~260, level 5 ~505, level 8 ~1,070,
+    // level 12 ~2,180 coins. A full three-row build costs 24,150 coins, or about 23 good
+    // level-8 runs. These values follow the level table; adjust them whenever that table changes.
+    prices: [200, 450, 1000, 2100, 4300],
   },
   menu: {
     overlayAlpha: 0.20,
