@@ -69,7 +69,6 @@ export class BootScene extends Phaser.Scene {
     this.createProjectileTextures()
     this.createBackgroundTextures()
     this.createRoadTextures()
-    this.createGateTexture()
     this.createCoinTexture()
     this.createWallTexture()
     this.createShadowTexture()
@@ -199,16 +198,6 @@ export class BootScene extends Phaser.Scene {
     graphics.destroy()
   }
 
-  private createGateTexture(): void {
-    const width = (this.scale.width - BALANCE.gates.gapBetween) / 2
-    const graphics = this.add.graphics()
-    graphics.fillStyle(WORLD_COLORS.gateBase, 0.2)
-    graphics.fillRect(0, 0, width, BALANCE.gates.gateHeight)
-    graphics.lineStyle(4, WORLD_COLORS.gateBase, 1)
-    graphics.strokeRect(2, 2, width - 4, BALANCE.gates.gateHeight - 4)
-    graphics.generateTexture('gate', width, BALANCE.gates.gateHeight)
-    graphics.destroy()
-  }
 
   private createCoinTexture(): void {
     const graphics = this.add.graphics()

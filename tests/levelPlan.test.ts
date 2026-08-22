@@ -44,13 +44,4 @@ describe('level plans', () => {
     expect([5, 6, 7, 8, 9, 10, 11, 12].map((level) => getLevelPlan(level).companionLimit)).toEqual([1, 1, 2, 2, 3, 3, 4, 4])
   })
 
-  it('reserves blockers from level one onward', () => {
-    expect(getLevelPlan(1).reserved.blockers).toBe(true)
-    expect(getLevelPlan(2).reserved.blockers).toBe(true)
-    expect(getLevelPlan(3).reserved.blockers).toBe(true)
-  })
-
-  it('uses two gate lanes for levels one and two, then repeats the three-lane design schedule', () => {
-    expect([1, 2, 3, 12, 13, 25].map((level) => getLevelPlan(level).reserved.gateLanes)).toEqual([2, 2, 3, 3, 2, 2])
-  })
 })

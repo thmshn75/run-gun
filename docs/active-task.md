@@ -7,6 +7,42 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**Rechte Wand auf Feuerkraft, Tore raus, SPD als Levelgroesse, HUD neu geordnet**
+(2026-08-22, Claude direkt, Thomas: "ok fuer deine empfehlung, Feuerrate, schaden und
+waffen, das muss dann aber auch den Toren in der mitte raus" + "tempo einfach mit den
+leveln beschleunigen, kein seltenes tor daraus machen und dann aus dem HUD raus nehmen
+und den rest logisch anordnen").
+Die Oekonomie hat jetzt genau zwei Seiten und keine Mitte mehr:
+- **LINKS = Masse.** Durchfahren, muehelos, aber weit weg vom Kampfgeschehen.
+- **RECHTS = Feuerkraft.** JEDES Segment traegt einen Gewinn: Waffe (selten, mit
+  Garantie nach Nieten), sonst je zur Haelfte Schaden oder Feuerrate. Der Preis ist
+  Feuerzeit - waehrend man die Wand beschiesst, trifft man keine Gegner. Muenzen fallen
+  jetzt bei JEDEM zerschossenen Segment ab statt als eigener Inhalt.
+  Zugewinne aus dem Gegenstueck links hergeleitet: Ein "+1"-Plaettchen ist 1 von 30
+  sichtbaren Figuren = 3,3 % der Spanne; dieselben 3,3 % auf Schaden (Spanne 19) und
+  Feuerrate (Spanne 5) ergeben 0,63 und 0,17, gerundet auf 0,5 und 0,2.
+- **Mittel-Tore vollstaendig entfernt**: `gates.ts`, `gateLanes.ts`, Gate-Textur,
+  `gates`-Balance-Sektion, `pools.gateGroups`, `reserved.gateLanes` aus allen zwoelf
+  Leveldefinitionen, `colors.gateBase` und zwei Testdateien. Kein Rest im Bundle.
+- **SPD ist keine Ausbaugroesse mehr**, sondern eine reine Levelgroesse in `speed.ts`:
+  105 x hardness, also 105 bei Level 1 und 157 bei Level 12 (Deckel 168). Nutzt die
+  vorhandene Haertekurve, damit Gegnertempo, Spawn-Takt und Hordengroesse derselben
+  Steigerung folgen statt drei eigenen.
+- **HUD neu geordnet, zwei Reihen mit je einem Gedanken:**
+  Reihe 1 "wo stehe ich?" TEAM | LEVEL | Muenzen.
+  Reihe 2 "womit kaempfe ich?" Waffe | DMG | RATE - die Waffe links, weil sie Schaden
+  und Feuerrate bestimmt. SPD ist raus: Der Spieler kann es nicht beeinflussen, also
+  gehoert es nicht in eine Anzeige, die zeigt, was er sich erarbeitet hat.
+**Gemessen** (25 s rechts an der Wand): Schaden 1 -> 8,5 | Feuerrate 3 -> 5,2 |
+90 Muenzen | Waffenwechsel auf Laser. HUD-Spalten sitzen exakt auf den Dritteln
+(73/195/317), `hud.speed` existiert nicht mehr, Gegnertempo Level 1 = 105.
+**Zahl im Blick behalten:** 25 s Dauerbeschuss rechts geben +7,5 Schaden. Hochgerechnet
+waere der Cap 20 nach gut einer Minute erreicht - real teilt man die Zeit mit Gegnern
+und der linken Bahn, aber wenn es zu schnell geht, sind `walls.damageGain` und
+`rateGain` die Stellschrauben.
+Nachweise: 130 Tests gruen, `npm run check` sauber, Browser-Messung wie oben.
+**Offen: Thomas' iPhone-Urteil.**
+
 **Bugfix "Spieler verschwinden an der rechten Wand" + Tempo je Level fertig**
 (2026-08-22, Claude direkt).
 - **BUG (von Claude selbst eingebaut, von Thomas gemeldet):** "wenn ich mit meinen

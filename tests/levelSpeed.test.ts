@@ -42,7 +42,7 @@ describe('Verkabelung des Tempos', () => {
     // Sonst liefe ein System weiter mit Level-1-Tempo, waehrend der Rest schneller
     // wird - genau der Bruch, den die eine gemeinsame Zahl verhindern soll.
     const { readFileSync } = await import('node:fs')
-    const dateien = ['blockers.ts', 'coins.ts', 'roadGeometry.ts', 'gates.ts', 'gamefeel.ts']
+    const dateien = ['blockers.ts', 'coins.ts', 'roadGeometry.ts', 'gamefeel.ts']
     for (const datei of dateien) {
       const quelle = readFileSync(new URL(`../src/systems/${datei}`, import.meta.url), 'utf8')
       expect(quelle, datei).not.toContain('BALANCE.scrollSpeed')

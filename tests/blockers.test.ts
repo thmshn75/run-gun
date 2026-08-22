@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { getBlockerPlan } from '../src/systems/blockerPlan'
 import { getCombatFirepower } from '../src/systems/bossPlan'
-import { getGateLanes } from '../src/systems/gateLanes'
 import { getPlayfieldHalfWidth, getRoadHalfWidth, getWallGeometry } from '../src/systems/roadGeometry'
 import { chooseSpawnLane } from '../src/systems/spawnLanes'
 import type { WeaponKey } from '../src/systems/weapons'
@@ -42,16 +41,6 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     const corridorBottom = getPlayfieldHalfWidth(width, height, height) * 2
     expect(corridorBottom).toBeGreaterThanOrEqual(BALANCE.walls.minCorridorPx)
     expect(corridorBottom).toBeGreaterThanOrEqual(BALANCE.walls.hordeMaxWidthPx)
-  })
-
-  it('keeps every gate lane at least 90px wide on the wall-reduced playfield width', () => {
-    // Seit dem breiteren Wand-Korridor sind Tore dauerhaft zweispurig (Waffen kommen
-    // aus den Waenden, W4-Zielbild "Mitte rechnet, Seiten bewaffnen") — der Spawn-Pfad
-    // in gates.ts erzwingt das hart.
-    const gatesSource = readFileSync(new URL('../src/systems/gates.ts', import.meta.url), 'utf8')
-    expect(gatesSource).toContain('getGateSpawnLayout(\n      2,')
-    const lanes = getGateLanes(2, width / 2, getPlayfieldHalfWidth(width, height, height) * 2, BALANCE.gates.gapBetween)
-    for (const lane of lanes) expect(lane.width).toBeGreaterThanOrEqual(90)
   })
 
   it('never spawns an enemy inside a wall zone over 300 random spawns per type', () => {
@@ -123,8 +112,8 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     expect(bootSource).toContain("key: 'wall-segment-right'")
     expect(source).toContain("setTexture(side === 'left' ? 'wall-segment-left' : 'wall-segment-right')")
     expect(source).not.toContain('setFillStyle')
-    // Inhalt (Waffe oder Muenze) ist ab Spawn sichtbar, aber ohne Body …
-    expect(source).toContain("setTexture(content === 'weapon' ? `weapon-${pair.weapon}-gate` : 'coin')")
+    // Die Waffe ist ab Spawn sichtbar, aber ohne Body …
+    expect(source).toContain('setTexture(`weapon-${pair.weapon}-gate`)')
     expect(source).toContain('.setActive(false).setVisible(true)')
     // … und wird erst nach dem Zerschiessen einsammelbar.
     expect(source).toContain('pair.reward.enableBody(true')
@@ -154,6 +143,21 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     expect(blockerPos).toBeLessThan(gegnerPos)
     // Zweite Sicherung: Ein Objekt ohne Schadenswert ist kein Gegner.
     expect(scene).toContain("typeof contactDamage !== 'number' || !Number.isFinite(contactDamage)")
+  })
+
+  it('gibt rechts auf jedem Segment Feuerkraft statt meistens nur Muenzen', () => {
+    const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
+    // Waffen bleiben selten (grosser Sprung), sonst Schaden oder Feuerrate.
+    expect(source).toContain("return this.rng() < 0.5 ? 'damage' : 'rate'")
+    // Muenzen fallen bei JEDEM Bruch ab, sie sind Nebeneffekt statt Inhalt.
+    expect(source).toContain('this.onBroken(blocker.x, blocker.y)')
+    expect(source).not.toContain("content === 'coin'")
+    // Die Zugewinne sind aus dem Gegenstueck links hergeleitet: 3,3 % der Spanne.
+    const anteilLinks = BALANCE.walls.pickupTeamGain / BALANCE.crowd.max
+    const spanneSchaden = BALANCE.stats.damage.cap - BALANCE.stats.damage.base
+    const spanneRate = BALANCE.stats.shotsPerSec.cap - BALANCE.stats.shotsPerSec.base
+    expect(BALANCE.walls.damageGain).toBeCloseTo(anteilLinks * spanneSchaden, 0)
+    expect(BALANCE.walls.rateGain).toBeCloseTo(anteilLinks * spanneRate, 1)
   })
 
   it('beschriftet beide Seiten weiss', () => {

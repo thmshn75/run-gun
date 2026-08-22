@@ -14,7 +14,6 @@ export type LevelDefinition = {
   readonly squadChance: number
   readonly squads: readonly LevelSquadAllowance[]
   readonly companionLimit: number
-  readonly reserved: { readonly blockers: boolean; readonly gateLanes: 2 | 3 }
 }
 
 export const BALANCE = {
@@ -255,13 +254,25 @@ export const BALANCE = {
     // die Hoehe des einzelnen Treffers. Groessere Betraege waeren dieselbe Zahl mit
     // weniger Rueckmeldung.
     pickupTeamGain: 1,
-    // reinforcementChance entfaellt - links ist jetzt JEDE Kachel ein Plaettchen.
-    // RECHTS: Waffen unregelmaessig in der Wand, Rest Muenz-Segmente. Der Wert ist
-    // mit scrollSpeed 180 -> 135 um Faktor 1,333 angehoben worden (0,08 -> 0,107,
-    // maxDry 16 -> 12), damit die Kadenz PRO SEKUNDE bleibt: Waffe ~alle 8,3 s im
-    // Erwartungswert, Garantie nach spaetestens 12 Nieten (~10,7 s).
+    // RECHTS: Feuerkraft (Thomas 2026-08-22, als Gegenstueck zur Masse links). JEDES
+    // Segment traegt einen Gewinn - Waffe, Schaden oder Feuerrate - statt wie vorher
+    // meistens nur Muenzen. Muenzen fallen jetzt bei JEDEM zerschossenen Segment ab,
+    // sie sind Nebeneffekt statt Inhalt.
+    //
+    // Waffen bleiben selten (grosser Sprung): Chance je Segment mit Garantie nach
+    // Nieten. Der Wert ist mit scrollSpeed 180 -> 135 um Faktor 1,333 angehoben worden
+    // (0,08 -> 0,107, maxDry 16 -> 12), damit die Kadenz PRO SEKUNDE bleibt: Waffe
+    // ~alle 8,3 s im Erwartungswert, Garantie nach spaetestens 12 Nieten (~10,7 s).
     weaponChance: 0.107,
     goodieMaxDry: 12,
+    // Hoehe der Zugewinne, hergeleitet aus dem Gegenstueck links: Ein "+1"-Plaettchen
+    // ist 1 von 30 sichtbaren Figuren, also 3,3 % der Spanne. Dieselben 3,3 % auf die
+    // Spannen von Schaden (1 bis 20, also 19) und Feuerrate (3 bis 8, also 5) ergeben
+    // 0,63 und 0,17 - gerundet auf gut merkbare Schritte.
+    // Der Ausgleich zur muehelosen Sammelbahn steckt nicht im Wert, sondern im Preis:
+    // Rechts kostet jedes Segment Feuerzeit, in der keine Gegner getroffen werden.
+    damageGain: 0.5,
+    rateGain: 0.2,
     // Wie tief die Truppe sich an eine Wand druecken darf, in Figurenbreiten ueber die
     // Wandinnenkante hinaus. 0.5 = die innerste Figur steht zur Haelfte in der Zone,
     // ihr Schussursprung damit sicher drin. Ohne diesen Ueberstand trifft die
@@ -302,6 +313,15 @@ export const BALANCE = {
     hp: { base: 2, cap: 999, floor: 0 },
     damage: { base: 1, cap: 20, floor: 1 },
     shotsPerSec: { base: 3, cap: 8, floor: 1 },
+    // Gegnertempo. Seit 2026-08-22 KEIN Ausbau mehr, sondern reine Levelgroesse
+    // (Thomas: "tempo einfach mit den leveln beschleunigen, kein seltenes tor daraus
+    // machen und dann aus dem HUD raus nehmen"). Der Spieler kann es nicht beeinflussen,
+    // also gehoert es weder in ein Tor noch in die Anzeige.
+    // Hergeleitet ueber die vorhandene Haertekurve des Projekts (level.hardness):
+    // 105 x hardness, also 105 bei Level 1 und 105 x 1,495 = 157 bei Level 12, gedeckelt
+    // bei hardness.max 1,6 = 168. Die Reaktionszeit vom Horizont bis zur Truppe
+    // (564 px) sinkt damit von 5,4 s auf 3,6 s - spuerbar enger, aber weit davon
+    // entfernt, eine Horde unbeschiessbar zu machen.
     speed: { base: 105, cap: 305, floor: 70 },
   },
   upgradesShop: {
@@ -531,18 +551,18 @@ export const BALANCE = {
       pausePerMemberMs: 130,
     },
     plans: [
-      { normalPhaseSec: 75, enemyWeights: [75, 25, 0], spawnIntervalMs: 1750, spawnIntervalMinMs: 1050, squadChance: 0.30, squads: [{ kind: 'wedge', weight: 1, size: 3 }], companionLimit: 0, reserved: { blockers: true, gateLanes: 2 } },
-      { normalPhaseSec: 78, enemyWeights: [60, 40, 0], spawnIntervalMs: 1650, spawnIntervalMinMs: 950, squadChance: 0.38, squads: [{ kind: 'wedge', weight: 1, size: 4 }], companionLimit: 0, reserved: { blockers: true, gateLanes: 2 } },
-      { normalPhaseSec: 78, enemyWeights: [65, 30, 5], spawnIntervalMs: 1550, spawnIntervalMinMs: 850, squadChance: 0.45, squads: [{ kind: 'wedge', weight: 1, size: 3 }], companionLimit: 0, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 80, enemyWeights: [55, 35, 10], spawnIntervalMs: 1450, spawnIntervalMinMs: 780, squadChance: 0.50, squads: [{ kind: 'wedge', weight: 1, size: 4 }], companionLimit: 0, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 80, enemyWeights: [35, 45, 20], spawnIntervalMs: 1350, spawnIntervalMinMs: 700, squadChance: 0.50, squads: [{ kind: 'row', weight: 1, size: 3 }], companionLimit: 1, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 82, enemyWeights: [25, 45, 30], spawnIntervalMs: 1250, spawnIntervalMinMs: 640, squadChance: 0.55, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'wedge', weight: 1, size: 4 }], companionLimit: 1, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 82, enemyWeights: [25, 40, 35], spawnIntervalMs: 1150, spawnIntervalMinMs: 580, squadChance: 0.60, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 1, size: 5 }], companionLimit: 2, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 84, enemyWeights: [20, 40, 40], spawnIntervalMs: 1080, spawnIntervalMinMs: 540, squadChance: 0.65, squads: [{ kind: 'cluster', weight: 2, size: 5 }, { kind: 'row', weight: 1, size: 4 }], companionLimit: 2, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 84, enemyWeights: [25, 35, 40], spawnIntervalMs: 980, spawnIntervalMinMs: 500, squadChance: 0.70, squads: [{ kind: 'wedge', weight: 1, size: 5 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 2, size: 6 }], companionLimit: 3, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 900, spawnIntervalMinMs: 460, squadChance: 0.72, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 6 }], companionLimit: 3, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 820, spawnIntervalMinMs: 420, squadChance: 0.75, squads: [{ kind: 'wedge', weight: 1, size: 6 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 8 }], companionLimit: 4, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 88, enemyWeights: [15, 35, 50], spawnIntervalMs: 760, spawnIntervalMinMs: 400, squadChance: 0.78, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 4, size: 8 }], companionLimit: 4, reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 75, enemyWeights: [75, 25, 0], spawnIntervalMs: 1750, spawnIntervalMinMs: 1050, squadChance: 0.30, squads: [{ kind: 'wedge', weight: 1, size: 3 }], companionLimit: 0 },
+      { normalPhaseSec: 78, enemyWeights: [60, 40, 0], spawnIntervalMs: 1650, spawnIntervalMinMs: 950, squadChance: 0.38, squads: [{ kind: 'wedge', weight: 1, size: 4 }], companionLimit: 0 },
+      { normalPhaseSec: 78, enemyWeights: [65, 30, 5], spawnIntervalMs: 1550, spawnIntervalMinMs: 850, squadChance: 0.45, squads: [{ kind: 'wedge', weight: 1, size: 3 }], companionLimit: 0 },
+      { normalPhaseSec: 80, enemyWeights: [55, 35, 10], spawnIntervalMs: 1450, spawnIntervalMinMs: 780, squadChance: 0.50, squads: [{ kind: 'wedge', weight: 1, size: 4 }], companionLimit: 0 },
+      { normalPhaseSec: 80, enemyWeights: [35, 45, 20], spawnIntervalMs: 1350, spawnIntervalMinMs: 700, squadChance: 0.50, squads: [{ kind: 'row', weight: 1, size: 3 }], companionLimit: 1 },
+      { normalPhaseSec: 82, enemyWeights: [25, 45, 30], spawnIntervalMs: 1250, spawnIntervalMinMs: 640, squadChance: 0.55, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'wedge', weight: 1, size: 4 }], companionLimit: 1 },
+      { normalPhaseSec: 82, enemyWeights: [25, 40, 35], spawnIntervalMs: 1150, spawnIntervalMinMs: 580, squadChance: 0.60, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 1, size: 5 }], companionLimit: 2 },
+      { normalPhaseSec: 84, enemyWeights: [20, 40, 40], spawnIntervalMs: 1080, spawnIntervalMinMs: 540, squadChance: 0.65, squads: [{ kind: 'cluster', weight: 2, size: 5 }, { kind: 'row', weight: 1, size: 4 }], companionLimit: 2 },
+      { normalPhaseSec: 84, enemyWeights: [25, 35, 40], spawnIntervalMs: 980, spawnIntervalMinMs: 500, squadChance: 0.70, squads: [{ kind: 'wedge', weight: 1, size: 5 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 2, size: 6 }], companionLimit: 3 },
+      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 900, spawnIntervalMinMs: 460, squadChance: 0.72, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 6 }], companionLimit: 3 },
+      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 820, spawnIntervalMinMs: 420, squadChance: 0.75, squads: [{ kind: 'wedge', weight: 1, size: 6 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 8 }], companionLimit: 4 },
+      { normalPhaseSec: 88, enemyWeights: [15, 35, 50], spawnIntervalMs: 760, spawnIntervalMinMs: 400, squadChance: 0.78, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 4, size: 8 }], companionLimit: 4 },
     ] satisfies readonly LevelDefinition[],
   },
   boss: {
@@ -665,30 +685,6 @@ export const BALANCE = {
     depthPanel: 90,
     depthText: 91,
   },
-  gates: {
-    // Must stay above 2x the roughly 1.4s visibility duration, or raise pools.gateGroups.
-    spawnIntervalMs: 9000,
-    firstSpawnDelayMs: 5000,
-    // Gate path from the horizon to the player is about 564px; (180 + 227)px/s takes about 1.39s.
-    extraSpeed: 227,
-    choiceFlashMs: 250,
-    highlightLighten: 0.45,
-    gateHeight: 70,
-    gapBetween: 8,
-    weaponIconInsetPx: 10,
-    // Side margin so labels do not touch the gate frame.
-    labelInsetPx: 8,
-    // Every nth gate in a three-lane level offers a weapon; two-lane levels do not advance this counter.
-    weaponLaneEvery: 3,
-    maxRedraws: 8,
-    ops: {
-      kinds: ['multiply', 'divide', 'add', 'percent'],
-      multipliers: [1.5, 2],
-      divisors: [2],
-      additiveRatios: [0.25, 0.5, 0.75],
-      percentages: [0.25, 0.5, -0.2, -0.3],
-    },
-  },
   coins: {
     magnetRadius: 200,
     magnetSpeed: 900,
@@ -727,8 +723,6 @@ export const BALANCE = {
     // Max kill rate is 1 / 0.45s x 3 coins per heavy enemy x 844px / 135px/s = 41.7; 64 leaves 53% reserve without relying on the magnet.
     // (Muenzen fallen mit scrollSpeed: 180 -> 135 verlaengert ihre Bildzeit von 4,69 s auf 6,25 s, also mehr gleichzeitig aktiv.)
     coins: 64,
-    // Roughly 1.4s visible versus 9s spawn interval means at most one; two cover a delayed recycle.
-    gateGroups: 2,
     // Wand-Abschnitte (W4): ceil((844 - 150) / 72) = 10 Slots je Seite, davon 3/5 Wand
     // = 6 Segmente plus das anschliessende = 7, beidseitig 14; ein freigeschossener
     // Waffen-Reward haelt sein Paar laenger aktiv (+2). 20 deckt die Spitze mit Reserve.

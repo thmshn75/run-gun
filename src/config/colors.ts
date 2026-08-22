@@ -46,7 +46,6 @@ export const WORLD_COLORS = {
   splashFlash: 0xffcf8a,
   coinRim: 0x5e4400,
   coinBody: 0xffd84c,
-  gateBase: 0xffffff,
   // Wandsegmente (W2): Orange als Barrieren-Farbe (Thomas-Wahl 2026-08-22 aus vier
   // Varianten; Tuerkis und Rotbraun davor gefielen nicht).
   // Zwei Blautoene, damit die Seiten auf einen Blick auseinandergehen (Thomas

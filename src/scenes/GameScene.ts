@@ -10,10 +10,9 @@ import { Boss } from '../systems/boss'
 import type { BossUpgradeLevels } from '../systems/bossPlan'
 import { Crowd } from '../systems/crowd'
 import { getCrowdDamageMultiplier } from '../systems/crowdDamage'
-import { Gates } from '../systems/gates'
 import { getLevelPlan } from '../systems/levelPlan'
 import { getRoadHalfWidth, Road } from '../systems/road'
-import { getScrollSpeed, setCurrentScrollSpeed } from '../systems/speed'
+import { getEnemySpeed, getScrollSpeed, setCurrentScrollSpeed } from '../systems/speed'
 import { Scenery } from '../systems/scenery'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { addScore, loadSave, qualifiesForScores, writeSave } from '../systems/save'
@@ -25,7 +24,6 @@ interface HudSegments {
   hp: Phaser.GameObjects.Text
   coins: Phaser.GameObjects.Text
   level: Phaser.GameObjects.Text
-  speed: Phaser.GameObjects.Text
   damage: Phaser.GameObjects.Text
   rate: Phaser.GameObjects.Text
   weapon: Phaser.GameObjects.Image
@@ -120,7 +118,6 @@ export class GameScene extends Phaser.Scene {
   private weapons!: Weapons
   private spawner!: Spawner
   private coins!: Coins
-  private gates!: Gates
   private runStats!: RunStats
   private bossUpgrades!: BossUpgradeLevels
   private elapsedMs!: number
@@ -174,6 +171,8 @@ export class GameScene extends Phaser.Scene {
     this.lastCrowdSize = -1
     this.currentLevel = 1
     setCurrentScrollSpeed(getScrollSpeed(this.currentLevel))
+    // Gegnertempo ist seit 2026-08-22 eine reine Levelgroesse, kein Ausbau mehr.
+    this.runStats.set('speed', getEnemySpeed(this.currentLevel))
     this.levelPhase = 'normal'
     this.phaseRemainingMs = getLevelPlan(this.currentLevel).normalPhaseSec * 1000
     this.lastUnknownCombatOverlapWarningAtMs = -1000
@@ -184,7 +183,6 @@ export class GameScene extends Phaser.Scene {
     this.road = new Road(this)
     this.scenery = new Scenery(this, () => Phaser.Math.RND.frac())
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
-    const getAnchorPosition = (): Readonly<{ x: number; y: number }> => ({ x: this.crowd.getAnchorX(), y: this.crowd.getAnchorY() })
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
     this.spawner = new Spawner(this, this.runStats)
     this.blockers = new Blockers(
@@ -213,6 +211,23 @@ export class GameScene extends Phaser.Scene {
         }
         this.updateHud()
       },
+      (stat, gain) => {
+        // Feuerkraft aus der rechten Wand: Sofortwirkung mit Quittung, wie links.
+        const key = stat === 'damage' ? 'damage' : 'shotsPerSec'
+        const before = this.runStats.get(key)
+        this.runStats.set(key, before + gain)
+        const after = this.runStats.get(key)
+        if (after !== before) {
+          this.audio.play('crowdUp')
+          this.popups.spawn(
+            this.crowd.getAnchorX(),
+            this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
+            `${stat === 'damage' ? 'DMG' : 'RATE'} +${Math.round((after - before) * 10) / 10}`,
+            '#ffd166',
+          )
+        }
+        this.updateHud()
+      },
     )
     this.popups = new Popups(this)
     this.crowd.setWallPresenceProvider((y, halfSpan) => this.blockers.getWallPresence(y, halfSpan))
@@ -223,16 +238,6 @@ export class GameScene extends Phaser.Scene {
       () => this.crowd.getAnchorY(),
     )
     this.coins = new Coins(this, () => this.updateHud())
-    this.gates = new Gates(
-      this,
-      this.runStats,
-      getAnchorPosition,
-      () => this.updateHud(),
-      () => this.currentLevel,
-      () => this.weapons.getWeapon(),
-      (weapon) => this.equipWeapon(weapon),
-      () => Phaser.Math.RND.frac(),
-    )
     this.splashFlashes = new SplashFlashPool(this)
     this.chainFlashes = new ChainFlashPool(this)
     const panelX = this.insets.left + BALANCE.hud.padding
@@ -257,15 +262,21 @@ export class GameScene extends Phaser.Scene {
     }
     const rowOneY = panelY + BALANCE.hud.rowOneOffsetY
     const rowTwoY = panelY + BALANCE.hud.rowTwoOffsetY
-    const colW = panelW / 4
+    // Zwei Reihen mit je einem Gedanken (neu geordnet 2026-08-22):
+    //   Reihe 1 = wo stehe ich?      TEAM | LEVEL | Muenzen
+    //   Reihe 2 = womit kaempfe ich? Waffe | DMG | RATE
+    // Die Waffe steht links, weil sie Schaden und Feuerrate bestimmt - erst das
+    // Werkzeug, dann seine Werte. SPD ist entfallen: Das Gegnertempo haengt seit
+    // 2026-08-22 nur noch am Level, der Spieler kann es nicht beeinflussen, also
+    // gehoert es nicht in eine Anzeige, die zeigt, was er sich erarbeitet hat.
+    const colW = panelW / 3
     this.hud = {
       hp: this.add.text(panelX + BALANCE.hud.sidePad, rowOneY, '', { ...primaryHudStyle, color: this.colorFor(STAT_COLORS.hp) }).setOrigin(0, 0),
       coins: this.add.text(panelX + panelW - BALANCE.hud.sidePad, rowOneY, '', { ...primaryHudStyle, color: this.colorFor(HUD_COLORS.coins) }).setOrigin(1, 0),
       level: this.add.text(panelX + panelW / 2, rowOneY, '', { ...primaryHudStyle, color: this.colorFor(HUD_COLORS.level) }).setOrigin(0.5, 0),
-      damage: this.add.text(panelX + colW * 0.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.damage) }).setOrigin(0.5, 0),
-      rate: this.add.text(panelX + colW * 1.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.shotsPerSec) }).setOrigin(0.5, 0),
-      speed: this.add.text(panelX + colW * 2.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.speed) }).setOrigin(0.5, 0),
-      weapon: this.add.image(panelX + colW * 3.5, rowTwoY + 10, 'weapon-normal-hud').setOrigin(0.5),
+      weapon: this.add.image(panelX + colW * 0.5, rowTwoY + 10, 'weapon-normal-hud').setOrigin(0.5),
+      damage: this.add.text(panelX + colW * 1.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.damage) }).setOrigin(0.5, 0),
+      rate: this.add.text(panelX + colW * 2.5, rowTwoY, '', { ...statHudStyle, color: this.colorFor(STAT_COLORS.shotsPerSec) }).setOrigin(0.5, 0),
     }
     Object.values(this.hud).forEach((segment) => segment.setDepth(BALANCE.hud.depthText))
     const bossBarY = this.insets.top + BALANCE.hud.padding + BALANCE.hud.panelHeight + 8
@@ -303,7 +314,6 @@ export class GameScene extends Phaser.Scene {
     this.road.update(dt)
     this.scenery.update(dt)
     this.crowd.update(dt)
-    this.gates.update(dt)
     this.updateLevelPhase(dt)
     if (this.weapons.update(dt) > 0) this.audio.play('shot')
     this.spawner.update(dt)
@@ -687,6 +697,8 @@ export class GameScene extends Phaser.Scene {
     // Jedes Level ein wenig schneller (Thomas 2026-08-22). Eine Zahl fuer die ganze
     // Welt, damit Waende, Muenzen, Strasse, Haeuser und Laufanimation im Takt bleiben.
     setCurrentScrollSpeed(getScrollSpeed(this.currentLevel))
+    // Gegnertempo ist seit 2026-08-22 eine reine Levelgroesse, kein Ausbau mehr.
+    this.runStats.set('speed', getEnemySpeed(this.currentLevel))
     this.levelPhase = 'normal'
     this.phaseRemainingMs = getLevelPlan(this.currentLevel).normalPhaseSec * 1000
     this.levelOverlayBackground.setVisible(false)
@@ -724,7 +736,6 @@ export class GameScene extends Phaser.Scene {
     this.hud.hp.setText(`TEAM ${this.runStats.get('hp')}`)
     this.hud.coins.setText(`¢ ${this.coins.getCount()}`)
     this.hud.level.setText(`LEVEL ${this.currentLevel}`)
-    this.hud.speed.setText(`SPD ${Math.round(this.runStats.get('speed'))}`)
     this.hud.damage.setText(`DMG ${damage}`)
     this.hud.rate.setText(`RATE ${shotsPerSec}`)
     this.hud.weapon.setTexture(`weapon-${this.weapons.getWeapon()}-hud`)

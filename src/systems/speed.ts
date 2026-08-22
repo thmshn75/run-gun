@@ -1,4 +1,5 @@
 import { BALANCE } from '../config/balance'
+import { getLevelPlan } from './levelPlan'
 
 /**
  * Tempo der Welt in Pixeln je Sekunde, abhaengig vom Level.
@@ -26,4 +27,14 @@ export function setCurrentScrollSpeed(pxPerSec: number): void {
 
 export function getCurrentScrollSpeed(): number {
   return current
+}
+
+/**
+ * Gegnertempo je Level. Seit 2026-08-22 keine Ausbaugroesse mehr, sondern eine reine
+ * Levelgroesse - der Spieler kann sie nicht beeinflussen. Nutzt die vorhandene
+ * Haertekurve des Projekts, damit Gegnertempo, Spawn-Takt und Hordengroesse derselben
+ * Steigerung folgen statt drei eigenen.
+ */
+export function getEnemySpeed(level: number): number {
+  return BALANCE.stats.speed.base * getLevelPlan(level).hardness
 }

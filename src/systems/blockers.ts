@@ -15,14 +15,15 @@ import { getCurrentScrollSpeed } from './speed'
 //   LINKS  = Sammelbahn. Eine Kette von "+1"-Plaettchen ohne Lebenspunkte. Man faehrt
 //            hinein und sammelt sie durch Beruehrung ein - kein Schuss noetig. Die
 //            Plaettchen bremsen die Truppe auch nicht (getWallPresence ignoriert sie).
-//   RECHTS = Wand. Zerschiessbare Segmente mit Lebenspunkten wie bisher; unregelmaessig
-//            stecken Waffen darin, der Rest sind Muenz-Segmente.
+//   RECHTS = Wand. Zerschiessbare Segmente mit Lebenspunkten. JEDES traegt einen
+//            Feuerkraft-Gewinn: Waffe (selten), Schaden oder Feuerrate. Muenzen fallen
+//            bei jedem Bruch ab - Nebeneffekt statt Inhalt.
 //
 // Damit wird jede Fahrt eine Entscheidung: links Masse sammeln oder rechts Feuerkraft
 // holen. Umbenennung auf "Walls" folgt im W6-Aufraeumen.
 
 type WallSide = 'left' | 'right'
-type WallContent = 'coin' | 'weapon' | 'pickup'
+type WallContent = 'weapon' | 'damage' | 'rate' | 'pickup'
 
 interface BlockerPair {
   blocker: Phaser.Physics.Arcade.Image
@@ -51,6 +52,7 @@ export class Blockers {
   private readonly rng: () => number
   private readonly onBroken: (x: number, y: number) => void
   private readonly applyReinforcement: (apply: (current: number) => number) => void
+  private readonly applyStat: (stat: 'damage' | 'rate', gain: number) => void
   private readonly pairs: BlockerPair[]
   private readonly blockerGroup: Phaser.Physics.Arcade.Group
   private readonly rewardGroup: Phaser.Physics.Arcade.Group
@@ -73,6 +75,7 @@ export class Blockers {
     rng: () => number,
     onBroken: (x: number, y: number) => void,
     applyReinforcement: (apply: (current: number) => number) => void,
+    applyStat: (stat: 'damage' | 'rate', gain: number) => void,
   ) {
     this.scene = scene
     this.chooseWeapon = chooseWeapon
@@ -83,6 +86,7 @@ export class Blockers {
     this.rng = rng
     this.onBroken = onBroken
     this.applyReinforcement = applyReinforcement
+    this.applyStat = applyStat
     this.pairs = []
     this.blockerGroup = scene.physics.add.group()
     this.rewardGroup = scene.physics.add.group()
@@ -167,8 +171,11 @@ export class Blockers {
     pair.label.setText(remainingHp <= 0 ? '' : `${Math.max(0, Math.ceil(remainingHp))}`)
     if (remainingHp > 0) return false
 
-    if (pair.content === 'coin') {
-      this.onBroken(blocker.x, blocker.y)
+    // Muenzen fallen bei JEDEM zerschossenen Segment ab, nicht nur bei Muenz-Segmenten.
+    this.onBroken(blocker.x, blocker.y)
+    if (pair.content === 'damage' || pair.content === 'rate') {
+      // Sofortwirkung auf den JETZT aktuellen Stand - wie bei der Sammelbahn.
+      this.applyStat(pair.content, pair.content === 'damage' ? BALANCE.walls.damageGain : BALANCE.walls.rateGain)
       this.recycle(pair)
       return true
     }
@@ -243,7 +250,7 @@ export class Blockers {
     const reward = this.scene.physics.add.image(0, 0, 'weapon-normal-gate').setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false)
     reward.disableBody(true, true)
     this.rewardGroup.add(reward)
-    return { blocker, label, goodieText, reward, active: false, broken: false, content: 'coin', side: 'right', weapon: 'normal' }
+    return { blocker, label, goodieText, reward, active: false, broken: false, content: 'damage', side: 'right', weapon: 'normal' }
   }
 
   private wallGeometry(side: WallSide, y: number): { x: number; width: number } {
@@ -259,7 +266,9 @@ export class Blockers {
       return 'weapon'
     }
     this.drySpawns[side] += 1
-    return 'coin'
+    // Sonst zu gleichen Teilen Schaden oder Feuerrate - beides wirkt sofort beim
+    // Zerschiessen, es gibt nichts einzusammeln.
+    return this.rng() < 0.5 ? 'damage' : 'rate'
   }
 
   private spawn(side: WallSide): void {
@@ -293,13 +302,18 @@ export class Blockers {
       return
     }
     pair.label.setText(`${maxHp}`).setPosition(geometry.x, y + BALANCE.walls.labelOffsetPx).setActive(true).setVisible(true).setAlpha(0)
-    {
-      // Der Inhalt sitzt ab Spawn sichtbar in der Wandmitte und scheint durch die
-      // halbtransparente Wand; einsammelbar (Body) wird er erst nach dem Zerschiessen.
+    if (content === 'weapon') {
+      // Die Waffe sitzt ab Spawn sichtbar vor der Wand; einsammelbar (Body) wird sie
+      // erst nach dem Zerschiessen.
       pair.goodieText.setActive(false).setVisible(false)
-      pair.reward.setTexture(content === 'weapon' ? `weapon-${pair.weapon}-gate` : 'coin').setPosition(geometry.x, y).setActive(false).setVisible(true).setAlpha(0)
+      pair.reward.setTexture(`weapon-${pair.weapon}-gate`).setPosition(geometry.x, y).setActive(false).setVisible(true).setAlpha(0)
       this.fitRewardToWall(pair, geometry.width)
+      return
     }
+    // Schaden und Feuerrate wirken sofort beim Zerschiessen - sie brauchen kein
+    // Objekt zum Einsammeln, nur eine Beschriftung, die sagt was drin steckt.
+    pair.goodieText.setText(content === 'damage' ? 'DMG' : 'RATE').setPosition(geometry.x, y).setActive(true).setVisible(true).setAlpha(0)
+    pair.reward.setActive(false).setVisible(false)
   }
 
   private movePair(pair: BlockerPair, movement: number): void {
@@ -312,13 +326,13 @@ export class Blockers {
       const alpha = Math.min(1, Math.max(0, (y - pair.blocker.displayHeight / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
       pair.blocker.setAlpha(alpha)
       pair.label.setPosition(geometry.x, y + BALANCE.walls.labelOffsetPx).setAlpha(alpha)
-      if (pair.content === 'pickup') {
+      if (pair.content !== 'weapon') {
         pair.goodieText.setPosition(geometry.x, y).setAlpha(alpha)
         const naturalWidth = pair.goodieText.width
         pair.goodieText.setScale(naturalWidth > geometry.width - 8 ? (geometry.width - 8) / naturalWidth : 1)
       }
     }
-    if (pair.content === 'pickup') return
+    if (pair.content !== 'weapon') return
     const rewardY = pair.reward.y + movement
     const rewardGeometry = this.wallGeometry(pair.side, rewardY)
     pair.reward.setPosition(pair.broken ? this.rewardCollectX(pair, rewardY) : rewardGeometry.x, rewardY)
