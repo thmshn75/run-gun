@@ -13,6 +13,36 @@ ausdrücklich ersetzt: Objekt-Pools mit hergeleiteten Größen, alle Tuning-Wert
 `balance.ts`, keine externen Requests, keine Kosten, Reißleinen benennen was **kein**
 zulässiger Ersatz ist, Gamefeel gilt erst nach Thomas' iPhone-Test als erfüllt.
 
+## Stand 2026-08-22 (Abend)
+
+| Etappe | Stand |
+|---|---|
+| W1 Stadtbild | **fertig**, iPhone-abgenommen |
+| W2 Wände | **fertig**, iPhone-abgenommen |
+| W3 Horden mittig | **fertig**, iPhone-abgenommen |
+| W4 Seiten-Ökonomie | **fertig** inkl. drei Nachbesserungen (Tempo, Trefferbarkeit, Verlust statt Dauerwachstum) |
+| W5 Boss ohne Schuss | **fertig**, iPhone-Urteil offen |
+| **W7 Plastische Figuren** | **offen — nächste Bau-Etappe** (unten spezifiziert, Codex-Auftrag) |
+| W6 V2-Abnahme | **offen — läuft zuletzt**, nach W7 |
+
+**Nach W5 sind ohne eigene Etappe noch fünf Dinge dazugekommen** (jeweils aus einer
+iPhone-Rückmeldung von Thomas, alle committet und in `docs/active-task.md` mit Messwerten
+belegt). Sie gehören inhaltlich zu W3/W4 und werden dort mit abgenommen:
+
+1. **Perspektivische Figurengröße** — Gegner schrumpfen mit der Entfernung
+   (`road.perspective`), dreimal nachgeschärft, weil sie zu klein wirkten.
+2. **Gegner auf Spielgröße** (`enemy.figureScale` 1,25) — vorher war ein Gegner selbst
+   direkt vor der Truppe kleiner als eine eigene Figur.
+3. **Schussreichweite je Waffe** (`weapon.<name>.engageShare`) — vorher traf die Truppe
+   bis zum Horizont und räumte jede Horde ab, bevor sie sichtbar wurde. Im Bossduell
+   ausgesetzt.
+4. **Gegnermenge** — Level 1 von 1,0 auf 5,2 Gegner je Sekunde in zwei Schritten; dazu
+   breitere Spawn-Bänder, weil sonst die Spurvergabe bremst statt des Takts.
+5. **Wandkette perspektivisch** — Kacheln schrumpfen mit der Entfernung und laufen in
+   Weltkoordinaten statt in Bildschirmpixeln; behebt nebenbei den alten Bruch, dass
+   Wände am Horizont 5x schneller waren als die Häuser daneben. Kachel-Optik als Quader
+   statt flachem Rechteck.
+
 ## Was V2 ändert (Thomas-Entscheidungen vom 2026-08-21/22)
 
 1. **Spuren-Umbau nach Genre-Vorbild** (Count Masters, Mob Control, Z Escape):
@@ -73,6 +103,7 @@ fertigen Layout abhängt.
 | **W3 — Horden mittig** | Gegner-Spawner umgebaut: Horden laufen mittig die Straße herunter statt über Spuren verteilt; nutzt die Trupp-Formationen aus E7 (Keil/Reihe/Pulk) als Horden-Bausteine; Leveltabelle steuert Hordengröße und -takt; Gegner-Pool neu hergeleitet. **Dichteregel (Thomas 2026-08-22):** Wächst eine Horde, rücken die Gegner enger zusammen statt breiter zu werden (Regel wie bei der eigenen Truppe); große Horden sind ausdrücklich gewollt und dürfen nicht per Verkleinerung „gelöst" werden — das wäre ein stiller Zieltausch | Horden erscheinen als zusammenhängende Masse in der Mitte (Formations-Tests aus E7 angepasst und grün); **Zentrierung gemessen, nicht behauptet:** der Schwerpunkt-X jeder Horde liegt über ihre gesamte sichtbare Zeit in einem Mittelband der Straße (Bandbreite in `balance.ts`), per Instrumentierung über mehrere Minuten gezählt — „verteilte Trupps wie in V1" sind **kein** zulässiger Ersatz für mittige Horden; die Leveltabelle erzeugt nachweislich unterschiedliche Horden in Level 1, 6, 12; Ausweichen gegen die Horde fühlt sich als Kernbewegung an (Thomas-Urteil am iPhone) |
 | **W4 — Seiten-Ökonomie mit Dauerwänden** *(geschärft 2026-08-22 nach Genre-Verifikation durch Thomas)* | **Dauerwände:** je Seite eine lückenlose Kette zerschießbarer Segmente statt Einzelsegmente im Takt. Goodies **unregelmäßig** darin (Chance + Garantie nach `goodieMaxDry` Nieten): **links Verstärkungen** (Truppe; Operator-Anzeige „+4"/„×1.5", zustandsabhängig gezogen, Sofortwirkung beim Freischießen auf den DANN aktuellen Stand — damit veraltet die Anzeige konstruktiv nie, Härtungsbefund erfüllt), **rechts Waffen** (Icon sichtbar, einsammeln nach Freischießen), Rest Münz-Segmente. **Mittel-Tore rechnen nur noch DMG/RATE/SPD** — TEAM kommt von der Wand; Floors > 0 machen „beide Seiten auf 0" konstruktiv unmöglich. **Gamefeel-Korrektur (Thomas 2026-08-22):** Wände als **Abschnitte mit regelmäßigen Lücken** (3 Kacheln Wand, 2 Slots Lücke, Seiten versetzt — nie beide gleichzeitig offen), Kacheln größer und breiter (72 hoch, 0.7 widthShare), Straße oben breiter (topWidthRatio 0.52); **dynamischer Fahrbereich:** neben einer Wand endet der Drag am Korridor, in einer Lücke am Straßenrand, ein ankommender Abschnitt schiebt die Truppe sanft zurück (kein Wandkontakt-Schaden) | Verstärkungs-Angebote sind nachweislich zustandsabhängig (Test: anderer Stand → anderes Angebot) und wachsen immer (Property-Test, inkl. Rundungs-Randfall Truppe 1); Kette nachweislich lückenlos (Ketten-Logik unabhängig vom Zustand älterer Segmente); Goodie-Garantie per Test; Tore bieten kein TEAM mehr an (Test); Pool neu hergeleitet; die Entscheidung „Wand oder Horde" ist spürbar (Thomas-Urteil am iPhone) |
 | **W5 — Boss V2** | Boss ohne Schuss (entschieden 2026-08-22): Druck aus gerufenen Horden + Vorrücken bei Zeitüberschreitung. **Lebenspunkte aus dem momentanen Spielerstand:** beim Kampfstart aus der tatsächlichen Feuerkraft der Truppe berechnet (Truppengröße, Schaden, Feuerrate, Waffe), Ziel-Kampfdauer 20–40 s unabhängig vom Run-Stand; die Levelnummer skaliert nur noch den Hordendruck. Formel-Herleitung als Kommentar in `balance.ts`, gerechnet statt geschätzt (Lesson 2026-08-21) | Kampfdauer auf Level 1, 6, 12 **je einmal mit schwachem und mit starkem Run-Stand** im Spiel gemessen (nicht geschätzt), alle sechs Messungen im Zielfenster; Boss feuert nachweislich kein Projektil mehr; Boss nutzt den bestehenden Gegner-Pool für Begleiter ohne `create()` zur Laufzeit; Boss ist fordernd, aber schaffbar (Thomas-Urteil am iPhone — der V1-Befund „zu schwer" ist das Gegenkriterium) |
+| **W7 — Plastische Figuren** *(neu 2026-08-22, läuft VOR W6)* | Den optischen Abstand zum 3D-Vorbild schließen, das Thomas als Referenz geschickt hat — mit den Mitteln eines 2D-Motors. Echtes 3D ist ausgeschlossen (Phaser ist ein 2D-Renderer, ein Wechsel wäre ein anderer Motor). Nach Wirkung sortiert und in dieser Reihenfolge: **(a)** beleuchtete statt flacher Sprites für Truppe, alle drei Gegnertypen und Boss — Volumen durch Licht von oben, Schattenseite, Kantenlicht; **(b)** glatte statt harter Pixelkanten: Sprites in doppelter Auflösung, `pixelArt: true` in `main.ts` fällt; **(c)** Bodenschatten sind bereits gebaut und bleiben unverändert. **Codex-Auftrag:** Alle vorhandenen Sprites stammen aus Codex-Läufen, das Verfahren „groß rendern, dann herunterrechnen" ist etabliert, Vorlagen liegen in `assets/probe/` (136x184). Claude schreibt die Spec und reviewt, Codex erzeugt die Bilder. | Jede ersetzte Figur liegt in doppelter Auflösung vor und wird auf die gemessene Spielgröße herunterskaliert (kein Hochskalieren); die gemessenen Körpermaße in `balance.ts` (`bodyWidth`/`bodyHeight`) sind gegen die neuen Bilder nachgemessen, nicht übernommen; `pixelArt: false` verändert nachweislich keine Trefferflächen (Tests grün); ein Kontrollbild zeigt alle Figuren auf Fahrbahn **und** Umgebung — beide Hintergründe müssen tragen (Lesson aus dem Betongrau-Versuch); am iPhone wirken die Figuren plastisch statt flach (Thomas-Urteil, das Referenz-Reel ist der Vergleichsmaßstab) |
 | **W6 — V2-Abnahme** | Aufräumen: tote V1-Systeme entfernen (altes Torsystem, Sperren, `bossBurst.ts` samt Ausweichfenster-Tests), Tests nachziehen, README aktualisieren; Netzwerk-Null-Check und Update-Pfad erneut; **kombinierte Volllast-Messung:** alle Systeme gleichzeitig in voller Dichte (durchgehende Häuserzeilen, Wände beidseitig, maximale Horde, Projektile, Boss mit Begleitern) — die Einzeletappen prüfen jedes System nur isoliert, erst hier läuft alles zusammen | Kein toter Code der ersetzten Systeme mehr im Bundle; alle Tests grün inkl. `test:dist`; Volllast-Szenario ruckelt am iPhone nicht (Thomas-Urteil, ergänzt um eine Frame-Messung wie im Projekt etabliert — Playwright + CDP); Abnahme-Checks aus dem README am iPhone bestanden (Thomas) |
 
 ## Risiken & Reißleinen

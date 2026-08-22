@@ -1,4 +1,17 @@
-# Run & Gun — Umsetzungsplan V1
+# Run & Gun — Umsetzungsplan V1 (abgeschlossen)
+
+> **Status 2026-08-22: V1 ist abgenommen und als Git-Tag `v1.0` gesichert.** Dieser Plan
+> ist ab hier Nachschlagewerk, keine offene Arbeit. Die laufende Arbeit steht in
+> `docs/plan-v2.md`.
+>
+> Zwei Etappen dieses Plans sind NICHT wie beschrieben umgesetzt worden und kommen auch
+> nicht mehr:
+> - **E9 (Sperren)** wurde durch die V2-Wände links und rechts ersetzt (`plan-v2.md`, W2/W4).
+> - **E10 (Mehrspurige Tore)** entfällt ersatzlos. Die Mitteltore sind am 2026-08-22 auf
+>   Thomas' Entscheidung komplett aus dem Spiel geflogen (Code, Balance, Tests); die
+>   Ökonomie hat seitdem nur noch zwei Seiten, links Masse und rechts Feuerkraft. Alles,
+>   was unten zu Toren steht — Tor-Mathematik, Torbild in der Leveltabelle, Torfarben —
+>   beschreibt einen Stand, den es nicht mehr gibt.
 
 Privates, komplett kostenloses iPhone-PWA-Spiel. Auto-Runner-Shooter im Hochformat.
 Kein App Store, keine Monetarisierung, keine Accounts, kein Backend, keine laufenden Kosten.
