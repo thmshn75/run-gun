@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { getBossPhase, getBossPlan, type BossPlan, type BossUpgradeLevels } from './bossPlan'
-import { getRoadHalfWidth } from './road'
+import { getPerspectiveScale, getRoadHalfWidth } from './road'
 import type { WeaponKey } from './weapons'
 
 export class Boss {
@@ -67,8 +67,10 @@ export class Boss {
     this.enemy.enableBody(true, this.scene.scale.width / 2, y, true, true)
     this.enemy.setActive(true).setVisible(true).setAlpha(0).clearTint()
     const body = this.enemy.body as Phaser.Physics.Arcade.Body
+    // Texturpixel: Arcade zieht den Koerper mit der perspektivischen Skalierung mit.
     body.setSize(BALANCE.boss.bodyWidth, BALANCE.boss.bodyHeight, true)
     body.moves = false
+    this.applyPerspectiveScale()
     body.updateFromGameObject()
     this.enemy.setData('hp', this.plan.maxHp)
     this.enemy.setData('maxHp', this.plan.maxHp)
@@ -109,11 +111,15 @@ export class Boss {
       if (this.fightElapsedMs >= plan.pressureDelayMs) this.advanceTowardsCrowd(dt, plan)
     }
 
+    // Der Boss waechst, waehrend er vorrueckt (Thomas 2026-08-22: "Mobs wachsen
+    // lassen"). Erst dadurch ist sein Vorruecken ueberhaupt zu sehen: 25 px Naeherkommen
+    // sind als Positionsaenderung kaum wahrnehmbar, als Groessenzuwachs sofort.
+    this.applyPerspectiveScale()
     const topY = this.enemy.y - this.enemy.displayHeight / 2
     this.enemy.setAlpha(Math.min(1, Math.max(0, (topY - BALANCE.road.horizonY) / BALANCE.road.entryFadePx)))
     // Der Boss wippt nicht, sein Schatten steht also fest unter ihm - er traegt aber
     // dieselbe Einblendung, sonst laege am Horizont ein Fleck ohne Figur.
-    const shadowWidth = BALANCE.boss.bodyWidth * BALANCE.shadow.widthOfFigure
+    const shadowWidth = BALANCE.boss.bodyWidth * this.enemy.scaleX * BALANCE.shadow.widthOfFigure
     this.shadow.setVisible(this.enemy.alpha > 0)
     this.shadow.setPosition(this.enemy.x, this.enemy.y + this.enemy.displayHeight * BALANCE.shadow.footOffsetOfHeight)
     this.shadow.setDisplaySize(shadowWidth, shadowWidth * BALANCE.shadow.heightOfWidth)
@@ -129,9 +135,15 @@ export class Boss {
     this.phaseFlashRemainingMs = plan.phaseTwo.transitionFlashMs
   }
 
+  private applyPerspectiveScale(): void {
+    this.enemy.setScale(getPerspectiveScale(this.scene.scale.width, this.scene.scale.height, this.enemy.y))
+  }
+
   private moveAcrossRoad(dt: number, speed: number): void {
     const halfRoad = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, this.enemy.y)
-    const edge = Math.max(0, halfRoad - BALANCE.boss.bodyWidth / 2)
+    // Skalierte Breite: Weiter hinten ist der Boss schmaler und darf entsprechend
+    // weiter nach aussen - sonst haelt er unnoetig Abstand zur Strassenkante.
+    const edge = Math.max(0, halfRoad - (BALANCE.boss.bodyWidth * this.enemy.scaleX) / 2)
     const minX = this.scene.scale.width / 2 - edge
     const maxX = this.scene.scale.width / 2 + edge
     this.enemy.x += (this.moveDirection * speed * dt) / 1000

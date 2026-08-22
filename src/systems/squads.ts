@@ -15,8 +15,6 @@ function centeredRow(count: number, spacing: number): number[] {
 // Level 12 als Zweiergrueppchen an. Das war die eigentliche Ursache hinter Thomas'
 // zweimal gemeldetem "die Horden sind viel zu klein in der Menge": Nicht die
 // Gruppengroesse in der Leveltabelle war zu niedrig, sie kam nie auf den Schirm.
-const CLUSTER_COLUMNS = 4
-
 function rowCounts(kind: SquadKind, size: number, maxPerRow: number): number[] {
   const spalten = Math.max(1, Math.floor(maxPerRow))
   // Eine Reihe ist per Definition eine Reihe: Sie kann nicht in die Tiefe ausweichen
@@ -32,10 +30,14 @@ function rowCounts(kind: SquadKind, size: number, maxPerRow: number): number[] {
     }
     return rows
   }
+  // Cluster: so breit wie der Platz hergibt, dann in die naechste Reihe. Die frueher
+  // feste Obergrenze von vier Spalten ist entfallen - sie war eine zweite, aeltere
+  // Breitengrenze neben maxPerRow und haette die perspektivische Verbreiterung wieder
+  // aufgehoben.
   const rows: number[] = []
   let remaining = size
   while (remaining > 0) {
-    const count = Math.min(CLUSTER_COLUMNS, spalten, remaining)
+    const count = Math.min(spalten, remaining)
     rows.push(count)
     remaining -= count
   }

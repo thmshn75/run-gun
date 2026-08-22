@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { getBlockerPlan } from '../src/systems/blockerPlan'
 import { getCombatFirepower } from '../src/systems/bossPlan'
-import { getPlayfieldHalfWidth, getRoadHalfWidth, getWallGeometry } from '../src/systems/roadGeometry'
+import { getPerspectiveScale, getPlayfieldHalfWidth, getRoadHalfWidth, getWallGeometry } from '../src/systems/roadGeometry'
 import { chooseSpawnLane } from '../src/systems/spawnLanes'
 import type { WeaponKey } from '../src/systems/weapons'
 
@@ -45,13 +45,18 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
 
   it('never spawns an enemy inside a wall zone over 300 random spawns per type', () => {
     const rng = seededRng(0xE9)
-    const playfieldHalfTop = getPlayfieldHalfWidth(width, height, BALANCE.road.horizonY)
+    // Spuren werden seit der perspektivischen Skalierung im Kampfhoehen-System
+    // gerechnet - dort haben die Figuren volle Groesse.
+    const playfieldHalfAnchor = getPlayfieldHalfWidth(width, height, height - BALANCE.player.anchorBottomOffset)
     for (const type of BALANCE.enemy.types) {
       for (let index = 0; index < 300; index += 1) {
-        const lane = chooseSpawnLane([], { ...type, y: BALANCE.road.horizonY }, playfieldHalfTop, height, rng, BALANCE.enemy.spawnLaneSafetyGap)
+        const lane = chooseSpawnLane([], { ...type, y: BALANCE.road.horizonY }, playfieldHalfAnchor, rng, BALANCE.enemy.spawnLaneSafetyGap)
         expect(lane).not.toBeUndefined()
         for (const y of [BALANCE.road.horizonY, 430, height]) {
-          const edge = Math.abs(lane!) * getPlayfieldHalfWidth(width, height, y) + type.bodyWidth / 2
+          // Mit der SKALIERTEN Breite rechnen: Ein Gegner am Horizont ist dort
+          // schmaler dargestellt, seine volle Breite waere die falsche Groesse.
+          const halbeBreite = (type.bodyWidth * getPerspectiveScale(width, height, y)) / 2
+          const edge = Math.abs(lane!) * getPlayfieldHalfWidth(width, height, y) + halbeBreite
           expect(edge).toBeLessThanOrEqual(getPlayfieldHalfWidth(width, height, y) + 1e-9)
         }
       }

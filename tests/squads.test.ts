@@ -6,16 +6,30 @@ import { chooseSpawnLane } from '../src/systems/spawnLanes'
 import { computeHordeOffsets, computeSquadOffsets, getSquadWidth } from '../src/systems/squads'
 
 const PHONE_WIDTH = 390
-const HORIZON_ROAD_WIDTH = PHONE_WIDTH * BALANCE.road.topWidthRatio
 const WIDEST_ENEMY = Math.max(...BALANCE.enemy.types.map((type) => type.bodyWidth))
 const TALLEST_ENEMY = Math.max(...BALANCE.enemy.types.map((type) => type.bodyHeight))
 
+// Bezugssystem seit der perspektivischen Skalierung (2026-08-22): KAMPFHOEHE. Dort
+// haben die Figuren volle Groesse und treffen auf die Truppe. Der fruehere Vergleich
+// gegen die Strassenbreite am Horizont passt nicht mehr - dort sind die Gegner jetzt
+// geschrumpft, und die Offsets werden ohnehin auf Kampfhoehe entworfen.
+const ANCHOR_Y = 844 - BALANCE.player.anchorBottomOffset
+const ANCHOR_CORRIDOR = getPlayfieldHalfWidth(PHONE_WIDTH, 844, ANCHOR_Y) * 2
+
 function expectNonOverlappingAndInsideRoad(kind: SquadKind, size: number): void {
-  const offsets = computeSquadOffsets(kind, size, BALANCE.level.squads.spacingPx, BALANCE.level.squads.rowSpacingPx)
-  expect(offsets).toHaveLength(size)
+  // Mit der Breitengrenze aufrufen, wie es der Spawner tut: Eine Formation ohne
+  // Platzgrenze zu pruefen sagt nichts ueber die, die im Spiel entsteht.
+  const layout = computeHordeOffsets(
+    kind, size, BALANCE.level.squads.spacingPx, BALANCE.level.squads.rowSpacingPx,
+    WIDEST_ENEMY, Math.min(ANCHOR_CORRIDOR, BALANCE.walls.hordeMaxWidthPx),
+  )
+  const offsets = layout.offsets
+  // 'row' ist die einzige Formation, die bei Enge Mitglieder verliert - alle anderen
+  // muessen vollzaehlig ankommen.
+  if (kind !== 'row') expect(offsets, `${kind}:${size}`).toHaveLength(size)
 
   for (const offset of offsets) {
-    expect(Math.abs(offset.laneOffset) + WIDEST_ENEMY / 2).toBeLessThanOrEqual(HORIZON_ROAD_WIDTH / 2)
+    expect(Math.abs(offset.laneOffset) + WIDEST_ENEMY / 2, `${kind}:${size}`).toBeLessThanOrEqual(ANCHOR_CORRIDOR / 2)
   }
   for (let index = 0; index < offsets.length; index += 1) {
     for (let otherIndex = index + 1; otherIndex < offsets.length; otherIndex += 1) {
@@ -89,31 +103,33 @@ describe('horde density rule and centering (W3)', () => {
     expect(cluster.size).toBe(4)
   })
 
-  it('caps every reachable horde at the derived bottom width so the budget holds', () => {
-    // Deckel oben = hordeMax x (playfieldTop / playfieldBottom); unten waechst die
-    // Breite exakt um den Kehrwert — der Budget-Deckel gilt damit an der Spielerhoehe.
-    const playfieldTop = getPlayfieldHalfWidth(390, 844, BALANCE.road.horizonY)
-    const playfieldBottom = getPlayfieldHalfWidth(390, 844, 844)
-    const maxWidthTop = Math.min(playfieldTop * 2, BALANCE.walls.hordeMaxWidthPx * (playfieldTop / playfieldBottom))
+  it('haelt jede erreichbare Horde auf Kampfhoehe im Budget', () => {
+    // Seit der perspektivischen Skalierung wird die Formation direkt in
+    // Kampfhoehen-Pixeln entworfen - kein Umrechnen ueber das Horizont-Verhaeltnis mehr.
+    const maxWidthAnchor = Math.min(ANCHOR_CORRIDOR, BALANCE.walls.hordeMaxWidthPx)
     for (let level = 1; level <= 24; level += 1) {
       for (const squad of getLevelPlan(level).squads) {
-        const layout = computeHordeOffsets(squad.kind, squad.size, spacing, rowSpacing, WIDEST_ENEMY, maxWidthTop)
-        const widthTop = getSquadWidth(layout.offsets, WIDEST_ENEMY)
-        expect(widthTop * (playfieldBottom / playfieldTop)).toBeLessThanOrEqual(BALANCE.walls.hordeMaxWidthPx + 1e-9)
+        const layout = computeHordeOffsets(squad.kind, squad.size, spacing, rowSpacing, WIDEST_ENEMY, maxWidthAnchor)
+        expect(getSquadWidth(layout.offsets, WIDEST_ENEMY)).toBeLessThanOrEqual(maxWidthAnchor + 1e-9)
       }
     }
+    // Das Budget muss auf KAMPFHOEHE passen, nicht erst am unteren Bildrand: Dort
+    // trifft die Horde auf die Truppe, und dort ist der Korridor am schmalsten.
+    expect(BALANCE.walls.hordeMaxWidthPx).toBeLessThanOrEqual(ANCHOR_CORRIDOR)
     expect(BALANCE.walls.hordeMaxWidthPx).toBeLessThanOrEqual(BALANCE.walls.minCorridorPx)
   })
 
   it('keeps every spawn centroid inside its middle band over 500 random draws', () => {
     const rng = (() => { let s = 0x77a3 >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 2 ** 32 } })()
-    const playfieldTop = getPlayfieldHalfWidth(390, 844, BALANCE.road.horizonY)
-    for (const [band, bodyWidth] of [
-      [BALANCE.enemy.spawnBands.hordeLaneShare, 92],
-      [BALANCE.enemy.spawnBands.singleLaneShare, 40],
+    const playfieldAnchor = getPlayfieldHalfWidth(390, 844, ANCHOR_Y)
+    // Erster Fall: eine Horde (Formationsbreite getrennt von der Mitgliedsbreite),
+    // zweiter Fall: ein Einzelgegner.
+    for (const [band, bodyWidth, formationWidth] of [
+      [BALANCE.enemy.spawnBands.hordeLaneShare, WIDEST_ENEMY, 172],
+      [BALANCE.enemy.spawnBands.singleLaneShare, 40, 40],
     ] as const) {
       for (let index = 0; index < 500; index += 1) {
-        const lane = chooseSpawnLane([], { bodyWidth, bodyHeight: 49, speedFactor: 1, y: BALANCE.road.horizonY }, playfieldTop, 844, rng, BALANCE.enemy.spawnLaneSafetyGap, band)
+        const lane = chooseSpawnLane([], { bodyWidth, bodyHeight: 49, speedFactor: 1, y: BALANCE.road.horizonY }, playfieldAnchor, rng, BALANCE.enemy.spawnLaneSafetyGap, band, formationWidth)
         expect(lane).not.toBeUndefined()
         // Schwerpunkt bleibt im Band — und weil x = lane x playfieldHalf(y) gilt,
         // bleibt er es in JEDER Tiefe (der Anteil ist y-unabhaengig).

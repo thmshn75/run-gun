@@ -188,7 +188,7 @@ export class GameScene extends Phaser.Scene {
     this.scenery = new Scenery(this, () => Phaser.Math.RND.frac())
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
-    this.spawner = new Spawner(this, this.runStats)
+    this.spawner = new Spawner(this, this.runStats, () => this.crowd.getAnchorX())
     this.blockers = new Blockers(
       this,
       (currentWeapon) => this.spawner.chooseBlockerWeapon(currentWeapon),

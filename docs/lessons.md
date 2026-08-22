@@ -242,3 +242,36 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   wirksamen Anteil ausrechnen **und im Spiel nachzaehlen**, bevor andere Werte darauf
   aufgebaut werden. Faustregel fuer diesen Fall: Verbietet eine Regel Wiederholungen,
   gilt p / (1 + p) statt p.
+
+### 2026-08-22 — Drei Anlaeufe an der Hordengroesse, waehrend der Durchsatz die Grenze war
+- **Fehler:** Thomas meldete DREIMAL "zu wenig Mobs". Anlauf 1 erhoehte die Gruppengroessen
+  in der Leveltabelle, Anlauf 2 zusaetzlich den Deckel `maxSize` und reparierte die
+  Breitenregel. Beide Male blieb der gemessene Gegnerbestand niedrig. Erst Anlauf 3 mass
+  den DURCHSATZ statt der Gruppengroesse - und fand drei voneinander unabhaengige
+  Bremsen, von denen keine mit der Gruppengroesse zu tun hatte:
+  1. Die Nachlaufpause nach einer Horde (650 + 100 je Mitglied) deckelte den Nachschub
+     auf 6,8 Gegner/s, egal wie gross die Horde war.
+  2. Die Spurwahl sperrte 97 % aller Spawn-Versuche, weil sie eine Formation als
+     soliden Block behandelte und jeden langsameren Bestandsgegner als Blocker zaehlte.
+  3. Die Gegner-Lebenspunkte waren ueber alle zwoelf Level FEST, waehrend die Truppe von
+     9 auf ueber 5.000 Schaden je Sekunde wuchs - gemessen 144 Toetungen je Sekunde bei
+     6 Nachschub. Kein Hordenwert kann das ausgleichen.
+- **Regel:** Bei "zu wenig X" nie die Erzeugungsgroesse anfassen, sondern die KETTE
+  durchmessen: angefordert -> erzeugt -> ueberlebend -> sichtbar. Der Bestand ist immer
+  Zufluss mal Verweildauer; beide Faktoren muessen einzeln gemessen werden. Eine
+  Gruppengroesse ist nur der erste Schritt der Kette und meist nicht der begrenzende.
+  Zweite Lehre: Wenn eine Sicherheitspruefung fast alles ablehnt, ist sie nicht streng,
+  sondern falsch parametrisiert - eine Ablehnungsquote gehoert gemessen, sonst arbeitet
+  sie unbemerkt gegen das Ziel.
+
+### 2026-08-22 — Gegenmassnahme half dem Gegner, weil ich die Wirkungskette nicht zu Ende dachte
+- **Fehler:** Damit Stehenbleiben nicht mehr funktioniert, wurde eine Zielsuche gebaut:
+  Gegner driften seitlich auf die Truppe zu. Die Messung danach zeigte das GEGENTEIL des
+  Gewollten - der Gegnerbestand sank von 20,7 auf 8,6. Grund: Die Truppe schiesst
+  spurtreu, trifft also genau das, was in ihrer Spur steht. Die Zielsuche fuehrte die
+  Gegner geradewegs in die Feuerlinie und machte das Spiel leichter statt schwerer.
+- **Regel:** Vor dem Bau einer Gegenmassnahme die Wirkungskette bis zum Ende durchspielen
+  und eine VORHERSAGE aufschreiben ("danach muessten mehr Gegner durchkommen"). Trifft
+  die Messung das Gegenteil, ist nicht die Zahl falsch, sondern die Annahme ueber den
+  Mechanismus. Hier hiess die uebersehene Kopplung: Wer sich zum Spieler bewegt, bewegt
+  sich auch in dessen Waffenwirkung.

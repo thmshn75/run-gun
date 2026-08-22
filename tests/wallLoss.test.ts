@@ -76,13 +76,18 @@ describe('groessere Horden', () => {
   })
 
   it('traegt die groesste Horde im Gegner-Pool, mit Reserve', () => {
-    // Worst case wie in balance.ts hergeleitet: schwerer Gegner am Tempo-Boden braucht
-    // 18 s fuer die Strecke, in dieser Zeit spawnt der Takt Horde um Horde.
+    // Verweildauer aus BALANCE hergeleitet statt als Zahl hingeschrieben: Strecke vom
+    // Spawn ueber dem Horizont bis unter den Bildrand, geteilt durch das langsamste
+    // Tempo. Seit alle Typen gleich schnell sind, gibt es dafuer nur noch EIN Tempo.
+    const streckePx = 881
+    const verweilSec = streckePx / BALANCE.stats.speed.floor
     const maxSize = BALANCE.level.squads.maxSize
     const pauseSec = (BALANCE.level.squads.pauseBaseMs + maxSize * BALANCE.level.squads.pausePerMemberMs) / 1000
-    const spitze = Math.ceil(18 / pauseSec) * maxSize
+    const spitze = Math.ceil(verweilSec / pauseSec) * maxSize
     expect(BALANCE.pools.enemies).toBeGreaterThan(spitze)
     expect(BALANCE.pools.enemies).toBeLessThan(spitze * 1.5)
+    // Und alle Typen laufen wirklich gleich schnell - sonst waere die Rechnung falsch.
+    for (const type of BALANCE.enemy.types) expect(type.speedFactor, type.key).toBe(1)
   })
 
   it('laesst den Boss hoechstens zwei Horden gleichzeitig halten', () => {

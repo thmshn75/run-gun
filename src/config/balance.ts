@@ -220,7 +220,16 @@ export const BALANCE = {
     // E7-Reihe tat das): Ausweichen heisst dann freischiessen oder Wandzone riskieren.
     // Die Dichteregel in computeHordeOffsets erzwingt den Deckel (unten gemessen).
     minCorridorPx: 240,
-    hordeMaxWidthPx: 200,
+    // 200 -> 220 (Thomas 2026-08-22: "Mobs wachsen lassen, damit mehr als Wand kommen").
+    // Seit Gegner perspektivisch schrumpfen, wird dieses Budget auf KAMPFHOEHE gemessen
+    // statt am Horizont - dort haben Figuren volle Groesse und treffen auf die Truppe.
+    // Der Korridor ist auf Kampfhoehe 234,3 px breit. 220 traegt fuenf schwere Gegner
+    // nebeneinander (4 x 44 Abstand + 40 Koerper = 216 px), vorher waren es zwei.
+    // BEWUSSTE KONSEQUENZ: Bei 216 von 234 px bleiben keine 20 px - die groesste Horde
+    // IST eine Wand. Ausweichen heisst dann freischiessen oder in die Wandzone fahren
+    // (driveIntoWallFigures). Kleinere Horden der Leveltabelle bleiben schmal, es ist
+    // also nicht jede Welle eine Sperre.
+    hordeMaxWidthPx: 220,
     // Seit W4 sind die Waende DAUERWAENDE (Genre-Verifikation 2026-08-22), seit der
     // Gamefeel-Korrektur als ABSCHNITTE: wallRunLength Kacheln, dann wallGapSlots
     // leere Slots ("regelmaessige Abstaende", Thomas) — rechts um wallRightOffsetSlots
@@ -567,11 +576,54 @@ export const BALANCE = {
   },
   enemy: {
     // Measured visible-figure dimensions per sprite; coinValue is the number of dropped coins. Remeasure both dimensions whenever the images change.
+    // ALLE GEGNER LAUFEN GLEICH SCHNELL (Thomas 2026-08-22: "mache alle Mobs gleich
+    // schnell, nur unterschiedlich stark, also mit verschiedenen Trefferpunkten").
+    // Der Unterschied steckt jetzt allein in hp und contactDamage.
+    //
+    // Was das mitloest: Bei ungleichem Tempo zerfaellt jede Horde auf dem Weg nach unten
+    // - die Leichten laufen der Formation davon, die Schweren bleiben zurueck, und aus
+    // der Wand wird wieder ein Pulk. Mit einheitlichem Tempo bleibt eine Formation bis
+    // zur Truppe eine Formation. Ausserdem kann kein Gegner einen anderen mehr einholen,
+    // was die Spurwahl entlastet.
+    //
+    // hp gespreizt statt 1/3/9, damit die Typen ohne Tempo-Unterschied noch klar
+    // auseinandergehen: Der Schwere haelt jetzt das Zwoelffache des Leichten aus.
     types: [
-      { key: 'light', texture: 'enemy-light', hp: 1, speedFactor: 1.35, contactDamage: 1, coinValue: 1, bodyWidth: 18, bodyHeight: 38 },
-      { key: 'standard', texture: 'enemy-standard', hp: 3, speedFactor: 1, contactDamage: 1, coinValue: 1, bodyWidth: 21, bodyHeight: 42 },
-      { key: 'heavy', texture: 'enemy-heavy', hp: 9, speedFactor: 0.7, contactDamage: 2, coinValue: 3, bodyWidth: 40, bodyHeight: 49 },
+      { key: 'light', texture: 'enemy-light', hp: 1, speedFactor: 1, contactDamage: 1, coinValue: 1, bodyWidth: 18, bodyHeight: 38 },
+      { key: 'standard', texture: 'enemy-standard', hp: 4, speedFactor: 1, contactDamage: 1, coinValue: 1, bodyWidth: 21, bodyHeight: 42 },
+      { key: 'heavy', texture: 'enemy-heavy', hp: 12, speedFactor: 1, contactDamage: 2, coinValue: 3, bodyWidth: 40, bodyHeight: 49 },
     ],
+    // Gegner-Lebenspunkte wachsen mit der LEVELNUMMER (Thomas 2026-08-22, nach dem
+    // Spieltest: "ich kann die Mannschaft immer noch in der Mitte stehen lassen und
+    // feuern"). Bis hierher waren die hp ueber alle zwoelf Level FEST, waehrend die
+    // Truppe von 9 auf ueber 5.000 Schaden je Sekunde wuchs. Gemessen bei Level 12:
+    // 1.732 dps gegen 12 hp - die Truppe toetete 144 Gegner je Sekunde bei 6 Nachschub.
+    // Kein Hordenwert der Welt kann das ausgleichen; Stehenbleiben MUSSTE funktionieren.
+    //
+    // Bezug ist bewusst die Levelnummer und NICHT die Feuerkraft der Truppe. Dieselbe
+    // Entscheidung wie bei der Wandhaerte (siehe blockers): Koppelt man die Haerte an
+    // die eigene Staerke, bringt Aufruesten nichts mehr - genau der Fehler, der dort
+    // schon einmal gebaut und wieder ausgebaut wurde.
+    //
+    // 1,2 je Level, also 1,2^11 = 7,4x auf Level 12: Ein schwerer Gegner haelt dort 89
+    // statt 12 Punkte aus. Derselbe Wachstumsfaktor wie bei den Waenden, damit beide
+    // Widerstaende im Run gleich schnell zunehmen.
+    hpPerLevelGrowth: 1.2,
+    // GEGNER SUCHEN DIE TRUPPE (Thomas 2026-08-22: "ich kann die Mannschaft immer noch
+    // in der Mitte stehen lassen und feuern"). Das war die Beschwerde, die mehr Mobs
+    // allein nicht loesen konnte: Gegner liefen ihre Spur geradeaus herunter und damit
+    // links und rechts an der Truppe vorbei. Wer mittig stand, raeumte die Mittelspur
+    // und war von allem anderen unbehelligt - Stehenbleiben war nicht nur moeglich,
+    // es war die beste Spielweise.
+    //
+    // Jetzt driften Gegner seitlich auf die Truppe zu. Die Staerke ist NICHT frei
+    // gewaehlt, sondern aus der Anflugzeit hergeleitet: Vom Horizont bis zur Truppe
+    // (714 - 150 = 564 px bei 105 px/s auf Level 1) sind es 5,4 s. Wer in dieser Zeit
+    // die halbe Korridorbreite (117 px) aufholt, braucht 21,7 px/s - dann traefe er
+    // aus jeder Startspur und Ausweichen waere sinnlos. Die HAELFTE davon macht daraus
+    // ein Spiel: Stehenbleiben wird zuverlaessig bestraft, eine Ausweichbewegung
+    // genuegt aber, um wieder frei zu sein.
+    seekSpeedPxPerSec: 11,
     // Enemy composition belongs to the level plan, never to elapsed spawn time.
     spawnRampPerSec: 6,
     spawnLaneSafetyGap: 6,
@@ -603,15 +655,18 @@ export const BALANCE = {
       maxSize: 14,
       spacingPx: 44,
       rowSpacingPx: 54,
-      // A squad replaces one spawn event. Pause = 650 ms + 100 ms per member,
-      // so a fourteen-member squad receives 2,050 ms before the next event.
-      // 130 -> 100 ms (Thomas 2026-08-22: "es muessen mehr mobs sein"). Groessere Horden
-      // allein aendern die Dichte kaum, weil die Pause mit der Groesse mitwaechst: 8
-      // Mitglieder / 1,69 s = 4,7 Gegner/s, 14 / 2,73 s waeren 5,1/s - also fast nichts.
-      // Erst der kuerzere Aufschlag je Mitglied macht daraus 14 / 2,05 s = 6,8 Gegner/s,
-      // also 45 % mehr Druck bei fast doppelt so grossen Horden.
-      pauseBaseMs: 650,
-      pausePerMemberMs: 100,
+      // Nachlaufpause nach einer Horde. Sie ist die eigentliche Bremse des
+      // Gegnernachschubs: Nicht das Spawn-Intervall bestimmt den Druck, sondern diese
+      // Pause, weil sie das Intervall ueberschreibt.
+      //
+      // 650 + 100/Mitglied -> 250 + 40/Mitglied (Thomas 2026-08-22, dritte Meldung "es
+      // sind noch immer zu wenig mobs"). Gerechnet fuer eine 14er-Horde:
+      //   vorher  650 + 1.400 = 2.050 ms ->  6,8 Gegner/s
+      //   jetzt   250 +   560 =   810 ms -> 17,3 Gegner/s
+      // Das ist Faktor 2,5 und der groesste verbliebene Hebel. Die beiden vorherigen
+      // Anlaeufe (Gruppengroesse, dann Deckel) hatten den Durchsatz nicht angefasst.
+      pauseBaseMs: 250,
+      pausePerMemberMs: 40,
     },
     // Hordengroessen 2026-08-22 angehoben (Thomas: "es muessen mehr mobs sein"). Regel
     // dahinter: 'row' bleibt bei vier - eine einzelne Reihe kann nicht ueber die
@@ -803,17 +858,29 @@ export const BALANCE = {
     splashFlashes: 12,
     // At most 5.6 salvos/s x 3 shooters x 3 chain jumps x 0.12s = 6.1; 16 leaves reserve.
     chainFlashes: 16,
-    // Worst case: enemies now spawn fully above the horizon (half body height plus up to
-    // 81px squad row offset), so a heavy at the 49px/s floor travels up to 881px in ~18.0s.
-    // Mit den groesseren Horden (maxSize 14, Pause 650 + 14 x 100 = 2,05 s) sind das
-    // ceil(18,0 / 2,05) x 14 = 126 gleichzeitig aktive Gegner; 152 laesst 21 % Reserve
-    // fuer gemischte Einzelspawns und verzoegertes Recycling.
-    enemies: 152,
+    // Worst case: Gegner spawnen vollstaendig oberhalb des Horizonts (halbe Koerperhoehe
+    // plus bis zu 81 px Reihenversatz), laufen also bis zu 881 px. Seit alle Typen
+    // gleich schnell sind, gilt dafuer EIN Tempo: am Boden speed.floor = 70 px/s, also
+    // 12,6 s (vorher 18,0 s, weil der schwere Gegner mit Faktor 0,7 kroch).
+    // Mit maxSize 14 und Pause 650 + 14 x 100 = 2,05 s sind das ceil(12,6 / 2,05) x 14
+    // = 84 gleichzeitig aktive Gegner.
+    // Mit der verkuerzten Nachlaufpause (250 + 14 x 40 = 810 ms) sind es
+    // ceil(12,6 / 0,81) x 14 = 224. 264 laesst 18 % Reserve fuer gemischte
+    // Einzelspawns und verzoegertes Recycling.
+    // ACHTUNG: Das ist der Wert fuer den Fall, dass NICHT geschossen wird. Im Spiel
+    // liegt der Bestand weit darunter, weil die Truppe raeumt - gemessen bei Level 12
+    // mit realistischem Ausbau rund 20 gleichzeitig. Der Pool ist die Sicherung fuer
+    // den schwachen Run, nicht der Erwartungswert.
+    enemies: 264,
     // Must be >= crowd.max because all figures are created once and then only shown or hidden.
     crowd: 30,
-    // Max kill rate is 1 / 0.45s x 3 coins per heavy enemy x 844px / 135px/s = 41.7; 64 leaves 53% reserve without relying on the magnet.
-    // (Muenzen fallen mit scrollSpeed: 180 -> 135 verlaengert ihre Bildzeit von 4,69 s auf 6,25 s, also mehr gleichzeitig aktiv.)
-    coins: 64,
+    // Neu hergeleitet 2026-08-22, nachdem der Pool im Test 84-mal in Folge leerlief
+    // ("Coin pool exhausted"): Mit der verkuerzten Spawn-Pause kommen bei Level 12
+    // 14,55 Gegner/s, im schlimmsten Fall alle schwer mit 3 Muenzen = 43,7 Muenzen/s.
+    // Eine Muenze bleibt 844 / 135 = 6,25 s im Bild, macht 273 gleichzeitig. Dazu die
+    // Wandmuenzen (rund 1,1 Segmente/s x 3 = 3,3/s, also 21). Summe 294; 320 laesst
+    // 9 % Reserve, ohne sich auf den Magneten zu verlassen.
+    coins: 320,
     // Wand-Abschnitte (W4): ceil((844 - 150) / 72) = 10 Slots je Seite, davon 3/5 Wand
     // = 6 Segmente plus das anschliessende = 7, beidseitig 14; ein freigeschossener
     // Waffen-Reward haelt sein Paar laenger aktiv (+2). 20 deckt die Spitze mit Reserve.
