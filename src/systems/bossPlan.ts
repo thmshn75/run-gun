@@ -80,7 +80,16 @@ export function getNormalPhaseEnemiesPerSec(level: number): number {
     plan.spawnIntervalMinMs,
     plan.spawnIntervalMs - plan.normalPhaseSec * BALANCE.enemy.spawnRampPerSec,
   )
-  return enemiesPerEvent / (rampedIntervalMs / 1000)
+  // KORREKTUR 2026-08-22: Bis hierher wurde nur durch das Intervall geteilt. Der
+  // Spawner setzt nach einer Horde aber eine NACHLAUFPAUSE, die das Intervall
+  // ueberschreibt (spawner.ts: spawnAccumulatorMs = min(acc, interval - pause)). Bei
+  // Level 12 ergab die alte Rechnung 31,9 Gegner/s, real spawnt der Takt dort 6,8/s -
+  // Faktor 4,7 zu hoch. Der Fehler blieb unbemerkt, weil der Boss-Ruftakt in seine
+  // Untergrenze minIntervalMs lief und die ueberhoehte Zahl dort abgeschnitten wurde.
+  // Mit den groesseren Horden waere daraus eine geschlossene Gegnerwand geworden.
+  const squadPauseMs = BALANCE.level.squads.pauseBaseMs + expectedSquadSize * BALANCE.level.squads.pausePerMemberMs
+  const secondsPerEvent = ((1 - squadChance) * rampedIntervalMs + squadChance * Math.max(rampedIntervalMs, squadPauseMs)) / 1000
+  return secondsPerEvent <= 0 ? 0 : enemiesPerEvent / secondsPerEvent
 }
 
 /** Der Boss ruft ganze Horden - so gross wie die groessten des Levels. */

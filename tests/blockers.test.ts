@@ -69,7 +69,7 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
     // Links ist JEDE Kachel ein Plaettchen - die Kette ist der Reiz, nicht der
     // seltene Treffer. Rechts bleibt die Goodie-Regel mit Garantie nach Nieten.
-    expect(source).toContain("if (side === 'left') return 'pickup'")
+    expect(source).toContain("if (side === 'left') return bad ? 'drain' : 'pickup'")
     expect(source).toContain('BALANCE.walls.weaponChance')
     expect(BALANCE.walls.weaponChance).toBeGreaterThan(0.03)
     expect(BALANCE.walls.weaponChance).toBeLessThan(0.2)
@@ -110,7 +110,8 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     // Zwei Texturen, damit die Seiten auf einen Blick auseinandergehen.
     expect(bootSource).toContain("key: 'wall-segment-left'")
     expect(bootSource).toContain("key: 'wall-segment-right'")
-    expect(source).toContain("setTexture(side === 'left' ? 'wall-segment-left' : 'wall-segment-right')")
+    expect(bootSource).toContain("key: 'wall-segment-bad'")
+    expect(source).toContain("isBad(content) ? 'wall-segment-bad' : side === 'left' ? 'wall-segment-left' : 'wall-segment-right'")
     expect(source).not.toContain('setFillStyle')
     // Die Waffe ist ab Spawn sichtbar, aber ohne Body …
     expect(source).toContain('setTexture(`weapon-${pair.weapon}-gate`)')

@@ -98,7 +98,9 @@ export class Boss {
       const phase = this.phaseTwoStarted ? plan.phaseTwo : plan.phaseOne
       this.moveAcrossRoad(dt, phase.moveSpeed)
       // Der Boss schiesst seit V2 nicht mehr (Entscheidung Thomas 2026-08-22). Sein
-      // Druck kommt aus gerufenen Horden und dem Vorruecken bei Zeitueberschreitung.
+      // Druck kommt aus gerufenen Horden und aus dem stetigen Vorruecken: Seit
+      // pressureDelayMs auf 0 steht, setzt er sich ab dem ersten Kampfbild in Bewegung
+      // und wird nicht erst nach einer Wartezeit gefaehrlich.
       this.hordeAccumulatorMs += dt
       while (this.hordeAccumulatorMs >= phase.hordeIntervalMs) {
         this.hordeAccumulatorMs -= phase.hordeIntervalMs

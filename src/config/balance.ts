@@ -273,6 +273,47 @@ export const BALANCE = {
     // Rechts kostet jedes Segment Feuerzeit, in der keine Gegner getroffen werden.
     damageGain: 0.5,
     rateGain: 0.2,
+    // ROTE SEGMENTE (Thomas 2026-08-22, Entscheidung "rote Segmente in beiden Bahnen").
+    // Bis hierher kannte das Spiel nur Zuwachs: Schaden und Feuerrate stiegen bis zum
+    // Deckel und blieben dort. Ohne Abwaertsbewegung ist Dranbleiben immer richtig, und
+    // genau das war der Befund ("ich kann meine leute einfach stehen lassen").
+    //
+    // Rot mischt sich in BEIDE Bahnen und dreht die Handlung um: Links muss man
+    // ausweichen statt durchfahren, rechts das Feuer einstellen statt draufhalten.
+    // Das ist die Entscheidung, die dem Spiel fehlte - nicht bloss ein Verlust.
+    //
+    // Anteil: Ziel ist jede vierte Kachel rot. Die Zahl hier ist ABSICHTLICH hoeher,
+    // weil badMaxRun sie verduennt: Nach jeder roten folgt zwingend eine blaue, also
+    // ist der tatsaechliche Anteil p / (1 + p), nicht p. Fuer 25 % im Spiel braucht es
+    // deshalb 1/3 als Wuerfelwert (0,333 / 1,333 = 0,25). Im Spiel gemessen: 19,5 %
+    // links bei 0,25 - genau die Falle, in die die erste Fassung dieser Zahl lief.
+    // Ein rechter Abschnitt ist wallRunLength = 3 Kacheln lang und traegt damit mit
+    // 1 - 0,75^3 = 58 % mindestens eine rote: mehr als jeder zweite Abschnitt verlangt
+    // eine Entscheidung, ohne dass die Bahn unbenutzbar wird.
+    badChance: 0.3333,
+    // Level 1 bleibt frei von roten Kacheln: Dort lernt man, wofuer die beiden Bahnen da
+    // sind, und startet mit crowd.start = 3 Figuren - eine rote Kachel (-5) waere dort
+    // ein Spielende nach wenigen Sekunden, bevor die Regel ueberhaupt gelesen wurde.
+    // Ab Level 2 hat eine normal gespielte Runde die Truppe laengst zweistellig.
+    badMinLevel: 2,
+    // Nie zwei rote hintereinander: Sonst steht links eine geschlossene Sperre, an der
+    // nichts mehr zu sammeln ist, und rechts ein Abschnitt, den man komplett auslassen
+    // muss. Eine rote ist ein Hindernis, zwei sind eine Mauer.
+    badMaxRun: 1,
+    // Betraege nach der Netto-Null-Regel: Auf vier Kacheln kommen im Erwartungswert drei
+    // gute und eine rote (gute je rote = 1 / badChance, siehe Verduennung oben).
+    //   Links  3 x (+1) = +3 gegen -5 -> blindes Durchfahren macht netto -2 je vier
+    //          Kacheln, sauberes Ausweichen +3. Der Unterschied IST die Belohnung.
+    //   Rechts 3 x (+0,5) = +1,5 Schaden gegen -1,5 und 3 x (+0,2) = +0,6 Feuerrate
+    //          gegen -0,6 -> wer blind alles wegschiesst, kommt exakt nicht voran.
+    // Boden ist der RUN-STARTWERT aus den gekauften Upgrades, nicht der globale floor:
+    // Was Thomas fuer bis zu 4.300 Muenzen gekauft hat, darf eine rote Kachel nicht
+    // wegfressen - verlieren kann man nur, was man in dieser Runde gefunden hat. Ohne
+    // diesen Boden entstuende ausserdem eine Abwaertsspirale, aus der man sich nicht
+    // mehr herausschiesst.
+    drainTeam: 5,
+    weakenDamage: 1.5,
+    weakenRate: 0.6,
     // Wie tief die Truppe sich an eine Wand druecken darf, in Figurenbreiten ueber die
     // Wandinnenkante hinaus. 0.5 = die innerste Figur steht zur Haelfte in der Zone,
     // ihr Schussursprung damit sicher drin. Ohne diesen Ueberstand trifft die
@@ -309,8 +350,17 @@ export const BALANCE = {
     // und genau dort steht der Spieler nach ein paar Sammelbahnen. Sichtbar bleiben
     // crowd.max Figuren, der Schadensbonus bleibt bei damageMultiplierCap gedeckelt -
     // die Reserve kauft also Ueberlebenszeit, keine Feuerkraft.
-    // 999 statt unbegrenzt, damit die HUD-Zahl dreistellig bleibt.
-    hp: { base: 2, cap: 999, floor: 0 },
+    // Deckel 999 -> 60 (Thomas 2026-08-22, nach dem Spieltest: "man erreicht schnell
+    // das maximum ueberall und verliert nie etwas ... ab level 3 kann ich meine leute
+    // einfach stehen lassen"). Die unbegrenzte Reserve war die Hauptursache: Wer die
+    // linke Bahn eine Minute mitnimmt, sammelt 112 Figuren (1,875 Plaettchen/s), ein
+    // Gegnertreffer kostet 1-2. Damit ist Beruehrung folgenlos und das Spiel laeuft
+    // von selbst durch.
+    // 60 = crowd.max 30 sichtbar + 30 Reserve. Herleitung der Reservehaelfte: Ein
+    // schlechter Abschnitt kostet groessenordnungsmaessig eine halbe Sichtbarkeitsbreite
+    // (rote Plaettchen a -5, dazu Gegnertreffer a 1-2) - 30 Reserve traegt also mehrere
+    // Fehler hintereinander, aber keinen ganzen Level unaufmerksames Fahren.
+    hp: { base: 2, cap: 60, floor: 0 },
     damage: { base: 1, cap: 20, floor: 1 },
     shotsPerSec: { base: 3, cap: 8, floor: 1 },
     // Gegnertempo. Seit 2026-08-22 KEIN Ausbau mehr, sondern reine Levelgroesse
@@ -542,35 +592,56 @@ export const BALANCE = {
     },
     squads: {
       minSize: 2,
-      maxSize: 8,
+      // 8 -> 14 (Thomas 2026-08-22, zweimal gemeldet: "die horden sind immer noch sehr
+      // klein in der menge", dann "es muessen mehr mobs sein"). Der Deckel ist NICHT
+      // frei gewaehlt, sondern die Grenze der Breitenregel: hordeMaxWidthPx 200 px
+      // traegt hoechstens vier Gegner nebeneinander (3 x 44 Abstand + 40 schwerer
+      // Koerper = 172 px; fuenf waeren 216 px und wuerden unter die Ueberlappungsgrenze
+      // gestaucht). Horden wachsen deshalb in die TIEFE: 'cluster' setzt vier je Reihe,
+      // 14 ergeben vier gestaffelte Reihen. 'row' bleibt konstruktiv bei vier - eine
+      // Reihe kann nicht tief werden, dort ist die Groesse in der Leveltabelle gedeckelt.
+      maxSize: 14,
       spacingPx: 44,
       rowSpacingPx: 54,
-      // A squad replaces one spawn event. Pause = 650 ms + 130 ms per member,
-      // so an eight-member squad receives 1,690 ms before the next event.
+      // A squad replaces one spawn event. Pause = 650 ms + 100 ms per member,
+      // so a fourteen-member squad receives 2,050 ms before the next event.
+      // 130 -> 100 ms (Thomas 2026-08-22: "es muessen mehr mobs sein"). Groessere Horden
+      // allein aendern die Dichte kaum, weil die Pause mit der Groesse mitwaechst: 8
+      // Mitglieder / 1,69 s = 4,7 Gegner/s, 14 / 2,73 s waeren 5,1/s - also fast nichts.
+      // Erst der kuerzere Aufschlag je Mitglied macht daraus 14 / 2,05 s = 6,8 Gegner/s,
+      // also 45 % mehr Druck bei fast doppelt so grossen Horden.
       pauseBaseMs: 650,
-      pausePerMemberMs: 130,
+      pausePerMemberMs: 100,
     },
+    // Hordengroessen 2026-08-22 angehoben (Thomas: "es muessen mehr mobs sein"). Regel
+    // dahinter: 'row' bleibt bei vier - eine einzelne Reihe kann nicht ueber die
+    // Breitengrenze hinauswachsen. Masse kommt aus 'cluster' (vier je Reihe, beliebig
+    // tief) und 'wedge' (Keil, breiteste Reihe vier). Die Leveltabelle verschiebt das
+    // Gewicht deshalb mit steigendem Level von wedge auf cluster.
     plans: [
-      { normalPhaseSec: 75, enemyWeights: [75, 25, 0], spawnIntervalMs: 1750, spawnIntervalMinMs: 1050, squadChance: 0.30, squads: [{ kind: 'wedge', weight: 1, size: 3 }], companionLimit: 0 },
-      { normalPhaseSec: 78, enemyWeights: [60, 40, 0], spawnIntervalMs: 1650, spawnIntervalMinMs: 950, squadChance: 0.38, squads: [{ kind: 'wedge', weight: 1, size: 4 }], companionLimit: 0 },
-      { normalPhaseSec: 78, enemyWeights: [65, 30, 5], spawnIntervalMs: 1550, spawnIntervalMinMs: 850, squadChance: 0.45, squads: [{ kind: 'wedge', weight: 1, size: 3 }], companionLimit: 0 },
-      { normalPhaseSec: 80, enemyWeights: [55, 35, 10], spawnIntervalMs: 1450, spawnIntervalMinMs: 780, squadChance: 0.50, squads: [{ kind: 'wedge', weight: 1, size: 4 }], companionLimit: 0 },
-      { normalPhaseSec: 80, enemyWeights: [35, 45, 20], spawnIntervalMs: 1350, spawnIntervalMinMs: 700, squadChance: 0.50, squads: [{ kind: 'row', weight: 1, size: 3 }], companionLimit: 1 },
-      { normalPhaseSec: 82, enemyWeights: [25, 45, 30], spawnIntervalMs: 1250, spawnIntervalMinMs: 640, squadChance: 0.55, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'wedge', weight: 1, size: 4 }], companionLimit: 1 },
-      { normalPhaseSec: 82, enemyWeights: [25, 40, 35], spawnIntervalMs: 1150, spawnIntervalMinMs: 580, squadChance: 0.60, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 1, size: 5 }], companionLimit: 2 },
-      { normalPhaseSec: 84, enemyWeights: [20, 40, 40], spawnIntervalMs: 1080, spawnIntervalMinMs: 540, squadChance: 0.65, squads: [{ kind: 'cluster', weight: 2, size: 5 }, { kind: 'row', weight: 1, size: 4 }], companionLimit: 2 },
-      { normalPhaseSec: 84, enemyWeights: [25, 35, 40], spawnIntervalMs: 980, spawnIntervalMinMs: 500, squadChance: 0.70, squads: [{ kind: 'wedge', weight: 1, size: 5 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 2, size: 6 }], companionLimit: 3 },
-      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 900, spawnIntervalMinMs: 460, squadChance: 0.72, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 6 }], companionLimit: 3 },
-      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 820, spawnIntervalMinMs: 420, squadChance: 0.75, squads: [{ kind: 'wedge', weight: 1, size: 6 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 8 }], companionLimit: 4 },
-      { normalPhaseSec: 88, enemyWeights: [15, 35, 50], spawnIntervalMs: 760, spawnIntervalMinMs: 400, squadChance: 0.78, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 4, size: 8 }], companionLimit: 4 },
+      { normalPhaseSec: 75, enemyWeights: [75, 25, 0], spawnIntervalMs: 1750, spawnIntervalMinMs: 1050, squadChance: 0.30, squads: [{ kind: 'wedge', weight: 1, size: 4 }], companionLimit: 0 },
+      { normalPhaseSec: 78, enemyWeights: [60, 40, 0], spawnIntervalMs: 1650, spawnIntervalMinMs: 950, squadChance: 0.38, squads: [{ kind: 'wedge', weight: 1, size: 6 }], companionLimit: 0 },
+      { normalPhaseSec: 78, enemyWeights: [65, 30, 5], spawnIntervalMs: 1550, spawnIntervalMinMs: 850, squadChance: 0.45, squads: [{ kind: 'wedge', weight: 1, size: 5 }], companionLimit: 0 },
+      { normalPhaseSec: 80, enemyWeights: [55, 35, 10], spawnIntervalMs: 1450, spawnIntervalMinMs: 780, squadChance: 0.50, squads: [{ kind: 'wedge', weight: 1, size: 7 }], companionLimit: 0 },
+      { normalPhaseSec: 80, enemyWeights: [35, 45, 20], spawnIntervalMs: 1350, spawnIntervalMinMs: 700, squadChance: 0.50, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 1, size: 6 }], companionLimit: 1 },
+      { normalPhaseSec: 82, enemyWeights: [25, 45, 30], spawnIntervalMs: 1250, spawnIntervalMinMs: 640, squadChance: 0.55, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'wedge', weight: 1, size: 7 }], companionLimit: 1 },
+      { normalPhaseSec: 82, enemyWeights: [25, 40, 35], spawnIntervalMs: 1150, spawnIntervalMinMs: 580, squadChance: 0.60, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 1, size: 9 }], companionLimit: 2 },
+      { normalPhaseSec: 84, enemyWeights: [20, 40, 40], spawnIntervalMs: 1080, spawnIntervalMinMs: 540, squadChance: 0.65, squads: [{ kind: 'cluster', weight: 2, size: 9 }, { kind: 'row', weight: 1, size: 4 }], companionLimit: 2 },
+      { normalPhaseSec: 84, enemyWeights: [25, 35, 40], spawnIntervalMs: 980, spawnIntervalMinMs: 500, squadChance: 0.70, squads: [{ kind: 'wedge', weight: 1, size: 8 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 2, size: 10 }], companionLimit: 3 },
+      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 900, spawnIntervalMinMs: 460, squadChance: 0.72, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 11 }], companionLimit: 3 },
+      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 820, spawnIntervalMinMs: 420, squadChance: 0.75, squads: [{ kind: 'wedge', weight: 1, size: 10 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 13 }], companionLimit: 4 },
+      { normalPhaseSec: 88, enemyWeights: [15, 35, 50], spawnIntervalMs: 760, spawnIntervalMinMs: 400, squadChance: 0.78, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 4, size: 14 }], companionLimit: 4 },
     ] satisfies readonly LevelDefinition[],
   },
   boss: {
     referenceFirepower: {
       // Fight duration at the maximum crowd size with the normal weapon. Smaller crowds take longer,
-      // capped by the level-scaled maximum so a two-figure emergency team cannot stall a run. The cap
-      // must remain below the boss's stopped-position pressure threshold: changes to pressure timing,
-      // position, speed, or crowd anchor must keep that safety margin intact.
+      // capped by the level-scaled maximum so a two-figure emergency team cannot stall a run.
+      // Die frueher hier verlangte Sicherheitsmarge zur Druckschwelle ist entfallen: Der
+      // Boss wartet seit 2026-08-22 nicht mehr, sondern rueckt ab Kampfbeginn vor. Die
+      // Kopplung ist jetzt umgekehrt und steht bei advanceSpeed - sein Tempo IST aus
+      // maxFightSecCap hergeleitet, damit er genau am Ende des Zeitfensters ankommt.
+      // Wer maxFightSecCap aendert, muss advanceSpeed nachrechnen.
       fightSecAtMaxTeam: 20,
       // Zielfenster fuer die Kampfdauer laut plan-v2 ("Boss V2"): 20-40 s, unabhaengig
       // vom Run-Stand. Die alten Grenzen (15 / 18 s bei Level 1) lagen UNTER dem
@@ -645,17 +716,36 @@ export const BALANCE = {
       // Kombination brauchte je nach Zufall 29 s oder 109 s - die Kampfdauer haengt
       // dann am Schild, nicht mehr an den Lebenspunkten.
       // Herleitung: Der Boss ist 118 px breit, die Strasse unten rund 300 px. Eine
-      // Horde von 8 fuellt die Mittelbahn einmal. Zwei Horden gleichzeitig sind eine
-      // Welle, die man umlaufen und durchschiessen kann; ab der dritten ist es eine
-      // geschlossene Wand. 2 x level.squads.maxSize = 16.
-      maxActiveCalled: 16,
+      // Horde fuellt die Mittelbahn einmal. Zwei Horden gleichzeitig sind eine Welle,
+      // die man umlaufen und durchschiessen kann; ab der dritten ist es eine
+      // geschlossene Wand. 2 x level.squads.maxSize, mit maxSize 8 -> 14 also 16 -> 28
+      // (Thomas 2026-08-22: "es muessen mehr mobs sein, auch beim boss").
+      // ACHTUNG beim Nachziehen: Die gerufenen Horden stehen ZWISCHEN Truppe und Boss
+      // und fangen Beschuss ab. Der erste Entwurf mit 64 war deshalb unspielbar - die
+      // Kampfdauer haengt ab einer bestimmten Dichte am Schild statt an den
+      // Lebenspunkten. 28 ist die obere Kante des Gemessenen, nicht ein sicherer Wert:
+      // Faechert die Kampfdauer wieder auf, gehoert diese Zahl zuerst zurueckgedreht.
+      maxActiveCalled: 28,
       // Untergrenze fuer den Ruf-Takt: Unter einer halben Sekunde erscheint eine
       // Horde, bevor die vorige die Bildmitte erreicht hat - das liest sich als
       // Wand aus Gegnern statt als Welle.
       minIntervalMs: 500,
     },
-    pressureDelayMs: 36000,
-    advanceSpeed: 34,
+    // Der Boss RUECKT AB KAMPFBEGINN VOR (Thomas 2026-08-22: "der boss muss langsam auf
+    // mich zukommen, langsamer als die mobs aber doch auf mich zu"). Vorher stand er
+    // 36 s regungslos auf battleY und setzte sich erst dann in Bewegung - in den meisten
+    // Kaempfen also nie, weil sie vorher entschieden waren.
+    pressureDelayMs: 0,
+    // 34 -> 8,5 px/s. Hergeleitet aus der Strecke und dem Zeitfenster, nicht geschaetzt:
+    // Von battleY 300 bis zum Halt (Anker 714 minus advanceStopBeforeAnchorPx 80 = 634)
+    // sind es 334 px. Der Boss soll genau dann ankommen, wenn das Kampf-Zeitfenster
+    // ausgereizt ist (maxFightSecCap 40 s): 334 / 40 = 8,35 px/s - nicht gerundet,
+    // damit die Ankunft exakt auf dem Fensterende liegt und der Test das pruefen kann.
+    // Damit stimmt beides, was Thomas verlangt hat: Er kommt sichtbar naeher (ueber
+    // 20 s rund 167 px, also mehr als eine Bosslaenge), und er ist mit 8,35 px/s um den
+    // Faktor 6 langsamer als der langsamste Gegner (schwerer Gegner am Tempo-Boden:
+    // 70 x 0,7 = 49 px/s).
+    advanceSpeed: 8.35,
     // The boss centre stops before the crowd anchor; its lower collision edge can
     // still touch a stationary formation, but lateral escape remains available.
     advanceStopBeforeAnchorPx: 80,
@@ -715,9 +805,10 @@ export const BALANCE = {
     chainFlashes: 16,
     // Worst case: enemies now spawn fully above the horizon (half body height plus up to
     // 81px squad row offset), so a heavy at the 49px/s floor travels up to 881px in ~18.0s.
-    // An eight-member squad pauses 1.69 s, so ceil(18.0 / 1.69) x 8 = 88 active enemies;
-    // 104 leaves 18% reserve for mixed single spawns and delayed recycling.
-    enemies: 104,
+    // Mit den groesseren Horden (maxSize 14, Pause 650 + 14 x 100 = 2,05 s) sind das
+    // ceil(18,0 / 2,05) x 14 = 126 gleichzeitig aktive Gegner; 152 laesst 21 % Reserve
+    // fuer gemischte Einzelspawns und verzoegertes Recycling.
+    enemies: 152,
     // Must be >= crowd.max because all figures are created once and then only shown or hidden.
     crowd: 30,
     // Max kill rate is 1 / 0.45s x 3 coins per heavy enemy x 844px / 135px/s = 41.7; 64 leaves 53% reserve without relying on the magnet.

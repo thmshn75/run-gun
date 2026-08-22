@@ -219,6 +219,8 @@ export class BootScene extends Phaser.Scene {
     const seiten = [
       { key: 'wall-segment-left', fill: WORLD_COLORS.wallLeftFill, stroke: WORLD_COLORS.wallLeftStroke },
       { key: 'wall-segment-right', fill: WORLD_COLORS.wallRightFill, stroke: WORLD_COLORS.wallRightStroke },
+      // Dritte Textur fuer die roten Kacheln, die auf beiden Seiten abziehen statt zu geben.
+      { key: 'wall-segment-bad', fill: WORLD_COLORS.wallBadFill, stroke: WORLD_COLORS.wallBadStroke },
     ] as const
     for (const seite of seiten) {
       const graphics = this.add.graphics()

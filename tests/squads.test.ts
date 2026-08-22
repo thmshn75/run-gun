@@ -53,13 +53,18 @@ describe('horde density rule and centering (W3)', () => {
   const spacing = BALANCE.level.squads.spacingPx
   const rowSpacing = BALANCE.level.squads.rowSpacingPx
 
-  it('squeezes spacing instead of shrinking when a light wedge exceeds the width cap', () => {
+  it('waechst in die Tiefe statt zu stauchen, wenn ein Keil zu breit wird', () => {
+    // Korrektur 2026-08-22: Vorher wurde erst das Spacing gestaucht und dann die Horde
+    // verkleinert. Beides ist unnoetig - eine zu breite Formation kann schlicht mehr
+    // Reihen bilden. Alle acht kommen an, mit vollem Abstand.
     const light = BALANCE.enemy.types.find((type) => type.key === 'light')!
     const layout = computeHordeOffsets('wedge', 8, spacing, rowSpacing, light.bodyWidth, 92)
     expect(layout.size).toBe(8)
-    expect(layout.spacing).toBeLessThan(spacing)
-    expect(layout.spacing).toBeGreaterThanOrEqual(light.bodyWidth + 4)
+    expect(layout.spacing).toBe(spacing)
     expect(getSquadWidth(layout.offsets, light.bodyWidth)).toBeLessThanOrEqual(92 + 1e-9)
+    // Und zwar in mehr Reihen, als der ungebremste Keil gebraucht haette (1+2+3+2).
+    const reihen = new Set(layout.offsets.map((offset) => offset.yOffset))
+    expect(reihen.size).toBeGreaterThan(4)
   })
 
   it('keeps squeezed formations overlap-free within a row', () => {
@@ -71,11 +76,17 @@ describe('horde density rule and centering (W3)', () => {
     }
   })
 
-  it('only shrinks when even the densest formation stays too wide', () => {
+  it('kuerzt nur die Reihe, die nicht in die Tiefe ausweichen kann', () => {
+    // 'row' ist per Definition einreihig - sie ist die einzige Formation, die bei
+    // Platzmangel Mitglieder verliert. size meldet dabei die TATSAECHLICHE Zahl.
     const heavy = BALANCE.enemy.types.find((type) => type.key === 'heavy')!
     const layout = computeHordeOffsets('row', 4, spacing, rowSpacing, heavy.bodyWidth, 92)
     expect(layout.size).toBeLessThan(4)
+    expect(layout.size).toBe(layout.offsets.length)
     expect(getSquadWidth(layout.offsets, heavy.bodyWidth)).toBeLessThanOrEqual(92 + 1e-9)
+    // Ein Cluster derselben Groesse verliert dagegen niemanden.
+    const cluster = computeHordeOffsets('cluster', 4, spacing, rowSpacing, heavy.bodyWidth, 92)
+    expect(cluster.size).toBe(4)
   })
 
   it('caps every reachable horde at the derived bottom width so the budget holds', () => {

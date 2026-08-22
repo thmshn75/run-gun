@@ -197,3 +197,48 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   Pruefsitzung beendet, nicht nur der Tab geschlossen - ein offener Prozess ist die
   Sperrdatei des naechsten Laufs. Drittens: Faellt so etwas auf, zuerst aufraeumen und
   es dem Nutzer sagen, dann weiterarbeiten.
+
+### 2026-08-22 — Dieselbe Beschwerde zweimal gehoert, zweimal am falschen Wert gedreht
+- **Fehler:** Thomas meldete zweimal "die Horden sind viel zu klein in der Menge".
+  Beide Male wurde die Gruppengroesse in der Leveltabelle erhoeht - beim zweiten Mal
+  zusammen mit dem Deckel `level.squads.maxSize` (8 auf 14). Die Messung im laufenden
+  Spiel zeigte danach: Bei Level 12 wurde eine 14er-Horde angefordert und **zwei**
+  Gegner kamen an. Ursache war die Breitenregel: Passte die breiteste Reihe nicht in
+  die Strasse am Horizont, verkleinerte `computeHordeOffsets` die ganze Horde, statt
+  die Reihe schmaler und die Formation tiefer zu machen. Der Wert, an dem zweimal
+  gedreht wurde, hatte auf das Ergebnis nie eine Wirkung.
+- **Regel:** Wiederholt der Nutzer eine Beschwerde, nachdem sie angeblich behoben
+  wurde, war die Ursache **nicht** an der geaenderten Stelle. Dann nicht denselben Wert
+  weiter erhoehen, sondern messen, was am Ende der Kette tatsaechlich ankommt -
+  angefordert gegen geliefert, an der Quelle abgegriffen. Der Unterschied zwischen
+  beidem ist die Ursache. Zweite Lehre: Wenn eine Grenze verletzt wird, zuerst pruefen,
+  ob die Konstruktion ausweichen kann (hier: in die Tiefe wachsen), bevor beschnitten
+  wird. Beschneiden ist der Notausgang, nicht die erste Antwort.
+
+### 2026-08-22 — Test schrieb die Formel ab und deckte einen Faktor-4,7-Fehler nicht auf
+- **Fehler:** `getNormalPhaseEnemiesPerSec` teilte die erwarteten Gegner je
+  Spawn-Ereignis durch das Spawn-Intervall - und ignorierte die Nachlaufpause, die der
+  Spawner nach jeder Horde setzt und die das Intervall ueberschreibt. Bei Level 12
+  ergab das 31,9 Gegner/s statt real 6,8. Der zugehoerige Test baute exakt dieselbe
+  Rechnung nach und war deshalb immer gruen. Der Fehler blieb unbemerkt, weil der
+  Boss-Ruftakt in seine Untergrenze lief und die ueberhoehte Zahl dort abgeschnitten
+  wurde - er waere erst mit groesseren Horden als geschlossene Gegnerwand sichtbar
+  geworden.
+- **Regel:** Eine Berechnung nie gegen ihre eigene Formel testen. Der Test prueft
+  entweder gegen eine **unabhaengige Schranke** (hier: mehr Gegner je Sekunde, als der
+  Spawner mit seiner Pause ueberhaupt setzen kann, darf nicht herauskommen) oder gegen
+  einen **im Spiel gemessenen** Wert. Formelkopien sichern nur ab, dass niemand die
+  Zeile umformuliert.
+
+### 2026-08-22 — Nebenbedingung veraendert die Wahrscheinlichkeit, auf die gerechnet wurde
+- **Fehler:** Rote Kacheln sollten mit 25 % erscheinen (`badChance: 0.25`), und die
+  Abzugsbetraege wurden auf genau dieses Verhaeltnis ausgerechnet (drei gute je roter).
+  Eine zweite Regel verbot zwei rote in Folge - damit sank der tatsaechliche Anteil auf
+  p / (1 + p) = 20 %, im Spiel gemessen 19,5 %. Die Netto-Null-Rechnung, die den ganzen
+  Sinn der Aenderung traegt, war damit falsch: Blindes Draufhalten haette weiter
+  Feuerkraft aufgebaut.
+- **Regel:** Sobald eine Nebenbedingung (Mindestabstand, Garantie, Deckel, Sperre) auf
+  eine Zufallsgroesse wirkt, ist der eingestellte Wert nicht mehr der wirksame. Den
+  wirksamen Anteil ausrechnen **und im Spiel nachzaehlen**, bevor andere Werte darauf
+  aufgebaut werden. Faustregel fuer diesen Fall: Verbietet eine Regel Wiederholungen,
+  gilt p / (1 + p) statt p.

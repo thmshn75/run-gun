@@ -119,6 +119,7 @@ export class GameScene extends Phaser.Scene {
   private spawner!: Spawner
   private coins!: Coins
   private runStats!: RunStats
+  private statFloor!: { damage: number; shotsPerSec: number }
   private bossUpgrades!: BossUpgradeLevels
   private elapsedMs!: number
   private enemyContactIframeUntilMs!: number
@@ -162,6 +163,9 @@ export class GameScene extends Phaser.Scene {
     this.runStats.set('hp', getUpgradeStartValue('team', save.upgrades.team))
     this.runStats.set('damage', getUpgradeStartValue('damage', save.upgrades.damage))
     this.runStats.set('shotsPerSec', getUpgradeStartValue('rate', save.upgrades.rate))
+    // Boden fuer die roten Segmente: Was in dieser Runde gefunden wurde, kann man
+    // wieder verlieren - was Thomas im Laden gekauft hat, nicht.
+    this.statFloor = { damage: this.runStats.get('damage'), shotsPerSec: this.runStats.get('shotsPerSec') }
     this.elapsedMs = 0
     this.enemyContactIframeUntilMs = 0
     this.blinkUntilMs = 0
@@ -213,17 +217,20 @@ export class GameScene extends Phaser.Scene {
       },
       (stat, gain) => {
         // Feuerkraft aus der rechten Wand: Sofortwirkung mit Quittung, wie links.
+        // Seit den roten Segmenten kann gain auch negativ sein.
         const key = stat === 'damage' ? 'damage' : 'shotsPerSec'
         const before = this.runStats.get(key)
-        this.runStats.set(key, before + gain)
+        // Nach unten bremst der Run-Startwert, nach oben der Balance-Deckel in RunStats.
+        this.runStats.set(key, Math.max(this.statFloor[key], before + gain))
         const after = this.runStats.get(key)
         if (after !== before) {
-          this.audio.play('crowdUp')
+          const delta = Math.round((after - before) * 10) / 10
+          this.audio.play(delta > 0 ? 'crowdUp' : 'crowdDown')
           this.popups.spawn(
             this.crowd.getAnchorX(),
             this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
-            `${stat === 'damage' ? 'DMG' : 'RATE'} +${Math.round((after - before) * 10) / 10}`,
-            '#ffd166',
+            `${stat === 'damage' ? 'DMG' : 'RATE'} ${delta > 0 ? '+' : ''}${delta}`,
+            delta > 0 ? '#ffd166' : '#ff6b6b',
           )
         }
         this.updateHud()

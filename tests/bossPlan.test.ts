@@ -36,17 +36,21 @@ describe('boss plans', () => {
     // Der Boss ersetzt den abgeschalteten Normalspawner. Die Bezugsgroesse wird
     // deshalb aus der Leveltabelle nachgerechnet - erwartete Gegner je Ereignis
     // geteilt durch das Intervall am Ende der Rampe.
+    // KEINE Formelkopie mehr: Der fruehere Test schrieb die Implementierung ab und
+    // haette den Fehler, den er absichern sollte, nie gefunden. Stattdessen die
+    // unabhaengige Obergrenze - mehr Gegner je Sekunde als der Spawner mit seiner
+    // Nachlaufpause ueberhaupt setzen kann, darf nie herauskommen.
     for (const level of [1, 6, 12]) {
       const plan = getLevelPlan(level)
-      const totalWeight = plan.squads.reduce((sum, squad) => sum + squad.weight, 0)
-      const expectedSize = plan.squads.reduce((sum, squad) => sum + squad.weight * squad.size, 0) / totalWeight
-      const perEvent = (1 - plan.squadChance) + plan.squadChance * expectedSize
-      const rampedMs = Math.max(plan.spawnIntervalMinMs, plan.spawnIntervalMs - plan.normalPhaseSec * BALANCE.enemy.spawnRampPerSec)
-      expect(getNormalPhaseEnemiesPerSec(level)).toBeCloseTo(perEvent / (rampedMs / 1000), 5)
+      const largestSquad = plan.squads.reduce((size, squad) => Math.max(size, squad.size), 1)
+      const pauseSec = (BALANCE.level.squads.pauseBaseMs + largestSquad * BALANCE.level.squads.pausePerMemberMs) / 1000
+      const spawnerCeiling = Math.max(largestSquad / pauseSec, 1000 / plan.spawnIntervalMinMs)
+      expect(getNormalPhaseEnemiesPerSec(level)).toBeLessThanOrEqual(spawnerCeiling)
     }
-    // Gerechnet, nicht geraten: Level 1 = 1,23 Gegner/s, Level 12 = 20,22 Gegner/s.
-    expect(getNormalPhaseEnemiesPerSec(1)).toBeCloseTo(1.23, 1)
-    expect(getNormalPhaseEnemiesPerSec(12)).toBeCloseTo(20.22, 1)
+    // Gerechnet, nicht geraten: Level 1 = 1,46 Gegner/s, Level 12 = 6,11 Gegner/s.
+    // Bis zur Korrektur der Nachlaufpause stand hier fuer Level 12 die 4,7-fache Zahl.
+    expect(getNormalPhaseEnemiesPerSec(1)).toBeCloseTo(1.46, 1)
+    expect(getNormalPhaseEnemiesPerSec(12)).toBeCloseTo(6.11, 1)
     // Und der Druck steigt ueber die Level, sonst waere die Ableitung sinnlos.
     for (let level = 2; level <= 12; level += 1) {
       expect(getNormalPhaseEnemiesPerSec(level)).toBeGreaterThan(getNormalPhaseEnemiesPerSec(1))
@@ -151,7 +155,7 @@ describe('boss plans', () => {
     expect(actual.maxHp).toBeLessThan(oldGuessedHp)
   })
 
-  it('keeps the specified dampening values and level-scaled pressure safety margin', () => {
+  it('keeps the specified dampening values and lets the boss arrive at the end of the fight window', () => {
     const reference = BALANCE.boss.referenceFirepower
     const anchorY = 844 - BALANCE.player.anchorBottomOffset
     const stopY = anchorY - BALANCE.boss.advanceStopBeforeAnchorPx
@@ -168,19 +172,26 @@ describe('boss plans', () => {
     expect(reference.teamDampening).toBe(0.41)
     expect(reference.weaponDampening).toBe(0.8)
     expect(reference.statDampening).toBe(0.8)
-    expect(BALANCE.boss.pressureDelayMs).toBe(36_000)
-    expect(BALANCE.boss.advanceSpeed).toBe(34)
+    // Der Boss wartet nicht mehr, sondern rueckt ab dem ersten Kampfbild vor
+    // (Thomas 2026-08-22: "der boss muss langsam auf mich zukommen").
+    expect(BALANCE.boss.pressureDelayMs).toBe(0)
+    expect(BALANCE.boss.advanceSpeed).toBe(8.35)
     expect(BALANCE.boss.battleY).toBe(300)
     expect(BALANCE.boss.advanceStopBeforeAnchorPx).toBe(80)
-    expect(pressureContactSec).toBeCloseTo(45.8, 1)
+    // Konstruktionsregel: Sein Tempo IST aus dem Zeitfenster hergeleitet - er kommt
+    // genau dann an, wenn das Fenster ausgereizt ist. Frueher war die Regel umgekehrt
+    // ("kommt nie an, solange man im Fenster bleibt"), das war die Wartezeit-Version.
+    expect(pressureContactSec).toBeCloseTo(reference.maxFightSecCap, 0)
+    // Und er bleibt deutlich langsamer als der langsamste Gegner (schwerer Gegner am
+    // Tempo-Boden), sonst waere es kein Vorruecken, sondern ein Angriff.
+    const langsamsterGegner = BALANCE.stats.speed.floor * BALANCE.enemy.types[2].speedFactor
+    expect(BALANCE.boss.advanceSpeed).toBeLessThan(langsamsterGegner / 3)
     expect(getMaxFightSec(1)).toBe(26)
     expect(getMaxFightSec(12)).toBeCloseTo(32, 1)
     for (let level = 1; level <= 12; level += 1) {
-      // Jedes Level liegt im Zielfenster 20-40 s und bleibt unter dem Zeitpunkt,
-      // an dem der vorrueckende Boss die Truppe erreicht.
+      // Jedes Level liegt im Zielfenster 20-40 s.
       expect(getMaxFightSec(level)).toBeGreaterThanOrEqual(reference.minFightSec)
-      expect(getMaxFightSec(level)).toBeLessThanOrEqual(40)
-      expect(getMaxFightSec(level)).toBeLessThan(pressureContactSec)
+      expect(getMaxFightSec(level)).toBeLessThanOrEqual(reference.maxFightSecCap)
     }
   })
 

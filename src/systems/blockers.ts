@@ -19,11 +19,19 @@ import { getCurrentScrollSpeed } from './speed'
 //            Feuerkraft-Gewinn: Waffe (selten), Schaden oder Feuerrate. Muenzen fallen
 //            bei jedem Bruch ab - Nebeneffekt statt Inhalt.
 //
+// In beide Bahnen mischen sich seit 2026-08-22 ROTE Kacheln, die abziehen statt zu
+// geben (Thomas: "man erreicht schnell das maximum ueberall und verliert nie etwas").
+// Sie folgen der Logik ihrer Seite und drehen sie um:
+//   LINKS  rote Plaettchen ziehen Figuren ab und sind wie die blauen unbeschiessbar -
+//          man muss ihnen AUSWEICHEN statt durchzufahren.
+//   RECHTS rote Segmente ziehen Schaden oder Feuerrate ab, wenn man sie zerschiesst -
+//          man muss das FEUER EINSTELLEN und sie vorbeiziehen lassen.
+//
 // Damit wird jede Fahrt eine Entscheidung: links Masse sammeln oder rechts Feuerkraft
 // holen. Umbenennung auf "Walls" folgt im W6-Aufraeumen.
 
 type WallSide = 'left' | 'right'
-type WallContent = 'weapon' | 'damage' | 'rate' | 'pickup'
+type WallContent = 'weapon' | 'damage' | 'rate' | 'pickup' | 'drain' | 'weakenDamage' | 'weakenRate'
 
 interface BlockerPair {
   blocker: Phaser.Physics.Arcade.Image
@@ -37,9 +45,18 @@ interface BlockerPair {
   weapon: WeaponKey
 }
 
-/** Linke Plaettchen werden eingesammelt statt zerschossen - sie sind keine Wand. */
+/**
+ * Linke Plaettchen werden eingesammelt statt zerschossen - sie sind keine Wand. Das
+ * gilt fuer die roten genauso: Waeren sie beschiessbar, koennte man sie wegraeumen
+ * statt auszuweichen, und die Entscheidung waere wieder weg.
+ */
 function isPickup(pair: BlockerPair): boolean {
-  return pair.content === 'pickup'
+  return pair.content === 'pickup' || pair.content === 'drain'
+}
+
+/** Rote Kacheln - auf beiden Seiten dieselbe Textur und dieselbe Aussage: nicht anfassen. */
+function isBad(content: WallContent): boolean {
+  return content === 'drain' || content === 'weakenDamage' || content === 'weakenRate'
 }
 
 export class Blockers {
@@ -57,6 +74,8 @@ export class Blockers {
   private readonly blockerGroup: Phaser.Physics.Arcade.Group
   private readonly rewardGroup: Phaser.Physics.Arcade.Group
   private readonly drySpawns: Record<WallSide, number> = { left: 0, right: 0 }
+  // Wie viele rote Kacheln zuletzt in Folge kamen - Grundlage der badMaxRun-Regel.
+  private readonly badRun: Record<WallSide, number> = { left: 0, right: 0 }
   // Rechts versetzt gestartet, damit die Luecken der beiden Seiten nie synchron liegen.
   private readonly slotIndex: Record<WallSide, number> = { left: 0, right: BALANCE.walls.wallRightOffsetSlots }
   private chainAccumulatorPx: number
@@ -149,7 +168,8 @@ export class Blockers {
   public collectPickup(blocker: Phaser.Physics.Arcade.Image): number {
     const pair = this.pairs.find((candidate) => candidate.blocker === blocker)
     if (pair === undefined || !pair.active || pair.broken || !isPickup(pair)) return 0
-    const gain = BALANCE.walls.pickupTeamGain
+    // Rot zieht ab, Blau gibt: dieselbe Beruehrung, entgegengesetztes Vorzeichen.
+    const gain = pair.content === 'drain' ? -BALANCE.walls.drainTeam : BALANCE.walls.pickupTeamGain
     this.applyReinforcement((current) => current + gain)
     this.recycle(pair)
     return gain
@@ -171,11 +191,23 @@ export class Blockers {
     pair.label.setText(remainingHp <= 0 ? '' : `${Math.max(0, Math.ceil(remainingHp))}`)
     if (remainingHp > 0) return false
 
-    // Muenzen fallen bei JEDEM zerschossenen Segment ab, nicht nur bei Muenz-Segmenten.
-    this.onBroken(blocker.x, blocker.y)
+    // Muenzen fallen bei jedem zerschossenen BLAUEN Segment ab. Ein rotes gibt keine:
+    // sonst waere Draufhalten trotz Abzug noch belohnt, und die Entscheidung, das Feuer
+    // einzustellen, waere keine mehr.
+    if (!isBad(pair.content)) this.onBroken(blocker.x, blocker.y)
     if (pair.content === 'damage' || pair.content === 'rate') {
       // Sofortwirkung auf den JETZT aktuellen Stand - wie bei der Sammelbahn.
       this.applyStat(pair.content, pair.content === 'damage' ? BALANCE.walls.damageGain : BALANCE.walls.rateGain)
+      this.recycle(pair)
+      return true
+    }
+    if (pair.content === 'weakenDamage' || pair.content === 'weakenRate') {
+      // Dasselbe Vorgehen mit umgekehrtem Vorzeichen: Wer ein rotes Segment
+      // zerschiesst, hat sich die Schwaechung selbst geholt.
+      this.applyStat(
+        pair.content === 'weakenDamage' ? 'damage' : 'rate',
+        pair.content === 'weakenDamage' ? -BALANCE.walls.weakenDamage : -BALANCE.walls.weakenRate,
+      )
       this.recycle(pair)
       return true
     }
@@ -257,10 +289,38 @@ export class Blockers {
     return getWallGeometry(this.scene.scale.width, this.scene.scale.height, y, side)
   }
 
+  /**
+   * Rote Kachel? Gilt fuer beide Seiten gleich: erst ab badMinLevel, nie mehr als
+   * badMaxRun in Folge. Die Laufzaehlung sitzt hier und nicht beim Ziehen, damit die
+   * Regel unabhaengig davon greift, was die Seite sonst anbietet.
+   */
+  private rollBad(side: WallSide): boolean {
+    if (this.currentLevel < BALANCE.walls.badMinLevel) return false
+    if (this.badRun[side] >= BALANCE.walls.badMaxRun) {
+      this.badRun[side] = 0
+      return false
+    }
+    if (this.rng() >= BALANCE.walls.badChance) {
+      this.badRun[side] = 0
+      return false
+    }
+    this.badRun[side] += 1
+    return true
+  }
+
   private chooseContent(side: WallSide): WallContent {
+    const bad = this.rollBad(side)
     // Links ist jede Kachel ein Sammelplaettchen - die Kette ist der Reiz, nicht der
-    // seltene Treffer. Rechts bleibt die Goodie-Regel mit Garantie nach Nieten.
-    if (side === 'left') return 'pickup'
+    // seltene Treffer. Eine rote unterbricht sie und verlangt Ausweichen.
+    if (side === 'left') return bad ? 'drain' : 'pickup'
+    // Rechts geht Rot VOR der Waffengarantie: Sonst koennte ein garantiertes
+    // Waffensegment die rote Kachel verdraengen und die Bahn waere wieder harmlos.
+    // Die Nietenzaehlung laeuft dabei weiter, damit die Waffe nicht verloren geht,
+    // sondern nur um eine Kachel spaeter kommt.
+    if (bad) {
+      this.drySpawns[side] += 1
+      return this.rng() < 0.5 ? 'weakenDamage' : 'weakenRate'
+    }
     if (decideGoodie(this.drySpawns[side], BALANCE.walls.weaponChance, BALANCE.walls.goodieMaxDry, this.rng)) {
       this.drySpawns[side] = 0
       return 'weapon'
@@ -284,7 +344,9 @@ export class Blockers {
     pair.content = content
     pair.side = side
     pair.weapon = content === 'weapon' ? this.chooseWeapon(this.getCurrentWeapon()) : 'normal'
-    pair.blocker.setTexture(side === 'left' ? 'wall-segment-left' : 'wall-segment-right')
+    // Rot schlaegt die Seitenfarbe: Was abzieht, muss auf einen Blick als solches
+    // erkennbar sein, noch bevor man die Beschriftung liest.
+    pair.blocker.setTexture(isBad(content) ? 'wall-segment-bad' : side === 'left' ? 'wall-segment-left' : 'wall-segment-right')
     pair.blocker.enableBody(true, geometry.x, y, true, true)
     pair.blocker.setDisplaySize(geometry.width, BALANCE.walls.segmentHeightPx).setActive(true).setVisible(true).setAlpha(0)
     const body = pair.blocker.body as Phaser.Physics.Arcade.Body
@@ -294,10 +356,12 @@ export class Blockers {
     pair.blocker.setData('maxHp', maxHp)
     pair.blocker.setData('spawnId', this.nextSpawnId)
     this.nextSpawnId -= 1
-    if (content === 'pickup') {
-      // Kein Lebenspunkte-Label: Das Plaettchen zeigt, was es bringt, nicht was es aushaelt.
+    if (content === 'pickup' || content === 'drain') {
+      // Kein Lebenspunkte-Label: Das Plaettchen zeigt, was es bringt oder nimmt, nicht
+      // was es aushaelt - beschiessen kann man es ohnehin nicht.
       pair.label.setActive(false).setVisible(false)
-      pair.goodieText.setText(`+${BALANCE.walls.pickupTeamGain}`).setPosition(geometry.x, y).setActive(true).setVisible(true).setAlpha(0)
+      const text = content === 'drain' ? `-${BALANCE.walls.drainTeam}` : `+${BALANCE.walls.pickupTeamGain}`
+      pair.goodieText.setText(text).setPosition(geometry.x, y).setActive(true).setVisible(true).setAlpha(0)
       pair.reward.setActive(false).setVisible(false)
       return
     }
@@ -311,8 +375,13 @@ export class Blockers {
       return
     }
     // Schaden und Feuerrate wirken sofort beim Zerschiessen - sie brauchen kein
-    // Objekt zum Einsammeln, nur eine Beschriftung, die sagt was drin steckt.
-    pair.goodieText.setText(content === 'damage' ? 'DMG' : 'RATE').setPosition(geometry.x, y).setActive(true).setVisible(true).setAlpha(0)
+    // Objekt zum Einsammeln, nur eine Beschriftung, die sagt was drin steckt. Das
+    // Vorzeichen steht vorne, weil es die Handlung bestimmt: Plus draufhalten, Minus
+    // vorbeiziehen lassen.
+    const statText = content === 'damage' ? '+DMG'
+      : content === 'rate' ? '+RATE'
+        : content === 'weakenDamage' ? '-DMG' : '-RATE'
+    pair.goodieText.setText(statText).setPosition(geometry.x, y).setActive(true).setVisible(true).setAlpha(0)
     pair.reward.setActive(false).setVisible(false)
   }
 

@@ -58,6 +58,10 @@ export const WORLD_COLORS = {
   wallLeftStroke: 0xdce9ff,
   wallRightFill: 0x2962ff,
   wallRightStroke: 0xc3d4ff,
+  // Rote Kacheln (2026-08-22): auf beiden Seiten dieselbe Farbe. Rot heisst "weg da" -
+  // welche Seite es ist, sieht man an der Position, nicht an der Schattierung.
+  wallBadFill: 0xd93a3a,
+  wallBadStroke: 0xffd6d6,
 } as const
 
 export const HUD_COLORS = {
