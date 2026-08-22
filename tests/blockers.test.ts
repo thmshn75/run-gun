@@ -46,10 +46,13 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
   })
 
   it('keeps every gate lane at least 90px wide on the wall-reduced playfield width', () => {
-    for (const laneCount of [2, 3] as const) {
-      const lanes = getGateLanes(laneCount, width / 2, getPlayfieldHalfWidth(width, height, height) * 2, BALANCE.gates.gapBetween)
-      for (const lane of lanes) expect(lane.width).toBeGreaterThanOrEqual(90)
-    }
+    // Seit dem breiteren Wand-Korridor sind Tore dauerhaft zweispurig (Waffen kommen
+    // aus den Waenden, W4-Zielbild "Mitte rechnet, Seiten bewaffnen") — der Spawn-Pfad
+    // in gates.ts erzwingt das hart.
+    const gatesSource = readFileSync(new URL('../src/systems/gates.ts', import.meta.url), 'utf8')
+    expect(gatesSource).toContain('getGateSpawnLayout(\n      2,')
+    const lanes = getGateLanes(2, width / 2, getPlayfieldHalfWidth(width, height, height) * 2, BALANCE.gates.gapBetween)
+    for (const lane of lanes) expect(lane.width).toBeGreaterThanOrEqual(90)
   })
 
   it('never spawns an enemy inside a wall zone over 300 random spawns per type', () => {
@@ -85,14 +88,19 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     expect(reservedFlags).toContain(true)
   })
 
-  it('shows the reward behind a translucent wall from spawn on, collectable only after the break', () => {
+  it('shows the reward behind a translucent rounded wall from spawn on, collectable only after the break', () => {
     const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
+    const bootSource = readFileSync(new URL('../src/scenes/BootScene.ts', import.meta.url), 'utf8')
     // Halbtransparent: sichtbar genug zum Zielen, durchsichtig genug fuer den Inhalt.
     expect(BALANCE.walls.fillAlpha).toBeGreaterThan(0.15)
     expect(BALANCE.walls.fillAlpha).toBeLessThan(0.8)
-    // Fuellung nie opak setzen — setFillStyle ohne Alpha wuerde die Transparenz beim
-    // ersten Treffer still ueberschreiben.
-    expect(source.match(/setFillStyle\(0xb84432\)/g)).toBeNull()
+    // Transparenz und runde Ecken stecken in der gebackenen Textur; die Wand selbst
+    // setzt keine Fuellfarbe mehr (das hatte die Transparenz einmal still zerstoert).
+    expect(bootSource).toContain('fillStyle(WORLD_COLORS.wallFill, BALANCE.walls.fillAlpha)')
+    expect(bootSource).toContain('fillRoundedRect(0, 0, 128, BALANCE.walls.segmentHeightPx, 10)')
+    expect(bootSource).toContain("generateTexture('wall-segment'")
+    expect(source).toContain("physics.add.image(0, 0, 'wall-segment')")
+    expect(source).not.toContain('setFillStyle')
     // Inhalt (Waffe oder Muenze) ist ab Spawn sichtbar, aber ohne Body …
     expect(source).toContain("setTexture(hasWeapon ? `weapon-${pair.weapon}-gate` : 'coin')")
     expect(source).toContain('.setActive(false).setVisible(true)')

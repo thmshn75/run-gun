@@ -71,6 +71,7 @@ export class BootScene extends Phaser.Scene {
     this.createRoadTextures()
     this.createGateTexture()
     this.createCoinTexture()
+    this.createWallTexture()
 
     this.scene.start('TitleScene')
   }
@@ -199,6 +200,18 @@ export class BootScene extends Phaser.Scene {
     graphics.fillStyle(WORLD_COLORS.coinBody)
     graphics.fillCircle(7, 7, 5)
     graphics.generateTexture('coin', 14, 14)
+    graphics.destroy()
+  }
+
+  // Wandsegment (W2): abgerundete Ecken und halbtransparente Fuellung stecken in der
+  // Textur; die Wand skaliert sie nur noch auf die perspektivische Breite.
+  private createWallTexture(): void {
+    const graphics = this.add.graphics()
+    graphics.fillStyle(WORLD_COLORS.wallFill, BALANCE.walls.fillAlpha)
+    graphics.fillRoundedRect(0, 0, 128, BALANCE.walls.segmentHeightPx, 10)
+    graphics.lineStyle(3, WORLD_COLORS.wallStroke, 1)
+    graphics.strokeRoundedRect(1.5, 1.5, 125, BALANCE.walls.segmentHeightPx - 3, 10)
+    graphics.generateTexture('wall-segment', 128, BALANCE.walls.segmentHeightPx)
     graphics.destroy()
   }
 }

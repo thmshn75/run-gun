@@ -223,8 +223,11 @@ export class Gates {
     }
     const spawnY = BALANCE.road.horizonY
     const levelPlan = getLevelPlan(this.getLevel())
+    // Seit W2 sind Tore dauerhaft zweispurig (W4-Zielbild "Mitte rechnet, Seiten
+    // bewaffnen"): Waffen kommen aus den Wandsegmenten, die Drei-Spur-Waffentore
+    // entfallen — und der breitere Wand-Korridor traegt keine drei 90-px-Spuren mehr.
     const layout = getGateSpawnLayout(
-      levelPlan.reserved.gateLanes,
+      2,
       this.weaponLaneCounter,
       getWeaponRewardChoices(this.getCurrentWeapon(), levelPlan.level),
       this.rng,

@@ -14,7 +14,7 @@ import type { WeaponKey } from './weapons'
 type WallSide = 'left' | 'right'
 
 interface BlockerPair {
-  blocker: Phaser.GameObjects.Rectangle
+  blocker: Phaser.Physics.Arcade.Image
   label: Phaser.GameObjects.Text
   reward: Phaser.Physics.Arcade.Image
   active: boolean
@@ -92,7 +92,7 @@ export class Blockers {
     for (const pair of this.pairs) this.recycle(pair)
   }
 
-  public isBlocker(candidate: Phaser.GameObjects.GameObject): candidate is Phaser.GameObjects.Rectangle {
+  public isBlocker(candidate: Phaser.GameObjects.GameObject): candidate is Phaser.Physics.Arcade.Image {
     return this.pairs.some((pair) => pair.blocker === candidate)
   }
 
@@ -100,12 +100,11 @@ export class Blockers {
     return this.pairs.some((pair) => pair.reward === candidate)
   }
 
-  public damage(blocker: Phaser.GameObjects.Rectangle, damage: number): boolean {
+  public damage(blocker: Phaser.Physics.Arcade.Image, damage: number): boolean {
     const pair = this.pairs.find((candidate) => candidate.blocker === blocker)
     if (pair === undefined || !pair.active || pair.broken) return false
     const remainingHp = (blocker.getData('hp') as number) - damage
     blocker.setData('hp', remainingHp)
-    blocker.setFillStyle(0xb84432, BALANCE.walls.fillAlpha)
     pair.label.setText(remainingHp <= 0 ? '' : `${Math.max(0, Math.ceil(remainingHp))}`)
     if (remainingHp > 0) return false
 
@@ -116,8 +115,8 @@ export class Blockers {
       return true
     }
     pair.broken = true
+    blocker.disableBody(true, true)
     blocker.setActive(false).setVisible(false)
-    ;(blocker.body as Phaser.Physics.Arcade.Body).enable = false
     pair.label.setActive(false).setVisible(false)
     pair.reward.enableBody(true, pair.reward.x, pair.reward.y, true, true)
     pair.reward.setActive(true).setVisible(true).setAlpha(Math.max(pair.reward.alpha, 0.01))
@@ -132,7 +131,7 @@ export class Blockers {
     return weapon
   }
 
-  public hitCrowd(blocker: Phaser.GameObjects.Rectangle): number | undefined {
+  public hitCrowd(blocker: Phaser.Physics.Arcade.Image): number | undefined {
     const pair = this.pairs.find((candidate) => candidate.blocker === blocker)
     if (pair === undefined || !pair.active || pair.broken) return undefined
     this.recycle(pair)
@@ -158,11 +157,12 @@ export class Blockers {
   }
 
   private createPair(): BlockerPair {
-    const blocker = this.scene.add.rectangle(0, 0, 30, BALANCE.walls.segmentHeightPx, 0xb84432)
-      .setStrokeStyle(3, 0xf3cf8a).setDepth(BALANCE.layers.gameplay).setOrigin(0.5).setActive(false).setVisible(false)
-    this.scene.physics.add.existing(blocker)
+    const blocker = this.scene.physics.add.image(0, 0, 'wall-segment')
+      .setDepth(BALANCE.layers.gameplay).setActive(false).setVisible(false)
     ;(blocker.body as Phaser.Physics.Arcade.Body).setAllowGravity(false)
-    ;(blocker.body as Phaser.Physics.Arcade.Body).enable = false
+    // Body einmal in Texturpixeln setzen: Arcade skaliert ihn mit der DisplaySize mit.
+    ;(blocker.body as Phaser.Physics.Arcade.Body).setSize(128, BALANCE.walls.segmentHeightPx, true)
+    blocker.disableBody(true, true)
     this.blockerGroup.add(blocker)
     const label = this.scene.add.text(0, 0, '', {
       fontFamily: 'system-ui', fontSize: '17px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 3, fontStyle: 'bold',
@@ -194,10 +194,9 @@ export class Blockers {
     pair.hasWeapon = hasWeapon
     pair.side = side
     pair.weapon = hasWeapon ? this.chooseWeapon(this.getCurrentWeapon()) : 'normal'
-    pair.blocker.setSize(geometry.width, BALANCE.walls.segmentHeightPx).setPosition(geometry.x, y).setFillStyle(0xb84432, BALANCE.walls.fillAlpha).setStrokeStyle(3, 0xf3cf8a).setActive(true).setVisible(true).setAlpha(0)
+    pair.blocker.enableBody(true, geometry.x, y, true, true)
+    pair.blocker.setDisplaySize(geometry.width, BALANCE.walls.segmentHeightPx).setActive(true).setVisible(true).setAlpha(0)
     const body = pair.blocker.body as Phaser.Physics.Arcade.Body
-    body.enable = true
-    body.setSize(geometry.width, BALANCE.walls.segmentHeightPx, true)
     body.moves = false
     body.updateFromGameObject()
     pair.blocker.setData('hp', maxHp)
@@ -216,10 +215,8 @@ export class Blockers {
       const y = pair.blocker.y + movement
       const geometry = this.wallGeometry(pair.side, y)
       pair.blocker.setPosition(geometry.x, y)
-      pair.blocker.setSize(geometry.width, BALANCE.walls.segmentHeightPx)
-      const body = pair.blocker.body as Phaser.Physics.Arcade.Body
-      body.setSize(geometry.width, BALANCE.walls.segmentHeightPx, true)
-      body.updateFromGameObject()
+      pair.blocker.setDisplaySize(geometry.width, BALANCE.walls.segmentHeightPx)
+      ;(pair.blocker.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       const alpha = Math.min(1, Math.max(0, (y - pair.blocker.displayHeight / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
       pair.blocker.setAlpha(alpha)
       pair.label.setPosition(geometry.x, y + BALANCE.walls.labelOffsetPx).setAlpha(alpha)
@@ -244,8 +241,8 @@ export class Blockers {
   private recycle(pair: BlockerPair): void {
     pair.active = false
     pair.broken = false
+    pair.blocker.disableBody(true, true)
     pair.blocker.setActive(false).setVisible(false)
-    ;(pair.blocker.body as Phaser.Physics.Arcade.Body).enable = false
     pair.label.setActive(false).setVisible(false)
     pair.reward.disableBody(true, true)
     pair.reward.setActive(false).setVisible(false)

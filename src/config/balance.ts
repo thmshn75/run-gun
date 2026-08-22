@@ -57,14 +57,15 @@ export const BALANCE = {
   },
   walls: {
     // Breitenbudget (W2): laneShare reserviert die Wandzone AUF der Strasse (bestimmt
-    // Korridor, Tore, Spawns), in Anteilen der halben Strassenbreite. 0.26 ist das
-    // Maximum, solange drei Torspuren >= 90 px bleiben (Budget-Test).
-    laneShare: 0.26,
+    // Korridor, Tore, Spawns), in Anteilen der halben Strassenbreite. 0.34 verlangt
+    // Zweispur-Tore (drei Spuren hielten die 90 px nur bis 0.2667) — die Waffen kommen
+    // seit W2 aus den Waenden, deshalb sind Tore dauerhaft zweispurig (W4-Zielbild
+    // "Mitte rechnet, Seiten bewaffnen"; Thomas 2026-08-22: Waende nach innen breiter).
+    laneShare: 0.34,
     // Die sichtbare Wand ist BREITER als die reservierte Zone: Innenkante bleibt am
     // Korridor, der Rest ragt nach aussen ueber die Strassenkante hinaus (Thomas-
-    // Entscheidung 2026-08-22 — mehr Flaeche fuer das durchscheinende Waffen-Icon,
-    // ohne den Korridor zu verengen). Unten: 195 x 0.5 = 97.5 px Wandbreite.
-    widthShare: 0.5,
+    // Entscheidung 2026-08-22). Unten: 195 x 0.56 = 109.2 px Wandbreite.
+    widthShare: 0.56,
     // Der Korridor muss Mindestbreite und Horden-Platzhalter tragen (Budget-Test).
     // hordeMaxWidthPx ist ein PLATZHALTER, bis W3 die echte Hordenbreite festlegt —
     // W3 darf laneShare/minCorridorPx nachjustieren, solange der Budget-Test haelt.

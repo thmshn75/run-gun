@@ -49,6 +49,10 @@ export const WORLD_COLORS = {
   coinRim: 0x5e4400,
   coinBody: 0xffd84c,
   gateBase: 0xffffff,
+  // Wandsegmente (W2): kuehles Tuerkis als Energie-Barriere — hebt sich von der grauen
+  // Strasse, der dunkelblauen Stadt, der roten Truppe und den beigen Zombies ab.
+  wallFill: 0x2bd4e0,
+  wallStroke: 0xd8f9fd,
 } as const
 
 export const HUD_COLORS = {

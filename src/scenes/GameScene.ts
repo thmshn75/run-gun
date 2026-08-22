@@ -418,7 +418,7 @@ export class GameScene extends Phaser.Scene {
     this.weapons.recycle(projectile)
   }
 
-  private handleProjectileBlockerHit(projectile: Phaser.Physics.Arcade.Image, blocker: Phaser.GameObjects.Rectangle): void {
+  private handleProjectileBlockerHit(projectile: Phaser.Physics.Arcade.Image, blocker: Phaser.Physics.Arcade.Image): void {
     if (!projectile.active || !blocker.active) return
     const weapon = projectile.getData('weapon') as WeaponKey
     const config = this.weapons.getWeaponConfig(weapon)
@@ -438,7 +438,7 @@ export class GameScene extends Phaser.Scene {
       const radiusSquared = config.splashRadiusPx * config.splashRadiusPx
       const splashDamage = this.runStats.get('damage') * this.getCrowdDamageMultiplier() * config.splashDamageFactor
       for (const child of this.blockers.getBlockers().getChildren()) {
-        const candidate = child as Phaser.GameObjects.Rectangle
+        const candidate = child as Phaser.Physics.Arcade.Image
         const dx = candidate.x - impactX
         const dy = candidate.y - impactY
         if (candidate.active && dx * dx + dy * dy <= radiusSquared) this.blockers.damage(candidate, splashDamage)
