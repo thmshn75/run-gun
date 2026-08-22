@@ -225,14 +225,21 @@ export const BALANCE = {
     labelOffsetPx: 18,
     // Belohnung beim Wegschiessen eines Muenz-Segments (coinValue wie schwerer Gegner).
     coinReward: 3,
-    // Goodies unregelmaessig in der Wand: links Verstaerkungen, rechts Waffen.
-    // Effektiv 1,125 Segmente/s je Seite (135/72 Slots/s x 3/5 Wandanteil). Die Werte
-    // sind mit scrollSpeed 180 -> 135 um Faktor 1,5/1,125 = 1,333 angehoben worden
-    // (0,12 -> 0,16 / 0,08 -> 0,107 / maxDry 16 -> 12), damit die Goodie-Kadenz PRO
-    // SEKUNDE unveraendert bleibt: Verstaerkung ~alle 5,6 s, Waffe ~alle 8,3 s im
-    // Erwartungswert, Garantie nach spaetestens 12 Nieten (~10,7 s). Ohne diese
-    // Anhebung haette das langsamere Tempo die Truppe still 25 % schlechter versorgt.
-    reinforcementChance: 0.16,
+    // LINKS: Sammelbahn. Jede Kachel ist ein Plaettchen mit diesem Zuwachs, das man
+    // durch Beruehrung einloest (Thomas 2026-08-22, nach dem Referenzvorbild).
+    // Kadenz gerechnet: 135 px/s / 72 px = 1,875 Slots/s, davon 3 von 5 belegt
+    // (wallRunLength/wallGapSlots) = 1,125 Plaettchen/s. Wer die ganze Zeit links
+    // faehrt, gewinnt also 67 Figuren je Minute - und holt in derselben Zeit rechts
+    // keine Waffe und schiesst kaum Gegner. Genau diese Abwaegung ist der Zweck.
+    // Der Wert bleibt bei 1: Die KETTE ist der Reiz (viele kleine Quittungen), nicht
+    // die Hoehe des einzelnen Treffers. Groessere Betraege waeren dieselbe Zahl mit
+    // weniger Rueckmeldung.
+    pickupTeamGain: 1,
+    // reinforcementChance entfaellt - links ist jetzt JEDE Kachel ein Plaettchen.
+    // RECHTS: Waffen unregelmaessig in der Wand, Rest Muenz-Segmente. Der Wert ist
+    // mit scrollSpeed 180 -> 135 um Faktor 1,333 angehoben worden (0,08 -> 0,107,
+    // maxDry 16 -> 12), damit die Kadenz PRO SEKUNDE bleibt: Waffe ~alle 8,3 s im
+    // Erwartungswert, Garantie nach spaetestens 12 Nieten (~10,7 s).
     weaponChance: 0.107,
     goodieMaxDry: 12,
     // Wie tief die Truppe sich an eine Wand druecken darf, in Figurenbreiten ueber die
@@ -265,7 +272,14 @@ export const BALANCE = {
     greeneryChance: 0.6,
   },
   stats: {
-    hp: { base: 2, cap: 30, floor: 0 },
+    // Der Zaehler laeuft ueber die sichtbaren 30 Figuren hinaus weiter (Thomas
+    // 2026-08-22): Was darueber liegt, ist RESERVE - sie steht nicht im Bild, rueckt
+    // aber nach, wenn eine Figur faellt. Ohne das verpufft jedes +1 ab Truppe 30,
+    // und genau dort steht der Spieler nach ein paar Sammelbahnen. Sichtbar bleiben
+    // crowd.max Figuren, der Schadensbonus bleibt bei damageMultiplierCap gedeckelt -
+    // die Reserve kauft also Ueberlebenszeit, keine Feuerkraft.
+    // 999 statt unbegrenzt, damit die HUD-Zahl dreistellig bleibt.
+    hp: { base: 2, cap: 999, floor: 0 },
     damage: { base: 1, cap: 20, floor: 1 },
     shotsPerSec: { base: 3, cap: 8, floor: 1 },
     speed: { base: 105, cap: 305, floor: 70 },

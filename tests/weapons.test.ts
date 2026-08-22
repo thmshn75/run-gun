@@ -27,13 +27,15 @@ describe('additional weapons', () => {
     const wallShare = BALANCE.walls.wallRunLength / (BALANCE.walls.wallRunLength + BALANCE.walls.wallGapSlots)
     const segmentsPerSec = (BALANCE.scrollSpeed / BALANCE.walls.segmentHeightPx) * wallShare
     const weaponCadenceMs = 1000 / (segmentsPerSec * BALANCE.walls.weaponChance)
-    const reinforcementCadenceMs = 1000 / (segmentsPerSec * BALANCE.walls.reinforcementChance)
     const guaranteeMs = (BALANCE.walls.goodieMaxDry / segmentsPerSec) * 1000
     expect(weaponCadenceMs).toBeGreaterThanOrEqual(5000)
     expect(weaponCadenceMs).toBeLessThanOrEqual(15000)
-    expect(reinforcementCadenceMs).toBeGreaterThanOrEqual(3000)
-    expect(reinforcementCadenceMs).toBeLessThanOrEqual(10000)
     expect(guaranteeMs).toBeLessThanOrEqual(15000)
+    // Links gibt es keine Chance mehr, sondern eine durchgehende Kette: jede Kachel
+    // ein Plaettchen. Gerechnet ergibt das den Truppenzuwachs pro Sekunde.
+    const pickupsPerSec = segmentsPerSec * BALANCE.walls.pickupTeamGain
+    expect(pickupsPerSec).toBeGreaterThan(0.8)
+    expect(pickupsPerSec).toBeLessThan(2)
   })
 
   it('keeps every weapon pool above its balance-derived peak projectile load', () => {

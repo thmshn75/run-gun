@@ -7,6 +7,40 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**Sammelbahn links, Wand rechts, zwei Blautoene fertig** (2026-08-22, Claude direkt,
+Thomas: "Waende in einem schoenen Blau links +1 ... und rechts in einem anderen blau",
+Funktionsweise per Rueckfrage entschieden).
+**Thomas' zwei Entscheidungen:** (1) Die +1-Kette wird DURCHFAHREN, nicht beschossen.
+(2) Der Truppenzaehler laeuft ueber die sichtbaren 30 Figuren hinaus weiter, die
+Ueberzahl ist Reserve.
+Die Seiten sind damit grundsaetzlich verschieden statt zwei Varianten derselben Wand:
+- **LINKS = Sammelbahn.** Jede Kachel ist ein "+1"-Plaettchen ohne Lebenspunkte, das
+  man durch Beruehrung einloest. Kugeln fliegen wirkungslos durch (sonst schoesse man
+  sich die eigene Verstaerkung weg), und die Plaettchen bremsen die Truppe nicht
+  (`getWallPresence` ignoriert sie - wer einsammeln soll, muss hineinfahren duerfen).
+- **RECHTS = Wand.** Zerschiessbare Segmente mit Lebenspunkten wie bisher, Waffen
+  unregelmaessig darin, Rest Muenz-Segmente.
+- **Reserve statt Deckel.** `stats.hp.cap` 30 -> 999. Vorher war bei 30 alles am
+  Anschlag: nur 8 Figuren schiessen, der Schadensbonus deckelt bei 29 Figuren, und die
+  Truppengroesse ist die Lebensanzeige - ein weiteres +1 bewirkte exakt nichts. Jetzt
+  bleiben 30 sichtbar, der Rest rueckt nach, wenn eine faellt. Die Reserve kauft
+  Ueberlebenszeit, keine Feuerkraft (Schadensbonus bleibt gedeckelt).
+- **Zwei Blautoene** (`wall-segment-left` / `-right` statt einer Textur): links
+  Kornblumenblau, rechts Royalblau. Der erste helle Ton wirkte halbtransparent ueber
+  der grauen Strasse tuerkis statt blau und wurde nachgezogen.
+- **Entfallen:** Die Verstaerkungs-Angebote der linken Wand (Operator "+4", "x1.5",
+  zustandsabhaengig gezogen) samt `getReinforcementOffer` und deren Tests. Viele kleine
+  Quittungen schlagen wenige grosse - Entscheidung nach dem Referenzvorbild.
+**Gemessen im Browser** (20 s durchgehend links gefahren): 22 Plaettchen eingesammelt =
+1,10 je Sekunde, gerechnet waren 1,125 (135 px/s / 72 px Kachel x 3/5 Wandanteil).
+Truppe 2 -> 24. Ueber 45 s weiter: Zaehler 74, sichtbare Figuren konstant 30,
+Schadensbonus konstant am Deckel 4, HUD zeigt "TEAM 74".
+Wer die ganze Zeit links faehrt, gewinnt also rund 67 Figuren je Minute - und holt in
+derselben Zeit rechts keine Waffe und schiesst kaum Gegner. Genau diese Abwaegung ist
+der Zweck.
+Nachweise: 133 Tests gruen, `npm run check` sauber, Browser-Messung wie oben.
+**Offen: Thomas' iPhone-Urteil** - besonders, ob 1,1 Figuren je Sekunde zu viel ist.
+
 **Optik Schritt 1 fertig: Bodenschatten und glatte Kanten** (2026-08-22, Claude direkt,
 Thomas: "die Optik und das realistische Gefuehl ist mir wichtiger", nach zwei
 Referenz-Screenshots aus einem 3D-Vorbild).

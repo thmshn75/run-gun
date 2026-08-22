@@ -151,6 +151,7 @@ export class GameScene extends Phaser.Scene {
   private projectileBlockerCollider: Phaser.Physics.Arcade.Collider | undefined
   private crowdBossCollider: Phaser.Physics.Arcade.Collider | undefined
   private crowdRewardCollider: Phaser.Physics.Arcade.Collider | undefined
+  private crowdPickupCollider: Phaser.Physics.Arcade.Collider | undefined
 
   public constructor() {
     super('GameScene')
@@ -380,12 +381,20 @@ export class GameScene extends Phaser.Scene {
       if (this.crowdRewardCollider === undefined) {
         this.crowdRewardCollider = this.addCombatOverlap(this.crowd.getHullBounds(), this.blockers.getRewards())
       }
+      if (this.crowdPickupCollider === undefined) {
+        // Die Sammelplaettchen liegen in derselben Gruppe wie die Wandsegmente; der
+        // Handler unterscheidet sie. Wandsegmente kosten bei Beruehrung nichts, das
+        // war schon vorher so.
+        this.crowdPickupCollider = this.addCombatOverlap(this.crowd.getHullBounds(), this.blockers.getBlockers())
+      }
       return
     }
     this.projectileBlockerCollider?.destroy()
     this.crowdRewardCollider?.destroy()
+    this.crowdPickupCollider?.destroy()
     this.projectileBlockerCollider = undefined
     this.crowdRewardCollider = undefined
+    this.crowdPickupCollider = undefined
   }
 
   private equipWeapon(weapon: WeaponKey): void {
@@ -517,6 +526,12 @@ export class GameScene extends Phaser.Scene {
         if (weapon !== undefined) {
           this.equipWeapon(weapon)
         }
+        return
+      }
+      // Sammelbahn links: durchfahren genuegt, kein Schuss. Der Zuwachs wird in
+      // blockers.collectPickup auf den DANN aktuellen Stand angewandt.
+      if (this.blockers.isPickupSegment(target)) {
+        this.blockers.collectPickup(target as Phaser.Physics.Arcade.Image)
         return
       }
       const enemyImage = target as Phaser.Physics.Arcade.Image

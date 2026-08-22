@@ -49,8 +49,16 @@ export const WORLD_COLORS = {
   gateBase: 0xffffff,
   // Wandsegmente (W2): Orange als Barrieren-Farbe (Thomas-Wahl 2026-08-22 aus vier
   // Varianten; Tuerkis und Rotbraun davor gefielen nicht).
-  wallFill: 0xff9f45,
-  wallStroke: 0xffe0bd,
+  // Zwei Blautoene, damit die Seiten auf einen Blick auseinandergehen (Thomas
+  // 2026-08-22): links die Sammelbahn in hellem Himmelblau (Gewinn, durchfahren),
+  // rechts die Wand in kraeftigem Royalblau (Widerstand, wegschiessen).
+  // Halbtransparent ueber der grauen Strasse verschiebt sich jeder Ton ins Kuehle:
+  // Ein Himmelblau wirkt dort tuerkis. Deshalb ein klares Kornblumenblau, das auch
+  // durchscheinend als Blau gelesen wird.
+  wallLeftFill: 0x5b9cff,
+  wallLeftStroke: 0xdce9ff,
+  wallRightFill: 0x2962ff,
+  wallRightStroke: 0xc3d4ff,
 } as const
 
 export const HUD_COLORS = {

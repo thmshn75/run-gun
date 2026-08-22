@@ -76,16 +76,35 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     expect(strongest.maxHp).toBeGreaterThanOrEqual(1)
   })
 
-  it('assigns reinforcements to the left wall and weapons to the right, at playable chances', () => {
+  it('macht links eine Sammelbahn und rechts eine Wand', () => {
     const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
-    expect(source).toContain("side === 'left' ? 'reinforce' : 'weapon'")
-    expect(source).toContain("side === 'left' ? BALANCE.walls.reinforcementChance : BALANCE.walls.weaponChance")
-    // Chancen bleiben in einem Rahmen, der Goodies selten genug fuer "unregelmaessig"
-    // und haeufig genug fuer den Truppen-Nachschub macht (Kadenz-Test in weapons.test).
-    expect(BALANCE.walls.reinforcementChance).toBeGreaterThan(0.05)
-    expect(BALANCE.walls.reinforcementChance).toBeLessThan(0.3)
+    // Links ist JEDE Kachel ein Plaettchen - die Kette ist der Reiz, nicht der
+    // seltene Treffer. Rechts bleibt die Goodie-Regel mit Garantie nach Nieten.
+    expect(source).toContain("if (side === 'left') return 'pickup'")
+    expect(source).toContain('BALANCE.walls.weaponChance')
     expect(BALANCE.walls.weaponChance).toBeGreaterThan(0.03)
     expect(BALANCE.walls.weaponChance).toBeLessThan(0.2)
+  })
+
+  it('laesst Sammelplaettchen durchfahren statt beschiessen', () => {
+    const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
+    const scene = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
+    // Kugeln gehen wirkungslos durch - sonst schoesse man sich die eigene
+    // Verstaerkung weg, bevor man sie einsammeln kann.
+    expect(source).toContain('if (isPickup(pair)) return false')
+    // Und sie bremsen die Truppe nicht: Wer einsammeln soll, muss hineinfahren duerfen.
+    expect(source).toContain('if (isPickup(pair)) continue')
+    // Eingeloest wird durch Beruehrung der Truppenhuelle.
+    expect(scene).toContain('this.blockers.isPickupSegment(target)')
+    expect(scene).toContain('this.blockers.collectPickup(')
+  })
+
+  it('laesst den Truppenzaehler ueber die sichtbaren Figuren hinaus weiterlaufen', () => {
+    // Ohne Reserve verpufft jedes Plaettchen ab crowd.max - und dort steht der
+    // Spieler nach wenigen Sammelbahnen.
+    expect(BALANCE.stats.hp.cap).toBeGreaterThan(BALANCE.crowd.max)
+    // Der Zuwachs bleibt bei 1: viele kleine Quittungen statt weniger grosser.
+    expect(BALANCE.walls.pickupTeamGain).toBe(1)
   })
 
   it('shows the reward behind a translucent rounded wall from spawn on, collectable only after the break', () => {
@@ -96,10 +115,12 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     expect(BALANCE.walls.fillAlpha).toBeLessThan(0.8)
     // Transparenz und runde Ecken stecken in der gebackenen Textur; die Wand selbst
     // setzt keine Fuellfarbe mehr (das hatte die Transparenz einmal still zerstoert).
-    expect(bootSource).toContain('fillStyle(WORLD_COLORS.wallFill, BALANCE.walls.fillAlpha)')
+    expect(bootSource).toContain('fillStyle(seite.fill, BALANCE.walls.fillAlpha)')
     expect(bootSource).toContain('fillRoundedRect(0, 0, 128, BALANCE.walls.segmentHeightPx, 10)')
-    expect(bootSource).toContain("generateTexture('wall-segment'")
-    expect(source).toContain("physics.add.image(0, 0, 'wall-segment')")
+    // Zwei Texturen, damit die Seiten auf einen Blick auseinandergehen.
+    expect(bootSource).toContain("key: 'wall-segment-left'")
+    expect(bootSource).toContain("key: 'wall-segment-right'")
+    expect(source).toContain("setTexture(side === 'left' ? 'wall-segment-left' : 'wall-segment-right')")
     expect(source).not.toContain('setFillStyle')
     // Inhalt (Waffe oder Muenze) ist ab Spawn sichtbar, aber ohne Body …
     expect(source).toContain("setTexture(content === 'weapon' ? `weapon-${pair.weapon}-gate` : 'coin')")

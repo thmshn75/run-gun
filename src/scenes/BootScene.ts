@@ -222,13 +222,23 @@ export class BootScene extends Phaser.Scene {
 
   // Wandsegment (W2): abgerundete Ecken und halbtransparente Fuellung stecken in der
   // Textur; die Wand skaliert sie nur noch auf die perspektivische Breite.
+  /**
+   * Zwei Wandtexturen statt einer: Die linke Sammelbahn und die rechte Wand sollen
+   * auf einen Blick auseinandergehen (Thomas 2026-08-22, zwei Blautoene).
+   */
   private createWallTexture(): void {
-    const graphics = this.add.graphics()
-    graphics.fillStyle(WORLD_COLORS.wallFill, BALANCE.walls.fillAlpha)
-    graphics.fillRoundedRect(0, 0, 128, BALANCE.walls.segmentHeightPx, 10)
-    graphics.lineStyle(3, WORLD_COLORS.wallStroke, 1)
-    graphics.strokeRoundedRect(1.5, 1.5, 125, BALANCE.walls.segmentHeightPx - 3, 10)
-    graphics.generateTexture('wall-segment', 128, BALANCE.walls.segmentHeightPx)
-    graphics.destroy()
+    const seiten = [
+      { key: 'wall-segment-left', fill: WORLD_COLORS.wallLeftFill, stroke: WORLD_COLORS.wallLeftStroke },
+      { key: 'wall-segment-right', fill: WORLD_COLORS.wallRightFill, stroke: WORLD_COLORS.wallRightStroke },
+    ] as const
+    for (const seite of seiten) {
+      const graphics = this.add.graphics()
+      graphics.fillStyle(seite.fill, BALANCE.walls.fillAlpha)
+      graphics.fillRoundedRect(0, 0, 128, BALANCE.walls.segmentHeightPx, 10)
+      graphics.lineStyle(3, seite.stroke, 1)
+      graphics.strokeRoundedRect(1.5, 1.5, 125, BALANCE.walls.segmentHeightPx - 3, 10)
+      graphics.generateTexture(seite.key, 128, BALANCE.walls.segmentHeightPx)
+      graphics.destroy()
+    }
   }
 }

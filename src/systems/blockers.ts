@@ -2,19 +2,26 @@ import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { HUD_COLORS, STAT_COLORS } from '../config/colors'
 import { getBlockerPlan } from './blockerPlan'
-import { decideGoodie, getReinforcementOffer, type ReinforcementOffer } from './reinforcementPlan'
+import { decideGoodie } from './reinforcementPlan'
 import { getPlayfieldHalfWidth, getWallGeometry } from './road'
 import { isWallSlot } from './wallPattern'
 import type { WeaponKey } from './weapons'
 
-// Seit W2 traegt diese Klasse die Wandsegmente, seit W4 als DAUERWAND (Genre-Muster,
-// Thomas-Verifikation 2026-08-22): links und rechts laeuft je eine lueckenlose Kette
-// zerschiessbarer Segmente mit. Unregelmaessig stecken Goodies darin — links
-// Verstaerkungen (Sofortwirkung beim Freischiessen), rechts Waffen (einsammeln),
-// der Rest sind Muenz-Segmente. Umbenennung auf "Walls" folgt im W6-Aufraeumen.
+// Seit W2 traegt diese Klasse die Wandsegmente, seit W4 als DAUERWAND. Seit dem
+// Referenzvorbild-Abgleich (Thomas 2026-08-22) sind die beiden Seiten GRUNDSAETZLICH
+// VERSCHIEDEN:
+//
+//   LINKS  = Sammelbahn. Eine Kette von "+1"-Plaettchen ohne Lebenspunkte. Man faehrt
+//            hinein und sammelt sie durch Beruehrung ein - kein Schuss noetig. Die
+//            Plaettchen bremsen die Truppe auch nicht (getWallPresence ignoriert sie).
+//   RECHTS = Wand. Zerschiessbare Segmente mit Lebenspunkten wie bisher; unregelmaessig
+//            stecken Waffen darin, der Rest sind Muenz-Segmente.
+//
+// Damit wird jede Fahrt eine Entscheidung: links Masse sammeln oder rechts Feuerkraft
+// holen. Umbenennung auf "Walls" folgt im W6-Aufraeumen.
 
 type WallSide = 'left' | 'right'
-type WallContent = 'coin' | 'weapon' | 'reinforce'
+type WallContent = 'coin' | 'weapon' | 'pickup'
 
 interface BlockerPair {
   blocker: Phaser.Physics.Arcade.Image
@@ -26,7 +33,11 @@ interface BlockerPair {
   content: WallContent
   side: WallSide
   weapon: WeaponKey
-  reinforcement: ReinforcementOffer | null
+}
+
+/** Linke Plaettchen werden eingesammelt statt zerschossen - sie sind keine Wand. */
+function isPickup(pair: BlockerPair): boolean {
+  return pair.content === 'pickup'
 }
 
 export class Blockers {
@@ -111,12 +122,32 @@ export class Blockers {
     let right = false
     for (const pair of this.pairs) {
       if (!pair.active || pair.broken || !pair.blocker.active) continue
+      // Sammelplaettchen sind kein Hindernis: Wer sie einsammeln soll, muss auch
+      // hineinfahren duerfen. Nur echte Wandsegmente begrenzen den Fahrbereich.
+      if (isPickup(pair)) continue
       if (Math.abs(pair.blocker.y - y) >= reach) continue
       if (pair.side === 'left') left = true
       else right = true
       if (left && right) break
     }
     return { left, right }
+  }
+
+  public isPickupSegment(candidate: Phaser.GameObjects.GameObject): candidate is Phaser.Physics.Arcade.Image {
+    return this.pairs.some((pair) => pair.blocker === candidate && pair.active && !pair.broken && isPickup(pair))
+  }
+
+  /**
+   * Sammelplaettchen durch Beruehrung einloesen. Rueckgabe ist der Zuwachs (0, wenn
+   * das Plaettchen schon weg ist), damit die Szene die Quittung nur einmal zeigt.
+   */
+  public collectPickup(blocker: Phaser.Physics.Arcade.Image): number {
+    const pair = this.pairs.find((candidate) => candidate.blocker === blocker)
+    if (pair === undefined || !pair.active || pair.broken || !isPickup(pair)) return 0
+    const gain = BALANCE.walls.pickupTeamGain
+    this.applyReinforcement((current) => current + gain)
+    this.recycle(pair)
+    return gain
   }
 
   public isReward(candidate: Phaser.GameObjects.GameObject): candidate is Phaser.Physics.Arcade.Image {
@@ -126,18 +157,15 @@ export class Blockers {
   public damage(blocker: Phaser.Physics.Arcade.Image, damage: number): boolean {
     const pair = this.pairs.find((candidate) => candidate.blocker === blocker)
     if (pair === undefined || !pair.active || pair.broken) return false
+    // Sammelplaettchen haben keine Lebenspunkte: Sie werden durchfahren, nicht
+    // beschossen. Kugeln fliegen wirkungslos durch - sonst schoesse man sich die
+    // eigene Verstaerkung weg.
+    if (isPickup(pair)) return false
     const remainingHp = (blocker.getData('hp') as number) - damage
     blocker.setData('hp', remainingHp)
     pair.label.setText(remainingHp <= 0 ? '' : `${Math.max(0, Math.ceil(remainingHp))}`)
     if (remainingHp > 0) return false
 
-    if (pair.content === 'reinforce') {
-      // Sofortwirkung auf den JETZT aktuellen Stand — der angezeigte Operator bleibt
-      // dadurch immer wahr (W4-Haertungsbefund gegen eingefrorene Werte).
-      this.applyReinforcement(pair.reinforcement!.apply)
-      this.recycle(pair)
-      return true
-    }
     if (pair.content === 'coin') {
       this.onBroken(blocker.x, blocker.y)
       this.recycle(pair)
@@ -191,7 +219,7 @@ export class Blockers {
   }
 
   private createPair(): BlockerPair {
-    const blocker = this.scene.physics.add.image(0, 0, 'wall-segment')
+    const blocker = this.scene.physics.add.image(0, 0, 'wall-segment-right')
       .setDepth(BALANCE.layers.gameplay).setActive(false).setVisible(false)
     ;(blocker.body as Phaser.Physics.Arcade.Body).setAllowGravity(false)
     // Body einmal in Texturpixeln setzen: Arcade skaliert ihn mit der DisplaySize mit.
@@ -208,7 +236,7 @@ export class Blockers {
     const reward = this.scene.physics.add.image(0, 0, 'weapon-normal-gate').setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false)
     reward.disableBody(true, true)
     this.rewardGroup.add(reward)
-    return { blocker, label, goodieText, reward, active: false, broken: false, content: 'coin', side: 'left', weapon: 'normal', reinforcement: null }
+    return { blocker, label, goodieText, reward, active: false, broken: false, content: 'coin', side: 'right', weapon: 'normal' }
   }
 
   private wallGeometry(side: WallSide, y: number): { x: number; width: number } {
@@ -216,10 +244,12 @@ export class Blockers {
   }
 
   private chooseContent(side: WallSide): WallContent {
-    const chance = side === 'left' ? BALANCE.walls.reinforcementChance : BALANCE.walls.weaponChance
-    if (decideGoodie(this.drySpawns[side], chance, BALANCE.walls.goodieMaxDry, this.rng)) {
+    // Links ist jede Kachel ein Sammelplaettchen - die Kette ist der Reiz, nicht der
+    // seltene Treffer. Rechts bleibt die Goodie-Regel mit Garantie nach Nieten.
+    if (side === 'left') return 'pickup'
+    if (decideGoodie(this.drySpawns[side], BALANCE.walls.weaponChance, BALANCE.walls.goodieMaxDry, this.rng)) {
       this.drySpawns[side] = 0
-      return side === 'left' ? 'reinforce' : 'weapon'
+      return 'weapon'
     }
     this.drySpawns[side] += 1
     return 'coin'
@@ -238,7 +268,7 @@ export class Blockers {
     pair.content = content
     pair.side = side
     pair.weapon = content === 'weapon' ? this.chooseWeapon(this.getCurrentWeapon()) : 'normal'
-    pair.reinforcement = content === 'reinforce' ? getReinforcementOffer(this.getTeamSize(), this.rng) : null
+    pair.blocker.setTexture(side === 'left' ? 'wall-segment-left' : 'wall-segment-right')
     pair.blocker.enableBody(true, geometry.x, y, true, true)
     pair.blocker.setDisplaySize(geometry.width, BALANCE.walls.segmentHeightPx).setActive(true).setVisible(true).setAlpha(0)
     const body = pair.blocker.body as Phaser.Physics.Arcade.Body
@@ -248,11 +278,15 @@ export class Blockers {
     pair.blocker.setData('maxHp', maxHp)
     pair.blocker.setData('spawnId', this.nextSpawnId)
     this.nextSpawnId -= 1
-    pair.label.setText(`${maxHp}`).setPosition(geometry.x, y + BALANCE.walls.labelOffsetPx).setActive(true).setVisible(true).setAlpha(0)
-    if (content === 'reinforce') {
-      pair.goodieText.setText(pair.reinforcement!.label).setPosition(geometry.x, y).setActive(true).setVisible(true).setAlpha(0)
+    if (content === 'pickup') {
+      // Kein Lebenspunkte-Label: Das Plaettchen zeigt, was es bringt, nicht was es aushaelt.
+      pair.label.setActive(false).setVisible(false)
+      pair.goodieText.setText(`+${BALANCE.walls.pickupTeamGain}`).setPosition(geometry.x, y).setActive(true).setVisible(true).setAlpha(0)
       pair.reward.setActive(false).setVisible(false)
-    } else {
+      return
+    }
+    pair.label.setText(`${maxHp}`).setPosition(geometry.x, y + BALANCE.walls.labelOffsetPx).setActive(true).setVisible(true).setAlpha(0)
+    {
       // Der Inhalt sitzt ab Spawn sichtbar in der Wandmitte und scheint durch die
       // halbtransparente Wand; einsammelbar (Body) wird er erst nach dem Zerschiessen.
       pair.goodieText.setActive(false).setVisible(false)
@@ -271,13 +305,13 @@ export class Blockers {
       const alpha = Math.min(1, Math.max(0, (y - pair.blocker.displayHeight / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
       pair.blocker.setAlpha(alpha)
       pair.label.setPosition(geometry.x, y + BALANCE.walls.labelOffsetPx).setAlpha(alpha)
-      if (pair.content === 'reinforce') {
+      if (pair.content === 'pickup') {
         pair.goodieText.setPosition(geometry.x, y).setAlpha(alpha)
         const naturalWidth = pair.goodieText.width
         pair.goodieText.setScale(naturalWidth > geometry.width - 8 ? (geometry.width - 8) / naturalWidth : 1)
       }
     }
-    if (pair.content === 'reinforce') return
+    if (pair.content === 'pickup') return
     const rewardY = pair.reward.y + movement
     const rewardGeometry = this.wallGeometry(pair.side, rewardY)
     pair.reward.setPosition(pair.broken ? this.rewardCollectX(pair, rewardY) : rewardGeometry.x, rewardY)
