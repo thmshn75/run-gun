@@ -51,6 +51,19 @@ export const BALANCE = {
     wallNudgeSpeedPxPerSec: 500,
     anchorBottomOffset: 130,
   },
+  projectile: {
+    // Spurtreue Flugbahn (Thomas 2026-08-22: "voll schwer ueberhaupt Waende
+    // wegzubekommen"). Ursache war der starre Senkrechtschuss: die Strasse laeuft nach
+    // oben spitz zu, also wandert ein Wandsegment nach aussen, waehrend es naeher kommt.
+    // Gemessen bei 390 x 844: auf Truppenhoehe (y=714) beginnt die rechte Wand bei
+    // x=312,1, der Fahrbereich endet neben einer Wand aber bei x=292,1 — Kugeln flogen
+    // innen am Segment direkt neben der Truppe vorbei und trafen erst ueber y=489.
+    // Jetzt behaelt jede Kugel ihren Anteil an der halben Strassenbreite (laneRatio)
+    // ueber den ganzen Flug: was neben der Truppe steht, wird auch getroffen.
+    // 1 = voll spurtreu, 0 = altes Verhalten (senkrecht). Tuning-Regler fuer den
+    // iPhone-Test — Zwischenwerte mischen beide Bahnen linear.
+    laneFollow: 1,
+  },
   layers: {
     background: -1,
     scenery: -0.5,
@@ -107,6 +120,13 @@ export const BALANCE = {
     reinforcementChance: 0.12,
     weaponChance: 0.08,
     goodieMaxDry: 16,
+    // Wie tief die Truppe sich an eine Wand druecken darf, in Figurenbreiten ueber die
+    // Wandinnenkante hinaus. 0.5 = die innerste Figur steht zur Haelfte in der Zone,
+    // ihr Schussursprung damit sicher drin. Ohne diesen Ueberstand trifft die
+    // Startformation gar nichts (beide Figuren stehen in der Mittelspur, halbe
+    // Formationsbreite 0, Anker endet exakt auf der Kante — gemessen 0/2 Treffer).
+    // Wandkontakt kostet weiterhin nichts; die Strassenkante bleibt harte Grenze.
+    driveIntoWallFigures: 0.5,
   },
   scenery: {
     marginPx: 4,

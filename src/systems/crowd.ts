@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { computeFormation } from './formation'
-import { getPlayfieldHalfWidth, getRoadHalfWidth } from './roadGeometry'
+import { getDriveLimitHalfWidth } from './roadGeometry'
 import { overlapsVisibleFigure, type RectangleBounds } from './rectangles'
 
 type FormationMember = { readonly sprite: Phaser.GameObjects.Image; offsetX: number; offsetY: number; row: number }
@@ -15,6 +15,7 @@ export class Crowd {
   private anchorX: number
   private readonly anchorY: number
   private salvoCursor: number
+  private halfFormationWidth: number = 0
   private wallPresenceProvider: ((y: number, halfSpanPx: number) => Readonly<{ left: boolean; right: boolean }>) | null = null
 
   public constructor(scene: Phaser.Scene, anchorX: number, anchorY: number) {
@@ -55,6 +56,8 @@ export class Crowd {
       maxDepth: this.scene.scale.height - this.anchorY - this.figureHeight / 2 - BALANCE.crowd.bottomMargin,
     })
 
+    this.halfFormationWidth = slots.reduce((widest, slot) => Math.max(widest, Math.abs(slot.offsetX)), 0)
+
     for (let index = 0; index < this.members.length; index += 1) {
       const member = this.members[index]
       const slot = slots[index]
@@ -85,19 +88,26 @@ export class Crowd {
   }
 
   public getAnchorRange(): Readonly<{ min: number; max: number }> {
-    // Dynamischer Fahrbereich (Thomas 2026-08-22): Neben einem Wandsegment endet der
-    // Drag am Korridor, in einer Wand-Luecke geht es bis an den Strassenrand hinaus.
-    // In die Wand selbst kann man nie fahren — Wandkontakt und Team-Verlust entfallen.
+    // Dynamischer Fahrbereich (Thomas 2026-08-22): In einer Wand-Luecke geht es bis an
+    // den Strassenrand hinaus. Neben einem Wandsegment darf die Truppe sich seit der
+    // Treffer-Korrektur an die Wand DRUECKEN statt am Korridor zu stoppen — gemessen
+    // (390 x 844, Truppenhoehe y=714): am Korridor endet die Truppe auf Spuranteil
+    // 0,519, die Wand beginnt erst bei 0,660. Mit spurtreuen Kugeln traf sie von dort
+    // kein einziges Segment mehr. Der Anker darf deshalb bis Wandinnenkante + halbe
+    // Formationsbreite + Ueberstand (driveIntoWallFigures), sodass die GANZE Formation
+    // in der Wandzone steht und die HP-Herleitung aus der vollen Feuerkraft wieder
+    // aufgeht. Die Strassenkante bleibt harte Grenze; Wandkontakt kostet nichts.
     const inset = this.figureWidth * BALANCE.player.dragClampFigures + BALANCE.player.dragClampMargin
     const width = this.scene.scale.width
     const height = this.scene.scale.height
-    const playfieldHalf = getPlayfieldHalfWidth(width, height, this.anchorY)
-    const roadHalf = getRoadHalfWidth(width, height, this.anchorY)
     const presence = this.wallPresenceProvider === null ? undefined : this.wallPresenceProvider(this.anchorY, this.figureHeight / 2)
-    const leftHalf = presence !== undefined && !presence.left ? roadHalf : playfieldHalf
-    const rightHalf = presence !== undefined && !presence.right ? roadHalf : playfieldHalf
+    const overlapPx = this.figureWidth * BALANCE.walls.driveIntoWallFigures
+    const limit = (hasWall: boolean): number =>
+      getDriveLimitHalfWidth(width, height, this.anchorY, hasWall, this.halfFormationWidth, inset, overlapPx)
+    const leftHalf = limit(presence === undefined || presence.left)
+    const rightHalf = limit(presence === undefined || presence.right)
     const center = width / 2
-    return { min: center - leftHalf + inset, max: center + rightHalf - inset }
+    return { min: center - leftHalf, max: center + rightHalf }
   }
 
   public getAnchorX(): number {

@@ -7,6 +7,22 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**W4-Nachbesserung „Wände treffen" fertig** (2026-08-22, Claude direkt, nach Thomas'
+iPhone-Rückmeldung „voll schwer überhaupt Wände wegzubekommen am Anfang"). Ursache war
+nicht die Härte der Wand, sondern Unerreichbarkeit: Der Fahrbereich endete auf Spuranteil
+0,519, die Wandzone beginnt bei 0,660, und der starre Senkrechtschuss lief perspektivisch
+aus der Wandzone heraus — das Segment direkt neben der Truppe war nicht beschießbar.
+Zwei Änderungen, beide nötig (die erste allein traf gemessen gar nichts mehr):
+1. **Spurtreue Flugbahn** (`BALANCE.projectile.laneFollow`, `weapons.ts`,
+   `roadGeometry.getLaneRatio/getLaneSlope`): Jede Kugel behält ihren Anteil an der halben
+   Straßenbreite über den ganzen Flug, statt senkrecht aus der Spur zu laufen.
+2. **Fahrbereich bis an die Wand** (`roadGeometry.getDriveLimitHalfWidth`, `crowd.ts`,
+   `BALANCE.walls.driveIntoWallFigures`): Der Anker darf bis Wandinnenkante + halbe
+   Formationsbreite + halbe Figurenbreite, Straßenkante bleibt harte Grenze.
+Nachweise: 103 Tests grün (neu `tests/wallHits.test.ts`), `npm run check` sauber,
+Browser-Lauf gemessen — Segmente fallen von 4 auf 0 HP, Anker 329,1 wie berechnet,
+Kugel-laneRatio 0,756 in der Wandzone, Neigung 5,8°. **Offen: Thomas' iPhone-Urteil.**
+
 **W1–W4 sind maschinenseitig fertig** (2026-08-22, Claude direkt). W4: Dauerwände
 beidseitig (lückenlose Kette, `chainAccumulatorPx`), Goodies unregelmäßig mit Garantie
 (`reinforcementPlan.ts`: links Truppe mit Operator-Anzeige und Sofortwirkung, rechts

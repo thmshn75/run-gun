@@ -1,6 +1,6 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-22 14:20
+Stand: 2026-08-22 14:45
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen und als
@@ -31,12 +31,20 @@ Tag `v1.0` gesichert** (Rueckschrittspunkt). Laufend: **V2-Spurenumbau**, Etappe
   Mittel-Tore nur noch DMG/RATE/SPD, dauerhaft zweispurig.
 - **W3** Horden mittig: Spawn-Baender (`enemy.spawnBands`), Dichteregel
   (`computeHordeOffsets` — stauchen statt verkleinern), Horden ab Level 1.
-- Letzter Commit `24cd9c4`, alles gepusht, Deploy gruen, Arbeitsverzeichnis sauber,
-  96 Tests gruen, `docs/active-task.md` auf IDLE.
+- **W4-Nachbesserung „Waende treffen"** (2026-08-22, nach Thomas' Urteil „voll schwer
+  ueberhaupt Waende wegzubekommen"): Ursache war Unerreichbarkeit, nicht Haerte. Kugeln
+  fliegen jetzt spurtreu statt senkrecht (`BALANCE.projectile.laneFollow`, `weapons.ts`,
+  `roadGeometry.getLaneRatio`), und der Fahrbereich reicht bis an die Wand
+  (`getDriveLimitHalfWidth`, `BALANCE.walls.driveIntoWallFigures`). Beide Aenderungen
+  sind noetig — die erste allein traf gemessen gar nichts mehr. 103 Tests gruen,
+  Browser-Lauf belegt fallende Segmente.
+- Arbeitsverzeichnis sauber, `docs/active-task.md` auf IDLE.
 
 ## Offen — naechster Schritt zuerst
-1. **Thomas' iPhone-Urteil zu W1–W4 abwarten** (Stadtbild, Wand-Gamefeel, Fahrbereich,
-   Horden). Korrekturen haben Vorrang vor W5.
+1. **Thomas' iPhone-Urteil zur Wand-Nachbesserung** (trifft man die Waende jetzt
+   flüssig?) und zum Rest von W1–W4. Korrekturen haben Vorrang vor W5.
+   Tuning-Regler dafuer: `BALANCE.projectile.laneFollow` (1 = spurtreu, 0 = alt),
+   `BALANCE.walls.driveIntoWallFigures` (wie nah an die Wand), `BALANCE.walls.hpFactor`.
 2. **W5 — Boss** (`plan-v2.md`, Abschnitt „Boss V2"): Boss **schiesst nicht mehr**
    (Salvensystem `bossBurst.ts` entfaellt), Druck aus gerufenen Horden + Vorruecken;
    Lebenspunkte beim Kampfstart aus der **tatsaechlichen Feuerkraft der Truppe**

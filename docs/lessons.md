@@ -100,6 +100,27 @@ geschaetzten.
   Regel in einem Satz notieren ("sichtbar ab Unterkante >= Linie, voll gezeichnet") und gegen
   das Referenzobjekt pruefen.
 
+### 2026-08-22 — Balance-Zahl sauber hergeleitet, Erreichbarkeit nie geprueft
+- **Fehler:** Die Wandsegmente waren korrekt auf ~0,7 s Fokusfeuer ausgelegt (hpFactor 0.35 x
+  referenceDestroySec 2 s), mit Herleitung im Kommentar. Thomas meldete trotzdem "voll schwer
+  ueberhaupt Waende wegzubekommen". Die Messung zeigte: Die Zahl stimmte, war aber unerreichbar
+  — der Fahrbereich endete auf Spuranteil 0,519, die Wand begann bei 0,660, und der starre
+  Senkrechtschuss lief perspektivisch aus der Wandzone heraus. Ein Segment neben der Truppe war
+  nicht beschiessbar. Zwei Systeme (Balance, Geometrie) waren je fuer sich richtig hergeleitet
+  und trafen sich nicht.
+- **Regel:** Eine Balance-Zahl gilt erst als hergeleitet, wenn auch belegt ist, dass der Spieler
+  die Bedingung **erreichen** kann, unter der sie gilt. Zu jedem "X faellt nach t Sekunden Fokus"
+  gehoert die zweite Messung: Von welcher Position aus trifft der Spieler X ueberhaupt, kommt er
+  dorthin, und wie lange darf er bleiben? Praktisch: die Trefferbedingung als geometrische
+  Groesse ausdruecken (hier laneRatio), Spielerreichweite und Zielzone in derselben Groesse
+  angeben und beide vergleichen. Fehlt diese Gegenprobe, ist die Herleitung im Kommentar nur
+  eine Rechnung ueber ein System, nicht ueber das Spiel.
+- **Zusatz:** Auch die eigene Loesungsvorschau unterliegt dem. Die Thomas vorgelegte Option
+  "Kugeln der Strasse folgen lassen" versprach "was neben dir ist, triffst du auch" — gemessen
+  traf sie danach **gar nichts** mehr, weil der Fahrbereich weiter vor der Wand endete. Vor dem
+  Vorlegen einer Option pruefen, ob sie allein wirkt oder eine zweite Aenderung zwingend
+  braucht; sonst waehlt Thomas eine Haelfte und bekommt eine Verschlechterung.
+
 ### 2026-08-21 — Auswahloption ohne Zuordnung beschriftet, Rueckfrage ausgeloest
 Die Vorschau `│ ×2 │ +7 │ LASER │` zeigte die Anordnung der drei Torspuren, aber nicht, welche
 Spur was bewirkt. Thomas verstand es als "die Waffe steckt in einem Rechen-Tor" und

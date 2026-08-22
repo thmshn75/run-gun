@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import { getLaneRatio, getLaneSlope, getRoadHalfWidth } from './roadGeometry'
 import type { RunStats } from './upgrades'
 
 export type WeaponKey = 'normal' | 'shotgun' | 'laser' | 'rocket' | 'minigun' | 'flamethrower' | 'chainlightning'
@@ -122,13 +123,26 @@ export class Weapons {
     }
 
     const seconds = dt / 1000
+    const width = this.scene.scale.width
+    const height = this.scene.scale.height
     for (const projectile of this.projectileList) {
       if (!projectile.active) continue
       const vx = projectile.getData('vx') as number
       const vy = projectile.getData('vy') as number
-      projectile.x += vx * seconds
+      // Spurtreue Bahn: laneRatio traegt die Perspektive, lateralPx den Faecherwinkel.
+      // Beide getrennt zu fuehren haelt den Faecher unveraendert, waehrend die Kugel
+      // mit der Strasse nach innen zieht. laneRatio ist bereits mit laneFollow
+      // skaliert, laneOriginX faengt den Rest auf — bei laneFollow 0 bleibt x konstant.
+      const laneRatio = projectile.getData('laneRatio') as number
+      const laneOriginX = projectile.getData('laneOriginX') as number
+      const lateralPx = (projectile.getData('lateralPx') as number) + vx * seconds
+      const previousX = projectile.x
       projectile.y += vy * seconds
-      projectile.setData('travelledPx', (projectile.getData('travelledPx') as number) + Math.sqrt(vx * vx + vy * vy) * seconds)
+      projectile.x = laneOriginX + laneRatio * getRoadHalfWidth(width, height, projectile.y) + lateralPx
+      projectile.setData('lateralPx', lateralPx)
+      const stepX = projectile.x - previousX
+      const stepY = vy * seconds
+      projectile.setData('travelledPx', (projectile.getData('travelledPx') as number) + Math.sqrt(stepX * stepX + stepY * stepY))
       ;(projectile.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       const config = this.getWeaponConfig(projectile.getData('weapon') as WeaponKey)
       const leftOrRight = projectile.x + projectile.displayWidth / 2 < 0 || projectile.x - projectile.displayWidth / 2 > this.scene.scale.width
@@ -142,9 +156,18 @@ export class Weapons {
     const weaponKey = this.activeWeapon
     const weapon = this.getWeaponConfig(weaponKey)
     const origins = this.getSalvoPositions(weapon.shootersPerSalvo)
+    const width = this.scene.scale.width
+    const height = this.scene.scale.height
+    const laneFollow = BALANCE.projectile.laneFollow
+    // Sprite-Neigung der spurtreuen Bahn: dx/dy ist konstant, weil die Strassenbreite
+    // linear in y waechst. Einmal je Salve statt je Frame — die Bahn kruemmt sich nicht.
+    const laneSlope = getLaneSlope(width, height)
     let exhausted = false
     for (let shooterIndex = 0; shooterIndex < origins.length; shooterIndex += 1) {
       const origin = origins[shooterIndex]
+      const laneRatio = getLaneRatio(width, height, origin.x, origin.y) * laneFollow
+      const laneOriginX = origin.x - laneRatio * getRoadHalfWidth(width, height, origin.y)
+      const laneAngle = Math.atan(-laneRatio * laneSlope)
       for (let bulletIndex = 0; bulletIndex < weapon.bulletsPerShot; bulletIndex += 1) {
         const projectile = this.nextFreeProjectile(weaponKey)
         if (projectile === undefined) {
@@ -157,9 +180,12 @@ export class Weapons {
         const vy = -Math.cos(angle) * weapon.projectileSpeed
         projectile.enableBody(true, origin.x, origin.y, true, true)
         projectile.setActive(true).setVisible(true).setAlpha(1).clearTint()
-        projectile.setRotation(angle)
+        projectile.setRotation(angle + laneAngle)
         projectile.setData('vx', vx)
         projectile.setData('vy', vy)
+        projectile.setData('laneRatio', laneRatio)
+        projectile.setData('laneOriginX', laneOriginX)
+        projectile.setData('lateralPx', 0)
         projectile.setData('travelledPx', 0)
         if (weaponKey === 'laser') (projectile.getData('hitSpawnIds') as Set<number>).clear()
         ;(projectile.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0)
