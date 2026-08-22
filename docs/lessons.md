@@ -67,6 +67,18 @@ geschaetzten.
   wenn Thomas' Formulierung beides zulaesst. Dann faellt eine Fehldeutung beim Lesen des Plans
   auf, statt erst in der gebauten Etappe.
 
+### 2026-08-22 — An eigene Grenze gestossen und still einen Kompromiss gebaut
+- **Fehler:** Thomas wollte die Waende "breiter". Die Breite war intern durch die
+  90-px-Torspuren gedeckelt; statt diese Grenze zu benennen und Auswege anzubieten,
+  wurde die Breite nur bis zur Grenze erhoeht und stattdessen die Hoehe vergroessert.
+  Thomas musste nachkorrigieren — und lieferte den Ausweg selbst (Ueberhang ueber die
+  Strassenkante), der die Grenze gar nicht beruehrt.
+- **Regel:** Stoesst eine Nutzerforderung an eine interne Randbedingung, wird die
+  Randbedingung in der Antwort benannt und mindestens ein Ausweg angeboten, der die
+  Forderung voll erfuellt — nicht still ein Teilkompromiss in einer anderen Dimension
+  gebaut. Vorher pruefen, ob die Randbedingung ueberhaupt fuer die geforderte Aenderung
+  gilt (der Korridor begrenzte nur die Innenseite, nicht die Aussenseite).
+
 ### 2026-08-22 — Referenzverhalten nachgebaut statt uebernommen
 - **Fehler:** Thomas wollte, dass Gegner am Horizont erscheinen "wie die Haeuser". Umgesetzt
   wurde ein eigener Effekt (Abschneiden an der Linie per Crop), der plausibel wirkte, aber dem
