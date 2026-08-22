@@ -115,11 +115,13 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     // naechste Segment am Horizont an — unabhaengig vom Zustand aelterer Segmente.
     expect(source).toContain('this.chainAccumulatorPx += movement')
     expect(source).toContain('while (this.chainAccumulatorPx >= BALANCE.walls.segmentHeightPx)')
-    expect(source).toContain("this.spawn('left')")
-    expect(source).toContain("this.spawn('right')")
-    // Pool-Herleitung: sichtbare Segmente je Seite plus das anschliessende, beidseitig,
-    // plus Waffen-Reward-Nachlauf und Reserve.
-    const visiblePerSide = Math.ceil((844 - BALANCE.road.horizonY) / BALANCE.walls.segmentHeightPx)
+    // Abschnitts-Muster: Wand-Slots nach isWallSlot, rechts versetzt gestartet.
+    expect(source).toContain('isWallSlot(this.slotIndex[side], BALANCE.walls.wallRunLength, BALANCE.walls.wallGapSlots)')
+    expect(source).toContain('right: BALANCE.walls.wallRightOffsetSlots')
+    // Pool-Herleitung: sichtbare Slots je Seite x Wandanteil plus das anschliessende,
+    // beidseitig, plus Waffen-Reward-Nachlauf und Reserve.
+    const cycle = BALANCE.walls.wallRunLength + BALANCE.walls.wallGapSlots
+    const visiblePerSide = Math.ceil(Math.ceil((844 - BALANCE.road.horizonY) / BALANCE.walls.segmentHeightPx) * (BALANCE.walls.wallRunLength / cycle))
     expect(BALANCE.pools.blockers).toBeGreaterThanOrEqual((visiblePerSide + 1) * 2 + 2)
   })
 

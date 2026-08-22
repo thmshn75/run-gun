@@ -24,7 +24,9 @@ export const BALANCE = {
   road: {
     horizonY: 150,
     entryFadePx: 40,
-    topWidthRatio: 0.46,
+    // 0.46 -> 0.52 (Thomas 2026-08-22: "Strasse breiter machen wenn noetig") — mehr
+    // Fahr- und Sichtraum oben, die Haeuser bleiben knapp innerhalb des Bildes.
+    topWidthRatio: 0.52,
     bottomWidthRatio: 1,
     edgeLineWidth: 2,
     centerLine: {
@@ -44,6 +46,9 @@ export const BALANCE = {
     // Bewegungsrand als Vielfaches der halben Figurenbreite — bewusst NICHT an die
     // Kollisionshuelle gekoppelt (siehe Befund B1).
     dragClampFigures: 0.5,
+    // Rueckt ein Wandabschnitt auf Truppenhoehe, wird die Truppe mit dieser
+    // Geschwindigkeit sanft in den Korridor geschoben statt hart versetzt.
+    wallNudgeSpeedPxPerSec: 500,
     anchorBottomOffset: 130,
   },
   layers: {
@@ -64,8 +69,8 @@ export const BALANCE = {
     laneShare: 0.34,
     // Die sichtbare Wand ist BREITER als die reservierte Zone: Innenkante bleibt am
     // Korridor, der Rest ragt nach aussen ueber die Strassenkante hinaus (Thomas-
-    // Entscheidung 2026-08-22). Unten: 195 x 0.60 = 117 px Wandbreite.
-    widthShare: 0.6,
+    // Entscheidung 2026-08-22). Unten: 195 x 0.70 = 136,5 px Wandbreite.
+    widthShare: 0.7,
     // Der Korridor muss Mindestbreite und maximale Hordenbreite tragen (Budget-Test).
     // hordeMaxWidthPx (seit W3 hergeleitet statt Platzhalter): 200 px unten = 78 % des
     // Korridors (257.4). Auf Spawnhoehe sind das 92 px — dort passen zwei schwere
@@ -75,11 +80,15 @@ export const BALANCE = {
     // Die Dichteregel in computeHordeOffsets erzwingt den Deckel (unten gemessen).
     minCorridorPx: 240,
     hordeMaxWidthPx: 200,
-    // Seit W4 sind die Waende DAUERWAENDE (Genre-Verifikation 2026-08-22): eine
-    // lueckenlose Kette von Segmenten je Seite, jedes einzeln zerschiessbar.
-    // Hoehe 60: Kacheln wirken QUER (unten 117 x 60), nicht hochkant — Thomas-Korrektur
-    // 2026-08-22, zweite Wiederholung der Formfaktor-Praeferenz "breit, nicht hoch".
-    segmentHeightPx: 60,
+    // Seit W4 sind die Waende DAUERWAENDE (Genre-Verifikation 2026-08-22), seit der
+    // Gamefeel-Korrektur als ABSCHNITTE: wallRunLength Kacheln, dann wallGapSlots
+    // leere Slots ("regelmaessige Abstaende", Thomas) — rechts um wallRightOffsetSlots
+    // versetzt, damit nie beide Seiten gleichzeitig dicht sind. Kacheln quer
+    // (unten 136 x 72), groesser als zuvor gegen das "kommt zu schnell"-Gefuehl.
+    segmentHeightPx: 72,
+    wallRunLength: 3,
+    wallGapSlots: 2,
+    wallRightOffsetSlots: 2,
     // Waende sind halbtransparent, damit die dahinter sichtbare Belohnung (Waffe,
     // Verstaerkung oder Muenze) durchscheint. Der Inhalt sitzt in der Wandmitte, die
     // HP-Zahl darunter, damit beide gleichzeitig lesbar sind.
@@ -91,13 +100,13 @@ export const BALANCE = {
     hpFactor: 0.35,
     // Belohnung beim Wegschiessen eines Muenz-Segments (coinValue wie schwerer Gegner).
     coinReward: 3,
-    // Goodies unregelmaessig in der Dauerwand: links Verstaerkungen, rechts Waffen.
-    // 3 Segmente/s je Seite (180 px/s / 60 px) -> Verstaerkung ~alle 5,6 s,
-    // Waffe ~alle 8,3 s im Erwartungswert; maxDry garantiert ein Goodie nach spaetestens
-    // 32 Nieten (~10,7 s), damit der Truppen-Nachschub nie lange abreisst.
-    reinforcementChance: 0.06,
-    weaponChance: 0.04,
-    goodieMaxDry: 32,
+    // Goodies unregelmaessig in der Wand: links Verstaerkungen, rechts Waffen.
+    // Effektiv 1,5 Segmente/s je Seite (180/72 Slots/s x 3/5 Wandanteil) ->
+    // Verstaerkung ~alle 5,6 s, Waffe ~alle 8,3 s im Erwartungswert; maxDry
+    // garantiert ein Goodie nach spaetestens 16 Nieten (~10,7 s).
+    reinforcementChance: 0.12,
+    weaponChance: 0.08,
+    goodieMaxDry: 16,
   },
   scenery: {
     marginPx: 4,
@@ -476,10 +485,10 @@ export const BALANCE = {
     coins: 48,
     // Roughly 1.4s visible versus 9s spawn interval means at most one; two cover a delayed recycle.
     gateGroups: 2,
-    // Dauerwand (W4): ceil((844 - 150) / 60) = 12 sichtbare Segmente je Seite plus das
-    // gerade anschliessende = 13, beidseitig 26; ein freigeschossener Waffen-Reward
-    // haelt sein Paar bis zu 3,9 s laenger aktiv (+2). 30 deckt die Spitze mit Reserve.
-    blockers: 30,
+    // Wand-Abschnitte (W4): ceil((844 - 150) / 72) = 10 Slots je Seite, davon 3/5 Wand
+    // = 6 Segmente plus das anschliessende = 7, beidseitig 14; ein freigeschossener
+    // Waffen-Reward haelt sein Paar laenger aktiv (+2). 20 deckt die Spitze mit Reserve.
+    blockers: 20,
     // Densest case is an uninterrupted block (no cross streets): the fixed 120s,
     // 16.667ms-step, 390x844 city simulation then reaches 24 concurrent objects at the
     // 400ms cadence (18 with cross streets); 30 keeps the peak plus six-object reserve.

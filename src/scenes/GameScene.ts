@@ -195,6 +195,7 @@ export class GameScene extends Phaser.Scene {
         this.updateHud()
       },
     )
+    this.crowd.setWallPresenceProvider((y, halfSpan) => this.blockers.getWallPresence(y, halfSpan))
     this.boss = new Boss(
       this,
       () => this.spawner.allocateSpawnId(),
@@ -281,7 +282,7 @@ export class GameScene extends Phaser.Scene {
     this.elapsedMs += dt
     this.road.update(dt)
     this.scenery.update(dt)
-    this.crowd.update()
+    this.crowd.update(dt)
     this.gates.update(dt)
     this.updateLevelPhase(dt)
     this.weapons.update(dt)

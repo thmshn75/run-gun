@@ -26,11 +26,14 @@ Live-Stand: https://thmshn75.github.io/run-gun/
    orange, runde Ecken (Textur `wall-segment`), halbtransparent mit sichtbarem Inhalt,
    nach innen breiter + Ueberhang nach aussen; Tore dauerhaft ZWEISPURIG (Waffen kommen
    aus den Waenden — W4-Zielbild vorgezogen). 88 Tests gruen.
-4. **W4 umgesetzt und deployt** (2026-08-22, Claude direkt, nach Genre-Verifikation):
-   DAUERWAENDE beidseitig (lueckenlose Kette, `chainAccumulatorPx` in `blockers.ts`),
-   Goodies unregelmaessig mit maxDry-Garantie (`reinforcementPlan.ts`) — links
-   Verstaerkungen (Operator-Anzeige, Sofortwirkung auf aktuellen Stand), rechts Waffen,
-   Rest Muenzen; Mittel-Tore nur noch DMG/RATE/SPD (gates.ts refillBag). 94 Tests gruen.
+4. **W4 umgesetzt und deployt** (2026-08-22, Claude direkt, nach Genre-Verifikation
+   plus zwei Gamefeel-Korrekturen von Thomas): Wand-ABSCHNITTE mit versetzten Luecken
+   (`wallPattern.ts`, run 3 / gap 2), Kacheln quer 72 hoch x 0.7 widthShare, Strasse
+   oben breiter (topWidthRatio 0.52); Goodies unregelmaessig mit maxDry-Garantie
+   (`reinforcementPlan.ts`) — links Verstaerkungen (Operator-Anzeige, Sofortwirkung),
+   rechts Waffen, Rest Muenzen; Mittel-Tore nur noch DMG/RATE/SPD; DYNAMISCHER
+   Fahrbereich (crowd.getAnchorRange + getWallPresence: Korridor neben Wand, Strassen-
+   rand in Luecken, sanftes Zurueckschieben, kein Kontaktschaden). 96 Tests gruen.
 5. Offen: **Thomas' iPhone-Urteil zu W1–W4**. Danach **W5 (Boss)**: schiesst nicht
    mehr, Staerke beim Kampfstart aus dem momentanen Spielerstand (plan-v2.md "Boss V2").
 

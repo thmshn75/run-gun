@@ -24,7 +24,8 @@ describe('additional weapons', () => {
     // Dauerwand (W4): 180 px/s / segmentHeight Segmente pro Sekunde je Seite; Goodies
     // kommen im Erwartungswert alle 1/(rate x chance) Sekunden, die maxDry-Garantie
     // deckelt die laengste Durststrecke.
-    const segmentsPerSec = BALANCE.scrollSpeed / BALANCE.walls.segmentHeightPx
+    const wallShare = BALANCE.walls.wallRunLength / (BALANCE.walls.wallRunLength + BALANCE.walls.wallGapSlots)
+    const segmentsPerSec = (BALANCE.scrollSpeed / BALANCE.walls.segmentHeightPx) * wallShare
     const weaponCadenceMs = 1000 / (segmentsPerSec * BALANCE.walls.weaponChance)
     const reinforcementCadenceMs = 1000 / (segmentsPerSec * BALANCE.walls.reinforcementChance)
     const guaranteeMs = (BALANCE.walls.goodieMaxDry / segmentsPerSec) * 1000

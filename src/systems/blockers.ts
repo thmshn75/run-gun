@@ -4,6 +4,7 @@ import { HUD_COLORS, STAT_COLORS } from '../config/colors'
 import { getBlockerPlan } from './blockerPlan'
 import { decideGoodie, getReinforcementOffer, type ReinforcementOffer } from './reinforcementPlan'
 import { getPlayfieldHalfWidth, getWallGeometry } from './road'
+import { isWallSlot } from './wallPattern'
 import type { WeaponKey } from './weapons'
 
 // Seit W2 traegt diese Klasse die Wandsegmente, seit W4 als DAUERWAND (Genre-Muster,
@@ -42,6 +43,8 @@ export class Blockers {
   private readonly blockerGroup: Phaser.Physics.Arcade.Group
   private readonly rewardGroup: Phaser.Physics.Arcade.Group
   private readonly drySpawns: Record<WallSide, number> = { left: 0, right: 0 }
+  // Rechts versetzt gestartet, damit die Luecken der beiden Seiten nie synchron liegen.
+  private readonly slotIndex: Record<WallSide, number> = { left: 0, right: BALANCE.walls.wallRightOffsetSlots }
   private chainAccumulatorPx: number
   private elapsedMs: number
   private lastPoolWarningAtMs: number
@@ -95,6 +98,22 @@ export class Blockers {
 
   public isBlocker(candidate: Phaser.GameObjects.GameObject): candidate is Phaser.Physics.Arcade.Image {
     return this.pairs.some((pair) => pair.blocker === candidate)
+  }
+
+  // Liegt auf Hoehe y (plus Puffer) ein stehendes Wandsegment? Steuert den dynamischen
+  // Drag-Bereich: neben einer Wand endet er am Korridor, in einer Luecke am Strassenrand.
+  public getWallPresence(y: number, halfSpanPx: number): Readonly<{ left: boolean; right: boolean }> {
+    const reach = BALANCE.walls.segmentHeightPx / 2 + halfSpanPx
+    let left = false
+    let right = false
+    for (const pair of this.pairs) {
+      if (!pair.active || pair.broken || !pair.blocker.active) continue
+      if (Math.abs(pair.blocker.y - y) >= reach) continue
+      if (pair.side === 'left') left = true
+      else right = true
+      if (left && right) break
+    }
+    return { left, right }
   }
 
   public isReward(candidate: Phaser.GameObjects.GameObject): candidate is Phaser.Physics.Arcade.Image {
@@ -155,8 +174,10 @@ export class Blockers {
     this.chainAccumulatorPx += movement
     while (this.chainAccumulatorPx >= BALANCE.walls.segmentHeightPx) {
       this.chainAccumulatorPx -= BALANCE.walls.segmentHeightPx
-      this.spawn('left')
-      this.spawn('right')
+      for (const side of ['left', 'right'] as const) {
+        if (isWallSlot(this.slotIndex[side], BALANCE.walls.wallRunLength, BALANCE.walls.wallGapSlots)) this.spawn(side)
+        this.slotIndex[side] += 1
+      }
     }
     for (const pair of this.pairs) {
       if (!pair.active) continue

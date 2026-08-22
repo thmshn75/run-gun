@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { computeFormation } from './formation'
-import { getPlayfieldHalfWidth } from './roadGeometry'
+import { getPlayfieldHalfWidth, getRoadHalfWidth } from './roadGeometry'
 import { overlapsVisibleFigure, type RectangleBounds } from './rectangles'
 
 type FormationMember = { readonly sprite: Phaser.GameObjects.Image; offsetX: number; offsetY: number; row: number }
@@ -15,6 +15,7 @@ export class Crowd {
   private anchorX: number
   private readonly anchorY: number
   private salvoCursor: number
+  private wallPresenceProvider: ((y: number, halfSpanPx: number) => Readonly<{ left: boolean; right: boolean }>) | null = null
 
   public constructor(scene: Phaser.Scene, anchorX: number, anchorY: number) {
     this.scene = scene
@@ -41,7 +42,7 @@ export class Crowd {
     const body = this.hull.body as Phaser.Physics.Arcade.Body
     body.setSize(hullWidth, hullHeight)
     body.setAllowGravity(false)
-    this.update()
+    this.update(0)
   }
 
   public setSize(count: number): void {
@@ -79,13 +80,24 @@ export class Crowd {
     this.anchorX = Phaser.Math.Clamp(x, range.min, range.max)
   }
 
+  public setWallPresenceProvider(provider: (y: number, halfSpanPx: number) => Readonly<{ left: boolean; right: boolean }>): void {
+    this.wallPresenceProvider = provider
+  }
+
   public getAnchorRange(): Readonly<{ min: number; max: number }> {
-    // Seit W4 endet der Drag am Korridor: In die Dauerwaende kann man nicht mehr
-    // hineinfahren (Thomas 2026-08-22) — Wandkontakt und Team-Verlust entfallen.
+    // Dynamischer Fahrbereich (Thomas 2026-08-22): Neben einem Wandsegment endet der
+    // Drag am Korridor, in einer Wand-Luecke geht es bis an den Strassenrand hinaus.
+    // In die Wand selbst kann man nie fahren — Wandkontakt und Team-Verlust entfallen.
     const inset = this.figureWidth * BALANCE.player.dragClampFigures + BALANCE.player.dragClampMargin
-    const playfieldHalf = getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, this.anchorY)
-    const center = this.scene.scale.width / 2
-    return { min: center - playfieldHalf + inset, max: center + playfieldHalf - inset }
+    const width = this.scene.scale.width
+    const height = this.scene.scale.height
+    const playfieldHalf = getPlayfieldHalfWidth(width, height, this.anchorY)
+    const roadHalf = getRoadHalfWidth(width, height, this.anchorY)
+    const presence = this.wallPresenceProvider === null ? undefined : this.wallPresenceProvider(this.anchorY, this.figureHeight / 2)
+    const leftHalf = presence !== undefined && !presence.left ? roadHalf : playfieldHalf
+    const rightHalf = presence !== undefined && !presence.right ? roadHalf : playfieldHalf
+    const center = width / 2
+    return { min: center - leftHalf + inset, max: center + rightHalf - inset }
   }
 
   public getAnchorX(): number {
@@ -132,7 +144,15 @@ export class Crowd {
     return origins
   }
 
-  public update(): void {
+  public update(dt: number): void {
+    // Rueckt ein Wandabschnitt auf Truppenhoehe, schiebt der enger gewordene Bereich
+    // die Truppe sanft in den Korridor zurueck statt sie hart zu versetzen.
+    const range = this.getAnchorRange()
+    const clamped = Phaser.Math.Clamp(this.anchorX, range.min, range.max)
+    if (clamped !== this.anchorX) {
+      const maxStep = (BALANCE.player.wallNudgeSpeedPxPerSec * dt) / 1000
+      this.anchorX += Phaser.Math.Clamp(clamped - this.anchorX, -maxStep, maxStep)
+    }
     for (const member of this.members) {
       if (!member.sprite.active) continue
       member.sprite.setPosition(this.anchorX + member.offsetX, this.anchorY + member.offsetY)
