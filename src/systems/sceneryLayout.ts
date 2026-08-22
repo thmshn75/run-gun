@@ -8,6 +8,7 @@ export type SceneryKind = Readonly<{
   baseHeightPx: number
   baseWidthPx: number
   weight: number
+  category: 'building' | 'greenery'
 }>
 
 export type SceneryPlacement = Readonly<{
@@ -46,10 +47,6 @@ export function pickSceneryKind(kinds: readonly SceneryKind[], rng: () => number
     if (remainingWeight < 0) return kind
   }
   return kinds[kinds.length - 1]
-}
-
-export function getScenerySpawnIntervalMs(rng: () => number): number {
-  return BALANCE.scenery.spawnIntervalMs * (0.75 + rng() * 0.5)
 }
 
 export function isSceneryOutsideViewport(

@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { canSpawnBossCompanion, getBossCompanionLimit } from './bossPlan'
 import { chooseEnemyType, type EnemyType } from './enemyTypes'
+import { getEnemySpawnCenterY, getHiddenTopPx, getSquadSpawnBaseY } from './horizonReveal'
 import { getLevelPlan, type LevelPlan } from './levelPlan'
 import { getRoadHalfWidth } from './road'
 import { chooseSpawnLane, type SpawnLaneEnemy } from './spawnLanes'
@@ -149,8 +150,7 @@ export class Spawner {
       if (!enemy.active) continue
       enemy.y += (enemySpeed * (enemy.getData('speedFactor') as number) * dt) / 1000
       enemy.x = this.scene.scale.width / 2 + (enemy.getData('lane') as number) * getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, enemy.y)
-      const topY = enemy.y - enemy.displayHeight / 2
-      enemy.setAlpha(Math.min(1, Math.max(0, (topY - BALANCE.road.horizonY) / BALANCE.road.entryFadePx)))
+      this.applyHorizonCrop(enemy)
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       const flashRemainingMs = Math.max(0, (enemy.getData('flashRemainingMs') as number) - dt)
       enemy.setData('flashRemainingMs', flashRemainingMs)
@@ -192,7 +192,7 @@ export class Spawner {
       return 'pool-exhausted'
     }
     enemy.setTexture(type.texture)
-    const y = BALANCE.road.horizonY
+    const y = getEnemySpawnCenterY(type.bodyHeight)
     const lane = chooseSpawnLane(
       this.getActiveLaneEnemies(),
       { ...type, y },
@@ -224,7 +224,10 @@ export class Spawner {
       return 'pool-exhausted'
     }
 
-    const y = BALANCE.road.horizonY - Math.min(...offsets.map((offset) => offset.yOffset))
+    const y = getSquadSpawnBaseY(
+      Math.max(...types.map((type) => type.bodyHeight)),
+      Math.max(...offsets.map((offset) => offset.yOffset)),
+    )
     const widestBodyWidth = Math.max(...types.map((type) => type.bodyWidth))
     // Exactly one lane reservation for the complete squad; members never call chooseSpawnLane.
     const lane = chooseSpawnLane(
@@ -269,7 +272,8 @@ export class Spawner {
     // sprite each frame, making the visible enemy jump sideways.
     body.moves = false
     body.updateFromGameObject()
-    enemy.setActive(true).setVisible(true).setAlpha(0).clearTint()
+    enemy.setActive(true).setVisible(true).setAlpha(1).clearTint()
+    this.applyHorizonCrop(enemy)
     enemy.setData('hp', type.hp)
     enemy.setData('speedFactor', type.speedFactor)
     enemy.setData('contactDamage', type.contactDamage)
@@ -280,6 +284,14 @@ export class Spawner {
     enemy.setData('lane', lane)
     enemy.setData('bossCompanion', bossCompanion)
     enemy.setData('spawnId', this.allocateSpawnId())
+  }
+
+  // Gegner kommen hinter der Horizontlinie hervor: nur der Teil darunter wird gezeichnet.
+  // Crop arbeitet in Texturkoordinaten; die Sprites sind unskaliert (displayHeight == height).
+  private applyHorizonCrop(enemy: Phaser.Physics.Arcade.Image): void {
+    const hiddenPx = getHiddenTopPx(enemy.y - enemy.displayHeight / 2)
+    if (hiddenPx > 0) enemy.setCrop(0, hiddenPx, enemy.width, Math.max(0, enemy.height - hiddenPx))
+    else if (enemy.isCropped) enemy.setCrop()
   }
 
   private getActiveLaneEnemies(): SpawnLaneEnemy[] {

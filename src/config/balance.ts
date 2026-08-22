@@ -55,7 +55,19 @@ export const BALANCE = {
   scenery: {
     marginPx: 4,
     spreadPx: 6,
+    // Fester Block-Takt: Der Nachfolger spawnt, waehrend die Oberkante des Vorgaengers
+    // (Turm >= 120 px, braucht ~2 s bis unter den Horizont) noch weit darueber liegt —
+    // die Fassade eines Blocks ist damit konstruktiv geschlossen (Test: gapFrames = 0
+    // in der Simulation ohne Querstrassen).
     spawnIntervalMs: 400,
+    // Haeuser pro Block, beidseitig dieselbe Zahl (Stadtblock zwischen zwei Kreuzungen).
+    blockBuildingsMin: 4,
+    blockBuildingsMax: 8,
+    // Querstrassenbreite als Oberkanten-Abstand am Horizont; streckt sich nach unten
+    // mit der Perspektive (Faktor bis ~2.17 = bottomWidthRatio/topWidthRatio).
+    crossStreetGapPx: 70,
+    // Wahrscheinlichkeit je Seite, dass in einer Querstrasse ein Gruenobjekt steht.
+    greeneryChance: 0.6,
   },
   stats: {
     hp: { base: 2, cap: 30, floor: 0 },
@@ -407,10 +419,11 @@ export const BALANCE = {
     splashFlashes: 12,
     // At most 5.6 salvos/s x 3 shooters x 3 chain jumps x 0.12s = 6.1; 16 leaves reserve.
     chainFlashes: 16,
-    // Worst case: a heavy at the 49px/s speed floor stays about 14.2 s on the 694px road.
-    // An eight-member squad pauses 1.69 s, so ceil(14.2 / 1.69) x 8 = 72 active enemies;
-    // 88 leaves 22% reserve for mixed single spawns and delayed recycling.
-    enemies: 88,
+    // Worst case: enemies now spawn fully above the horizon (half body height plus up to
+    // 81px squad row offset), so a heavy at the 49px/s floor travels up to 881px in ~18.0s.
+    // An eight-member squad pauses 1.69 s, so ceil(18.0 / 1.69) x 8 = 88 active enemies;
+    // 104 leaves 18% reserve for mixed single spawns and delayed recycling.
+    enemies: 104,
     // Must be >= crowd.max because all figures are created once and then only shown or hidden.
     crowd: 30,
     // Max kill rate is 1 / 0.45s x 3 coins per heavy enemy x 844px / 180px/s = 31.3; 48 leaves 54% reserve without relying on the magnet.
@@ -420,8 +433,9 @@ export const BALANCE = {
     // Slowest blocker travel is (844 - 150) / 180 = 3.9s. The shortest L12 cadence
     // is 9s, so one is normally enough; two cover a delayed recycle without allocations.
     blockers: 2,
-    // The fixed 120s, 16.667ms-step, 390x844 scenery simulation reaches 26 concurrent objects
-    // at the 400ms canyon cadence; 30 retains the measured peak plus four-object reserve.
+    // Densest case is an uninterrupted block (no cross streets): the fixed 120s,
+    // 16.667ms-step, 390x844 city simulation then reaches 24 concurrent objects at the
+    // 400ms cadence (18 with cross streets); 30 keeps the peak plus six-object reserve.
     scenery: 30,
     // Phase two: ceil(2.1s flight / 0.82s interval) x 5 = 15; 24 leaves reserve.
     bossProjectiles: 24,

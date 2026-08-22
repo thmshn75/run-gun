@@ -116,9 +116,11 @@ export class BootScene extends Phaser.Scene {
     graphics.fillTriangle(0, 3, 8, 3, 4, 0)
     graphics.generateTexture('projectile-rocket', 8, 16)
     graphics.clear()
-    graphics.fillStyle(0x5d6068)
+    // Heller Tracer statt Dunkelgrau: Die schnellen Minigun-Kugeln waren vor der dunklen
+    // Strasse kaum zu sehen (Thomas-Befund 2026-08-22, V2-Plan W1).
+    graphics.fillStyle(0xffd43b)
     graphics.fillRect(0, 0, 3, 12)
-    graphics.fillStyle(0xffa33a)
+    graphics.fillStyle(0xfffbe6)
     graphics.fillRect(1, 0, 1, 8)
     graphics.generateTexture('projectile-minigun', 3, 12)
     graphics.clear()

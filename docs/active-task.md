@@ -7,8 +7,10 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
-**V1 ist am 2026-08-22 von Thomas am iPhone abgenommen** (Spiel, Update, Offline bestätigt)
-und als Git-Tag `v1.0` gesichert (Rückschrittspunkt). Nächster Schritt: V2 nach
-`docs/plan-v2.md` — Start mit Etappe W1 (Stadtbild, Gegner-Horizont, Minigun-Farbe).
-Boss-Entscheidung ist gefallen (2026-08-22): schießt nicht mehr, Stärke aus dem
-momentanen Spielerstand.
+**W1 ist maschinenseitig fertig** (2026-08-22, von Claude selbst umgesetzt auf Thomas'
+ausdrückliche Anweisung — einmalige Abweichung von der Codex-Regel): Stadtbild mit
+durchgehenden Häuserzeilen und synchronen Querstraßen, Gegner erscheinen per Crop aus
+dem Horizont, Minigun-Tracer gelb. Nachweise: 78 Tests grün (davon neu: Silhouetten-
+Simulation, Horizont-Geometrie), Pools neu hergeleitet (enemies 88→104, scenery-
+Herleitung aktualisiert), Browser-Sichtprüfung mit Bildserie. **Offen: Thomas' iPhone-
+Urteil** (Stadtbild wirkt wie Stadt, Minigun sichtbar) — danach W2 (Wände) aufsetzen.

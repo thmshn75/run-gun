@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { getRoadHalfWidth, getScrollProgressDelta, getScrollY } from '../src/systems/roadGeometry'
 import { sceneryKinds } from '../src/systems/sceneryKinds'
-import { simulateSceneryPool } from '../src/systems/scenerySimulation'
+import { simulateCityScenery } from '../src/systems/scenerySimulation'
 import { getSceneryPlacement, getSceneryScale, pickSceneryKind } from '../src/systems/sceneryLayout'
 
 const width = 390
@@ -49,31 +49,39 @@ describe('scenery layout', () => {
     expect(getScrollProgressDelta(height, fixedDt)).toBeCloseTo((BALANCE.scrollSpeed * fixedDt) / (height * 1000))
     expect(roadSource).toContain('getScrollY(height, centerLine.progress)')
     expect(scenerySource).toContain('getScrollY(height, object.progress)')
-    const drained = simulateSceneryPool(sceneryKinds, createRng(0x5eeda11), width, height, BALANCE.pools.scenery, 120_000, fixedDt, 114_000)
+    const drained = simulateCityScenery(sceneryKinds, createRng(0x5eeda11), width, height, BALANCE.pools.scenery, 120_000, fixedDt, 114_000)
     expect(drained.recycledCount).toBeGreaterThan(0)
     expect(drained.activeObjectCount).toBe(0)
   })
 
-  it('uses reproducible weighted scenery selection with an 82-percent tower canyon', () => {
-    const rng = createRng(0x77ab)
-    const choices = Array.from({ length: 2_000 }, () => pickSceneryKind(sceneryKinds, rng).texture)
-    const repeatRng = createRng(0x77ab)
-    const repeatedChoices = Array.from({ length: 2_000 }, () => pickSceneryKind(sceneryKinds, repeatRng).texture)
-    const towerCount = choices.filter((texture) => texture.startsWith('scenery-tower-')).length
-    expect(repeatedChoices).toEqual(choices)
-    expect(towerCount / choices.length).toBeGreaterThan(0.78)
-    expect(towerCount / choices.length).toBeLessThan(0.86)
+  it('keeps every block facade gap-free: a run without cross streets never shows a silhouette gap', () => {
+    const endlessBlock = { ...BALANCE.scenery, blockBuildingsMin: 100_000, blockBuildingsMax: 100_000 }
+    const result = simulateCityScenery(sceneryKinds, createRng(0x5eeda11), width, height, 64, 120_000, fixedDt, 120_000, endlessBlock)
+    expect(result.failedSpawns).toBe(0)
+    expect(result.gapFrames).toBe(0)
   })
 
-  it('derives the scenery pool from a 120-second deterministic spawn and recycle simulation', () => {
-    const measured = simulateSceneryPool(sceneryKinds, createRng(0x5eeda11), width, height, 64, 120_000, fixedDt)
-    const sizedPool = simulateSceneryPool(sceneryKinds, createRng(0x5eeda11), width, height, BALANCE.pools.scenery, 120_000, fixedDt)
+  it('produces cross streets that appear on both sides at the same scroll position', () => {
+    const result = simulateCityScenery(sceneryKinds, createRng(0x5eeda11), width, height, 64, 120_000, fixedDt)
+    // Querstrassen kommen vor: Ohne sie waere gapFrames 0 (siehe Test darueber). Zusammen
+    // belegt das: Jede Silhouettenluecke ist eine geplante Querstrasse, keine Zufallsluecke.
+    expect(result.gapFrames).toBeGreaterThan(0)
+    // Synchronitaet: Nur ein kleiner Randanteil der Luecken-Frames ist einseitig
+    // (unterschiedliche Turmhoehen versetzen Beginn und Ende der Sichtbarkeit leicht).
+    expect(result.asyncGapFrames / result.gapFrames).toBeLessThan(0.25)
+  })
+
+  it('derives the scenery pool from the densest case: an uninterrupted block over 120 seconds', () => {
+    const endlessBlock = { ...BALANCE.scenery, blockBuildingsMin: 100_000, blockBuildingsMax: 100_000 }
+    const densest = simulateCityScenery(sceneryKinds, createRng(0x5eeda11), width, height, 64, 120_000, fixedDt, 120_000, endlessBlock)
+    const normal = simulateCityScenery(sceneryKinds, createRng(0x5eeda11), width, height, 64, 120_000, fixedDt)
+    const sizedPool = simulateCityScenery(sceneryKinds, createRng(0x5eeda11), width, height, BALANCE.pools.scenery, 120_000, fixedDt)
     expect(BALANCE.scenery.marginPx).toBe(4)
     expect(BALANCE.scenery.spreadPx).toBe(6)
     expect(BALANCE.scenery.spawnIntervalMs).toBe(400)
-    expect(measured.maxActive).toBe(26)
-    expect(measured.maxActive).toBeLessThanOrEqual(40)
-    expect(BALANCE.pools.scenery).toBe(measured.maxActive + 4)
+    expect(densest.maxActive).toBe(24)
+    expect(normal.maxActive).toBeLessThanOrEqual(densest.maxActive)
+    expect(BALANCE.pools.scenery).toBeGreaterThanOrEqual(densest.maxActive + 4)
     expect(sizedPool.failedSpawns).toBe(0)
   })
 
@@ -84,16 +92,26 @@ describe('scenery layout', () => {
       ['scenery-tower-b', 120],
       ['scenery-tower-c', 185],
     ] as const) {
-      expect(sceneryKinds).toContainEqual(expect.objectContaining({ texture: tower[0], baseHeightPx: tower[1], weight: 6 }))
+      expect(sceneryKinds).toContainEqual(expect.objectContaining({ texture: tower[0], baseHeightPx: tower[1], category: 'building' }))
       expect(bootSource).toContain(`this.load.image('${tower[0]}'`)
       expect(existsSync(new URL(`../src/assets/${tower[0]}.png`, import.meta.url))).toBe(true)
     }
     for (const nature of ['scenery-oak', 'scenery-conifer', 'scenery-bush', 'scenery-stone']) {
-      expect(sceneryKinds).toContainEqual(expect.objectContaining({ texture: nature, weight: 1 }))
+      expect(sceneryKinds).toContainEqual(expect.objectContaining({ texture: nature, category: 'greenery' }))
     }
     expect(sceneryKinds.some((kind) => kind.texture === 'scenery-cottage')).toBe(false)
     expect(bootSource).not.toContain('scenery-cottage')
     expect(existsSync(new URL('../src/assets/scenery-cottage.png', import.meta.url))).toBe(false)
+  })
+
+  it('keeps weighted selection reproducible within a category', () => {
+    const buildings = sceneryKinds.filter((kind) => kind.category === 'building')
+    const rng = createRng(0x77ab)
+    const choices = Array.from({ length: 500 }, () => pickSceneryKind(buildings, rng).texture)
+    const repeatRng = createRng(0x77ab)
+    const repeatedChoices = Array.from({ length: 500 }, () => pickSceneryKind(buildings, repeatRng).texture)
+    expect(repeatedChoices).toEqual(choices)
+    expect(choices.every((texture) => texture.startsWith('scenery-tower-'))).toBe(true)
   })
 
   it('preallocates all scenery images once in its constructor and places them below the road', () => {
