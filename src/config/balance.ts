@@ -56,18 +56,21 @@ export const BALANCE = {
     gameplay: 2,
   },
   walls: {
-    // Breitenbudget (W2): Wandzone links + rechts + Korridor = Strassenbreite, in
-    // Anteilen der halben Strassenbreite, damit es in jeder Scroll-Tiefe gilt.
-    // Unten (390 px Strasse): Wandzone je Seite 0.26 x 195 = 50.7 px, Korridor 288.6 px.
-    // 0.26 ist das Maximum, solange drei Torspuren >= 90 px bleiben (Budget-Test);
-    // Thomas-Feedback 2026-08-22: 0.18 war zu schmal.
+    // Breitenbudget (W2): laneShare reserviert die Wandzone AUF der Strasse (bestimmt
+    // Korridor, Tore, Spawns), in Anteilen der halben Strassenbreite. 0.26 ist das
+    // Maximum, solange drei Torspuren >= 90 px bleiben (Budget-Test).
     laneShare: 0.26,
+    // Die sichtbare Wand ist BREITER als die reservierte Zone: Innenkante bleibt am
+    // Korridor, der Rest ragt nach aussen ueber die Strassenkante hinaus (Thomas-
+    // Entscheidung 2026-08-22 — mehr Flaeche fuer das durchscheinende Waffen-Icon,
+    // ohne den Korridor zu verengen). Unten: 195 x 0.5 = 97.5 px Wandbreite.
+    widthShare: 0.5,
     // Der Korridor muss Mindestbreite und Horden-Platzhalter tragen (Budget-Test).
     // hordeMaxWidthPx ist ein PLATZHALTER, bis W3 die echte Hordenbreite festlegt —
     // W3 darf laneShare/minCorridorPx nachjustieren, solange der Budget-Test haelt.
     minCorridorPx: 240,
     hordeMaxWidthPx: 220,
-    segmentHeightPx: 60,
+    segmentHeightPx: 46,
     // Waende sind halbtransparent, damit die dahinter sichtbare Belohnung (Waffe oder
     // Muenze) durchscheint (Thomas-Feedback 2026-08-22) — Vorgriff auf das W4-Prinzip
     // "Wert vor der Entscheidung sichtbar". Der Inhalt sitzt in der Wandmitte, die

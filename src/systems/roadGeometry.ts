@@ -21,13 +21,16 @@ export function getPlayfieldHalfWidth(width: number, height: number, y: number):
   return getRoadHalfWidth(width, height, y) * (1 - BALANCE.walls.laneShare)
 }
 
-// Wandzone bei y: Mitte und Breite folgen der Strassenkante (Anteil laneShare der
-// halben Strassenbreite, perspektivisch skalierend wie die Strasse selbst).
+// Sichtbare Wand bei y: Die Innenkante sitzt exakt an der Spielfeldkante (Korridor
+// bleibt unberuehrt), die Breite ist widthShare der halben Strassenbreite — der Teil
+// jenseits von laneShare ragt nach aussen ueber die Strassenkante hinaus.
 export function getWallGeometry(width: number, height: number, y: number, side: 'left' | 'right'): { x: number; width: number } {
   const roadHalfWidth = getRoadHalfWidth(width, height, y)
+  const innerEdge = roadHalfWidth * (1 - BALANCE.walls.laneShare)
+  const wallWidth = roadHalfWidth * BALANCE.walls.widthShare
   const sign = side === 'left' ? -1 : 1
   return {
-    x: width / 2 + sign * roadHalfWidth * (1 - BALANCE.walls.laneShare / 2),
-    width: roadHalfWidth * BALANCE.walls.laneShare,
+    x: width / 2 + sign * (innerEdge + wallWidth / 2),
+    width: wallWidth,
   }
 }

@@ -23,18 +23,21 @@ function seededRng(seed: number): () => number {
 }
 
 describe('walls (W2: Wandsegmente links/rechts)', () => {
-  it('keeps the width budget at every depth: wall zones plus playfield equal the road', () => {
+  it('keeps the width budget at every depth: inner wall edge on the corridor, overhang only outward', () => {
+    // Die sichtbare Wand darf ueber die Strassenkante hinausragen (Thomas 2026-08-22),
+    // aber nie in den Korridor: Die Innenkante sitzt exakt an der Spielfeldkante.
+    expect(BALANCE.walls.widthShare).toBeGreaterThanOrEqual(BALANCE.walls.laneShare)
     for (const y of [BALANCE.road.horizonY, 260, 430, 620, height]) {
       const roadHalf = getRoadHalfWidth(width, height, y)
       const playfieldHalf = getPlayfieldHalfWidth(width, height, y)
       const left = getWallGeometry(width, height, y, 'left')
       const right = getWallGeometry(width, height, y, 'right')
-      expect(left.width + right.width + playfieldHalf * 2).toBeCloseTo(roadHalf * 2)
-      // Wandzone liegt vollstaendig auf der Strasse und schliesst innen ans Spielfeld an.
-      expect(left.x - left.width / 2).toBeCloseTo(width / 2 - roadHalf)
       expect(left.x + left.width / 2).toBeCloseTo(width / 2 - playfieldHalf)
-      expect(right.x + right.width / 2).toBeCloseTo(width / 2 + roadHalf)
       expect(right.x - right.width / 2).toBeCloseTo(width / 2 + playfieldHalf)
+      // Breite skaliert mit der Strasse und deckt mindestens die reservierte Zone ab.
+      expect(left.width).toBeCloseTo(roadHalf * BALANCE.walls.widthShare)
+      expect(left.width).toBeGreaterThanOrEqual(roadHalf * BALANCE.walls.laneShare)
+      expect(right.width).toBeCloseTo(left.width)
     }
     // Korridor unten traegt Mindestbreite und den W3-Horden-Platzhalter.
     const corridorBottom = getPlayfieldHalfWidth(width, height, height) * 2
