@@ -7,6 +7,7 @@ import type { WeaponKey } from './weapons'
 export class Boss {
   private readonly scene: Phaser.Scene
   private readonly enemy: Phaser.Physics.Arcade.Image
+  private readonly shadow: Phaser.GameObjects.Image
   private readonly nextSpawnId: () => number
   private readonly requestBossHorde: (size: number) => number
   private readonly getAnchorY: () => number
@@ -31,6 +32,10 @@ export class Boss {
     this.enemy = scene.physics.add.image(0, 0, 'enemy-boss').setDepth(BALANCE.layers.gameplay)
     this.enemy.setActive(false).setVisible(false)
     this.enemy.disableBody(true, true)
+    this.shadow = scene.add.image(0, 0, 'figure-shadow')
+      .setDepth(BALANCE.layers.shadow)
+      .setAlpha(BALANCE.shadow.alpha)
+      .setVisible(false)
     this.plan = undefined
     this.fightElapsedMs = 0
     this.hordeAccumulatorMs = 0
@@ -76,6 +81,7 @@ export class Boss {
   public deactivate(): void {
     this.enemy.disableBody(true, true)
     this.enemy.setActive(false).setVisible(false)
+    this.shadow.setVisible(false)
   }
 
   public update(dt: number): void {
@@ -103,6 +109,13 @@ export class Boss {
 
     const topY = this.enemy.y - this.enemy.displayHeight / 2
     this.enemy.setAlpha(Math.min(1, Math.max(0, (topY - BALANCE.road.horizonY) / BALANCE.road.entryFadePx)))
+    // Der Boss wippt nicht, sein Schatten steht also fest unter ihm - er traegt aber
+    // dieselbe Einblendung, sonst laege am Horizont ein Fleck ohne Figur.
+    const shadowWidth = BALANCE.boss.bodyWidth * BALANCE.shadow.widthOfFigure
+    this.shadow.setVisible(this.enemy.alpha > 0)
+    this.shadow.setPosition(this.enemy.x, this.enemy.y + this.enemy.displayHeight * BALANCE.shadow.footOffsetOfHeight)
+    this.shadow.setDisplaySize(shadowWidth, shadowWidth * BALANCE.shadow.heightOfWidth)
+    this.shadow.setAlpha(BALANCE.shadow.alpha * this.enemy.alpha)
     this.updateVisuals(dt, plan)
     ;(this.enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
   }

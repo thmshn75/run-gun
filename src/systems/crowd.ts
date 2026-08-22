@@ -5,11 +5,18 @@ import { approachAngle, getBobOffsetPx, getLeanRadians, getPhaseOffset, getStepC
 import { getDriveLimitHalfWidth } from './roadGeometry'
 import { overlapsVisibleFigure, type RectangleBounds } from './rectangles'
 
-type FormationMember = { readonly sprite: Phaser.GameObjects.Image; offsetX: number; offsetY: number; row: number }
+type FormationMember = {
+  readonly sprite: Phaser.GameObjects.Image
+  readonly shadow: Phaser.GameObjects.Image
+  offsetX: number
+  offsetY: number
+  row: number
+}
 
 export class Crowd {
   private readonly scene: Phaser.Scene
   private readonly members: FormationMember[]
+  private figuresAlpha: number
   private readonly hull: Phaser.GameObjects.Zone
   private readonly figureWidth: number
   private readonly figureHeight: number
@@ -28,6 +35,7 @@ export class Crowd {
     this.lastAnchorX = anchorX
     this.anchorY = anchorY
     this.salvoCursor = 0
+    this.figuresAlpha = 1
     this.members = []
 
     const firstSprite = scene.add.image(anchorX, anchorY, 'player')
@@ -37,10 +45,18 @@ export class Crowd {
     const hullHeight = firstSprite.displayHeight * BALANCE.crowd.hullHeightFigures
     firstSprite.setActive(false).setVisible(false)
 
+    // Bodenschatten: einmal je Poolplatz erzeugt, nie zur Laufzeit.
+    const shadowWidth = this.figureWidth * BALANCE.shadow.widthOfFigure
     for (let index = 0; index < BALANCE.pools.crowd; index += 1) {
       const sprite = index === 0 ? firstSprite : scene.add.image(anchorX, anchorY, 'player')
       sprite.setActive(false).setVisible(false)
-      this.members.push({ sprite, offsetX: 0, offsetY: 0, row: 0 })
+      const shadow = scene.add.image(anchorX, anchorY, 'figure-shadow')
+        .setDepth(BALANCE.layers.shadow)
+        .setDisplaySize(shadowWidth, shadowWidth * BALANCE.shadow.heightOfWidth)
+        .setAlpha(BALANCE.shadow.alpha)
+        .setActive(false)
+        .setVisible(false)
+      this.members.push({ sprite, shadow, offsetX: 0, offsetY: 0, row: 0 })
     }
 
     this.hull = scene.add.zone(anchorX, anchorY, hullWidth, hullHeight)
@@ -68,6 +84,7 @@ export class Crowd {
       const slot = slots[index]
       if (slot === undefined) {
         member.sprite.setActive(false).setVisible(false)
+        member.shadow.setActive(false).setVisible(false)
         continue
       }
       member.offsetX = slot.offsetX
@@ -79,6 +96,7 @@ export class Crowd {
         .setActive(true)
         .setVisible(true)
         .setAlpha(1)
+      member.shadow.setActive(true).setVisible(true)
     }
     this.salvoCursor = 0
   }
@@ -136,6 +154,10 @@ export class Crowd {
   }
 
   public setFiguresAlpha(alpha: number): void {
+    // Beim Blinken nach einem Treffer muss der Schatten mitgehen, sonst bleibt ein
+    // Fleck auf der Strasse stehen, waehrend die Figur verschwunden ist. update()
+    // schreibt die Schatten-Deckkraft jedes Bild neu, deshalb hier nur merken.
+    this.figuresAlpha = alpha
     for (const member of this.members) {
       if (member.sprite.active) member.sprite.setAlpha(alpha)
     }
@@ -186,8 +208,19 @@ export class Crowd {
       const member = this.members[index]
       if (!member.sprite.active) continue
       const bob = getBobOffsetPx(this.elapsedMs, cycleHz, getPhaseOffset(index), BALANCE.gamefeel.bobAmplitudePx)
-      member.sprite.setPosition(this.anchorX + member.offsetX, this.anchorY + member.offsetY + bob)
+      const x = this.anchorX + member.offsetX
+      const groundY = this.anchorY + member.offsetY
+      member.sprite.setPosition(x, groundY + bob)
       member.sprite.setRotation(this.leanRadians)
+      // Der Schatten bleibt am Boden, waehrend die Figur wippt, und schrumpft mit der
+      // Hebung. Erst dadurch liest man das Wippen als Schritt statt als Zittern.
+      // bob ist negativ (nach oben), deshalb der Betrag.
+      const lift = Math.abs(bob)
+      const shrink = Math.max(0, 1 - lift * BALANCE.shadow.liftShrinkPerPx)
+      const width = this.figureWidth * BALANCE.shadow.widthOfFigure * shrink
+      member.shadow.setPosition(x, groundY + this.figureHeight * BALANCE.shadow.footOffsetOfHeight)
+      member.shadow.setDisplaySize(width, width * BALANCE.shadow.heightOfWidth)
+      member.shadow.setAlpha(BALANCE.shadow.alpha * shrink * this.figuresAlpha)
     }
     // Die Kollisionshuelle bleibt bewusst ruhig: Sie darf nicht mitwippen, sonst
     // haengt Schaden am Zufall des Laufzyklus.

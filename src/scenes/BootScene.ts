@@ -72,6 +72,7 @@ export class BootScene extends Phaser.Scene {
     this.createGateTexture()
     this.createCoinTexture()
     this.createWallTexture()
+    this.createShadowTexture()
 
     this.scene.start('TitleScene')
   }
@@ -146,6 +147,28 @@ export class BootScene extends Phaser.Scene {
     graphics.fillStyle(0xffffff)
     graphics.fillCircle(12, 12, 5)
     graphics.generateTexture('chain-flash', 24, 24)
+    graphics.destroy()
+  }
+
+  /**
+   * Weicher Bodenschatten als gestaffelte Ellipsen. Ein echter Verlauf geht hier
+   * NICHT: fillGradientStyle wirkt nur im WebGL-Pfad und wird von generateTexture
+   * stillschweigend auf die erste Farbe reduziert (Lesson 2026-08-20). Sechs Ringe
+   * mit fallender Deckkraft ergeben denselben weichen Rand auf beiden Pfaden.
+   */
+  private createShadowTexture(): void {
+    const size = BALANCE.shadow.textureWidthPx
+    const rings = BALANCE.shadow.textureRings
+    const graphics = this.add.graphics()
+    for (let ring = rings; ring >= 1; ring -= 1) {
+      const radius = (size / 2) * (ring / rings)
+      // Aussen fast durchsichtig, innen voll: quadratisch, damit der Kern kompakt
+      // bleibt und nur der Saum ausfranst.
+      const alpha = (1 - (ring - 1) / rings) ** 2
+      graphics.fillStyle(0x000000, alpha)
+      graphics.fillEllipse(size / 2, size / 2, radius * 2, radius * 2)
+    }
+    graphics.generateTexture('figure-shadow', size, size)
     graphics.destroy()
   }
 

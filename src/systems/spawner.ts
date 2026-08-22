@@ -22,6 +22,7 @@ export class Spawner {
   private readonly scene: Phaser.Scene
   private readonly runStats: RunStats
   private readonly enemies: Phaser.Physics.Arcade.Group
+  private readonly shadows: Phaser.GameObjects.Image[]
   private spawnAccumulatorMs: number
   private elapsedMs: number
   private lastPoolWarningAtMs: number
@@ -49,11 +50,19 @@ export class Spawner {
     this.nextSpawnId = 1
     this.spawningEnabled = true
     this.levelPlan = getLevelPlan(1)
+    this.shadows = []
     for (let index = 0; index < BALANCE.pools.enemies; index += 1) {
       const enemy = scene.physics.add.image(0, 0, BALANCE.enemy.types[0].texture).setDepth(BALANCE.layers.gameplay)
       enemy.setActive(false).setVisible(false)
       enemy.disableBody(true, true)
       this.enemies.add(enemy)
+      // Ein Bodenschatten je Poolplatz, fest zugeordnet - nie zur Laufzeit erzeugt.
+      const shadow = scene.add.image(0, 0, 'figure-shadow')
+        .setDepth(BALANCE.layers.shadow)
+        .setAlpha(BALANCE.shadow.alpha)
+        .setActive(false)
+        .setVisible(false)
+      this.shadows.push(shadow)
     }
   }
 
@@ -134,6 +143,28 @@ export class Spawner {
   public recycle(enemy: Phaser.Physics.Arcade.Image): void {
     enemy.disableBody(true, true)
     enemy.setActive(false).setVisible(false)
+    const index = this.enemies.getChildren().indexOf(enemy)
+    if (index >= 0) this.shadows[index].setActive(false).setVisible(false)
+  }
+
+  /**
+   * Der Schatten bleibt auf der Laufhoehe (logicalY), waehrend die Figur wippt, und
+   * schrumpft mit der Hebung. Er uebernimmt die Sichtbarkeit der Figur mit, damit am
+   * Horizont kein Fleck vor dem Gegner auftaucht.
+   */
+  private updateShadow(poolIndex: number, enemy: Phaser.Physics.Arcade.Image, logicalY: number, bob: number): void {
+    const shadow = this.shadows[poolIndex]
+    if (shadow === undefined) return
+    if (enemy.alpha <= 0) {
+      shadow.setVisible(false)
+      return
+    }
+    const shrink = Math.max(0, 1 - Math.abs(bob) * BALANCE.shadow.liftShrinkPerPx)
+    const width = (enemy.getData('bodyWidth') as number) * BALANCE.shadow.widthOfFigure * shrink
+    shadow.setActive(true).setVisible(true)
+    shadow.setPosition(enemy.x, logicalY + enemy.displayHeight * BALANCE.shadow.footOffsetOfHeight)
+    shadow.setDisplaySize(width, width * BALANCE.shadow.heightOfWidth)
+    shadow.setAlpha(BALANCE.shadow.alpha * shrink * enemy.alpha)
   }
 
   public damage(enemy: Phaser.Physics.Arcade.Image, damage: number): boolean {
@@ -184,6 +215,7 @@ export class Spawner {
       enemy.y = logicalY + bob
       enemy.x = this.scene.scale.width / 2 + (enemy.getData('lane') as number) * getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, enemy.y)
       this.applyHorizonReveal(enemy)
+      this.updateShadow(poolIndex, enemy, logicalY, bob)
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       const flashRemainingMs = Math.max(0, (enemy.getData('flashRemainingMs') as number) - dt)
       enemy.setData('flashRemainingMs', flashRemainingMs)

@@ -52,7 +52,13 @@ const game = new Phaser.Game({
   width: 390,
   height: 844,
   backgroundColor: '#10131d',
-  pixelArt: true,
+  // pixelArt schaltet die Glaettung beim Skalieren ab. Bis 2026-08-22 stand hier true:
+  // Die 34x46-Figuren bekamen dadurch harte Treppenkanten und verloren die Plastik der
+  // grossen Vorlagen (assets/probe, 136x184). Mit false sind die Gegner am Horizont als
+  // Figuren erkennbar statt als Kloetzchen. Eine Zeile zurueck, falls der harte Look
+  // doch gewuenscht ist.
+  pixelArt: false,
+  roundPixels: false,
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

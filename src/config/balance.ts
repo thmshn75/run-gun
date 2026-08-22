@@ -111,6 +111,33 @@ export const BALANCE = {
     shakeDamageMs: 160,
     shakeDamageIntensity: 0.008,
   },
+  shadow: {
+    // Bodenschatten. Vor dieser Aenderung warf im ganzen Spiel nichts einen Schatten -
+    // Truppe, Gegner und Boss schwebten ueber der Strasse. Das ist der groesste
+    // Einzelunterschied zu den 3D-Vorbildern und kostet nur eine Ellipse je Figur.
+    //
+    // Breite: knapp schmaler als die Figur, sonst wirkt sie wie auf einem Teller.
+    widthOfFigure: 0.82,
+    // Flache Ellipse: Die Kamera schaut schraeg von oben-hinten auf die Strasse, ein
+    // runder Bodenfleck erscheint dabei stark gestaucht. 0.3 entspricht etwa dem
+    // Winkel, in dem auch die Strasse perspektivisch zusammenlaeuft.
+    heightOfWidth: 0.3,
+    // Weicher, nicht schwarzer Fleck: Die Strasse ist bereits dunkel, ein harter
+    // Schatten wuerde als Loch gelesen.
+    alpha: 0.42,
+    // Der Schatten sitzt an den Fuessen, nicht in der Figurenmitte.
+    footOffsetOfHeight: 0.44,
+    // Beim Laufwippen hebt sich die Figur um bis zu bobAmplitudePx. Der Schatten
+    // bleibt am Boden und wird kleiner und schwaecher - erst dadurch liest man die
+    // Hebung ueberhaupt als Sprung statt als Zittern. Pro Pixel Hub 3 % kleiner.
+    liftShrinkPerPx: 0.03,
+    // Ringe der Schattentextur. Ein echter Verlauf ist hier NICHT moeglich:
+    // fillGradientStyle wirkt nur im WebGL-Pfad und wird von generateTexture
+    // stillschweigend auf die erste Farbe reduziert (Lesson 2026-08-20). Gestaffelte
+    // Ellipsen mit fallender Deckkraft erzeugen denselben weichen Rand zuverlaessig.
+    textureRings: 6,
+    textureWidthPx: 64,
+  },
   audio: {
     // Bis 2026-08-22 gab es im Projekt KEIN Audio (kein AudioContext, keine Datei).
     // Der Ton wird synthetisch per Web Audio erzeugt: keine Audiodateien, nichts
@@ -155,6 +182,8 @@ export const BALANCE = {
     background: -1,
     scenery: -0.5,
     road: 0,
+    // Bodenschatten liegen auf der Strasse, aber unter allem, was auf ihr steht.
+    shadow: 0.5,
     // Wand-Inhalt (Waffe/Muenze) liegt unter der halbtransparenten Wand, damit er
     // durchscheint statt sie zu verdecken.
     wallContent: 1.5,

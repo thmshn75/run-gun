@@ -7,6 +7,37 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**Optik Schritt 1 fertig: Bodenschatten und glatte Kanten** (2026-08-22, Claude direkt,
+Thomas: "die Optik und das realistische Gefuehl ist mir wichtiger", nach zwei
+Referenz-Screenshots aus einem 3D-Vorbild).
+Befund aus dem Vorher-Screenshot: Im ganzen Spiel warf **nichts** einen Schatten -
+Truppe, Gegner und Boss schwebten ueber der Strasse. Das ist der groesste
+Einzelunterschied zu den Vorbildern. Zweiter Befund: `pixelArt: true` liess die
+34x46-Figuren als harte Kloetzchen erscheinen, obwohl die grossen Vorlagen in
+`assets/probe/` (136x184) beleuchtet und plastisch sind.
+- **Bodenschatten** fuer Truppe, Gegner und Boss (`shadow`-Sektion in `balance.ts`,
+  Textur in `BootScene`). Ein Schatten je Poolplatz, beim Aufbau erzeugt, nie zur
+  Laufzeit. Die Textur sind gestaffelte Ellipsen statt eines Verlaufs -
+  `fillGradientStyle` wirkt nicht ueber `generateTexture` (Lesson 2026-08-20).
+- **Der Schatten bleibt am Boden, waehrend die Figur wippt**, und schrumpft mit der
+  Hebung. Erst dadurch liest man das Laufwippen als Schritt statt als Zittern.
+- **Blinken uebertraegt sich**: Nach einem Treffer blinkt die Truppe; ohne Kopplung
+  waere ein Fleck auf der Strasse stehengeblieben.
+- **`pixelArt: false`** (mit `roundPixels: false`): Gegner am Horizont sind jetzt als
+  Figuren erkennbar statt als Kloetzchen. Das ist eine Geschmacksentscheidung und mit
+  einer Zeile zuruecknehmbar - Kommentar steht in `main.ts`.
+Gemessen im Browser: 14 von 14 Truppenschatten sichtbar, Position an den Fuessen
+(23 px unter der Figurenmitte bei 46 px Figur), Groesse 25x8 px, Deckkraft 0,42.
+**Nebenbefund:** In der dichten Formation (13-14 px Reihenabstand bei 46 px hohen
+Figuren) verdecken die Figuren die Schatten der hinteren Reihen - sichtbar bleibt vor
+allem die vorderste Reihe. Das ist physikalisch richtig und im Vorbild genauso.
+Nachweise: 134 Tests gruen (neu `tests/shadow.test.ts`), `npm run check` sauber,
+Vorher-Nachher-Screenshots verglichen.
+**Offen: Thomas' iPhone-Urteil, besonders zu den glatten Kanten.**
+**Naechste Optik-Schritte (nicht gebaut):** plastischere Sprites in doppelter
+Aufloesung (Codex-Auftrag), Wandsegmente sehen als halbtransparente Rechtecke wie
+Platzhalter aus, Horden-Masse deutlich groesser.
+
 **W5 Boss ohne Schuss fertig** (2026-08-22, Claude direkt, Thomas: "zuerst den Ton und
 den Boss ohne Schuss"). Umgesetzt nach `plan-v2.md`, Abschnitt "Boss V2".
 - **Der Boss feuert nicht mehr.** Salvensystem komplett entfernt: `bossBurst.ts`
