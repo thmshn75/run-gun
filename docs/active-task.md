@@ -7,6 +7,43 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**Gegner auf Spielgroesse gebracht, Kurve steiler, nochmal mehr Nachschub**
+(2026-08-22, Claude direkt, Thomas zum DRITTEN Mal zur Groesse: "Die mobs wirken immer
+noch zu klein - muessen schneller wachsen und koennen noch ein wenig mehr sein").
+- **Der eigentliche Fehler lag nicht in der Ferne, sondern auf Kampfhoehe.** Die beiden
+  Anlaeufe davor haben nur die Fernkurve angefasst. Auf Kampfhoehe war ein Gegner aber
+  exakt so gross wie sein Sprite: 38 px beim leichten gegen 46 px bei einer eigenen
+  Figur. Selbst direkt vor der Truppe war er der Kleinere - das kann keine Fernkurve
+  ausgleichen. Neu ist `enemy.figureScale` 1,25: leichter Gegner 47 px, schwerer 61 px.
+  Der Faktor gilt fuer ALLES im Kampfhoehen-System (Darstellung, Trefferflaeche,
+  Spurabstaende, Formationsbreite, Schatten) - dafuer gibt es jetzt
+  `enemyTypes.getFigureWidth/-Height`; die Rohmasse bleiben nur noch dem Arcade-Body,
+  den Phaser selbst mitskaliert.
+- **Kurve steiler:** `horizonScale` 0,80 -> 0,84, `growthExponent` 0,45 -> 0,35. Auf
+  einem Viertel der Anflugstrecke jetzt 94 % der vollen Groesse (vorher 89 %,
+  urspruenglich 68 %), auf der Haelfte 97 %.
+- **Mitgewachsen, damit aus Horden keine Kloesse werden:** Formationsabstaende 44 -> 52
+  und 54 -> 62 px (bewusst nur Faktor 1,18 statt 1,25 - dichter soll sie wirken). Vier
+  Figuren passen weiter nebeneinander; `hordeMaxWidthPx` bleibt bei 220, weil der
+  Korridor auf Kampfhoehe nur 234 px breit ist. Eine 14er-Horde steht jetzt in vier
+  statt drei Reihen.
+- **Menge:** Takt -12 %, Hordenanteil +0,03, Hordengroessen der ersten vier Level +1.
+  Level 1 damit 3,77 -> 5,23 Gegner je Sekunde (vorher 2,95 -> 4,22; urspruenglich
+  1,01 -> 1,62). **Der Takt allein haette nichts gebracht:** Zuletzt scheiterten 3-5
+  Spawns je 10 s an der Spurvergabe, und groessere Figuren brauchen mehr Korridor.
+  Deshalb sind die Spawn-Baender mitgewachsen (0,20 -> 0,28 und 0,50 -> 0,62) und der
+  Sicherheitsabstand von 6 auf 5 px gesunken - erst das macht den kuerzeren Takt wirksam.
+**Gemessen im Browser** (Level 1, 10-s-Fenster): 40 / 52 / 41 Spawns gegen 35 / 31 / 37
+davor, `deferred` weiter bei 3-4 und keine Pool-Warnung. Im Bild stehen die Gegner jetzt
+auf Augenhoehe mit der eigenen Truppe und haben schon im oberen Bilddrittel fast volle
+Groesse.
+**Grenze fuer einen vierten Anlauf:** Ueber `horizonScale` 0,85 wird die Horde am
+Horizont zu Matsch (die Formation schrumpft weiter mit der Strasse, die Figuren nicht),
+und mehr Menge braucht dann zuerst wieder Platz - Baender, Sicherheitsabstand oder einen
+breiteren Korridor.
+Nachweise: 153 Tests gruen, `npm run check` sauber, Browser-Messung wie oben.
+**Offen: Thomas' iPhone-Urteil.**
+
 **Wandkette laeuft perspektivisch - Kacheln schrumpfen mit der Entfernung**
 (2026-08-22, Claude direkt, Thomas: "Ja mach die Wandkarten fertig").
 Der Rest aus dem vorigen Task ist damit erledigt: Die Kachel war das einzige Objekt im

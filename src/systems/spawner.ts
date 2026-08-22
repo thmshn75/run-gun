@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { canSpawnBossHorde } from './bossPlan'
-import { chooseEnemyType, getEnemyHp, type EnemyType } from './enemyTypes'
+import { chooseEnemyType, getEnemyHp, getFigureHeight, getFigureWidth, type EnemyType } from './enemyTypes'
 import { getEnemySpawnCenterY, getSquadSpawnBaseY, isRevealedAtHorizon } from './horizonReveal'
 import { getLevelPlan, type LevelPlan } from './levelPlan'
 import { getBobOffsetPx, getPhaseOffset, getStepCycleHz } from './gamefeel'
@@ -208,7 +208,7 @@ export class Spawner {
     // abgezogen, damit er sich nicht aufaddiert und die Laufstrecke verfaelscht. Die
     // Pool-Position dient als Taktversatz — stabil ueber die Lebensdauer eines Gegners
     // und ohne Zufall, der Testlaeufe unvergleichbar machen wuerde.
-    const bobCycleHz = getStepCycleHz(BALANCE.enemy.types[0].bodyHeight)
+    const bobCycleHz = getStepCycleHz(getFigureHeight(BALANCE.enemy.types[0]))
     let poolIndex = -1
     for (const child of this.enemies.getChildren()) {
       poolIndex += 1
@@ -291,7 +291,7 @@ export class Spawner {
       return 'pool-exhausted'
     }
     enemy.setTexture(type.texture)
-    const y = getEnemySpawnCenterY(type.bodyHeight)
+    const y = getEnemySpawnCenterY(getFigureHeight(type))
     const lane = chooseSpawnLane(
       this.getActiveLaneEnemies(),
       { ...type, y },
@@ -307,7 +307,7 @@ export class Spawner {
       // Randabstand mit Perspektiv-Aufschlag: Weiter oben ist die Figur breiter, als
       // ihr Platz im Kampfhoehen-System hergibt (getFigureOverscanFactor). Ohne den
       // Aufschlag steht sie am Horizont mit der Schulter im Wandsegment.
-      type.bodyWidth * getFigureOverscanFactor(this.scene.scale.width, this.scene.scale.height),
+      getFigureWidth(type) * getFigureOverscanFactor(this.scene.scale.width, this.scene.scale.height),
     )
     if (lane === undefined) return 'no-lane'
     this.activateEnemy(enemy, type, lane, y, bossCompanion)
@@ -334,7 +334,7 @@ export class Spawner {
       drawnTypes.length,
       BALANCE.level.squads.spacingPx,
       BALANCE.level.squads.rowSpacingPx,
-      Math.max(...drawnTypes.map((type) => type.bodyWidth)),
+      Math.max(...drawnTypes.map((type) => getFigureWidth(type))),
       maxWidthAnchor,
     )
     if (layout.size < BALANCE.level.squads.minSize) return 'no-lane'
@@ -348,17 +348,17 @@ export class Spawner {
     }
 
     const y = getSquadSpawnBaseY(
-      Math.max(...types.map((type) => type.bodyHeight)),
+      Math.max(...types.map((type) => getFigureHeight(type))),
       Math.max(...offsets.map((offset) => offset.yOffset)),
     )
-    const widestBodyWidth = Math.max(...types.map((type) => type.bodyWidth))
+    const widestBodyWidth = Math.max(...types.map((type) => getFigureWidth(type)))
     // Exactly one lane reservation for the complete squad; members never call chooseSpawnLane.
     const lane = chooseSpawnLane(
       this.getActiveLaneEnemies(),
       // bodyWidth ist die Breite EINES Mitglieds - danach richten sich die Abstaende
       // zu bestehenden Gegnern. Die Formationsbreite kommt getrennt und begrenzt nur,
       // wie weit der Schwerpunkt nach aussen darf.
-      { y, speedFactor: Math.max(...types.map((type) => type.speedFactor)), bodyWidth: widestBodyWidth, bodyHeight: Math.max(...types.map((type) => type.bodyHeight)) },
+      { y, speedFactor: Math.max(...types.map((type) => type.speedFactor)), bodyWidth: widestBodyWidth, bodyHeight: Math.max(...types.map((type) => getFigureHeight(type))) },
       // Dieselbe Bezugsgroesse wie die Formation: Kampfhoehe. Stand hier die
       // Horizontbreite, wurde eine 172 px breite Horde gegen 101 px geprueft und
       // fand nie eine Spur.
@@ -421,8 +421,10 @@ export class Spawner {
     enemy.setData('speedFactor', type.speedFactor)
     enemy.setData('contactDamage', type.contactDamage)
     enemy.setData('coinValue', type.coinValue)
-    enemy.setData('bodyWidth', type.bodyWidth)
-    enemy.setData('bodyHeight', type.bodyHeight)
+    // Kampfhoehen-Masse, nicht Sprite-Masse: Spurwahl, Schatten und Formationsbreite
+    // rechnen alle in diesem System (enemy.figureScale).
+    enemy.setData('bodyWidth', getFigureWidth(type))
+    enemy.setData('bodyHeight', getFigureHeight(type))
     enemy.setData('flashRemainingMs', 0)
     enemy.setData('lane', lane)
     enemy.setData('bossCompanion', bossCompanion)
@@ -439,11 +441,15 @@ export class Spawner {
    * Gegners schrumpft also mit - was richtig ist, denn er ist auch schwerer zu treffen.
    */
   private applyPerspectiveScale(enemy: Phaser.Physics.Arcade.Image, y: number): void {
-    const faktor = getPerspectiveScale(this.scene.scale.width, this.scene.scale.height, y)
+    // Grundgroesse x Perspektive: figureScale hebt die Figur auf Spielgroesse, der
+    // Perspektivfaktor schrumpft sie mit der Entfernung.
+    const faktor = BALANCE.enemy.figureScale * getPerspectiveScale(this.scene.scale.width, this.scene.scale.height, y)
     enemy.setScale(faktor)
     // Nachgefuehrte Groesse fuer alle, die mit der Figurenbreite rechnen (Schatten,
     // Spurreservierung). Die Rohbreite bleibt als bodyWidth erhalten.
-    enemy.setData('scaledWidth', (enemy.getData('bodyWidth') as number) * faktor)
+    // bodyWidth ist bereits die Kampfhoehen-Breite - fuer die Bildschirmbreite fehlt
+    // nur noch die Perspektive, nicht erneut figureScale.
+    enemy.setData('scaledWidth', (enemy.getData('bodyWidth') as number) * getPerspectiveScale(this.scene.scale.width, this.scene.scale.height, y))
   }
 
   // Gegner erscheinen wie die Haeuser: voll sichtbar, sobald die Unterkante die

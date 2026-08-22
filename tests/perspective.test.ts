@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { advanceAlongRoad, getFigureOverscanFactor, getPerspectiveScale, getPlayfieldHalfWidth, getRoadHalfWidth, getRoadSegment } from '../src/systems/roadGeometry'
+import { getFigureWidth } from '../src/systems/enemyTypes'
 import { computeHordeOffsets } from '../src/systems/squads'
 
 const W = 390
@@ -18,10 +19,9 @@ describe('perspektivische Groesse', () => {
 
   it('schrumpft zum Horizont und waechst monoton nach unten', () => {
     const amHorizont = getPerspectiveScale(W, H, BALANCE.road.horizonY)
-    // 0,80: klein genug fuer Tiefe, gross genug, um einen Gegner am Horizont zu
-    // erkennen (Thomas 2026-08-22, zweimal: "die mobs sind jetzt voll klein", dann
-    // "die mobs wirken immer noch zu klein"). Ueber 0,85 wird die Horde am Horizont
-    // zu Matsch, weil die Formation weiter mit der Strasse schrumpft.
+    // 0,84: klein genug fuer Tiefe, gross genug, um einen Gegner am Horizont zu
+    // erkennen (Thomas 2026-08-22, dreimal gemeldet). Ueber 0,85 wird die Horde am
+    // Horizont zu Matsch, weil die Formation weiter mit der Strasse schrumpft.
     expect(amHorizont).toBeLessThanOrEqual(0.85)
     expect(amHorizont).toBeGreaterThan(0.75)
     let vorher = 0
@@ -44,8 +44,10 @@ describe('perspektivische Groesse', () => {
       const ausStrasse = getRoadHalfWidth(W, H, y) / getRoadHalfWidth(W, H, ANCHOR_Y)
       expect(getPerspectiveScale(W, H, y)).toBeGreaterThan(ausStrasse)
     }
-    // Auf halber Anflugstrecke (y = 432) 95 % statt 79 % der vollen Groesse.
-    expect(getPerspectiveScale(W, H, 432)).toBeCloseTo(0.946, 2)
+    // Auf halber Anflugstrecke (y = 432) 97 % statt 79 % der vollen Groesse, auf einem
+    // Viertel (y = 291) schon 94 % - "muessen schneller wachsen".
+    expect(getPerspectiveScale(W, H, 432)).toBeCloseTo(0.966, 2)
+    expect(getPerspectiveScale(W, H, 291)).toBeCloseTo(0.938, 2)
   })
 
   it('haelt Gegner trotz der groesseren Ferndarstellung aus der Wandzone', () => {
@@ -57,8 +59,8 @@ describe('perspektivische Groesse', () => {
     // gekruemmt, der Korridor linear. Am Horizont selbst waeren es nur 1,26.
     const amHorizont = BALANCE.road.perspective.horizonScale
       / (getRoadHalfWidth(W, H, BALANCE.road.horizonY) / getRoadHalfWidth(W, H, ANCHOR_Y))
-    expect(amHorizont).toBeCloseTo(1.40, 2)
-    expect(faktor).toBeCloseTo(1.44, 2)
+    expect(amHorizont).toBeCloseTo(1.47, 2)
+    expect(faktor).toBeCloseTo(1.52, 2)
     expect(faktor).toBeGreaterThan(amHorizont)
     // Der Aufschlag deckt jede Hoehe ab, nicht nur den Horizont.
     for (let y = BALANCE.road.horizonY; y <= ANCHOR_Y; y += 10) {
@@ -67,13 +69,17 @@ describe('perspektivische Groesse', () => {
     }
   })
 
-  it('laesst am Horizont fast doppelt so viele Gegner nebeneinander zu wie zuvor', () => {
-    const schwer = Math.max(...BALANCE.enemy.types.map((type) => type.bodyWidth))
+  it('laesst am Horizont doppelt so viele Gegner nebeneinander zu wie zuvor', () => {
+    // Gerechnet mit der KAMPFHOEHEN-Breite (enemy.figureScale), nicht mit dem rohen
+    // Sprite-Mass - in diesem System wird die Formation entworfen.
+    const schwer = Math.max(...BALANCE.enemy.types.map((type) => getFigureWidth(type)))
     const spacing = BALANCE.level.squads.spacingPx
     const anchorKorridor = getPlayfieldHalfWidth(W, H, ANCHOR_Y) * 2
     const budget = Math.min(anchorKorridor, BALANCE.walls.hordeMaxWidthPx)
     const proReihe = Math.floor((budget - schwer) / spacing) + 1
-    expect(proReihe).toBeGreaterThanOrEqual(5)
+    // Vier statt frueher zwei. Fuenf waeren drin gewesen, solange die Figuren ihre
+    // Sprite-Groesse hatten; seit figureScale 1,25 kostet jede Figur mehr Korridor.
+    expect(proReihe).toBeGreaterThanOrEqual(4)
     // Zum Vergleich die alte Rechnung: Budget am Horizont gegen volle Figurenbreite.
     const alt = Math.min(
       getPlayfieldHalfWidth(W, H, BALANCE.road.horizonY) * 2,
@@ -83,7 +89,7 @@ describe('perspektivische Groesse', () => {
   })
 
   it('stellt die groesste Horde als Block auf, nicht als Kolonne', () => {
-    const schwer = Math.max(...BALANCE.enemy.types.map((type) => type.bodyWidth))
+    const schwer = Math.max(...BALANCE.enemy.types.map((type) => getFigureWidth(type)))
     const budget = Math.min(getPlayfieldHalfWidth(W, H, ANCHOR_Y) * 2, BALANCE.walls.hordeMaxWidthPx)
     const layout = computeHordeOffsets(
       'cluster', BALANCE.level.squads.maxSize,
@@ -91,8 +97,10 @@ describe('perspektivische Groesse', () => {
     )
     expect(layout.size).toBe(BALANCE.level.squads.maxSize)
     const reihen = new Set(layout.offsets.map((offset) => offset.yOffset)).size
-    // 14 Gegner in hoechstens drei Reihen - vorher waren es sechs bis sieben.
-    expect(reihen).toBeLessThanOrEqual(3)
+    // 14 Gegner in hoechstens vier Reihen - vor der perspektivischen Skalierung waren
+    // es sechs bis sieben. Die vierte Reihe kam mit figureScale 1,25 dazu: groessere
+    // Figuren, also weniger je Reihe.
+    expect(reihen).toBeLessThanOrEqual(4)
   })
 
   it('zieht Kollisionskoerper, Schatten und Spurabstand mit der Groesse mit', () => {

@@ -47,12 +47,13 @@ describe('boss plans', () => {
       const spawnerCeiling = Math.max(largestSquad / pauseSec, 1000 / plan.spawnIntervalMinMs)
       expect(getNormalPhaseEnemiesPerSec(level)).toBeLessThanOrEqual(spawnerCeiling)
     }
-    // Gerechnet, nicht geraten: Level 1 = 6,05 Gegner/s, Level 12 = 15,40 Gegner/s.
-    // Level 1 stieg von 1,46 auf 6,05 mit der vierten Mengenanhebung der Leveltabelle
-    // (Thomas: "es sollen noch immer auch schon ab Level 1 mehr sein"). Auf den Boss
-    // schlaegt das erst ab Level 5 durch - bis Level 4 ruft er ueberhaupt keine Horde.
-    expect(getNormalPhaseEnemiesPerSec(1)).toBeCloseTo(6.05, 1)
-    expect(getNormalPhaseEnemiesPerSec(12)).toBeCloseTo(15.40, 1)
+    // Gerechnet, nicht geraten: Level 1 = 8,15 Gegner/s, Level 12 = 15,74 Gegner/s.
+    // Level 1 stieg von 1,46 ueber 6,05 auf 8,15 mit den beiden Mengenanhebungen vom
+    // 2026-08-22 (Thomas: "es sollen noch immer auch schon ab Level 1 mehr sein", dann
+    // "koennen noch ein wenig mehr sein"). Auf den Boss schlaegt das erst ab Level 5
+    // durch - bis Level 4 ruft er ueberhaupt keine Horde.
+    expect(getNormalPhaseEnemiesPerSec(1)).toBeCloseTo(8.15, 1)
+    expect(getNormalPhaseEnemiesPerSec(12)).toBeCloseTo(15.74, 1)
     // Und der Druck steigt ueber die Level, sonst waere die Ableitung sinnlos.
     for (let level = 2; level <= 12; level += 1) {
       expect(getNormalPhaseEnemiesPerSec(level)).toBeGreaterThan(getNormalPhaseEnemiesPerSec(1))
