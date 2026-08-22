@@ -4,6 +4,7 @@ import { canSpawnBossCompanion, getBossCompanionLimit } from './bossPlan'
 import { chooseEnemyType, type EnemyType } from './enemyTypes'
 import { getEnemySpawnCenterY, getSquadSpawnBaseY, isRevealedAtHorizon } from './horizonReveal'
 import { getLevelPlan, type LevelPlan } from './levelPlan'
+import { getBobOffsetPx, getPhaseOffset, getStepCycleHz } from './gamefeel'
 import { getPlayfieldHalfWidth } from './road'
 import { chooseSpawnLane, type SpawnLaneEnemy } from './spawnLanes'
 import { computeHordeOffsets, getSquadWidth } from './squads'
@@ -139,10 +140,21 @@ export class Spawner {
     this.logSpawnMetrics()
 
     const enemySpeed = this.getEnemySpeed()
+    // Laufrhythmus (Lebendigkeit): Der Wippanteil wird vor dem Fortschritt wieder
+    // abgezogen, damit er sich nicht aufaddiert und die Laufstrecke verfaelscht. Die
+    // Pool-Position dient als Taktversatz — stabil ueber die Lebensdauer eines Gegners
+    // und ohne Zufall, der Testlaeufe unvergleichbar machen wuerde.
+    const bobCycleHz = getStepCycleHz(BALANCE.enemy.types[0].bodyHeight)
+    let poolIndex = -1
     for (const child of this.enemies.getChildren()) {
+      poolIndex += 1
       const enemy = child as Phaser.Physics.Arcade.Image
       if (!enemy.active) continue
-      enemy.y += (enemySpeed * (enemy.getData('speedFactor') as number) * dt) / 1000
+      const previousBob = (enemy.getData('bobPx') as number | undefined) ?? 0
+      const logicalY = enemy.y - previousBob + (enemySpeed * (enemy.getData('speedFactor') as number) * dt) / 1000
+      const bob = getBobOffsetPx(this.elapsedMs, bobCycleHz, getPhaseOffset(poolIndex), BALANCE.gamefeel.enemyBobAmplitudePx)
+      enemy.setData('bobPx', bob)
+      enemy.y = logicalY + bob
       enemy.x = this.scene.scale.width / 2 + (enemy.getData('lane') as number) * getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, enemy.y)
       this.applyHorizonReveal(enemy)
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()

@@ -1,6 +1,6 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-22 15:25
+Stand: 2026-08-22 16:10
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen und als
@@ -45,19 +45,35 @@ Tag `v1.0` gesichert** (Rueckschrittspunkt). Laufend: **V2-Spurenumbau**, Etappe
   Horizont ist die Wand 5,1x schneller als die Haeuser. Wer das beheben will, koppelt
   die Wandbewegung in `blockers.ts` an `getScrollY` und macht die Segmenthoehe
   perspektivisch (sonst reisst die Kette).
+- **Wandhaerte neu hergeleitet** (2026-08-22, Thomas: "immer noch schwer was zu holen,
+  speziell in weiteren Level, die Zahlen steigen zu schnell an"): Das alte Modell
+  koppelte die Wand-HP 1:1 an die Feuerkraft — Fokusdauer konstant 0,70 s, Aufruesten
+  folgenlos, Zahl an der Waffe haengend (4 bis 71 bei Truppe 8, 1482 im Vollausbau).
+  Neu in `blockerPlan.ts`: Zielhaerte aus Levelnummer + gedaempfter Truppengroesse,
+  Waffe geht nicht mehr ein, harter Fokus-Deckel `blockers.maxFocusSec` 0,6 s.
+  Verlauf jetzt 3 HP / 0,50 s bis 254 HP / 0,12 s.
+- **Lebendigkeit ohne Ton** (2026-08-22, Thomas: "nicht so wie in den App Store"):
+  Laufwippen fuer Truppe und Gegner, Neigung beim Lenken, Quittungen beim Einsammeln,
+  Kamerawackeln. Rechnung phaserfrei in `src/systems/gamefeel.ts`, Zahlen-Popups in
+  `src/systems/popups.ts`. **Ton fehlt weiterhin komplett** — bewusst, Thomas' Wahl war
+  "Lebendigkeit zuerst". Ton waere der naechste grosse Hebel: synthetisch per Web Audio,
+  ohne Dateien und ohne Kosten, mit Freischaltung beim ersten Tippen (iOS).
 - Arbeitsverzeichnis sauber, `docs/active-task.md` auf IDLE.
 
 ## Offen — naechster Schritt zuerst
-1. **Thomas' iPhone-Urteil zur Wand-Nachbesserung** (trifft man die Waende jetzt
-   flüssig?) und zum Rest von W1–W4. Korrekturen haben Vorrang vor W5.
-   Tuning-Regler dafuer: `BALANCE.projectile.laneFollow` (1 = spurtreu, 0 = alt),
-   `BALANCE.walls.driveIntoWallFigures` (wie nah an die Wand), `BALANCE.walls.hpFactor`.
-2. **W5 — Boss** (`plan-v2.md`, Abschnitt „Boss V2"): Boss **schiesst nicht mehr**
+1. **Thomas' iPhone-Urteil** zu Treffern, Tempo, Wandhaerte und Lebendigkeit.
+   Korrekturen haben Vorrang vor W5. Tuning-Regler ohne Umbau:
+   `BALANCE.projectile.laneFollow` (1 = spurtreu, 0 = alt),
+   `BALANCE.walls.driveIntoWallFigures` (wie nah an die Wand),
+   `BALANCE.blockers.maxFocusSec` / `minFocusSec` / `perLevelGrowth` (Wandhaerte),
+   `BALANCE.gamefeel.*` (Wippen, Neigung, Popups, Kamerawackeln), `scrollSpeed` (Tempo).
+2. **Ton** — der groesste noch offene Gamefeel-Hebel, von Thomas zurueckgestellt.
+3. **W5 — Boss** (`plan-v2.md`, Abschnitt „Boss V2"): Boss **schiesst nicht mehr**
    (Salvensystem `bossBurst.ts` entfaellt), Druck aus gerufenen Horden + Vorruecken;
    Lebenspunkte beim Kampfstart aus der **tatsaechlichen Feuerkraft der Truppe**
    berechnen (Ziel 20–40 s auf jedem Level, je einmal mit schwachem und starkem Run
    messen), Levelnummer skaliert nur noch den Hordendruck.
-3. **W6 — Abnahme**: toten Code entfernen (`blockers.ts` → `Walls` umbenennen,
+4. **W6 — Abnahme**: toten Code entfernen (`blockers.ts` → `Walls` umbenennen,
    `bossBurst.ts`, alte Tor-Reste), Volllast-Messung aller Systeme gleichzeitig,
    Netzwerk-Null-Check, README.
 

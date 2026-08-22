@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
 import { Blockers } from '../systems/blockers'
+import { Popups } from '../systems/popups'
 import { Coins } from '../systems/coins'
 import { selectChainLightningTargets } from '../systems/chainLightning'
 import { Boss } from '../systems/boss'
@@ -16,7 +17,7 @@ import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { addScore, loadSave, qualifiesForScores, writeSave } from '../systems/save'
 import { Spawner } from '../systems/spawner'
 import { getUpgradeStartValue, RunStats } from '../systems/upgrades'
-import { Weapons, type WeaponKey } from '../systems/weapons'
+import { WEAPON_LABELS, Weapons, type WeaponKey } from '../systems/weapons'
 
 interface HudSegments {
   hp: Phaser.GameObjects.Text
@@ -134,6 +135,7 @@ export class GameScene extends Phaser.Scene {
   private chainFlashes!: ChainFlashPool
   private boss!: Boss
   private blockers!: Blockers
+  private popups!: Popups
   private currentLevel!: number
   private levelPhase!: LevelPhase
   private phaseRemainingMs!: number
@@ -191,10 +193,23 @@ export class GameScene extends Phaser.Scene {
       () => Phaser.Math.RND.frac(),
       (x, y) => this.dropCoins(x, y, BALANCE.walls.coinReward),
       (apply) => {
-        this.runStats.set('hp', apply(this.runStats.get('hp')))
+        const before = this.runStats.get('hp')
+        const after = apply(before)
+        this.runStats.set('hp', after)
+        // Quittung auf die eigene Handlung: ohne sie wuchs die Truppe lautlos.
+        const delta = Math.round(after - before)
+        if (delta !== 0) {
+          this.popups.spawn(
+            this.crowd.getAnchorX(),
+            this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
+            `${delta > 0 ? '+' : ''}${delta}`,
+            delta > 0 ? '#3ddc84' : '#ff6b6b',
+          )
+        }
         this.updateHud()
       },
     )
+    this.popups = new Popups(this)
     this.crowd.setWallPresenceProvider((y, halfSpan) => this.blockers.getWallPresence(y, halfSpan))
     this.boss = new Boss(
       this,
@@ -288,6 +303,7 @@ export class GameScene extends Phaser.Scene {
     this.weapons.update(dt)
     this.spawner.update(dt)
     this.blockers.update(dt)
+    this.popups.update(dt)
     this.boss.update(dt)
     this.syncBossColliders()
     this.syncBlockerColliders()
@@ -378,6 +394,13 @@ export class GameScene extends Phaser.Scene {
   private equipWeapon(weapon: WeaponKey): void {
     if (!this.weapons.setWeapon(weapon)) return
     this.replaceProjectileColliders()
+    // Quittung auf die eigene Handlung: der Waffenwechsel war bisher nur am HUD sichtbar.
+    this.popups.spawn(
+      this.crowd.getAnchorX(),
+      this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
+      WEAPON_LABELS[weapon],
+      '#ffd166',
+    )
     this.updateHud()
   }
 
@@ -412,6 +435,7 @@ export class GameScene extends Phaser.Scene {
       const bossDy = bossEnemy.y - impactY
       if (bossEnemy.active && bossDx * bossDx + bossDy * bossDy <= radiusSquared) this.damageEnemy(bossEnemy, splashDamage)
       this.splashFlashes.spawn(impactX, impactY, config.splashRadiusPx)
+      this.cameras.main.shake(BALANCE.gamefeel.shakeSplashMs, BALANCE.gamefeel.shakeSplashIntensity)
     }
     this.weapons.recycle(projectile)
   }
@@ -572,6 +596,8 @@ export class GameScene extends Phaser.Scene {
     else this.enemyContactIframeUntilMs = this.elapsedMs + iframeMs
     this.blinkUntilMs = Math.max(this.blinkUntilMs, this.elapsedMs + iframeMs)
     this.nextBlinkAtMs = this.elapsedMs
+    // Treffer am eigenen Trupp muss man spueren, nicht nur am HUD ablesen.
+    this.cameras.main.shake(BALANCE.gamefeel.shakeDamageMs, BALANCE.gamefeel.shakeDamageIntensity)
     this.updateHud()
     if (this.runStats.get('hp') <= 0) this.triggerGameOver()
   }
@@ -602,6 +628,7 @@ export class GameScene extends Phaser.Scene {
       this.phaseRemainingMs = BALANCE.level.warningMs
       this.spawner.setSpawningEnabled(false)
       this.blockers.deactivateAll()
+      this.popups.deactivateAll()
       this.levelOverlayBackground.setVisible(false)
       this.levelOverlay.setText('BOSS').setVisible(true)
       return
@@ -627,6 +654,7 @@ export class GameScene extends Phaser.Scene {
     if (this.levelPhase !== 'boss') return
     this.spawner.recycleBossCompanions()
     this.blockers.deactivateAll()
+    this.popups.deactivateAll()
     this.boss.deactivate()
     this.currentLevel += 1
     const saved = loadSave()

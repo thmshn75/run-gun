@@ -72,6 +72,48 @@ export const BALANCE = {
     // iPhone-Test — Zwischenwerte mischen beide Bahnen linear.
     laneFollow: 1,
   },
+  // Lebendigkeit (Thomas 2026-08-22: "immer noch nicht so wie im App Store, ich kann
+  // dir aber auch nicht sagen woran es liegt"). Befund beim Nachsehen: Im ganzen Spiel
+  // bewegte sich nichts ausser Positionen — kein Ton, keine Laufbewegung, kein Federn,
+  // keine Kamerareaktion. Die Figuren GLITTEN ueber die Strasse. Ton bleibt bewusst
+  // aussen vor (Thomas' Wahl: "Lebendigkeit zuerst, ohne Ton").
+  gamefeel: {
+    // Schrittlaenge als Anteil der Figurenhoehe — daraus leitet gamefeel.ts die
+    // Schrittfrequenz aus scrollSpeed ab, statt eine Hz-Zahl zu raten. 0.45 x 46 px
+    // Figur = 20,7 px Schritt; bei 135 px/s sind das 6,5 Schritte/s, also 3,3 Hz
+    // Wippzyklus. Wird die Welt langsamer, laufen die Figuren automatisch gemaechlicher.
+    strideOfHeight: 0.45,
+    // Hubhoehe des Wippens. 3 px bei 46 px Figur = 6,5 % Koerperhoehe; darueber wirkt
+    // es wie Huepfen statt Laufen.
+    bobAmplitudePx: 3,
+    // Gegner wippen flacher: Sie sind Kulisse fuer den Blick auf die eigene Truppe,
+    // und bei bis zu 104 gleichzeitig wuerde voller Hub das Bild unruhig machen.
+    enemyBobAmplitudePx: 2,
+    // Neigung beim Lenken: voller Ausschlag ab dieser Drag-Geschwindigkeit.
+    // Der Fahrbereich ist rund 300 px breit, ein zuegiger Wisch quert ihn in ~0,4 s
+    // — das sind die 750 px/s, ab denen die Truppe maximal lehnt.
+    leanFullSpeedPxPerSec: 750,
+    leanMaxDeg: 9,
+    // Ohne Glaettung zuckt die Neigung pro Bild. 90 ms Halbwertszeit ist traege genug
+    // fuer ein ruhiges Bild und schnell genug, um dem Finger zu folgen.
+    leanHalfLifeMs: 90,
+    // Aufploppen beim Einsammeln.
+    popMs: 180,
+    popOvershoot: 0.45,
+    // Hochfliegende Zahl beim Einsammeln.
+    popupRiseSpeedPxPerSec: 90,
+    popupMs: 620,
+    // Pool: Bei Muenz-Segmenten (bis 1,1/s je Seite) plus Gegner-Muenzen und Goodies
+    // liegen selten mehr als 6 Zahlen gleichzeitig in der Luft; 16 traegt einen
+    // Ausreisser-Burst mit Reserve.
+    popupPool: 16,
+    // Kamerawackeln nur bei wirklich Grossem: Splash-Explosion und eigener Schaden.
+    // Haeufigeres Zucken macht ein Hochformat-Spiel unruhig statt wuchtig.
+    shakeSplashMs: 90,
+    shakeSplashIntensity: 0.004,
+    shakeDamageMs: 160,
+    shakeDamageIntensity: 0.008,
+  },
   layers: {
     background: -1,
     scenery: -0.5,

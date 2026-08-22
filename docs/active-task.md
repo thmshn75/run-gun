@@ -7,6 +7,47 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**Lebendigkeit (ohne Ton) fertig** (2026-08-22, Claude direkt). Thomas: „immer noch
+nicht so wie in den App Store spielen — ich kann dir aber auch nicht sagen, woran es
+liegt." Beim Nachsehen gefunden: Im ganzen Spiel bewegte sich nichts außer Positionen.
+Kein Ton (keine Audio-Datei, kein Sound-Aufruf), keine Laufbewegung (Figuren sind
+`add.image` ohne `anims` — sie *glitten* über die Straße), keine Kamerareaktion, keine
+Tweens, keine Quittung beim Einsammeln. Trefferblitz an Gegnern gab es bereits
+(`setTintFill`) — die erste Meldung an Thomas war da falsch und wurde korrigiert.
+Thomas' Wahl aus drei Optionen: „Lebendigkeit zuerst, ohne Ton".
+Gebaut (neu `src/systems/gamefeel.ts` als phaserfreie, testbare Rechnung):
+- **Laufbewegung** für Truppe und Gegner: Wippen im Schrittrhythmus, Frequenz aus
+  `scrollSpeed` und Schrittlänge abgeleitet statt geraten (3,3 Hz bei 135 px/s).
+  Betrag statt Sinus — ein Läufer fällt und stößt sich ab. Taktversatz je Figur über
+  den goldenen Winkel, damit die Truppe kein hüpfender Block ist.
+- **Neigung beim Lenken** bis 9°, geglättet mit 90 ms Halbwertszeit
+  (frameratenunabhängig). Die Kollisionshülle bleibt bewusst ruhig, sonst hinge
+  Schaden am Zufall des Laufzyklus.
+- **Quittungen** beim Einsammeln: hochfliegende Zahl mit Aufploppen (`popups.ts`,
+  fester Pool 16) für Verstärkung (+N) und Waffenwechsel. Münzen bewusst ohne Popup —
+  bei 3 Münzen je Segment wäre das Lärm statt Rückmeldung.
+- **Kamerawackeln** nur bei Splash-Explosion und eigenem Schaden.
+Nachweise: 119 Tests grün (neu `tests/gamefeel.test.ts`), `npm run check` sauber,
+Browser-Lauf mit manuell getaktetem Crowd-Update gemessen (der Hintergrund-Tab wird
+gedrosselt, deshalb nicht über die Spiel-Loop): Wippweite 2,98 px bei Sollwert 3,
+6 Figuren auf 6 verschiedenen Höhen, Neigung 0 in Ruhe / −0,115 rad beim Lenken,
+Hülle unverändert bei y=714, Popups steigen 600 → 585 px und räumen sich auf.
+**Offen: Thomas' iPhone-Urteil. Ton ist bewusst noch nicht gebaut.**
+
+**Wandhärte neu hergeleitet fertig** (2026-08-22, Claude direkt). Thomas: „immer noch
+schwer was zu holen, speziell in weiteren Level, die Zahlen steigen zu schnell an."
+Das alte Modell koppelte die Wand-HP 1:1 an die Feuerkraft — die Fokusdauer blieb über
+den ganzen Run bei 0,70 s (Aufrüsten war gegen Wände folgenlos), und die Zahl hing an
+der Waffe: bei Truppe 8 zwischen 4 (Minigun) und 71 (Schrot), im Vollausbau 1482.
+Neu in `blockerPlan.ts`: Zielhärte aus Levelnummer und gedämpfter Truppengröße, die
+Waffe geht gar nicht mehr ein (sie lässt die Wand schneller fallen statt mitwachsen),
+plus harter Fokus-Deckel `blockers.maxFocusSec` 0,6 s für jede Kombination aus Level,
+Truppe und Waffe. Verlauf jetzt 3 HP / 0,50 s (L1 Start) bis 254 HP / 0,12 s (L12
+Vollausbau); Waffenwechsel bei Level 3 bewegt die Zahl nur noch zwischen 3 und 12.
+Nebenbefund, nicht behoben: Minigun und Rakete feuern nur mit 3 Figuren
+(`shootersPerSalvo`) und lagen ohne Deckel bei 1,25 s je Segment — schlechter als die
+Standardwaffe. Der Deckel fängt das ab, die Waffenbalance selbst bleibt offen.
+
 **W4-Nachbesserung „Tempo" fertig** (2026-08-22, Claude direkt, Thomas: „die Wände sind
 zu schnell — mach die langsamer", Wahl aus drei Optionen: „einfach alles langsamer").
 `scrollSpeed` 180 → 135 (−25 %): Eine Wand braucht 5,14 s statt 3,86 s durchs Bild.

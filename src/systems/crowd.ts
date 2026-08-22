@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { computeFormation } from './formation'
+import { approachAngle, getBobOffsetPx, getLeanRadians, getPhaseOffset, getStepCycleHz } from './gamefeel'
 import { getDriveLimitHalfWidth } from './roadGeometry'
 import { overlapsVisibleFigure, type RectangleBounds } from './rectangles'
 
@@ -16,11 +17,15 @@ export class Crowd {
   private readonly anchorY: number
   private salvoCursor: number
   private halfFormationWidth: number = 0
+  private elapsedMs: number = 0
+  private lastAnchorX: number
+  private leanRadians: number = 0
   private wallPresenceProvider: ((y: number, halfSpanPx: number) => Readonly<{ left: boolean; right: boolean }>) | null = null
 
   public constructor(scene: Phaser.Scene, anchorX: number, anchorY: number) {
     this.scene = scene
     this.anchorX = anchorX
+    this.lastAnchorX = anchorX
     this.anchorY = anchorY
     this.salvoCursor = 0
     this.members = []
@@ -163,10 +168,29 @@ export class Crowd {
       const maxStep = (BALANCE.player.wallNudgeSpeedPxPerSec * dt) / 1000
       this.anchorX += Phaser.Math.Clamp(clamped - this.anchorX, -maxStep, maxStep)
     }
-    for (const member of this.members) {
+
+    // Lebendigkeit: Wippen im Laufrhythmus und Neigung beim Lenken. Beides rechnet
+    // gamefeel.ts, damit die Herleitung ohne Phaser pruefbar bleibt.
+    this.elapsedMs += dt
+    const anchorSpeed = dt > 0 ? ((this.anchorX - this.lastAnchorX) * 1000) / dt : 0
+    this.lastAnchorX = this.anchorX
+    this.leanRadians = approachAngle(
+      this.leanRadians,
+      getLeanRadians(anchorSpeed),
+      dt,
+      BALANCE.gamefeel.leanHalfLifeMs,
+    )
+    const cycleHz = getStepCycleHz(this.figureHeight)
+
+    for (let index = 0; index < this.members.length; index += 1) {
+      const member = this.members[index]
       if (!member.sprite.active) continue
-      member.sprite.setPosition(this.anchorX + member.offsetX, this.anchorY + member.offsetY)
+      const bob = getBobOffsetPx(this.elapsedMs, cycleHz, getPhaseOffset(index), BALANCE.gamefeel.bobAmplitudePx)
+      member.sprite.setPosition(this.anchorX + member.offsetX, this.anchorY + member.offsetY + bob)
+      member.sprite.setRotation(this.leanRadians)
     }
+    // Die Kollisionshuelle bleibt bewusst ruhig: Sie darf nicht mitwippen, sonst
+    // haengt Schaden am Zufall des Laufzyklus.
     this.hull.setPosition(this.anchorX, this.anchorY)
     ;(this.hull.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
   }
