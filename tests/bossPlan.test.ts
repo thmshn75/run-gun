@@ -1,13 +1,16 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
-import { getBurstOffsets } from '../src/systems/bossBurst'
+import { getLevelPlan } from '../src/systems/levelPlan'
 import {
-  canSpawnBossCompanion,
+  canSpawnBossHorde,
+  getBossHordeIntervalMs,
+  getBossHordeSize,
   getBossPhase,
   getBossPlan,
   getCombatFirepower,
   getMaxFightSec,
+  getNormalPhaseEnemiesPerSec,
   getPhaseOneProfile,
   getPhaseTwoProfile,
   getTeamFirepower,
@@ -29,68 +32,74 @@ const purchaseStates: ReadonlyArray<Readonly<{ name: string; upgrades: BossUpgra
 ]
 
 describe('boss plans', () => {
-  it('caps both boss salvo profiles by level before retaining their existing caps', () => {
-    expect(BALANCE.boss.phaseTwo.burstSpreadPxAtLevelOne).toBe(60)
-    expect(BALANCE.boss.phaseTwo.burstSpreadPxPerLevel).toBe(9)
-    expect(BALANCE.boss.phaseTwo.burstCountAtLevelOne).toBe(3)
-    expect(BALANCE.boss.phaseTwo.burstCountPerThreeLevels).toBe(1)
-    expect(getPhaseOneProfile(1)).toMatchObject({ burstCount: 1, burstSpreadPx: 60 })
-    expect(getPhaseTwoProfile(1)).toMatchObject({ burstCount: 1, burstSpreadPx: 60 })
-    expect(getPhaseOneProfile(2)).toMatchObject({ burstCount: 2, burstSpreadPx: 60 })
-    expect(getPhaseTwoProfile(2)).toMatchObject({ burstCount: 2, burstSpreadPx: 69 })
-    expect(getPhaseOneProfile(3)).toMatchObject({ burstCount: 3, burstSpreadPx: 60 })
-    expect(getPhaseTwoProfile(3)).toMatchObject({ burstCount: 3, burstSpreadPx: 78 })
-    expect(getPhaseTwoProfile(4)).toMatchObject({ burstCount: 4, burstSpreadPx: 87 })
-    expect(getPhaseTwoProfile(7)).toMatchObject({ burstCount: 5, burstSpreadPx: 114 })
-    expect(getPhaseTwoProfile(12)).toMatchObject({ burstCount: 5, burstSpreadPx: 150 })
-
-    let previous = getPhaseTwoProfile(1)
+  it('leitet den Hordendruck aus dem Gegnerdruck der Normalphase ab', () => {
+    // Der Boss ersetzt den abgeschalteten Normalspawner. Die Bezugsgroesse wird
+    // deshalb aus der Leveltabelle nachgerechnet - erwartete Gegner je Ereignis
+    // geteilt durch das Intervall am Ende der Rampe.
+    for (const level of [1, 6, 12]) {
+      const plan = getLevelPlan(level)
+      const totalWeight = plan.squads.reduce((sum, squad) => sum + squad.weight, 0)
+      const expectedSize = plan.squads.reduce((sum, squad) => sum + squad.weight * squad.size, 0) / totalWeight
+      const perEvent = (1 - plan.squadChance) + plan.squadChance * expectedSize
+      const rampedMs = Math.max(plan.spawnIntervalMinMs, plan.spawnIntervalMs - plan.normalPhaseSec * BALANCE.enemy.spawnRampPerSec)
+      expect(getNormalPhaseEnemiesPerSec(level)).toBeCloseTo(perEvent / (rampedMs / 1000), 5)
+    }
+    // Gerechnet, nicht geraten: Level 1 = 1,23 Gegner/s, Level 12 = 20,22 Gegner/s.
+    expect(getNormalPhaseEnemiesPerSec(1)).toBeCloseTo(1.23, 1)
+    expect(getNormalPhaseEnemiesPerSec(12)).toBeCloseTo(20.22, 1)
+    // Und der Druck steigt ueber die Level, sonst waere die Ableitung sinnlos.
     for (let level = 2; level <= 12; level += 1) {
-      const profile = getPhaseTwoProfile(level)
-      expect(profile.burstCount).toBeGreaterThanOrEqual(previous.burstCount)
-      expect(profile.burstSpreadPx).toBeGreaterThanOrEqual(previous.burstSpreadPx)
-      previous = profile
+      expect(getNormalPhaseEnemiesPerSec(level)).toBeGreaterThan(getNormalPhaseEnemiesPerSec(1))
     }
   })
 
-  it('uses the capped profiles in boss plans at every requested level', () => {
-    const expectedBurstCounts = [
-      { level: 1, phaseOne: 1, phaseTwo: 1 },
-      { level: 2, phaseOne: 2, phaseTwo: 2 },
-      { level: 3, phaseOne: 3, phaseTwo: 3 },
-      { level: 4, phaseOne: 3, phaseTwo: 4 },
-      { level: 7, phaseOne: 3, phaseTwo: 5 },
-      { level: 12, phaseOne: 3, phaseTwo: 5 },
-    ]
-
-    for (const expected of expectedBurstCounts) {
-      const plan = getBossPlan(expected.level, purchaseStates[0].upgrades, 12, 'normal', 1, 3)
-      expect(plan.phaseOne.burstCount).toBe(expected.phaseOne)
-      expect(plan.phaseTwo.burstCount).toBe(expected.phaseTwo)
+  it('trifft mit dem Ruf-Takt den gewuenschten Anteil am Normaldruck', () => {
+    for (const level of [1, 3, 6, 9, 12]) {
+      const size = getBossHordeSize(level)
+      for (const share of [BALANCE.boss.phaseOne.hordePressureShare, BALANCE.boss.phaseTwo.hordePressureShare]) {
+        const intervalMs = getBossHordeIntervalMs(level, share)
+        const actualFlow = size / (intervalMs / 1000)
+        const wantedFlow = getNormalPhaseEnemiesPerSec(level) * share
+        // Genau der Zielfluss - ausser wo die Untergrenze des Takts greift, dann darunter.
+        if (intervalMs > BALANCE.boss.hordePressure.minIntervalMs) expect(actualFlow).toBeCloseTo(wantedFlow, 5)
+        else expect(actualFlow).toBeLessThanOrEqual(wantedFlow)
+      }
+    }
+    // Phase 2 zieht an: kuerzerer Takt als Phase 1 auf jedem Level.
+    for (let level = 1; level <= 12; level += 1) {
+      expect(getPhaseTwoProfile(level).hordeIntervalMs).toBeLessThanOrEqual(getPhaseOneProfile(level).hordeIntervalMs)
+    }
+    // Der Ruf-Takt unterschreitet die Untergrenze nie.
+    for (let level = 1; level <= 12; level += 1) {
+      expect(getPhaseTwoProfile(level).hordeIntervalMs).toBeGreaterThanOrEqual(BALANCE.boss.hordePressure.minIntervalMs)
     }
   })
 
-  it('keeps a single boss projectile centered with finite coordinates', () => {
-    const offsets = getBurstOffsets(1, BALANCE.boss.phaseOne.burstSpreadPx)
-    const projectileXs = offsets.map((offset) => 320 + offset)
-    expect(offsets).toEqual([0])
-    expect(projectileXs).toEqual([320])
-    expect(projectileXs.every(Number.isFinite)).toBe(true)
+  it('ruft nur Horden, die der Gegner-Pool ohne Laufzeit-Erzeugung traegt', () => {
+    // Ganze Horde oder gar keine - eine halb gespawnte Horde waere keine Formation.
+    const max = BALANCE.boss.hordePressure.maxActiveCalled
+    expect(canSpawnBossHorde(max - 8, 8, max)).toBe(true)
+    expect(canSpawnBossHorde(max - 7, 8, max)).toBe(false)
+    expect(canSpawnBossHorde(max, 1, max)).toBe(false)
+    // Der Deckel muss in den Pool passen; im Bosskampf ist der Normalspawner aus.
+    expect(max).toBeLessThan(BALANCE.pools.enemies)
+    // Und er ist aus der Geometrie hergeleitet: zwei volle Horden, nicht mehr.
+    expect(max).toBe(2 * BALANCE.level.squads.maxSize)
+    // Und er muss die groesste Horde jedes Levels aufnehmen koennen.
+    for (let level = 1; level <= 12; level += 1) {
+      expect(getBossHordeSize(level)).toBeLessThanOrEqual(max)
+      expect(getBossHordeSize(level)).toBeGreaterThanOrEqual(BALANCE.level.squads.minSize)
+    }
   })
 
-  it('keeps a 20-pixel dodge-and-hit window through level three using the real player width', () => {
-    const playerPng = readFileSync(new URL('../src/assets/player.png', import.meta.url))
-    const playerWidth = playerPng.readUInt32BE(16)
-    const hullHalfWidth = playerWidth * BALANCE.crowd.hullWidthFigures / 2
-
-    for (let level = 1; level <= 3; level += 1) {
-      const profile = getPhaseTwoProfile(level)
-      const hitReach = BALANCE.boss.bodyWidth / 2 + hullHalfWidth
-      const dodgeReach = profile.burstSpreadPx / 2 + hullHalfWidth
-      expect(hitReach - dodgeReach).toBeGreaterThanOrEqual(20)
+  it('feuert nachweislich kein Projektil mehr', () => {
+    const bossSource = readFileSync(new URL('../src/systems/boss.ts', import.meta.url), 'utf8')
+    const gameSceneSource = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
+    for (const spur of ['projectile', 'Projectile', 'fireBurst', 'burstCount', 'bossBurst']) {
+      expect(bossSource, spur).not.toContain(spur)
     }
-
-    // The window intentionally closes from level 8 onward (spread >= 118): larger teams then use the tank strategy.
+    expect(gameSceneSource).not.toContain('bossProjectile')
+    expect(gameSceneSource).not.toContain('boss.getProjectiles')
   })
 
   it('keeps team firepower as the unchanged crowd-only measure', () => {
@@ -127,7 +136,7 @@ describe('boss plans', () => {
     expect(cases).toBe(8064)
   })
 
-  it('keeps Thomas’s level-one team-3 rocket run within its 18-second cap and below the old guessed HP', () => {
+  it('keeps Thomas’s level-one team-3 rocket run within its level-one cap and below the old guessed HP', () => {
     const upgrades = purchaseStates[0].upgrades
     const actual = getBossPlan(1, upgrades, 3, 'rocket', 1, 1)
     const oldGuessedDps = getCombatFirepower(3, 'rocket') * BALANCE.upgradesShop.damage.base * BALANCE.upgradesShop.rate.base
@@ -148,9 +157,13 @@ describe('boss plans', () => {
     const stopY = anchorY - BALANCE.boss.advanceStopBeforeAnchorPx
     const pressureContactSec = BALANCE.boss.pressureDelayMs / 1000 + (stopY - BALANCE.boss.battleY) / BALANCE.boss.advanceSpeed
     expect(reference.fightSecAtMaxTeam).toBe(20)
-    expect(reference.minFightSec).toBe(15)
-    expect(reference.maxFightSecAtLevelOne).toBe(18)
-    expect(reference.maxFightSecPerLevel).toBe(2)
+    // Zielfenster laut plan-v2 ("Boss V2"): 20-40 s auf jedem Level. Die alten Werte
+    // (15 / 18) lagen darunter - Level 1 konnte das Fenster konstruktiv nie erreichen.
+    expect(reference.minFightSec).toBe(20)
+    // Rechnerische Obergrenzen, auf die gemessene Mitte des Fensters gezielt - die
+    // Horden fangen Beschuss ab, real weicht es um Faktor 0,78 bis 1,55 ab.
+    expect(reference.maxFightSecAtLevelOne).toBe(26)
+    expect(reference.maxFightSecPerLevel).toBe(0.545)
     expect(reference.maxFightSecCap).toBe(40)
     expect(reference.teamDampening).toBe(0.41)
     expect(reference.weaponDampening).toBe(0.8)
@@ -160,10 +173,13 @@ describe('boss plans', () => {
     expect(BALANCE.boss.battleY).toBe(300)
     expect(BALANCE.boss.advanceStopBeforeAnchorPx).toBe(80)
     expect(pressureContactSec).toBeCloseTo(45.8, 1)
-    expect(getMaxFightSec(1)).toBe(18)
-    expect(getMaxFightSec(12)).toBe(40)
+    expect(getMaxFightSec(1)).toBe(26)
+    expect(getMaxFightSec(12)).toBeCloseTo(32, 1)
     for (let level = 1; level <= 12; level += 1) {
+      // Jedes Level liegt im Zielfenster 20-40 s und bleibt unter dem Zeitpunkt,
+      // an dem der vorrueckende Boss die Truppe erreicht.
       expect(getMaxFightSec(level)).toBeGreaterThanOrEqual(reference.minFightSec)
+      expect(getMaxFightSec(level)).toBeLessThanOrEqual(40)
       expect(getMaxFightSec(level)).toBeLessThan(pressureContactSec)
     }
   })
@@ -180,14 +196,13 @@ describe('boss plans', () => {
     expect(getBossPhase(plan.maxHp, true, plan)).toBe(2)
   })
 
-  it('makes phase two faster and visibly broader while respecting the companion cap', () => {
+  it('macht Phase zwei schneller und dichter', () => {
     const plan = getBossPlan(12, purchaseStates[0].upgrades, 12, 'normal', 1, 3)
     expect(plan.phaseTwo).toEqual(getPhaseTwoProfile(plan.level))
-    expect(plan.phaseOne).toEqual(BALANCE.boss.phaseOne)
-    expect(plan.phaseTwo.fireIntervalMs).toBeLessThan(plan.phaseOne.fireIntervalMs)
-    expect(plan.phaseTwo.burstCount).toBeGreaterThan(plan.phaseOne.burstCount)
+    expect(plan.phaseOne).toEqual(getPhaseOneProfile(plan.level))
+    expect(plan.phaseTwo.hordeIntervalMs).toBeLessThan(plan.phaseOne.hordeIntervalMs)
     expect(plan.phaseTwo.moveSpeed).toBeGreaterThan(plan.phaseOne.moveSpeed)
-    expect(canSpawnBossCompanion(plan.companionLimit - 1, plan.companionLimit)).toBe(true)
-    expect(canSpawnBossCompanion(plan.companionLimit, plan.companionLimit)).toBe(false)
+    expect(plan.hordeSize).toBe(getBossHordeSize(12))
+    expect(plan.maxActiveCalled).toBe(BALANCE.boss.hordePressure.maxActiveCalled)
   })
 })

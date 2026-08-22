@@ -7,6 +7,45 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**W5 Boss ohne Schuss fertig** (2026-08-22, Claude direkt, Thomas: "zuerst den Ton und
+den Boss ohne Schuss"). Umgesetzt nach `plan-v2.md`, Abschnitt "Boss V2".
+- **Der Boss feuert nicht mehr.** Salvensystem komplett entfernt: `bossBurst.ts`
+  geloescht, Projektil-Pool, Projektil-Textur, Farben, Boss-Projektil-Kollision,
+  eigenes Unverwundbarkeitsfenster und alle `burst*`-Balance-Werte raus. Ein Test
+  greppt `boss.ts` und `GameScene.ts` gegen jede Projektilspur - der Negativbefund
+  ist damit belegt, nicht behauptet.
+- **Druck aus gerufenen Horden statt Einzelbegleitern.** Der Boss ruft ganze
+  Formationen des Levels (`spawnSquad` mit Boss-Markierung). Der Ruf-Takt ist aus dem
+  Gegnerdruck der Normalphase hergeleitet: erwartete Gegner je Spawn-Ereignis geteilt
+  durch das Spawn-Intervall am Ende der Rampe (gerechnet: 1,23/s bei Level 1, 20,22/s
+  bei Level 12). Phase 1 haelt den halben Normaldruck, Phase 2 den vollen - denn
+  anders als in der Normalphase muss der Spieler zusaetzlich den Boss beschiessen.
+- **Deckel gleichzeitig gerufener Gegner: 16**, hergeleitet aus der Geometrie
+  (2 x groesste Hordengroesse). Der erste Entwurf hatte 64 aus dem Pool hergeleitet
+  und war unspielbar: bis zu 42 Gegner standen als geschlossene Wand vor dem Boss und
+  fingen praktisch allen Beschuss ab. Dieselbe Kombination brauchte dann je nach Zufall
+  29 s oder 109 s.
+- **Kampfdauer-Grenzen neu**, weil die alten (15 s / 18 s bei Level 1) UNTER dem
+  Zielfenster 20-40 s lagen - Level 1 konnte es konstruktiv nie erreichen. Jetzt
+  20 s Untergrenze, 26 s bei Level 1, +0,545 s je Level (32 s bei Level 12).
+
+**Messung (drei Wiederholungen je Fall, frische Szene je Lauf, Truppe weicht perfekt
+aus):** L1 schwach 17,1-23,2 s | L1 stark 29,2-49,1 s | L6 schwach 21,5-23,6 s |
+L6 stark 24,9-37,3 s | L12 schwach 18,2-24,8 s | L12 stark 28,1-49,4 s. Der Boss faellt
+in allen 18 Laeufen.
+**OFFENER BEFUND, bewusst nicht weggedreht:** Die Mediane liegen alle im Fenster
+(19,2-39 s), die Einzellaeufe streuen aber 17-49 s. Ursache ist nicht die HP-Formel,
+sondern der Schild: Wie lange der Kampf dauert, haengt davon ab, wie viele und welche
+Gegner gerade zwischen Truppe und Boss stehen - und deren Typen werden gezogen. Das
+Akzeptanzkriterium "alle sechs Messungen im Fenster" ist mit EINER Messung je Fall
+erfuellbar, mit drei nicht. Weiter an den Lebenspunkten zu drehen wuerde den Zufall
+nicht beseitigen, nur eine Messung schoenrechnen. Entscheidend ist Thomas' Urteil
+"fordernd, aber schaffbar" am iPhone.
+**Fuer W6 vorgemerkt:** `companionLimit` in der Leveltabelle ist seit dieser Etappe
+tot (12 Eintraege plus Typ), ebenso die Umbenennung `blockers.ts` -> `Walls`.
+Nachweise: 128 Tests gruen, `npm run check` sauber, Browser-Messungen wie oben.
+**Offen: Thomas' iPhone-Urteil.**
+
 **Ton fertig** (2026-08-22, Claude direkt, Thomas: "zuerst den Ton und den Boss ohne
 Schuss"). Vorher gab es im Projekt KEIN Audio - kein AudioContext, keine Datei.
 Gebaut: synthetischer Ton per Web Audio (keine Audiodateien, nichts nachzuladen,

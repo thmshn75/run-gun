@@ -7,17 +7,12 @@ export type BossPhase = 1 | 2
 
 type BossPhaseTwoConfig = typeof BALANCE.boss.phaseTwo
 
-export type BossPhaseOneProfile = Omit<typeof BALANCE.boss.phaseOne, 'burstCount'> & Readonly<{
-  burstCount: number
+export type BossPhaseOneProfile = typeof BALANCE.boss.phaseOne & Readonly<{
+  hordeIntervalMs: number
 }>
 
-export type BossPhaseTwoProfile = Omit<
-  BossPhaseTwoConfig,
-  'burstCount' | 'burstCountAtLevelOne' | 'burstCountPerThreeLevels'
-  | 'burstSpreadPx' | 'burstSpreadPxAtLevelOne' | 'burstSpreadPxPerLevel'
-> & Readonly<{
-  burstCount: number
-  burstSpreadPx: number
+export type BossPhaseTwoProfile = BossPhaseTwoConfig & Readonly<{
+  hordeIntervalMs: number
 }>
 
 export type BossUpgradeLevels = Readonly<{
@@ -34,8 +29,8 @@ export type BossPlan = {
   readonly referenceFightSec: number
   readonly phaseOne: BossPhaseOneProfile
   readonly phaseTwo: BossPhaseTwoProfile
-  readonly companionIntervalMs: number
-  readonly companionLimit: number
+  readonly hordeSize: number
+  readonly maxActiveCalled: number
   readonly pressureDelayMs: number
   readonly advanceSpeed: number
   readonly advanceStopBeforeAnchorPx: number
@@ -62,8 +57,47 @@ export function getCombatFirepower(teamSize: number, weapon: WeaponKey): number 
     * config.rateFactor * config.damageFactor * config.bulletsPerShot
 }
 
-export function getBossCompanionLimit(level: number): number {
-  return getLevelPlan(Math.max(1, Math.floor(level))).companionLimit
+/**
+ * Gegnerdruck der Normalphase kurz vor dem Boss, in Gegnern je Sekunde. Bezugsgroesse
+ * fuer den Hordendruck des Bosses: Beim Bossstart schaltet die GameScene den
+ * Normalspawner ab, der Boss ersetzt ihn also vollstaendig.
+ *
+ * Zwei Groessen aus der Leveltabelle: die erwartete Zahl Gegner je Spawn-Ereignis
+ * (Einzelner oder Horde, gewichtet nach squadChance und den Squad-Gewichten) und das
+ * Spawn-Intervall am ENDE der Rampe - denn dort steht das Level, wenn der Boss kommt.
+ */
+export function getNormalPhaseEnemiesPerSec(level: number): number {
+  const plan = getLevelPlan(Math.max(1, Math.floor(level)))
+  const totalWeight = plan.squads.reduce((sum, squad) => sum + squad.weight, 0)
+  const expectedSquadSize = totalWeight === 0
+    ? 1
+    : plan.squads.reduce((sum, squad) => sum + squad.weight * squad.size, 0) / totalWeight
+  const squadChance = plan.squads.length === 0 ? 0 : plan.squadChance
+  const enemiesPerEvent = (1 - squadChance) * 1 + squadChance * expectedSquadSize
+  // Die Rampe verkuerzt das Intervall um spawnRampPerSec je Sekunde, gedeckelt am
+  // Minimum. Am Ende der Normalphase steht es hier.
+  const rampedIntervalMs = Math.max(
+    plan.spawnIntervalMinMs,
+    plan.spawnIntervalMs - plan.normalPhaseSec * BALANCE.enemy.spawnRampPerSec,
+  )
+  return enemiesPerEvent / (rampedIntervalMs / 1000)
+}
+
+/** Der Boss ruft ganze Horden - so gross wie die groessten des Levels. */
+export function getBossHordeSize(level: number): number {
+  const plan = getLevelPlan(Math.max(1, Math.floor(level)))
+  const largest = plan.squads.reduce((size, squad) => Math.max(size, squad.size), 0)
+  return Math.max(BALANCE.level.squads.minSize, Math.min(BALANCE.level.squads.maxSize, largest))
+}
+
+/**
+ * Ruf-Takt, damit der Hordenfluss dem gewuenschten Anteil am Normaldruck entspricht:
+ * Hordengroesse / Intervall = Normaldruck x Anteil.
+ */
+export function getBossHordeIntervalMs(level: number, pressureShare: number): number {
+  const enemiesPerSec = getNormalPhaseEnemiesPerSec(level) * pressureShare
+  if (enemiesPerSec <= 0) return Number.POSITIVE_INFINITY
+  return Math.max(BALANCE.boss.hordePressure.minIntervalMs, 1000 * getBossHordeSize(level) / enemiesPerSec)
 }
 
 export function getMaxFightSec(level: number): number {
@@ -79,33 +113,16 @@ export function getMaxFightSec(level: number): number {
 }
 
 export function getPhaseOneProfile(level: number): BossPhaseOneProfile {
-  const safeLevel = Math.max(1, Math.floor(level))
   return {
     ...BALANCE.boss.phaseOne,
-    burstCount: Math.min(BALANCE.boss.phaseOne.burstCount, safeLevel),
+    hordeIntervalMs: getBossHordeIntervalMs(level, BALANCE.boss.phaseOne.hordePressureShare),
   }
 }
 
 export function getPhaseTwoProfile(level: number): BossPhaseTwoProfile {
-  const safeLevel = Math.max(1, Math.floor(level))
-  const {
-    burstCount,
-    burstCountAtLevelOne,
-    burstCountPerThreeLevels,
-    burstSpreadPx,
-    burstSpreadPxAtLevelOne,
-    burstSpreadPxPerLevel,
-    ...unchangedPhaseTwo
-  } = BALANCE.boss.phaseTwo
-
   return {
-    ...unchangedPhaseTwo,
-    burstCount: Math.min(
-      burstCount,
-      safeLevel,
-      burstCountAtLevelOne + Math.floor((safeLevel - 1) / 3) * burstCountPerThreeLevels,
-    ),
-    burstSpreadPx: Math.min(burstSpreadPx, burstSpreadPxAtLevelOne + burstSpreadPxPerLevel * (safeLevel - 1)),
+    ...BALANCE.boss.phaseTwo,
+    hordeIntervalMs: getBossHordeIntervalMs(level, BALANCE.boss.phaseTwo.hordePressureShare),
   }
 }
 
@@ -148,8 +165,8 @@ export function getBossPlan(
     referenceFightSec: maxHp / referenceDps,
     phaseOne: getPhaseOneProfile(safeLevel),
     phaseTwo: getPhaseTwoProfile(safeLevel),
-    companionIntervalMs: BALANCE.boss.companionIntervalMs,
-    companionLimit: getBossCompanionLimit(safeLevel),
+    hordeSize: getBossHordeSize(safeLevel),
+    maxActiveCalled: BALANCE.boss.hordePressure.maxActiveCalled,
     pressureDelayMs: BALANCE.boss.pressureDelayMs,
     advanceSpeed: BALANCE.boss.advanceSpeed,
     advanceStopBeforeAnchorPx: BALANCE.boss.advanceStopBeforeAnchorPx,
@@ -161,6 +178,7 @@ export function getBossPhase(currentHp: number, phaseTwoStarted: boolean, plan: 
   return phaseTwoStarted || currentHp < plan.phaseThresholdHp ? 2 : 1
 }
 
-export function canSpawnBossCompanion(activeCompanions: number, companionLimit: number): boolean {
-  return activeCompanions < companionLimit
+export function canSpawnBossHorde(activeCalled: number, hordeSize: number, maxActiveCalled: number): boolean {
+  // Ganze Horde oder gar keine: Eine halb gespawnte Horde waere keine Formation mehr.
+  return activeCalled + hordeSize <= maxActiveCalled
 }

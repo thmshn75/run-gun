@@ -124,7 +124,6 @@ export class GameScene extends Phaser.Scene {
   private bossUpgrades!: BossUpgradeLevels
   private elapsedMs!: number
   private enemyContactIframeUntilMs!: number
-  private bossProjectileIframeUntilMs!: number
   private blinkUntilMs!: number
   private nextBlinkAtMs!: number
   private lastPointerX!: number | null
@@ -152,7 +151,6 @@ export class GameScene extends Phaser.Scene {
   private projectileBlockerCollider: Phaser.Physics.Arcade.Collider | undefined
   private crowdBossCollider: Phaser.Physics.Arcade.Collider | undefined
   private crowdRewardCollider: Phaser.Physics.Arcade.Collider | undefined
-  private bossProjectileCollider: Phaser.Physics.Arcade.Collider | undefined
 
   public constructor() {
     super('GameScene')
@@ -167,7 +165,6 @@ export class GameScene extends Phaser.Scene {
     this.runStats.set('shotsPerSec', getUpgradeStartValue('rate', save.upgrades.rate))
     this.elapsedMs = 0
     this.enemyContactIframeUntilMs = 0
-    this.bossProjectileIframeUntilMs = 0
     this.blinkUntilMs = 0
     this.nextBlinkAtMs = 0
     this.lastPointerX = null
@@ -219,7 +216,7 @@ export class GameScene extends Phaser.Scene {
     this.boss = new Boss(
       this,
       () => this.spawner.allocateSpawnId(),
-      () => this.spawner.requestBossCompanion(),
+      (size) => this.spawner.requestBossHorde(size, BALANCE.boss.hordePressure.maxActiveCalled),
       () => this.crowd.getAnchorY(),
     )
     this.coins = new Coins(this, () => this.updateHud())
@@ -367,17 +364,12 @@ export class GameScene extends Phaser.Scene {
       if (this.crowdBossCollider === undefined) {
         this.crowdBossCollider = this.addCombatOverlap(this.crowd.getHullBounds(), this.boss.getEnemy())
       }
-      if (this.bossProjectileCollider === undefined) {
-        this.bossProjectileCollider = this.addCombatOverlap(this.crowd.getHullBounds(), this.boss.getProjectiles())
-      }
       return
     }
     this.projectileBossCollider?.destroy()
     this.crowdBossCollider?.destroy()
-    this.bossProjectileCollider?.destroy()
     this.projectileBossCollider = undefined
     this.crowdBossCollider = undefined
-    this.bossProjectileCollider = undefined
   }
 
   private syncBlockerColliders(): void {
@@ -517,14 +509,6 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    const bossProjectile = this.findObjectWithData(first, second, 'damage')
-    if (bossProjectile !== undefined) {
-      if (!this.crowd.overlapsFigure((bossProjectile as Phaser.Physics.Arcade.Image).getBounds())) return
-      if (this.elapsedMs < this.bossProjectileIframeUntilMs) return
-      this.handleBossProjectileHit(bossProjectile as Phaser.Physics.Arcade.Image)
-      return
-    }
-
     const hull = this.crowd.getHullBounds()
     if (first === hull || second === hull) {
       const target = first === hull ? second : first
@@ -586,21 +570,15 @@ export class GameScene extends Phaser.Scene {
     if (!enemy.active) return
     const contactDamage = enemy.getData('contactDamage') as number
     if (!this.boss.isEnemy(enemy)) this.spawner.recycle(enemy)
-    this.handlePlayerDamage(contactDamage, 'contact')
+    this.handlePlayerDamage(contactDamage)
   }
 
-  private handleBossProjectileHit(projectile: Phaser.Physics.Arcade.Image): void {
-    if (!projectile.active) return
-    this.boss.recycleProjectile(projectile)
-    this.handlePlayerDamage(projectile.getData('damage') as number, 'boss-projectile')
-  }
-
-  private handlePlayerDamage(damage: number, source: 'contact' | 'boss-projectile'): void {
+  private handlePlayerDamage(damage: number): void {
     this.runStats.set('hp', this.runStats.get('hp') - damage)
     this.syncCrowdSize()
-    const iframeMs = source === 'boss-projectile' ? BALANCE.player.bossProjectileIframesMs : BALANCE.player.iframesMs
-    if (source === 'boss-projectile') this.bossProjectileIframeUntilMs = this.elapsedMs + iframeMs
-    else this.enemyContactIframeUntilMs = this.elapsedMs + iframeMs
+    // Seit V2 gibt es nur noch eine Schadensquelle: Beruehrung. Der Boss schiesst nicht mehr.
+    const iframeMs = BALANCE.player.iframesMs
+    this.enemyContactIframeUntilMs = this.elapsedMs + iframeMs
     this.blinkUntilMs = Math.max(this.blinkUntilMs, this.elapsedMs + iframeMs)
     this.nextBlinkAtMs = this.elapsedMs
     // Treffer am eigenen Trupp muss man spueren, nicht nur am HUD ablesen.

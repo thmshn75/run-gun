@@ -1,6 +1,5 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { getBurstOffsets } from './bossBurst'
 import { getBossPhase, getBossPlan, type BossPlan, type BossUpgradeLevels } from './bossPlan'
 import { getRoadHalfWidth } from './road'
 import type { WeaponKey } from './weapons'
@@ -8,15 +7,12 @@ import type { WeaponKey } from './weapons'
 export class Boss {
   private readonly scene: Phaser.Scene
   private readonly enemy: Phaser.Physics.Arcade.Image
-  private readonly projectiles: Phaser.Physics.Arcade.Group
-  private readonly projectileList: Phaser.Physics.Arcade.Image[]
   private readonly nextSpawnId: () => number
-  private readonly requestBossCompanion: () => boolean
+  private readonly requestBossHorde: (size: number) => number
   private readonly getAnchorY: () => number
   private plan: BossPlan | undefined
   private fightElapsedMs: number
-  private fireAccumulatorMs: number
-  private companionAccumulatorMs: number
+  private hordeAccumulatorMs: number
   private moveDirection: number
   private approaching: boolean
   private phaseTwoStarted: boolean
@@ -25,44 +21,27 @@ export class Boss {
   public constructor(
     scene: Phaser.Scene,
     nextSpawnId: () => number,
-    requestBossCompanion: () => boolean,
+    requestBossHorde: (size: number) => number,
     getAnchorY: () => number,
   ) {
     this.scene = scene
     this.nextSpawnId = nextSpawnId
-    this.requestBossCompanion = requestBossCompanion
+    this.requestBossHorde = requestBossHorde
     this.getAnchorY = getAnchorY
     this.enemy = scene.physics.add.image(0, 0, 'enemy-boss').setDepth(BALANCE.layers.gameplay)
     this.enemy.setActive(false).setVisible(false)
     this.enemy.disableBody(true, true)
-    this.projectiles = scene.physics.add.group()
-    this.projectileList = []
     this.plan = undefined
     this.fightElapsedMs = 0
-    this.fireAccumulatorMs = 0
-    this.companionAccumulatorMs = 0
+    this.hordeAccumulatorMs = 0
     this.moveDirection = 1
     this.approaching = false
     this.phaseTwoStarted = false
     this.phaseFlashRemainingMs = 0
-
-    // Flight: (844 - 300)px / 260px/s = 2.1s. Three shots every 1.4s allow at most
-    // five bursts (15 projectiles); 24 leaves reserve without runtime allocation.
-    for (let index = 0; index < BALANCE.pools.bossProjectiles; index += 1) {
-      const projectile = scene.physics.add.image(0, 0, 'projectile-boss').setDepth(BALANCE.layers.gameplay)
-      projectile.setActive(false).setVisible(false)
-      projectile.disableBody(true, true)
-      this.projectiles.add(projectile)
-      this.projectileList.push(projectile)
-    }
   }
 
   public getEnemy(): Phaser.Physics.Arcade.Image {
     return this.enemy
-  }
-
-  public getProjectiles(): Phaser.Physics.Arcade.Group {
-    return this.projectiles
   }
 
   public isEnemy(enemy: Phaser.Physics.Arcade.Image): boolean {
@@ -73,8 +52,9 @@ export class Boss {
     const y = BALANCE.road.horizonY
     this.plan = getBossPlan(level, upgrades, teamSize, weapon, damage, rate)
     this.fightElapsedMs = 0
-    this.fireAccumulatorMs = 0
-    this.companionAccumulatorMs = 0
+    // Die erste Horde soll nicht sofort im Anmarsch stehen: Der Kampf beginnt mit dem
+    // Boss allein, der Zaehler startet bei null und laeuft erst ab dem Kampfbeginn.
+    this.hordeAccumulatorMs = 0
     this.moveDirection = 1
     this.approaching = true
     this.phaseTwoStarted = false
@@ -96,11 +76,9 @@ export class Boss {
   public deactivate(): void {
     this.enemy.disableBody(true, true)
     this.enemy.setActive(false).setVisible(false)
-    for (const projectile of this.projectileList) this.recycleProjectile(projectile)
   }
 
   public update(dt: number): void {
-    this.updateProjectiles(dt)
     if (!this.enemy.active) return
     const plan = this.plan
     if (plan === undefined) return
@@ -113,15 +91,12 @@ export class Boss {
       this.updatePhase(plan)
       const phase = this.phaseTwoStarted ? plan.phaseTwo : plan.phaseOne
       this.moveAcrossRoad(dt, phase.moveSpeed)
-      this.fireAccumulatorMs += dt
-      while (this.fireAccumulatorMs >= phase.fireIntervalMs) {
-        this.fireAccumulatorMs -= phase.fireIntervalMs
-        this.fireBurst(phase.burstCount, phase.burstSpreadPx)
-      }
-      this.companionAccumulatorMs += dt
-      while (this.companionAccumulatorMs >= plan.companionIntervalMs) {
-        this.companionAccumulatorMs -= plan.companionIntervalMs
-        this.requestBossCompanion()
+      // Der Boss schiesst seit V2 nicht mehr (Entscheidung Thomas 2026-08-22). Sein
+      // Druck kommt aus gerufenen Horden und dem Vorruecken bei Zeitueberschreitung.
+      this.hordeAccumulatorMs += dt
+      while (this.hordeAccumulatorMs >= phase.hordeIntervalMs) {
+        this.hordeAccumulatorMs -= phase.hordeIntervalMs
+        this.requestBossHorde(plan.hordeSize)
       }
       if (this.fightElapsedMs >= plan.pressureDelayMs) this.advanceTowardsCrowd(dt, plan)
     }
@@ -160,19 +135,6 @@ export class Boss {
     this.enemy.y = Math.min(this.enemy.y + (plan.advanceSpeed * dt) / 1000, stopY)
   }
 
-  private fireBurst(burstCount: number, burstSpreadPx: number): void {
-    for (const offsetX of getBurstOffsets(burstCount, burstSpreadPx)) {
-      const projectile = this.projectileList.find((candidate) => !candidate.active)
-      if (projectile === undefined) return
-      projectile.enableBody(true, this.enemy.x + offsetX, this.enemy.y + this.enemy.displayHeight / 2, true, true)
-      projectile.setActive(true).setVisible(true).setAlpha(1)
-      projectile.setData('damage', BALANCE.boss.projectileDamage)
-      const body = projectile.body as Phaser.Physics.Arcade.Body
-      body.moves = false
-      body.updateFromGameObject()
-    }
-  }
-
   private updateVisuals(dt: number, plan: BossPlan): void {
     this.phaseFlashRemainingMs = Math.max(0, this.phaseFlashRemainingMs - dt)
     const hitFlashRemainingMs = Math.max(0, (this.enemy.getData('flashRemainingMs') as number) - dt)
@@ -188,17 +150,4 @@ export class Boss {
     this.enemy.clearTint()
   }
 
-  private updateProjectiles(dt: number): void {
-    for (const projectile of this.projectileList) {
-      if (!projectile.active) continue
-      projectile.y += (BALANCE.boss.projectileSpeed * dt) / 1000
-      ;(projectile.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
-      if (projectile.y - projectile.displayHeight / 2 > this.scene.scale.height) this.recycleProjectile(projectile)
-    }
-  }
-
-  public recycleProjectile(projectile: Phaser.Physics.Arcade.Image): void {
-    projectile.disableBody(true, true)
-    projectile.setActive(false).setVisible(false)
-  }
 }

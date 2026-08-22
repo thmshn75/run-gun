@@ -46,9 +46,6 @@ export const BALANCE = {
   },
   player: {
     iframesMs: 1200,
-    // Boss projectiles need their own, shorter window: a salvo may now cost more
-    // than one figure, while enemy-contact protection remains deliberately intact.
-    bossProjectileIframesMs: 360,
     blinkIntervalMs: 100,
     dragClampMargin: 8,
     // Bewegungsrand als Vielfaches der halben Figurenbreite — bewusst NICHT an die
@@ -492,9 +489,28 @@ export const BALANCE = {
       // must remain below the boss's stopped-position pressure threshold: changes to pressure timing,
       // position, speed, or crowd anchor must keep that safety margin intact.
       fightSecAtMaxTeam: 20,
-      minFightSec: 15,
-      maxFightSecAtLevelOne: 18,
-      maxFightSecPerLevel: 2,
+      // Zielfenster fuer die Kampfdauer laut plan-v2 ("Boss V2"): 20-40 s, unabhaengig
+      // vom Run-Stand. Die alten Grenzen (15 / 18 s bei Level 1) lagen UNTER dem
+      // Fenster - Level 1 haette es konstruktiv nie erreichen koennen.
+      //
+      // ACHTUNG: Diese Werte sind die RECHNERISCHE Dauer (maxHp / referenceDps). Die
+      // im Spiel gemessene weicht davon ab, weil die gerufenen Horden zwischen Truppe
+      // und Boss stehen und Beschuss abfangen. Gemessen am 2026-08-22 (Truppe weicht
+      // perfekt aus, sonst waere die Feuerkraft die Stoergroesse), real/rechnerisch:
+      //   schwacher Run (Truppe 2):  0,78 (L1) | 0,79 (L6) | 1,17 (L12)
+      //   starker Run (Truppe 30):   1,53 (L1) | 1,55 (L6) | 1,46 (L12)
+      // Ein schwacher Run bei Level 1 sieht kaum Horden (7 gleichzeitig) und ist
+      // deshalb SCHNELLER fertig als gerechnet; ein schwacher Run bei Level 12 sieht
+      // 46 und braucht laenger. Der starke Run haelt konstant den Faktor 1,5.
+      //
+      // Die Grenzen zielen deshalb auf die gemessene Mitte des Fensters (~30 s), nicht
+      // auf seine Raender: 20 s Untergrenze x 1,5 = 30 s real fuer starke Runs,
+      // 26 s bei Level 1 x 0,78 = 20 s real und 32 s bei Level 12 x 1,17 = 37 s real
+      // fuer schwache. Der erste Entwurf (20 / 20 / +1,8) verfehlte das Fenster in
+      // zwei von sechs Messungen: L1 schwach 15,5 s, L12 schwach 46,6 s.
+      minFightSec: 20,
+      maxFightSecAtLevelOne: 26,
+      maxFightSecPerLevel: 0.545,
       maxFightSecCap: 40,
       // 0 ignores crowd strength; 1 scales boss HP fully with it. This value halves
       // the fight from the smallest crowd to crowd.max without erasing the reward.
@@ -511,27 +527,50 @@ export const BALANCE = {
     },
     approachSpeed: 90,
     battleY: 300,
+    // Der Boss SCHIESST SEIT V2 NICHT MEHR (Entscheidung Thomas 2026-08-22, plan-v2
+    // "Boss V2"). Sein Druck kommt aus gerufenen Horden und dem Vorruecken bei
+    // Zeitueberschreitung. Alle Salvenwerte sind deshalb entfallen.
     phaseOne: {
-      fireIntervalMs: 1400,
-      burstCount: 3,
-      burstSpreadPx: 60,
+      hordePressureShare: 0.5,
       moveSpeed: 110,
     },
     phaseTwo: {
-      fireIntervalMs: 820,
-      burstCount: 5,
-      burstCountAtLevelOne: 3,
-      burstCountPerThreeLevels: 1,
-      burstSpreadPx: 150,
-      burstSpreadPxAtLevelOne: 60,
-      burstSpreadPxPerLevel: 9,
+      hordePressureShare: 1,
       moveSpeed: 170,
       tint: 0xff6a6a,
       transitionFlashMs: 180,
     },
-    projectileSpeed: 260,
-    projectileDamage: 1,
-    companionIntervalMs: 5200,
+    hordePressure: {
+      // Bezugsgroesse: Beim Bossstart schaltet die GameScene den Normalspawner ab
+      // (setSpawningEnabled(false)) - der gesamte Gegnerdruck kommt jetzt vom Boss.
+      // Die faire Bezugsgroesse ist deshalb der Druck unmittelbar VOR dem Boss:
+      // erwartete Gegner je Spawn-Ereignis geteilt durch das Spawn-Intervall am Ende
+      // der Rampe. Beides steht in der Leveltabelle, gerechnet in bossPlan.ts
+      // (getNormalPhaseEnemiesPerSec) - keine geratene Zahl.
+      // Gerechnet: Level 1 = 1,23 Gegner/s, Level 12 = 13,55 Gegner/s.
+      //
+      // phaseOneShare 0,5 / phaseTwoShare 1,0 (oben in den Phasen): In Phase 1 haelt
+      // der Boss den halben Normaldruck, in Phase 2 den vollen. Begruendung: Anders
+      // als in der Normalphase muss der Spieler seine Feuerkraft zusaetzlich auf den
+      // Boss legen. Voller Normaldruck von Beginn an waere der V1-Befund "zu schwer"
+      // in neuer Form - genau das Gegenkriterium dieser Etappe.
+      //
+      // Deckel gleichzeitig aktiver gerufener Gegner. NICHT aus dem Pool hergeleitet,
+      // sondern aus der Geometrie - der erste Entwurf hatte 64 (Poolschutz: 104 Objekte,
+      // Normalspawner aus) und war unspielbar: Gemessen standen dann bis zu 42 Gegner
+      // gleichzeitig vor dem Boss und fingen praktisch allen Beschuss ab. Dieselbe
+      // Kombination brauchte je nach Zufall 29 s oder 109 s - die Kampfdauer haengt
+      // dann am Schild, nicht mehr an den Lebenspunkten.
+      // Herleitung: Der Boss ist 118 px breit, die Strasse unten rund 300 px. Eine
+      // Horde von 8 fuellt die Mittelbahn einmal. Zwei Horden gleichzeitig sind eine
+      // Welle, die man umlaufen und durchschiessen kann; ab der dritten ist es eine
+      // geschlossene Wand. 2 x level.squads.maxSize = 16.
+      maxActiveCalled: 16,
+      // Untergrenze fuer den Ruf-Takt: Unter einer halben Sekunde erscheint eine
+      // Horde, bevor die vorige die Bildmitte erreicht hat - das liest sich als
+      // Wand aus Gegnern statt als Welle.
+      minIntervalMs: 500,
+    },
     pressureDelayMs: 36000,
     advanceSpeed: 34,
     // The boss centre stops before the crowd anchor; its lower collision edge can
@@ -635,7 +674,5 @@ export const BALANCE = {
     // 16.667ms-step, 390x844 city simulation then reaches 24 concurrent objects at the
     // 400ms cadence (18 with cross streets); 30 keeps the peak plus six-object reserve.
     scenery: 30,
-    // Phase two: ceil(2.1s flight / 0.82s interval) x 5 = 15; 24 leaves reserve.
-    bossProjectiles: 24,
   },
 } as const

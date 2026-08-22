@@ -146,12 +146,6 @@ export class BootScene extends Phaser.Scene {
     graphics.fillStyle(0xffffff)
     graphics.fillCircle(12, 12, 5)
     graphics.generateTexture('chain-flash', 24, 24)
-    graphics.clear()
-    graphics.fillStyle(WORLD_COLORS.bossProjectileShell)
-    graphics.fillRect(0, 0, 8, 16)
-    graphics.fillStyle(WORLD_COLORS.bossProjectileCore)
-    graphics.fillRect(2, 1, 4, 10)
-    graphics.generateTexture('projectile-boss', 8, 16)
     graphics.destroy()
   }
 

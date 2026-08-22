@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { canSpawnBossCompanion, getBossCompanionLimit } from './bossPlan'
+import { canSpawnBossHorde } from './bossPlan'
 import { chooseEnemyType, type EnemyType } from './enemyTypes'
 import { getEnemySpawnCenterY, getSquadSpawnBaseY, isRevealedAtHorizon } from './horizonReveal'
 import { getLevelPlan, type LevelPlan } from './levelPlan'
@@ -85,11 +85,38 @@ export class Spawner {
   }
 
   // Boss summons deliberately reuse this pool while the regular clock stays disabled.
-  public requestBossCompanion(): boolean {
-    const activeCompanions = this.enemies.getChildren().filter((child) => child.active && child.getData('bossCompanion') === true).length
-    if (!canSpawnBossCompanion(activeCompanions, getBossCompanionLimit(this.levelPlan.level))) return false
-    const type = chooseEnemyType(this.levelPlan.enemyWeights, () => Phaser.Math.RND.frac())
-    return this.spawnSingle(type, true) === 'spawned'
+  /**
+   * Der Boss ruft eine ganze Horde. Rueckgabe ist die Zahl tatsaechlich gespawnter
+   * Gegner - 0, wenn der Deckel erreicht ist oder kein Platz auf der Strasse war.
+   */
+  public requestBossHorde(size: number, maxActiveCalled: number): number {
+    const activeCalled = this.countBossCompanions()
+    if (!canSpawnBossHorde(activeCalled, size, maxActiveCalled)) return 0
+    const before = activeCalled
+    const kind = this.chooseBossHordeKind()
+    if (this.spawnSquad(kind, size, true) !== 'spawned') return 0
+    return this.countBossCompanions() - before
+  }
+
+  private countBossCompanions(): number {
+    let count = 0
+    for (const child of this.enemies.getChildren()) {
+      if (child.active && child.getData('bossCompanion') === true) count += 1
+    }
+    return count
+  }
+
+  /** Formen wie in der Normalphase des Levels, gewichtet - der Boss ruft nichts Fremdes. */
+  private chooseBossHordeKind(): 'wedge' | 'row' | 'cluster' {
+    const squads = this.levelPlan.squads
+    if (squads.length === 0) return 'wedge'
+    const totalWeight = squads.reduce((sum, squad) => sum + squad.weight, 0)
+    let roll = Phaser.Math.RND.frac() * totalWeight
+    for (const squad of squads) {
+      roll -= squad.weight
+      if (roll < 0) return squad.kind
+    }
+    return squads[squads.length - 1].kind
   }
 
   public chooseBlockerWeapon(currentWeapon: WeaponKey): WeaponKey {
@@ -214,7 +241,7 @@ export class Spawner {
     return 'spawned'
   }
 
-  private spawnSquad(squadKind: 'wedge' | 'row' | 'cluster', requestedSize: number): SpawnResult {
+  private spawnSquad(squadKind: 'wedge' | 'row' | 'cluster', requestedSize: number, bossCompanion = false): SpawnResult {
     const topRoadHalfWidth = getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, BALANCE.road.horizonY)
     const bottomHalfWidth = getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, this.scene.scale.height)
     // Der Horden-Deckel gilt unten, wo die Truppe ausweicht; Offsets sind in
@@ -261,11 +288,15 @@ export class Spawner {
     offsets.forEach((offset, index) => {
       const memberY = y + offset.yOffset
       const memberLane = lane + offset.laneOffset / getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, memberY)
-      this.activateEnemy(available[index], types[index], memberLane, memberY, false)
+      this.activateEnemy(available[index], types[index], memberLane, memberY, bossCompanion)
     })
-    this.intervalSpawnCount += offsets.length
-    const pauseMs = BALANCE.level.squads.pauseBaseMs + offsets.length * BALANCE.level.squads.pausePerMemberMs
-    this.spawnAccumulatorMs = Math.min(this.spawnAccumulatorMs, this.getSpawnIntervalMs() - pauseMs)
+    if (!bossCompanion) {
+      // Die Nachlaufpause gehoert zum Takt der Normalphase. Beim Boss ist der
+      // Normalspawner ohnehin aus, und sein eigener Ruf-Takt haengt am Boss.
+      this.intervalSpawnCount += offsets.length
+      const pauseMs = BALANCE.level.squads.pauseBaseMs + offsets.length * BALANCE.level.squads.pausePerMemberMs
+      this.spawnAccumulatorMs = Math.min(this.spawnAccumulatorMs, this.getSpawnIntervalMs() - pauseMs)
+    }
     return 'spawned'
   }
 

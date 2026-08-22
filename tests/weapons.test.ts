@@ -115,7 +115,6 @@ describe('additional weapons', () => {
 
     expect(gameSceneSource).toContain("if (this.levelPhase === 'boss')")
     expect(gameSceneSource).toContain('this.projectileBossCollider?.destroy()')
-    expect(gameSceneSource).toContain('this.bossProjectileCollider?.destroy()')
     expect(gameSceneSource).toContain('if (this.blockers.hasActivePair())')
     expect(gameSceneSource).toContain('this.projectileBlockerCollider?.destroy()')
     expect(gameSceneSource).toContain('this.crowdRewardCollider?.destroy()')
