@@ -75,25 +75,28 @@ export const BALANCE = {
     // Die Dichteregel in computeHordeOffsets erzwingt den Deckel (unten gemessen).
     minCorridorPx: 240,
     hordeMaxWidthPx: 200,
-    segmentHeightPx: 46,
-    // Waende sind halbtransparent, damit die dahinter sichtbare Belohnung (Waffe oder
-    // Muenze) durchscheint (Thomas-Feedback 2026-08-22) — Vorgriff auf das W4-Prinzip
-    // "Wert vor der Entscheidung sichtbar". Der Inhalt sitzt in der Wandmitte, die
+    // Seit W4 sind die Waende DAUERWAENDE (Genre-Verifikation 2026-08-22): eine
+    // lueckenlose Kette von Segmenten je Seite, jedes einzeln zerschiessbar.
+    segmentHeightPx: 120,
+    // Waende sind halbtransparent, damit die dahinter sichtbare Belohnung (Waffe,
+    // Verstaerkung oder Muenze) durchscheint. Der Inhalt sitzt in der Wandmitte, die
     // HP-Zahl darunter, damit beide gleichzeitig lesbar sind.
     fillAlpha: 0.4,
-    labelOffsetPx: 20,
-    // Ein Segment je Takt, Seiten abwechselnd — der Korridor ist nie beidseitig auf
-    // gleicher Hoehe zu, und es gibt regelmaessig ein Seitenziel neben den Gegnern.
-    spawnIntervalMs: 2600,
+    labelOffsetPx: 42,
     // HP = Sperren-Herleitung (Feuerkraft x referenceDestroySec) x Faktor: ein
-    // Wandsegment ist ein Seitenziel fuer ~0,7 s Fokus, keine Quersperre.
+    // Segment faellt nach ~0,7 s Fokus — die GANZE Dauerwand freizuschiessen ist
+    // bewusst unmoeglich, gezielt Goodie-Segmente freischiessen ist der Kern.
     hpFactor: 0.35,
-    // Belohnung beim Wegschiessen: Muenzen wie ein schwerer Gegner (coinValue 3).
+    // Belohnung beim Wegschiessen eines Muenz-Segments (coinValue wie schwerer Gegner).
     coinReward: 3,
     contactDamage: 2,
-    // In Leveln mit Sperren-Budget (levelPlan.reserved.blockers) traegt jedes N-te
-    // Segment eine Waffe — die Waffenquelle der V1-Sperren bleibt damit erhalten.
-    weaponEvery: 3,
+    // Goodies unregelmaessig in der Dauerwand: links Verstaerkungen, rechts Waffen.
+    // 1,5 Segmente/s je Seite (180 px/s / 120 px) -> Verstaerkung ~alle 5,6 s,
+    // Waffe ~alle 8,3 s im Erwartungswert; maxDry garantiert ein Goodie nach spaetestens
+    // 16 Nieten (~10,7 s), damit der Truppen-Nachschub nie lange abreisst.
+    reinforcementChance: 0.12,
+    weaponChance: 0.08,
+    goodieMaxDry: 16,
   },
   scenery: {
     marginPx: 4,
@@ -472,10 +475,10 @@ export const BALANCE = {
     coins: 48,
     // Roughly 1.4s visible versus 9s spawn interval means at most one; two cover a delayed recycle.
     gateGroups: 2,
-    // Wall segments (W2): travel is (844 - 150) / 180 = 3.9s at a 2.6s cadence, so
-    // ceil(3.9 / 2.6) = 2 concurrent; a weapon reward keeps its pair alive for up to
-    // another 3.9s (+2). Six covers the peak plus reserve without allocations.
-    blockers: 6,
+    // Dauerwand (W4): ceil((844 - 150) / 120) = 6 sichtbare Segmente je Seite plus das
+    // gerade anschliessende = 7, beidseitig 14; ein freigeschossener Waffen-Reward
+    // haelt sein Paar bis zu 3,9 s laenger aktiv (+2). 20 deckt die Spitze mit Reserve.
+    blockers: 20,
     // Densest case is an uninterrupted block (no cross streets): the fixed 120s,
     // 16.667ms-step, 390x844 city simulation then reaches 24 concurrent objects at the
     // 400ms cadence (18 with cross streets); 30 keeps the peak plus six-object reserve.

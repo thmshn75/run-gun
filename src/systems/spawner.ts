@@ -91,12 +91,6 @@ export class Spawner {
     return this.spawnSingle(type, true) === 'spawned'
   }
 
-  // E9 uses the existing enemy scheduler so a blocker is never introduced into a quiet passage.
-  public requestBlockerEnemy(): boolean {
-    if (!this.spawningEnabled) return false
-    return this.spawn(this.chooseSpawnRequest()) === 'spawned'
-  }
-
   public chooseBlockerWeapon(currentWeapon: WeaponKey): WeaponKey {
     const choices = getWeaponRewardChoices(currentWeapon, this.levelPlan.level)
     return choices[Math.min(choices.length - 1, Math.floor(Phaser.Math.RND.frac() * choices.length))]

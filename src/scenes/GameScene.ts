@@ -184,7 +184,6 @@ export class GameScene extends Phaser.Scene {
     this.spawner = new Spawner(this, this.runStats)
     this.blockers = new Blockers(
       this,
-      () => this.spawner.requestBlockerEnemy(),
       (currentWeapon) => this.spawner.chooseBlockerWeapon(currentWeapon),
       () => this.weapons.getWeapon(),
       () => this.runStats.get('hp'),
@@ -192,6 +191,10 @@ export class GameScene extends Phaser.Scene {
       () => this.runStats.get('shotsPerSec'),
       () => Phaser.Math.RND.frac(),
       (x, y) => this.dropCoins(x, y, BALANCE.walls.coinReward),
+      (apply) => {
+        this.runStats.set('hp', apply(this.runStats.get('hp')))
+        this.updateHud()
+      },
     )
     this.boss = new Boss(
       this,

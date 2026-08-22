@@ -20,12 +20,19 @@ function peakProjectileLoad(weapon: WeaponKey): number {
 }
 
 describe('additional weapons', () => {
-  it('keeps the wall weapon cadence in a playable range in blocker-budget levels', () => {
-    // Seit W2 kommen Waffen aus den Wandsegmenten: jedes weaponEvery-te Segment im
-    // walls-Takt. Die effektive Kadenz muss zwischen "regelmaessig" und "selten" liegen.
-    const weaponCadenceMs = BALANCE.walls.spawnIntervalMs * BALANCE.walls.weaponEvery
+  it('keeps the wall goodie cadences in a playable range', () => {
+    // Dauerwand (W4): 180 px/s / segmentHeight Segmente pro Sekunde je Seite; Goodies
+    // kommen im Erwartungswert alle 1/(rate x chance) Sekunden, die maxDry-Garantie
+    // deckelt die laengste Durststrecke.
+    const segmentsPerSec = BALANCE.scrollSpeed / BALANCE.walls.segmentHeightPx
+    const weaponCadenceMs = 1000 / (segmentsPerSec * BALANCE.walls.weaponChance)
+    const reinforcementCadenceMs = 1000 / (segmentsPerSec * BALANCE.walls.reinforcementChance)
+    const guaranteeMs = (BALANCE.walls.goodieMaxDry / segmentsPerSec) * 1000
     expect(weaponCadenceMs).toBeGreaterThanOrEqual(5000)
     expect(weaponCadenceMs).toBeLessThanOrEqual(15000)
+    expect(reinforcementCadenceMs).toBeGreaterThanOrEqual(3000)
+    expect(reinforcementCadenceMs).toBeLessThanOrEqual(10000)
+    expect(guaranteeMs).toBeLessThanOrEqual(15000)
   })
 
   it('keeps every weapon pool above its balance-derived peak projectile load', () => {

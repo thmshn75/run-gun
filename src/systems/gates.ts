@@ -376,7 +376,9 @@ export class Gates {
   }
 
   private refillBag(): void {
-    const stats: StatKey[] = ['hp', 'damage', 'shotsPerSec', 'speed']
+    // Seit W4 rechnen die Mittel-Tore nur noch DMG/RATE/SPD — die Truppen-Verstaerkung
+    // (hp) kommt aus der linken Dauerwand (Thomas-Entscheidung 2026-08-22).
+    const stats: StatKey[] = ['damage', 'shotsPerSec', 'speed']
     for (let index = stats.length - 1; index > 0; index -= 1) {
       const swapIndex = Math.floor(this.rng() * (index + 1))
       ;[stats[index], stats[swapIndex]] = [stats[swapIndex], stats[index]]

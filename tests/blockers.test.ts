@@ -4,7 +4,6 @@ import { BALANCE } from '../src/config/balance'
 import { getBlockerPlan } from '../src/systems/blockerPlan'
 import { getCombatFirepower } from '../src/systems/bossPlan'
 import { getGateLanes } from '../src/systems/gateLanes'
-import { getLevelPlan } from '../src/systems/levelPlan'
 import { getPlayfieldHalfWidth, getRoadHalfWidth, getWallGeometry } from '../src/systems/roadGeometry'
 import { chooseSpawnLane } from '../src/systems/spawnLanes'
 import type { WeaponKey } from '../src/systems/weapons'
@@ -78,14 +77,16 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     expect(Math.round(weakest.maxHp * BALANCE.walls.hpFactor)).toBeGreaterThanOrEqual(1)
   })
 
-  it('only attaches weapons to wall segments in levels that reserve the blocker budget', () => {
+  it('assigns reinforcements to the left wall and weapons to the right, at playable chances', () => {
     const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
-    expect(source).toContain('this.levelPlan.reserved.blockers && (this.weaponCounter += 1) % BALANCE.walls.weaponEvery === 0')
-    // Stand W2: Die Leveltabelle reserviert das Budget in jedem Level (wie in V1, wo
-    // nur die Kadenz variierte) — die Bedingung wirkt erst, falls W4 Level ohne
-    // Waffen-Segmente einfuehrt. Der Check dokumentiert das, statt es zu verstecken.
-    const reservedFlags = Array.from({ length: BALANCE.level.plans.length }, (_v, i) => getLevelPlan(i + 1).reserved.blockers)
-    expect(reservedFlags).toContain(true)
+    expect(source).toContain("side === 'left' ? 'reinforce' : 'weapon'")
+    expect(source).toContain("side === 'left' ? BALANCE.walls.reinforcementChance : BALANCE.walls.weaponChance")
+    // Chancen bleiben in einem Rahmen, der Goodies selten genug fuer "unregelmaessig"
+    // und haeufig genug fuer den Truppen-Nachschub macht (Kadenz-Test in weapons.test).
+    expect(BALANCE.walls.reinforcementChance).toBeGreaterThan(0.05)
+    expect(BALANCE.walls.reinforcementChance).toBeLessThan(0.3)
+    expect(BALANCE.walls.weaponChance).toBeGreaterThan(0.03)
+    expect(BALANCE.walls.weaponChance).toBeLessThan(0.2)
   })
 
   it('shows the reward behind a translucent rounded wall from spawn on, collectable only after the break', () => {
@@ -102,10 +103,24 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     expect(source).toContain("physics.add.image(0, 0, 'wall-segment')")
     expect(source).not.toContain('setFillStyle')
     // Inhalt (Waffe oder Muenze) ist ab Spawn sichtbar, aber ohne Body …
-    expect(source).toContain("setTexture(hasWeapon ? `weapon-${pair.weapon}-gate` : 'coin')")
+    expect(source).toContain("setTexture(content === 'weapon' ? `weapon-${pair.weapon}-gate` : 'coin')")
     expect(source).toContain('.setActive(false).setVisible(true)')
     // … und wird erst nach dem Zerschiessen einsammelbar.
     expect(source).toContain('pair.reward.enableBody(true')
+  })
+
+  it('runs both walls as gapless chains sized by the derived pool', () => {
+    const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
+    // Kette statt Takt: Nach jeweils einer Segmenthoehe Scroll schliesst beidseitig das
+    // naechste Segment am Horizont an — unabhaengig vom Zustand aelterer Segmente.
+    expect(source).toContain('this.chainAccumulatorPx += movement')
+    expect(source).toContain('while (this.chainAccumulatorPx >= BALANCE.walls.segmentHeightPx)')
+    expect(source).toContain("this.spawn('left')")
+    expect(source).toContain("this.spawn('right')")
+    // Pool-Herleitung: sichtbare Segmente je Seite plus das anschliessende, beidseitig,
+    // plus Waffen-Reward-Nachlauf und Reserve.
+    const visiblePerSide = Math.ceil((844 - BALANCE.road.horizonY) / BALANCE.walls.segmentHeightPx)
+    expect(BALANCE.pools.blockers).toBeGreaterThanOrEqual((visiblePerSide + 1) * 2 + 2)
   })
 
   it('preallocates every wall pair once and never creates or destroys in the hot path', () => {

@@ -71,3 +71,11 @@ describe('gate lanes', () => {
     expect(gatesSource).toContain('for (let index = 0; index < BALANCE.pools.gateGroups; index += 1)')
   })
 })
+
+describe('gate stats since W4', () => {
+  it('only offers damage, rate and speed in the middle gates - team comes from the left wall', () => {
+    const source = readFileSync(new URL('../src/systems/gates.ts', import.meta.url), 'utf8')
+    expect(source).toContain("const stats: StatKey[] = ['damage', 'shotsPerSec', 'speed']")
+    expect(source).not.toContain("['hp', 'damage', 'shotsPerSec', 'speed']")
+  })
+})

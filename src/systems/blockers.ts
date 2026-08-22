@@ -1,52 +1,54 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { HUD_COLORS } from '../config/colors'
+import { HUD_COLORS, STAT_COLORS } from '../config/colors'
 import { getBlockerPlan } from './blockerPlan'
-import { getLevelPlan, type LevelPlan } from './levelPlan'
+import { decideGoodie, getReinforcementOffer, type ReinforcementOffer } from './reinforcementPlan'
 import { getWallGeometry } from './road'
 import type { WeaponKey } from './weapons'
 
-// Seit W2 (V2) traegt diese Klasse die WANDSEGMENTE links/rechts am Strassenrand —
-// sie ersetzt die V1-Quersperren und behaelt deren bewaehrte Bausteine (Pool,
-// Feuerkraft-HP aus getBlockerPlan, Kollisionspfade, Waffen-Reward). Umbenennung
-// auf "Walls" folgt im W6-Aufraeumen.
+// Seit W2 traegt diese Klasse die Wandsegmente, seit W4 als DAUERWAND (Genre-Muster,
+// Thomas-Verifikation 2026-08-22): links und rechts laeuft je eine lueckenlose Kette
+// zerschiessbarer Segmente mit. Unregelmaessig stecken Goodies darin — links
+// Verstaerkungen (Sofortwirkung beim Freischiessen), rechts Waffen (einsammeln),
+// der Rest sind Muenz-Segmente. Umbenennung auf "Walls" folgt im W6-Aufraeumen.
 
 type WallSide = 'left' | 'right'
+type WallContent = 'coin' | 'weapon' | 'reinforce'
 
 interface BlockerPair {
   blocker: Phaser.Physics.Arcade.Image
   label: Phaser.GameObjects.Text
+  goodieText: Phaser.GameObjects.Text
   reward: Phaser.Physics.Arcade.Image
   active: boolean
   broken: boolean
-  hasWeapon: boolean
+  content: WallContent
   side: WallSide
   weapon: WeaponKey
+  reinforcement: ReinforcementOffer | null
 }
 
 export class Blockers {
   private readonly scene: Phaser.Scene
-  private readonly requestEnemy: () => boolean
   private readonly chooseWeapon: (currentWeapon: WeaponKey) => WeaponKey
   private readonly getCurrentWeapon: () => WeaponKey
   private readonly getTeamSize: () => number
   private readonly getDamage: () => number
   private readonly getShotsPerSec: () => number
+  private readonly rng: () => number
   private readonly onBroken: (x: number, y: number) => void
+  private readonly applyReinforcement: (apply: (current: number) => number) => void
   private readonly pairs: BlockerPair[]
   private readonly blockerGroup: Phaser.Physics.Arcade.Group
   private readonly rewardGroup: Phaser.Physics.Arcade.Group
-  private levelPlan: LevelPlan
-  private spawnAccumulatorMs: number
+  private readonly drySpawns: Record<WallSide, number> = { left: 0, right: 0 }
+  private chainAccumulatorPx: number
   private elapsedMs: number
   private lastPoolWarningAtMs: number
   private nextSpawnId: number
-  private nextSide: WallSide
-  private weaponCounter: number
 
   public constructor(
     scene: Phaser.Scene,
-    requestEnemy: () => boolean,
     chooseWeapon: (currentWeapon: WeaponKey) => WeaponKey,
     getCurrentWeapon: () => WeaponKey,
     getTeamSize: () => number,
@@ -54,22 +56,22 @@ export class Blockers {
     getShotsPerSec: () => number,
     rng: () => number,
     onBroken: (x: number, y: number) => void,
+    applyReinforcement: (apply: (current: number) => number) => void,
   ) {
     this.scene = scene
-    this.requestEnemy = requestEnemy
     this.chooseWeapon = chooseWeapon
     this.getCurrentWeapon = getCurrentWeapon
     this.getTeamSize = getTeamSize
     this.getDamage = getDamage
     this.getShotsPerSec = getShotsPerSec
+    this.rng = rng
     this.onBroken = onBroken
-    this.nextSide = rng() < 0.5 ? 'left' : 'right'
-    this.weaponCounter = 0
+    this.applyReinforcement = applyReinforcement
     this.pairs = []
     this.blockerGroup = scene.physics.add.group()
     this.rewardGroup = scene.physics.add.group()
-    this.levelPlan = getLevelPlan(1)
-    this.spawnAccumulatorMs = 0
+    // Kette startet sofort: der erste update() spawnt das erste Segmentpaar.
+    this.chainAccumulatorPx = BALANCE.walls.segmentHeightPx
     this.elapsedMs = 0
     this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
     this.nextSpawnId = -1
@@ -82,10 +84,9 @@ export class Blockers {
 
   public hasActivePair(): boolean { return this.pairs.some((pair) => pair.active) }
 
-  public resetForLevel(level: number): void {
+  public resetForLevel(_level: number): void {
     this.deactivateAll()
-    this.levelPlan = getLevelPlan(level)
-    this.spawnAccumulatorMs = 0
+    this.chainAccumulatorPx = BALANCE.walls.segmentHeightPx
   }
 
   public deactivateAll(): void {
@@ -108,8 +109,14 @@ export class Blockers {
     pair.label.setText(remainingHp <= 0 ? '' : `${Math.max(0, Math.ceil(remainingHp))}`)
     if (remainingHp > 0) return false
 
-    if (!pair.hasWeapon) {
-      // Muenz-Segment: Der sichtbare Inhalt wird zu echten Muenzen, das Paar ist frei.
+    if (pair.content === 'reinforce') {
+      // Sofortwirkung auf den JETZT aktuellen Stand — der angezeigte Operator bleibt
+      // dadurch immer wahr (W4-Haertungsbefund gegen eingefrorene Werte).
+      this.applyReinforcement(pair.reinforcement!.apply)
+      this.recycle(pair)
+      return true
+    }
+    if (pair.content === 'coin') {
       this.onBroken(blocker.x, blocker.y)
       this.recycle(pair)
       return true
@@ -140,14 +147,16 @@ export class Blockers {
 
   public update(dt: number): void {
     this.elapsedMs += dt
-    // Wandsegmente laufen in jedem Level mit festem Takt; nur die Waffen-Segmente
-    // haengen am Sperren-Budget der Leveltabelle (siehe spawn()).
-    this.spawnAccumulatorMs += dt
-    while (this.spawnAccumulatorMs >= BALANCE.walls.spawnIntervalMs) {
-      this.spawnAccumulatorMs -= BALANCE.walls.spawnIntervalMs
-      this.spawn()
-    }
     const movement = (BALANCE.scrollSpeed * dt) / 1000
+    // Dauerwand-Kette: sobald das zuletzt gespawnte Paar eine Segmenthoehe gescrollt
+    // ist, schliesst am Horizont das naechste an — unabhaengig vom Objektzustand,
+    // damit ein frueh zerschossenes Segment die Kette nicht stocken laesst.
+    this.chainAccumulatorPx += movement
+    while (this.chainAccumulatorPx >= BALANCE.walls.segmentHeightPx) {
+      this.chainAccumulatorPx -= BALANCE.walls.segmentHeightPx
+      this.spawn('left')
+      this.spawn('right')
+    }
     for (const pair of this.pairs) {
       if (!pair.active) continue
       this.movePair(pair, movement)
@@ -167,33 +176,44 @@ export class Blockers {
     const label = this.scene.add.text(0, 0, '', {
       fontFamily: 'system-ui', fontSize: '17px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 3, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(BALANCE.layers.gameplay + 1).setActive(false).setVisible(false)
+    const goodieText = this.scene.add.text(0, 0, '', {
+      fontFamily: 'system-ui', fontSize: '19px', color: '#3ddc84', stroke: HUD_COLORS.textDark, strokeThickness: 3, fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false)
+    goodieText.setColor(`#${STAT_COLORS.hp.toString(16).padStart(6, '0')}`)
     const reward = this.scene.physics.add.image(0, 0, 'weapon-normal-gate').setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false)
     reward.disableBody(true, true)
     this.rewardGroup.add(reward)
-    return { blocker, label, reward, active: false, broken: false, hasWeapon: false, side: 'left', weapon: 'normal' }
+    return { blocker, label, goodieText, reward, active: false, broken: false, content: 'coin', side: 'left', weapon: 'normal', reinforcement: null }
   }
 
   private wallGeometry(side: WallSide, y: number): { x: number; width: number } {
     return getWallGeometry(this.scene.scale.width, this.scene.scale.height, y, side)
   }
 
-  private spawn(): void {
+  private chooseContent(side: WallSide): WallContent {
+    const chance = side === 'left' ? BALANCE.walls.reinforcementChance : BALANCE.walls.weaponChance
+    if (decideGoodie(this.drySpawns[side], chance, BALANCE.walls.goodieMaxDry, this.rng)) {
+      this.drySpawns[side] = 0
+      return side === 'left' ? 'reinforce' : 'weapon'
+    }
+    this.drySpawns[side] += 1
+    return 'coin'
+  }
+
+  private spawn(side: WallSide): void {
     const pair = this.pairs.find((candidate) => !candidate.active)
     if (pair === undefined) return this.warnPoolExhausted()
-    // A failed enemy spawn deliberately cancels this attempt: a lone wall has no choice tension.
-    if (!this.requestEnemy()) return
-    const side = this.nextSide
-    this.nextSide = side === 'left' ? 'right' : 'left'
     const y = BALANCE.road.horizonY
     const geometry = this.wallGeometry(side, y)
     const plan = getBlockerPlan(this.getTeamSize(), this.getCurrentWeapon(), this.getDamage(), this.getShotsPerSec())
     const maxHp = Math.max(1, Math.round(plan.maxHp * BALANCE.walls.hpFactor))
-    const hasWeapon = this.levelPlan.reserved.blockers && (this.weaponCounter += 1) % BALANCE.walls.weaponEvery === 0
+    const content = this.chooseContent(side)
     pair.active = true
     pair.broken = false
-    pair.hasWeapon = hasWeapon
+    pair.content = content
     pair.side = side
-    pair.weapon = hasWeapon ? this.chooseWeapon(this.getCurrentWeapon()) : 'normal'
+    pair.weapon = content === 'weapon' ? this.chooseWeapon(this.getCurrentWeapon()) : 'normal'
+    pair.reinforcement = content === 'reinforce' ? getReinforcementOffer(this.getTeamSize(), this.rng) : null
     pair.blocker.enableBody(true, geometry.x, y, true, true)
     pair.blocker.setDisplaySize(geometry.width, BALANCE.walls.segmentHeightPx).setActive(true).setVisible(true).setAlpha(0)
     const body = pair.blocker.body as Phaser.Physics.Arcade.Body
@@ -204,10 +224,16 @@ export class Blockers {
     pair.blocker.setData('spawnId', this.nextSpawnId)
     this.nextSpawnId -= 1
     pair.label.setText(`${maxHp}`).setPosition(geometry.x, y + BALANCE.walls.labelOffsetPx).setActive(true).setVisible(true).setAlpha(0)
-    // Der Inhalt sitzt ab Spawn sichtbar in der Wandmitte und scheint durch die
-    // halbtransparente Wand; einsammelbar (Body) wird er erst nach dem Zerschiessen.
-    pair.reward.setTexture(hasWeapon ? `weapon-${pair.weapon}-gate` : 'coin').setPosition(geometry.x, y).setActive(false).setVisible(true).setAlpha(0)
-    this.fitRewardToWall(pair, geometry.width)
+    if (content === 'reinforce') {
+      pair.goodieText.setText(pair.reinforcement!.label).setPosition(geometry.x, y).setActive(true).setVisible(true).setAlpha(0)
+      pair.reward.setActive(false).setVisible(false)
+    } else {
+      // Der Inhalt sitzt ab Spawn sichtbar in der Wandmitte und scheint durch die
+      // halbtransparente Wand; einsammelbar (Body) wird er erst nach dem Zerschiessen.
+      pair.goodieText.setActive(false).setVisible(false)
+      pair.reward.setTexture(content === 'weapon' ? `weapon-${pair.weapon}-gate` : 'coin').setPosition(geometry.x, y).setActive(false).setVisible(true).setAlpha(0)
+      this.fitRewardToWall(pair, geometry.width)
+    }
   }
 
   private movePair(pair: BlockerPair, movement: number): void {
@@ -220,7 +246,13 @@ export class Blockers {
       const alpha = Math.min(1, Math.max(0, (y - pair.blocker.displayHeight / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
       pair.blocker.setAlpha(alpha)
       pair.label.setPosition(geometry.x, y + BALANCE.walls.labelOffsetPx).setAlpha(alpha)
+      if (pair.content === 'reinforce') {
+        pair.goodieText.setPosition(geometry.x, y).setAlpha(alpha)
+        const naturalWidth = pair.goodieText.width
+        pair.goodieText.setScale(naturalWidth > geometry.width - 8 ? (geometry.width - 8) / naturalWidth : 1)
+      }
     }
+    if (pair.content === 'reinforce') return
     const rewardY = pair.reward.y + movement
     const rewardGeometry = this.wallGeometry(pair.side, rewardY)
     pair.reward.setPosition(rewardGeometry.x, rewardY)
@@ -244,13 +276,14 @@ export class Blockers {
     pair.blocker.disableBody(true, true)
     pair.blocker.setActive(false).setVisible(false)
     pair.label.setActive(false).setVisible(false)
+    pair.goodieText.setActive(false).setVisible(false)
     pair.reward.disableBody(true, true)
     pair.reward.setActive(false).setVisible(false)
   }
 
   private warnPoolExhausted(): void {
     if (!import.meta.env.DEV || this.elapsedMs - this.lastPoolWarningAtMs < BALANCE.feedback.poolWarningIntervalMs) return
-    console.warn('Blocker pool exhausted; spawn skipped.')
+    console.warn('Wall pool exhausted; spawn skipped.')
     this.lastPoolWarningAtMs = this.elapsedMs
   }
 }
