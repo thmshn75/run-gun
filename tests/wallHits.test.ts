@@ -98,19 +98,18 @@ describe('Waende treffen (W4-Korrektur)', () => {
     }
   })
 
-  it('ein Wandsegment faellt an der Wand in der Zieldauer aus hpFactor', () => {
-    // hpFactor 0.35 x referenceDestroySec 2 s = 0,7 s Fokus je Segment. Der Test haelt
-    // fest, dass diese Herleitung nach dem Treffer-Fix auch real erreicht wird.
-    const targetSec = BALANCE.blockers.referenceDestroySec * BALANCE.walls.hpFactor
+  it('ein Wandsegment faellt an der Wand innerhalb des Fokus-Deckels', () => {
+    // Nach dem Treffer-Fix feuert die ganze Formation in die Wandzone, also gilt die
+    // volle Feuerkraft. Die Zeit je Segment muss dann im Korridor minFocusSec..
+    // maxFocusSec liegen (Rundung auf ganze HP erlaubt einen kleinen Aufschlag).
     for (const team of TEAM_SIZES) {
-      const plan = getBlockerPlan(team, 'normal', 1, 3)
-      const segmentHp = Math.max(1, Math.round(plan.maxHp * BALANCE.walls.hpFactor))
+      const plan = getBlockerPlan(1, team, 'normal', 1, 3)
       const ratios = shooterLaneRatios(team, anchorAtWall(team))
       const hitting = ratios.filter((ratio) => ratio >= WALL_INNER && ratio <= WALL_OUTER).length
-      const effectiveDps = (plan.referenceDps * hitting) / ratios.length
-      const focusSec = segmentHp / effectiveDps
-      expect(focusSec, `team ${team}`).toBeGreaterThan(targetSec * 0.8)
-      expect(focusSec, `team ${team}`).toBeLessThan(targetSec * 1.3)
+      expect(hitting, `team ${team}`).toBe(ratios.length)
+      const focusSec = plan.maxHp / plan.referenceDps
+      expect(focusSec, `team ${team}`).toBeGreaterThanOrEqual(BALANCE.blockers.minFocusSec)
+      expect(focusSec, `team ${team}`).toBeLessThanOrEqual(BALANCE.blockers.maxFocusSec * 1.2)
     }
   })
 

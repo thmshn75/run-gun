@@ -46,6 +46,7 @@ export class Blockers {
   // Rechts versetzt gestartet, damit die Luecken der beiden Seiten nie synchron liegen.
   private readonly slotIndex: Record<WallSide, number> = { left: 0, right: BALANCE.walls.wallRightOffsetSlots }
   private chainAccumulatorPx: number
+  private currentLevel: number
   private elapsedMs: number
   private lastPoolWarningAtMs: number
   private nextSpawnId: number
@@ -75,6 +76,7 @@ export class Blockers {
     this.rewardGroup = scene.physics.add.group()
     // Kette startet sofort: der erste update() spawnt das erste Segmentpaar.
     this.chainAccumulatorPx = BALANCE.walls.segmentHeightPx
+    this.currentLevel = 1
     this.elapsedMs = 0
     this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
     this.nextSpawnId = -1
@@ -87,7 +89,8 @@ export class Blockers {
 
   public hasActivePair(): boolean { return this.pairs.some((pair) => pair.active) }
 
-  public resetForLevel(_level: number): void {
+  public resetForLevel(level: number): void {
+    this.currentLevel = Math.max(1, Math.floor(level))
     this.deactivateAll()
     this.chainAccumulatorPx = BALANCE.walls.segmentHeightPx
   }
@@ -227,8 +230,8 @@ export class Blockers {
     if (pair === undefined) return this.warnPoolExhausted()
     const y = BALANCE.road.horizonY
     const geometry = this.wallGeometry(side, y)
-    const plan = getBlockerPlan(this.getTeamSize(), this.getCurrentWeapon(), this.getDamage(), this.getShotsPerSec())
-    const maxHp = Math.max(1, Math.round(plan.maxHp * BALANCE.walls.hpFactor))
+    const plan = getBlockerPlan(this.currentLevel, this.getTeamSize(), this.getCurrentWeapon(), this.getDamage(), this.getShotsPerSec())
+    const maxHp = plan.maxHp
     const content = this.chooseContent(side)
     pair.active = true
     pair.broken = false

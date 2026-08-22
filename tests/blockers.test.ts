@@ -69,12 +69,11 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     }
   })
 
-  it('derives wall hp from the blocker firepower plan and never rounds it to zero', () => {
-    expect(BALANCE.walls.hpFactor).toBeGreaterThan(0)
-    expect(BALANCE.walls.hpFactor).toBeLessThanOrEqual(1)
-    const weakest = getBlockerPlan(2, 'normal', 1, 1)
-    expect(Math.max(1, Math.round(weakest.maxHp * BALANCE.walls.hpFactor))).toBeGreaterThanOrEqual(1)
-    expect(Math.round(weakest.maxHp * BALANCE.walls.hpFactor)).toBeGreaterThanOrEqual(1)
+  it('derives wall hp from level and team, never rounding it to zero', () => {
+    const weakest = getBlockerPlan(1, 1, 'normal', 1, 1)
+    expect(weakest.maxHp).toBeGreaterThanOrEqual(1)
+    const strongest = getBlockerPlan(12, BALANCE.crowd.max, 'shotgun', BALANCE.stats.damage.cap, BALANCE.stats.shotsPerSec.cap)
+    expect(strongest.maxHp).toBeGreaterThanOrEqual(1)
   })
 
   it('assigns reinforcements to the left wall and weapons to the right, at playable chances', () => {
@@ -145,11 +144,14 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
           for (const teamSize of [2, 3, 6, 12, 20, 30]) {
             for (const damage of [1, 3, 10, 20]) {
               for (const rate of [1, 1.5, 3, 8]) {
-                const plan = getBlockerPlan(teamSize, weapon, damage, rate)
+                const plan = getBlockerPlan(level, teamSize, weapon, damage, rate)
                 const dps = getCombatFirepower(teamSize, weapon) * damage * rate
-                expect(plan.referenceDps, `L${level}, damage upgrade ${purchaseState.damage}, rate upgrade ${purchaseState.rate}`).toBeCloseTo(dps)
-                expect(plan.referenceDestroySec).toBeGreaterThanOrEqual(BALANCE.blockers.minDestroySec)
-                expect(plan.referenceDestroySec).toBeLessThanOrEqual(BALANCE.blockers.maxDestroySec)
+                const label = `L${level}, damage upgrade ${purchaseState.damage}, rate upgrade ${purchaseState.rate}`
+                expect(plan.referenceDps, label).toBeCloseTo(dps)
+                // Rundung auf ganze HP verschiebt die Fokuszeit um bis zu einer halben HP.
+                const rundung = 0.5 / dps
+                expect(plan.focusSec, label).toBeGreaterThanOrEqual(BALANCE.blockers.minFocusSec - rundung - 1e-9)
+                expect(plan.focusSec, label).toBeLessThanOrEqual(BALANCE.blockers.maxFocusSec + rundung + 1e-9)
                 cases += 1
               }
             }

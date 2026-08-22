@@ -1,17 +1,27 @@
 import { BALANCE } from '../config/balance'
-import { getCombatFirepower } from './bossPlan'
+import { getCombatFirepower, getTeamFirepower } from './bossPlan'
 import type { WeaponKey } from './weapons'
 
 export type BlockerPlan = Readonly<{
   maxHp: number
   referenceDps: number
-  referenceDestroySec: number
+  focusSec: number
 }>
 
-export function getBlockerPlan(teamSize: number, weapon: WeaponKey, damage: number, rate: number): BlockerPlan {
-  const referenceDps = getCombatFirepower(teamSize, weapon) * damage * rate
-  // Measured run stats keep every blocker at the fixed two-second target.
-  const maxHp = Math.round(referenceDps * BALANCE.blockers.referenceDestroySec)
+export function getBlockerPlan(level: number, teamSize: number, weapon: WeaponKey, damage: number, rate: number): BlockerPlan {
+  const config = BALANCE.blockers
+  const safeLevel = Math.max(1, Math.floor(level))
+  const dps = Math.max(0.0001, getCombatFirepower(teamSize, weapon) * damage * rate)
 
-  return { maxHp, referenceDps, referenceDestroySec: maxHp / referenceDps }
+  // Zielhaerte: Levelnummer treibt, die Truppengroesse zieht gedaempft mit. Die WAFFE
+  // geht bewusst nicht ein — sie soll die Wand schneller fallen lassen, nicht haerter
+  // machen (Herleitung und verworfenes Vormodell stehen in balance.ts, blockers).
+  const teamTerm = (getTeamFirepower(teamSize) / getTeamFirepower(BALANCE.upgradesShop.team.base)) ** config.teamDampening
+  const target = config.baseHp * config.perLevelGrowth ** (safeLevel - 1) * teamTerm
+
+  // Schutzgrenzen an der tatsaechlichen Feuerkraft, damit die Zielhaerte nie in eine
+  // Sackgasse (zu langsam) oder in Nebel (zu schnell) kippt.
+  const maxHp = Math.max(1, Math.round(Math.min(dps * config.maxFocusSec, Math.max(dps * config.minFocusSec, target))))
+
+  return { maxHp, referenceDps: dps, focusSec: maxHp / dps }
 }

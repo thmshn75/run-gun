@@ -115,10 +115,6 @@ export const BALANCE = {
     // HP-Zahl darunter, damit beide gleichzeitig lesbar sind.
     fillAlpha: 0.4,
     labelOffsetPx: 18,
-    // HP = Sperren-Herleitung (Feuerkraft x referenceDestroySec) x Faktor: ein
-    // Segment faellt nach ~0,7 s Fokus — die GANZE Dauerwand freizuschiessen ist
-    // bewusst unmoeglich, gezielt Goodie-Segmente freischiessen ist der Kern.
-    hpFactor: 0.35,
     // Belohnung beim Wegschiessen eines Muenz-Segments (coinValue wie schwerer Gegner).
     coinReward: 3,
     // Goodies unregelmaessig in der Wand: links Verstaerkungen, rechts Waffen.
@@ -321,12 +317,41 @@ export const BALANCE = {
     damagePerExtraFigure: 0.14,
     damageMultiplierCap: 4,
   },
-  // Seit W2 dienen diese Werte den Wandsegmenten (siehe walls): referenceDestroySec
-  // ist die Basis der Feuerkraft-HP-Herleitung.
+  // Haerte der Wandsegmente (Thomas 2026-08-22: "immer noch schwer was zu holen,
+  // speziell in weiteren Level, die Zahlen steigen zu schnell an").
+  //
+  // ALTES MODELL (verworfen): maxHp = Feuerkraft x 2 s x 0.35. Die Wand wuchs damit
+  // exakt so schnell wie die Truppe — die Fokusdauer blieb ueber den ganzen Run bei
+  // 0,70 s, Aufruesten brachte gegen Waende NICHTS. Schlimmer: die Zahl haing direkt an
+  // der Waffe, gemessen bei Truppe 8 zwischen 4 (Minigun) und 71 (Schrot). Wer eine
+  // Schrotflinte aufhob, machte die Waende schlagartig 4x haerter; im Vollausbau stand
+  // 1482 auf der Kachel.
+  //
+  // NEUES MODELL: Die Zielhaerte kommt aus der LEVELNUMMER und nur gedaempft aus der
+  // Truppengroesse. Die Waffe geht gar nicht mehr ein — eine bessere Waffe laesst die
+  // Wand also schneller fallen, statt sie mitwachsen zu lassen. Zwei Schutzgrenzen an
+  // der tatsaechlichen Feuerkraft verhindern beide Ausreisser: maxFocusSec deckelt den
+  // schwachen Run (Wand nie eine Sackgasse), minFocusSec haelt einen Rest Widerstand.
   blockers: {
-    referenceDestroySec: 2,
-    minDestroySec: 1.5,
-    maxDestroySec: 2.5,
+    // Level 1 mit Startteam (2 Figuren, normal, dmg 1, rate 3 -> 6 dps): 3 HP = 0,50 s.
+    baseHp: 3,
+    // Level 12 ist damit 1.2^11 = 7,4x so hart wie Level 1 — spuerbar, aber die Zahl
+    // bleibt zweistellig statt vierstellig.
+    perLevelGrowth: 1.2,
+    // Gedaempfte Truppenkopplung: doppelte Truppenfeuerkraft = 1,41x Wand-HP. Ohne sie
+    // waere ein grosser Trupp gegen Waende voellig folgenlos, mit 1.0 waere das alte
+    // Problem zurueck.
+    teamDampening: 0.5,
+    // Harte Obergrenze: ein Segment kostet NIE mehr als 0,6 s Dauerfeuer, ein
+    // 3er-Abschnitt damit nie mehr als 1,8 s (bei 5,14 s Bildschirmdurchlauf). Der
+    // Deckel ist die eigentliche Antwort auf "immer noch schwer was zu holen": Er gilt
+    // unabhaengig von Level, Truppe und Waffe. Gemessen bremst er vor allem die
+    // Drei-Schuetzen-Waffen aus (Minigun und Rakete feuern nur mit 3 Figuren und lagen
+    // ohne Deckel bei 1,25 s je Segment, also schlechter als die Standardwaffe).
+    maxFocusSec: 0.6,
+    // Starker Run: ein Segment kostet mindestens 0,12 s — die Wand schmilzt dann
+    // sichtbar weg, bleibt aber ein Objekt und kein Nebel.
+    minFocusSec: 0.12,
   },
   enemy: {
     // Measured visible-figure dimensions per sprite; coinValue is the number of dropped coins. Remeasure both dimensions whenever the images change.
