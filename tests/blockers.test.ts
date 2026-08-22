@@ -82,6 +82,21 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     expect(reservedFlags).toContain(true)
   })
 
+  it('shows the reward behind a translucent wall from spawn on, collectable only after the break', () => {
+    const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
+    // Halbtransparent: sichtbar genug zum Zielen, durchsichtig genug fuer den Inhalt.
+    expect(BALANCE.walls.fillAlpha).toBeGreaterThan(0.15)
+    expect(BALANCE.walls.fillAlpha).toBeLessThan(0.8)
+    // Fuellung nie opak setzen — setFillStyle ohne Alpha wuerde die Transparenz beim
+    // ersten Treffer still ueberschreiben.
+    expect(source.match(/setFillStyle\(0xb84432\)/g)).toBeNull()
+    // Inhalt (Waffe oder Muenze) ist ab Spawn sichtbar, aber ohne Body …
+    expect(source).toContain("setTexture(hasWeapon ? `weapon-${pair.weapon}-gate` : 'coin')")
+    expect(source).toContain('.setActive(false).setVisible(true)')
+    // … und wird erst nach dem Zerschiessen einsammelbar.
+    expect(source).toContain('pair.reward.enableBody(true')
+  })
+
   it('preallocates every wall pair once and never creates or destroys in the hot path', () => {
     const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
     expect(source.match(/this\.createPair\(\)/g)).toHaveLength(1)

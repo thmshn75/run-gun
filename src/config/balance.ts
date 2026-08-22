@@ -50,19 +50,30 @@ export const BALANCE = {
     background: -1,
     scenery: -0.5,
     road: 0,
+    // Wand-Inhalt (Waffe/Muenze) liegt unter der halbtransparenten Wand, damit er
+    // durchscheint statt sie zu verdecken.
+    wallContent: 1.5,
     gameplay: 2,
   },
   walls: {
     // Breitenbudget (W2): Wandzone links + rechts + Korridor = Strassenbreite, in
     // Anteilen der halben Strassenbreite, damit es in jeder Scroll-Tiefe gilt.
-    // Unten (390 px Strasse): Wandzone je Seite 0.18 x 195 = 35.1 px, Korridor 319.8 px.
-    laneShare: 0.18,
+    // Unten (390 px Strasse): Wandzone je Seite 0.26 x 195 = 50.7 px, Korridor 288.6 px.
+    // 0.26 ist das Maximum, solange drei Torspuren >= 90 px bleiben (Budget-Test);
+    // Thomas-Feedback 2026-08-22: 0.18 war zu schmal.
+    laneShare: 0.26,
     // Der Korridor muss Mindestbreite und Horden-Platzhalter tragen (Budget-Test).
     // hordeMaxWidthPx ist ein PLATZHALTER, bis W3 die echte Hordenbreite festlegt —
     // W3 darf laneShare/minCorridorPx nachjustieren, solange der Budget-Test haelt.
     minCorridorPx: 240,
     hordeMaxWidthPx: 220,
-    segmentHeightPx: 46,
+    segmentHeightPx: 60,
+    // Waende sind halbtransparent, damit die dahinter sichtbare Belohnung (Waffe oder
+    // Muenze) durchscheint (Thomas-Feedback 2026-08-22) — Vorgriff auf das W4-Prinzip
+    // "Wert vor der Entscheidung sichtbar". Der Inhalt sitzt in der Wandmitte, die
+    // HP-Zahl darunter, damit beide gleichzeitig lesbar sind.
+    fillAlpha: 0.4,
+    labelOffsetPx: 20,
     // Ein Segment je Takt, Seiten abwechselnd — der Korridor ist nie beidseitig auf
     // gleicher Hoehe zu, und es gibt regelmaessig ein Seitenziel neben den Gegnern.
     spawnIntervalMs: 2600,
@@ -256,10 +267,8 @@ export const BALANCE = {
     damageMultiplierCap: 4,
   },
   // Seit W2 dienen diese Werte den Wandsegmenten (siehe walls): referenceDestroySec
-  // ist die Basis der Feuerkraft-HP-Herleitung, rewardBehindOffsetPx der Abstand des
-  // Waffen-Rewards hinter einem zerschossenen Segment.
+  // ist die Basis der Feuerkraft-HP-Herleitung.
   blockers: {
-    rewardBehindOffsetPx: 82,
     referenceDestroySec: 2,
     minDestroySec: 1.5,
     maxDestroySec: 2.5,

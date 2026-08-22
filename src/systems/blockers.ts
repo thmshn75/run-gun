@@ -105,12 +105,13 @@ export class Blockers {
     if (pair === undefined || !pair.active || pair.broken) return false
     const remainingHp = (blocker.getData('hp') as number) - damage
     blocker.setData('hp', remainingHp)
-    blocker.setFillStyle(remainingHp <= 0 ? 0x52616f : 0xb84432)
+    blocker.setFillStyle(0xb84432, BALANCE.walls.fillAlpha)
     pair.label.setText(remainingHp <= 0 ? '' : `${Math.max(0, Math.ceil(remainingHp))}`)
     if (remainingHp > 0) return false
 
-    this.onBroken(blocker.x, blocker.y)
     if (!pair.hasWeapon) {
+      // Muenz-Segment: Der sichtbare Inhalt wird zu echten Muenzen, das Paar ist frei.
+      this.onBroken(blocker.x, blocker.y)
       this.recycle(pair)
       return true
     }
@@ -166,7 +167,7 @@ export class Blockers {
     const label = this.scene.add.text(0, 0, '', {
       fontFamily: 'system-ui', fontSize: '17px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 3, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(BALANCE.layers.gameplay + 1).setActive(false).setVisible(false)
-    const reward = this.scene.physics.add.image(0, 0, 'weapon-normal-gate').setDepth(BALANCE.layers.gameplay).setActive(false).setVisible(false)
+    const reward = this.scene.physics.add.image(0, 0, 'weapon-normal-gate').setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false)
     reward.disableBody(true, true)
     this.rewardGroup.add(reward)
     return { blocker, label, reward, active: false, broken: false, hasWeapon: false, side: 'left', weapon: 'normal' }
@@ -193,7 +194,7 @@ export class Blockers {
     pair.hasWeapon = hasWeapon
     pair.side = side
     pair.weapon = hasWeapon ? this.chooseWeapon(this.getCurrentWeapon()) : 'normal'
-    pair.blocker.setSize(geometry.width, BALANCE.walls.segmentHeightPx).setPosition(geometry.x, y).setFillStyle(0xb84432).setStrokeStyle(3, 0xf3cf8a).setActive(true).setVisible(true).setAlpha(0)
+    pair.blocker.setSize(geometry.width, BALANCE.walls.segmentHeightPx).setPosition(geometry.x, y).setFillStyle(0xb84432, BALANCE.walls.fillAlpha).setStrokeStyle(3, 0xf3cf8a).setActive(true).setVisible(true).setAlpha(0)
     const body = pair.blocker.body as Phaser.Physics.Arcade.Body
     body.enable = true
     body.setSize(geometry.width, BALANCE.walls.segmentHeightPx, true)
@@ -203,8 +204,11 @@ export class Blockers {
     pair.blocker.setData('maxHp', maxHp)
     pair.blocker.setData('spawnId', this.nextSpawnId)
     this.nextSpawnId -= 1
-    pair.label.setText(`${maxHp}`).setPosition(geometry.x, y).setActive(true).setVisible(true).setAlpha(0)
-    pair.reward.setTexture(`weapon-${pair.weapon}-gate`).setPosition(geometry.x, y - BALANCE.blockers.rewardBehindOffsetPx).setActive(false).setVisible(false).setAlpha(0)
+    pair.label.setText(`${maxHp}`).setPosition(geometry.x, y + BALANCE.walls.labelOffsetPx).setActive(true).setVisible(true).setAlpha(0)
+    // Der Inhalt sitzt ab Spawn sichtbar in der Wandmitte und scheint durch die
+    // halbtransparente Wand; einsammelbar (Body) wird er erst nach dem Zerschiessen.
+    pair.reward.setTexture(hasWeapon ? `weapon-${pair.weapon}-gate` : 'coin').setPosition(geometry.x, y).setActive(false).setVisible(true).setAlpha(0)
+    this.fitRewardToWall(pair, geometry.width)
   }
 
   private movePair(pair: BlockerPair, movement: number): void {
@@ -218,14 +222,23 @@ export class Blockers {
       body.updateFromGameObject()
       const alpha = Math.min(1, Math.max(0, (y - pair.blocker.displayHeight / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
       pair.blocker.setAlpha(alpha)
-      pair.label.setPosition(geometry.x, y).setAlpha(alpha)
+      pair.label.setPosition(geometry.x, y + BALANCE.walls.labelOffsetPx).setAlpha(alpha)
     }
     const rewardY = pair.reward.y + movement
-    pair.reward.setPosition(this.wallGeometry(pair.side, rewardY).x, rewardY)
+    const rewardGeometry = this.wallGeometry(pair.side, rewardY)
+    pair.reward.setPosition(rewardGeometry.x, rewardY)
+    this.fitRewardToWall(pair, rewardGeometry.width)
+    pair.reward.setAlpha(Math.min(1, Math.max(0, (rewardY - pair.reward.displayHeight / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx)))
     if (!pair.broken || !pair.reward.active) return
-    const alpha = Math.min(1, Math.max(0, (pair.reward.y - pair.reward.displayHeight / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
-    pair.reward.setAlpha(alpha)
     ;(pair.reward.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
+  }
+
+  // Der Inhalt scheint durch die Wand und darf sie nie ueberragen: auf die aktuelle
+  // Wandbreite einpassen, aber nie ueber die natuerliche Texturgroesse vergroessern.
+  private fitRewardToWall(pair: BlockerPair, wallWidth: number): void {
+    const source = pair.reward.texture.getSourceImage() as { width: number; height: number }
+    const targetWidth = Math.min(source.width, Math.max(8, wallWidth - 8))
+    pair.reward.setDisplaySize(targetWidth, targetWidth * source.height / source.width)
   }
 
   private recycle(pair: BlockerPair): void {
