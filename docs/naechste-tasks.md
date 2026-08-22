@@ -52,3 +52,25 @@ funktioniert.
 Der Teil, der aus den festen gemessenen Trefferflächen bewegliche Größen macht. Erst nach
 Thomas' Urteil zu Schritt 1 (perspektivische Straße) aufsetzen — womöglich reicht ihm der
 Effekt schon ohne.
+
+## Referenzvorbild von Thomas (2026-08-22, Screenshots aus einem Reel)
+
+Thomas hat zwei Bilder eines 3D-Vorbilds geschickt ("annaehernd so realistisch").
+Abgelesen, nicht interpretiert:
+- **Tore sind eine lange Kette einzelner "+1"-Plaettchen** die ganze Spur entlang,
+  dicht gestapelt - nicht ein Tor mit "+7". Man faehrt durch die Kette und sammelt
+  jedes Plaettchen einzeln ein. Unser heutiges System gibt Verstaerkung als EINEN
+  Betrag mit Operator-Anzeige.
+- **Die Horde ist eine dichte Masse ueber die volle Spurbreite**, hunderte Figuren
+  bis in die Tiefe gestaffelt. Thomas dazu: die Horden sind "zu selten zu klein".
+- **Der Boss traegt seine Lebenspunkte als grosse Zahl ueber dem Kopf** (403), die
+  Wand ihre daneben (725/999). Wir zeigen eine Boss-Leiste.
+- **Optik:** beleuchtete Figuren mit Volumen und Bodenschatten.
+
+Geprueft zur Machbarkeit: Codex kann plastische Sprites erzeugen (alle vorhandenen
+stammen aus Codex-Laeufen, Verfahren gross-rendern-dann-herunterrechnen ist etabliert,
+Vorlagen liegen in `assets/probe/`). Echtes 3D geht NICHT - Phaser ist ein 2D-Renderer,
+ein Wechsel waere ein anderer Motor. Den optischen Abstand schliessen, nach Wirkung
+sortiert: Schlagschatten am Boden unter jeder Figur, beleuchtete statt flacher Sprites,
+glatte statt harter Pixelkanten (`pixelArt: true` in `main.ts` muesste fallen, Sprites
+in doppelter Aufloesung), mehr Figuren in der Masse.

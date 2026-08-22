@@ -153,3 +153,32 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   behauptung und braucht einen Suchlauf, der Varianten des Namens abdeckt (`setTint`,
   `setTintFill`, `tint`), nicht einen einzelnen exakten Treffer. Bei Negativbefunden
   breiter greppen als bei Positivbefunden — ein verpasster Treffer dreht die Aussage um.
+
+### 2026-08-22 — Drossel nach fester Mindestpause bevorzugte die langsamere Waffe
+- **Fehler:** Die erste Ton-Drossel war eine feste Mindestpause (125 ms = 1000 /
+  shotsPerSec.cap). Sauber hergeleitet, trotzdem falsch: Faellt der Eingangstakt nicht
+  auf das Drosselraster, fallen Ereignisse aus. Die Minigun (17,6 Salven/s) kam damit
+  auf 5,9 Toene/s und haette LANGSAMER geklungen als die Standardwaffe mit 8. Der Test
+  hat es gefunden, nicht das Ohr.
+- **Regel:** Eine Bremse, die "hoechstens alle X ms" sagt, ist keine Ratenbegrenzung,
+  sondern ein Raster - und Raster erzeugen Schwebungen mit jedem Eingangstakt, der
+  nicht darauf passt. Wo eine mittlere Rate gemeint ist, gehoert eine Rate hin
+  (Marken, die nachwachsen und deren Rest nicht verfaellt). Pruefkriterium beim
+  Schreiben des Tests: **das schnellste Eingangssignal gegen das langsamste antreten
+  lassen** - kehrt sich die Reihenfolge um, ist die Bremse falsch gebaut.
+
+### 2026-08-22 — Balance an einer Groesse gedreht, die den Ausgang gar nicht bestimmt
+- **Fehler:** Die Boss-Kampfdauer sollte ins Fenster 20-40 s. Zwei Runden lang wurden
+  dafuer die Lebenspunkte nachgezogen (Grenzen, Daempfungen, Faktoren aus gemessenen
+  Abweichungen). Die dritte Messung mit Wiederholungen zeigte: Dieselbe Kombination
+  brauchte je nach Zufall 29 s oder 109 s. Nicht die Lebenspunkte bestimmten die
+  Dauer, sondern wie viele und welche Gegner gerade als Schild vor dem Boss standen -
+  und deren Typen werden gezogen. Jede weitere HP-Anpassung haette nur die eine
+  Messung schoengerechnet, die gerade lief.
+- **Regel:** Bevor eine Balance-Zahl an eine Messung angepasst wird, denselben Fall
+  **mindestens dreimal mit frischem Zustand** messen. Ist die Streuung innerhalb eines
+  Falls groesser als der Abstand zwischen den Faellen, ist die gedrehte Groesse nicht
+  die bestimmende - dann gehoert die Ursache benannt und dem Nutzer als Befund
+  vorgelegt, statt weiter zu drehen. Zweite Lehre: Rueckstaende aus dem vorigen
+  Messlauf (aktive Objekte, Akkumulatoren) machen jede Wiederholung wertlos; jede
+  Wiederholung braucht eine frische Szene.
