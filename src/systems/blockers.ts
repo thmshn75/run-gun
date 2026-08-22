@@ -3,7 +3,7 @@ import { BALANCE } from '../config/balance'
 import { HUD_COLORS, STAT_COLORS } from '../config/colors'
 import { getBlockerPlan } from './blockerPlan'
 import { decideGoodie, getReinforcementOffer, type ReinforcementOffer } from './reinforcementPlan'
-import { getWallGeometry } from './road'
+import { getPlayfieldHalfWidth, getWallGeometry } from './road'
 import type { WeaponKey } from './weapons'
 
 // Seit W2 traegt diese Klasse die Wandsegmente, seit W4 als DAUERWAND (Genre-Muster,
@@ -125,9 +125,17 @@ export class Blockers {
     blocker.disableBody(true, true)
     blocker.setActive(false).setVisible(false)
     pair.label.setActive(false).setVisible(false)
-    pair.reward.enableBody(true, pair.reward.x, pair.reward.y, true, true)
+    // Die freigeschossene Waffe faellt an die Korridorkante: Der Drag endet seit W4 am
+    // Korridor, in der Wandspur waere sie unerreichbar.
+    pair.reward.enableBody(true, this.rewardCollectX(pair, pair.reward.y), pair.reward.y, true, true)
     pair.reward.setActive(true).setVisible(true).setAlpha(Math.max(pair.reward.alpha, 0.01))
     return true
+  }
+
+  private rewardCollectX(pair: BlockerPair, y: number): number {
+    const playfieldHalf = getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
+    const sign = pair.side === 'left' ? -1 : 1
+    return this.scene.scale.width / 2 + sign * (playfieldHalf - pair.reward.displayWidth / 2 - 4)
   }
 
   public collect(reward: Phaser.Physics.Arcade.Image): WeaponKey | undefined {
@@ -136,13 +144,6 @@ export class Blockers {
     const weapon = pair.weapon
     this.recycle(pair)
     return weapon
-  }
-
-  public hitCrowd(blocker: Phaser.Physics.Arcade.Image): number | undefined {
-    const pair = this.pairs.find((candidate) => candidate.blocker === blocker)
-    if (pair === undefined || !pair.active || pair.broken) return undefined
-    this.recycle(pair)
-    return BALANCE.walls.contactDamage
   }
 
   public update(dt: number): void {
@@ -255,7 +256,7 @@ export class Blockers {
     if (pair.content === 'reinforce') return
     const rewardY = pair.reward.y + movement
     const rewardGeometry = this.wallGeometry(pair.side, rewardY)
-    pair.reward.setPosition(rewardGeometry.x, rewardY)
+    pair.reward.setPosition(pair.broken ? this.rewardCollectX(pair, rewardY) : rewardGeometry.x, rewardY)
     this.fitRewardToWall(pair, rewardGeometry.width)
     pair.reward.setAlpha(Math.min(1, Math.max(0, (rewardY - pair.reward.displayHeight / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx)))
     if (!pair.broken || !pair.reward.active) return

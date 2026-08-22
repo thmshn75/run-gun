@@ -14,7 +14,7 @@ export function getReinforcementOffer(currentTeam: number, rng: () => number): R
     { label: `+${addValue}`, apply: (current) => current + addValue },
     { label: '×1.3', apply: grow(1.3) },
     { label: '×1.5', apply: grow(1.5) },
-    { label: '+25 %', apply: grow(1.25) },
+    { label: '+25%', apply: grow(1.25) },
   ]
   return offers[Math.min(offers.length - 1, Math.floor(rng() * offers.length))]
 }

@@ -67,6 +67,16 @@ geschaetzten.
   wenn Thomas' Formulierung beides zulaesst. Dann faellt eine Fehldeutung beim Lesen des Plans
   auf, statt erst in der gebauten Etappe.
 
+### 2026-08-22 — Geaeusserte Formfaktor-Praeferenz beim naechsten Bauteil wieder ignoriert
+- **Fehler:** Thomas hatte bei den Wandsegmenten bereits korrigiert "breiter, nicht hoeher".
+  Beim Umbau zur Dauerwand wurde die Segmenthoehe trotzdem auf 120 px gesetzt (Motiv:
+  weniger Pool-Objekte) — die Kacheln wirkten wieder hochkant, Thomas musste dieselbe
+  Korrektur ein zweites Mal geben.
+- **Regel:** Eine einmal geaeusserte Gestaltungs-Praeferenz (Formfaktor, Farbe, Dichte)
+  gilt fuer alle folgenden Bauteile derselben Art weiter, auch wenn ein technisches Motiv
+  dagegen spricht. Wenn das technische Motiv wichtig erscheint: Konflikt benennen und
+  fragen, nicht still zugunsten der Technik entscheiden.
+
 ### 2026-08-22 — An eigene Grenze gestossen und still einen Kompromiss gebaut
 - **Fehler:** Thomas wollte die Waende "breiter". Die Breite war intern durch die
   90-px-Torspuren gedeckelt; statt diese Grenze zu benennen und Auswege anzubieten,

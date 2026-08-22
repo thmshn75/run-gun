@@ -147,7 +147,6 @@ export class GameScene extends Phaser.Scene {
   private projectileBossCollider: Phaser.Physics.Arcade.Collider | undefined
   private projectileBlockerCollider: Phaser.Physics.Arcade.Collider | undefined
   private crowdBossCollider: Phaser.Physics.Arcade.Collider | undefined
-  private crowdBlockerCollider: Phaser.Physics.Arcade.Collider | undefined
   private crowdRewardCollider: Phaser.Physics.Arcade.Collider | undefined
   private bossProjectileCollider: Phaser.Physics.Arcade.Collider | undefined
 
@@ -364,19 +363,14 @@ export class GameScene extends Phaser.Scene {
       if (this.projectileBlockerCollider === undefined) {
         this.projectileBlockerCollider = this.addCombatOverlap(this.weapons.getProjectileGroup(), this.blockers.getBlockers())
       }
-      if (this.crowdBlockerCollider === undefined) {
-        this.crowdBlockerCollider = this.addCombatOverlap(this.crowd.getHullBounds(), this.blockers.getBlockers())
-      }
       if (this.crowdRewardCollider === undefined) {
         this.crowdRewardCollider = this.addCombatOverlap(this.crowd.getHullBounds(), this.blockers.getRewards())
       }
       return
     }
     this.projectileBlockerCollider?.destroy()
-    this.crowdBlockerCollider?.destroy()
     this.crowdRewardCollider?.destroy()
     this.projectileBlockerCollider = undefined
-    this.crowdBlockerCollider = undefined
     this.crowdRewardCollider = undefined
   }
 
@@ -508,13 +502,6 @@ export class GameScene extends Phaser.Scene {
         if (weapon !== undefined) {
           this.equipWeapon(weapon)
         }
-        return
-      }
-      if (this.blockers.isBlocker(target)) {
-        if (!this.crowd.overlapsFigure(target.getBounds())) return
-        if (this.elapsedMs < this.enemyContactIframeUntilMs) return
-        const damage = this.blockers.hitCrowd(target)
-        if (damage !== undefined) this.handlePlayerDamage(damage, 'contact')
         return
       }
       const enemyImage = target as Phaser.Physics.Arcade.Image

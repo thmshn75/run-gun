@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { computeFormation } from './formation'
+import { getPlayfieldHalfWidth } from './roadGeometry'
 import { overlapsVisibleFigure, type RectangleBounds } from './rectangles'
 
 type FormationMember = { readonly sprite: Phaser.GameObjects.Image; offsetX: number; offsetY: number; row: number }
@@ -79,8 +80,12 @@ export class Crowd {
   }
 
   public getAnchorRange(): Readonly<{ min: number; max: number }> {
-    const min = this.figureWidth * BALANCE.player.dragClampFigures + BALANCE.player.dragClampMargin
-    return { min, max: this.scene.scale.width - min }
+    // Seit W4 endet der Drag am Korridor: In die Dauerwaende kann man nicht mehr
+    // hineinfahren (Thomas 2026-08-22) — Wandkontakt und Team-Verlust entfallen.
+    const inset = this.figureWidth * BALANCE.player.dragClampFigures + BALANCE.player.dragClampMargin
+    const playfieldHalf = getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, this.anchorY)
+    const center = this.scene.scale.width / 2
+    return { min: center - playfieldHalf + inset, max: center + playfieldHalf - inset }
   }
 
   public getAnchorX(): number {
