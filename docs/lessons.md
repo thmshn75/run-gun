@@ -127,3 +127,29 @@ Spur was bewirkt. Thomas verstand es als "die Waffe steckt in einem Rechen-Tor" 
 widersprach — obwohl die gewaehlte Variante genau sein Anliegen umsetzte.
 **Regel:** In einer Auswahlvorschau bekommt jedes Element eine Wirkungsbeschriftung, nicht nur
 eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element tut.
+
+### 2026-08-22 — Zwei Systeme je fuer sich korrekt, gemeinsam kaputt
+- **Fehler:** Die Wandhaerte war sauber hergeleitet (Feuerkraft x 2 s x 0,35 = 0,7 s
+  Fokus, Rechenweg als Kommentar daneben) und trotzdem falsch: Weil die HP 1:1 mit der
+  Spielerstaerke wuchsen, blieb die Fokusdauer ueber den ganzen Run konstant —
+  Aufruesten war gegen Waende folgenlos. Zusaetzlich hing die Zahl an der Waffe und
+  sprang bei Truppe 8 zwischen 4 und 71; wer eine Schrotflinte aufhob, machte sich die
+  Waende 4x haerter. Aufgefallen ist es erst, als Thomas es zum dritten Mal meldete.
+- **Regel:** Eine Balance-Groesse, die aus der Spielerstaerke abgeleitet wird, erzeugt
+  per Konstruktion ein NULL-Ergebnis fuer jede Verbesserung — der Spieler wird staerker,
+  die Aufgabe genauso. Vor jeder solchen Kopplung die Frage stellen und beantworten:
+  "Was merkt der Spieler davon, dass er sich verbessert hat?" Wenn die Antwort "nichts"
+  ist, gehoert eine Daempfung oder eine andere Bezugsgroesse hinein (hier: Levelnummer).
+  Zweitens: Wo mehrere Ausruestungsteile in dieselbe Formel eingehen, die Spanne ueber
+  ALLE Kombinationen ausrechnen, nicht nur den Referenzfall. Faktor 18 zwischen Rakete
+  und Schrot stand seit Wochen im Code und war nie jemandem aufgefallen.
+
+### 2026-08-22 — Fehlende Faehigkeit gemeldet, die es schon gab
+- **Fehler:** Auf Thomas' "fuehlt sich nicht an wie im App Store" wurde eine Liste
+  fehlender Dinge geliefert, darunter "kein Trefferfeedback, Gegner blitzen nicht auf".
+  Den Blitz gab es laengst (`setTintFill` in `spawner.damage`). Der Suchlauf hatte nur
+  nach `setTint(` gegriffen und die Variante uebersehen.
+- **Regel:** Eine Aussage der Form "X gibt es im Projekt nicht" ist eine Tatsachen-
+  behauptung und braucht einen Suchlauf, der Varianten des Namens abdeckt (`setTint`,
+  `setTintFill`, `tint`), nicht einen einzelnen exakten Treffer. Bei Negativbefunden
+  breiter greppen als bei Positivbefunden — ein verpasster Treffer dreht die Aussage um.
