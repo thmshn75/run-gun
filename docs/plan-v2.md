@@ -21,46 +21,58 @@ zulässiger Ersatz ist, Gamefeel gilt erst nach Thomas' iPhone-Test als erfüllt
    Mitte**. Ersetzt das E10-Spurensystem (mehrspurige Tore) und baut Tore, Sperren und
    Spawner um. Kern-Mehrwert: permanenter Zielkonflikt — zur Wand steuern heißt, nicht
    auf die Horde schießen.
-2. **Bosse sind in V1 noch etwas zu schwer.** V2 balanciert sie neu — zusammen mit der
-   offenen Grundsatzfrage unten (schießen ja/nein), nicht vorher als Einzelfix.
+2. **Bosse sind in V1 noch etwas zu schwer.** V2 balanciert sie neu — entschieden am
+   2026-08-22: Der Boss **schießt nicht mehr** und seine Stärke passt sich dem
+   momentanen Spielerstand an (Details unten und in W5).
 3. **Häuserschlucht wird eine Stadt:** Häuserzeilen laufen **durchgehend** links und
    rechts, unterbrochen **nur durch Querstraßen** — wie ein Straßenraster, nicht wie
    heute einzelne Türme mit zufälligen Lücken.
-4. **Häuser erscheinen oben früher als die Gegner:** Die Kulisse steht bereits, wenn sie
-   ins Bild scrollt — sie darf nie auf gleicher Höhe wie ein sichtbarer Gegner
-   „aufpoppen". Praktisch: Kulissen-Spawn mit größerem Vorlauf oberhalb des Bildrands
-   als der Gegner-Spawn.
+4. **Gegner erscheinen am Horizont, nicht erst unter der weißen Linie** (Präzisierung
+   Thomas 2026-08-22): Die Häuser wachsen heute schon korrekt oben aus dem Himmelbereich
+   heraus — das bleibt. Die Gegner dagegen werden erst unterhalb der weißen Linie
+   sichtbar; sie sollen ebenfalls **leicht aus dem Horizont herauskommen**, statt auf
+   der Straße aufzupoppen.
+5. **Minigun-Projektile besser sichtbar** (Sidenote Thomas 2026-08-22): Die Projektile
+   der `minigun` sind farblich kaum zu sehen — sie bekommen eine andere Farbe. Läuft
+   als kleiner Fix in W1 mit.
+6. **Horden dürfen groß sein und werden dichter, nicht breiter:** Wächst eine Horde,
+   rücken die Gegner enger zusammen — dieselbe Regel wie bei der eigenen Truppe
+   („dichter, nicht breiter", V1-Plan Abschnitt Truppe). Große Horden sind ausdrücklich
+   in Ordnung.
 
-## Offene Thomas-Entscheidung: Schießt der Boss in V2 noch?
+## Boss V2 (entschieden von Thomas am 2026-08-22)
 
-Thomas' Frage vom 2026-08-22. **Empfehlung: Nein — der Boss schießt in V2 nicht mehr.**
-Sein Druck kommt stattdessen aus zwei Mitteln, die V2 ohnehin baut: Er **ruft Horden**
-(nutzt das neue Horden-System) und er **rückt vor**, wenn der Kampf zu lange dauert
-(Zeitdruck aus V1.3 bleibt). Begründung: Im neuen Layout ist die Kernbewegung das
-Ausweichen gegen die Horde in der Mitte plus der Zielkonflikt mit den Wänden — Geschosse
-als dritte gleichzeitige Bedrohung machen die schmale Straße unlesbar. Dazu kommt: Die
-V1-Schwierigkeit („zu schwer") steckt großteils in den Salven; fällt der Schuss weg, ist
-die Bossbalance nur noch Kampfdauer gegen Hordendruck und damit sauber über die
-Leveltabelle einstellbar. Ganze Systeme (`bossBurst.ts`, Ausweichfenster-Tests) entfallen.
-**Bis Thomas entscheidet, wird Etappe W5 nicht spezifiziert.** Entscheidet er „schießt
-weiter", bleibt die Salvenmechanik und wird nur entschärft — dann ist die Empfehlung
-hinfällig und W5 wird als reine Balance-Etappe aufgesetzt.
+**Der Boss schießt in V2 nicht mehr.** Sein Druck kommt aus zwei Mitteln, die V2 ohnehin
+baut: Er **ruft Horden** (nutzt das neue Horden-System) und er **rückt vor**, wenn der
+Kampf zu lange dauert (Zeitdruck aus V1.3 bleibt). Die Salvensysteme (`bossBurst.ts`,
+Ausweichfenster-Tests) entfallen und werden in W6 entfernt.
+
+**Zweite Entscheidung dazu: Die Boss-Stärke passt sich dem momentanen Spielerstand an.**
+Die Lebenspunkte werden nicht mehr allein aus der Levelnummer abgeleitet, sondern beim
+Start des Bosskampfs aus der **tatsächlichen Feuerkraft der Truppe** berechnet
+(Truppengröße, Schaden, Feuerrate, Waffe — alles Werte, die das Spiel kennt), sodass die
+Kampfdauer im Zielfenster 20–40 s landet, egal wie stark oder schwach der Run gerade
+ist. Die Levelnummer skaliert stattdessen den Hordendruck (wie oft und wie groß der Boss
+Horden ruft). Das behebt zugleich den V1-Befund „zu schwer": Ein schwacher Run bekommt
+einen schaffbaren Boss, ein starker Run keinen Spaziergang. Die Herleitung der Formel
+gehört als Kommentar in `balance.ts` — gerechnet, nicht geschätzt (Lesson 2026-08-21).
 
 ## Etappen (je ein Codex-Task, Claude reviewt, Thomas testet am iPhone)
 
-Reihenfolge-Logik: W1 (Stadtbild) ist unabhängig vom Spuren-Umbau, risikoarm und sofort
-sichtbar — schneller erster Gewinn. W2–W4 bauen aufeinander auf (erst Wände, dann Horden,
-dann die Seiten-Ökonomie, die beides braucht). W5 (Boss) kommt zuletzt, weil er das
-Horden-System aus W3 nutzt und seine Balance vom fertigen Layout abhängt.
+Reihenfolge-Logik: W1 (Stadtbild + Gegner-Horizont + Minigun-Farbe) ist unabhängig vom
+Spuren-Umbau, risikoarm und sofort sichtbar — schneller erster Gewinn. W2–W4 bauen
+aufeinander auf (erst Wände, dann Horden, dann die Seiten-Ökonomie, die beides braucht).
+W5 (Boss) kommt zuletzt, weil er das Horden-System aus W3 nutzt und seine Balance vom
+fertigen Layout abhängt.
 
 | Etappe | Inhalt | Akzeptanz (objektiv prüfbar) |
 |---|---|---|
-| **W1 — Stadtbild** | Häuserzeilen durchgehend statt Einzeltürme: zusammenhängende Fassaden links/rechts, Lücken **nur** als Querstraßen in geplanten Abständen (Werte in `balance.ts`); Kulissen-Spawn-Vorlauf oberhalb des Bildrands größer als der Gegner-Spawn-Vorlauf; Kulissen-Pool auf den neuen schlimmsten Fall neu hergeleitet | Über mehrere Minuten Fahrt existiert keine Lücke zwischen zwei Häusern, die keine Querstraße ist (per Instrumentierung gezählt, nicht per Augenschein — Lesson 2026-08-20); kein Kulissenobjekt wird jemals unterhalb der Gegner-Spawnhöhe erstmals sichtbar (gemessen); Stadtbild wirkt am iPhone wie eine Stadt (Thomas-Urteil) |
+| **W1 — Stadtbild** | Häuserzeilen durchgehend statt Einzeltürme: zusammenhängende Fassaden links/rechts, Lücken **nur** als Querstraßen in geplanten Abständen (Werte in `balance.ts`); Kulissen-Pool auf den neuen schlimmsten Fall neu hergeleitet. **Gegner-Spawn an den Horizont:** Gegner werden künftig in der Horizontzone erstmals sichtbar und kommen leicht aus ihr heraus, statt erst unterhalb der weißen Linie aufzupoppen (die Häuser machen das bereits richtig und bleiben unverändert). **Kleiner Fix dazu:** Minigun-Projektile bekommen eine besser sichtbare Farbe (heute kaum erkennbar); Kontrast gegen Straße und neue Fassaden prüfen wie beim Figuren-Kontrollbild aus `naechste-tasks.md` | Über mehrere Minuten Fahrt existiert keine Lücke zwischen zwei Häusern, die keine Querstraße ist (per Instrumentierung gezählt, nicht per Augenschein — Lesson 2026-08-20); die erste sichtbare Position jedes Gegners liegt in der Horizontzone (Bereich in `balance.ts`, gemessen), nicht unterhalb der weißen Linie; Minigun-Projektile sind vor Straße und Fassade klar erkennbar (Thomas-Urteil); Stadtbild wirkt am iPhone wie eine Stadt (Thomas-Urteil) |
 | **W2 — Wände links/rechts** | Mitlaufende zerschießbare Wandsegmente an beiden Straßenrändern mit eigenen Lebenspunkten; Wegschießen gibt eine Belohnung; Berührung einer stehenden Wand kostet Figuren (Regel wie V1-Sperren); Wand-Pool mit Herleitung; ersetzt die V1-Sperren (E9). **Breitenbudget als erstes:** In `balance.ts` wird ein gemeinsames Budget definiert (Wanddicke links + rechts + Mindestkorridor + maximale Hordenbreite ≤ Straßenbreite) und die bestehenden Systeme (`spawnLanes.ts`/`chooseSpawnLane`, `gateLanes.ts`/`getGateLanes`) werden **noch in W2** auf die wandbereinigte Breite umgestellt — nicht erst in W3/W4. Sonst laufen die alten Tore und Spawner zwei live getestete Etappen lang unkoordiniert in die Wandzone. Die „maximale Hordenbreite" ist dabei ein **vorläufiger Platzhalter** (als solcher im Kommentar markiert): Die echte Hordenbreite entsteht erst in W3 — W3 darf Wanddicke und Korridor nachjustieren, ohne dass W2 neu abgenommen werden muss, solange das Budget als Ganzes hält | Kein `create()`/`destroy()` im Hot Path (Review-Checkpunkt); Berührungs- und Abschuss-Logik per Unit-Test ohne Phaser prüfbar; per Test nachgewiesen: kein Gegner-Spawn und keine Torspur liegt im Wandbereich, und das alte Torsystem hält auf der Restbreite weiterhin die 90-px-Mindestbreite je Spur ein; Wände fühlen sich als lohnendes Ziel an, nicht als Deko (Thomas-Urteil am iPhone) |
-| **W3 — Horden mittig** | Gegner-Spawner umgebaut: Horden laufen mittig die Straße herunter statt über Spuren verteilt; nutzt die Trupp-Formationen aus E7 (Keil/Reihe/Pulk) als Horden-Bausteine; Leveltabelle steuert Hordengröße und -takt; Gegner-Pool neu hergeleitet | Horden erscheinen als zusammenhängende Masse in der Mitte (Formations-Tests aus E7 angepasst und grün); **Zentrierung gemessen, nicht behauptet:** der Schwerpunkt-X jeder Horde liegt über ihre gesamte sichtbare Zeit in einem Mittelband der Straße (Bandbreite in `balance.ts`), per Instrumentierung über mehrere Minuten gezählt — „verteilte Trupps wie in V1" sind **kein** zulässiger Ersatz für mittige Horden; die Leveltabelle erzeugt nachweislich unterschiedliche Horden in Level 1, 6, 12; Ausweichen gegen die Horde fühlt sich als Kernbewegung an (Thomas-Urteil am iPhone) |
+| **W3 — Horden mittig** | Gegner-Spawner umgebaut: Horden laufen mittig die Straße herunter statt über Spuren verteilt; nutzt die Trupp-Formationen aus E7 (Keil/Reihe/Pulk) als Horden-Bausteine; Leveltabelle steuert Hordengröße und -takt; Gegner-Pool neu hergeleitet. **Dichteregel (Thomas 2026-08-22):** Wächst eine Horde, rücken die Gegner enger zusammen statt breiter zu werden (Regel wie bei der eigenen Truppe); große Horden sind ausdrücklich gewollt und dürfen nicht per Verkleinerung „gelöst" werden — das wäre ein stiller Zieltausch | Horden erscheinen als zusammenhängende Masse in der Mitte (Formations-Tests aus E7 angepasst und grün); **Zentrierung gemessen, nicht behauptet:** der Schwerpunkt-X jeder Horde liegt über ihre gesamte sichtbare Zeit in einem Mittelband der Straße (Bandbreite in `balance.ts`), per Instrumentierung über mehrere Minuten gezählt — „verteilte Trupps wie in V1" sind **kein** zulässiger Ersatz für mittige Horden; die Leveltabelle erzeugt nachweislich unterschiedliche Horden in Level 1, 6, 12; Ausweichen gegen die Horde fühlt sich als Kernbewegung an (Thomas-Urteil am iPhone) |
 | **W4 — Seiten-Ökonomie** | Waffen auf der einen, Upgrades auf der anderen Straßenseite — als Belohnung hinter/in den Wandsegmenten aus W2; ersetzt die V1-Tore (E3/E10-Torsystem). Die Prinzipien der Tor-Mathematik bleiben: zustandsabhängig gezogene Werte (kein auswendig lernbarer Reflex), neutrale Farbe, nie eine Wahl, die zwingend auf 0 Figuren führt. **Der Wert steht sichtbar auf der Wand, bevor geschossen wird** — die Kernspannung ist das Abwägen *vor* der Entscheidung; eine Belohnung, die erst nach dem Zerschießen sichtbar wird (wie bei den V1-Sperren in `blockers.ts`), ist für die Upgrade-Seite **kein** zulässiger Ersatz. **Und der Wert bleibt aktuell:** Anders als die V1-Tore (Wert beim Spawn eingefroren, Laufzeit ~1,4 s) sind Wandsegmente länger und mehrfach gleichzeitig sichtbar — der angezeigte Wert wird deshalb fortlaufend (mindestens: unmittelbar vor der Kollision) aus dem aktuellen Stand neu berechnet, nicht einmalig beim Sichtbarwerden | Upgrade-Werte sind nachweislich relativ zum aktuellen Stand gezogen (dieselbe Stelle liefert bei anderem Stand einen anderen Wert); der Wert ist vor dem ersten Treffer auf die Wand lesbar (im Test nachgewiesen: Beschriftung existiert ab Sichtbarwerden des Segments); ein Test simuliert eine Standänderung *während* ein Segment sichtbar ist und weist nach, dass der angezeigte Wert danach noch stimmt; es existiert nie eine Situation ohne gefahrlosen Weg (Test); die Entscheidung „Wand oder Horde" ist spürbar (Thomas-Urteil am iPhone) |
-| **W5 — Boss V2** | Je nach Thomas' Entscheidung oben: Boss ohne Schuss (Druck aus gerufenen Horden + Vorrücken) **oder** entschärfte Salven; in beiden Fällen Kampfdauer-Ziel 20–40 s je Level, Werte aus `balance.ts` gerechnet, nicht geschätzt (Lesson 2026-08-21) | Kampfdauer auf Level 1, 6, 12 im Spiel gemessen (nicht geschätzt) innerhalb des Zielfensters; Boss nutzt den bestehenden Gegner-Pool für Begleiter ohne `create()` zur Laufzeit; Boss ist fordernd, aber schaffbar (Thomas-Urteil am iPhone — der V1-Befund „zu schwer" ist das Gegenkriterium) |
-| **W6 — V2-Abnahme** | Aufräumen: tote V1-Systeme entfernen (altes Torsystem, Sperren, ggf. `bossBurst.ts`), Tests nachziehen, README aktualisieren; Netzwerk-Null-Check und Update-Pfad erneut; **kombinierte Volllast-Messung:** alle Systeme gleichzeitig in voller Dichte (durchgehende Häuserzeilen, Wände beidseitig, maximale Horde, Projektile, Boss mit Begleitern) — die Einzeletappen prüfen jedes System nur isoliert, erst hier läuft alles zusammen | Kein toter Code der ersetzten Systeme mehr im Bundle; alle Tests grün inkl. `test:dist`; Volllast-Szenario ruckelt am iPhone nicht (Thomas-Urteil, ergänzt um eine Frame-Messung wie im Projekt etabliert — Playwright + CDP); Abnahme-Checks aus dem README am iPhone bestanden (Thomas) |
+| **W5 — Boss V2** | Boss ohne Schuss (entschieden 2026-08-22): Druck aus gerufenen Horden + Vorrücken bei Zeitüberschreitung. **Lebenspunkte aus dem momentanen Spielerstand:** beim Kampfstart aus der tatsächlichen Feuerkraft der Truppe berechnet (Truppengröße, Schaden, Feuerrate, Waffe), Ziel-Kampfdauer 20–40 s unabhängig vom Run-Stand; die Levelnummer skaliert nur noch den Hordendruck. Formel-Herleitung als Kommentar in `balance.ts`, gerechnet statt geschätzt (Lesson 2026-08-21) | Kampfdauer auf Level 1, 6, 12 **je einmal mit schwachem und mit starkem Run-Stand** im Spiel gemessen (nicht geschätzt), alle sechs Messungen im Zielfenster; Boss feuert nachweislich kein Projektil mehr; Boss nutzt den bestehenden Gegner-Pool für Begleiter ohne `create()` zur Laufzeit; Boss ist fordernd, aber schaffbar (Thomas-Urteil am iPhone — der V1-Befund „zu schwer" ist das Gegenkriterium) |
+| **W6 — V2-Abnahme** | Aufräumen: tote V1-Systeme entfernen (altes Torsystem, Sperren, `bossBurst.ts` samt Ausweichfenster-Tests), Tests nachziehen, README aktualisieren; Netzwerk-Null-Check und Update-Pfad erneut; **kombinierte Volllast-Messung:** alle Systeme gleichzeitig in voller Dichte (durchgehende Häuserzeilen, Wände beidseitig, maximale Horde, Projektile, Boss mit Begleitern) — die Einzeletappen prüfen jedes System nur isoliert, erst hier läuft alles zusammen | Kein toter Code der ersetzten Systeme mehr im Bundle; alle Tests grün inkl. `test:dist`; Volllast-Szenario ruckelt am iPhone nicht (Thomas-Urteil, ergänzt um eine Frame-Messung wie im Projekt etabliert — Playwright + CDP); Abnahme-Checks aus dem README am iPhone bestanden (Thomas) |
 
 ## Risiken & Reißleinen
 
@@ -85,7 +97,10 @@ Horden-System aus W3 nutzt und seine Balance vom fertigen Layout abhängt.
   in `balance.ts`), gemessen nach jedem Schritt. Ein stilles Weglassen eines Systems im
   Volllast-Test ist **kein** zulässiger Ersatz für die Messung.
 - **Reißleine W3 (Horden-Performance):** Ruckelt eine volle Horde, wird die Hordengröße
-  in `balance.ts` gesenkt, nicht die Mechanik zurückgebaut (Regel wie E7).
+  in `balance.ts` gesenkt, nicht die Mechanik zurückgebaut (Regel wie E7). Das ist ein
+  **Performance-Notausgang mit Meldung an Thomas** — kleine Horden aus Bequemlichkeit
+  oder wegen Balance-Problemen sind dagegen kein zulässiger Weg: Thomas will große,
+  dichte Horden (Dichteregel in W3).
 - **Reißleine W5 (Boss):** Maximal zwei Balance-Zyklen für die Kampfdauer, danach
   Design-Entscheidung mit Thomas (Regel wie E8).
 - **Feature-Deckel V2:** W1–W6 sind der Deckel. Die alten Vormerkungen aus
@@ -95,7 +110,6 @@ Horden-System aus W3 nutzt und seine Balance vom fertigen Layout abhängt.
 
 ## Maschinenzeit-Schätzung
 
-W1 und W2 je ca. 30–60 Min Codex-Maschinenzeit plus Review; W3 und W4 eher 60–90 Min
-(Spawner- und Ökonomie-Umbau). W5 bleibt offen, bis Thomas die Boss-Frage entschieden
-hat — vorher gibt es keine Spec und keine belastbare Zahl. Dazwischen wartet die
-Umsetzung auf Thomas' iPhone-Tests (je ca. 5–10 Min).
+W1, W2 und W5 je ca. 30–60 Min Codex-Maschinenzeit plus Review; W3 und W4 eher 60–90 Min
+(Spawner- und Ökonomie-Umbau). Dazwischen wartet die Umsetzung auf Thomas' iPhone-Tests
+(je ca. 5–10 Min).

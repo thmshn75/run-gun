@@ -12,11 +12,12 @@ Gegenpruefungs-Runden gelaufen, Befunde eingearbeitet).
 ## Naechster Schritt: V2 starten
 Live-Stand: https://thmshn75.github.io/run-gun/
 1. **W1 (Stadtbild) als Spec aufsetzen** (`docs/active-task.md`, dann Codex im Terminal):
-   Haeuserzeilen durchgehend, Luecken nur als Querstrassen, Kulissen-Spawn-Vorlauf
-   groesser als der Gegner-Spawn-Vorlauf.
-2. **Vor W5 braucht es Thomas' Entscheidung:** Schiesst der Boss in V2 noch?
-   Empfehlung im Plan: nein (Druck stattdessen aus gerufenen Horden + Vorruecken).
-   Bis dahin wird W5 nicht spezifiziert.
+   Haeuserzeilen durchgehend, Luecken nur als Querstrassen; Gegner erscheinen kuenftig
+   leicht aus dem Horizont statt erst unter der weissen Linie (Haeuser machen es schon
+   richtig); Minigun-Projektile besser sichtbare Farbe.
+2. **Boss-Entscheidung ist gefallen (2026-08-22):** Boss schiesst in V2 nicht mehr;
+   Staerke wird beim Kampfstart aus dem momentanen Spielerstand berechnet
+   (Ziel-Kampfdauer 20–40 s). Details in plan-v2.md, Abschnitt "Boss V2".
 
 ## V2-Kern (Thomas-Entscheidungen 2026-08-21/22, Details in plan-v2.md)
 Spuren-Umbau nach Genre-Vorbild (Count Masters, Mob Control, Z Escape): zerschiessbare
