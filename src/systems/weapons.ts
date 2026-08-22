@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { getLaneRatio, getLaneSlope, getRoadHalfWidth } from './roadGeometry'
+import { getEngageLineY, getLaneRatio, getLaneSlope, getRoadHalfWidth } from './roadGeometry'
 import type { RunStats } from './upgrades'
 
 export type WeaponKey = 'normal' | 'shotgun' | 'laser' | 'rocket' | 'minigun' | 'flamethrower' | 'chainlightning'
@@ -34,6 +34,7 @@ export class Weapons {
   private lastPoolWarningAtMs: number
   private elapsedMs: number
   private activeWeapon: WeaponKey
+  private engageLimitEnabled: boolean
 
   public constructor(
     scene: Phaser.Scene,
@@ -66,6 +67,7 @@ export class Weapons {
     this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
     this.elapsedMs = 0
     this.activeWeapon = 'normal'
+    this.engageLimitEnabled = true
 
     for (const key of WEAPON_KEYS) {
       const segment = this.segments[key]
@@ -110,6 +112,12 @@ export class Weapons {
   public recycle(projectile: Phaser.Physics.Arcade.Image): void {
     projectile.disableBody(true, true)
     projectile.setActive(false).setVisible(false)
+    projectile.setAlpha(1)
+  }
+
+  /** Bossphase: Die Eingriffslinie wird abgeschaltet, sonst waere der Boss unangreifbar. */
+  public setEngageLimitEnabled(enabled: boolean): void {
+    this.engageLimitEnabled = enabled
   }
 
   /** Rueckgabe: Zahl der in diesem Bild abgefeuerten Salven - die GameScene haengt den Schusston daran. */
@@ -139,19 +147,24 @@ export class Weapons {
       const laneRatio = projectile.getData('laneRatio') as number
       const laneOriginX = projectile.getData('laneOriginX') as number
       const lateralPx = (projectile.getData('lateralPx') as number) + vx * seconds
-      const previousX = projectile.x
       projectile.y += vy * seconds
       projectile.x = laneOriginX + laneRatio * getRoadHalfWidth(width, height, projectile.y) + lateralPx
       projectile.setData('lateralPx', lateralPx)
-      const stepX = projectile.x - previousX
-      const stepY = vy * seconds
-      projectile.setData('travelledPx', (projectile.getData('travelledPx') as number) + Math.sqrt(stepX * stepX + stepY * stepY))
       ;(projectile.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       const config = this.getWeaponConfig(projectile.getData('weapon') as WeaponKey)
       const leftOrRight = projectile.x + projectile.displayWidth / 2 < 0 || projectile.x - projectile.displayWidth / 2 > this.scene.scale.width
-      const aboveHorizon = projectile.y - projectile.displayHeight / 2 <= BALANCE.road.horizonY
-      const outOfRange = config.rangePx > 0 && (projectile.getData('travelledPx') as number) >= config.rangePx
-      if (leftOrRight || aboveHorizon || outOfRange) this.recycle(projectile)
+      // Kampfzone statt Horizont: Der Schuss endet auf der Linie DIESER Waffe, damit
+      // Gegner weiter oben ueberhaupt ankommen (BALANCE.weapon.<name>.engageShare).
+      // In der Bossphase gilt keine Reichweite - der Boss steht auf battleY 300 und
+      // waere fuer die kurzen Waffen den halben Kampf lang unangreifbar.
+      const grenzeY = this.engageLimitEnabled ? getEngageLineY(height, config.engageShare) : BALANCE.road.horizonY
+      const kopfY = projectile.y - projectile.displayHeight / 2
+      if (leftOrRight || kopfY <= grenzeY) {
+        this.recycle(projectile)
+        continue
+      }
+      // Ausblenden kurz vor der Linie: ohne das verschwinden Kugeln mitten im Bild.
+      projectile.setAlpha(Math.min(1, (kopfY - grenzeY) / BALANCE.projectile.engageFadePx))
     }
     return salvos
   }
@@ -190,7 +203,6 @@ export class Weapons {
         projectile.setData('laneRatio', laneRatio)
         projectile.setData('laneOriginX', laneOriginX)
         projectile.setData('lateralPx', 0)
-        projectile.setData('travelledPx', 0)
         if (weaponKey === 'laser') (projectile.getData('hitSpawnIds') as Set<number>).clear()
         ;(projectile.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0)
       }

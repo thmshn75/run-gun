@@ -669,6 +669,9 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.levelPhase === 'warning') {
       this.levelPhase = 'boss'
+      // Im Duell gilt keine Schussreichweite: Der Boss steht weiter oben als die
+      // Reichweite der kurzen Waffen und rueckt erst langsam vor.
+      this.weapons.setEngageLimitEnabled(false)
       this.levelOverlayBackground.setVisible(false)
       this.levelOverlay.setVisible(false)
       this.boss.activate(
@@ -707,6 +710,8 @@ export class GameScene extends Phaser.Scene {
     // Gegnertempo ist seit 2026-08-22 eine reine Levelgroesse, kein Ausbau mehr.
     this.runStats.set('speed', getEnemySpeed(this.currentLevel))
     this.levelPhase = 'normal'
+    // Normalphase: Reichweite gilt wieder, sonst raeumt die Truppe bis zum Horizont ab.
+    this.weapons.setEngageLimitEnabled(true)
     this.phaseRemainingMs = getLevelPlan(this.currentLevel).normalPhaseSec * 1000
     this.levelOverlayBackground.setVisible(false)
     this.levelOverlay.setVisible(false)

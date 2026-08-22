@@ -58,20 +58,23 @@ export const BALANCE = {
     // letzten Drittel war zu erkennen, was da kommt.
     //
     // Zwei Regler statt der starren Kopplung:
-    //   horizonScale   Groesse am Horizont. 0,57 -> 0,72, also gut ein Viertel groesser.
-    //                  Obergrenze ist die Hordenoptik: Die FORMATION schrumpft weiter
-    //                  mit der Strasse (Faktor 0,57), die FIGUREN nur auf 0,72 - zwei
-    //                  schwere Gegner (40 px, Abstand 44 px) stehen am Horizont dadurch
-    //                  auf Tuchfuehlung. Ueber 0,75 wuerden sie sichtbar ineinander
-    //                  laufen; leichte Gegner (18 px) behalten auch dann Luft.
+    //   horizonScale   Groesse am Horizont. 0,57 -> 0,72 -> 0,80 (Thomas nach dem
+    //                  zweiten iPhone-Test: "die mobs wirken immer noch zu klein").
+    //                  Der Preis ist bekannt und bewusst bezahlt: Die FORMATION
+    //                  schrumpft weiter mit der Strasse (Faktor 0,57), die FIGUREN nur
+    //                  auf 0,80 - zwei schwere Gegner (40 px Koerper, 44 px Abstand)
+    //                  ueberlappen am Horizont um rund 7 px. In einer Horde ist das
+    //                  kein Fehler, sondern das Zielbild (siehe spawnLanes.canMeet:
+    //                  "dichte Massen sind genau das Zielbild"); leichte Gegner (18 px)
+    //                  behalten ohnehin Luft. Ueber 0,85 wuerde daraus Matsch.
     //   growthExponent Kruemmung dazwischen. Unter 1 zieht das Wachstum nach VORNE:
-    //                  bei 0,55 ist auf halber Anflugstrecke 91 % der vollen Groesse
-    //                  erreicht statt 79 %, auf einem Drittel 85 % statt 69 %.
+    //                  bei 0,45 ist auf halber Anflugstrecke 95 % der vollen Groesse
+    //                  erreicht (0,55 gab 91 %, die starre Strassenkopplung 79 %).
     // Auf Kampfhoehe bleibt der Faktor exakt 1 - dort treffen Gegner und Truppe
     // aufeinander, und die ganze Hordengeometrie rechnet in diesem Bezugssystem.
     perspective: {
-      horizonScale: 0.72,
-      growthExponent: 0.55,
+      horizonScale: 0.80,
+      growthExponent: 0.45,
       // Stuetzstellen fuer getFigureOverscanFactor. 512 ueber 564 px sind gut 1 px
       // Raster - fein genug, dass die Spitze der Kurve nicht zwischen zwei Punkte
       // faellt, und einmalig je Bildschirmgroesse berechnet.
@@ -108,6 +111,33 @@ export const BALANCE = {
     // 1 = voll spurtreu, 0 = altes Verhalten (senkrecht). Tuning-Regler fuer den
     // iPhone-Test — Zwischenwerte mischen beide Bahnen linear.
     laneFollow: 1,
+    // SCHUSSREICHWEITE (Thomas 2026-08-22: "Ja Schuss Weite begrenzen").
+    //
+    // Der Befund davor: Der Nachschub war auf das Vierfache gestiegen, die Strasse blieb
+    // trotzdem leer. Grund ist nicht die Menge, sondern die Reichweite - die Truppe traf
+    // bis an den Horizont und raeumte jeden Gegner ab, bevor er ueberhaupt sichtbar
+    // gross wurde. Gemessen im schwaechsten Fall (Truppe 2, DMG 1, RATE 3): 6 Toetungen
+    // je Sekunde gegen 4,4 Spawns. Mit Thomas' iPhone-Werten (DMG 18,5, RATE 8) ist der
+    // Abstand um ein Vielfaches groesser.
+    //
+    // Jetzt endet jeder Schuss auf einer Linie, die JE WAFFE unterschiedlich weit oben
+    // liegt (Thomas 2026-08-22, Nachtrag: "Schussreichweite an Waffen anpassen -
+    // Vergleich zur Realitaet"). Der Wert steht bei jeder Waffe als `engageShare`:
+    // Anteil der ANFLUGSTRECKE (Kampfhoehe bis Horizont, 564 px bei 390 x 844), nicht
+    // eine geratene Pixelzahl - so sitzt die Linie auf jedem Geraet an derselben Stelle
+    // des Spielfelds. Die Wandsegmente trifft man entsprechend spaeter; unkritisch, weil
+    // eine Wand nach blockers.maxFocusSec ohnehin in hoechstens 0,6 s faellt.
+    //
+    // IN DER BOSSPHASE GILT KEINE REICHWEITE - weder Linie noch Waffenwert. Der Boss
+    // steht auf battleY 300, also 414 px vor der Truppe, und rueckt von dort in 40 s
+    // vor. Mit realistischen Kurzreichweiten (Flamme 158 px) waere er den halben Kampf
+    // lang unangreifbar. Die Alternative waere gewesen, battleY an die kuerzeste Waffe
+    // zu koppeln (545 statt 300) und advanceSpeed nachzurechnen - das haette den Boss
+    // dauerhaft nah und gross ins Bild geholt und seine ganze Kampfdramaturgie
+    // umgebaut, fuer einen Realismus, den in einem Duell niemand vermisst.
+    // Die letzten Pixel vor der Linie blendet die Kugel aus, statt im Nichts zu
+    // verschwinden - sonst liest sich die Grenze wie ein Darstellungsfehler.
+    engageFadePx: 40,
   },
   // Lebendigkeit (Thomas 2026-08-22: "immer noch nicht so wie im App Store, ich kann
   // dir aber auch nicht sagen woran es liegt"). Befund beim Nachsehen: Im ganzen Spiel
@@ -277,6 +307,33 @@ export const BALANCE = {
     // Deckend statt halbtransparent (Thomas 2026-08-22). Der Wandinhalt ist deshalb
     // vor die Wand gewandert, siehe layers.wallContent.
     fillAlpha: 1,
+    // 3D-Optik der Wandkacheln (Thomas 2026-08-22: "die Waende - naja die muessen wir
+    // noch anpassen, wirken wie Platzhalter - gehoeren auch wie 3d Optik"). Bis hierher
+    // war eine Kachel ein flaches, halbtransparentes Rechteck mit Rahmen - im Bild ein
+    // Aufkleber neben lauter plastischen Pixel-Sprites.
+    //
+    // Aus dem Rechteck wird ein QUADER, aus einer Lichtquelle von oben links:
+    // Deckflaeche oben, Verlauf nach unten, Schattensockel, helle linke und dunkle
+    // rechte Kante. Alles steckt in der Textur - zur Laufzeit wird nur skaliert, es
+    // kostet also kein einziges zusaetzliches Zeichenobjekt.
+    block: {
+      // Anteil der Kachelhoehe, den die Deckflaeche einnimmt. Mehr als ein Fuenftel
+      // laesst die Kachel von oben gesehen wirken statt von vorn.
+      topFaceShare: 0.18,
+      topFaceLighten: 0.42,
+      // Sockel: schmaler und dunkler als die Deckflaeche hell ist - Schatten fallen
+      // kuerzer aus als Glanz, sonst wirkt der Block unten abgeschnitten.
+      baseShare: 0.09,
+      baseDarken: 0.38,
+      // Verlauf der Frontflaeche vom Deckel bis zum Sockel.
+      bodyDarkenAtBottom: 0.26,
+      // Kantenbreite in Texturpixeln. Die Textur ist 128 px breit und wird auf die
+      // perspektivische Wandbreite gestaucht - 3 px bleiben dabei sichtbar, 1 px nicht.
+      sideEdgePx: 3,
+      edgeLighten: 0.28,
+      sideDarken: 0.22,
+      cornerRadius: 10,
+    },
     labelOffsetPx: 18,
     // Belohnung beim Wegschiessen eines Muenz-Segments (coinValue wie schwerer Gegner).
     coinReward: 3,
@@ -440,7 +497,10 @@ export const BALANCE = {
       bulletsPerShot: 1,
       fanAngleDeg: 0,
       projectileSpeed: 640,
-      rangePx: 0,
+      // Sturmgewehr: die Bezugsgroesse, an der die anderen gemessen sind. Real einige
+      // hundert Meter, im Spiel die halbe Anflugstrecke - Kampf beginnt knapp ueber der
+      // Bildmitte.
+      engageShare: 0.55,
       pierces: false,
       splashRadiusPx: 0,
       splashDamageFactor: 0,
@@ -456,7 +516,9 @@ export const BALANCE = {
       bulletsPerShot: 7,
       fanAngleDeg: 34,
       projectileSpeed: 640,
-      rangePx: 430,
+      // Schrot: real wenige Dutzend Meter, danach streut die Ladung wirkungslos.
+      // Zweitkuerzeste Waffe im Spiel, dafuer der hoechste Schaden je Schuss.
+      engageShare: 0.38,
       pierces: false,
       splashRadiusPx: 0,
       splashDamageFactor: 0,
@@ -472,7 +534,10 @@ export const BALANCE = {
       bulletsPerShot: 1,
       fanAngleDeg: 0,
       projectileSpeed: 900,
-      rangePx: 0,
+      // Laser: Licht hat praktisch keine Reichweitengrenze. Bewusst trotzdem gedeckelt -
+      // bei 1,0 waere die Kampfzone fuer diese Waffe komplett aufgehoben und Thomas'
+      // Anliegen (Gegner sollen ankommen) fiele mit dem ersten Waffenfund wieder um.
+      engageShare: 0.85,
       pierces: true,
       splashRadiusPx: 0,
       splashDamageFactor: 0,
@@ -488,7 +553,8 @@ export const BALANCE = {
       bulletsPerShot: 1,
       fanAngleDeg: 0,
       projectileSpeed: 300,
-      rangePx: 0,
+      // Rakete: fliegt weit, ist aber langsam - man schiesst auf Vorhalt.
+      engageShare: 0.72,
       pierces: false,
       splashRadiusPx: 70,
       splashDamageFactor: 1.5,
@@ -505,7 +571,9 @@ export const BALANCE = {
       bulletsPerShot: 1,
       fanAngleDeg: 0,
       projectileSpeed: 900,
-      rangePx: 0,
+      // Minigun: dasselbe Kaliber wie das Sturmgewehr, aber auf Dauerfeuer ausgelegt -
+      // etwas weiter, dafuer streut sie.
+      engageShare: 0.62,
       pierces: false,
       splashRadiusPx: 0,
       splashDamageFactor: 0,
@@ -522,7 +590,9 @@ export const BALANCE = {
       bulletsPerShot: 5,
       fanAngleDeg: 52,
       projectileSpeed: 620,
-      rangePx: 430,
+      // Flammenwerfer: real die kuerzeste Reichweite ueberhaupt, der Strahl zerfaellt
+      // nach wenigen Dutzend Metern. Kuerzeste Waffe im Spiel - Nahkampf mit hoher Rate.
+      engageShare: 0.28,
       pierces: false,
       splashRadiusPx: 0,
       splashDamageFactor: 0,
@@ -539,7 +609,9 @@ export const BALANCE = {
       bulletsPerShot: 1,
       fanAngleDeg: 0,
       projectileSpeed: 780,
-      rangePx: 0,
+      // Kettenblitz: der Bogen selbst reicht nicht weit, seine Wirkung kommt aus dem
+      // Ueberspringen auf Nachbarn.
+      engageShare: 0.45,
       pierces: false,
       splashRadiusPx: 0,
       splashDamageFactor: 0,

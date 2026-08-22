@@ -9,9 +9,14 @@ type WeaponKey = keyof typeof BALANCE.weapon
 const newWeapons: readonly WeaponKey[] = ['minigun', 'flamethrower', 'chainlightning']
 const weaponKeys: readonly WeaponKey[] = ['normal', 'shotgun', 'laser', 'rocket', 'minigun', 'flamethrower', 'chainlightning']
 
+// Anflugstrecke des Referenzgeraets (390 x 844): Kampfhoehe bis Horizont.
+const APPROACH_PX = 844 - BALANCE.player.anchorBottomOffset - BALANCE.road.horizonY
+
 function flightSeconds(weapon: WeaponKey): number {
   const config = BALANCE.weapon[weapon]
-  return (config.rangePx > 0 ? config.rangePx : 720) / config.projectileSpeed
+  // Seit der Reichweitenbegrenzung endet jede Kugel auf der Linie ihrer Waffe; die
+  // Flugzeit ist damit die Strecke bis dorthin, nicht mehr der ganze Bildschirm.
+  return (config.engageShare * APPROACH_PX) / config.projectileSpeed
 }
 
 function peakProjectileLoad(weapon: WeaponKey): number {
@@ -44,13 +49,34 @@ describe('additional weapons', () => {
     }
   })
 
-  it('lets shotgun and flamethrower reach the boss from the crowd anchor', () => {
+  it('staffelt die Reichweiten nach der Realitaet, ohne die Kampfzone aufzuheben', () => {
+    // Thomas 2026-08-22: "Schussreichweite an Waffen anpassen - Vergleich zur Realitaet".
+    // Reihenfolge kurz -> weit: Flamme, Schrot, Blitz, Gewehr, Minigun, Rakete, Laser.
+    const reihenfolge: readonly WeaponKey[] = ['flamethrower', 'shotgun', 'chainlightning', 'normal', 'minigun', 'rocket', 'laser']
+    for (let index = 1; index < reihenfolge.length; index += 1) {
+      expect(BALANCE.weapon[reihenfolge[index]].engageShare, reihenfolge[index])
+        .toBeGreaterThan(BALANCE.weapon[reihenfolge[index - 1]].engageShare)
+    }
+    // Auch die weiteste Waffe laesst einen Rest Anflugstrecke frei - sonst faellt der
+    // Zweck der Begrenzung (Gegner sollen ankommen) mit dem ersten Waffenfund um.
+    for (const weapon of weaponKeys) {
+      expect(BALANCE.weapon[weapon].engageShare, weapon).toBeLessThanOrEqual(0.85)
+      expect(BALANCE.weapon[weapon].engageShare, weapon).toBeGreaterThan(0.2)
+    }
+  })
+
+  it('nimmt die Reichweite im Bossduell heraus, statt den Boss unangreifbar zu machen', () => {
+    // Der Boss steht auf battleY, also weiter oben als jede Waffenlinie. Ohne die
+    // Ausnahme waere er fuer kurze Waffen den halben Kampf lang nicht zu treffen.
     const anchorY = 844 - BALANCE.player.anchorBottomOffset
     const bossDistance = anchorY - BALANCE.boss.battleY
-    expect(BALANCE.weapon.shotgun.rangePx).toBe(430)
-    expect(BALANCE.weapon.flamethrower.rangePx).toBe(430)
-    expect(BALANCE.weapon.shotgun.rangePx).toBeGreaterThan(bossDistance)
-    expect(BALANCE.weapon.flamethrower.rangePx).toBeGreaterThan(bossDistance)
+    const kuerzeste = Math.min(...weaponKeys.map((weapon) => BALANCE.weapon[weapon].engageShare)) * APPROACH_PX
+    expect(kuerzeste).toBeLessThan(bossDistance)
+    const scene = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
+    expect(scene).toContain('this.weapons.setEngageLimitEnabled(false)')
+    expect(scene).toContain('this.weapons.setEngageLimitEnabled(true)')
+    const weapons = readFileSync(new URL('../src/systems/weapons.ts', import.meta.url), 'utf8')
+    expect(weapons).toContain('this.engageLimitEnabled ? getEngageLineY(height, config.engageShare) : BALANCE.road.horizonY')
   })
 
   it('sets the expanded shotgun and flamethrower pools above their calculated peaks', () => {

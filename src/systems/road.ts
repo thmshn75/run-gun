@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { getRoadHalfWidth, getScrollProgressDelta, getScrollY } from './roadGeometry'
 
-export { getFigureOverscanFactor, getPerspectiveScale, getPlayfieldHalfWidth, getRoadHalfWidth, getWallGeometry } from './roadGeometry'
+export { getEngageLineY, getFigureOverscanFactor, getPerspectiveScale, getPlayfieldHalfWidth, getRoadHalfWidth, getWallGeometry } from './roadGeometry'
 
 type CenterLineSegment = {
   readonly image: Phaser.GameObjects.Image

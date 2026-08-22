@@ -222,13 +222,40 @@ export class BootScene extends Phaser.Scene {
       // Dritte Textur fuer die roten Kacheln, die auf beiden Seiten abziehen statt zu geben.
       { key: 'wall-segment-bad', fill: WORLD_COLORS.wallBadFill, stroke: WORLD_COLORS.wallBadStroke },
     ] as const
+    const hoehe = BALANCE.walls.segmentHeightPx
+    const block = BALANCE.walls.block
+    const deckel = Math.round(hoehe * block.topFaceShare)
+    const sockel = Math.round(hoehe * block.baseShare)
     for (const seite of seiten) {
       const graphics = this.add.graphics()
-      graphics.fillStyle(seite.fill, BALANCE.walls.fillAlpha)
-      graphics.fillRoundedRect(0, 0, 128, BALANCE.walls.segmentHeightPx, 10)
+      // 1. Koerper mit vertikalem Verlauf. fillGradientStyle scheidet aus (wirkt nur im
+      //    WebGL-Pfad, nicht in generateTexture) - deshalb gestapelte Streifen.
+      for (let y = deckel; y < hoehe; y += 1) {
+        const t = (y - deckel) / Math.max(1, hoehe - deckel - 1)
+        graphics.fillStyle(mix(seite.fill, 0x000000, t * block.bodyDarkenAtBottom), BALANCE.walls.fillAlpha)
+        graphics.fillRect(0, y, 128, 1)
+      }
+      // 2. Deckflaeche: die Oberseite des Quaders, von oben beleuchtet. Sie macht aus
+      //    dem Aufkleber einen Koerper - ohne sie bleibt jede Kachel ein Rechteck.
+      graphics.fillStyle(mix(seite.fill, 0xffffff, block.topFaceLighten), 1)
+      graphics.fillRoundedRect(0, 0, 128, deckel + block.cornerRadius, block.cornerRadius)
+      graphics.fillRect(0, deckel, 128, 2)
+      // 3. Vordere Oberkante als heller Grat, damit Deckflaeche und Front sich trennen.
+      graphics.fillStyle(mix(seite.fill, 0xffffff, block.edgeLighten), 1)
+      graphics.fillRect(0, deckel, 128, 1)
+      // 4. Sockel: Schattenfuss, auf dem der Block steht.
+      graphics.fillStyle(mix(seite.fill, 0x000000, block.baseDarken), 1)
+      graphics.fillRect(0, hoehe - sockel, 128, sockel)
+      // 5. Seitenkanten: links Licht, rechts Schatten - eine Lichtquelle fuer alle
+      //    Kacheln, sonst kippt die Tiefenwirkung von Segment zu Segment.
+      graphics.fillStyle(mix(seite.fill, 0xffffff, block.edgeLighten), 1)
+      graphics.fillRect(0, deckel, block.sideEdgePx, hoehe - deckel - sockel)
+      graphics.fillStyle(mix(seite.fill, 0x000000, block.sideDarken), 1)
+      graphics.fillRect(128 - block.sideEdgePx, deckel, block.sideEdgePx, hoehe - deckel - sockel)
+      // 6. Rahmen zuletzt, damit er ueber allen Flaechen liegt.
       graphics.lineStyle(3, seite.stroke, 1)
-      graphics.strokeRoundedRect(1.5, 1.5, 125, BALANCE.walls.segmentHeightPx - 3, 10)
-      graphics.generateTexture(seite.key, 128, BALANCE.walls.segmentHeightPx)
+      graphics.strokeRoundedRect(1.5, 1.5, 125, hoehe - 3, block.cornerRadius)
+      graphics.generateTexture(seite.key, 128, hoehe)
       graphics.destroy()
     }
   }

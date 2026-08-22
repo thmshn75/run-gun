@@ -7,6 +7,47 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**Schussreichweite je Waffe, Gegner nochmal groesser, Wandkacheln als Quader**
+(2026-08-22, Claude direkt, Thomas nach dem zweiten iPhone-Test: "Ja Schuss Weite
+begrenzen, die mobs wirken immer noch zu klein und die Waende- naja die muessen wir noch
+anpassen wirken wie Platzhalter - gehoeren auch wie 3d Optik", Nachtrag:
+"Schussreichweite an Waffen anpassen - Vergleich zur Realitaet").
+- **Reichweite.** Der vervierfachte Nachschub hatte die Strasse nicht gefuellt, weil die
+  Truppe bis zum Horizont traf. Jetzt endet jeder Schuss auf einer Linie, die JE WAFFE
+  woanders liegt - `engageShare` als Anteil der Anflugstrecke (564 px), nicht als
+  Pixelzahl, damit die Linie auf jedem Geraet gleich sitzt. Von kurz nach weit:
+  Flamme 0,28 (158 px), Schrot 0,38 (214), Blitz 0,45 (254), Gewehr 0,55 (310),
+  Minigun 0,62 (350), Rakete 0,72 (406), Laser 0,85 (479). Der Laser ist bewusst
+  gedeckelt: bei 1,0 waere die Kampfzone mit dem ersten Waffenfund wieder aufgehoben.
+  Das alte `rangePx` ist ersatzlos weg - zwei Regler fuer dieselbe Sache.
+  **Bewusste Ausnahme: im Bossduell gilt keine Reichweite.** Der Boss steht auf
+  battleY 300, also 414 px entfernt, und rueckt von dort in 40 s vor; mit der Flamme
+  (158 px) waere er den halben Kampf unangreifbar. Die Alternative - battleY an die
+  kuerzeste Waffe koppeln (545) und advanceSpeed nachrechnen - haette die ganze
+  Bossdramaturgie umgebaut.
+- **Groesse.** `horizonScale` 0,72 -> 0,80, `growthExponent` 0,55 -> 0,45. Auf halber
+  Anflugstrecke jetzt 95 % der vollen Groesse (vorher 91 %, urspruenglich 79 %), am
+  Horizont 0,80 statt 0,57. Preis bewusst bezahlt: Zwei schwere Gegner nebeneinander
+  ueberlappen am Horizont um ~7 px - in einer Horde das Zielbild, kein Fehler. Der
+  Wandzonen-Aufschlag zog automatisch mit (1,31 -> 1,44).
+- **Wandkacheln.** Aus dem flachen Rechteck wird ein Quader: Deckflaeche oben,
+  Helligkeitsverlauf nach unten, Schattensockel, helle linke und dunkle rechte Kante -
+  eine Lichtquelle fuer alle Kacheln. Alles in der gebackenen Textur, also kein einziges
+  zusaetzliches Zeichenobjekt zur Laufzeit. Regler stehen in `walls.block`.
+**Gemessen im Browser** (Level 1, 10-s-Fenster): 35 / 31 / 37 Spawns. Etwas weniger als
+vor der Reichweitengrenze (bis 54) - erwarteter Nebeneffekt: Gegner leben laenger,
+belegen laenger eine Spur, `deferred` steigt. Im Bild ist das Gegenteil sichtbar: statt
+2 Gegnern stehen jetzt 10-12 gleichzeitig auf der Strasse.
+**Bekannter Rest, nicht gebaut:** Die Kacheln behalten ihre volle Hoehe bis zum Horizont,
+nur ihre Breite folgt der Perspektive. Das ist der groesste verbliebene Bruch in der
+Wandoptik. Der Fix ist kein Textur-, sondern ein Geometrie-Umbau: Die Kette laeuft mit
+festem Pixeltakt (`chainAccumulatorPx` gegen `segmentHeightPx`); skaliert man nur die
+Hoehe, reissen oben ~14 px Luecken. Richtig waere, jedem Segment einen Streckenwert zu
+geben und y perspektivisch abzubilden - eigener Task, mittleres Risiko (Trefferlogik,
+Sammelbahn-Takt, Wandmuster haengen daran).
+Nachweise: 147 Tests gruen, `npm run check` sauber, Browser-Messung wie oben.
+**Offen: Thomas' iPhone-Urteil.**
+
 **Gegner wachsen frueher, deutlich mehr Gegner ab Level 1**
 (2026-08-22, Claude direkt, Thomas nach dem iPhone-Test: "Die mobs sind jetzt voll klein
 und wachsen bis zu mir zur vollen Groesse - sollte schon frueher passieren - und es

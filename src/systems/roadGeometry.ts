@@ -86,6 +86,18 @@ export function getPerspectiveScale(width: number, height: number, y: number): n
  * Gegnern. Dort waere er zwar ebenso richtig, wuerde aber den Spawn-Durchsatz kosten -
  * und ueberlappende Gegner sind ausdruecklich kein Fehler (siehe spawnLanes.canMeet).
  */
+/**
+ * Hoehe, ab der Schuesse dieser Waffe nicht weiter fliegen (Thomas 2026-08-22: "Ja
+ * Schuss Weite begrenzen", Nachtrag "an Waffen anpassen - Vergleich zur Realitaet").
+ * `share` ist der Anteil der ANFLUGSTRECKE zwischen Kampfhoehe und Horizont, den die
+ * Waffe abdeckt (BALANCE.weapon.<name>.engageShare) - so sitzt die Linie auf jedem
+ * Geraet an derselben Stelle des Spielfelds statt an einer festen Pixelzahl.
+ */
+export function getEngageLineY(height: number, share: number): number {
+  const anchorY = height - BALANCE.player.anchorBottomOffset
+  return anchorY - (anchorY - BALANCE.road.horizonY) * Math.min(1, Math.max(0, share))
+}
+
 const overscanCache = new Map<string, number>()
 
 export function getFigureOverscanFactor(width: number, height: number): number {

@@ -113,10 +113,19 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     expect(BALANCE.walls.fillAlpha).toBe(1)
     // Damit MUSS der Inhalt vor der Wand liegen - dahinter waere er unsichtbar.
     expect(BALANCE.layers.wallContent).toBeGreaterThan(BALANCE.layers.gameplay)
-    // Deckkraft und runde Ecken stecken in der gebackenen Textur; die Wand selbst
-    // setzt keine Fuellfarbe mehr (das hatte die Transparenz einmal still zerstoert).
-    expect(bootSource).toContain('fillStyle(seite.fill, BALANCE.walls.fillAlpha)')
-    expect(bootSource).toContain('fillRoundedRect(0, 0, 128, BALANCE.walls.segmentHeightPx, 10)')
+    // Deckkraft, runde Ecken und die 3D-Flaechen stecken in der gebackenen Textur; die
+    // Wand selbst setzt keine Fuellfarbe mehr (das hatte die Transparenz einmal still
+    // zerstoert). Der Koerperverlauf muss weiter an fillAlpha haengen.
+    expect(bootSource).toContain('t * block.bodyDarkenAtBottom), BALANCE.walls.fillAlpha)')
+    // Quader statt Aufkleber (Thomas 2026-08-22: "wirken wie Platzhalter - gehoeren auch
+    // wie 3d Optik"): Deckflaeche, Sockel und die beiden Seitenkanten muessen alle drei
+    // in der Textur liegen, sonst ist es wieder ein flaches Rechteck.
+    expect(bootSource).toContain('block.topFaceLighten')
+    expect(bootSource).toContain('block.baseDarken')
+    expect(bootSource).toContain('block.edgeLighten')
+    expect(bootSource).toContain('block.sideDarken')
+    // Runde Ecken sitzen jetzt an der Deckflaeche, die den Kachelkopf bildet.
+    expect(bootSource).toContain('fillRoundedRect(0, 0, 128, deckel + block.cornerRadius, block.cornerRadius)')
     // Zwei Texturen, damit die Seiten auf einen Blick auseinandergehen.
     expect(bootSource).toContain("key: 'wall-segment-left'")
     expect(bootSource).toContain("key: 'wall-segment-right'")

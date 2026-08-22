@@ -18,10 +18,12 @@ describe('perspektivische Groesse', () => {
 
   it('schrumpft zum Horizont und waechst monoton nach unten', () => {
     const amHorizont = getPerspectiveScale(W, H, BALANCE.road.horizonY)
-    // 0,72: klein genug fuer Tiefe, gross genug, um einen Gegner am Horizont zu
-    // erkennen (Thomas 2026-08-22: "die mobs sind jetzt voll klein").
-    expect(amHorizont).toBeLessThan(0.78)
-    expect(amHorizont).toBeGreaterThan(0.68)
+    // 0,80: klein genug fuer Tiefe, gross genug, um einen Gegner am Horizont zu
+    // erkennen (Thomas 2026-08-22, zweimal: "die mobs sind jetzt voll klein", dann
+    // "die mobs wirken immer noch zu klein"). Ueber 0,85 wird die Horde am Horizont
+    // zu Matsch, weil die Formation weiter mit der Strasse schrumpft.
+    expect(amHorizont).toBeLessThanOrEqual(0.85)
+    expect(amHorizont).toBeGreaterThan(0.75)
     let vorher = 0
     for (let y = BALANCE.road.horizonY; y <= H; y += 20) {
       const jetzt = getPerspectiveScale(W, H, y)
@@ -42,8 +44,8 @@ describe('perspektivische Groesse', () => {
       const ausStrasse = getRoadHalfWidth(W, H, y) / getRoadHalfWidth(W, H, ANCHOR_Y)
       expect(getPerspectiveScale(W, H, y)).toBeGreaterThan(ausStrasse)
     }
-    // Auf halber Anflugstrecke (y = 432) 91 % statt 79 % der vollen Groesse.
-    expect(getPerspectiveScale(W, H, 432)).toBeCloseTo(0.911, 2)
+    // Auf halber Anflugstrecke (y = 432) 95 % statt 79 % der vollen Groesse.
+    expect(getPerspectiveScale(W, H, 432)).toBeCloseTo(0.946, 2)
   })
 
   it('haelt Gegner trotz der groesseren Ferndarstellung aus der Wandzone', () => {
@@ -55,8 +57,8 @@ describe('perspektivische Groesse', () => {
     // gekruemmt, der Korridor linear. Am Horizont selbst waeren es nur 1,26.
     const amHorizont = BALANCE.road.perspective.horizonScale
       / (getRoadHalfWidth(W, H, BALANCE.road.horizonY) / getRoadHalfWidth(W, H, ANCHOR_Y))
-    expect(amHorizont).toBeCloseTo(1.26, 2)
-    expect(faktor).toBeCloseTo(1.31, 2)
+    expect(amHorizont).toBeCloseTo(1.40, 2)
+    expect(faktor).toBeCloseTo(1.44, 2)
     expect(faktor).toBeGreaterThan(amHorizont)
     // Der Aufschlag deckt jede Hoehe ab, nicht nur den Horizont.
     for (let y = BALANCE.road.horizonY; y <= ANCHOR_Y; y += 10) {
