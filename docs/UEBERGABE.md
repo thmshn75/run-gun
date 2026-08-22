@@ -9,17 +9,20 @@ Git-Tag **`v1.0`** gesichert — das ist der Rueckschrittspunkt. V1-Plan: `docs/
 **V2 ist geplant und gehaertet:** `docs/plan-v2.md` (Etappen W1–W6, zwei
 Gegenpruefungs-Runden gelaufen, Befunde eingearbeitet).
 
-## Naechster Schritt: W1-Abnahme am iPhone, dann W2
+## Naechster Schritt: W1+W2-Abnahme am iPhone, dann W3
 Live-Stand: https://thmshn75.github.io/run-gun/
-1. **W1 ist umgesetzt und deployt** (2026-08-22, von Claude selbst auf Thomas' Anweisung;
-   Commit a74f0c8, Deploy gruen): Stadtbild mit durchgehenden Haeuserzeilen und synchronen
-   Querstrassen (`cityPlan.ts`), Gegner erscheinen per Crop aus dem Horizont
-   (`horizonReveal.ts`, Spawner), Minigun-Tracer gelb. 78 Tests gruen; Pools neu
-   hergeleitet (enemies 104, scenery 30 bestaetigt). Offen: Thomas' iPhone-Urteil
-   (Stadtbild, Minigun-Sichtbarkeit — Minigun ab Level 3).
-2. **Danach W2 (Waende links/rechts) als Spec aufsetzen** — Breitenbudget zuerst, siehe
-   plan-v2.md W2-Zeile. Boss-Entscheidung ist gefallen: schiesst nicht mehr, Staerke aus
-   dem momentanen Spielerstand (plan-v2.md, Abschnitt "Boss V2").
+1. **W1 umgesetzt und deployt** (2026-08-22, Claude direkt; Korrektur eingearbeitet):
+   New-York-Bloecke 10–16 Haeuser (`cityPlan.ts`), Gegner erscheinen wie die Haeuser
+   voll ueber dem Horizont (`horizonReveal.ts`), Minigun-Tracer gelb.
+2. **W2 umgesetzt und deployt** (2026-08-22, Claude direkt): Wandsegmente links/rechts —
+   `blockers.ts` in-place umgebaut (Umbenennung auf Walls in W6), Breitenbudget +
+   `getPlayfieldHalfWidth` in `roadGeometry.ts`, Spawner/Tore auf Restbreite, HP aus
+   `getBlockerPlan` x `walls.hpFactor`, Muenzen beim Zerstoeren, jedes 3. Segment traegt
+   eine Waffe (Waffenquelle der V1-Sperren bleibt). 82 Tests gruen.
+3. Offen: **Thomas' iPhone-Urteil zu W1+W2** (Stadtbild, Minigun, Waende als lohnendes
+   Ziel). Danach **W3 (Horden mittig)** — dabei den Horden-Platzhalter im Breitenbudget
+   (`walls.hordeMaxWidthPx`) durch die echte Hordenbreite ersetzen. Boss-Entscheidung
+   ist gefallen: schiesst nicht mehr, Staerke aus dem momentanen Spielerstand.
 
 ## V2-Kern (Thomas-Entscheidungen 2026-08-21/22, Details in plan-v2.md)
 Spuren-Umbau nach Genre-Vorbild (Count Masters, Mob Control, Z Escape): zerschiessbare

@@ -52,6 +52,30 @@ export const BALANCE = {
     road: 0,
     gameplay: 2,
   },
+  walls: {
+    // Breitenbudget (W2): Wandzone links + rechts + Korridor = Strassenbreite, in
+    // Anteilen der halben Strassenbreite, damit es in jeder Scroll-Tiefe gilt.
+    // Unten (390 px Strasse): Wandzone je Seite 0.18 x 195 = 35.1 px, Korridor 319.8 px.
+    laneShare: 0.18,
+    // Der Korridor muss Mindestbreite und Horden-Platzhalter tragen (Budget-Test).
+    // hordeMaxWidthPx ist ein PLATZHALTER, bis W3 die echte Hordenbreite festlegt —
+    // W3 darf laneShare/minCorridorPx nachjustieren, solange der Budget-Test haelt.
+    minCorridorPx: 240,
+    hordeMaxWidthPx: 220,
+    segmentHeightPx: 46,
+    // Ein Segment je Takt, Seiten abwechselnd — der Korridor ist nie beidseitig auf
+    // gleicher Hoehe zu, und es gibt regelmaessig ein Seitenziel neben den Gegnern.
+    spawnIntervalMs: 2600,
+    // HP = Sperren-Herleitung (Feuerkraft x referenceDestroySec) x Faktor: ein
+    // Wandsegment ist ein Seitenziel fuer ~0,7 s Fokus, keine Quersperre.
+    hpFactor: 0.35,
+    // Belohnung beim Wegschiessen: Muenzen wie ein schwerer Gegner (coinValue 3).
+    coinReward: 3,
+    contactDamage: 2,
+    // In Leveln mit Sperren-Budget (levelPlan.reserved.blockers) traegt jedes N-te
+    // Segment eine Waffe — die Waffenquelle der V1-Sperren bleibt damit erhalten.
+    weaponEvery: 3,
+  },
   scenery: {
     marginPx: 4,
     spreadPx: 6,
@@ -231,18 +255,11 @@ export const BALANCE = {
     damagePerExtraFigure: 0.14,
     damageMultiplierCap: 4,
   },
+  // Seit W2 dienen diese Werte den Wandsegmenten (siehe walls): referenceDestroySec
+  // ist die Basis der Feuerkraft-HP-Herleitung, rewardBehindOffsetPx der Abstand des
+  // Waffen-Rewards hinter einem zerschossenen Segment.
   blockers: {
-    // Player sprite: 34px wide. 2.4 figure widths are the fixed collision hull;
-    // this extra margin keeps the visually available bypass usable while dragging.
-    passageMarginPx: 12,
-    figureWidthPx: 34,
-    minWidthPx: 46,
-    heightPx: 54,
     rewardBehindOffsetPx: 82,
-    contactDamage: 2,
-    // Each design level owns its cadence. Levels 1 and 2 get a rare early choice;
-    // Level 3 remains the clear step up where alternate weapons enter the pool.
-    spawnIntervalMsByDesignLevel: [60000, 36000, 21000, 19000, 17500, 16000, 15500, 14000, 12500, 11250, 10000, 9000],
     referenceDestroySec: 2,
     minDestroySec: 1.5,
     maxDestroySec: 2.5,
@@ -431,9 +448,10 @@ export const BALANCE = {
     coins: 48,
     // Roughly 1.4s visible versus 9s spawn interval means at most one; two cover a delayed recycle.
     gateGroups: 2,
-    // Slowest blocker travel is (844 - 150) / 180 = 3.9s. The shortest L12 cadence
-    // is 9s, so one is normally enough; two cover a delayed recycle without allocations.
-    blockers: 2,
+    // Wall segments (W2): travel is (844 - 150) / 180 = 3.9s at a 2.6s cadence, so
+    // ceil(3.9 / 2.6) = 2 concurrent; a weapon reward keeps its pair alive for up to
+    // another 3.9s (+2). Six covers the peak plus reserve without allocations.
+    blockers: 6,
     // Densest case is an uninterrupted block (no cross streets): the fixed 120s,
     // 16.667ms-step, 390x844 city simulation then reaches 24 concurrent objects at the
     // 400ms cadence (18 with cross streets); 30 keeps the peak plus six-object reserve.

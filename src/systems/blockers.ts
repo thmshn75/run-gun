@@ -1,11 +1,17 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { HUD_COLORS } from '../config/colors'
-import { computeBlockerPlacement } from './blockerPlacement'
-import { getBlockerIntervalMs, getBlockerPlan } from './blockerPlan'
+import { getBlockerPlan } from './blockerPlan'
 import { getLevelPlan, type LevelPlan } from './levelPlan'
-import { getRoadHalfWidth } from './road'
+import { getWallGeometry } from './road'
 import type { WeaponKey } from './weapons'
+
+// Seit W2 (V2) traegt diese Klasse die WANDSEGMENTE links/rechts am Strassenrand —
+// sie ersetzt die V1-Quersperren und behaelt deren bewaehrte Bausteine (Pool,
+// Feuerkraft-HP aus getBlockerPlan, Kollisionspfade, Waffen-Reward). Umbenennung
+// auf "Walls" folgt im W6-Aufraeumen.
+
+type WallSide = 'left' | 'right'
 
 interface BlockerPair {
   blocker: Phaser.GameObjects.Rectangle
@@ -13,6 +19,8 @@ interface BlockerPair {
   reward: Phaser.Physics.Arcade.Image
   active: boolean
   broken: boolean
+  hasWeapon: boolean
+  side: WallSide
   weapon: WeaponKey
 }
 
@@ -24,7 +32,7 @@ export class Blockers {
   private readonly getTeamSize: () => number
   private readonly getDamage: () => number
   private readonly getShotsPerSec: () => number
-  private readonly rng: () => number
+  private readonly onBroken: (x: number, y: number) => void
   private readonly pairs: BlockerPair[]
   private readonly blockerGroup: Phaser.Physics.Arcade.Group
   private readonly rewardGroup: Phaser.Physics.Arcade.Group
@@ -33,6 +41,8 @@ export class Blockers {
   private elapsedMs: number
   private lastPoolWarningAtMs: number
   private nextSpawnId: number
+  private nextSide: WallSide
+  private weaponCounter: number
 
   public constructor(
     scene: Phaser.Scene,
@@ -43,6 +53,7 @@ export class Blockers {
     getDamage: () => number,
     getShotsPerSec: () => number,
     rng: () => number,
+    onBroken: (x: number, y: number) => void,
   ) {
     this.scene = scene
     this.requestEnemy = requestEnemy
@@ -51,7 +62,9 @@ export class Blockers {
     this.getTeamSize = getTeamSize
     this.getDamage = getDamage
     this.getShotsPerSec = getShotsPerSec
-    this.rng = rng
+    this.onBroken = onBroken
+    this.nextSide = rng() < 0.5 ? 'left' : 'right'
+    this.weaponCounter = 0
     this.pairs = []
     this.blockerGroup = scene.physics.add.group()
     this.rewardGroup = scene.physics.add.group()
@@ -96,6 +109,11 @@ export class Blockers {
     pair.label.setText(remainingHp <= 0 ? '' : `${Math.max(0, Math.ceil(remainingHp))}`)
     if (remainingHp > 0) return false
 
+    this.onBroken(blocker.x, blocker.y)
+    if (!pair.hasWeapon) {
+      this.recycle(pair)
+      return true
+    }
     pair.broken = true
     blocker.setActive(false).setVisible(false)
     ;(blocker.body as Phaser.Physics.Arcade.Body).enable = false
@@ -117,18 +135,17 @@ export class Blockers {
     const pair = this.pairs.find((candidate) => candidate.blocker === blocker)
     if (pair === undefined || !pair.active || pair.broken) return undefined
     this.recycle(pair)
-    return BALANCE.blockers.contactDamage
+    return BALANCE.walls.contactDamage
   }
 
   public update(dt: number): void {
     this.elapsedMs += dt
-    const intervalMs = this.levelPlan.reserved.blockers ? getBlockerIntervalMs(this.levelPlan.designLevel) : 0
-    if (intervalMs > 0) {
-      this.spawnAccumulatorMs += dt
-      while (this.spawnAccumulatorMs >= intervalMs) {
-        this.spawnAccumulatorMs -= intervalMs
-        this.spawn()
-      }
+    // Wandsegmente laufen in jedem Level mit festem Takt; nur die Waffen-Segmente
+    // haengen am Sperren-Budget der Leveltabelle (siehe spawn()).
+    this.spawnAccumulatorMs += dt
+    while (this.spawnAccumulatorMs >= BALANCE.walls.spawnIntervalMs) {
+      this.spawnAccumulatorMs -= BALANCE.walls.spawnIntervalMs
+      this.spawn()
     }
     const movement = (BALANCE.scrollSpeed * dt) / 1000
     for (const pair of this.pairs) {
@@ -140,7 +157,7 @@ export class Blockers {
   }
 
   private createPair(): BlockerPair {
-    const blocker = this.scene.add.rectangle(0, 0, BALANCE.blockers.minWidthPx, BALANCE.blockers.heightPx, 0xb84432)
+    const blocker = this.scene.add.rectangle(0, 0, 30, BALANCE.walls.segmentHeightPx, 0xb84432)
       .setStrokeStyle(3, 0xf3cf8a).setDepth(BALANCE.layers.gameplay).setOrigin(0.5).setActive(false).setVisible(false)
     this.scene.physics.add.existing(blocker)
     ;(blocker.body as Phaser.Physics.Arcade.Body).setAllowGravity(false)
@@ -152,47 +169,59 @@ export class Blockers {
     const reward = this.scene.physics.add.image(0, 0, 'weapon-normal-gate').setDepth(BALANCE.layers.gameplay).setActive(false).setVisible(false)
     reward.disableBody(true, true)
     this.rewardGroup.add(reward)
-    return { blocker, label, reward, active: false, broken: false, weapon: 'normal' }
+    return { blocker, label, reward, active: false, broken: false, hasWeapon: false, side: 'left', weapon: 'normal' }
+  }
+
+  private wallGeometry(side: WallSide, y: number): { x: number; width: number } {
+    return getWallGeometry(this.scene.scale.width, this.scene.scale.height, y, side)
   }
 
   private spawn(): void {
     const pair = this.pairs.find((candidate) => !candidate.active)
     if (pair === undefined) return this.warnPoolExhausted()
-    // A failed enemy spawn deliberately cancels this attempt: a lone blocker has no choice tension.
+    // A failed enemy spawn deliberately cancels this attempt: a lone wall has no choice tension.
     if (!this.requestEnemy()) return
-    const roadHalfWidth = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, BALANCE.road.horizonY)
-    const minPassagePx = BALANCE.crowd.hullWidthFigures * BALANCE.blockers.figureWidthPx + BALANCE.blockers.passageMarginPx
-    const placement = computeBlockerPlacement(roadHalfWidth, minPassagePx, this.rng)
-    if (placement.width < BALANCE.blockers.minWidthPx) return
+    const side = this.nextSide
+    this.nextSide = side === 'left' ? 'right' : 'left'
     const y = BALANCE.road.horizonY
-    const x = this.scene.scale.width / 2 + placement.centerOffset
+    const geometry = this.wallGeometry(side, y)
     const plan = getBlockerPlan(this.getTeamSize(), this.getCurrentWeapon(), this.getDamage(), this.getShotsPerSec())
+    const maxHp = Math.max(1, Math.round(plan.maxHp * BALANCE.walls.hpFactor))
+    const hasWeapon = this.levelPlan.reserved.blockers && (this.weaponCounter += 1) % BALANCE.walls.weaponEvery === 0
     pair.active = true
     pair.broken = false
-    pair.weapon = this.chooseWeapon(this.getCurrentWeapon())
-    pair.blocker.setSize(placement.width, BALANCE.blockers.heightPx).setPosition(x, y).setFillStyle(0xb84432).setStrokeStyle(3, 0xf3cf8a).setActive(true).setVisible(true).setAlpha(0)
+    pair.hasWeapon = hasWeapon
+    pair.side = side
+    pair.weapon = hasWeapon ? this.chooseWeapon(this.getCurrentWeapon()) : 'normal'
+    pair.blocker.setSize(geometry.width, BALANCE.walls.segmentHeightPx).setPosition(geometry.x, y).setFillStyle(0xb84432).setStrokeStyle(3, 0xf3cf8a).setActive(true).setVisible(true).setAlpha(0)
     const body = pair.blocker.body as Phaser.Physics.Arcade.Body
     body.enable = true
-    body.setSize(placement.width, BALANCE.blockers.heightPx, true)
+    body.setSize(geometry.width, BALANCE.walls.segmentHeightPx, true)
     body.moves = false
     body.updateFromGameObject()
-    pair.blocker.setData('hp', plan.maxHp)
-    pair.blocker.setData('maxHp', plan.maxHp)
+    pair.blocker.setData('hp', maxHp)
+    pair.blocker.setData('maxHp', maxHp)
     pair.blocker.setData('spawnId', this.nextSpawnId)
     this.nextSpawnId -= 1
-    pair.label.setText(`${plan.maxHp}`).setPosition(x, y).setActive(true).setVisible(true).setAlpha(0)
-    pair.reward.setTexture(`weapon-${pair.weapon}-gate`).setPosition(x, y - BALANCE.blockers.rewardBehindOffsetPx).setActive(false).setVisible(false).setAlpha(0)
+    pair.label.setText(`${maxHp}`).setPosition(geometry.x, y).setActive(true).setVisible(true).setAlpha(0)
+    pair.reward.setTexture(`weapon-${pair.weapon}-gate`).setPosition(geometry.x, y - BALANCE.blockers.rewardBehindOffsetPx).setActive(false).setVisible(false).setAlpha(0)
   }
 
   private movePair(pair: BlockerPair, movement: number): void {
     if (pair.blocker.active) {
-      pair.blocker.y += movement
-      const alpha = Math.min(1, Math.max(0, (pair.blocker.y - pair.blocker.displayHeight / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
+      const y = pair.blocker.y + movement
+      const geometry = this.wallGeometry(pair.side, y)
+      pair.blocker.setPosition(geometry.x, y)
+      pair.blocker.setSize(geometry.width, BALANCE.walls.segmentHeightPx)
+      const body = pair.blocker.body as Phaser.Physics.Arcade.Body
+      body.setSize(geometry.width, BALANCE.walls.segmentHeightPx, true)
+      body.updateFromGameObject()
+      const alpha = Math.min(1, Math.max(0, (y - pair.blocker.displayHeight / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
       pair.blocker.setAlpha(alpha)
-      pair.label.setPosition(pair.blocker.x, pair.blocker.y).setAlpha(alpha)
-      ;(pair.blocker.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
+      pair.label.setPosition(geometry.x, y).setAlpha(alpha)
     }
-    pair.reward.y += movement
+    const rewardY = pair.reward.y + movement
+    pair.reward.setPosition(this.wallGeometry(pair.side, rewardY).x, rewardY)
     if (!pair.broken || !pair.reward.active) return
     const alpha = Math.min(1, Math.max(0, (pair.reward.y - pair.reward.displayHeight / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
     pair.reward.setAlpha(alpha)

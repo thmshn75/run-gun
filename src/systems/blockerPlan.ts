@@ -8,11 +8,6 @@ export type BlockerPlan = Readonly<{
   referenceDestroySec: number
 }>
 
-export function getBlockerIntervalMs(designLevel: number): number {
-  const index = Math.max(1, Math.min(BALANCE.blockers.spawnIntervalMsByDesignLevel.length, Math.floor(designLevel))) - 1
-  return BALANCE.blockers.spawnIntervalMsByDesignLevel[index]
-}
-
 export function getBlockerPlan(teamSize: number, weapon: WeaponKey, damage: number, rate: number): BlockerPlan {
   const referenceDps = getCombatFirepower(teamSize, weapon) * damage * rate
   // Measured run stats keep every blocker at the fixed two-second target.

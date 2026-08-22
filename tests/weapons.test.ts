@@ -20,11 +20,12 @@ function peakProjectileLoad(weapon: WeaponKey): number {
 }
 
 describe('additional weapons', () => {
-  it('gives level one and two progressively more rare blocker cadences than level three', () => {
-    const [levelOne, levelTwo, levelThree] = BALANCE.blockers.spawnIntervalMsByDesignLevel
-    expect(levelOne).toBeGreaterThan(levelTwo)
-    expect(levelTwo).toBeGreaterThan(levelThree)
-    expect(levelThree).toBeGreaterThan(0)
+  it('keeps the wall weapon cadence in a playable range in blocker-budget levels', () => {
+    // Seit W2 kommen Waffen aus den Wandsegmenten: jedes weaponEvery-te Segment im
+    // walls-Takt. Die effektive Kadenz muss zwischen "regelmaessig" und "selten" liegen.
+    const weaponCadenceMs = BALANCE.walls.spawnIntervalMs * BALANCE.walls.weaponEvery
+    expect(weaponCadenceMs).toBeGreaterThanOrEqual(5000)
+    expect(weaponCadenceMs).toBeLessThanOrEqual(15000)
   })
 
   it('keeps every weapon pool above its balance-derived peak projectile load', () => {

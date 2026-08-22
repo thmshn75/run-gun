@@ -3,7 +3,7 @@ import { BALANCE } from '../config/balance'
 import { HUD_COLORS, lighten, STAT_COLORS, WEAPON_GATE_COLOR } from '../config/colors'
 import { getGateLanes, getGateSpawnLayout, getLabelScale, selectedLaneIndex, type GateLane, type GateLaneKind, type GateSpawnLayout } from './gateLanes'
 import { getLevelPlan } from './levelPlan'
-import { getRoadHalfWidth } from './road'
+import { getPlayfieldHalfWidth } from './road'
 import { clampStat, type RunStats, type StatKey } from './upgrades'
 import { getWeaponRewardChoices } from './weaponChoices'
 import { WEAPON_LABELS, type WeaponKey } from './weapons'
@@ -298,7 +298,7 @@ export class Gates {
   private layoutGroup(group: GateGroup): void {
     const centerX = this.scene.scale.width / 2
     const y = group.lanes[0].gate.y
-    const roadWidth = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y) * 2
+    const roadWidth = getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, y) * 2
     const lanes = getGateLanes(group.laneCount, centerX, roadWidth, BALANCE.gates.gapBetween)
     const statLaneCenters: number[] = []
     for (let index = 0; index < lanes.length; index += 1) {
@@ -345,7 +345,7 @@ export class Gates {
     return getGateLanes(
       group.laneCount,
       this.scene.scale.width / 2,
-      getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y) * 2,
+      getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, y) * 2,
       BALANCE.gates.gapBetween,
     )
   }

@@ -191,6 +191,7 @@ export class GameScene extends Phaser.Scene {
       () => this.runStats.get('damage'),
       () => this.runStats.get('shotsPerSec'),
       () => Phaser.Math.RND.frac(),
+      (x, y) => this.dropCoins(x, y, BALANCE.walls.coinReward),
     )
     this.boss = new Boss(
       this,
@@ -541,18 +542,22 @@ export class GameScene extends Phaser.Scene {
     const enemyY = enemy.y
     const coinValue = enemy.getData('coinValue') as number
     if (!this.spawner.damage(enemy, damage)) return
-    const coinOffsets = Array.from({ length: coinValue }, (_value, index) => (index - (coinValue - 1) / 2) * BALANCE.coins.dropSpacing)
-    const firstCoinX = enemyX + coinOffsets[0]
-    const lastCoinX = enemyX + coinOffsets[coinOffsets.length - 1]
+    this.dropCoins(enemyX, enemyY, coinValue)
+    if (this.boss.isEnemy(enemy)) this.handleBossDefeated()
+  }
+
+  private dropCoins(x: number, y: number, value: number): void {
+    const coinOffsets = Array.from({ length: value }, (_value, index) => (index - (value - 1) / 2) * BALANCE.coins.dropSpacing)
+    const firstCoinX = x + coinOffsets[0]
+    const lastCoinX = x + coinOffsets[coinOffsets.length - 1]
     const groupOffsetX = firstCoinX < BALANCE.coins.edgeInset
       ? BALANCE.coins.edgeInset - firstCoinX
       : lastCoinX > this.scale.width - BALANCE.coins.edgeInset
         ? this.scale.width - BALANCE.coins.edgeInset - lastCoinX
         : 0
-    for (let index = 0; index < coinValue; index += 1) {
-      this.coins.spawnAt(enemyX + coinOffsets[index] + groupOffsetX, enemyY)
+    for (let index = 0; index < value; index += 1) {
+      this.coins.spawnAt(x + coinOffsets[index] + groupOffsetX, y)
     }
-    if (this.boss.isEnemy(enemy)) this.handleBossDefeated()
   }
 
   private handlePlayerHit(enemy: Phaser.Physics.Arcade.Image): void {

@@ -4,7 +4,7 @@ import { canSpawnBossCompanion, getBossCompanionLimit } from './bossPlan'
 import { chooseEnemyType, type EnemyType } from './enemyTypes'
 import { getEnemySpawnCenterY, getSquadSpawnBaseY, isRevealedAtHorizon } from './horizonReveal'
 import { getLevelPlan, type LevelPlan } from './levelPlan'
-import { getRoadHalfWidth } from './road'
+import { getPlayfieldHalfWidth } from './road'
 import { chooseSpawnLane, type SpawnLaneEnemy } from './spawnLanes'
 import { computeSquadOffsets, getSquadWidth } from './squads'
 import type { RunStats } from './upgrades'
@@ -149,7 +149,7 @@ export class Spawner {
       const enemy = child as Phaser.Physics.Arcade.Image
       if (!enemy.active) continue
       enemy.y += (enemySpeed * (enemy.getData('speedFactor') as number) * dt) / 1000
-      enemy.x = this.scene.scale.width / 2 + (enemy.getData('lane') as number) * getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, enemy.y)
+      enemy.x = this.scene.scale.width / 2 + (enemy.getData('lane') as number) * getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, enemy.y)
       this.applyHorizonReveal(enemy)
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       const flashRemainingMs = Math.max(0, (enemy.getData('flashRemainingMs') as number) - dt)
@@ -196,7 +196,7 @@ export class Spawner {
     const lane = chooseSpawnLane(
       this.getActiveLaneEnemies(),
       { ...type, y },
-      getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, 0),
+      getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, 0),
       this.scene.scale.height,
       () => Phaser.Math.RND.frac(),
       BALANCE.enemy.spawnLaneSafetyGap,
@@ -208,7 +208,7 @@ export class Spawner {
   }
 
   private spawnSquad(squadKind: 'wedge' | 'row' | 'cluster', requestedSize: number): SpawnResult {
-    const topRoadHalfWidth = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, BALANCE.road.horizonY)
+    const topRoadHalfWidth = getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, BALANCE.road.horizonY)
     let size = Math.min(requestedSize, BALANCE.level.squads.maxSize)
     let offsets = computeSquadOffsets(squadKind, size, BALANCE.level.squads.spacingPx, BALANCE.level.squads.rowSpacingPx)
     while (size >= BALANCE.level.squads.minSize && getSquadWidth(offsets, Math.max(...BALANCE.enemy.types.map((type) => type.bodyWidth))) > topRoadHalfWidth * 2) {
@@ -242,7 +242,7 @@ export class Spawner {
 
     offsets.forEach((offset, index) => {
       const memberY = y + offset.yOffset
-      const memberLane = lane + offset.laneOffset / getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, memberY)
+      const memberLane = lane + offset.laneOffset / getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, memberY)
       this.activateEnemy(available[index], types[index], memberLane, memberY, false)
     })
     this.intervalSpawnCount += offsets.length
@@ -263,7 +263,7 @@ export class Spawner {
   }
 
   private activateEnemy(enemy: Phaser.Physics.Arcade.Image, type: EnemyType, lane: number, y: number, bossCompanion: boolean): void {
-    const x = this.scene.scale.width / 2 + lane * getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
+    const x = this.scene.scale.width / 2 + lane * getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
     enemy.setTexture(type.texture)
     enemy.enableBody(true, x, y, true, true)
     const body = enemy.body as Phaser.Physics.Arcade.Body
