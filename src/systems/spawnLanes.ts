@@ -31,8 +31,11 @@ export function chooseSpawnLane(
   height: number,
   random: () => number,
   safetyGap: number,
+  // W3-Mittelband: begrenzt den Schwerpunkt zusaetzlich auf einen Anteil der halben
+  // Spielfeldbreite, damit Horden mittig laufen und die Raender frei bleiben.
+  maxLaneLimit = 1,
 ): number | undefined {
-  const maxLane = Math.max(0, (roadHalfWidthTop - newEnemy.bodyWidth / 2) / roadHalfWidthTop)
+  const maxLane = Math.max(0, Math.min((roadHalfWidthTop - newEnemy.bodyWidth / 2) / roadHalfWidthTop, maxLaneLimit))
   const blocked = activeEnemies
     .filter((enemy) => canMeet({ ...newEnemy, lane: 0 }, enemy, height))
     .map((enemy) => {

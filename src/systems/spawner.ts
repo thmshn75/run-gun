@@ -6,7 +6,7 @@ import { getEnemySpawnCenterY, getSquadSpawnBaseY, isRevealedAtHorizon } from '.
 import { getLevelPlan, type LevelPlan } from './levelPlan'
 import { getPlayfieldHalfWidth } from './road'
 import { chooseSpawnLane, type SpawnLaneEnemy } from './spawnLanes'
-import { computeSquadOffsets, getSquadWidth } from './squads'
+import { computeHordeOffsets, getSquadWidth } from './squads'
 import type { RunStats } from './upgrades'
 import { getWeaponRewardChoices } from './weaponChoices'
 import type { WeaponKey } from './weapons'
@@ -200,6 +200,7 @@ export class Spawner {
       this.scene.scale.height,
       () => Phaser.Math.RND.frac(),
       BALANCE.enemy.spawnLaneSafetyGap,
+      BALANCE.enemy.spawnBands.singleLaneShare,
     )
     if (lane === undefined) return 'no-lane'
     this.activateEnemy(enemy, type, lane, y, bossCompanion)
@@ -209,15 +210,25 @@ export class Spawner {
 
   private spawnSquad(squadKind: 'wedge' | 'row' | 'cluster', requestedSize: number): SpawnResult {
     const topRoadHalfWidth = getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, BALANCE.road.horizonY)
-    let size = Math.min(requestedSize, BALANCE.level.squads.maxSize)
-    let offsets = computeSquadOffsets(squadKind, size, BALANCE.level.squads.spacingPx, BALANCE.level.squads.rowSpacingPx)
-    while (size >= BALANCE.level.squads.minSize && getSquadWidth(offsets, Math.max(...BALANCE.enemy.types.map((type) => type.bodyWidth))) > topRoadHalfWidth * 2) {
-      size -= 1
-      offsets = computeSquadOffsets(squadKind, size, BALANCE.level.squads.spacingPx, BALANCE.level.squads.rowSpacingPx)
-    }
-    if (size < BALANCE.level.squads.minSize) return 'no-lane'
+    const bottomHalfWidth = getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, this.scene.scale.height)
+    // Der Horden-Deckel gilt unten, wo die Truppe ausweicht; Offsets sind in
+    // Spawn-Hoehe definiert und wachsen mit der Perspektive um bottom/top.
+    const maxWidthTop = Math.min(topRoadHalfWidth * 2, BALANCE.walls.hordeMaxWidthPx * (topRoadHalfWidth / bottomHalfWidth))
+    // Typen VOR dem Layout ziehen: Die Dichteregel staucht mit der echten breitesten
+    // Figur der Horde — ein Keil aus Leichten wird dichter als ein Schwerer-Block.
+    const drawnTypes = this.getSquadTypes(squadKind, Math.min(requestedSize, BALANCE.level.squads.maxSize))
+    const layout = computeHordeOffsets(
+      squadKind,
+      drawnTypes.length,
+      BALANCE.level.squads.spacingPx,
+      BALANCE.level.squads.rowSpacingPx,
+      Math.max(...drawnTypes.map((type) => type.bodyWidth)),
+      maxWidthTop,
+    )
+    if (layout.size < BALANCE.level.squads.minSize) return 'no-lane'
+    const offsets = layout.offsets
 
-    const types = this.getSquadTypes(squadKind, offsets.length)
+    const types = drawnTypes.slice(0, offsets.length)
     const available = this.enemies.getChildren().filter((child) => !child.active) as Phaser.Physics.Arcade.Image[]
     if (available.length < offsets.length) {
       this.warnPoolExhausted()
@@ -237,6 +248,7 @@ export class Spawner {
       this.scene.scale.height,
       () => Phaser.Math.RND.frac(),
       BALANCE.enemy.spawnLaneSafetyGap,
+      BALANCE.enemy.spawnBands.hordeLaneShare,
     )
     if (lane === undefined) return 'no-lane'
 

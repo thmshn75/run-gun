@@ -8,9 +8,12 @@ describe('level plans', () => {
     const levelOne = getLevelPlan(1)
     const levelTwelve = getLevelPlan(12)
 
-    expect(levelOne).toMatchObject({ designLevel: 1, normalPhaseSec: 75, enemyWeights: [75, 25, 0], squads: [] })
+    expect(levelOne).toMatchObject({ designLevel: 1, normalPhaseSec: 75, enemyWeights: [75, 25, 0] })
     expect(levelTwelve).toMatchObject({ designLevel: 12, enemyWeights: [15, 35, 50] })
     expect(levelTwelve.squadChance).toBeGreaterThan(levelOne.squadChance)
+    // W3: Horden sind die Kernmechanik und existieren ab Level 1.
+    expect(levelOne.squadChance).toBeGreaterThan(0)
+    expect(levelOne.squads.length).toBeGreaterThan(0)
   })
 
   it('repeats the level-one design at levels 13 and 25 while increasing hardness', () => {

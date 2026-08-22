@@ -19,10 +19,16 @@ Live-Stand: https://thmshn75.github.io/run-gun/
    `getPlayfieldHalfWidth` in `roadGeometry.ts`, Spawner/Tore auf Restbreite, HP aus
    `getBlockerPlan` x `walls.hpFactor`, Muenzen beim Zerstoeren, jedes 3. Segment traegt
    eine Waffe (Waffenquelle der V1-Sperren bleibt). 82 Tests gruen.
-3. Offen: **Thomas' iPhone-Urteil zu W1+W2** (Stadtbild, Minigun, Waende als lohnendes
-   Ziel). Danach **W3 (Horden mittig)** — dabei den Horden-Platzhalter im Breitenbudget
-   (`walls.hordeMaxWidthPx`) durch die echte Hordenbreite ersetzen. Boss-Entscheidung
-   ist gefallen: schiesst nicht mehr, Staerke aus dem momentanen Spielerstand.
+3. **W3 umgesetzt und deployt** (2026-08-22, Claude direkt): Horden mittig — Spawn-
+   Baender (`enemy.spawnBands`), Dichteregel `computeHordeOffsets` (stauchen statt
+   verkleinern, Deckel `walls.hordeMaxWidthPx` 200 hergeleitet), Typenwahl vor Layout,
+   Horden ab Level 1, squadChance angehoben. Waende nach mehreren Thomas-Feedbacks:
+   orange, runde Ecken (Textur `wall-segment`), halbtransparent mit sichtbarem Inhalt,
+   nach innen breiter + Ueberhang nach aussen; Tore dauerhaft ZWEISPURIG (Waffen kommen
+   aus den Waenden — W4-Zielbild vorgezogen). 88 Tests gruen.
+4. Offen: **Thomas' iPhone-Urteil zu W1–W3**. Danach **W4 (Seiten-Oekonomie)**:
+   zustandsabhaengige Upgrade-Werte auf den Waenden (Waffen-Seite steht schon).
+   Boss-Entscheidung ist gefallen: schiesst nicht mehr, Staerke aus Spielerstand (W5).
 
 ## V2-Kern (Thomas-Entscheidungen 2026-08-21/22, Details in plan-v2.md)
 Spuren-Umbau nach Genre-Vorbild (Count Masters, Mob Control, Z Escape): zerschiessbare

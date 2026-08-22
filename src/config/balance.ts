@@ -66,11 +66,15 @@ export const BALANCE = {
     // Korridor, der Rest ragt nach aussen ueber die Strassenkante hinaus (Thomas-
     // Entscheidung 2026-08-22). Unten: 195 x 0.56 = 109.2 px Wandbreite.
     widthShare: 0.56,
-    // Der Korridor muss Mindestbreite und Horden-Platzhalter tragen (Budget-Test).
-    // hordeMaxWidthPx ist ein PLATZHALTER, bis W3 die echte Hordenbreite festlegt —
-    // W3 darf laneShare/minCorridorPx nachjustieren, solange der Budget-Test haelt.
+    // Der Korridor muss Mindestbreite und maximale Hordenbreite tragen (Budget-Test).
+    // hordeMaxWidthPx (seit W3 hergeleitet statt Platzhalter): 200 px unten = 78 % des
+    // Korridors (257.4). Auf Spawnhoehe sind das 92 px — dort passen zwei schwere
+    // Gegner (2 x 40 px) mit Abstand nebeneinander, und ein 8er-Keil aus leichten
+    // staucht auf Spacing 37 statt 44. Eine Horde DARF den Weg versperren (schon die
+    // E7-Reihe tat das): Ausweichen heisst dann freischiessen oder Wandzone riskieren.
+    // Die Dichteregel in computeHordeOffsets erzwingt den Deckel (unten gemessen).
     minCorridorPx: 240,
-    hordeMaxWidthPx: 220,
+    hordeMaxWidthPx: 200,
     segmentHeightPx: 46,
     // Waende sind halbtransparent, damit die dahinter sichtbare Belohnung (Waffe oder
     // Muenze) durchscheint (Thomas-Feedback 2026-08-22) — Vorgriff auf das W4-Prinzip
@@ -287,6 +291,13 @@ export const BALANCE = {
     // Enemy composition belongs to the level plan, never to elapsed spawn time.
     spawnRampPerSec: 6,
     spawnLaneSafetyGap: 6,
+    // W3-Mittelband: Spawn-Schwerpunkte als Anteil der halben Spielfeldbreite.
+    // Horden landen eng an der Mitte, Einzelgegner im mittleren Bereich — die
+    // Korridor-Raender bleiben als Ausweichzone frei ("statt ueber Spuren verteilt").
+    spawnBands: {
+      hordeLaneShare: 0.2,
+      singleLaneShare: 0.5,
+    },
   },
   level: {
     warningMs: 1500,
@@ -306,18 +317,18 @@ export const BALANCE = {
       pausePerMemberMs: 130,
     },
     plans: [
-      { normalPhaseSec: 75, enemyWeights: [75, 25, 0], spawnIntervalMs: 1750, spawnIntervalMinMs: 1050, squadChance: 0, squads: [], companionLimit: 0, reserved: { blockers: true, gateLanes: 2 } },
-      { normalPhaseSec: 78, enemyWeights: [60, 40, 0], spawnIntervalMs: 1650, spawnIntervalMinMs: 950, squadChance: 0, squads: [], companionLimit: 0, reserved: { blockers: true, gateLanes: 2 } },
-      { normalPhaseSec: 78, enemyWeights: [65, 30, 5], spawnIntervalMs: 1550, spawnIntervalMinMs: 850, squadChance: 0.20, squads: [{ kind: 'wedge', weight: 1, size: 3 }], companionLimit: 0, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 80, enemyWeights: [55, 35, 10], spawnIntervalMs: 1450, spawnIntervalMinMs: 780, squadChance: 0.28, squads: [{ kind: 'wedge', weight: 1, size: 4 }], companionLimit: 0, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 80, enemyWeights: [35, 45, 20], spawnIntervalMs: 1350, spawnIntervalMinMs: 700, squadChance: 0.28, squads: [{ kind: 'row', weight: 1, size: 3 }], companionLimit: 1, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 82, enemyWeights: [25, 45, 30], spawnIntervalMs: 1250, spawnIntervalMinMs: 640, squadChance: 0.35, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'wedge', weight: 1, size: 4 }], companionLimit: 1, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 82, enemyWeights: [25, 40, 35], spawnIntervalMs: 1150, spawnIntervalMinMs: 580, squadChance: 0.42, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 1, size: 5 }], companionLimit: 2, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 84, enemyWeights: [20, 40, 40], spawnIntervalMs: 1080, spawnIntervalMinMs: 540, squadChance: 0.48, squads: [{ kind: 'cluster', weight: 2, size: 5 }, { kind: 'row', weight: 1, size: 4 }], companionLimit: 2, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 84, enemyWeights: [25, 35, 40], spawnIntervalMs: 980, spawnIntervalMinMs: 500, squadChance: 0.55, squads: [{ kind: 'wedge', weight: 1, size: 5 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 2, size: 6 }], companionLimit: 3, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 900, spawnIntervalMinMs: 460, squadChance: 0.60, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 6 }], companionLimit: 3, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 820, spawnIntervalMinMs: 420, squadChance: 0.65, squads: [{ kind: 'wedge', weight: 1, size: 6 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 8 }], companionLimit: 4, reserved: { blockers: true, gateLanes: 3 } },
-      { normalPhaseSec: 88, enemyWeights: [15, 35, 50], spawnIntervalMs: 760, spawnIntervalMinMs: 400, squadChance: 0.70, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 4, size: 8 }], companionLimit: 4, reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 75, enemyWeights: [75, 25, 0], spawnIntervalMs: 1750, spawnIntervalMinMs: 1050, squadChance: 0.30, squads: [{ kind: 'wedge', weight: 1, size: 3 }], companionLimit: 0, reserved: { blockers: true, gateLanes: 2 } },
+      { normalPhaseSec: 78, enemyWeights: [60, 40, 0], spawnIntervalMs: 1650, spawnIntervalMinMs: 950, squadChance: 0.38, squads: [{ kind: 'wedge', weight: 1, size: 4 }], companionLimit: 0, reserved: { blockers: true, gateLanes: 2 } },
+      { normalPhaseSec: 78, enemyWeights: [65, 30, 5], spawnIntervalMs: 1550, spawnIntervalMinMs: 850, squadChance: 0.45, squads: [{ kind: 'wedge', weight: 1, size: 3 }], companionLimit: 0, reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 80, enemyWeights: [55, 35, 10], spawnIntervalMs: 1450, spawnIntervalMinMs: 780, squadChance: 0.50, squads: [{ kind: 'wedge', weight: 1, size: 4 }], companionLimit: 0, reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 80, enemyWeights: [35, 45, 20], spawnIntervalMs: 1350, spawnIntervalMinMs: 700, squadChance: 0.50, squads: [{ kind: 'row', weight: 1, size: 3 }], companionLimit: 1, reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 82, enemyWeights: [25, 45, 30], spawnIntervalMs: 1250, spawnIntervalMinMs: 640, squadChance: 0.55, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'wedge', weight: 1, size: 4 }], companionLimit: 1, reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 82, enemyWeights: [25, 40, 35], spawnIntervalMs: 1150, spawnIntervalMinMs: 580, squadChance: 0.60, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 1, size: 5 }], companionLimit: 2, reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 84, enemyWeights: [20, 40, 40], spawnIntervalMs: 1080, spawnIntervalMinMs: 540, squadChance: 0.65, squads: [{ kind: 'cluster', weight: 2, size: 5 }, { kind: 'row', weight: 1, size: 4 }], companionLimit: 2, reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 84, enemyWeights: [25, 35, 40], spawnIntervalMs: 980, spawnIntervalMinMs: 500, squadChance: 0.70, squads: [{ kind: 'wedge', weight: 1, size: 5 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 2, size: 6 }], companionLimit: 3, reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 900, spawnIntervalMinMs: 460, squadChance: 0.72, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 6 }], companionLimit: 3, reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 820, spawnIntervalMinMs: 420, squadChance: 0.75, squads: [{ kind: 'wedge', weight: 1, size: 6 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 8 }], companionLimit: 4, reserved: { blockers: true, gateLanes: 3 } },
+      { normalPhaseSec: 88, enemyWeights: [15, 35, 50], spawnIntervalMs: 760, spawnIntervalMinMs: 400, squadChance: 0.78, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 4, size: 8 }], companionLimit: 4, reserved: { blockers: true, gateLanes: 3 } },
     ] satisfies readonly LevelDefinition[],
   },
   boss: {
