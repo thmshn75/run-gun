@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
-import { getPerspectiveScale, getPlayfieldHalfWidth, getRoadHalfWidth } from '../src/systems/roadGeometry'
+import { getFigureOverscanFactor, getPerspectiveScale, getPlayfieldHalfWidth, getRoadHalfWidth } from '../src/systems/roadGeometry'
 import { computeHordeOffsets } from '../src/systems/squads'
 
 const W = 390
@@ -18,8 +18,10 @@ describe('perspektivische Groesse', () => {
 
   it('schrumpft zum Horizont und waechst monoton nach unten', () => {
     const amHorizont = getPerspectiveScale(W, H, BALANCE.road.horizonY)
-    expect(amHorizont).toBeLessThan(0.65)
-    expect(amHorizont).toBeGreaterThan(0.45)
+    // 0,72: klein genug fuer Tiefe, gross genug, um einen Gegner am Horizont zu
+    // erkennen (Thomas 2026-08-22: "die mobs sind jetzt voll klein").
+    expect(amHorizont).toBeLessThan(0.78)
+    expect(amHorizont).toBeGreaterThan(0.68)
     let vorher = 0
     for (let y = BALANCE.road.horizonY; y <= H; y += 20) {
       const jetzt = getPerspectiveScale(W, H, y)
@@ -28,12 +30,38 @@ describe('perspektivische Groesse', () => {
     }
   })
 
-  it('folgt exakt der Strasse, statt eine eigene Kurve zu erfinden', () => {
-    // Figur und Untergrund muessen synchron zusammenlaufen - sonst schwebt oder
-    // versinkt die Figur beim Naeherkommen.
-    for (const y of [BALANCE.road.horizonY, 300, 500, ANCHOR_Y, H]) {
+  it('waechst frueher als die Strasse, trifft die Kampfhoehe aber exakt', () => {
+    // Thomas 2026-08-22 nach dem iPhone-Test: "wachsen bis zu mir zur vollen Groesse -
+    // sollte schon frueher passieren". Die Groesse folgt der Strasse deshalb nicht mehr
+    // eins zu eins, sondern liegt auf der ganzen Anflugstrecke DARUEBER. Nur zwei
+    // Punkte sind gebunden: die Kampfhoehe (exakt 1, dort trifft die Truppe auf die
+    // Gegner) und der Horizont (horizonScale).
+    expect(getPerspectiveScale(W, H, ANCHOR_Y)).toBeCloseTo(1, 10)
+    expect(getPerspectiveScale(W, H, BALANCE.road.horizonY)).toBeCloseTo(BALANCE.road.perspective.horizonScale, 10)
+    for (const y of [BALANCE.road.horizonY, 300, 432, 500]) {
       const ausStrasse = getRoadHalfWidth(W, H, y) / getRoadHalfWidth(W, H, ANCHOR_Y)
-      expect(getPerspectiveScale(W, H, y)).toBeCloseTo(ausStrasse, 10)
+      expect(getPerspectiveScale(W, H, y)).toBeGreaterThan(ausStrasse)
+    }
+    // Auf halber Anflugstrecke (y = 432) 91 % statt 79 % der vollen Groesse.
+    expect(getPerspectiveScale(W, H, 432)).toBeCloseTo(0.911, 2)
+  })
+
+  it('haelt Gegner trotz der groesseren Ferndarstellung aus der Wandzone', () => {
+    // Preis der frueheren Groesse: Die Figur schrumpft nach oben langsamer als der
+    // Korridor. Ohne Aufschlag stuende sie am Horizont in der Wand - deshalb rechnet
+    // die Spurwahl den Randabstand mit getFigureOverscanFactor.
+    const faktor = getFigureOverscanFactor(W, H)
+    // Die Spitze sitzt NICHT am Horizont, sondern kurz darunter - die Groesse waechst
+    // gekruemmt, der Korridor linear. Am Horizont selbst waeren es nur 1,26.
+    const amHorizont = BALANCE.road.perspective.horizonScale
+      / (getRoadHalfWidth(W, H, BALANCE.road.horizonY) / getRoadHalfWidth(W, H, ANCHOR_Y))
+    expect(amHorizont).toBeCloseTo(1.26, 2)
+    expect(faktor).toBeCloseTo(1.31, 2)
+    expect(faktor).toBeGreaterThan(amHorizont)
+    // Der Aufschlag deckt jede Hoehe ab, nicht nur den Horizont.
+    for (let y = BALANCE.road.horizonY; y <= ANCHOR_Y; y += 10) {
+      const anteilKorridor = getPlayfieldHalfWidth(W, H, y) / getPlayfieldHalfWidth(W, H, ANCHOR_Y)
+      expect(getPerspectiveScale(W, H, y)).toBeLessThanOrEqual(anteilKorridor * faktor + 1e-6)
     }
   })
 

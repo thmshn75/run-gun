@@ -48,6 +48,35 @@ export const BALANCE = {
     topWidthRatio: 0.52,
     bottomWidthRatio: 1,
     edgeLineWidth: 2,
+    // Wie stark Figuren mit der Entfernung schrumpfen (Thomas 2026-08-22, nach dem
+    // iPhone-Test: "die mobs sind jetzt voll klein und wachsen bis zu mir zur vollen
+    // Groesse - sollte schon frueher passieren").
+    //
+    // Bis hierher war die Groesse strikt an die Strassenbreite gekoppelt: am Horizont
+    // 0,57, auf Kampfhoehe 1,00, dazwischen linear. Perspektivisch korrekt, im Spiel
+    // aber falsch - ueber die halbe Anflugstrecke blieben Gegner Punkte, und erst im
+    // letzten Drittel war zu erkennen, was da kommt.
+    //
+    // Zwei Regler statt der starren Kopplung:
+    //   horizonScale   Groesse am Horizont. 0,57 -> 0,72, also gut ein Viertel groesser.
+    //                  Obergrenze ist die Hordenoptik: Die FORMATION schrumpft weiter
+    //                  mit der Strasse (Faktor 0,57), die FIGUREN nur auf 0,72 - zwei
+    //                  schwere Gegner (40 px, Abstand 44 px) stehen am Horizont dadurch
+    //                  auf Tuchfuehlung. Ueber 0,75 wuerden sie sichtbar ineinander
+    //                  laufen; leichte Gegner (18 px) behalten auch dann Luft.
+    //   growthExponent Kruemmung dazwischen. Unter 1 zieht das Wachstum nach VORNE:
+    //                  bei 0,55 ist auf halber Anflugstrecke 91 % der vollen Groesse
+    //                  erreicht statt 79 %, auf einem Drittel 85 % statt 69 %.
+    // Auf Kampfhoehe bleibt der Faktor exakt 1 - dort treffen Gegner und Truppe
+    // aufeinander, und die ganze Hordengeometrie rechnet in diesem Bezugssystem.
+    perspective: {
+      horizonScale: 0.72,
+      growthExponent: 0.55,
+      // Stuetzstellen fuer getFigureOverscanFactor. 512 ueber 564 px sind gut 1 px
+      // Raster - fein genug, dass die Spitze der Kurve nicht zwischen zwei Punkte
+      // faellt, und einmalig je Bildschirmgroesse berechnet.
+      overscanSamples: 512,
+    },
     centerLine: {
       segments: 12,
       textureSizePx: 1,
@@ -668,24 +697,54 @@ export const BALANCE = {
       pauseBaseMs: 250,
       pausePerMemberMs: 40,
     },
-    // Hordengroessen 2026-08-22 angehoben (Thomas: "es muessen mehr mobs sein"). Regel
-    // dahinter: 'row' bleibt bei vier - eine einzelne Reihe kann nicht ueber die
-    // Breitengrenze hinauswachsen. Masse kommt aus 'cluster' (vier je Reihe, beliebig
-    // tief) und 'wedge' (Keil, breiteste Reihe vier). Die Leveltabelle verschiebt das
-    // Gewicht deshalb mit steigendem Level von wedge auf cluster.
+    // Hordengroessen und Spawntakt 2026-08-22 zum VIERTEN Mal angehoben (Thomas, nach
+    // dem iPhone-Test: "es sollen noch immer auch schon ab Level 1 mehr sein"). Die drei
+    // Anlaeufe davor haben Gruppengroesse, Deckel und Nachlaufpause angefasst - immer
+    // nur die oberen Level. Level 1 blieb bei 1,0 Gegner je Sekunde stehen, weil dort
+    // beides zugleich bremste: ein Takt von 1,75 s und nur 30 % Hordenanteil.
+    //
+    // Gerechnet wird jetzt in GEGNERN JE SEKUNDE, nicht in Einzelreglern:
+    //   Gegner/s = (squadChance x Hordengroesse + Rest x 1) / (Takt + squadChance x Pause)
+    //   Pause = 250 ms + 40 ms je Mitglied (level.squads).
+    // Levelanfang -> Levelende (der Takt rampt mit enemy.spawnRampPerSec herunter):
+    //   L1  2,95 -> 4,22   (vorher 1,01 -> 1,62, also fast dreifach)
+    //   L4  4,66 -> 6,35   (vorher 2,33 -> 3,83)
+    //   L8  5,91 -> 7,81   (vorher 3,57 -> 5,73)
+    //   L12 7,94 -> 10,04  (vorher 6,63 -> 9,20)
+    // Der Zuwachs ist unten am groessten und oben klein - dort kam die Steigerung schon
+    // vorher aus Gegner-hp und Typenmischung, nicht aus der Menge.
+    //
+    // GEMESSEN im Browser (Level 1, je 10-s-Fenster der Dev-Metrik):
+    //   vorher  11 / 9 / 7 Gegner            = 0,9 je Sekunde
+    //   jetzt   25 / 21 / 42 / 47 / 54 / 44  = 3,9 je Sekunde im Schnitt, 4,7 am Ende
+    // Real liegt es also ueber der Rechnung oben (2,95 -> 4,22): Die Nachlaufpause zieht
+    // nur, wenn der Spawn-Akkumulator ueberhaupt so weit gefuellt ist - die Formel
+    // rechnet sie pauschal an und schaetzt deshalb konservativ.
+    //
+    // GRENZE fuer den naechsten Anlauf: Im selben Lauf stieg 'deferred' von 0 auf 3-5 je
+    // 10 s (bei 12-14 geplanten Ereignissen). Nicht der Takt bremst dann, sondern die
+    // Spurvergabe - wer hier weiter aufdreht, muss zuerst spawnBands oder
+    // spawnLaneSafetyGap anfassen, sonst verpuffen kuerzere Intervalle wirkungslos.
+    //
+    // Formregel unveraendert: 'row' bleibt bei vier - eine einzelne Reihe kann nicht
+    // ueber die Breitengrenze hinauswachsen. Masse kommt aus 'cluster' (vier je Reihe,
+    // beliebig tief) und 'wedge' (Keil, breiteste Reihe vier). Die Leveltabelle
+    // verschiebt das Gewicht mit steigendem Level von wedge auf cluster. Neu ist, dass
+    // die Kurve OHNE Delle steigt: Die alte Tabelle fiel bei Level 5 von 2,33 auf 1,90
+    // zurueck, weil dort die erste 'row' mit fester Groesse vier dazukam.
     plans: [
-      { normalPhaseSec: 75, enemyWeights: [75, 25, 0], spawnIntervalMs: 1750, spawnIntervalMinMs: 1050, squadChance: 0.30, squads: [{ kind: 'wedge', weight: 1, size: 4 }], companionLimit: 0 },
-      { normalPhaseSec: 78, enemyWeights: [60, 40, 0], spawnIntervalMs: 1650, spawnIntervalMinMs: 950, squadChance: 0.38, squads: [{ kind: 'wedge', weight: 1, size: 6 }], companionLimit: 0 },
-      { normalPhaseSec: 78, enemyWeights: [65, 30, 5], spawnIntervalMs: 1550, spawnIntervalMinMs: 850, squadChance: 0.45, squads: [{ kind: 'wedge', weight: 1, size: 5 }], companionLimit: 0 },
-      { normalPhaseSec: 80, enemyWeights: [55, 35, 10], spawnIntervalMs: 1450, spawnIntervalMinMs: 780, squadChance: 0.50, squads: [{ kind: 'wedge', weight: 1, size: 7 }], companionLimit: 0 },
-      { normalPhaseSec: 80, enemyWeights: [35, 45, 20], spawnIntervalMs: 1350, spawnIntervalMinMs: 700, squadChance: 0.50, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 1, size: 6 }], companionLimit: 1 },
-      { normalPhaseSec: 82, enemyWeights: [25, 45, 30], spawnIntervalMs: 1250, spawnIntervalMinMs: 640, squadChance: 0.55, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'wedge', weight: 1, size: 7 }], companionLimit: 1 },
-      { normalPhaseSec: 82, enemyWeights: [25, 40, 35], spawnIntervalMs: 1150, spawnIntervalMinMs: 580, squadChance: 0.60, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 1, size: 9 }], companionLimit: 2 },
-      { normalPhaseSec: 84, enemyWeights: [20, 40, 40], spawnIntervalMs: 1080, spawnIntervalMinMs: 540, squadChance: 0.65, squads: [{ kind: 'cluster', weight: 2, size: 9 }, { kind: 'row', weight: 1, size: 4 }], companionLimit: 2 },
-      { normalPhaseSec: 84, enemyWeights: [25, 35, 40], spawnIntervalMs: 980, spawnIntervalMinMs: 500, squadChance: 0.70, squads: [{ kind: 'wedge', weight: 1, size: 8 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 2, size: 10 }], companionLimit: 3 },
-      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 900, spawnIntervalMinMs: 460, squadChance: 0.72, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 11 }], companionLimit: 3 },
-      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 820, spawnIntervalMinMs: 420, squadChance: 0.75, squads: [{ kind: 'wedge', weight: 1, size: 10 }, { kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 3, size: 13 }], companionLimit: 4 },
-      { normalPhaseSec: 88, enemyWeights: [15, 35, 50], spawnIntervalMs: 760, spawnIntervalMinMs: 400, squadChance: 0.78, squads: [{ kind: 'row', weight: 2, size: 4 }, { kind: 'cluster', weight: 4, size: 14 }], companionLimit: 4 },
+      { normalPhaseSec: 75, enemyWeights: [75, 25, 0], spawnIntervalMs: 1000, spawnIntervalMinMs: 620, squadChance: 0.55, squads: [{ kind: 'wedge', weight: 1, size: 6 }], companionLimit: 0 },
+      { normalPhaseSec: 78, enemyWeights: [60, 40, 0], spawnIntervalMs: 960, spawnIntervalMinMs: 600, squadChance: 0.58, squads: [{ kind: 'wedge', weight: 1, size: 7 }], companionLimit: 0 },
+      { normalPhaseSec: 78, enemyWeights: [65, 30, 5], spawnIntervalMs: 930, spawnIntervalMinMs: 580, squadChance: 0.60, squads: [{ kind: 'wedge', weight: 1, size: 8 }], companionLimit: 0 },
+      { normalPhaseSec: 80, enemyWeights: [55, 35, 10], spawnIntervalMs: 900, spawnIntervalMinMs: 560, squadChance: 0.62, squads: [{ kind: 'wedge', weight: 1, size: 9 }], companionLimit: 0 },
+      { normalPhaseSec: 80, enemyWeights: [35, 45, 20], spawnIntervalMs: 870, spawnIntervalMinMs: 540, squadChance: 0.64, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 3, size: 11 }], companionLimit: 1 },
+      { normalPhaseSec: 82, enemyWeights: [25, 45, 30], spawnIntervalMs: 840, spawnIntervalMinMs: 520, squadChance: 0.66, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'wedge', weight: 2, size: 12 }], companionLimit: 1 },
+      { normalPhaseSec: 82, enemyWeights: [25, 40, 35], spawnIntervalMs: 810, spawnIntervalMinMs: 500, squadChance: 0.68, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 3, size: 12 }], companionLimit: 2 },
+      { normalPhaseSec: 84, enemyWeights: [20, 40, 40], spawnIntervalMs: 780, spawnIntervalMinMs: 480, squadChance: 0.70, squads: [{ kind: 'cluster', weight: 3, size: 12 }, { kind: 'row', weight: 1, size: 4 }], companionLimit: 2 },
+      { normalPhaseSec: 84, enemyWeights: [25, 35, 40], spawnIntervalMs: 750, spawnIntervalMinMs: 460, squadChance: 0.72, squads: [{ kind: 'wedge', weight: 1, size: 10 }, { kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 3, size: 13 }], companionLimit: 3 },
+      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 720, spawnIntervalMinMs: 440, squadChance: 0.74, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 4, size: 13 }], companionLimit: 3 },
+      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 690, spawnIntervalMinMs: 420, squadChance: 0.76, squads: [{ kind: 'wedge', weight: 1, size: 11 }, { kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 4, size: 14 }], companionLimit: 4 },
+      { normalPhaseSec: 88, enemyWeights: [15, 35, 50], spawnIntervalMs: 660, spawnIntervalMinMs: 400, squadChance: 0.78, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 5, size: 14 }], companionLimit: 4 },
     ] satisfies readonly LevelDefinition[],
   },
   boss: {

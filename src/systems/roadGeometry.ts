@@ -46,16 +46,65 @@ export function getPlayfieldHalfWidth(width: number, height: number, y: number):
  * Horden konstruktiv unmoeglich waren: Am Horizont ist die Strasse nur halb so breit,
  * die Figuren aber voll gross, also passten dort nur zwei nebeneinander.
  *
- * Bezug ist die Strassenbreite, nicht eine geratene Kurve: Ein Objekt schrumpft genau
- * so, wie die Strasse unter ihm zusammenlaeuft. Normiert wird auf die KAMPFHOEHE
- * (Truppenanker), nicht auf den unteren Bildrand - dort treffen Gegner und Truppe
- * aufeinander, und nur dort muessen ihre Groessen exakt zueinander passen. Unterhalb
- * der Kampfhoehe wird der Faktor groesser als 1; das ist perspektivisch richtig, ein
- * Gegner laeuft dort naeher an der Kamera vorbei.
+ * Bezug ist die Strassenperspektive, nicht eine geratene Kurve: Die Position zwischen
+ * Horizont und KAMPFHOEHE (Truppenanker) kommt aus der Strassenbreite. Normiert wird
+ * auf die Kampfhoehe und nicht auf den unteren Bildrand - dort treffen Gegner und
+ * Truppe aufeinander, und nur dort muessen ihre Groessen exakt zueinander passen.
+ * Unterhalb der Kampfhoehe wird der Faktor groesser als 1; das ist richtig, ein Gegner
+ * laeuft dort naeher an der Kamera vorbei.
+ *
+ * Die GROESSE folgt dieser Position seit Thomas' iPhone-Test (2026-08-22: "die mobs
+ * sind jetzt voll klein und wachsen bis zu mir zur vollen Groesse - sollte schon
+ * frueher passieren") bewusst nicht mehr eins zu eins, sondern ueber zwei Regler:
+ * horizonScale hebt die Ferngroesse an, growthExponent < 1 zieht das Wachstum nach
+ * vorne. Die Figur ist damit auf halbem Weg schon fast voll gross, waehrend die
+ * Strasse unter ihr weiter linear zulaeuft. Herleitung und Grenzen: BALANCE.road.perspective.
  */
 export function getPerspectiveScale(width: number, height: number, y: number): number {
   const anchorY = height - BALANCE.player.anchorBottomOffset
-  return getRoadHalfWidth(width, height, y) / getRoadHalfWidth(width, height, anchorY)
+  const anchorHalfWidth = getRoadHalfWidth(width, height, anchorY)
+  const horizonRatio = getRoadHalfWidth(width, height, BALANCE.road.horizonY) / anchorHalfWidth
+  // 0 am Horizont, 1 auf Kampfhoehe, groesser darunter. Oberhalb des Horizonts klemmt
+  // getRoadHalfWidth bereits, ein Gegner beim Einblenden bleibt also auf Ferngroesse.
+  const progress = (getRoadHalfWidth(width, height, y) / anchorHalfWidth - horizonRatio) / (1 - horizonRatio)
+  const { horizonScale, growthExponent } = BALANCE.road.perspective
+  return horizonScale + (1 - horizonScale) * Math.max(0, progress) ** growthExponent
+}
+
+/**
+ * Um wieviel eine Figur weiter oben ueber ihren Platz im KAMPFHOEHEN-System hinausragt.
+ *
+ * Notwendig, seit die Groesse nicht mehr streng an der Strasse haengt (siehe
+ * getPerspectiveScale): Die Spurwahl reserviert Plaetze auf Kampfhoehe, wo die
+ * Skalierung 1 ist. Weiter oben schrumpft der Korridor auf 57 % der Kampfhoehenbreite,
+ * die Figur aber nur auf horizonScale = 72 % - sie ragt dort also um Faktor 1,26 weiter
+ * nach aussen, als ihre Spurreservierung erlaubt. Ohne diesen Aufschlag steht ein
+ * Gegner am Horizont mit der Schulter im Wandsegment (gemessen 0,35 px bei einem
+ * leichten, 5 px bei einem schweren Gegner ganz aussen).
+ *
+ * Der Aufschlag gilt NUR fuer den Randabstand, nicht fuer die Abstaende zwischen
+ * Gegnern. Dort waere er zwar ebenso richtig, wuerde aber den Spawn-Durchsatz kosten -
+ * und ueberlappende Gegner sind ausdruecklich kein Fehler (siehe spawnLanes.canMeet).
+ */
+const overscanCache = new Map<string, number>()
+
+export function getFigureOverscanFactor(width: number, height: number): number {
+  const key = `${width}x${height}`
+  const gemerkt = overscanCache.get(key)
+  if (gemerkt !== undefined) return gemerkt
+  const anchorY = height - BALANCE.player.anchorBottomOffset
+  const anchorHalfWidth = getPlayfieldHalfWidth(width, height, anchorY)
+  // Abgetastet statt am Horizont abgelesen: Weil die Groesse gekruemmt waechst und der
+  // Korridor linear, sitzt das groesste Missverhaeltnis NICHT am Horizont, sondern kurz
+  // darunter (bei 390 x 844 auf y = 182 mit Faktor 1,31 gegen 1,26 am Horizont selbst).
+  let faktor = 1
+  for (let schritt = 0; schritt <= BALANCE.road.perspective.overscanSamples; schritt += 1) {
+    const y = BALANCE.road.horizonY + ((anchorY - BALANCE.road.horizonY) * schritt) / BALANCE.road.perspective.overscanSamples
+    const anteilKorridor = getPlayfieldHalfWidth(width, height, y) / anchorHalfWidth
+    faktor = Math.max(faktor, getPerspectiveScale(width, height, y) / anteilKorridor)
+  }
+  overscanCache.set(key, faktor)
+  return faktor
 }
 
 // Fahrbereich als halbe Spannweite ab Bildmitte, je Seite getrennt (W4-Korrektur).

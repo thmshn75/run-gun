@@ -5,7 +5,7 @@ import { chooseEnemyType, getEnemyHp, type EnemyType } from './enemyTypes'
 import { getEnemySpawnCenterY, getSquadSpawnBaseY, isRevealedAtHorizon } from './horizonReveal'
 import { getLevelPlan, type LevelPlan } from './levelPlan'
 import { getBobOffsetPx, getPhaseOffset, getStepCycleHz } from './gamefeel'
-import { getPerspectiveScale, getPlayfieldHalfWidth } from './road'
+import { getFigureOverscanFactor, getPerspectiveScale, getPlayfieldHalfWidth } from './road'
 import { chooseSpawnLane, type SpawnLaneEnemy } from './spawnLanes'
 import { computeHordeOffsets, getSquadWidth } from './squads'
 import type { RunStats } from './upgrades'
@@ -304,6 +304,10 @@ export class Spawner {
       () => Phaser.Math.RND.frac(),
       BALANCE.enemy.spawnLaneSafetyGap,
       BALANCE.enemy.spawnBands.singleLaneShare,
+      // Randabstand mit Perspektiv-Aufschlag: Weiter oben ist die Figur breiter, als
+      // ihr Platz im Kampfhoehen-System hergibt (getFigureOverscanFactor). Ohne den
+      // Aufschlag steht sie am Horizont mit der Schulter im Wandsegment.
+      type.bodyWidth * getFigureOverscanFactor(this.scene.scale.width, this.scene.scale.height),
     )
     if (lane === undefined) return 'no-lane'
     this.activateEnemy(enemy, type, lane, y, bossCompanion)
@@ -362,7 +366,9 @@ export class Spawner {
       () => Phaser.Math.RND.frac(),
       BALANCE.enemy.spawnLaneSafetyGap,
       BALANCE.enemy.spawnBands.hordeLaneShare,
-      getSquadWidth(offsets, widestBodyWidth),
+      // Wie beim Einzelgegner: Die Formationsbreite bestimmt nur den Randabstand und
+      // bekommt deshalb den Perspektiv-Aufschlag mit.
+      getSquadWidth(offsets, widestBodyWidth) * getFigureOverscanFactor(this.scene.scale.width, this.scene.scale.height),
     )
     if (lane === undefined) return 'no-lane'
 

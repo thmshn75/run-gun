@@ -7,6 +7,47 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**Gegner wachsen frueher, deutlich mehr Gegner ab Level 1**
+(2026-08-22, Claude direkt, Thomas nach dem iPhone-Test: "Die mobs sind jetzt voll klein
+und wachsen bis zu mir zur vollen Groesse - sollte schon frueher passieren - und es
+sollen noch immer auch schon ab Level 1 mehr sein").
+- **Groesse.** Bis hierher hing die Figurengroesse strikt an der Strassenbreite: 0,57 am
+  Horizont, 1,00 auf Kampfhoehe, linear dazwischen. Jetzt zwei Regler in
+  `road.perspective`: `horizonScale` 0,72 hebt die Ferngroesse an, `growthExponent` 0,55
+  zieht das Wachstum nach vorne. **Gemessen** (390x844): auf einem Drittel der
+  Anflugstrecke 0,855 statt 0,685, auf der Haelfte 0,911 statt 0,786; Kampfhoehe bleibt
+  exakt 1,000, damit die ganze Hordengeometrie weiter stimmt.
+  **Nebenwirkung, vom Test gefunden statt vom Auge:** Die Figur schrumpft nach oben jetzt
+  langsamer als der Korridor und stand am Horizont mit der Schulter im Wandsegment
+  (gemessen 0,35 px beim leichten, 5 px beim schweren Gegner). Die Spurwahl rechnet den
+  Randabstand deshalb mit `getFigureOverscanFactor` - 1,31, und zwar abgetastet, nicht am
+  Horizont abgelesen: Weil die Groesse gekruemmt waechst und der Korridor linear, sitzt
+  das groesste Missverhaeltnis bei y = 182 und nicht am Horizont (dort waeren es 1,26).
+  Der Aufschlag gilt nur fuer den Rand, nicht fuer die Abstaende zwischen Gegnern - dort
+  wuerde er Spawn-Durchsatz kosten.
+- **Menge, vierter Anlauf.** Die drei vorherigen haben Gruppengroesse, Deckel und
+  Nachlaufpause angefasst und damit nur die oberen Level bewegt. Level 1 stand weiter bei
+  1,75 s Takt und 30 % Hordenanteil. Die ganze Tabelle rechnet jetzt in **Gegnern je
+  Sekunde** statt in Einzelreglern; die Kurve steigt ohne Delle (die alte fiel bei Level 5
+  von 2,33 auf 1,90 zurueck, weil dort die erste 'row' mit fester Groesse vier dazukam).
+  **Gemessen im Browser, Level 1, 10-s-Fenster der Dev-Metrik:**
+  vorher 11 / 9 / 7 = **0,9 Gegner je Sekunde**, jetzt 25 / 21 / 42 / 47 / 54 / 44 =
+  **3,9 im Schnitt, 4,7 am Ende der Rampe** - Faktor 4,3.
+- **Grenze fuer den naechsten Anlauf:** Im selben Lauf stieg `deferred` von 0 auf 3-5 je
+  10 s (bei 12-14 geplanten Ereignissen). Ab hier bremst nicht mehr der Takt, sondern die
+  Spurvergabe. Wer weiter aufdreht, muss zuerst `spawnBands` oder `spawnLaneSafetyGap`
+  anfassen, sonst verpuffen kuerzere Intervalle.
+- **Befund, der noch eine Entscheidung braucht:** Mehr Nachschub fuellt das Bild nur so
+  lange, wie er ueber der Abschussrate liegt. Im Messlauf (Truppe 2, DMG 1, RATE 3) sind
+  das 6 Toetungen je Sekunde gegen 4,4 Spawns - die Strasse blieb trotz vervierfachtem
+  Nachschub leer. Mit Thomas' iPhone-Werten (DMG 18,5, RATE 8) ist der Abstand noch
+  groesser. Der naechste wirksame Hebel ist deshalb NICHT noch mehr Spawns, sondern eine
+  **Schussreichweite**: Kugeln nur bis zu einer Hoehe fliegen lassen, damit sich Gegner
+  oben sammeln und erst nah bekaempft werden. Das ist eine Produktentscheidung und wartet
+  auf Thomas.
+Nachweise: 146 Tests gruen (drei neue zur Perspektive), `npm run check` sauber,
+Browser-Messung wie oben. **Offen: Thomas' iPhone-Urteil.**
+
 **Rechte Wand auf Feuerkraft, Tore raus, SPD als Levelgroesse, HUD neu geordnet**
 (2026-08-22, Claude direkt, Thomas: "ok fuer deine empfehlung, Feuerrate, schaden und
 waffen, das muss dann aber auch den Toren in der mitte raus" + "tempo einfach mit den

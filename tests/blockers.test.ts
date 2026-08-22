@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { getBlockerPlan } from '../src/systems/blockerPlan'
 import { getCombatFirepower } from '../src/systems/bossPlan'
-import { getPerspectiveScale, getPlayfieldHalfWidth, getRoadHalfWidth, getWallGeometry } from '../src/systems/roadGeometry'
+import { getFigureOverscanFactor, getPerspectiveScale, getPlayfieldHalfWidth, getRoadHalfWidth, getWallGeometry } from '../src/systems/roadGeometry'
 import { chooseSpawnLane } from '../src/systems/spawnLanes'
 import type { WeaponKey } from '../src/systems/weapons'
 
@@ -50,7 +50,12 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     const playfieldHalfAnchor = getPlayfieldHalfWidth(width, height, height - BALANCE.player.anchorBottomOffset)
     for (const type of BALANCE.enemy.types) {
       for (let index = 0; index < 300; index += 1) {
-        const lane = chooseSpawnLane([], { ...type, y: BALANCE.road.horizonY }, playfieldHalfAnchor, rng, BALANCE.enemy.spawnLaneSafetyGap)
+        // Wie im Spawner: Der Randabstand bekommt den Perspektiv-Aufschlag mit, weil
+        // eine Figur weiter oben breiter ist als ihr Platz auf Kampfhoehe.
+        const lane = chooseSpawnLane(
+          [], { ...type, y: BALANCE.road.horizonY }, playfieldHalfAnchor, rng, BALANCE.enemy.spawnLaneSafetyGap,
+          1, type.bodyWidth * getFigureOverscanFactor(width, height),
+        )
         expect(lane).not.toBeUndefined()
         for (const y of [BALANCE.road.horizonY, 430, height]) {
           // Mit der SKALIERTEN Breite rechnen: Ein Gegner am Horizont ist dort

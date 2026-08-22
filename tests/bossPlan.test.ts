@@ -47,11 +47,12 @@ describe('boss plans', () => {
       const spawnerCeiling = Math.max(largestSquad / pauseSec, 1000 / plan.spawnIntervalMinMs)
       expect(getNormalPhaseEnemiesPerSec(level)).toBeLessThanOrEqual(spawnerCeiling)
     }
-    // Gerechnet, nicht geraten: Level 1 = 1,46 Gegner/s, Level 12 = 14,55 Gegner/s.
-    // Level 12 stieg von 6,11 auf 14,55, weil die Nachlaufpause nach einer Horde von
-    // 2.050 auf 810 ms gekuerzt wurde (Thomas: "es sind noch immer zu wenig mobs").
-    expect(getNormalPhaseEnemiesPerSec(1)).toBeCloseTo(1.46, 1)
-    expect(getNormalPhaseEnemiesPerSec(12)).toBeCloseTo(14.55, 1)
+    // Gerechnet, nicht geraten: Level 1 = 6,05 Gegner/s, Level 12 = 15,40 Gegner/s.
+    // Level 1 stieg von 1,46 auf 6,05 mit der vierten Mengenanhebung der Leveltabelle
+    // (Thomas: "es sollen noch immer auch schon ab Level 1 mehr sein"). Auf den Boss
+    // schlaegt das erst ab Level 5 durch - bis Level 4 ruft er ueberhaupt keine Horde.
+    expect(getNormalPhaseEnemiesPerSec(1)).toBeCloseTo(6.05, 1)
+    expect(getNormalPhaseEnemiesPerSec(12)).toBeCloseTo(15.40, 1)
     // Und der Druck steigt ueber die Level, sonst waere die Ableitung sinnlos.
     for (let level = 2; level <= 12; level += 1) {
       expect(getNormalPhaseEnemiesPerSec(level)).toBeGreaterThan(getNormalPhaseEnemiesPerSec(1))
