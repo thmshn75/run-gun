@@ -60,9 +60,10 @@ export const BALANCE = {
     // die Fassade eines Blocks ist damit konstruktiv geschlossen (Test: gapFrames = 0
     // in der Simulation ohne Querstrassen).
     spawnIntervalMs: 400,
-    // Haeuser pro Block, beidseitig dieselbe Zahl (Stadtblock zwischen zwei Kreuzungen).
-    blockBuildingsMin: 4,
-    blockBuildingsMax: 8,
+    // Haeuser pro Block, beidseitig dieselbe Zahl. Lange Bloecke wie in New York
+    // (Thomas-Korrektur 2026-08-22: "zu oft unterbrochen" bei 4-8).
+    blockBuildingsMin: 10,
+    blockBuildingsMax: 16,
     // Querstrassenbreite als Oberkanten-Abstand am Horizont; streckt sich nach unten
     // mit der Perspektive (Faktor bis ~2.17 = bottomWidthRatio/topWidthRatio).
     crossStreetGapPx: 70,

@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { canSpawnBossCompanion, getBossCompanionLimit } from './bossPlan'
 import { chooseEnemyType, type EnemyType } from './enemyTypes'
-import { getEnemySpawnCenterY, getHiddenTopPx, getSquadSpawnBaseY } from './horizonReveal'
+import { getEnemySpawnCenterY, getSquadSpawnBaseY, isRevealedAtHorizon } from './horizonReveal'
 import { getLevelPlan, type LevelPlan } from './levelPlan'
 import { getRoadHalfWidth } from './road'
 import { chooseSpawnLane, type SpawnLaneEnemy } from './spawnLanes'
@@ -150,7 +150,7 @@ export class Spawner {
       if (!enemy.active) continue
       enemy.y += (enemySpeed * (enemy.getData('speedFactor') as number) * dt) / 1000
       enemy.x = this.scene.scale.width / 2 + (enemy.getData('lane') as number) * getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, enemy.y)
-      this.applyHorizonCrop(enemy)
+      this.applyHorizonReveal(enemy)
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       const flashRemainingMs = Math.max(0, (enemy.getData('flashRemainingMs') as number) - dt)
       enemy.setData('flashRemainingMs', flashRemainingMs)
@@ -272,8 +272,8 @@ export class Spawner {
     // sprite each frame, making the visible enemy jump sideways.
     body.moves = false
     body.updateFromGameObject()
-    enemy.setActive(true).setVisible(true).setAlpha(1).clearTint()
-    this.applyHorizonCrop(enemy)
+    enemy.setActive(true).setVisible(true).clearTint()
+    this.applyHorizonReveal(enemy)
     enemy.setData('hp', type.hp)
     enemy.setData('speedFactor', type.speedFactor)
     enemy.setData('contactDamage', type.contactDamage)
@@ -286,12 +286,10 @@ export class Spawner {
     enemy.setData('spawnId', this.allocateSpawnId())
   }
 
-  // Gegner kommen hinter der Horizontlinie hervor: nur der Teil darunter wird gezeichnet.
-  // Crop arbeitet in Texturkoordinaten; die Sprites sind unskaliert (displayHeight == height).
-  private applyHorizonCrop(enemy: Phaser.Physics.Arcade.Image): void {
-    const hiddenPx = getHiddenTopPx(enemy.y - enemy.displayHeight / 2)
-    if (hiddenPx > 0) enemy.setCrop(0, hiddenPx, enemy.width, Math.max(0, enemy.height - hiddenPx))
-    else if (enemy.isCropped) enemy.setCrop()
+  // Gegner erscheinen wie die Haeuser: voll sichtbar, sobald die Unterkante die
+  // Horizontlinie erreicht — der Koerper ragt dann ueber die Linie in den Himmel.
+  private applyHorizonReveal(enemy: Phaser.Physics.Arcade.Image): void {
+    enemy.setAlpha(isRevealedAtHorizon(enemy.y + enemy.displayHeight / 2) ? 1 : 0)
   }
 
   private getActiveLaneEnemies(): SpawnLaneEnemy[] {

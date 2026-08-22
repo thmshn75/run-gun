@@ -67,6 +67,17 @@ geschaetzten.
   wenn Thomas' Formulierung beides zulaesst. Dann faellt eine Fehldeutung beim Lesen des Plans
   auf, statt erst in der gebauten Etappe.
 
+### 2026-08-22 — Referenzverhalten nachgebaut statt uebernommen
+- **Fehler:** Thomas wollte, dass Gegner am Horizont erscheinen "wie die Haeuser". Umgesetzt
+  wurde ein eigener Effekt (Abschneiden an der Linie per Crop), der plausibel wirkte, aber dem
+  Referenzverhalten widersprach: Haeuser stehen ab der Linie VOLL da und ragen darueber hinaus.
+  Thomas musste korrigieren ("das sollte angeglichen sein").
+- **Regel:** Nennt ein Wunsch ein Referenzsystem ("wie X", "angleichen an X"), zuerst das
+  Verhalten von X am Objekt selbst ablesen und exakt dieselbe Regel uebernehmen — keinen
+  eigenen Effekt erfinden, der das Ziel nur aehnlich erreicht. Vor dem Bauen die uebernommene
+  Regel in einem Satz notieren ("sichtbar ab Unterkante >= Linie, voll gezeichnet") und gegen
+  das Referenzobjekt pruefen.
+
 ### 2026-08-21 — Auswahloption ohne Zuordnung beschriftet, Rueckfrage ausgeloest
 Die Vorschau `│ ×2 │ +7 │ LASER │` zeigte die Anordnung der drei Torspuren, aber nicht, welche
 Spur was bewirkt. Thomas verstand es als "die Waffe steckt in einem Rechen-Tor" und

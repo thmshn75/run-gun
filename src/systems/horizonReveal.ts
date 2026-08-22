@@ -1,21 +1,25 @@
 import { BALANCE } from '../config/balance'
 
-// Gegner kommen hinter der Horizontlinie hervor: Sie spawnen vollstaendig oberhalb der
-// Linie und nur der Teil unterhalb wird gezeichnet (Crop). Diese Geometrie ist bewusst
-// eine reine Funktion, damit sie ohne Phaser testbar ist.
+// Gegner erscheinen wie die Haeuser (Thomas-Korrektur 2026-08-22): Sobald die Unterkante
+// die Horizontlinie erreicht, steht die Figur vollstaendig da und ragt mit dem Koerper
+// ueber die Linie in den Himmel — kein Abschneiden an der Linie, kein Einblenden.
+// Reine Funktionen, damit die Regel ohne Phaser testbar ist.
 
-// Spawn-Mittelpunkt eines Einzelgegners: Unterkante der Kollisionshuelle exakt am Horizont.
+// Spawn-Mittelpunkt eines Einzelgegners: Unterkante der Kollisionshuelle exakt am Horizont
+// — damit ist er ab dem ersten Frame sichtbar, genau wie ein frisch gespawntes Haus.
 export function getEnemySpawnCenterY(bodyHeightPx: number): number {
   return BALANCE.road.horizonY - bodyHeightPx / 2
 }
 
 // Spawn-Basis eines Trupps: Auch das unterste Mitglied (groesster yOffset) startet mit
-// der Unterkante am Horizont; alle anderen liegen darueber und kommen gestaffelt hervor.
+// der Unterkante am Horizont; die hinteren liegen darueber und erscheinen nacheinander,
+// sobald ihre Unterkante die Linie erreicht.
 export function getSquadSpawnBaseY(maxBodyHeightPx: number, maxYOffset: number): number {
   return BALANCE.road.horizonY - maxBodyHeightPx / 2 - maxYOffset
 }
 
-// Wie viele Textur-Pixel oberhalb der Horizontlinie liegen und deshalb nicht gezeichnet werden.
-export function getHiddenTopPx(topY: number): number {
-  return Math.max(0, BALANCE.road.horizonY - topY)
+// Sichtbarkeitsregel der Haeuser, uebernommen fuer Gegner: gezeichnet wird, wessen
+// Unterkante die Horizontlinie erreicht hat.
+export function isRevealedAtHorizon(bottomY: number): boolean {
+  return bottomY >= BALANCE.road.horizonY
 }
