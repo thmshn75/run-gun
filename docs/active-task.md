@@ -7,6 +7,29 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**Deckendes Blau, weisse Schrift, Sammelbahn ohne Pausen fertig** (2026-08-22,
+Claude direkt, Thomas: "beide waende in decken blau und weisser schrift und die linken
+waende durchgehend ohne pausen").
+- **Deckend statt halbtransparent** (`walls.fillAlpha` 0.4 -> 1). **Randbedingung, die
+  mitgeloest werden musste:** Der Wandinhalt (Waffe, Muenze, "+1") lag hinter der Wand
+  und schien durch - deckend waere er unsichtbar geworden. Er liegt jetzt VOR der Wand
+  (`layers.wallContent` 1.5 -> 2.5, ueber `gameplay` 2).
+- **Weisse Schrift auf beiden Seiten**: Der "+1"-Text war gruen (`STAT_COLORS.hp`).
+- **Sammelbahn links durchgehend**: `isWallSlot` gilt nur noch rechts. Links ist die
+  Bahn kein Hindernis, also braucht sie keine Ausweichluecke; rechts bleiben die
+  Abschnitte, dort muss die Truppe zwischen Wand und Strassenrand ausweichen koennen.
+**Gemessen** (20 s durchgehend links gefahren): 36 Plaettchen = **1,80 je Sekunde**
+(vorher 1,10), gerechnet 1,875 (135 px/s / 72 px Kachel). Kachelabstaende links exakt
+72 px ueber die ganze Kette - lueckenlos. Schrift `#ffffff`, Inhalt auf Tiefe 2,5 vor
+der Wand auf Tiefe 2.
+**Damit gewinnt eine Minute Dauerfahrt links jetzt 112 Figuren statt 67.** Ist das zu
+viel, gehoert die Bremse an die Kette (Pausen wieder einfuehren), nicht an den Wert des
+einzelnen Plaettchens - viele kleine Quittungen sind der Reiz.
+Nachweise: 135 Tests gruen, `npm run check` sauber, Browser-Messung wie oben.
+**Offen:** Thomas' iPhone-Urteil. **Offene Frage von Thomas: "was machen wir mit der
+Logik der rechten Waende?"** - Empfehlung im Chat abgegeben (rechts = Feuerkraft gegen
+Feuerzeit, als Gegenstueck zur Masse links), noch nicht entschieden.
+
 **Sammelbahn links, Wand rechts, zwei Blautoene fertig** (2026-08-22, Claude direkt,
 Thomas: "Waende in einem schoenen Blau links +1 ... und rechts in einem anderen blau",
 Funktionsweise per Rueckfrage entschieden).

@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { HUD_COLORS, STAT_COLORS } from '../config/colors'
+import { HUD_COLORS } from '../config/colors'
 import { getBlockerPlan } from './blockerPlan'
 import { decideGoodie } from './reinforcementPlan'
 import { getPlayfieldHalfWidth, getWallGeometry } from './road'
@@ -206,7 +206,12 @@ export class Blockers {
     while (this.chainAccumulatorPx >= BALANCE.walls.segmentHeightPx) {
       this.chainAccumulatorPx -= BALANCE.walls.segmentHeightPx
       for (const side of ['left', 'right'] as const) {
-        if (isWallSlot(this.slotIndex[side], BALANCE.walls.wallRunLength, BALANCE.walls.wallGapSlots)) this.spawn(side)
+        // Links durchgehend ohne Pausen: Die Sammelbahn ist kein Hindernis, also
+        // braucht sie keine Ausweichluecke. Rechts bleiben die Abschnitte, dort muss
+        // die Truppe zwischen Wand und Strassenrand ausweichen koennen.
+        const belegt = side === 'left'
+          || isWallSlot(this.slotIndex[side], BALANCE.walls.wallRunLength, BALANCE.walls.wallGapSlots)
+        if (belegt) this.spawn(side)
         this.slotIndex[side] += 1
       }
     }
@@ -229,10 +234,11 @@ export class Blockers {
     const label = this.scene.add.text(0, 0, '', {
       fontFamily: 'system-ui', fontSize: '17px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 3, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(BALANCE.layers.gameplay + 1).setActive(false).setVisible(false)
+    // Weisse Schrift auf beiden Seiten (Thomas 2026-08-22): Auf deckendem Blau traegt
+    // sie am besten, und die Seite erkennt man ohnehin an der Farbe der Kachel.
     const goodieText = this.scene.add.text(0, 0, '', {
-      fontFamily: 'system-ui', fontSize: '19px', color: '#3ddc84', stroke: HUD_COLORS.textDark, strokeThickness: 3, fontStyle: 'bold',
+      fontFamily: 'system-ui', fontSize: '19px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 3, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false)
-    goodieText.setColor(`#${STAT_COLORS.hp.toString(16).padStart(6, '0')}`)
     const reward = this.scene.physics.add.image(0, 0, 'weapon-normal-gate').setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false)
     reward.disableBody(true, true)
     this.rewardGroup.add(reward)

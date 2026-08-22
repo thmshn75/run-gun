@@ -184,10 +184,11 @@ export const BALANCE = {
     road: 0,
     // Bodenschatten liegen auf der Strasse, aber unter allem, was auf ihr steht.
     shadow: 0.5,
-    // Wand-Inhalt (Waffe/Muenze) liegt unter der halbtransparenten Wand, damit er
-    // durchscheint statt sie zu verdecken.
-    wallContent: 1.5,
+    // Wand-Inhalt (Waffe, Muenze, "+1") liegt VOR der Wand. Bis 2026-08-22 lag er
+    // dahinter und schien durch die halbtransparente Wand - seit die Waende deckend
+    // sind (Thomas: "beide Waende in deckend blau"), waere er unsichtbar.
     gameplay: 2,
+    wallContent: 2.5,
   },
   walls: {
     // Breitenbudget (W2): laneShare reserviert die Wandzone AUF der Strasse (bestimmt
@@ -215,22 +216,29 @@ export const BALANCE = {
     // versetzt, damit nie beide Seiten gleichzeitig dicht sind. Kacheln quer
     // (unten 136 x 72), groesser als zuvor gegen das "kommt zu schnell"-Gefuehl.
     segmentHeightPx: 72,
+    // Gilt nur noch RECHTS. Links laeuft die Sammelbahn seit 2026-08-22 durchgehend
+    // ohne Pausen (Thomas: "die linken Waende durchgehend ohne Pausen") - sie ist kein
+    // Hindernis, also braucht es dort keine Ausweichluecke.
     wallRunLength: 3,
     wallGapSlots: 2,
     wallRightOffsetSlots: 2,
     // Waende sind halbtransparent, damit die dahinter sichtbare Belohnung (Waffe,
     // Verstaerkung oder Muenze) durchscheint. Der Inhalt sitzt in der Wandmitte, die
     // HP-Zahl darunter, damit beide gleichzeitig lesbar sind.
-    fillAlpha: 0.4,
+    // Deckend statt halbtransparent (Thomas 2026-08-22). Der Wandinhalt ist deshalb
+    // vor die Wand gewandert, siehe layers.wallContent.
+    fillAlpha: 1,
     labelOffsetPx: 18,
     // Belohnung beim Wegschiessen eines Muenz-Segments (coinValue wie schwerer Gegner).
     coinReward: 3,
     // LINKS: Sammelbahn. Jede Kachel ist ein Plaettchen mit diesem Zuwachs, das man
     // durch Beruehrung einloest (Thomas 2026-08-22, nach dem Referenzvorbild).
-    // Kadenz gerechnet: 135 px/s / 72 px = 1,875 Slots/s, davon 3 von 5 belegt
-    // (wallRunLength/wallGapSlots) = 1,125 Plaettchen/s. Wer die ganze Zeit links
-    // faehrt, gewinnt also 67 Figuren je Minute - und holt in derselben Zeit rechts
-    // keine Waffe und schiesst kaum Gegner. Genau diese Abwaegung ist der Zweck.
+    // Kadenz gerechnet: 135 px/s / 72 px Kachel = 1,875 Plaettchen/s, seit die Bahn
+    // DURCHGEHEND laeuft (vorher 3 von 5 Slots = 1,125/s). Wer die ganze Zeit links
+    // faehrt, gewinnt damit 112 Figuren je Minute statt 67 - und holt in derselben
+    // Zeit rechts keine Waffe und schiesst kaum Gegner. Genau diese Abwaegung ist der
+    // Zweck; ist der Gewinn zu gross, gehoert die Bremse an die Kette (Pausen wieder
+    // einfuehren), nicht an den Wert des einzelnen Plaettchens.
     // Der Wert bleibt bei 1: Die KETTE ist der Reiz (viele kleine Quittungen), nicht
     // die Hoehe des einzelnen Treffers. Groessere Betraege waeren dieselbe Zahl mit
     // weniger Rueckmeldung.

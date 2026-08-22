@@ -107,13 +107,14 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     expect(BALANCE.walls.pickupTeamGain).toBe(1)
   })
 
-  it('shows the reward behind a translucent rounded wall from spawn on, collectable only after the break', () => {
+  it('zeigt den Wandinhalt vor der deckenden Wand, einsammelbar erst nach dem Bruch', () => {
     const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
     const bootSource = readFileSync(new URL('../src/scenes/BootScene.ts', import.meta.url), 'utf8')
-    // Halbtransparent: sichtbar genug zum Zielen, durchsichtig genug fuer den Inhalt.
-    expect(BALANCE.walls.fillAlpha).toBeGreaterThan(0.15)
-    expect(BALANCE.walls.fillAlpha).toBeLessThan(0.8)
-    // Transparenz und runde Ecken stecken in der gebackenen Textur; die Wand selbst
+    // Deckend statt halbtransparent (Thomas 2026-08-22).
+    expect(BALANCE.walls.fillAlpha).toBe(1)
+    // Damit MUSS der Inhalt vor der Wand liegen - dahinter waere er unsichtbar.
+    expect(BALANCE.layers.wallContent).toBeGreaterThan(BALANCE.layers.gameplay)
+    // Deckkraft und runde Ecken stecken in der gebackenen Textur; die Wand selbst
     // setzt keine Fuellfarbe mehr (das hatte die Transparenz einmal still zerstoert).
     expect(bootSource).toContain('fillStyle(seite.fill, BALANCE.walls.fillAlpha)')
     expect(bootSource).toContain('fillRoundedRect(0, 0, 128, BALANCE.walls.segmentHeightPx, 10)')
@@ -127,6 +128,22 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     expect(source).toContain('.setActive(false).setVisible(true)')
     // … und wird erst nach dem Zerschiessen einsammelbar.
     expect(source).toContain('pair.reward.enableBody(true')
+  })
+
+  it('laesst die Sammelbahn links durchgehen und behaelt rechts die Abschnitte', () => {
+    const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
+    // Links kein isWallSlot mehr: kein Hindernis, also keine Ausweichluecke noetig.
+    expect(source).toContain("side === 'left'\n          || isWallSlot(")
+    // Rechts bleiben die Abschnitte, dort muss die Truppe ausweichen koennen.
+    expect(BALANCE.walls.wallGapSlots).toBeGreaterThan(0)
+    expect(BALANCE.walls.wallRunLength).toBeGreaterThan(0)
+  })
+
+  it('beschriftet beide Seiten weiss', () => {
+    const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
+    // Auf deckendem Blau traegt Weiss am besten; die Seite erkennt man an der Kachel.
+    expect(source).not.toContain("color: '#3ddc84'")
+    expect((source.match(/color: '#ffffff'/g) ?? []).length).toBeGreaterThanOrEqual(2)
   })
 
   it('runs both walls as gapless chains sized by the derived pool', () => {
