@@ -20,7 +20,15 @@ export type LevelDefinition = {
 export const BALANCE = {
   debug: false,
   maxDeltaMs: 100,
-  scrollSpeed: 180,
+  // 180 -> 135 (-25 %, Thomas 2026-08-22: "die Waende sind zu schnell - mach die
+  // langsamer", Wahl "einfach alles langsamer"). Eine Wand braucht damit 5,14 s statt
+  // 3,86 s vom Horizont bis unten. BEWUSST NICHT behoben: Waende fahren linear
+  // (blockers.ts), Strasse und Haeuser perspektivisch — am Horizont bleibt die Wand
+  // 5,1x, bei y=200 noch 2,3x schneller als die Kulisse. Das Verhaeltnis haengt nicht
+  // an scrollSpeed; wer den Bruch beheben will, koppelt die Wandbewegung an getScrollY.
+  // Gegner haengen NICHT an dieser Zahl (eigenes runStats.speed) — das Kampftempo
+  // bleibt also unveraendert, nur die Welt wird langsamer.
+  scrollSpeed: 135,
   road: {
     horizonY: 150,
     entryFadePx: 40,
@@ -114,12 +122,15 @@ export const BALANCE = {
     // Belohnung beim Wegschiessen eines Muenz-Segments (coinValue wie schwerer Gegner).
     coinReward: 3,
     // Goodies unregelmaessig in der Wand: links Verstaerkungen, rechts Waffen.
-    // Effektiv 1,5 Segmente/s je Seite (180/72 Slots/s x 3/5 Wandanteil) ->
-    // Verstaerkung ~alle 5,6 s, Waffe ~alle 8,3 s im Erwartungswert; maxDry
-    // garantiert ein Goodie nach spaetestens 16 Nieten (~10,7 s).
-    reinforcementChance: 0.12,
-    weaponChance: 0.08,
-    goodieMaxDry: 16,
+    // Effektiv 1,125 Segmente/s je Seite (135/72 Slots/s x 3/5 Wandanteil). Die Werte
+    // sind mit scrollSpeed 180 -> 135 um Faktor 1,5/1,125 = 1,333 angehoben worden
+    // (0,12 -> 0,16 / 0,08 -> 0,107 / maxDry 16 -> 12), damit die Goodie-Kadenz PRO
+    // SEKUNDE unveraendert bleibt: Verstaerkung ~alle 5,6 s, Waffe ~alle 8,3 s im
+    // Erwartungswert, Garantie nach spaetestens 12 Nieten (~10,7 s). Ohne diese
+    // Anhebung haette das langsamere Tempo die Truppe still 25 % schlechter versorgt.
+    reinforcementChance: 0.16,
+    weaponChance: 0.107,
+    goodieMaxDry: 12,
     // Wie tief die Truppe sich an eine Wand druecken darf, in Figurenbreiten ueber die
     // Wandinnenkante hinaus. 0.5 = die innerste Figur steht zur Haelfte in der Zone,
     // ihr Schussursprung damit sicher drin. Ohne diesen Ueberstand trifft die
@@ -134,8 +145,11 @@ export const BALANCE = {
     // Fester Block-Takt: Der Nachfolger spawnt, waehrend die Oberkante des Vorgaengers
     // (Turm >= 120 px, braucht ~2 s bis unter den Horizont) noch weit darueber liegt —
     // die Fassade eines Blocks ist damit konstruktiv geschlossen (Test: gapFrames = 0
-    // in der Simulation ohne Querstrassen).
-    spawnIntervalMs: 400,
+    // in der Simulation ohne Querstrassen). 400 -> 533 ms mit scrollSpeed 180 -> 135
+    // (400 x 180/135): Der Takt ist zeitbasiert, ohne Anpassung ruecken die Haeuser bei
+    // langsamerem Scroll enger zusammen. So bleibt die Haeuserdichte pro Strecke — und
+    // damit Thomas' abgenommenes Stadtbild — unveraendert.
+    spawnIntervalMs: 533,
     // Haeuser pro Block, beidseitig dieselbe Zahl. Lange Bloecke wie in New York
     // (Thomas-Korrektur 2026-08-22: "zu oft unterbrochen" bei 4-8).
     blockBuildingsMin: 10,
@@ -501,8 +515,9 @@ export const BALANCE = {
     enemies: 104,
     // Must be >= crowd.max because all figures are created once and then only shown or hidden.
     crowd: 30,
-    // Max kill rate is 1 / 0.45s x 3 coins per heavy enemy x 844px / 180px/s = 31.3; 48 leaves 54% reserve without relying on the magnet.
-    coins: 48,
+    // Max kill rate is 1 / 0.45s x 3 coins per heavy enemy x 844px / 135px/s = 41.7; 64 leaves 53% reserve without relying on the magnet.
+    // (Muenzen fallen mit scrollSpeed: 180 -> 135 verlaengert ihre Bildzeit von 4,69 s auf 6,25 s, also mehr gleichzeitig aktiv.)
+    coins: 64,
     // Roughly 1.4s visible versus 9s spawn interval means at most one; two cover a delayed recycle.
     gateGroups: 2,
     // Wand-Abschnitte (W4): ceil((844 - 150) / 72) = 10 Slots je Seite, davon 3/5 Wand

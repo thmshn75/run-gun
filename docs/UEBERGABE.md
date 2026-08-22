@@ -1,6 +1,6 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-22 14:45
+Stand: 2026-08-22 15:25
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen und als
@@ -38,6 +38,13 @@ Tag `v1.0` gesichert** (Rueckschrittspunkt). Laufend: **V2-Spurenumbau**, Etappe
   (`getDriveLimitHalfWidth`, `BALANCE.walls.driveIntoWallFigures`). Beide Aenderungen
   sind noetig — die erste allein traf gemessen gar nichts mehr. 103 Tests gruen,
   Browser-Lauf belegt fallende Segmente.
+- **W4-Nachbesserung „Tempo"** (2026-08-22, Thomas: „die Waende sind zu schnell"):
+  `scrollSpeed` 180 -> 135. Mitgezogen, damit sich nur das Tempo aendert:
+  `scenery.spawnIntervalMs` 400 -> 533, Goodie-Werte x1,333, `pools.coins` 48 -> 64.
+  **Offen gelassen (Thomas' Wahl):** Waende fahren linear, Kulisse perspektivisch — am
+  Horizont ist die Wand 5,1x schneller als die Haeuser. Wer das beheben will, koppelt
+  die Wandbewegung in `blockers.ts` an `getScrollY` und macht die Segmenthoehe
+  perspektivisch (sonst reisst die Kette).
 - Arbeitsverzeichnis sauber, `docs/active-task.md` auf IDLE.
 
 ## Offen — naechster Schritt zuerst

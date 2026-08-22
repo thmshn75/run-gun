@@ -44,7 +44,7 @@ describe('scenery layout', () => {
   it('shares the road scroll curve and keeps scenery progress free to leave the viewport', () => {
     const roadSource = readFileSync(new URL('../src/systems/road.ts', import.meta.url), 'utf8')
     const scenerySource = readFileSync(new URL('../src/systems/scenery.ts', import.meta.url), 'utf8')
-    expect(BALANCE.scrollSpeed).toBe(180)
+    expect(BALANCE.scrollSpeed).toBe(135)
     expect(getScrollY(height, 0)).toBe(BALANCE.road.horizonY)
     expect(getScrollProgressDelta(height, fixedDt)).toBeCloseTo((BALANCE.scrollSpeed * fixedDt) / (height * 1000))
     expect(roadSource).toContain('getScrollY(height, centerLine.progress)')
@@ -78,7 +78,7 @@ describe('scenery layout', () => {
     const sizedPool = simulateCityScenery(sceneryKinds, createRng(0x5eeda11), width, height, BALANCE.pools.scenery, 120_000, fixedDt)
     expect(BALANCE.scenery.marginPx).toBe(4)
     expect(BALANCE.scenery.spreadPx).toBe(6)
-    expect(BALANCE.scenery.spawnIntervalMs).toBe(400)
+    expect(BALANCE.scenery.spawnIntervalMs).toBe(533)
     expect(densest.maxActive).toBe(24)
     expect(normal.maxActive).toBeLessThanOrEqual(densest.maxActive)
     expect(BALANCE.pools.scenery).toBeGreaterThanOrEqual(densest.maxActive + 4)

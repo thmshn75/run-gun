@@ -7,6 +7,22 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**W4-Nachbesserung „Tempo" fertig** (2026-08-22, Claude direkt, Thomas: „die Wände sind
+zu schnell — mach die langsamer", Wahl aus drei Optionen: „einfach alles langsamer").
+`scrollSpeed` 180 → 135 (−25 %): Eine Wand braucht 5,14 s statt 3,86 s durchs Bild.
+Drei Werte mitgezogen, damit nur das Tempo sich ändert und nicht still die Balance:
+- `scenery.spawnIntervalMs` 400 → 533 (Takt ist zeitbasiert; sonst rücken die Häuser
+  enger zusammen und das abgenommene Stadtbild verdichtet sich)
+- Goodie-Werte ×1,333 (`reinforcementChance` 0.12 → 0.16, `weaponChance` 0.08 → 0.107,
+  `goodieMaxDry` 16 → 12), damit die Kadenz **pro Sekunde** bleibt (5,6 s / 8,3 s)
+- `pools.coins` 48 → 64 (Münzen brauchen 6,25 s statt 4,69 s durchs Bild)
+**Nicht behoben und bewusst so:** Wände fahren linear, Straße und Häuser perspektivisch —
+am Horizont bleibt die Wand 5,1× schneller als die Kulisse. Das Verhältnis hängt nicht an
+`scrollSpeed`; Thomas hat die Perspektiv-Kopplung als Option gesehen und abgewählt.
+Gegner hängen nicht an `scrollSpeed`, das Kampftempo ist unverändert.
+Nachweise: 103 Tests grün, Browser-Lauf gemessen — Wandtempo 135 px/s, 11 von 11
+Segmenten getroffen, Goodie-Kadenz im erwarteten Bereich.
+
 **W4-Nachbesserung „Wände treffen" fertig** (2026-08-22, Claude direkt, nach Thomas'
 iPhone-Rückmeldung „voll schwer überhaupt Wände wegzubekommen am Anfang"). Ursache war
 nicht die Härte der Wand, sondern Unerreichbarkeit: Der Fahrbereich endete auf Spuranteil
