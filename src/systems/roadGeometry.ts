@@ -1,7 +1,8 @@
 import { BALANCE } from '../config/balance'
+import { getCurrentScrollSpeed } from './speed'
 
 export function getScrollProgressDelta(height: number, dt: number): number {
-  return (BALANCE.scrollSpeed * dt) / (height * 1000)
+  return (getCurrentScrollSpeed() * dt) / (height * 1000)
 }
 
 export function getScrollY(height: number, progress: number): number {

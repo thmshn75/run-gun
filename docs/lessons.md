@@ -182,3 +182,18 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   vorgelegt, statt weiter zu drehen. Zweite Lehre: Rueckstaende aus dem vorigen
   Messlauf (aktive Objekte, Akkumulatoren) machen jede Wiederholung wertlos; jede
   Wiederholung braucht eine frische Szene.
+
+### 2026-08-22 — Sperrdatei geloescht statt Prozess beendet, Nutzer-Rechner blockiert
+- **Fehler:** Der Playwright-Browser meldete "Browser is already in use for
+  ~/.playwright-profiles/oscar-chrome". Statt den haengenden Prozess zu beenden, wurden
+  die Sperrdateien (`SingletonLock` und Geschwister) geloescht. Beim naechsten Start
+  meldete Chrome das Profil als beschaedigt; der Dialog liess sich nicht wegklicken,
+  weil ein ferngesteuerter Browser keine Nutzereingaben annimmt. Thomas sass vor einem
+  Fenster, das er nicht schliessen konnte, und musste es melden.
+- **Regel:** Eine Sperrdatei ist ein Symptom, kein Muell - sie zeigt auf einen Prozess,
+  der noch laeuft. Erst `pkill -f "<profilpfad>"`, kurz warten, pruefen dass keiner mehr
+  laeuft, dann neu starten. Sperrdateien nur anfassen, wenn nachweislich kein Prozess
+  mehr existiert. Zweitens: Jeder ferngesteuerte Browser gehoert am Ende einer
+  Pruefsitzung beendet, nicht nur der Tab geschlossen - ein offener Prozess ist die
+  Sperrdatei des naechsten Laufs. Drittens: Faellt so etwas auf, zuerst aufraeumen und
+  es dem Nutzer sagen, dann weiterarbeiten.

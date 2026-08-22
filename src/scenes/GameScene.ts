@@ -13,6 +13,7 @@ import { getCrowdDamageMultiplier } from '../systems/crowdDamage'
 import { Gates } from '../systems/gates'
 import { getLevelPlan } from '../systems/levelPlan'
 import { getRoadHalfWidth, Road } from '../systems/road'
+import { getScrollSpeed, setCurrentScrollSpeed } from '../systems/speed'
 import { Scenery } from '../systems/scenery'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { addScore, loadSave, qualifiesForScores, writeSave } from '../systems/save'
@@ -172,6 +173,7 @@ export class GameScene extends Phaser.Scene {
     this.gameOverStarted = false
     this.lastCrowdSize = -1
     this.currentLevel = 1
+    setCurrentScrollSpeed(getScrollSpeed(this.currentLevel))
     this.levelPhase = 'normal'
     this.phaseRemainingMs = getLevelPlan(this.currentLevel).normalPhaseSec * 1000
     this.lastUnknownCombatOverlapWarningAtMs = -1000
@@ -534,6 +536,13 @@ export class GameScene extends Phaser.Scene {
         this.blockers.collectPickup(target as Phaser.Physics.Arcade.Image)
         return
       }
+      // Wandsegmente kosten bei Beruehrung NICHTS - das war seit W4 so und muss hier
+      // ausdruecklich stehen: Seit die Truppenhuelle gegen die ganze Wandgruppe prueft
+      // (fuer die Sammelbahn), fiel eine beruehrte rechte Wand sonst bis zur
+      // Gegnerbehandlung durch. Sie hat kein contactDamage, der Trupp wurde damit auf
+      // NaN gesetzt und verschwand komplett (Thomas 2026-08-22: "wenn ich mit meinen
+      // Spielern nach rechts in eine blaue Wand fahre verschwinden sie ploetzlich").
+      if (this.blockers.isBlocker(target)) return
       const enemyImage = target as Phaser.Physics.Arcade.Image
       if (!this.crowd.overlapsFigure(enemyImage.getBounds())) return
       if (this.elapsedMs < this.enemyContactIframeUntilMs) return
@@ -583,7 +592,14 @@ export class GameScene extends Phaser.Scene {
 
   private handlePlayerHit(enemy: Phaser.Physics.Arcade.Image): void {
     if (!enemy.active) return
-    const contactDamage = enemy.getData('contactDamage') as number
+    const contactDamage = enemy.getData('contactDamage') as number | undefined
+    // Zweite Sicherung gegen denselben Fehler an anderer Stelle: Ein Objekt ohne
+    // Schadenswert ist kein Gegner. Ohne diese Pruefung wird der Trupp zu NaN und
+    // verschwindet - schlimmer als jeder Treffer.
+    if (typeof contactDamage !== 'number' || !Number.isFinite(contactDamage)) {
+      if (import.meta.env.DEV) console.warn('Beruehrung mit einem Objekt ohne contactDamage ignoriert.')
+      return
+    }
     if (!this.boss.isEnemy(enemy)) this.spawner.recycle(enemy)
     this.handlePlayerDamage(contactDamage)
   }
@@ -668,6 +684,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private startLevel(): void {
+    // Jedes Level ein wenig schneller (Thomas 2026-08-22). Eine Zahl fuer die ganze
+    // Welt, damit Waende, Muenzen, Strasse, Haeuser und Laufanimation im Takt bleiben.
+    setCurrentScrollSpeed(getScrollSpeed(this.currentLevel))
     this.levelPhase = 'normal'
     this.phaseRemainingMs = getLevelPlan(this.currentLevel).normalPhaseSec * 1000
     this.levelOverlayBackground.setVisible(false)

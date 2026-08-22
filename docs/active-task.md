@@ -7,6 +7,37 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**Bugfix "Spieler verschwinden an der rechten Wand" + Tempo je Level fertig**
+(2026-08-22, Claude direkt).
+- **BUG (von Claude selbst eingebaut, von Thomas gemeldet):** "wenn ich mit meinen
+  Spielern nach rechts in eine blaue Wand fahre verschwinden sie ploetzlich". Ursache:
+  Fuer die Sammelbahn prueft die Truppenhuelle seit dem letzten Commit gegen die GANZE
+  Wandgruppe. Eine beruehrte rechte Wand ist weder Reward noch Pickup und fiel deshalb
+  bis zur Gegnerbehandlung durch. Sie hat kein `contactDamage` - der Trupp wurde auf
+  NaN gesetzt und verschwand komplett. **Reproduziert und gemessen** (Wandsegment auf
+  Truppenhoehe gezwungen): Truppe 20 -> null, sichtbare Figuren 0, im Protokoll steht
+  `wall-segment-right` als Gegner. Fix: Wandsegmente vor der Gegnerbehandlung
+  ausschliessen, plus zweite Sicherung in `handlePlayerHit` (kein Schaden ohne endliche
+  Zahl). **Gegenprobe mit Vorhersage:** Echte Gegner muessen weiter Schaden machen -
+  gemessen 4 erzwungene Kontakte, Truppe 20 -> 14. Regressionstest prueft die
+  Reihenfolge der Abfragen im Kollisionshandler.
+- **Tempo je Level** (Thomas: "die plus 1 waende muessen jedes Level ein wenig
+  schneller werden"). Umgesetzt als Tempo der GANZEN Welt in `speed.ts`, nicht nur der
+  Waende - dieselbe Wahl wie bei der Verlangsamung am selben Tag ("einfach alles
+  langsamer"). Nur die Waende zu beschleunigen haette sie mit jedem Level weiter aus
+  dem Takt mit Strasse, Haeusern und Muenzen laufen lassen.
+  Hergeleitet aus zwei bekannten Punkten: 135 px/s ist abgenommen (Level 1), 180 px/s
+  war "zu schnell". Level 12 zielt auf 175 -> Faktor 1,0238 je Level, harter Deckel 175.
+  Alle fuenf Systeme lesen jetzt EINE Zahl; ein Test prueft, dass keines mehr die feste
+  Grundgeschwindigkeit liest.
+- **Betriebsvorfall dabei:** Der Pruefbrowser hing und blockierte Thomas' Bildschirm,
+  weil eine Sperrdatei geloescht statt der Prozess beendet wurde. Aufgeraeumt, in
+  `docs/lessons.md` und im zentralen Logbuch vermerkt.
+Nachweise: 142 Tests gruen (neu `tests/levelSpeed.test.ts`), `npm run check` sauber,
+Bug und Gegenprobe im Browser gemessen.
+**Noch offen aus Thomas' Nachricht:** Rechte Wand auf Feuerkraft umbauen (Schaden,
+Feuerrate, Waffen) und dann die Frage, was den Mittel-Toren bleibt.
+
 **Deckendes Blau, weisse Schrift, Sammelbahn ohne Pausen fertig** (2026-08-22,
 Claude direkt, Thomas: "beide waende in decken blau und weisser schrift und die linken
 waende durchgehend ohne pausen").

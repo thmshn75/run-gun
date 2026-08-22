@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import { getCurrentScrollSpeed } from './speed'
 
 export class Coins {
   private readonly scene: Phaser.Scene
@@ -40,7 +41,7 @@ export class Coins {
     this.elapsedMs += dt
     for (const coin of this.coins) {
       if (!coin.active) continue
-      coin.y += (BALANCE.scrollSpeed * dt) / 1000
+      coin.y += (getCurrentScrollSpeed() * dt) / 1000
       const distance = Phaser.Math.Distance.Between(coin.x, coin.y, anchorX, anchorY)
       if (distance <= BALANCE.coins.magnetRadius && distance > 0) {
         const step = Math.min((BALANCE.coins.magnetSpeed * dt) / 1000, distance)

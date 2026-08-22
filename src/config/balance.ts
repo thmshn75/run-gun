@@ -20,6 +20,18 @@ export type LevelDefinition = {
 export const BALANCE = {
   debug: false,
   maxDeltaMs: 100,
+  levelSpeed: {
+    // Steigerung je Level (Thomas 2026-08-22: "jedes Level ein wenig schneller").
+    // Hergeleitet aus zwei bekannten Punkten: 135 px/s ist das Tempo, das Thomas am
+    // selben Tag als richtig abgenommen hat (Level 1); 180 px/s war der Wert, den er
+    // als "zu schnell" gemeldet hat. Level 12 soll spuerbar schneller sein, aber unter
+    // dieser Schmerzgrenze bleiben - Zielwert 175 px/s.
+    // 135 x f^11 = 175 -> f = (175/135)^(1/11) = 1,0238.
+    perLevelFactor: 1.0238,
+    // Harter Deckel, falls die Leveltabelle spaeter ueber 12 hinauswaechst: nie zurueck
+    // zu dem Tempo, das schon einmal als zu schnell gemeldet wurde.
+    maxPxPerSec: 175,
+  },
   // 180 -> 135 (-25 %, Thomas 2026-08-22: "die Waende sind zu schnell - mach die
   // langsamer", Wahl "einfach alles langsamer"). Eine Wand braucht damit 5,14 s statt
   // 3,86 s vom Horizont bis unten. BEWUSST NICHT behoben: Waende fahren linear

@@ -1,4 +1,5 @@
 import { BALANCE } from '../config/balance'
+import { getCurrentScrollSpeed } from './speed'
 
 // Lebendigkeit (Thomas 2026-08-22: "nicht so wie in den App Store spielen, ich kann dir
 // aber auch nicht sagen woran es liegt"). Befund: Im ganzen Spiel bewegte sich nichts
@@ -12,7 +13,7 @@ import { BALANCE } from '../config/balance'
 // Figuren sichtbar gemaechlicher.
 export function getStepCycleHz(figureHeightPx: number): number {
   const strideLengthPx = Math.max(1, figureHeightPx * BALANCE.gamefeel.strideOfHeight)
-  const stepsPerSec = BALANCE.scrollSpeed / strideLengthPx
+  const stepsPerSec = getCurrentScrollSpeed() / strideLengthPx
   return stepsPerSec / 2
 }
 

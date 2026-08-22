@@ -6,6 +6,7 @@ import { decideGoodie } from './reinforcementPlan'
 import { getPlayfieldHalfWidth, getWallGeometry } from './road'
 import { isWallSlot } from './wallPattern'
 import type { WeaponKey } from './weapons'
+import { getCurrentScrollSpeed } from './speed'
 
 // Seit W2 traegt diese Klasse die Wandsegmente, seit W4 als DAUERWAND. Seit dem
 // Referenzvorbild-Abgleich (Thomas 2026-08-22) sind die beiden Seiten GRUNDSAETZLICH
@@ -198,7 +199,7 @@ export class Blockers {
 
   public update(dt: number): void {
     this.elapsedMs += dt
-    const movement = (BALANCE.scrollSpeed * dt) / 1000
+    const movement = (getCurrentScrollSpeed() * dt) / 1000
     // Dauerwand-Kette: sobald das zuletzt gespawnte Paar eine Segmenthoehe gescrollt
     // ist, schliesst am Horizont das naechste an — unabhaengig vom Objektzustand,
     // damit ein frueh zerschossenes Segment die Kette nicht stocken laesst.

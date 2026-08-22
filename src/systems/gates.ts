@@ -7,6 +7,7 @@ import { getPlayfieldHalfWidth } from './road'
 import { clampStat, type RunStats, type StatKey } from './upgrades'
 import { getWeaponRewardChoices } from './weaponChoices'
 import { WEAPON_LABELS, type WeaponKey } from './weapons'
+import { getCurrentScrollSpeed } from './speed'
 
 export interface GateOp {
   label: string
@@ -181,7 +182,7 @@ export class Gates {
     }
 
     const anchor = this.getAnchorPosition()
-    const movement = ((BALANCE.scrollSpeed + BALANCE.gates.extraSpeed) * dt) / 1000
+    const movement = ((getCurrentScrollSpeed() + BALANCE.gates.extraSpeed) * dt) / 1000
     for (const group of this.groups) {
       if (!group.active) continue
       this.moveGroup(group, movement)

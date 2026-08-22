@@ -139,6 +139,23 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     expect(BALANCE.walls.wallRunLength).toBeGreaterThan(0)
   })
 
+  it('verrechnet eine beruehrte Wand nie als Gegner', () => {
+    // Regression (Thomas 2026-08-22): Seit die Truppenhuelle gegen die ganze
+    // Wandgruppe prueft (fuer die Sammelbahn), fiel eine beruehrte rechte Wand bis
+    // zur Gegnerbehandlung durch. Sie hat kein contactDamage - der Trupp wurde auf
+    // NaN gesetzt und verschwand komplett. Gemessen: 20 Figuren -> null.
+    const scene = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
+    const pickupPos = scene.indexOf('this.blockers.isPickupSegment(target)')
+    const blockerPos = scene.indexOf('if (this.blockers.isBlocker(target)) return')
+    const gegnerPos = scene.indexOf('this.handlePlayerHit(enemyImage)')
+    expect(blockerPos).toBeGreaterThan(-1)
+    // Die Wandpruefung muss VOR der Gegnerbehandlung stehen, sonst wirkt sie nicht.
+    expect(blockerPos).toBeGreaterThan(pickupPos)
+    expect(blockerPos).toBeLessThan(gegnerPos)
+    // Zweite Sicherung: Ein Objekt ohne Schadenswert ist kein Gegner.
+    expect(scene).toContain("typeof contactDamage !== 'number' || !Number.isFinite(contactDamage)")
+  })
+
   it('beschriftet beide Seiten weiss', () => {
     const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
     // Auf deckendem Blau traegt Weiss am besten; die Seite erkennt man an der Kachel.
