@@ -9,15 +9,17 @@ Git-Tag **`v1.0`** gesichert — das ist der Rueckschrittspunkt. V1-Plan: `docs/
 **V2 ist geplant und gehaertet:** `docs/plan-v2.md` (Etappen W1–W6, zwei
 Gegenpruefungs-Runden gelaufen, Befunde eingearbeitet).
 
-## Naechster Schritt: V2 starten
+## Naechster Schritt: W1-Abnahme am iPhone, dann W2
 Live-Stand: https://thmshn75.github.io/run-gun/
-1. **W1 (Stadtbild) als Spec aufsetzen** (`docs/active-task.md`, dann Codex im Terminal):
-   Haeuserzeilen durchgehend, Luecken nur als Querstrassen; Gegner erscheinen kuenftig
-   leicht aus dem Horizont statt erst unter der weissen Linie (Haeuser machen es schon
-   richtig); Minigun-Projektile besser sichtbare Farbe.
-2. **Boss-Entscheidung ist gefallen (2026-08-22):** Boss schiesst in V2 nicht mehr;
-   Staerke wird beim Kampfstart aus dem momentanen Spielerstand berechnet
-   (Ziel-Kampfdauer 20–40 s). Details in plan-v2.md, Abschnitt "Boss V2".
+1. **W1 ist umgesetzt und deployt** (2026-08-22, von Claude selbst auf Thomas' Anweisung;
+   Commit a74f0c8, Deploy gruen): Stadtbild mit durchgehenden Haeuserzeilen und synchronen
+   Querstrassen (`cityPlan.ts`), Gegner erscheinen per Crop aus dem Horizont
+   (`horizonReveal.ts`, Spawner), Minigun-Tracer gelb. 78 Tests gruen; Pools neu
+   hergeleitet (enemies 104, scenery 30 bestaetigt). Offen: Thomas' iPhone-Urteil
+   (Stadtbild, Minigun-Sichtbarkeit — Minigun ab Level 3).
+2. **Danach W2 (Waende links/rechts) als Spec aufsetzen** — Breitenbudget zuerst, siehe
+   plan-v2.md W2-Zeile. Boss-Entscheidung ist gefallen: schiesst nicht mehr, Staerke aus
+   dem momentanen Spielerstand (plan-v2.md, Abschnitt "Boss V2").
 
 ## V2-Kern (Thomas-Entscheidungen 2026-08-21/22, Details in plan-v2.md)
 Spuren-Umbau nach Genre-Vorbild (Count Masters, Mob Control, Z Escape): zerschiessbare
