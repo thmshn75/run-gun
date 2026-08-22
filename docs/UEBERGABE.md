@@ -1,84 +1,61 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-22
+Stand: 2026-08-22 14:20
 
-## Ziel und Stand
-Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 ist am 2026-08-22
-von Thomas am iPhone abgenommen** (Spiel, Update-Pfad, Offline bestaetigt) und als
-Git-Tag **`v1.0`** gesichert — das ist der Rueckschrittspunkt. V1-Plan: `docs/plan.md`.
-**V2 ist geplant und gehaertet:** `docs/plan-v2.md` (Etappen W1–W6, zwei
-Gegenpruefungs-Runden gelaufen, Befunde eingearbeitet).
+## Ziel
+Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen und als
+Tag `v1.0` gesichert** (Rueckschrittspunkt). Laufend: **V2-Spurenumbau**, Etappenplan in
+`docs/plan-v2.md` (W1–W6). Live: https://thmshn75.github.io/run-gun/
 
-## Naechster Schritt: W1+W2-Abnahme am iPhone, dann W3
-Live-Stand: https://thmshn75.github.io/run-gun/
-1. **W1 umgesetzt und deployt** (2026-08-22, Claude direkt; Korrektur eingearbeitet):
-   New-York-Bloecke 10–16 Haeuser (`cityPlan.ts`), Gegner erscheinen wie die Haeuser
-   voll ueber dem Horizont (`horizonReveal.ts`), Minigun-Tracer gelb.
-2. **W2 umgesetzt und deployt** (2026-08-22, Claude direkt): Wandsegmente links/rechts —
-   `blockers.ts` in-place umgebaut (Umbenennung auf Walls in W6), Breitenbudget +
-   `getPlayfieldHalfWidth` in `roadGeometry.ts`, Spawner/Tore auf Restbreite, HP aus
-   `getBlockerPlan` x `walls.hpFactor`, Muenzen beim Zerstoeren, jedes 3. Segment traegt
-   eine Waffe (Waffenquelle der V1-Sperren bleibt). 82 Tests gruen.
-3. **W3 umgesetzt und deployt** (2026-08-22, Claude direkt): Horden mittig — Spawn-
-   Baender (`enemy.spawnBands`), Dichteregel `computeHordeOffsets` (stauchen statt
-   verkleinern, Deckel `walls.hordeMaxWidthPx` 200 hergeleitet), Typenwahl vor Layout,
-   Horden ab Level 1, squadChance angehoben. Waende nach mehreren Thomas-Feedbacks:
-   orange, runde Ecken (Textur `wall-segment`), halbtransparent mit sichtbarem Inhalt,
-   nach innen breiter + Ueberhang nach aussen; Tore dauerhaft ZWEISPURIG (Waffen kommen
-   aus den Waenden — W4-Zielbild vorgezogen). 88 Tests gruen.
-4. **W4 umgesetzt und deployt** (2026-08-22, Claude direkt, nach Genre-Verifikation
-   plus zwei Gamefeel-Korrekturen von Thomas): Wand-ABSCHNITTE mit versetzten Luecken
-   (`wallPattern.ts`, run 3 / gap 2), Kacheln quer 72 hoch x 0.7 widthShare, Strasse
-   oben breiter (topWidthRatio 0.52); Goodies unregelmaessig mit maxDry-Garantie
-   (`reinforcementPlan.ts`) — links Verstaerkungen (Operator-Anzeige, Sofortwirkung),
-   rechts Waffen, Rest Muenzen; Mittel-Tore nur noch DMG/RATE/SPD; DYNAMISCHER
-   Fahrbereich (crowd.getAnchorRange + getWallPresence: Korridor neben Wand, Strassen-
-   rand in Luecken, sanftes Zurueckschieben, kein Kontaktschaden). 96 Tests gruen.
-5. Offen: **Thomas' iPhone-Urteil zu W1–W4**. Danach **W5 (Boss)**: schiesst nicht
-   mehr, Staerke beim Kampfstart aus dem momentanen Spielerstand (plan-v2.md "Boss V2").
+## Harte Randbedingungen
+- Claude ist normalerweise Architekt/Reviewer; **fuer V2 hat Thomas Direktumsetzung durch
+  Claude angeordnet** (statt Codex-Handoff) — gilt weiter, bis er es zurueckdreht.
+- Testsuite und laengere Laeufe ins Terminal (`.command`-Skript + `open -a Terminal`),
+  nicht in der Extension. Fertiges Skript: `<scratchpad>/run-tests.command`.
+- Nie eine Groesse raten, die das Spiel messen kann; Balance-Zahlen aus `balance.ts`
+  ableiten und den Rechenweg als Kommentar hinterlegen.
+- Objekt-Pools: kein `create()`/`destroy()` im Hot Path, jede Poolgroesse mit Herleitung.
+- Gamefeel/Optik gelten erst nach Thomas' iPhone-Test als erfuellt, nie nach Desktop.
+- Nach jeder Etappe: `npm run check`, Terminal-Testsuite, Browser-Sichtpruefung,
+  commit + push, Pages-Deploy per `gh run watch` verifizieren.
 
-## V2-Kern (Thomas-Entscheidungen 2026-08-21/22, Details in plan-v2.md)
-Spuren-Umbau nach Genre-Vorbild (Count Masters, Mob Control, Z Escape): zerschiessbare
-Waende links/rechts, Waffen eine Seite, Upgrades andere Seite, Horden mittig; Bosse
-waren in V1 noch etwas zu schwer; Haeuserschlucht wird durchgehende Stadt mit
-Querstrassen; Haeuser erscheinen oben frueher als Gegner. Kern-Mehrwert: permanenter
-Zielkonflikt (zur Wand steuern = nicht auf die Horde schiessen). Wichtigste
-Haertungs-Befunde stehen **in** den Etappen-Zeilen von plan-v2.md (Breitenbudget ab W2,
-Horden-Zentrierung gemessen, Wert-vor-Schuss aktuell gehalten, Volllast-Messung in W6).
+## Fertig
+- **W1** Stadtbild: New-York-Bloecke 10–16 Haeuser (`cityPlan.ts`), Gegner erscheinen wie
+  die Haeuser voll ueber dem Horizont (`horizonReveal.ts`), Minigun-Tracer gelb.
+- **W2/W4** Waende: Abschnitte mit versetzten Luecken (`wallPattern.ts`, run 3 / gap 2),
+  Kacheln quer (72 hoch, widthShare 0.7, orange, runde Ecken, halbtransparent),
+  Ueberhang nach aussen, Inhalt ab Spawn sichtbar; Goodies unregelmaessig mit
+  maxDry-Garantie (`reinforcementPlan.ts`) — links Verstaerkung (Operator-Anzeige,
+  Sofortwirkung), rechts Waffen, Rest Muenzen; dynamischer Fahrbereich
+  (`crowd.getAnchorRange` + `blockers.getWallPresence`), kein Wandkontakt-Schaden;
+  Mittel-Tore nur noch DMG/RATE/SPD, dauerhaft zweispurig.
+- **W3** Horden mittig: Spawn-Baender (`enemy.spawnBands`), Dichteregel
+  (`computeHordeOffsets` — stauchen statt verkleinern), Horden ab Level 1.
+- Letzter Commit `24cd9c4`, alles gepusht, Deploy gruen, Arbeitsverzeichnis sauber,
+  96 Tests gruen, `docs/active-task.md` auf IDLE.
 
-## Harte Randbedingungen (unveraendert)
-- Claude ist Architekt/Reviewer, schreibt keinen produktiven Code; Umsetzung via Codex im
-  Terminal (Ablauf in `CLAUDE.md`). Testlaeufe ebenfalls ins Terminal.
-- Nie eine Groesse raten, die das Spiel messen kann; Balance-Zahlen aus `balance.ts` ableiten.
-- Objekt-Pools: kein create()/destroy() im Hot Path, jede Poolgroesse mit Herleitung.
-- Reissleinen benennen, was KEIN zulaessiger Ersatz ist.
-- Gamefeel/Optik/Performance gelten erst nach Thomas' iPhone-Test als erfuellt.
-
-## Heute gelernt (2026-08-21, Nachmittag)
-- **Boss-Balance ist dreistufig geloest:** Kampfdauer nach Level gestaffelt
-  (`getMaxFightSec`: 18 s + 2 s/Level, Deckel 40 s), Phase-2-Salve nach Level gestaffelt
-  (`getPhaseTwoProfile`: Breite 60 + 9 px/Level, Deckel 150; Anzahl 3→5) und Salvengroesse
-  = Levelnummer auf L1–L3 (beide Phasen). Ausweich-Geometrie ist per Test gesichert
-  (Fenster >= 20 px fuer L1–3, echte Figurbreite aus player.png gelesen).
-- **Ein Einzelschuss war eine NaN-Falle:** `spread / (count - 1)` bei count 1 →
-  `getBurstOffsets` in `src/systems/bossBurst.ts` behandelt das, mit Test.
-- **Kulisse:** bewegt sich jetzt auf derselben Kurve wie die Strasse (`getScrollY` in
-  `roadGeometry.ts`); Haeuserschlucht (3 Tuerme, Gewicht 6:1, marginPx 4, spreadPx 6,
-  Takt 400 ms, Pool 30 gemessen). Cottage geloescht.
-- **Codex stoppt bei widerspruechlicher Spec korrekt** statt zu raten (L3-Fenster 19 px vs.
-  geforderte 20) — Spec-Zahlen fuer JEDEN betroffenen Level durchrechnen, nicht nur L1.
-- **Offline-Regression der Klasse „Test veraltet still":** Der E1-Offline-Beleg galt vor den
-  PNG-Sprites; seitdem fehlten alle Sprites im Precache. Fix: `globPatterns` in
-  `vite.config.ts`, Nachweis-Test `tests/precache.test.ts` (`npm run test:dist`).
+## Offen — naechster Schritt zuerst
+1. **Thomas' iPhone-Urteil zu W1–W4 abwarten** (Stadtbild, Wand-Gamefeel, Fahrbereich,
+   Horden). Korrekturen haben Vorrang vor W5.
+2. **W5 — Boss** (`plan-v2.md`, Abschnitt „Boss V2"): Boss **schiesst nicht mehr**
+   (Salvensystem `bossBurst.ts` entfaellt), Druck aus gerufenen Horden + Vorruecken;
+   Lebenspunkte beim Kampfstart aus der **tatsaechlichen Feuerkraft der Truppe**
+   berechnen (Ziel 20–40 s auf jedem Level, je einmal mit schwachem und starkem Run
+   messen), Levelnummer skaliert nur noch den Hordendruck.
+3. **W6 — Abnahme**: toten Code entfernen (`blockers.ts` → `Walls` umbenennen,
+   `bossBurst.ts`, alte Tor-Reste), Volllast-Messung aller Systeme gleichzeitig,
+   Netzwerk-Null-Check, README.
 
 ## Wichtige Dateien und Befehle
-- `docs/plan.md` · `docs/active-task.md` (IDLE) · `docs/lessons.md`
-- Balance: `src/config/balance.ts` · Boss: `src/systems/bossPlan.ts`, `bossBurst.ts`
-- Kulisse: `scenery.ts`, `sceneryKinds.ts`, `sceneryLayout.ts`, `scenerySimulation.ts`
-- `npm run check` · `npm run build` · `npm test` (72 Tests) · `npm run test:dist` · `npm run dev`
-- Deploy: GitHub Actions auf Push. Leistungsmessung: Verfahren siehe Git-Historie dieser
-  Datei (Playwright + CDP, Stand cb7bc02).
+- Plan: `docs/plan-v2.md` · Task: `docs/active-task.md` · Lessons: `docs/lessons.md`
+- Balance: `src/config/balance.ts` (alle Tuning-Werte + Herleitungen als Kommentar)
+- Waende: `blockers.ts`, `wallPattern.ts`, `reinforcementPlan.ts`, `roadGeometry.ts`
+- Gegner: `spawner.ts`, `squads.ts`, `spawnLanes.ts`, `horizonReveal.ts`
+- Boss (W5): `boss.ts`, `bossPlan.ts`, `bossBurst.ts`
+- `npm run check` · `npm run dev` · Tests via Terminal-Skript · `npm run test:dist`
+- Deploy: GitHub Actions bei Push; verifizieren mit
+  `gh run watch $(gh run list --limit 1 --json databaseId --jq '.[0].databaseId') --exit-status`
 
 ## Einstiegssatz
-"Lies `docs/UEBERGABE.md` und arbeite dort weiter." — Fuer V2-Start: "Lies
-`docs/UEBERGABE.md` und `docs/plan-v2.md`, setze W1 als Spec auf."
+"Lies `docs/UEBERGABE.md` und arbeite dort weiter. Naechster Schritt: auf Thomas'
+iPhone-Urteil zu W1–W4 reagieren, danach W5 (Boss) direkt umsetzen."
