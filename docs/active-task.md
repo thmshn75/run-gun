@@ -7,7 +7,7 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
-Offen ist nur noch Thomas' iPhone-Abnahme (E6): Boss L1 mit Einzelschuss, Häuserschlucht,
-Offline-Start nach Installation, Netzwerk-Null-Check, Update nach Force-Quit
-(Anleitung im README, Abschnitt „Abnahme-Checks"). Danach ist V1 fertig.
-Als V2 vorgemerkt: Spuren-Umbau (Wände links/rechts, Waffen/Upgrades getrennt, Horden mittig).
+**V1 ist am 2026-08-22 von Thomas am iPhone abgenommen** (Spiel, Update, Offline bestätigt)
+und als Git-Tag `v1.0` gesichert (Rückschrittspunkt). Nächster Schritt: V2 nach
+`docs/plan-v2.md` — Start mit Etappe W1 (Stadtbild). Vor W5 (Boss) braucht es Thomas'
+Entscheidung, ob der Boss in V2 noch schießt (Empfehlung im Plan: nein).

@@ -1,29 +1,31 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-21 17:45
+Stand: 2026-08-22
 
 ## Ziel und Stand
-Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **Alle Etappen E1–E10 plus
-maschinenseitiges E6 sind fertig, committet, gepusht, Deploy gruen.** Offen ist nur Thomas'
-iPhone-Abnahme; danach ist V1 fertig. Plan: `docs/plan.md`.
+Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 ist am 2026-08-22
+von Thomas am iPhone abgenommen** (Spiel, Update-Pfad, Offline bestaetigt) und als
+Git-Tag **`v1.0`** gesichert — das ist der Rueckschrittspunkt. V1-Plan: `docs/plan.md`.
+**V2 ist geplant und gehaertet:** `docs/plan-v2.md` (Etappen W1–W6, zwei
+Gegenpruefungs-Runden gelaufen, Befunde eingearbeitet).
 
-## Naechster Schritt: Thomas' iPhone-Abnahme (E6)
+## Naechster Schritt: V2 starten
 Live-Stand: https://thmshn75.github.io/run-gun/
-1. Boss Level 1: Einzelschuss statt Salve, Kampf ~18 s — jetzt schaffbar?
-2. Haeuserschlucht: Tuerme dicht an der Strasse, 82 % Stadtanteil — richtig so?
-3. Offline: nach Installation Flugmodus an, mehrere Runs — laeuft alles? (Der Offline-Cache
-   war bis heute still kaputt: Sprites fehlten im Precache; gefixt, per Test abgesichert.)
-4. Netzwerk-Null-Check + Update nach Force-Quit: Anleitung im README, Abschnitt
-   „Abnahme-Checks (E6)".
-Wenn alles passt: V1 ist abgenommen, keine weiteren Aenderungen.
+1. **W1 (Stadtbild) als Spec aufsetzen** (`docs/active-task.md`, dann Codex im Terminal):
+   Haeuserzeilen durchgehend, Luecken nur als Querstrassen, Kulissen-Spawn-Vorlauf
+   groesser als der Gegner-Spawn-Vorlauf.
+2. **Vor W5 braucht es Thomas' Entscheidung:** Schiesst der Boss in V2 noch?
+   Empfehlung im Plan: nein (Druck stattdessen aus gerufenen Horden + Vorruecken).
+   Bis dahin wird W5 nicht spezifiziert.
 
-## V2 (vorgemerkt, von Thomas gewuenscht, Start auf Zuruf)
-**Spuren-Umbau nach Genre-Vorbild** (Count Masters, Mob Control, Z Escape):
-mitlaufende zerschiessbare Waende links und rechts (Belohnung beim Wegschiessen),
-Waffen auf einer Seite, Upgrades auf der anderen, Gegner-Horden in der Mitte.
-Ersetzt das E10-Spurensystem und baut Tore, Blocker und Spawner um — als Etappenplan
-aufsetzen, nicht als ein Task. Kern-Mehrwert: permanenter Zielkonflikt (zur Wand steuern
-= nicht auf die Horde schiessen).
+## V2-Kern (Thomas-Entscheidungen 2026-08-21/22, Details in plan-v2.md)
+Spuren-Umbau nach Genre-Vorbild (Count Masters, Mob Control, Z Escape): zerschiessbare
+Waende links/rechts, Waffen eine Seite, Upgrades andere Seite, Horden mittig; Bosse
+waren in V1 noch etwas zu schwer; Haeuserschlucht wird durchgehende Stadt mit
+Querstrassen; Haeuser erscheinen oben frueher als Gegner. Kern-Mehrwert: permanenter
+Zielkonflikt (zur Wand steuern = nicht auf die Horde schiessen). Wichtigste
+Haertungs-Befunde stehen **in** den Etappen-Zeilen von plan-v2.md (Breitenbudget ab W2,
+Horden-Zentrierung gemessen, Wert-vor-Schuss aktuell gehalten, Volllast-Messung in W6).
 
 ## Harte Randbedingungen (unveraendert)
 - Claude ist Architekt/Reviewer, schreibt keinen produktiven Code; Umsetzung via Codex im
@@ -59,5 +61,5 @@ aufsetzen, nicht als ein Task. Kern-Mehrwert: permanenter Zielkonflikt (zur Wand
   Datei (Playwright + CDP, Stand cb7bc02).
 
 ## Einstiegssatz
-"Lies `docs/UEBERGABE.md` und arbeite dort weiter." — Fuer V2: "Lies `docs/UEBERGABE.md`
-und plane den V2-Spuren-Umbau als Etappen."
+"Lies `docs/UEBERGABE.md` und arbeite dort weiter." — Fuer V2-Start: "Lies
+`docs/UEBERGABE.md` und `docs/plan-v2.md`, setze W1 als Spec auf."
