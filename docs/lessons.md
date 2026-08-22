@@ -55,6 +55,18 @@ unterliegen derselben Pflicht wie die in der Spec: erst aus `balance.ts` ableite
 anzeigen. Ist das vor der Frage nicht leistbar, die Vorschau ohne Zahlen formulieren statt mit
 geschaetzten.
 
+### 2026-08-22 — Vergleichs-Wunsch in die falsche Richtung aufgeloest
+- **Fehler:** Thomas' Feedback „Haeuser erscheinen oben frueher als Mobs" wurde als Auftrag
+  gelesen, die **Haeuser** frueher erscheinen zu lassen (Kulissen-Vorlauf vergroessern). Gemeint
+  war das Gegenteil: Die Haeuser machen es schon richtig, die **Gegner** sollen wie sie leicht
+  aus dem Horizont kommen statt erst unter der weissen Linie aufzupoppen. Der V2-Plan stand
+  einen Commit lang mit dem falschen W1-Ziel und -Akzeptanzkriterium.
+- **Regel:** Ein Wunsch der Form „X passiert frueher/besser als Y" legt nicht fest, ob X das
+  Vorbild oder das Problem ist. Vor dem Einarbeiten die Richtung explizit machen: hinschreiben,
+  welches Element als Ist-Zustand gilt und welches geaendert wird — als markierte Annahme,
+  wenn Thomas' Formulierung beides zulaesst. Dann faellt eine Fehldeutung beim Lesen des Plans
+  auf, statt erst in der gebauten Etappe.
+
 ### 2026-08-21 — Auswahloption ohne Zuordnung beschriftet, Rueckfrage ausgeloest
 Die Vorschau `│ ×2 │ +7 │ LASER │` zeigte die Anordnung der drei Torspuren, aber nicht, welche
 Spur was bewirkt. Thomas verstand es als "die Waffe steckt in einem Rechen-Tor" und
