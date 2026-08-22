@@ -1,0 +1,120 @@
+import { readFileSync } from 'node:fs'
+import { describe, expect, it } from 'vitest'
+import { BALANCE } from '../src/config/balance'
+import { AudioScheduler } from '../src/systems/audioPlan'
+
+describe('Ton-Drosselung', () => {
+  it('deckelt den Schusston auf die schnellste erreichbare Feuerrate', () => {
+    // Herleitung: shotsPerSec.cap ist der schnellste Takt, den der Spieler sich
+    // erarbeiten kann. Die Drossel muss genau dort liegen - enger waere ein Teppich,
+    // weiter wuerde die Ausbau-Spanne 3/s -> 8/s nicht mehr hoerbar.
+    expect(BALANCE.audio.events.shot.minGapMs).toBeCloseTo(1000 / BALANCE.stats.shotsPerSec.cap)
+
+    const countTones = (salvosPerSec: number): number => {
+      const scheduler = new AudioScheduler()
+      const salvoIntervalMs = 1000 / salvosPerSec
+      let played = 0
+      for (let ms = 0; ms < 4000; ms += salvoIntervalMs) {
+        if (scheduler.request('shot', ms)) played += 1
+      }
+      return played / 4
+    }
+
+    // Standardwaffe im Vollausbau liegt genau auf dem Deckel: jede Salve klingt.
+    expect(countTones(BALANCE.stats.shotsPerSec.cap * BALANCE.weapon.normal.rateFactor)).toBeCloseTo(8, 0)
+    // Und die schnellste Waffe darf nicht LANGSAMER klingen als die langsamste - genau
+    // das passierte mit einer festen Mindestpause (gemessen 5,9/s statt 8/s), weil ihr
+    // Takt nicht auf das Drosselraster fiel.
+    const miniGunSalvosPerSec = BALANCE.stats.shotsPerSec.cap * BALANCE.weapon.minigun.rateFactor
+    expect(countTones(miniGunSalvosPerSec)).toBeCloseTo(8, 0)
+    // Ungedrosselt waere es das Dreifache - die Bremse wirkt also wirklich.
+    expect(miniGunSalvosPerSec).toBeGreaterThan(2 * BALANCE.stats.shotsPerSec.cap)
+  })
+
+  it('laesst langsames Feuer ungebremst durch', () => {
+    // Startwert 3 Salven/s liegt unter dem Deckel: Da darf nichts verschluckt werden,
+    // sonst hoerte sich der Anfang des Laufs stockend an.
+    const scheduler = new AudioScheduler()
+    const salvoIntervalMs = 1000 / BALANCE.stats.shotsPerSec.base
+    let played = 0
+    for (let ms = 0; ms < 3000; ms += salvoIntervalMs) {
+      if (scheduler.request('shot', ms)) played += 1
+    }
+    expect(played).toBe(Math.ceil(3000 / salvoIntervalMs))
+  })
+
+  it('macht aus acht gleichzeitigen Toten eine Kette statt eines Knalls', () => {
+    const scheduler = new AudioScheduler()
+    // Splash-Explosion: acht Gegner sterben im selben Bild.
+    let sameFrame = 0
+    for (let index = 0; index < 8; index += 1) {
+      if (scheduler.request('enemyDown', 1000)) sameFrame += 1
+    }
+    expect(sameFrame).toBe(1)
+    // Nach der Drosselzeit darf der naechste kommen.
+    expect(scheduler.request('enemyDown', 1000 + BALANCE.audio.events.enemyDown.minGapMs)).toBe(true)
+  })
+
+  it('haelt die haeufigen Toene unter dem Stimmen-Deckel', () => {
+    const scheduler = new AudioScheduler()
+    // Schuss und Sterbeton wechseln sich in dichtester Folge ab.
+    let active = 0
+    for (let ms = 0; ms <= 2000; ms += 10) {
+      scheduler.request('shot', ms)
+      scheduler.request('enemyDown', ms)
+      active = Math.max(active, scheduler.getActiveCasualVoices(ms))
+    }
+    expect(active).toBeLessThanOrEqual(BALANCE.audio.maxCasualVoices)
+  })
+
+  it('laesst die seltenen, wichtigen Toene nie am Stimmen-Deckel scheitern', () => {
+    const scheduler = new AudioScheduler()
+    // Dauerfeuer laeuft, der Deckel ist voll.
+    for (let ms = 0; ms <= 2000; ms += 10) {
+      scheduler.request('shot', ms)
+      scheduler.request('enemyDown', ms)
+    }
+    // Genau in diesem Moment bricht eine Wand und der Trupp wird getroffen.
+    expect(scheduler.request('wallBreak', 2000)).toBe(true)
+    expect(scheduler.request('playerHit', 2000)).toBe(true)
+    expect(scheduler.request('crowdUp', 2000)).toBe(true)
+    expect(scheduler.request('weaponSwap', 2000)).toBe(true)
+  })
+
+  it('nimmt den Drosselzustand nicht in den naechsten Lauf mit', () => {
+    const scheduler = new AudioScheduler()
+    expect(scheduler.request('playerHit', 5000)).toBe(true)
+    expect(scheduler.request('playerHit', 5010)).toBe(false)
+    scheduler.reset()
+    // Neuer Lauf, Zeit laeuft beim AudioContext weiter - der Ton muss trotzdem kommen.
+    expect(scheduler.request('playerHit', 5010)).toBe(true)
+  })
+
+  it('drosselt den Schadenston enger als die Unverwundbarkeit dauert', () => {
+    // Sonst wuerde die Drossel Treffer verschlucken, die das Spiel wirklich zaehlt.
+    expect(BALANCE.audio.events.playerHit.minGapMs).toBeLessThan(BALANCE.player.iframesMs)
+  })
+})
+
+describe('Ton-Auslöser im Spiel', () => {
+  const gameScene = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
+
+  it('haengt jeden Ton an das Ereignis, das ihn ausloest', () => {
+    // Der Schuss haengt am Rueckgabewert von weapons.update (Zahl der Salven), nicht
+    // an einem eigenen Takt - sonst laufen Ton und Muendungsfeuer auseinander.
+    expect(gameScene).toContain("if (this.weapons.update(dt) > 0) this.audio.play('shot')")
+    // Sterben und Wandbruch haengen am true-Rueckgabewert von damage(), also am
+    // tatsaechlichen Zerstoeren, nicht am Treffer.
+    expect(gameScene).toContain("if (!this.spawner.damage(enemy, damage)) return\n    this.audio.play('enemyDown')")
+    expect(gameScene).toContain("if (this.blockers.damage(blocker, damage)) this.audio.play('wallBreak')")
+    expect(gameScene).toContain("this.audio.play(delta > 0 ? 'crowdUp' : 'crowdDown')")
+    expect(gameScene).toContain("this.audio.play('weaponSwap')")
+    expect(gameScene).toContain("this.audio.play('playerHit')")
+  })
+
+  it('gibt Muenzen bewusst keinen Ton', () => {
+    // Bei bis zu drei Muenzen je Wandsegment plus Gegner-Muenzen waere das Laerm statt
+    // Rueckmeldung - dieselbe Entscheidung wie bei den Popups.
+    expect(gameScene).not.toContain("audio.play('coin')")
+  })
+})

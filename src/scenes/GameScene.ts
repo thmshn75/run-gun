@@ -5,6 +5,7 @@ import { Blockers } from '../systems/blockers'
 import { Popups } from '../systems/popups'
 import { Coins } from '../systems/coins'
 import { selectChainLightningTargets } from '../systems/chainLightning'
+import { getGameAudio, type GameAudio } from '../systems/audio'
 import { Boss } from '../systems/boss'
 import type { BossUpgradeLevels } from '../systems/bossPlan'
 import { Crowd } from '../systems/crowd'
@@ -136,6 +137,7 @@ export class GameScene extends Phaser.Scene {
   private boss!: Boss
   private blockers!: Blockers
   private popups!: Popups
+  private audio!: GameAudio
   private currentLevel!: number
   private levelPhase!: LevelPhase
   private phaseRemainingMs!: number
@@ -176,6 +178,8 @@ export class GameScene extends Phaser.Scene {
     this.phaseRemainingMs = getLevelPlan(this.currentLevel).normalPhaseSec * 1000
     this.lastUnknownCombatOverlapWarningAtMs = -1000
     this.insets = readSafeAreaInsets(this.game.canvas)
+    this.audio = getGameAudio(this)
+    this.audio.resetRun()
     this.cameras.main.setBackgroundColor(WORLD_COLORS.background)
     this.road = new Road(this)
     this.scenery = new Scenery(this, () => Phaser.Math.RND.frac())
@@ -199,6 +203,7 @@ export class GameScene extends Phaser.Scene {
         // Quittung auf die eigene Handlung: ohne sie wuchs die Truppe lautlos.
         const delta = Math.round(after - before)
         if (delta !== 0) {
+          this.audio.play(delta > 0 ? 'crowdUp' : 'crowdDown')
           this.popups.spawn(
             this.crowd.getAnchorX(),
             this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
@@ -300,7 +305,7 @@ export class GameScene extends Phaser.Scene {
     this.crowd.update(dt)
     this.gates.update(dt)
     this.updateLevelPhase(dt)
-    this.weapons.update(dt)
+    if (this.weapons.update(dt) > 0) this.audio.play('shot')
     this.spawner.update(dt)
     this.blockers.update(dt)
     this.popups.update(dt)
@@ -395,6 +400,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.weapons.setWeapon(weapon)) return
     this.replaceProjectileColliders()
     // Quittung auf die eigene Handlung: der Waffenwechsel war bisher nur am HUD sichtbar.
+    this.audio.play('weaponSwap')
     this.popups.spawn(
       this.crowd.getAnchorX(),
       this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
@@ -450,12 +456,12 @@ export class GameScene extends Phaser.Scene {
       const spawnId = blocker.getData('spawnId') as number
       if (hitSpawnIds.has(spawnId)) return
       hitSpawnIds.add(spawnId)
-      this.blockers.damage(blocker, damage)
+      if (this.blockers.damage(blocker, damage)) this.audio.play('wallBreak')
       return
     }
     const impactX = blocker.x
     const impactY = blocker.y
-    this.blockers.damage(blocker, damage)
+    if (this.blockers.damage(blocker, damage)) this.audio.play('wallBreak')
     if (config.splashRadiusPx > 0) {
       const radiusSquared = config.splashRadiusPx * config.splashRadiusPx
       const splashDamage = this.runStats.get('damage') * this.getCrowdDamageMultiplier() * config.splashDamageFactor
@@ -463,7 +469,7 @@ export class GameScene extends Phaser.Scene {
         const candidate = child as Phaser.Physics.Arcade.Image
         const dx = candidate.x - impactX
         const dy = candidate.y - impactY
-        if (candidate.active && dx * dx + dy * dy <= radiusSquared) this.blockers.damage(candidate, splashDamage)
+        if (candidate.active && dx * dx + dy * dy <= radiusSquared && this.blockers.damage(candidate, splashDamage)) this.audio.play('wallBreak')
       }
       this.splashFlashes.spawn(impactX, impactY, config.splashRadiusPx)
     }
@@ -557,6 +563,7 @@ export class GameScene extends Phaser.Scene {
     const enemyY = enemy.y
     const coinValue = enemy.getData('coinValue') as number
     if (!this.spawner.damage(enemy, damage)) return
+    this.audio.play('enemyDown')
     this.dropCoins(enemyX, enemyY, coinValue)
     if (this.boss.isEnemy(enemy)) this.handleBossDefeated()
   }
@@ -597,6 +604,7 @@ export class GameScene extends Phaser.Scene {
     this.blinkUntilMs = Math.max(this.blinkUntilMs, this.elapsedMs + iframeMs)
     this.nextBlinkAtMs = this.elapsedMs
     // Treffer am eigenen Trupp muss man spueren, nicht nur am HUD ablesen.
+    this.audio.play('playerHit')
     this.cameras.main.shake(BALANCE.gamefeel.shakeDamageMs, BALANCE.gamefeel.shakeDamageIntensity)
     this.updateHud()
     if (this.runStats.get('hp') <= 0) this.triggerGameOver()

@@ -112,14 +112,17 @@ export class Weapons {
     projectile.setActive(false).setVisible(false)
   }
 
-  public update(dt: number): void {
+  /** Rueckgabe: Zahl der in diesem Bild abgefeuerten Salven - die GameScene haengt den Schusston daran. */
+  public update(dt: number): number {
     this.elapsedMs += dt
     this.fireAccumulatorMs += dt
     const weapon = this.getWeaponConfig(this.activeWeapon)
     const salvoIntervalMs = 1000 / (this.runStats.get('shotsPerSec') * weapon.rateFactor)
+    let salvos = 0
     while (this.fireAccumulatorMs >= salvoIntervalMs) {
       this.fireAccumulatorMs -= salvoIntervalMs
       this.fire()
+      salvos += 1
     }
 
     const seconds = dt / 1000
@@ -150,6 +153,7 @@ export class Weapons {
       const outOfRange = config.rangePx > 0 && (projectile.getData('travelledPx') as number) >= config.rangePx
       if (leftOrRight || aboveHorizon || outOfRange) this.recycle(projectile)
     }
+    return salvos
   }
 
   private fire(): void {

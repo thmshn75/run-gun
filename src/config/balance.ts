@@ -114,6 +114,46 @@ export const BALANCE = {
     shakeDamageMs: 160,
     shakeDamageIntensity: 0.008,
   },
+  audio: {
+    // Bis 2026-08-22 gab es im Projekt KEIN Audio (kein AudioContext, keine Datei).
+    // Der Ton wird synthetisch per Web Audio erzeugt: keine Audiodateien, nichts
+    // nachzuladen, offline identisch, keine Kosten. Der AudioContext kommt von Phasers
+    // Sound-Manager - der bringt die auf iOS zwingende Freischaltung per Nutzergeste
+    // schon mit; ein eigener zweiter Context muesste sie nachbauen.
+    // ACHTUNG iPhone: Steht der seitliche Stummschalter auf lautlos, spielt iOS auch
+    // Web Audio nicht ab. Das ist Systemverhalten, kein Fehler des Spiels.
+    masterVolume: 0.6,
+    // Stimmen-Deckel fuer die haeufigen Toene (Schuss, Sterben). Eine Splash-Explosion
+    // kann acht Gegner im selben Bild toeten; ohne Deckel wird daraus ein Knall statt
+    // acht Quittungen. 6 gleichzeitige Stimmen a 0,22 liegen summiert noch unter dem
+    // Master-Pegel, verzerren also nicht. Seltene, wichtige Toene (Wandbruch, Schaden,
+    // Aufsammeln, Waffenwechsel) unterliegen dem Deckel bewusst NICHT - sie duerfen
+    // nie im Schussgeraeusch untergehen.
+    maxCasualVoices: 6,
+    events: {
+      // Ein Ton je Salve, nicht je Kugel: Die Schrotflinte feuert 7 Kugeln gleichzeitig.
+      // Drossel 125 ms = 1000 / shotsPerSec.cap (8/s): So hoert man die volle
+      // Ausbau-Spanne 3/s -> 8/s, die sich der Spieler erarbeiten kann. Minigun
+      // (17,6 Salven/s) und Flammenwerfer (14,4/s) laufen in den Deckel - dort ist ein
+      // Einzelschuss ohnehin nicht mehr trennbar, das Ohr hoert ab ~10/s einen Teppich.
+      // Leisester Ton im Spiel, weil mit Abstand der haeufigste.
+      shot: { volume: 0.16, durationMs: 60, minGapMs: 125, casual: true },
+      // 70 ms Abstand macht aus acht gleichzeitigen Toten eine hoerbare Kette.
+      enemyDown: { volume: 0.22, durationMs: 130, minGapMs: 70, casual: true },
+      // Wandbruch ist das Ereignis, auf das der Spieler hinarbeitet (0,12-0,50 s Fokus
+      // je nach Level) - entsprechend laut und mit Wucht unterlegt.
+      wallBreak: { volume: 0.45, durationMs: 220, minGapMs: 40, casual: false },
+      // Verstaerkung: Die Wandbelohnung kann die Truppe auch VERKLEINERN (Operator - / :),
+      // deshalb zwei Richtungen. Gleiche Lautstaerke, gegenlaeufige Tonfolge.
+      crowdUp: { volume: 0.4, durationMs: 220, minGapMs: 0, casual: false },
+      crowdDown: { volume: 0.4, durationMs: 220, minGapMs: 0, casual: false },
+      weaponSwap: { volume: 0.45, durationMs: 260, minGapMs: 0, casual: false },
+      // Eigener Schaden ist der lauteste Ton - er begleitet das Kamerawackeln.
+      // 120 ms Drossel als Sicherung, falls mehrere Gegner im selben Bild treffen
+      // (die Unverwundbarkeit nach einem Treffer liegt mit 700 ms darueber).
+      playerHit: { volume: 0.55, durationMs: 260, minGapMs: 120, casual: false },
+    },
+  },
   layers: {
     background: -1,
     scenery: -0.5,

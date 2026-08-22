@@ -7,6 +7,36 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**Ton fertig** (2026-08-22, Claude direkt, Thomas: "zuerst den Ton und den Boss ohne
+Schuss"). Vorher gab es im Projekt KEIN Audio - kein AudioContext, keine Datei.
+Gebaut: synthetischer Ton per Web Audio (keine Audiodateien, nichts nachzuladen,
+offline identisch, keine Kosten), sieben Klaenge in `src/systems/audio.ts`, die
+Drosselregel phaserfrei und testbar in `src/systems/audioPlan.ts`.
+- **Klaenge:** Schuss (Rauschstoss + tiefer Koerper), Gegner faellt (Gleitton 420->140 Hz),
+  Wandbruch (Rauschen 3200->260 Hz + Wuchtanteil), Verstaerkung auf/ab (Terz A5->Cis6
+  bzw. A5->F5 - die Wandbelohnung kann die Truppe auch verkleinern), Waffenwechsel
+  (C-Dur-Dreiklang), eigener Schaden (Absturz 200->55 Hz). Muenzen bewusst stumm -
+  gleiche Entscheidung wie bei den Popups.
+- **Ratenbremse statt fester Mindestpause.** Der erste Entwurf hatte eine feste Pause
+  von 125 ms (= 1000 / shotsPerSec.cap). Der Test fand den Fehler: Trifft der
+  Waffentakt nicht auf das Drosselraster, fallen Toene aus - die Minigun (17,6
+  Salven/s) klang mit 5,9 Toenen/s LANGSAMER als die Standardwaffe mit 8. Jetzt eine
+  Rate mit zwei Nachhol-Marken; gemessen 8,0/s fuer beide Waffen.
+- **Stimmen-Deckel 6** fuer die haeufigen Toene (Splash toetet bis zu acht Gegner im
+  selben Bild). Wandbruch, Schaden, Verstaerkung, Waffenwechsel umgehen ihn - sie
+  duerfen nie im Schussgeraeusch untergehen.
+- **iOS:** Freischaltung uebernimmt Phasers Sound-Manager (Nutzergeste); wird ein Ton
+  vor der Freigabe angefordert, holt `play()` ihn nach dem `resume()` nach statt ihn
+  verfallen zu lassen. Ton-Schalter im Menue rechts neben dem Kontostand (nicht im HUD:
+  die ganze Spielflaeche ist Drag-Steuerung), Zustand in eigenem localStorage-Schluessel.
+  **ACHTUNG beim Test:** Steht der seitliche Stummschalter des iPhones auf lautlos,
+  spielt iOS auch Web Audio nicht ab - das ist Systemverhalten, kein Fehler.
+Nachweise: 128 Tests gruen (neu `tests/audioPlan.test.ts`), `npm run check` sauber,
+Browser-Lauf gemessen - AudioContext running/entsperrt, alle sieben Klaenge erzeugen
+die geplanten Knoten, **Schall am Analyser gemessen**: Ruhe 0,000 / Wandbruch 0,290 /
+stummgeschaltet 0,000. Menue-Schalter sitzt bei x=333 ohne Kollision mit dem Kontotext.
+**Offen: Thomas' iPhone-Urteil.**
+
 **Lebendigkeit (ohne Ton) fertig** (2026-08-22, Claude direkt). Thomas: „immer noch
 nicht so wie in den App Store spielen — ich kann dir aber auch nicht sagen, woran es
 liegt." Beim Nachsehen gefunden: Im ganzen Spiel bewegte sich nichts außer Positionen.
