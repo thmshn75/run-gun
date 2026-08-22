@@ -275,3 +275,16 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   die Messung das Gegenteil, ist nicht die Zahl falsch, sondern die Annahme ueber den
   Mechanismus. Hier hiess die uebersehene Kopplung: Wer sich zum Spieler bewegt, bewegt
   sich auch in dessen Waffenwirkung.
+
+### 2026-08-22 — Projektstand aus der falschen Datei beantwortet
+- **Fehler:** Auf Thomas' Frage nach dem naechsten Punkt habe ich `docs/plan.md` gelesen
+  und "E6, die V1-Abnahme" geantwortet. Falsch: V1 war seit dem Vormittag abgenommen und
+  als Tag `v1.0` gesichert, wir arbeiten seit Tagen in `docs/plan-v2.md` (W1-W5 gebaut).
+  Thomas musste selbst korrigieren ("wir sind doch schon bei V2 oder?"). Die richtige
+  Antwort stand im ERSTEN Absatz von `plan-v2.md` - ich hatte die Datei nie geoeffnet,
+  weil `plan.md` der kanonisch klingende Name ist.
+- **Regel:** Vor jeder Aussage ueber Projektstand, naechste Schritte oder offene Punkte
+  ERST `ls docs/` und die jeweils juengste Plandatei lesen, nicht die mit dem
+  naheliegendsten Namen. Bei mehreren Plaenen gilt der mit der hoechsten Versionsnummer,
+  und `git tag -l` zeigt, was bereits abgenommen ist. Ein Projektstand wird nie aus dem
+  Gedaechtnis oder aus einer einzelnen Datei beantwortet.

@@ -1,11 +1,11 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-22 16:30
+Stand: 2026-08-22 23:20
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen, Tag
 `v1.0`** als Rueckschrittspunkt. Laufend: **V2-Spurenumbau**, Etappenplan `docs/plan-v2.md`
-(W1–W6). Live: https://thmshn75.github.io/run-gun/
+(W1–W5 fertig, W7 und W6 offen). Live: https://thmshn75.github.io/run-gun/
 
 ## Harte Randbedingungen
 - Claude ist normalerweise Architekt/Reviewer; **fuer V2 hat Thomas Direktumsetzung durch
@@ -24,46 +24,45 @@ Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen,
   Deploy per `gh run watch` verifizieren.
 
 ## Fertig
-- **W1** Stadtbild (NY-Bloecke, Gegner erscheinen wie Haeuser am Horizont), **W2/W4**
-  Dauerwaende mit versetzten Luecken und Goodies, **W3** Horden mittig mit Dichteregel.
-- **W4-Nachbesserungen 2026-08-22** (vier Runden auf Thomas' iPhone-Urteile):
-  - Waende treffbar: Kugeln spurtreu statt senkrecht (`projectile.laneFollow`), Fahrbereich
-    bis an die Wand (`walls.driveIntoWallFigures`). Beides noetig — je allein wirkungslos.
-  - Tempo −25 %: `scrollSpeed` 180 → 135, mit Haeuser-Takt, Goodie-Chancen und Muenz-Pool
-    nachgezogen, damit sich nur das Tempo aendert.
-  - Wandhaerte neu: Zielhaerte aus **Levelnummer** + gedaempfter Truppengroesse, Waffe geht
-    nicht mehr ein, harter Deckel `blockers.maxFocusSec` 0,6 s. Vorher wuchs die Wand 1:1
-    mit der Feuerkraft (Aufruesten folgenlos, 4→71 HP beim Waffenwechsel, 1482 im Vollausbau).
-  - Lebendigkeit ohne Ton: Laufwippen, Neigung beim Lenken, Quittungen beim Einsammeln,
-    Kamerawackeln (`gamefeel.ts`, `popups.ts`).
-- Letzter Commit `439bfe0`, alles gepusht, Deploy gruen, Arbeitsverzeichnis sauber,
-  119 Tests gruen, `docs/active-task.md` auf IDLE. Nichts laeuft im Hintergrund.
+- **V1 abgenommen** (2026-08-22 vormittags, Tag `v1.0` = Rueckschrittspunkt).
+  `docs/plan.md` ist damit Archiv; **maszgeblich ist `docs/plan-v2.md`**.
+- **W1–W5 gebaut**: Stadtbild, Waende links/rechts, Horden mittig, Seiten-Oekonomie,
+  Boss ohne Schuss. Ton ist gebaut (Web Audio, Schalter im Menue) - steht nicht mehr aus.
+- **Nach W5 ohne eigene Etappe dazugekommen** (alles aus iPhone-Rueckmeldungen, jeweils
+  mit Messwerten in `docs/active-task.md` belegt):
+  1. Perspektivische Figurengroesse (`road.perspective`), dreimal nachgeschaerft.
+  2. Gegner auf Spielgroesse (`enemy.figureScale` 1,25) - vorher war ein Gegner selbst
+     direkt vor der Truppe kleiner als eine eigene Figur.
+  3. Schussreichweite je Waffe (`weapon.<name>.engageShare`, Flamme 158 px bis Laser
+     479 px); im Bossduell ausgesetzt, sonst waere der Boss unangreifbar.
+  4. Gegnermenge: Level 1 von 1,0 auf 5,2 Gegner je Sekunde, dazu breitere Spawn-Baender -
+     ohne die bremst die Spurvergabe statt des Takts.
+  5. Wandkette laeuft perspektivisch (Weltkoordinaten statt Bildschirmpixel), Kacheln
+     schrumpfen mit der Entfernung und sehen als Quader statt als Aufkleber aus.
+- Stand: 153 Tests gruen, `npm run check` sauber, alles gepusht, Arbeitsverzeichnis
+  sauber, `docs/active-task.md` auf IDLE, nichts laeuft im Hintergrund.
 
 ## Offen — naechster Schritt zuerst
-1. **Thomas' iPhone-Urteil abwarten** zu Treffern, Tempo, Wandhaerte und Lebendigkeit.
-   Korrekturen haben Vorrang. Tuning ohne Umbau ueber `balance.ts`:
-   `projectile.laneFollow`, `walls.driveIntoWallFigures`, `blockers.maxFocusSec` /
-   `minFocusSec` / `perLevelGrowth`, `gamefeel.*`, `scrollSpeed`.
-2. **Ton** — groesster offener Gamefeel-Hebel und Claudes Empfehlung vor W5. Es gibt
-   **keinerlei** Audio im Projekt. Plan: synthetisch per Web Audio (keine Dateien, keine
-   Kosten), Freischaltung beim ersten Tippen (iOS verlangt Nutzergeste). Thomas hatte Ton
-   bewusst zurueckgestellt — vor dem Bau kurz bestaetigen lassen.
-3. **W5 — Boss** (`plan-v2.md`, „Boss V2"): Boss **schiesst nicht mehr** (`bossBurst.ts`
-   entfaellt), Druck aus gerufenen Horden + Vorruecken; Lebenspunkte beim Kampfstart aus der
-   tatsaechlichen Feuerkraft (Ziel 20–40 s je Level, mit schwachem und starkem Run messen).
-   **Achtung:** Dieselbe Selbstkopplungs-Falle wie bei den Waenden — HP rein aus der
-   Spielerstaerke abzuleiten macht jedes Aufruesten wirkungslos (siehe `lessons.md`).
-4. **W6 — Abnahme**: toten Code raus (`blockers.ts` → `Walls` umbenennen, `bossBurst.ts`),
-   Volllast-Messung, Netzwerk-Null-Check, README.
+1. **W7 — Plastische Figuren** (`plan-v2.md`, neue Etappe, Akzeptanzkriterien stehen dort).
+   Beleuchtete statt flacher Sprites fuer Truppe, drei Gegnertypen und Boss; danach
+   doppelte Aufloesung und `pixelArt: false` fuer glatte Kanten. **Codex-Auftrag** - alle
+   vorhandenen Sprites stammen aus Codex-Laeufen, Vorlagen in `assets/probe/` (136x184).
+   Claude schreibt die Spec und reviewt, Codex rendert. Achtung: Koerpermasse in
+   `balance.ts` gegen die neuen Bilder NACHMESSEN, nicht uebernehmen.
+2. **W6 — V2-Abnahme** (laeuft zuletzt): toten Code raus (`blockers.ts` heisst noch so,
+   meint aber Waende), Volllast-Messung, Netzwerk-Null-Check, Update-Pfad, README.
+3. **Thomas' iPhone-Urteil** zu allem seit W5 steht noch aus. Korrekturen haben Vorrang.
+   Tuning ohne Umbau: `road.perspective`, `enemy.figureScale`, `weapon.*.engageShare`,
+   `level.plans`, `enemy.spawnBands`, `walls.block`.
 
 ## Offene Nebenbefunde (nicht behoben, bewusst)
-- **Waende fahren linear, Kulisse perspektivisch**: Am Horizont ist die Wand 5,1x schneller
-  als die Haeuser. Thomas hat die Perspektiv-Kopplung als Option gesehen und abgewaehlt.
-  Fix waere: Wandbewegung in `blockers.ts` an `getScrollY` koppeln **und** Segmenthoehe
-  perspektivisch machen, sonst reisst die Dauerwand-Kette.
 - **Minigun und Rakete feuern nur mit 3 Figuren** (`shootersPerSalvo`) und sind dadurch
-  nominell ~4x schwaecher als die Standardwaffe. Der Fokus-Deckel faengt das bei Waenden ab,
-  die Waffenbalance selbst ist offen.
+  nominell ~4x schwaecher als die Standardwaffe. Waffenbalance insgesamt offen.
+- **Muenzen fahren weiterhin in Bildschirmpixeln**, waehrend Waende und Kulisse
+  perspektivisch laufen. Sie fliegen nach Sekundenbruchteilen zur Truppe; eine Umstellung
+  waere Risiko am Einsammel-Timing ohne sichtbaren Gewinn.
+- **Wandkacheln behalten ihre Nennbreite**, waehrend die Hoehe perspektivisch schrumpft -
+  gewollt, weil `widthShare` die Wand bewusst ueber die Strassenkante hinausragen laesst.
 
 ## Wichtige Dateien und Befehle
 - Plan `docs/plan-v2.md` · Task `docs/active-task.md` · **Lessons `docs/lessons.md`** (zu
@@ -78,6 +77,7 @@ Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen,
   `gh run watch $(gh run list --limit 1 --json databaseId --jq '.[0].databaseId') --exit-status`
 
 ## Einstiegssatz
-"Lies `docs/UEBERGABE.md` und `docs/lessons.md` und arbeite dort weiter. Naechster Schritt:
-auf Thomas' iPhone-Urteil reagieren; wenn er nichts beanstandet, Ton bauen (vorher kurz
-bestaetigen lassen)."
+"Lies `docs/UEBERGABE.md`, `docs/lessons.md` und `docs/plan-v2.md` und arbeite dort weiter.
+**Nichts neu aufsetzen - V1 ist abgenommen (Tag `v1.0`), V2 ist bei W1-W5 fertig.**
+Naechster Schritt: Spec fuer W7 (plastische Figuren, Codex rendert) schreiben; vorher
+Thomas' iPhone-Urteil zu allem seit W5 abwarten, Korrekturen haben Vorrang."

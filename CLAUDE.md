@@ -11,9 +11,22 @@
 
 Privates, komplett kostenloses iPhone-PWA-Spiel: Auto-Runner-Shooter im Hochformat
 (Phaser 3 + TypeScript + Vite). Kein App Store, keine Accounts, kein Backend, keine
-laufenden Kosten. Der verbindliche Umsetzungsplan steht in `docs/plan.md` — zu
-Sitzungsbeginn lesen. Scope-Deckel: MVP-Punkte und Definition „fertig" aus dem Plan;
-keine Features darueber hinaus, bevor V1 fertig ist.
+laufenden Kosten.
+
+**Zu Sitzungsbeginn in dieser Reihenfolge lesen — und nichts neu aufsetzen, was dort
+schon steht:**
+1. `docs/UEBERGABE.md` — wo die Arbeit steht und was als Naechstes drankommt.
+2. `docs/lessons.md` — die teuer bezahlten Regeln.
+3. `docs/plan-v2.md` — **der aktuell verbindliche Plan.**
+
+`docs/plan.md` ist das ARCHIV von V1. V1 ist am 2026-08-22 abgenommen und als Git-Tag
+`v1.0` gesichert; die dortigen Etappen E9/E10 sind ersetzt bzw. entfallen. Wer den
+Projektstand aus `plan.md` beantwortet, antwortet falsch (siehe `docs/lessons.md`,
+Eintrag vom 2026-08-22). Bei mehreren Plandateien gilt immer die hoechste Version, und
+`git tag -l` zeigt, was bereits abgenommen ist.
+
+Scope-Deckel: die Etappen aus `docs/plan-v2.md`; keine Features darueber hinaus, bevor
+die offenen Etappen fertig sind.
 
 ## Deine Rolle: Denken & Entscheiden
 Du bist der **Architekt und Reviewer**. Du schreibst keinen Code direkt,
