@@ -32,11 +32,17 @@ export const BALANCE = {
     maxPxPerSec: 175,
   },
   // 180 -> 135 (-25 %, Thomas 2026-08-22: "die Waende sind zu schnell - mach die
-  // langsamer", Wahl "einfach alles langsamer"). Eine Wand braucht damit 5,14 s statt
-  // 3,86 s vom Horizont bis unten. BEWUSST NICHT behoben: Waende fahren linear
-  // (blockers.ts), Strasse und Haeuser perspektivisch — am Horizont bleibt die Wand
-  // 5,1x, bei y=200 noch 2,3x schneller als die Kulisse. Das Verhaeltnis haengt nicht
-  // an scrollSpeed; wer den Bruch beheben will, koppelt die Wandbewegung an getScrollY.
+  // langsamer", Wahl "einfach alles langsamer").
+  //
+  // BEHOBEN am 2026-08-22: Waende fuhren mit konstanter BILDSCHIRM-Geschwindigkeit,
+  // waehrend Strasse und Haeuser perspektivisch liefen - am Horizont war die Wand 5,1x
+  // schneller als die Kulisse daneben. Jetzt zaehlt scrollSpeed WELT-Pixel (gemessen auf
+  // Kampfhoehe), und blockers.ts bildet sie ueber advanceAlongRoad auf den Bildschirm
+  // ab. Der Spawn-Takt der Kette haengt an derselben Weltstrecke, die Sammelrate von
+  // 1,875 Plaettchen je Sekunde bleibt also unveraendert; nur die Fahrt vom Horizont bis
+  // unten dauert jetzt 6,4 statt 5,1 s, weil die Wand oben langsamer kriecht.
+  // Muenzen (coins.ts) fahren weiterhin in Bildschirmpixeln - sie fliegen ohnehin nach
+  // wenigen Zehntelsekunden zur Truppe, dort faellt der Unterschied nicht auf.
   // Gegner haengen NICHT an dieser Zahl (eigenes runStats.speed) — das Kampftempo
   // bleibt also unveraendert, nur die Welt wird langsamer.
   scrollSpeed: 135,
@@ -1012,10 +1018,14 @@ export const BALANCE = {
     // Wandmuenzen (rund 1,1 Segmente/s x 3 = 3,3/s, also 21). Summe 294; 320 laesst
     // 9 % Reserve, ohne sich auf den Magneten zu verlassen.
     coins: 320,
-    // Wand-Abschnitte (W4): ceil((844 - 150) / 72) = 10 Slots je Seite, davon 3/5 Wand
-    // = 6 Segmente plus das anschliessende = 7, beidseitig 14; ein freigeschossener
-    // Waffen-Reward haelt sein Paar laenger aktiv (+2). 20 deckt die Spitze mit Reserve.
-    blockers: 20,
+    // Wand-Abschnitte (W4): Seit die Kette perspektivisch faehrt (2026-08-22) lebt ein
+    // Segment laenger - es kriecht am Horizont und beschleunigt erst unten. Gerechnet
+    // ueber die Weltstrecke Horizont -> unterer Bildrand: ln(195/101,4) / 0,00076 = 860
+    // Welt-Pixel bei 135 px/s sind 6,4 s statt zuvor 5,1 s. Bei 135/72 = 1,875 Spawns je
+    // Sekunde und Seite stehen damit rund 12 Segmente je Seite gleichzeitig, beidseitig
+    // 24; freigeschossene Waffen-Rewards halten ihr Paar laenger aktiv (+2). 32 deckt
+    // die Spitze mit gut einem Viertel Reserve.
+    blockers: 32,
     // Densest case is an uninterrupted block (no cross streets): the fixed 120s,
     // 16.667ms-step, 390x844 city simulation then reaches 24 concurrent objects at the
     // 400ms cadence (18 with cross streets); 30 keeps the peak plus six-object reserve.

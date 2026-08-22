@@ -16,6 +16,82 @@ export function getRoadHalfWidth(width: number, height: number, y: number): numb
   return (topWidth + (bottomWidth - topWidth) * progress) / 2
 }
 
+/**
+ * Halbe Strassenbreite OHNE Klemmung an den Bildraendern.
+ *
+ * getRoadHalfWidth klemmt den Fortschritt auf [0,1] - richtig zum Zeichnen, falsch zum
+ * Rechnen: Unterhalb des Bildrands bliebe die Breite konstant, und ein Objekt, dessen
+ * Tempo an ihr haengt, wuerde dort stehenbleiben statt aus dem Bild zu fahren.
+ */
+function getRoadHalfWidthUnclamped(width: number, height: number, y: number): number {
+  const topWidth = width * BALANCE.road.topWidthRatio
+  const bottomWidth = width * BALANCE.road.bottomWidthRatio
+  return (topWidth + (bottomWidth - topWidth) * ((y - BALANCE.road.horizonY) / (height - BALANCE.road.horizonY))) / 2
+}
+
+function getRoadHalfWidthSlope(width: number, height: number): number {
+  return (width * (BALANCE.road.bottomWidthRatio - BALANCE.road.topWidthRatio)) / (2 * (height - BALANCE.road.horizonY))
+}
+
+function getYFromRoadHalfWidth(width: number, height: number, halfWidth: number): number {
+  return BALANCE.road.horizonY + (halfWidth - (width * BALANCE.road.topWidthRatio) / 2) / getRoadHalfWidthSlope(width, height)
+}
+
+/**
+ * WELTMASSSTAB der Strasse auf Hoehe y: 1 auf Kampfhoehe, 0,57 am Horizont, 1,10 am
+ * unteren Bildrand. Anders als getPerspectiveScale ist das die ungeschoente Groesse,
+ * die direkt aus der Strassenbreite kommt - fuer alles, was AUF der Strasse liegt und
+ * mit ihr zusammenlaufen muss (Wandsegmente). Figuren nutzen bewusst die geschoente
+ * Kurve, damit Gegner frueher gross wirken.
+ */
+export function getRoadScale(width: number, height: number, y: number): number {
+  return getRoadHalfWidthUnclamped(width, height, y) / getRoadHalfWidth(width, height, height - BALANCE.player.anchorBottomOffset)
+}
+
+/**
+ * Ein Objekt um `worldPx` WELT-Pixel nach vorn ruecken und die neue Bildschirmhoehe
+ * zurueckgeben.
+ *
+ * Welt-Pixel sind in Kampfhoehe gemessen: Dieselbe Weltstrecke deckt am Horizont
+ * weniger Bildschirmpixel ab als direkt vor der Truppe - genau das erzeugt den
+ * Eindruck von Entfernung. Bis 2026-08-22 fuhren Wandsegmente stattdessen mit
+ * konstanter Bildschirmgeschwindigkeit; am Horizont waren sie damit 5,1x schneller
+ * als die Haeuser daneben (der Bruch war in balance.scrollSpeed dokumentiert).
+ *
+ * Geschlossene Loesung statt Schrittintegration: Aus dy/dw = r(y)/r_anchor und einer
+ * in y linearen Strassenbreite r folgt r(w) = r0 * e^(lambda * w) mit
+ * lambda = r'(y) / r_anchor. Eine Euler-Naeherung je Bild waere von der Bildrate
+ * abhaengig - bei 30 fps wuerde die Wand messbar anders laufen als bei 120.
+ */
+export function advanceAlongRoad(width: number, height: number, y: number, worldPx: number): number {
+  const lambda = getRoadHalfWidthSlope(width, height) / getRoadHalfWidth(width, height, height - BALANCE.player.anchorBottomOffset)
+  const halfWidth = getRoadHalfWidthUnclamped(width, height, y) * Math.exp(lambda * worldPx)
+  return getYFromRoadHalfWidth(width, height, halfWidth)
+}
+
+/**
+ * Bildschirm-Abbild eines Objekts, das `worldPx` Welt-Pixel lang ist und dessen
+ * WELTANKER auf y sitzt: wo es zu zeichnen ist (centerY) und wie hoch (height).
+ *
+ * Beides exakt aus derselben Abbildung wie advanceAlongRoad, nicht als worldPx x
+ * Massstab genaehert - nur so grenzen aufeinanderfolgende Kettenglieder luecken- und
+ * ueberlappungsfrei aneinander. Die Naeherung laege bei einer 72-px-Kachel um rund 4 px
+ * daneben, sichtbar als Fuge zwischen den Segmenten.
+ *
+ * centerY ist NICHT y: Die Abbildung ist gekruemmt, also liegt die Bildschirmmitte des
+ * Objekts etwas unterhalb seines Weltankers (bei einer Kachel rund 0,03 px). Klingt
+ * nach nichts, ist aber ein systematischer Versatz - wer die gezeichnete Mitte im
+ * naechsten Bild wieder als Anker nimmt, sammelt ihn Bild fuer Bild auf. Deshalb
+ * fuehren Aufrufer den Anker getrennt weiter und zeichnen nur nach centerY.
+ */
+export function getRoadSegment(width: number, height: number, y: number, worldPx: number): { centerY: number; height: number } {
+  const lambda = getRoadHalfWidthSlope(width, height) / getRoadHalfWidth(width, height, height - BALANCE.player.anchorBottomOffset)
+  const halfWidth = getRoadHalfWidthUnclamped(width, height, y)
+  const oben = getYFromRoadHalfWidth(width, height, halfWidth * Math.exp((-lambda * worldPx) / 2))
+  const unten = getYFromRoadHalfWidth(width, height, halfWidth * Math.exp((lambda * worldPx) / 2))
+  return { centerY: (oben + unten) / 2, height: unten - oben }
+}
+
 // Spurtreue Flugbahnen: laneRatio ist der Anteil an der halben Strassenbreite, den ein
 // Punkt bei y einnimmt (0 = Mitte, 1 = Strassenkante). Behaelt ein Projektil diesen
 // Anteil bei, folgt es der Perspektive statt senkrecht aus der Spur zu laufen.

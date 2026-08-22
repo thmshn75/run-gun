@@ -7,6 +7,40 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**Wandkette laeuft perspektivisch - Kacheln schrumpfen mit der Entfernung**
+(2026-08-22, Claude direkt, Thomas: "Ja mach die Wandkarten fertig").
+Der Rest aus dem vorigen Task ist damit erledigt: Die Kachel war das einzige Objekt im
+Bild ohne Tiefe - Breite perspektivisch, Hoehe konstant 72 px bis zum Horizont.
+- **Kette laeuft jetzt in WELT-Pixeln statt in Bildschirm-Pixeln.** `scrollSpeed` misst
+  Weltstrecke auf Kampfhoehe; `advanceAlongRoad` bildet sie auf den Bildschirm ab. Am
+  Horizont deckt dieselbe Weltstrecke weniger Pixel ab, das Segment kriecht dort und
+  beschleunigt beim Naeherkommen. Damit ist nebenbei ein alter, in `balance.scrollSpeed`
+  dokumentierter Bruch behoben: Waende waren am Horizont 5,1x schneller als die Haeuser
+  daneben.
+- **Geschlossene Loesung statt Schrittintegration.** Aus dy/dw = r(y)/r_anker und einer
+  in y linearen Strassenbreite folgt r(w) = r0 x e^(lambda w). Eine Euler-Naeherung je
+  Bild waere bildratenabhaengig gewesen - ein Test prueft jetzt, dass ein 100-ms-Schritt
+  exakt dasselbe ergibt wie zehn 10-ms-Schritte.
+- **Hoehe exakt statt genaehert.** `getRoadSegment` liefert Mitte UND Hoehe aus derselben
+  Abbildung. Die naheliegende Naeherung (Nennhoehe x Massstab) haette bei 72 px rund 4 px
+  Fuge zwischen zwei Kacheln gelassen. Zweiter Fallstrick, vom Test gefunden: Die
+  Bildschirmmitte liegt wegen der Kruemmung ~0,03 px unter dem Weltanker - wer die
+  gezeichnete Mitte im naechsten Bild als Anker zurueckliest, sammelt den Versatz auf.
+  Deshalb fuehrt jedes Paar seinen `anchorY` getrennt und zeichnet nur nach `centerY`.
+- **Mitgezogen:** Beschriftung und Lebenspunkte-Zahl skalieren mit der Kachel (fester
+  Pixelabstand haette bei 41 px Ferndarstellung unten herausgeragt), der Fahrbereichs-
+  Test (`getWallPresence`) rechnet mit der tatsaechlichen statt der Nennhoehe, und der
+  Pool waechst 20 -> 32, weil ein Segment jetzt 6,4 statt 5,1 s lebt (rund 12 gleichzeitig
+  je Seite).
+- **Unveraendert:** Der Spawn-Takt haengt an der Weltstrecke, die Sammelrate bleibt also
+  bei 1,875 Plaettchen je Sekunde - keine stille Balanceverschiebung.
+- **Bewusst nicht mitgezogen:** Muenzen (`coins.ts`) fahren weiter in Bildschirmpixeln.
+  Sie fliegen nach wenigen Zehntelsekunden zur Truppe; dort faellt der Unterschied nicht
+  auf, und jede Aenderung am Einsammel-Timing waere Risiko ohne sichtbaren Gewinn.
+Nachweise: 153 Tests gruen (sechs neue zur Kette), `npm run check` sauber,
+Browser-Sichtpruefung: Kacheln laufen nach oben sichtbar zusammen, keine Fugen, keine
+Pool-Warnung im Dev-Log. **Offen: Thomas' iPhone-Urteil.**
+
 **Schussreichweite je Waffe, Gegner nochmal groesser, Wandkacheln als Quader**
 (2026-08-22, Claude direkt, Thomas nach dem zweiten iPhone-Test: "Ja Schuss Weite
 begrenzen, die mobs wirken immer noch zu klein und die Waende- naja die muessen wir noch

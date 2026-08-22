@@ -3,7 +3,7 @@ import { BALANCE } from '../config/balance'
 import { HUD_COLORS } from '../config/colors'
 import { getBlockerPlan } from './blockerPlan'
 import { decideGoodie } from './reinforcementPlan'
-import { getPlayfieldHalfWidth, getWallGeometry } from './road'
+import { advanceAlongRoad, getPlayfieldHalfWidth, getRoadScale, getRoadSegment, getWallGeometry } from './road'
 import { isWallSlot } from './wallPattern'
 import type { WeaponKey } from './weapons'
 import { getCurrentScrollSpeed } from './speed'
@@ -37,6 +37,10 @@ interface BlockerPair {
   blocker: Phaser.Physics.Arcade.Image
   label: Phaser.GameObjects.Text
   goodieText: Phaser.GameObjects.Text
+  // WELTANKER der Kachel. Getrennt von der gezeichneten Position gefuehrt, weil die
+  // Bildschirmmitte durch die gekruemmte Abbildung minimal darunter liegt - wer sie
+  // zurueckliest, sammelt den Versatz Bild fuer Bild auf (siehe getRoadSegment).
+  anchorY: number
   reward: Phaser.Physics.Arcade.Image
   active: boolean
   broken: boolean
@@ -141,7 +145,6 @@ export class Blockers {
   // Liegt auf Hoehe y (plus Puffer) ein stehendes Wandsegment? Steuert den dynamischen
   // Drag-Bereich: neben einer Wand endet er am Korridor, in einer Luecke am Strassenrand.
   public getWallPresence(y: number, halfSpanPx: number): Readonly<{ left: boolean; right: boolean }> {
-    const reach = BALANCE.walls.segmentHeightPx / 2 + halfSpanPx
     let left = false
     let right = false
     for (const pair of this.pairs) {
@@ -149,7 +152,9 @@ export class Blockers {
       // Sammelplaettchen sind kein Hindernis: Wer sie einsammeln soll, muss auch
       // hineinfahren duerfen. Nur echte Wandsegmente begrenzen den Fahrbereich.
       if (isPickup(pair)) continue
-      if (Math.abs(pair.blocker.y - y) >= reach) continue
+      // Reichweite aus der TATSAECHLICHEN Hoehe des Segments: Seit die Kachel mit der
+      // Entfernung schrumpft, waere die Nennhoehe von 72 px weiter oben zu grosszuegig.
+      if (Math.abs(pair.blocker.y - y) >= pair.blocker.displayHeight / 2 + halfSpanPx) continue
       if (pair.side === 'left') left = true
       else right = true
       if (left && right) break
@@ -282,7 +287,7 @@ export class Blockers {
     const reward = this.scene.physics.add.image(0, 0, 'weapon-normal-gate').setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false)
     reward.disableBody(true, true)
     this.rewardGroup.add(reward)
-    return { blocker, label, goodieText, reward, active: false, broken: false, content: 'damage', side: 'right', weapon: 'normal' }
+    return { blocker, label, goodieText, reward, anchorY: BALANCE.road.horizonY, active: false, broken: false, content: 'damage', side: 'right', weapon: 'normal' }
   }
 
   private wallGeometry(side: WallSide, y: number): { x: number; width: number } {
@@ -334,12 +339,15 @@ export class Blockers {
   private spawn(side: WallSide): void {
     const pair = this.pairs.find((candidate) => !candidate.active)
     if (pair === undefined) return this.warnPoolExhausted()
-    const y = BALANCE.road.horizonY
+    const anchorY = BALANCE.road.horizonY
+    const segment = this.segmentAt(anchorY)
+    const y = segment.centerY
     const geometry = this.wallGeometry(side, y)
     const plan = getBlockerPlan(this.currentLevel, this.getTeamSize(), this.getCurrentWeapon(), this.getDamage(), this.getShotsPerSec())
     const maxHp = plan.maxHp
     const content = this.chooseContent(side)
     pair.active = true
+    pair.anchorY = anchorY
     pair.broken = false
     pair.content = content
     pair.side = side
@@ -348,7 +356,7 @@ export class Blockers {
     // erkennbar sein, noch bevor man die Beschriftung liest.
     pair.blocker.setTexture(isBad(content) ? 'wall-segment-bad' : side === 'left' ? 'wall-segment-left' : 'wall-segment-right')
     pair.blocker.enableBody(true, geometry.x, y, true, true)
-    pair.blocker.setDisplaySize(geometry.width, BALANCE.walls.segmentHeightPx).setActive(true).setVisible(true).setAlpha(0)
+    pair.blocker.setDisplaySize(geometry.width, segment.height).setActive(true).setVisible(true).setAlpha(0)
     const body = pair.blocker.body as Phaser.Physics.Arcade.Body
     body.moves = false
     body.updateFromGameObject()
@@ -365,7 +373,10 @@ export class Blockers {
       pair.reward.setActive(false).setVisible(false)
       return
     }
-    pair.label.setText(`${maxHp}`).setPosition(geometry.x, y + BALANCE.walls.labelOffsetPx).setActive(true).setVisible(true).setAlpha(0)
+    pair.label.setText(`${maxHp}`)
+      .setPosition(geometry.x, y + BALANCE.walls.labelOffsetPx * this.roadScaleAt(y))
+      .setScale(this.roadScaleAt(y))
+      .setActive(true).setVisible(true).setAlpha(0)
     if (content === 'weapon') {
       // Die Waffe sitzt ab Spawn sichtbar vor der Wand; einsammelbar (Body) wird sie
       // erst nach dem Zerschiessen.
@@ -386,29 +397,52 @@ export class Blockers {
   }
 
   private movePair(pair: BlockerPair, movement: number): void {
+    // Welt-Bewegung statt Bildschirm-Bewegung, EINMAL je Paar: Kachel, Beschriftung und
+    // Waffen-Reward haengen am selben Anker und duerfen nie auseinanderlaufen.
+    pair.anchorY = this.advance(pair.anchorY, movement)
     if (pair.blocker.active) {
-      const y = pair.blocker.y + movement
-      const geometry = this.wallGeometry(pair.side, y)
-      pair.blocker.setPosition(geometry.x, y)
-      pair.blocker.setDisplaySize(geometry.width, BALANCE.walls.segmentHeightPx)
+      // Welt-Bewegung statt Bildschirm-Bewegung: Am Horizont deckt dieselbe Weltstrecke
+      // weniger Pixel ab, das Segment kriecht dort und beschleunigt beim Naeherkommen -
+      // wie die Haeuser daneben.
+      const segment = this.segmentAt(pair.anchorY)
+      const geometry = this.wallGeometry(pair.side, segment.centerY)
+      pair.blocker.setPosition(geometry.x, segment.centerY)
+      pair.blocker.setDisplaySize(geometry.width, segment.height)
       ;(pair.blocker.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
-      const alpha = Math.min(1, Math.max(0, (y - pair.blocker.displayHeight / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
+      const alpha = Math.min(1, Math.max(0, (segment.centerY - segment.height / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
       pair.blocker.setAlpha(alpha)
-      pair.label.setPosition(geometry.x, y + BALANCE.walls.labelOffsetPx).setAlpha(alpha)
+      // Auch die Beschriftung gehoert zur Kachel: fester Pixelabstand wuerde bei einer
+      // 41 px hohen Ferndarstellung unten herausragen.
+      const massstab = this.roadScaleAt(segment.centerY)
+      pair.label.setPosition(geometry.x, segment.centerY + BALANCE.walls.labelOffsetPx * massstab).setAlpha(alpha).setScale(massstab)
       if (pair.content !== 'weapon') {
-        pair.goodieText.setPosition(geometry.x, y).setAlpha(alpha)
+        pair.goodieText.setPosition(geometry.x, segment.centerY).setAlpha(alpha)
         const naturalWidth = pair.goodieText.width
-        pair.goodieText.setScale(naturalWidth > geometry.width - 8 ? (geometry.width - 8) / naturalWidth : 1)
+        const nachBreite = naturalWidth > geometry.width - 8 ? (geometry.width - 8) / naturalWidth : 1
+        pair.goodieText.setScale(Math.min(nachBreite, massstab))
       }
     }
     if (pair.content !== 'weapon') return
-    const rewardY = pair.reward.y + movement
+    const rewardY = this.segmentAt(pair.anchorY).centerY
     const rewardGeometry = this.wallGeometry(pair.side, rewardY)
     pair.reward.setPosition(pair.broken ? this.rewardCollectX(pair, rewardY) : rewardGeometry.x, rewardY)
     this.fitRewardToWall(pair, rewardGeometry.width)
     pair.reward.setAlpha(Math.min(1, Math.max(0, (rewardY - pair.reward.displayHeight / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx)))
     if (!pair.broken || !pair.reward.active) return
     ;(pair.reward.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
+  }
+
+  private advance(y: number, worldPx: number): number {
+    return advanceAlongRoad(this.scene.scale.width, this.scene.scale.height, y, worldPx)
+  }
+
+  /** Wo die Kachel mit Weltanker y zu zeichnen ist und wie hoch - siehe getRoadSegment. */
+  private segmentAt(anchorY: number): { centerY: number; height: number } {
+    return getRoadSegment(this.scene.scale.width, this.scene.scale.height, anchorY, BALANCE.walls.segmentHeightPx)
+  }
+
+  private roadScaleAt(y: number): number {
+    return getRoadScale(this.scene.scale.width, this.scene.scale.height, y)
   }
 
   // Der Inhalt scheint durch die Wand und darf sie nie ueberragen: auf die aktuelle
