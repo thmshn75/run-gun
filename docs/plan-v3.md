@@ -387,12 +387,12 @@ in `enemy.types` sind an den vorhandenen Bildern nachgemessen (W7), eine abweich
 Silhouette würde Trefferflächen und Formationsabstände verschieben. Der Spawner zieht beim
 Spawn eine Variante zufällig; das Recycling im Pool setzt die Textur ohnehin schon.
 
-**Ein technischer Punkt, der über Erfolg oder Ruckeln entscheidet:** Die zwölf Varianten
-gehören in **einen Textur-Atlas** (eine große Bilddatei mit allen Figuren darin), nicht in
-zwölf Einzeldateien. Grund: Die Grafikkarte zeichnet alles, was dieselbe Textur benutzt, in
-einem Rutsch. Zwölf Einzeltexturen zwingen sie bei bis zu 73 gleichzeitigen Gegnern
-(gemessen auf Level 12) zu deutlich mehr Einzelaufträgen — auf einem iPhone genau die Art
-von Last, die B1 gerade beseitigt hat.
+**Zum Atlas — die Sorge hat sich in der Messung NICHT bestätigt.** Der Plan sah einen
+Textur-Atlas vor, weil zwölf Einzeltexturen die Grafikkarte zu mehr Einzelaufträgen
+zwingen. Gemessen (2× gedrosselte CPU, Level 12, Truppe 100, Schrotflinte, **12
+gleichzeitig sichtbare Gegnertexturen statt 3**): 60 fps, schlimmstes Bild 19 ms, kein
+Bild über 33 ms — identisch zum Stand davor. **Kein Atlas gebaut.** Er bleibt der
+Rückfallweg, falls die Gegnermenge später deutlich steigt.
 
 **Reihenfolge zwingend nach B1.** Diese Etappe fügt Texturlast hinzu; sie darf erst laufen,
 wenn das Startruckeln gemessen und behoben ist, sonst ist nicht mehr zu trennen, was die

@@ -68,3 +68,23 @@ export function chooseEnemyType(weights: readonly number[], random: () => number
   }
   return BALANCE.enemy.types.at(-1)!
 }
+
+/**
+ * Wie viele Kleidungsfassungen stehen auf diesem Level zur Verfuegung?
+ * Rein optisch - keine Balance-Groesse haengt daran.
+ */
+export function getUnlockedVariantCount(level: number): number {
+  const stufen = BALANCE.enemy.variantUnlockLevels
+  const safeLevel = Math.max(1, Math.floor(level))
+  return Math.max(1, stufen.filter((stufe) => safeLevel >= stufe).length)
+}
+
+/**
+ * Texturname fuer einen Gegner. Index 0 ist die Vorlage, danach -b, -c, -d.
+ * Der Zufallswert kommt von aussen, damit der Aufrufer seine eigene Quelle behaelt.
+ */
+export function getEnemyTexture(basisTextur: string, level: number, zufall: number): string {
+  const anzahl = getUnlockedVariantCount(level)
+  const index = Math.min(anzahl - 1, Math.max(0, Math.floor(zufall * anzahl)))
+  return index === 0 ? basisTextur : `${basisTextur}-${'bcd'[index - 1]}`
+}

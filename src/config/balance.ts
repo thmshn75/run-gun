@@ -782,6 +782,28 @@ export const BALANCE = {
   // Waffe keine Stoergroesse mehr, muss die Gegnerstaerke sie auch nicht ausgleichen.
   // Die Anpassung an den Spielfortschritt laeuft weiter ueber die LEVELNUMMER
   // (enemy.hpPerLevelGrowth und die Level-Deckel bei BALANCE.stats).
+  // WAFFEN-STAFFELUNG (Benni ueber Thomas 2026-08-23: "die besseren Waffen sollen auch
+  // erst in den hoeheren Leveln kommen - also immer noch was Neues dazu").
+  //
+  // EIN EHRLICHER PUNKT, der die Umsetzung bestimmt: "Bessere Waffen" gibt es hier nicht.
+  // Alle acht liegen bewusst im gemessenen Staerkeband 1,15-1,27x der Standardwaffe
+  // (Commit a98a920). Eine echte Steigerung wuerde dieses Band aufbrechen und das
+  // Endspiel leichter machen - derselbe Fehler wie ein zu grosser Kauf-Bonus, nur an
+  // anderer Stelle.
+  //
+  // Gestaffelt wird deshalb die FREISCHALTUNG, gesteigert die AUFFAELLIGKEIT: was eine
+  // Waffe tut, nicht wie viel sie tut.
+  //   1 NORMAL / SCHROT   schlicht bzw. Streuung
+  //   2 LASER             Durchschlag
+  //   3 RAKETE            Sprengwirkung
+  //   4 MINIGUN           Dauerfeuer
+  //   5 FLAMME            Faecher, Nahbereich
+  //   6 BLITZ             springt auf Nachbarn ueber
+  //   7 GRANATWERFER      groesster Sprengradius, fast die ganze Bildhoehe
+  //
+  // Auf Level 1 bleibt damit EINE Alternative zur Startwaffe - das Tor zeigt dort immer
+  // dasselbe. Fuer das Lernlevel vertretbar, ab Level 2 sind es zwei, ab Level 3 drei.
+  // Ein Test haelt Staffelung und Mindestzahl an Toralternativen fest.
   weapon: {
     normal: {
       minLevel: 1,
@@ -823,7 +845,7 @@ export const BALANCE = {
       chainDamageFactor: 0,
     },
     laser: {
-      minLevel: 1,
+      minLevel: 2,
       rateFactor: 1.4,
       damageFactor: 0.4,
       shootersPerSalvo: 8,
@@ -850,7 +872,7 @@ export const BALANCE = {
       chainDamageFactor: 0,
     },
     rocket: {
-      minLevel: 1,
+      minLevel: 3,
       rateFactor: 0.25,
       damageFactor: 2.5,
       // 3 -> 5 Schuetzen: Mit Splash lag die Rakete gegen Horden bei 0,76x und damit
@@ -869,7 +891,7 @@ export const BALANCE = {
       chainDamageFactor: 0,
     },
     minigun: {
-      minLevel: 3,
+      minLevel: 4,
       rateFactor: 2.2,
       // 0,28 -> 0,55 UND 3 -> 8 Schuetzen (Thomas 2026-08-23: "Minigun macht kaum
       // Schaden"). Beides zusammen hebt sie von 0,23x auf 1,21x. Die Schuetzenzahl
@@ -892,7 +914,7 @@ export const BALANCE = {
       chainDamageFactor: 0,
     },
     flamethrower: {
-      minLevel: 3,
+      minLevel: 5,
       // 14.4 salvos/s x 3 shooters x 5 projectiles x 0.694s flight = 149.8; 200 leaves 33% reserve.
       rateFactor: 1.8,
       damageFactor: 0.34,
@@ -911,7 +933,7 @@ export const BALANCE = {
       chainDamageFactor: 0,
     },
     chainlightning: {
-      minLevel: 3,
+      minLevel: 6,
       rateFactor: 0.7,
       // 1,05 -> 0,9: Die Kette lag mit 1,46x am oberen Rand des Bandes, weil drei
       // Kettensprunge zu je 55 % ihren Wert fast verdreifachen. Jetzt 1,25x.
@@ -929,6 +951,46 @@ export const BALANCE = {
       chainCount: 3,
       chainRadiusPx: 118,
       chainDamageFactor: 0.55,
+    },
+    // GRANATWERFER (Benni ueber Thomas 2026-08-23: "eine zusaetzliche Waffe wie ein
+    // Granatwerfer, der weniger oft schiesst aber viel Schaden und den ganzen Bildschirm
+    // erreicht"). Achte Waffe.
+    //
+    // STAERKE INS BAND GERECHNET, nicht gewaehlt. Alle sieben vorhandenen Waffen liegen
+    // bei 1,15-1,27x der Standardwaffe (Commit a98a920); Nominalstaerke = rateFactor x
+    // damageFactor x shootersPerSalvo x bulletsPerShot, Standardwaffe = 1 x 1 x 8 x 1 = 8.
+    //   0,15 x 3,2 x 4 x 1 = 1,92 nominal
+    // Dazu der Splash-Aufschlag. Bezugspunkt ist die Rakete: Sie liegt nominal bei 3,125
+    // und wurde mit Splash (70 px, Faktor 1,5) auf 1,27x gemessen - der Aufschlag ist dort
+    // also rund 3,2. Mit groesserem Radius und hoeherem Faktor hier konservativ 5,0
+    // angesetzt: 1,92 x 5,0 = 9,6 = 1,20x. Der Aufschlag ist GESCHAETZT und muss wie bei
+    // den anderen Waffen gemessen werden; danach wird damageFactor nachgezogen.
+    grenade: {
+      // Letzte Waffe der Staffelung (siehe Kommentar am Anfang von weapon).
+      minLevel: 7,
+      // Langsamste Waffe im Spiel (Rakete 0,25) - "schiesst weniger oft".
+      rateFactor: 0.15,
+      // Hoechster Schadensfaktor im Spiel (Rakete 2,5) - "viel Schaden".
+      damageFactor: 3.2,
+      shootersPerSalvo: 4,
+      bulletsPerShot: 1,
+      fanAngleDeg: 0,
+      // Langsamer als die Rakete (300): Man schiesst weit auf Vorhalt.
+      projectileSpeed: 380,
+      // "Erreicht den ganzen Bildschirm" - und genau das ist die heikle Stelle. Thomas
+      // musste am 2026-08-23 den Laser von 0,85 auf 0,60 zurueckdrehen, weil bei zu
+      // grosser Reichweite alle Gegner am Horizont sterben und nie ankommen. Die niedrige
+      // Feuerrate entschaerft das hier, hebt es aber nicht auf.
+      // MESSKRITERIUM: Faellt die mittlere Todeshoehe unter 250 px, muss dieser Wert
+      // runter - die Reichweite ist dann nicht verhandelbar.
+      engageShare: 0.95,
+      pierces: false,
+      // Groesster Wirkbereich im Spiel (Rakete 70).
+      splashRadiusPx: 110,
+      splashDamageFactor: 1.6,
+      chainCount: 0,
+      chainRadiusPx: 0,
+      chainDamageFactor: 0,
     },
     splashFlashMs: 180,
     chainFlashMs: 120,
@@ -1018,6 +1080,21 @@ export const BALANCE = {
     minFocusSec: 0.12,
   },
   enemy: {
+    // KLEIDUNGSVARIANTEN (Benni ueber Thomas 2026-08-23: mehr Zombie-Aussehen; Thomas:
+    // "die bestehenden 3 Arten von Zombies einfach mit mehr verschiedenen Kleidungsfarben
+    // ausstatten").
+    //
+    // Drei zusaetzliche Farbfassungen je Typ (Endung -b rostrot, -c blaugrau, -d ocker).
+    // Sie sind aus den Vorlagen umgefaerbt, nicht neu gezeichnet: Groesse und Alpha-Kanal
+    // sind pixelgenau identisch (geprueft). Das ist Bedingung, weil die Koerpermasse
+    // unten an den Vorlagen nachgemessen sind - eine abweichende Silhouette wuerde
+    // Trefferflaechen und Formationsabstaende verschieben.
+    //
+    // GESTAFFELT FREIGESCHALTET, damit ueber den ganzen Run etwas Neues dazukommt: Ab
+    // Level 1 die Vorlage, ab 3 die zweite, ab 6 die dritte, ab 9 die vierte. Die
+    // Waffenstaffelung (B6) reicht nur bis Level 7 - ab dort traegt diese Kette weiter.
+    // Rein optisch: Keine Balance-Groesse haengt daran.
+    variantUnlockLevels: [1, 3, 6, 9],
     // Measured visible-figure dimensions per sprite; coinValue is the number of dropped coins. Remeasure both dimensions whenever the images change.
     // ALLE GEGNER LAUFEN GLEICH SCHNELL (Thomas 2026-08-22: "mache alle Mobs gleich
     // schnell, nur unterschiedlich stark, also mit verschiedenen Trefferpunkten").
@@ -1625,6 +1702,9 @@ export const BALANCE = {
       flamethrower: 200,
       // 5.6 salvos/s x 6 shooters x 1 projectile x 0.92s flight = 30.9; 48 leaves 55% reserve.
       chainlightning: 48,
+      // Peak: shotsPerSec-Deckel 8 x rateFactor 0,15 = 1,2 Salven/s x 4 Schuetzen x
+      // 1,41 s Flugzeit (536 px bei 380 px/s) = 6,8; 12 laesst 76 % Reserve.
+      grenade: 12,
     },
     // Peak: 2 salvos/s x 3 rockets x 0.18s = 1.1 flashes; 12 leaves generous reserve.
     splashFlashes: 12,

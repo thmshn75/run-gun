@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { canSpawnBossHorde } from './bossPlan'
-import { chooseEnemyType, getEnemyHp, getFigureHeight, getFigureWidth, getPlayerPower, type EnemyType } from './enemyTypes'
+import { chooseEnemyType, getEnemyHp, getFigureHeight, getFigureWidth, getPlayerPower, type EnemyType, getEnemyTexture } from './enemyTypes'
 import { getEnemySpawnCenterY, getSquadSpawnBaseY, isRevealedAtHorizon } from './horizonReveal'
 import { getLevelPlan, getMaxSquadSize, type LevelPlan } from './levelPlan'
 import { getBobOffsetPx, getPhaseOffset, getStepCycleHz } from './gamefeel'
@@ -358,7 +358,7 @@ export class Spawner {
       this.warnPoolExhausted()
       return 'pool-exhausted'
     }
-    enemy.setTexture(type.texture)
+    enemy.setTexture(getEnemyTexture(type.texture, this.levelPlan.level, Phaser.Math.RND.frac()))
     const y = getEnemySpawnCenterY(getFigureHeight(type))
     const lane = chooseSpawnLane(
       this.getActiveLaneEnemies(),
@@ -509,7 +509,7 @@ export class Spawner {
 
   private activateEnemy(enemy: Phaser.Physics.Arcade.Image, type: EnemyType, lane: number, y: number, bossCompanion: boolean): void {
     const x = this.scene.scale.width / 2 + lane * getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
-    enemy.setTexture(type.texture)
+    enemy.setTexture(getEnemyTexture(type.texture, this.levelPlan.level, Phaser.Math.RND.frac()))
     enemy.enableBody(true, x, y, true, true)
     const body = enemy.body as Phaser.Physics.Arcade.Body
     // Body in TEXTURPIXELN setzen: Arcade skaliert ihn mit der Sprite-Skalierung mit,

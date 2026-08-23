@@ -3,6 +3,15 @@ import enemyHeavyUrl from '../assets/enemy-heavy.png'
 import enemyBossUrl from '../assets/enemy-boss.png'
 import enemyLightUrl from '../assets/enemy-light.png'
 import enemyStandardUrl from '../assets/enemy-standard.png'
+import enemyLightBUrl from '../assets/enemy-light-b.png'
+import enemyLightCUrl from '../assets/enemy-light-c.png'
+import enemyLightDUrl from '../assets/enemy-light-d.png'
+import enemyStandardBUrl from '../assets/enemy-standard-b.png'
+import enemyStandardCUrl from '../assets/enemy-standard-c.png'
+import enemyStandardDUrl from '../assets/enemy-standard-d.png'
+import enemyHeavyBUrl from '../assets/enemy-heavy-b.png'
+import enemyHeavyCUrl from '../assets/enemy-heavy-c.png'
+import enemyHeavyDUrl from '../assets/enemy-heavy-d.png'
 import playerUrl from '../assets/player.png'
 import sceneryBushUrl from '../assets/scenery-bush.png'
 import sceneryConiferUrl from '../assets/scenery-conifer.png'
@@ -26,6 +35,8 @@ import weaponChainlightningGateUrl from '../assets/weapon-chainlightning-gate.pn
 import weaponChainlightningHudUrl from '../assets/weapon-chainlightning-hud.png'
 import weaponShotgunGateUrl from '../assets/weapon-shotgun-gate.png'
 import weaponShotgunHudUrl from '../assets/weapon-shotgun-hud.png'
+import weaponGrenadeGateUrl from '../assets/weapon-grenade-gate.png'
+import weaponGrenadeHudUrl from '../assets/weapon-grenade-hud.png'
 import { BALANCE } from '../config/balance'
 import { mix, WORLD_COLORS } from '../config/colors'
 import { getRoadHalfWidth } from '../systems/road'
@@ -41,6 +52,15 @@ export class BootScene extends Phaser.Scene {
     this.load.image('enemy-light', enemyLightUrl)
     this.load.image('enemy-standard', enemyStandardUrl)
     this.load.image('enemy-heavy', enemyHeavyUrl)
+    this.load.image('enemy-light-b', enemyLightBUrl)
+    this.load.image('enemy-light-c', enemyLightCUrl)
+    this.load.image('enemy-light-d', enemyLightDUrl)
+    this.load.image('enemy-standard-b', enemyStandardBUrl)
+    this.load.image('enemy-standard-c', enemyStandardCUrl)
+    this.load.image('enemy-standard-d', enemyStandardDUrl)
+    this.load.image('enemy-heavy-b', enemyHeavyBUrl)
+    this.load.image('enemy-heavy-c', enemyHeavyCUrl)
+    this.load.image('enemy-heavy-d', enemyHeavyDUrl)
     this.load.image('enemy-boss', enemyBossUrl)
     this.load.image('scenery-oak', sceneryOakUrl)
     this.load.image('scenery-conifer', sceneryConiferUrl)
@@ -56,6 +76,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('weapon-minigun-gate', weaponMinigunGateUrl)
     this.load.image('weapon-flamethrower-gate', weaponFlamethrowerGateUrl)
     this.load.image('weapon-chainlightning-gate', weaponChainlightningGateUrl)
+    this.load.image('weapon-grenade-gate', weaponGrenadeGateUrl)
     this.load.image('weapon-normal-hud', weaponNormalHudUrl)
     this.load.image('weapon-shotgun-hud', weaponShotgunHudUrl)
     this.load.image('weapon-laser-hud', weaponLaserHudUrl)
@@ -63,6 +84,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('weapon-minigun-hud', weaponMinigunHudUrl)
     this.load.image('weapon-flamethrower-hud', weaponFlamethrowerHudUrl)
     this.load.image('weapon-chainlightning-hud', weaponChainlightningHudUrl)
+    this.load.image('weapon-grenade-hud', weaponGrenadeHudUrl)
   }
 
   public create(): void {
@@ -136,6 +158,16 @@ export class BootScene extends Phaser.Scene {
     graphics.fillStyle(0xffffff)
     graphics.fillRect(1, 1, 2, 10)
     graphics.generateTexture('projectile-chainlightning', 4, 15)
+    graphics.clear()
+    // Granate: gedrungener Koerper mit Zuender - deutlich anders als die schlanke Rakete,
+    // damit man im Flug sieht, was unterwegs ist.
+    graphics.fillStyle(0x6b7d3a)
+    graphics.fillRect(0, 3, 10, 11)
+    graphics.fillStyle(0x8fa64d)
+    graphics.fillRect(1, 4, 8, 5)
+    graphics.fillStyle(0x3a3a2a)
+    graphics.fillRect(3, 0, 4, 3)
+    graphics.generateTexture('projectile-grenade', 10, 14)
     graphics.clear()
     graphics.fillStyle(WORLD_COLORS.splashFlash)
     graphics.fillCircle(16, 16, 16)

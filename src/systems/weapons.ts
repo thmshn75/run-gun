@@ -3,7 +3,7 @@ import { BALANCE } from '../config/balance'
 import { getEngageLineY, getLaneRatio, getLaneSlope, getRoadHalfWidth } from './roadGeometry'
 import type { RunStats } from './upgrades'
 
-export type WeaponKey = 'normal' | 'shotgun' | 'laser' | 'rocket' | 'minigun' | 'flamethrower' | 'chainlightning'
+export type WeaponKey = 'normal' | 'shotgun' | 'laser' | 'rocket' | 'minigun' | 'flamethrower' | 'chainlightning' | 'grenade'
 
 export const WEAPON_LABELS: Record<WeaponKey, string> = {
   normal: 'NORMAL',
@@ -13,9 +13,10 @@ export const WEAPON_LABELS: Record<WeaponKey, string> = {
   minigun: 'MINIGUN',
   flamethrower: 'FLAMME',
   chainlightning: 'BLITZ',
+  grenade: 'GRANATE',
 }
 
-export const WEAPON_KEYS: readonly WeaponKey[] = ['normal', 'shotgun', 'laser', 'rocket', 'minigun', 'flamethrower', 'chainlightning']
+export const WEAPON_KEYS: readonly WeaponKey[] = ['normal', 'shotgun', 'laser', 'rocket', 'minigun', 'flamethrower', 'chainlightning', 'grenade']
 
 interface ProjectileSegment {
   start: number
@@ -52,6 +53,7 @@ export class Weapons {
       minigun: scene.physics.add.group(),
       flamethrower: scene.physics.add.group(),
       chainlightning: scene.physics.add.group(),
+      grenade: scene.physics.add.group(),
     }
     this.projectileList = []
     this.segments = {
@@ -62,6 +64,7 @@ export class Weapons {
       minigun: { start: 0, end: 0, nextIndex: 0 },
       flamethrower: { start: 0, end: 0, nextIndex: 0 },
       chainlightning: { start: 0, end: 0, nextIndex: 0 },
+      grenade: { start: 0, end: 0, nextIndex: 0 },
     }
     this.fireAccumulatorMs = 0
     this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs

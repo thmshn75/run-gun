@@ -1,167 +1,104 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-23 16:45
+Stand: 2026-08-23, Nacht (autonome Sitzung)
 
 ## Ziel
-Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen, Tag
-`v1.0`** als Rueckschrittspunkt. Laufend: **V2-Spurenumbau**, Etappenplan `docs/plan-v2.md`
-(W1–W5 und **W7 gebaut**, nur W6 offen). Live: https://thmshn75.github.io/run-gun/
+Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen (Tag
+`v1.0`), V2 abgenommen (Tag `v2.0`)**. Laufend: **V3**, Etappenplan `docs/plan-v3.md`.
+Live: https://thmshn75.github.io/run-gun/
 
 ## Harte Randbedingungen
-- Claude ist normalerweise Architekt/Reviewer; **fuer V2 hat Thomas Direktumsetzung durch
-  Claude angeordnet** (kein Codex-Handoff) — gilt, bis er es zurueckdreht.
-- Testsuite und laengere Laeufe ins Terminal (`.command` + `open -a Terminal`), nie in der
-  Extension.
+- Claude setzt direkt um (kein Codex-Handoff), **ausser bei Bildern** — die erzeugt Codex.
+- Testsuite, Builds und Codex-Laeufe ins Terminal (`.command` + `open -a Terminal`), nie
+  in der Extension.
 - **Nie eine Groesse raten, die das Spiel messen kann.** Balance-Zahlen aus `balance.ts`
   ableiten, Rechenweg als Kommentar dazu. Messsonden als temporaere `tests/_*.test.ts`
-  schreiben, per Terminal laufen lassen, danach loeschen.
-- Objekt-Pools: kein `create()`/`destroy()` im Hot Path, jede Poolgroesse mit Herleitung.
-- Gamefeel/Optik gelten **erst nach Thomas' iPhone-Test** als erfuellt, nie nach Desktop.
-- Browser-Pruefung per Playwright: Der Hintergrund-Tab wird gedrosselt, die Spiel-Loop
-  steht dann faktisch still. Systeme deshalb **manuell takten** (`crowd.update(16.67)` in
-  einer Schleife) statt auf die Loop zu warten. Zugriff ueber `window.__runGun` (nur DEV).
+  oder Browser-Messung, danach loeschen.
+- **Bei Leistungsfragen zuerst profilieren, dann Hypothesen bilden** (neue Lesson vom
+  2026-08-23: Die Verdaechtigenliste war vollstaendig aus dem eigenen Code hergeleitet und
+  die Ursache stand in keiner davon).
+- Gamefeel/Optik gelten **erst nach Thomas' iPhone-Test** als erfuellt.
+- Browser-Pruefung per Playwright: Hintergrund-Tab wird gedrosselt. **Kuenstliches Takten
+  per `game.step()` verfaelscht die Physik** — lieber die echte Schleife laufen lassen und
+  ueber `setInterval` eingreifen. Zugriff ueber `window.__runGun` (nur DEV).
 - Nach jeder Etappe: `npm run check`, Terminal-Testsuite, Browser-Pruefung, commit + push,
   Deploy per `gh run watch` verifizieren.
 
-## Fertig
-- **V1 abgenommen** (2026-08-22 vormittags, Tag `v1.0` = Rueckschrittspunkt).
-  `docs/plan.md` ist damit Archiv; **maszgeblich ist `docs/plan-v2.md`**.
-- **W1–W5 gebaut**: Stadtbild, Waende links/rechts, Horden mittig, Seiten-Oekonomie,
-  Boss ohne Schuss. Ton ist gebaut (Web Audio, Schalter im Menue) - steht nicht mehr aus.
-- **Nach W5 ohne eigene Etappe dazugekommen** (alles aus iPhone-Rueckmeldungen, jeweils
-  mit Messwerten in `docs/active-task.md` belegt):
-  1. Perspektivische Figurengroesse (`road.perspective`), dreimal nachgeschaerft.
-  2. Gegner auf Spielgroesse (`enemy.figureScale` 1,25) - vorher war ein Gegner selbst
-     direkt vor der Truppe kleiner als eine eigene Figur.
-  3. Schussreichweite je Waffe (`weapon.<name>.engageShare`, Flamme 158 px bis Laser
-     479 px); im Bossduell ausgesetzt, sonst waere der Boss unangreifbar.
-  4. Gegnermenge: Level 1 von 1,0 auf 5,2 Gegner je Sekunde, dazu breitere Spawn-Baender -
-     ohne die bremst die Spurvergabe statt des Takts.
-  5. Wandkette laeuft perspektivisch (Weltkoordinaten statt Bildschirmpixel), Kacheln
-     schrumpfen mit der Entfernung und sehen als Quader statt als Aufkleber aus.
-- **W7 gebaut (2026-08-23), iPhone-Urteil offen.** Drei Teile:
-  1. **Plastische Figuren** (Codex): fuenf beleuchtete Sprites in doppelter Aufloesung.
-     Neuer Faktor `render.figureTextureScale` 0,5 rechnet sie auf Spielgroesse zurueck;
-     Koerpermasse an den neuen Bildern nachgemessen (`standard` 21 -> 25 px).
-  2. **Gegnermenge steigt wieder mit dem Level.** Der Fund dahinter: Sie stieg nicht
-     flach, sie fiel auf NULL — Level 6 lieferte 0,03 Gegner/s, Level 12 exakt 0,00.
-     Ursache war ein doppelter Perspektiv-Aufschlag in `spawnSquad` (Formation wurde
-     breiter geprueft als der Korridor ist), dazu eine Warteschlange ohne Verfallszeit
-     und ein fester Hordendeckel. Jetzt: Level 1 6,5 Gegner/s (Bestand 22), Level 12
-     12,6 (Bestand 73).
-  3. **Boss pendelt nicht mehr**, er kommt nur noch langsam auf die Truppe zu
-     (`advanceSpeed` unveraendert). X-Spanne im Kampf gemessen 0 px statt 216 px.
-- **W7 von Thomas abgenommen (2026-08-23): "w7 ok".**
-- **Gegner-Widerstand neu aufgebaut (2026-08-23), iPhone-Urteil offen.** Thomas hatte den
-  Vorschlag "zaehere Gegner plus gedaempfte Kopplung" angenommen. Gemessen wurde diesmal
-  die Erlebnisgroesse (Anteil Gegner, die die Truppe erreichen) statt einer Bilanz - und
-  die zeigte etwas anderes als erwartet: Bis Level 6 war das Spiel folgenlos (0 % kamen
-  an), ab Level 8 kippte es auf 100 %. Der eigentliche Grund war raeumlich: Die Truppe war
-  130 px breit und deckte den ganzen 155 px breiten Anflugbereich ab, die Zielsuche zog
-  den Rest vor sie - die Mitte war der sichere Ort. Gebaut: Levelkurve der Gegner-hp weg
-  (Wachstum kommt aus Typmischung und Nachschub), Grundwerte 1/4/12 -> 2/8/23, gedaempfte
-  Kopplung (`enemy.firepowerCoupling`, 0,30, ohne Waffe, mit Untergrenze), Zielsuche
-  11 -> 4 px/s, Spawn-Baender breiter, Feuerlinie 130 -> 78 px. Ergebnis: jedes Level im
-  Korridor 4-12 % statt 0 %/100 %, und die Position zaehlt (Mitte 13 % durch bei 8 Figuren
-  Verlust, Seite 84 % durch bei 0 Verlust).
-- **Trefferblitzen komplett entfernt (2026-08-23, Thomas).** Beim Boss war derselbe Zweig
-  toter Code (`flashRemainingMs` wurde nie gesetzt) und ist mit raus.
-- **Durchbruch-Regel gebaut (2026-08-23, Thomas: "Ja Bau das"), iPhone-Urteil offen.**
-  Ein Gegner, der die Truppenhoehe passiert, ohne getoetet zu werden, kostet Figuren
-  (`enemy.breakthroughDamageFactor` 0,12, aus der Sammelrate hergeleitet; Level 1 frei
-  ueber `breakthroughMinLevel` 2). Damit haengt der Verlust an dem, was man verfehlt,
-  statt an einer Gesamtbilanz - das war der Ausweg aus der Bistabilitaet. Wer beruehrt,
-  zahlt nicht doppelt (der Gegner ist dann schon recycelt); die Unverwundbarkeit nach
-  einem Treffer gilt hier bewusst nicht.
-- **Level-5-Sprung behoben (2026-08-23, Thomas: "bei Level 5 habe ich keine Chance
-  mehr Gegner abzuschiessen").** Ursache war ein Konstruktionsfehler, kein Balance-Thema:
-  `spawner.getSquadTypes` liess einen `wedge` IMMER nur aus leichten Gegnern bestehen.
-  Level 1-4 kennen nur Keile, ab Level 5 kommen `cluster`/`row` dazu, die die
-  Leveltabelle auswerten - die mittleren Lebenspunkte je Gegner sprangen dadurch von 4,1
-  auf 18,0 und Level 5 war haerter als Level 6. Sonderregel entfernt, Gewichte aller
-  zwoelf Level neu gesetzt (sie gelten jetzt fuer alle Horden, nicht nur fuer
-  Einzelgegner). Haerte steigt jetzt monoton, ein Test sichert das.
-- **Truppengroesse waechst jetzt auch mit dem Level (2026-08-23, Thomas: "das Maximum an
-  Team koennte man von Level zu Level anheben").** Sie war als einzige der vier
-  Ausbaugroessen fest (60/60), waehrend Schaden, Feuerrate und Truppenbonus mit dem Level
-  stiegen. Jetzt 30 (Level 1, genau die sichtbaren Figuren, keine Reserve) bis 100
-  (Level 12, 30 sichtbar + 70 Reserve, aus dem gemessenen Verlust hergeleitet). Es
-  entsteht daraus KEINE Feuerkraft - der Schadensbonus ist mit 30 Figuren ausgereizt,
-  nachgerechnet und per Test gesichert.
-- **Starttruppe 1 und Kampfstreifen an der Sammelbahn (2026-08-23, Thomas: "Starttruppe
-  auf 1 reduzieren" + "da verliere ich immer Team").** `stats.hp.base` 2 -> 1 (wer sofort
-  zur Bahn faehrt: 1 -> 30 in 20 s; wer steht: nach 8 s vorbei). Dazu behoben, dass blosses
-  Streifen der linken Bahn schon einsammelte - seit die Feuerlinie schmaler ist, muss man
-  dort kaempfen. Neu `walls.pickupOverlapFigures` 1,2 (Truppe muss zur Haelfte drin
-  stehen) und `walls.drainTeam` 5 -> 3 (blindes Durchfahren ist netto Null statt −1,3
-  Figuren/s). Kampfstreifen reicht jetzt bis −100 px statt −60 px.
-- Stand: 178 Tests gruen, `npm run check` sauber, Arbeitsverzeichnis sauber.
+## V3-Stand
 
-## Offen — naechster Schritt zuerst
-1. **Offen ist nur noch Thomas' eigener Eindruck am iPhone** — als Abnahme nicht mehr
-   noetig (er hat V2 am 2026-08-23 abgenommen), aber die Stellschrauben stehen bereit,
-   falls sich etwas falsch anfuehlt: Kommen jetzt genug
-   Gegner durch, ohne dass es unfair wird? Zaehlt die Position spuerbar? Fehlt das
-   Trefferblitzen?
-   Tuning ohne Umbau: `enemy.breakthroughDamageFactor` (was ein Durchbruch kostet),
-   `enemy.breakthroughMinLevel`, `enemy.firepowerCoupling.dampening` (hoeher = Gegner
-   folgen der Spielerstaerke staerker), `enemy.types[].hp`, `crowd.maxWidthRatio`
-   (Feuerlinie), `enemy.seekSpeedPxPerSec`, `enemy.spawnBands`, `level.plans`.
-2. **Nichts mehr — V2 ist fertig.** W6 ist am 2026-08-23 abgeschlossen (Details unten),
-   W7 und alle Korrekturen desselben Tages hat Thomas ohne iPhone-Test abgenommen
-   ("nimm als abgenommen hin"). Der naechste Schritt waere ein neuer Plan, kein Rest
-   aus V2.
+| Etappe | Stand |
+|---|---|
+| **B0 Sammelbahn** | **fertig, von Thomas am iPhone abgenommen** ("Ok passt am Handy") |
+| **B1 Startruckeln** | **fertig**, iPhone-Urteil offen |
+| **B2 Shop nach jedem Level** | **fertig**, iPhone-Urteil offen |
+| **B3 Weiterspielen + Fortsetzen** | **fertig**, iPhone-Urteil offen |
+| B5 Zombie-Farbvarianten | **wartet auf Codex-Bilder** |
+| B4 Granatwerfer | Code fertig, **wartet auf Codex-Bilder** |
+| B6 Waffenstaffelung | offen, muss nach B4 |
+| B7 Ton | **nicht startbereit** — Thomas muss sagen, was stoert |
 
-## Befunde, die Thomas kennen sollte (nicht behoben, bewusst)
-- **Die Bistabilitaet im oberen Levelbereich ist entschaerft, nicht beseitigt.** Der
-  Anteil durchkommender Gegner sprang auf den Leveln 7-11 zwischen 1 % und 78 %, weil das
-  System nur zwei Zustaende kannte. Die Durchbruch-Regel macht den Verlust jetzt stetig
-  (doppelt so viel durchgelassen = doppelter Verlust), der SPRUNG im Durchkommensanteil
-  selbst bleibt aber - er steckt in der Rueckkopplung ueber freie Spawn-Spuren. Level 8
-  ist dabei die haerteste Stelle der Tabelle (dort springt der Nachschub um 87 %).
-- **Die Feuerlinie ist am unteren Anschlag.** `crowd.maxWidthRatio` 0,20 = 78 px ist der
-  kleinste Wert, bei dem 8 Schuetzen noch nebeneinander stehen. Wer die Truppe weiter
-  verschmaelern will, muss zuerst `crowd.shootersPerSalvo` oder `crowd.minColSpacing`
-  anfassen; ein Test haelt beide Grenzen fest.
-- **Boss-Kampfdauer haengt am Gegnerschild, nicht an den Lebenspunkten.** Gemessen
-  2026-08-23 mit identischem Verfahren vorher/nachher: Das entfernte Pendeln aendert die
-  Dauer kaum (Level 1 104 -> 100 s, Level 6 115 -> 111 s), bei Level 12 streut sie so
-  stark, dass keine Aussage moeglich ist. Dieselbe Ursache war schon am 2026-08-22
-  dokumentiert. Die Reissleine (max. zwei Balance-Zyklen, dann Entscheidung mit Thomas)
-  ist gezogen — hier wurde bewusst nicht weitergedreht.
-- **Level 1 liegt 31 % ueber dem von Thomas abgenommenen Mengen-Stand** (4,95 -> 6,49
-  Gegner/s). Das ist Folge der Fehlerbehebung, nicht einer Anhebung der Leveltabelle.
-- **Rund 93 % der Spawn-Versuche werden weiterhin abgelehnt.** Das ist ab hier keine
-  Fehlfunktion, sondern volle Auslastung: Die Sperre verhindert, dass Gegner ineinander
-  erscheinen. Wer mehr Masse will, muss an der Verweildauer ansetzen (Tempo,
-  Lebenspunkte), nicht am Zufluss.
+## Was Thomas am iPhone testen sollte (Reihenfolge)
+
+1. **Startruckeln (B1):** Ruckelt es beim Spielstart noch? Mehrfach starten, auch direkt
+   nach dem Oeffnen der App.
+2. **Shop (B2):** Nach jedem Level erscheint ein Overlay mit zwei Knoepfen. Mit dem Daumen
+   bedienbar? Preise fair? Springt die DMG-Zahl beim Kauf sichtbar?
+3. **Weiterspielen (B3):** Nach dem Game Over erscheint "WEITERSPIELEN" mit Preis. Und:
+   App mitten im Run schliessen, neu oeffnen — im Menue steht "FORTSETZEN — LEVEL X".
+4. **Sammelbahn (B0, schon abgenommen):** Faellt auf, dass rote Kacheln jetzt seltener
+   greifen? Falls zu leicht: `walls.drainOverlapFigures` ist die Stellschraube.
+
+## V3: was gebaut wurde
+
+- **B0 Sammelbahn** (`78b07b4`): Die Pruefung las eine Truppenposition, die es nicht gab —
+  der Physics-Body folgte, die GameObject-Position der Huelle klebte bei −15. Dazu wurde
+  die Y-Achse gar nicht geprueft. Jetzt beide Achsen aus dem Anker gerechnet; rote Kacheln
+  verlangen mehr Eindringtiefe (`drainOverlapFigures` 1,6 gegen 1,2), hergeleitet aus der
+  **Fahrgrenze**, nicht aus der Huellenbreite.
+- **B1 Startruckeln** (`4cab337`): Ursache war Phasers Kollisions-Suchbaum (48 % der
+  aktiven Rechenzeit). `useTree: false` plus Nachschlagtabellen in `walls.ts`:
+  Rechenzeit beim Start 1.185 → 541 ms, unter Volllast 478 → 318 ms, Aussetzer 2 → 0.
+- **B2 Shop** (`9174c59`): Zwei Knoepfe in der Levelpause, Bonus **obendrauf** auf die
+  unveraenderte Levelkurve. Preise aus gemessener Muenz-Einnahme (98 % Einsammelquote,
+  10.454 Muenzen je vollem Run).
+- **B3 Weiterspielen + Fortsetzen** (`d2d17da`): Speicherpunkt an der Levelgrenze,
+  Weiterspielen 250 × Level, hoechstens zwei je Run.
+
+## Befunde, die Thomas kennen sollte
+
+- **Rote Kacheln greifen seltener als vor dem 2026-08-23.** Folge von B0; die linke Bahn
+  ist netto grosszuegiger. Stellschraube `walls.drainOverlapFigures`.
+- **Warum die GameObject-Position der Truppenhuelle bei −15 klebt, ist ungeklaert.** Der
+  B0-Fix umgeht es strukturell, und es war die einzige Stelle, die sie las (Gegnertreffer
+  laufen ueber `crowd.overlapsFigure`). Bleibt als offener Befund.
+- **Ohne Kollisions-Suchbaum waechst der Aufwand quadratisch mit der Koerperzahl.** Unter
+  heutiger Volllast ist die Variante ohne Baum klar guenstiger (gemessen). Steigt die
+  Gegnermenge deutlich, hier neu messen — Hinweis steht in `main.ts`.
+- **Der Shop-Bonus wirkt quadratisch**, weil Feuerkraft das Produkt aus Schaden und Rate
+  ist. Wer die Bonuswerte aendert, rechnet den Gesamtfaktor als Produkt beider Reihen; ein
+  Test haelt die Obergrenze (+40 %) fest.
+- Aeltere Befunde (Bistabilitaet im oberen Levelbereich, Feuerlinie am Anschlag,
+  Boss-Kampfdauer am Gegnerschild, 93 % abgelehnte Spawn-Versuche) gelten unveraendert —
+  siehe `docs/plan-v2.md` und die Git-Historie.
 
 ## Offene Nebenbefunde (nicht behoben, bewusst)
-- **Minigun und Rakete feuern nur mit 3 Figuren** (`shootersPerSalvo`) und sind dadurch
-  nominell ~4x schwaecher als die Standardwaffe. Waffenbalance insgesamt offen.
-- **Muenzen fahren weiterhin in Bildschirmpixeln**, waehrend Waende und Kulisse
-  perspektivisch laufen. Sie fliegen nach Sekundenbruchteilen zur Truppe; eine Umstellung
-  waere Risiko am Einsammel-Timing ohne sichtbaren Gewinn.
-- **Wandkacheln behalten ihre Nennbreite**, waehrend die Hoehe perspektivisch schrumpft -
-  gewollt, weil `widthShare` die Wand bewusst ueber die Strassenkante hinausragen laesst.
+- **Minigun und Rakete feuern nur mit 3 bzw. 5 Figuren**; Waffenbalance insgesamt offen.
+- **Muenzen fahren in Bildschirmpixeln**, waehrend Waende und Kulisse perspektivisch
+  laufen.
+- **Wandkacheln behalten ihre Nennbreite**, waehrend die Hoehe perspektivisch schrumpft.
 
 ## Wichtige Dateien und Befehle
-- Plan `docs/plan-v2.md` · Task `docs/active-task.md` · **Lessons `docs/lessons.md`** (zu
-  Sitzungsbeginn lesen, enthaelt die teuer bezahlten Regeln)
+- Plan `docs/plan-v3.md` · Task `docs/active-task.md` · **Lessons `docs/lessons.md`**
+- Bildauftrag an Codex: `docs/bildauftrag-v3.md`
 - Balance: `src/config/balance.ts` (alle Tuning-Werte mit Herleitung als Kommentar)
-- Waende: `walls.ts`, `wallPlan.ts`, `wallPattern.ts`, `reinforcementPlan.ts`
-- Geometrie: `roadGeometry.ts` (`getLaneRatio`, `getDriveLimitHalfWidth`)
-- Gamefeel: `gamefeel.ts`, `popups.ts` · Gegner: `spawner.ts`, `squads.ts`
-- Boss (W5): `boss.ts`, `bossPlan.ts`, `bossBurst.ts`
+- Shop: `shopOverlay.ts`, `upgrades.ts` · Spielstand: `save.ts` (`RunSnapshot`)
+- Waende: `walls.ts` · Geometrie: `roadGeometry.ts` · Gegner: `spawner.ts`, `squads.ts`
 - `npm run check` · `npm run dev` · Tests via Terminal-Skript · `npm run test:dist`
 - Deploy verifizieren:
   `gh run watch $(gh run list --limit 1 --json databaseId --jq '.[0].databaseId') --exit-status`
 
 ## Einstiegssatz
-"Lies `docs/UEBERGABE.md`, `docs/lessons.md` und `docs/plan-v2.md` und arbeite dort weiter.
-**Nichts neu aufsetzen - V1 ist abgenommen (Tag `v1.0`), von V2 sind W1-W5 und W7 gebaut,
-W7 ist abgenommen.** Naechster Schritt: Thomas' iPhone-Urteil zum neuen Gegner-Widerstand
-abwarten (kommen genug Gegner durch, zaehlt die Position, ist der Verlust durch
-vorbeilaufende Gegner fair, fehlt das Trefferblitzen) -
-Korrekturen haben Vorrang. Danach W6, die V2-Abnahme. Die offenen Befunde stehen in der UEBERGABE unter
-'Befunde'."
+"Lies `docs/UEBERGABE.md`, `docs/lessons.md` und `docs/plan-v3.md` und arbeite dort weiter.
+**Nichts neu aufsetzen** — V1 (`v1.0`) und V2 (`v2.0`) sind abgenommen, von V3 sind B0–B3
+gebaut. Naechster Schritt: B5 und B4 brauchen Bilder aus `docs/bildauftrag-v3.md`, danach
+B6. B7 (Ton) ist nicht startbereit, bis Thomas sagt, was stoert."

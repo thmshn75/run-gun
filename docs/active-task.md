@@ -6,13 +6,61 @@
 
 ## Task
 
-**B5 — Zombie-Farbvarianten** (Plan `docs/plan-v3.md`) — als Nächstes, danach B4
-(Granatwerfer) und B6 (Waffenstaffelung). Beide brauchen Bilder aus einem gemeinsamen
-Codex-Auftrag.
+`IDLE` — V3 ist bis auf **B7 (Ton)** gebaut. Der ist nicht startbereit: Thomas muss
+sagen, was am Ton stört.
+
+**Alles Gebaute wartet auf Thomas' iPhone-Test** (Reihenfolge in `docs/UEBERGABE.md`).
 
 ---
 
 ## Abgeschlossen
+
+### B5 + B4 + B6 — Zombie-Varianten, Granatwerfer, Waffenstaffelung (2026-08-23)
+
+**Bilder von Codex** (`docs/bildauftrag-v3.md`), selbst nachgeprüft statt dem Bericht
+geglaubt: Alle 9 Zombie-Varianten haben **exakt** die Maße ihrer Vorlage und einen
+**pixelgenau identischen Alpha-Kanal**; Granatwerfer-Tor und -HUD haben exakt die Maße der
+Rakete. Optisch geprüft: Kleidung gefärbt, Haut, Gesicht und Knochen unverändert.
+
+**B5 — Farbvarianten gestaffelt** (`enemy.variantUnlockLevels` 1/3/6/9). Im Spiel
+gemessen, welche Texturen tatsächlich vorkommen:
+
+| Level | Varianten im Bild |
+|---|---|
+| 1 | 1 |
+| 3 | 2 |
+| 6 | 3 |
+| 9 | 4 |
+
+**Der im Plan geforderte Atlas ist NICHT gebaut** — die Sorge hat sich in der Messung
+nicht bestätigt: Volllast (Level 12, Truppe 100, Schrotflinte) mit **12 gleichzeitigen
+Gegnertexturen statt 3** ergibt 60 fps, schlimmstes Bild 19 ms, kein Bild über 33 ms.
+Identisch zum Stand davor.
+
+**B4 — Granatwerfer** als achte Waffe. Startwerte ins Stärkeband gerechnet, dann gemessen
+(Level 8, gleiche Bedingungen, Tötungen je Sekunde):
+
+| Waffe | Tötungen/s | Verhältnis | mittlere Todeshöhe |
+|---|---|---|---|
+| Standard | 11,13 | 1,00× | 476 px |
+| Rakete | 9,87 | 0,89× | 320 px |
+| **Granatwerfer** | **13,47** | **1,21×** | **276 px** |
+
+1,21× liegt im Band (1,15–1,27). **Die Todeshöhe ist die knappe Größe:** 276 px gegen das
+Messkriterium von 250 px. Der Granatwerfer tötet damit am weitesten entfernt von allen
+Waffen — gewollt („erreicht den ganzen Bildschirm"), aber ohne Reserve. Steigt die
+Reichweite später, sterben die Gegner am Horizont und kommen nie an; `engageShare` (0,95)
+ist dann die Stellschraube.
+
+**B6 — Waffenstaffelung** über die Level 1–7. **Keine Stärke geändert** — „bessere Waffen"
+gibt es nicht, alle acht liegen im selben Band. Gestaffelt ist die Freischaltung,
+gesteigert die Auffälligkeit: schlicht → Durchschlag → Sprengwirkung → Dauerfeuer →
+Fächer → Kette → großer Sprengradius.
+
+**Offen für den iPhone-Test:** Auf Level 1 gibt es damit nur **eine** Toralternative zur
+Startwaffe — das Tor zeigt dort immer dasselbe. Für das Lernlevel vertretbar, aber Thomas
+sollte es sich ansehen; notfalls geht LASER auf `minLevel` 1 zurück.
+
 
 ### B3 — Weiterspielen + Fortsetzen (2026-08-23), iPhone-Urteil offen
 

@@ -91,16 +91,19 @@ describe('additional weapons', () => {
     expect(BALANCE.pools.projectiles.flamethrower).toBeGreaterThan(peakProjectileLoad('flamethrower'))
   })
 
-  it('makes the three new weapons unavailable before level three and config-selected from level three onward', () => {
-    for (const level of [1, 2]) {
+  // Die frueheren drei "neuen" Waffen waren alle ab Level 3 verfuegbar. Seit B6
+  // (2026-08-23) ist die Freischaltung ueber die Level 1-7 gestaffelt, damit in jedem
+  // Level etwas Neues dazukommt - die Staerken sind unveraendert. Der Test prueft
+  // deshalb nicht mehr eine gemeinsame Stufe, sondern dass die Auswahl auf jedem Level
+  // genau die freigeschalteten Waffen enthaelt.
+  it('bietet auf jedem Level genau die dort freigeschalteten Waffen an', () => {
+    for (let level = 1; level <= 12; level += 1) {
       const choices = getWeaponRewardChoices('normal', level)
       expect(choices).not.toContain('normal')
-      for (const weapon of newWeapons) expect(choices).not.toContain(weapon)
+      const expected = (Object.keys(BALANCE.weapon) as WeaponKey[])
+        .filter((weapon) => weapon !== 'normal' && BALANCE.weapon[weapon].minLevel <= level)
+      expect(choices).toEqual(expected)
     }
-    const levelThreeChoices = getWeaponRewardChoices('normal', 3)
-    for (const weapon of newWeapons) expect(levelThreeChoices).toContain(weapon)
-    const expected = (Object.keys(BALANCE.weapon) as WeaponKey[]).filter((weapon) => weapon !== 'normal' && BALANCE.weapon[weapon].minLevel <= 3)
-    expect(levelThreeChoices).toEqual(expected)
   })
 
   it('never rewards the equipped or level-locked weapon', () => {
