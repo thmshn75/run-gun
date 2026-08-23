@@ -508,7 +508,34 @@ export const BALANCE = {
     // Feuerkraft. Gebremst wird stattdessen der Schadensbonus, den sie erzeugt -
     // siehe crowd.damageMultiplierCap*. So darf man weiter Figuren sammeln, ohne
     // dass die Feuerkraft mitwaechst.
-    hp: { base: 2, capAtLevelOne: 60, capAtLevelTwelve: 60, floor: 0 },
+    // TRUPPENGROESSE WAECHST JETZT AUCH MIT DEM LEVEL (2026-08-23, Thomas: "ich selbst
+    // werde ja nie staerker in den Leveln oder schon? Bzw das Maximum an Team koennte man
+    // von Level zu Level anheben" - und danach: "wir koennen auf Level 1 auch mit weniger
+    // starten").
+    //
+    // Er hatte recht: Von den vier Groessen, die der Spieler ausbaut, war diese als
+    // EINZIGE ueber alle Level fest (60/60), waehrend Schaden 4,7x, Feuerrate 2,3x und
+    // der Truppenbonus 2,7x steigen durften. Das war ein Versehen aus dem Umbau vom
+    // selben Tag, kein Entwurf - die Struktur dafuer stand schon da.
+    //
+    //   Level 1  = 30 = crowd.max. Keine Reserve: Was im Bild steht, ist alles, was man
+    //              hat. Die klarste denkbare Regel fuer das erste Level - und auf Level 1
+    //              gibt es ohnehin noch keinen Durchbruchschaden (breakthroughMinLevel 2).
+    //   Level 12 = 100 = 30 sichtbar + 70 Reserve. Die Reserve ist aus dem GEMESSENEN
+    //              Verlust hergeleitet, nicht gewaehlt: Am Level-12-Deckel kostet ein
+    //              Durchbruch-Dauerbeschuss 0,375 Figuren/s (Truppe 60 -> 54 in 16 s),
+    //              70 Reserve tragen davon 187 s. Im schlechtesten gemessenen Fall
+    //              (Level 5, halb ausgebaut, ohne Sammeln: 1,0 Figuren/s) sind es 70 s,
+    //              also knapp ein Level. Genau das soll eine Reserve leisten: einen
+    //              schlechten Abschnitt ueberstehen, aber keinen ganzen Run.
+    //
+    // Faktor 3,3 ueber elf Level - dieselbe Groessenordnung wie bei den anderen drei
+    // Ausbaugroessen. Sichtbar bleiben immer crowd.max Figuren, es waechst also nur der
+    // Puffer. FEUERKRAFT ENTSTEHT DARAUS NICHT: Der Schadensbonus ist separat gedeckelt
+    // (crowd.damageMultiplierCap*) und mit Truppe 30 bereits ausgereizt. Auch die
+    // Gegner-Kopplung (enemy.firepowerCoupling) haengt an diesem gedeckelten Bonus, wird
+    // also durch eine groessere Reserve nicht staerker.
+    hp: { base: 2, capAtLevelOne: 30, capAtLevelTwelve: 100, floor: 0 },
     damage: { base: 1, capAtLevelOne: 1.5, capAtLevelTwelve: 7, floor: 1 },
     shotsPerSec: { base: 3, capAtLevelOne: 3.5, capAtLevelTwelve: 8, floor: 1 },
     // Gegnertempo. Seit 2026-08-22 KEIN Ausbau mehr, sondern reine Levelgroesse

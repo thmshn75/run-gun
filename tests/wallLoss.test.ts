@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
+import { getCrowdDamageMultiplier } from '../src/systems/crowdDamage'
 import { getLevelPlan, getMaxSquadSize } from '../src/systems/levelPlan'
 
 // Rote Kacheln (Thomas 2026-08-22: "man erreicht schnell das maximum ueberall und
@@ -54,12 +55,27 @@ describe('rote Kacheln: der Verlust in beiden Bahnen', () => {
     expect(scene).toContain('Math.max(this.statFloor[key], before + gain)')
   })
 
-  it('deckelt die Truppen-Reserve auf das Doppelte der sichtbaren Figuren', () => {
-    // Ohne Deckel war ein Gegnertreffer folgenlos (Befund 2026-08-22).
-    expect(BALANCE.stats.hp.capAtLevelTwelve).toBe(BALANCE.crowd.max * 2)
-    // Die Reserve muss mehrere rote Kacheln tragen, aber keinen ganzen Level.
-    expect(BALANCE.stats.hp.capAtLevelTwelve - BALANCE.crowd.max).toBeGreaterThan(BALANCE.walls.drainTeam * 4)
-    expect(BALANCE.stats.hp.capAtLevelTwelve - BALANCE.crowd.max).toBeLessThan(BALANCE.walls.drainTeam * 12)
+  it('laesst die Truppen-Reserve mit dem Level wachsen, statt sie fest zu deckeln', () => {
+    // Ohne Deckel war ein Gegnertreffer folgenlos (Befund 2026-08-22) - deshalb gibt es
+    // ueberhaupt eine Obergrenze. Sie ist seit 2026-08-23 aber nicht mehr fest (Thomas:
+    // "das Maximum an Team koennte man von Level zu Level anheben"): Sie war als einzige
+    // der vier Ausbaugroessen ueber alle Level konstant.
+    expect(BALANCE.stats.hp.capAtLevelOne).toBeLessThan(BALANCE.stats.hp.capAtLevelTwelve)
+    // Level 1 ohne Reserve: Was im Bild steht, ist alles, was man hat.
+    expect(BALANCE.stats.hp.capAtLevelOne).toBe(BALANCE.crowd.max)
+    // Oben muss die Reserve mehrere rote Kacheln tragen, aber keinen ganzen Run.
+    const reserve = BALANCE.stats.hp.capAtLevelTwelve - BALANCE.crowd.max
+    expect(reserve).toBeGreaterThan(BALANCE.walls.drainTeam * 4)
+    expect(reserve).toBeLessThan(BALANCE.walls.drainTeam * 20)
+  })
+
+  it('haelt die Truppengroesse als Ueberlebenszeit, nicht als Feuerkraft', () => {
+    // Der Grund, warum die Obergrenze ueberhaupt wachsen DARF: Der Schadensbonus ist
+    // separat gedeckelt und mit den sichtbaren Figuren bereits ausgereizt. Waere das
+    // nicht so, wuerde jede Reserve die Feuerkraft mit hochziehen.
+    const beiSichtbaren = getCrowdDamageMultiplier(BALANCE.crowd.max, 12)
+    const beiVollerReserve = getCrowdDamageMultiplier(BALANCE.stats.hp.capAtLevelTwelve, 12)
+    expect(beiVollerReserve).toBeCloseTo(beiSichtbaren, 6)
   })
 })
 

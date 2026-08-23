@@ -1,6 +1,6 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-23 14:55
+Stand: 2026-08-23 15:10
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen, Tag
@@ -81,7 +81,14 @@ Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen,
   auf 18,0 und Level 5 war haerter als Level 6. Sonderregel entfernt, Gewichte aller
   zwoelf Level neu gesetzt (sie gelten jetzt fuer alle Horden, nicht nur fuer
   Einzelgegner). Haerte steigt jetzt monoton, ein Test sichert das.
-- Stand: 176 Tests gruen, `npm run check` sauber, Arbeitsverzeichnis sauber.
+- **Truppengroesse waechst jetzt auch mit dem Level (2026-08-23, Thomas: "das Maximum an
+  Team koennte man von Level zu Level anheben").** Sie war als einzige der vier
+  Ausbaugroessen fest (60/60), waehrend Schaden, Feuerrate und Truppenbonus mit dem Level
+  stiegen. Jetzt 30 (Level 1, genau die sichtbaren Figuren, keine Reserve) bis 100
+  (Level 12, 30 sichtbar + 70 Reserve, aus dem gemessenen Verlust hergeleitet). Es
+  entsteht daraus KEINE Feuerkraft - der Schadensbonus ist mit 30 Figuren ausgereizt,
+  nachgerechnet und per Test gesichert.
+- Stand: 177 Tests gruen, `npm run check` sauber, Arbeitsverzeichnis sauber.
 
 ## Offen — naechster Schritt zuerst
 1. **Thomas' iPhone-Urteil zum neuen Gegner-Widerstand** hat Vorrang: Kommen jetzt genug
@@ -120,6 +127,11 @@ Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen,
   Lebenspunkte), nicht am Zufluss.
 
 ## Offene Nebenbefunde (nicht behoben, bewusst)
+- **`BALANCE.crowd.start` (3) wird nirgends gelesen** - toter Code. Die GameScene setzt
+  die Starttruppe aus `BALANCE.stats.hp.base` (2). Gefunden am 2026-08-23; gehoert nach
+  W6 (toten Code raus), nicht mitten in eine Balance-Aenderung.
+- **`favicon.ico` fehlt** (404 im Dev-Log, weil der Browser die Wurzel abfragt, das Spiel
+  aber unter `/run-gun/` liegt). Kosmetisch, gehoert zum PWA-Feinschliff in W6.
 - **Minigun und Rakete feuern nur mit 3 Figuren** (`shootersPerSalvo`) und sind dadurch
   nominell ~4x schwaecher als die Standardwaffe. Waffenbalance insgesamt offen.
 - **Muenzen fahren weiterhin in Bildschirmpixeln**, waehrend Waende und Kulisse
