@@ -1,6 +1,6 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-23 14:10
+Stand: 2026-08-23 14:20
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen, Tag
@@ -66,30 +66,34 @@ Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen,
   Verlust, Seite 84 % durch bei 0 Verlust).
 - **Trefferblitzen komplett entfernt (2026-08-23, Thomas).** Beim Boss war derselbe Zweig
   toter Code (`flashRemainingMs` wurde nie gesetzt) und ist mit raus.
-- Stand: 169 Tests gruen, `npm run check` sauber, Arbeitsverzeichnis sauber.
+- **Durchbruch-Regel gebaut (2026-08-23, Thomas: "Ja Bau das"), iPhone-Urteil offen.**
+  Ein Gegner, der die Truppenhoehe passiert, ohne getoetet zu werden, kostet Figuren
+  (`enemy.breakthroughDamageFactor` 0,12, aus der Sammelrate hergeleitet; Level 1 frei
+  ueber `breakthroughMinLevel` 2). Damit haengt der Verlust an dem, was man verfehlt,
+  statt an einer Gesamtbilanz - das war der Ausweg aus der Bistabilitaet. Wer beruehrt,
+  zahlt nicht doppelt (der Gegner ist dann schon recycelt); die Unverwundbarkeit nach
+  einem Treffer gilt hier bewusst nicht.
+- Stand: 173 Tests gruen, `npm run check` sauber, Arbeitsverzeichnis sauber.
 
 ## Offen — naechster Schritt zuerst
 1. **Thomas' iPhone-Urteil zum neuen Gegner-Widerstand** hat Vorrang: Kommen jetzt genug
    Gegner durch, ohne dass es unfair wird? Zaehlt die Position spuerbar? Fehlt das
    Trefferblitzen?
-   Tuning ohne Umbau: `enemy.firepowerCoupling.dampening` (hoeher = Gegner folgen der
-   Spielerstaerke staerker), `enemy.types[].hp`, `crowd.maxWidthRatio` (Feuerlinie),
-   `enemy.seekSpeedPxPerSec`, `enemy.spawnBands`, `level.plans`.
-2. **Entscheidung, die auf Thomas wartet** (siehe Befunde unten): Soll ein Gegner, der die
-   Truppe passiert, ohne getoetet zu werden, etwas kosten? Ohne das bleibt der obere
-   Levelbereich bistabil.
-3. **W6 — V2-Abnahme** (die letzte Etappe): toten Code raus (`blockers.ts` heisst noch so,
+   Tuning ohne Umbau: `enemy.breakthroughDamageFactor` (was ein Durchbruch kostet),
+   `enemy.breakthroughMinLevel`, `enemy.firepowerCoupling.dampening` (hoeher = Gegner
+   folgen der Spielerstaerke staerker), `enemy.types[].hp`, `crowd.maxWidthRatio`
+   (Feuerlinie), `enemy.seekSpeedPxPerSec`, `enemy.spawnBands`, `level.plans`.
+2. **W6 — V2-Abnahme** (die letzte Etappe): toten Code raus (`blockers.ts` heisst noch so,
    meint aber Waende), Volllast-Messung, Netzwerk-Null-Check, Update-Pfad, README.
    Thomas 2026-08-23: "3. kommt erst dann" — also nach Punkt 1 und 2.
 
 ## Befunde, die Thomas kennen sollte (nicht behoben, bewusst)
-- **Der obere Levelbereich ist bistabil, wenn die Truppe steht.** Auf den Leveln 7-11
-  gemessen: 51 / 56 / 1 / 78 / 2 % Durchkommen - es gibt kaum einen Zwischenzustand.
-  Sobald der Nachschub die Raeumleistung uebersteigt, staut es sich auf, durchgelaufene
-  Gegner machen Spuren frei und es verstaerkt sich selbst. **Das laesst sich nicht
-  einstellen, das ist der Aufbau.** Aufloesen wuerde es ein Verlust fuer Gegner, die die
-  Truppenhoehe passieren, ohne getoetet zu werden - dann haengt der Schaden an dem, was
-  man verfehlt, statt an der Gesamtbilanz. Produktentscheidung, wartet auf Thomas.
+- **Die Bistabilitaet im oberen Levelbereich ist entschaerft, nicht beseitigt.** Der
+  Anteil durchkommender Gegner sprang auf den Leveln 7-11 zwischen 1 % und 78 %, weil das
+  System nur zwei Zustaende kannte. Die Durchbruch-Regel macht den Verlust jetzt stetig
+  (doppelt so viel durchgelassen = doppelter Verlust), der SPRUNG im Durchkommensanteil
+  selbst bleibt aber - er steckt in der Rueckkopplung ueber freie Spawn-Spuren. Level 8
+  ist dabei die haerteste Stelle der Tabelle (dort springt der Nachschub um 87 %).
 - **Die Feuerlinie ist am unteren Anschlag.** `crowd.maxWidthRatio` 0,20 = 78 px ist der
   kleinste Wert, bei dem 8 Schuetzen noch nebeneinander stehen. Wer die Truppe weiter
   verschmaelern will, muss zuerst `crowd.shootersPerSalvo` oder `crowd.minColSpacing`
@@ -132,7 +136,7 @@ Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen,
 "Lies `docs/UEBERGABE.md`, `docs/lessons.md` und `docs/plan-v2.md` und arbeite dort weiter.
 **Nichts neu aufsetzen - V1 ist abgenommen (Tag `v1.0`), von V2 sind W1-W5 und W7 gebaut,
 W7 ist abgenommen.** Naechster Schritt: Thomas' iPhone-Urteil zum neuen Gegner-Widerstand
-abwarten (kommen genug Gegner durch, zaehlt die Position, fehlt das Trefferblitzen) -
-Korrekturen haben Vorrang. Dann die offene Produktentscheidung (kosten Durchbrecher
-etwas?), dann W6, die V2-Abnahme. Die offenen Befunde stehen in der UEBERGABE unter
+abwarten (kommen genug Gegner durch, zaehlt die Position, ist der Verlust durch
+vorbeilaufende Gegner fair, fehlt das Trefferblitzen) -
+Korrekturen haben Vorrang. Danach W6, die V2-Abnahme. Die offenen Befunde stehen in der UEBERGABE unter
 'Befunde'."

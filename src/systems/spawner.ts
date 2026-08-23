@@ -24,6 +24,7 @@ export class Spawner {
   // Lazy, nicht als Wert: Die Truppe wird nach dem Spawner erzeugt, und ihre Position
   // aendert sich ohnehin jedes Bild.
   private readonly getCrowdAnchorX: (() => number) | undefined
+  private readonly onBreakthrough: ((contactDamage: number) => void) | undefined
   private readonly enemies: Phaser.Physics.Arcade.Group
   private readonly shadows: Phaser.GameObjects.Image[]
   private spawnAccumulatorMs: number
@@ -39,10 +40,16 @@ export class Spawner {
   private spawningEnabled: boolean
   private levelPlan: LevelPlan
 
-  public constructor(scene: Phaser.Scene, runStats: RunStats, getCrowdAnchorX?: () => number) {
+  public constructor(
+    scene: Phaser.Scene,
+    runStats: RunStats,
+    getCrowdAnchorX?: () => number,
+    onBreakthrough?: (contactDamage: number) => void,
+  ) {
     this.scene = scene
     this.runStats = runStats
     this.getCrowdAnchorX = getCrowdAnchorX
+    this.onBreakthrough = onBreakthrough
     this.enemies = scene.physics.add.group()
     this.spawnAccumulatorMs = 0
     this.elapsedMs = 0
@@ -148,6 +155,27 @@ export class Spawner {
       const enemy = child as Phaser.Physics.Arcade.Image
       if (enemy.active && enemy.getData('bossCompanion') === true) this.recycle(enemy)
     }
+  }
+
+  /**
+   * Meldet einmalig, wenn ein Gegner die Truppenhoehe passiert hat, ohne getoetet worden
+   * zu sein. Wer die Truppe BERUEHRT, kommt hier nie an - handlePlayerHit recycelt ihn
+   * und er hat dort bereits gekostet.
+   *
+   * Ausgeloest wird auf der Kampfhoehe, nicht am Bildrand: Dort steht die Truppe, dort
+   * ist der Durchbruch das Ereignis. Die restlichen 130 px bis zum Bildrand laeuft der
+   * Gegner weiter, ohne noch einmal zu zaehlen (Flag `durchgebrochen`).
+   */
+  private meldeDurchbruch(enemy: Phaser.Physics.Arcade.Image): void {
+    if (this.onBreakthrough === undefined) return
+    if (this.levelPlan.level < BALANCE.enemy.breakthroughMinLevel) return
+    if (enemy.getData('durchgebrochen') === true) return
+    const truppenhoehe = this.scene.scale.height - BALANCE.player.anchorBottomOffset
+    if (enemy.y <= truppenhoehe) return
+    enemy.setData('durchgebrochen', true)
+    const contactDamage = enemy.getData('contactDamage') as number | undefined
+    if (typeof contactDamage !== 'number' || !Number.isFinite(contactDamage)) return
+    this.onBreakthrough(contactDamage)
   }
 
   /**
@@ -281,6 +309,7 @@ export class Spawner {
       this.applyHorizonReveal(enemy)
       this.updateShadow(poolIndex, enemy, logicalY, bob)
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
+      this.meldeDurchbruch(enemy)
       if (enemy.y - enemy.displayHeight / 2 > this.scene.scale.height) this.recycle(enemy)
     }
   }
@@ -486,6 +515,7 @@ export class Spawner {
     enemy.setData('bodyHeight', getFigureHeight(type))
     enemy.setData('lane', lane)
     enemy.setData('bossCompanion', bossCompanion)
+    enemy.setData('durchgebrochen', false)
     enemy.setData('spawnId', this.allocateSpawnId())
   }
 

@@ -3,6 +3,7 @@ import { BALANCE } from '../src/config/balance'
 import { getEnemyHp, getFigureWidth, getFirepowerCoupling, getPlayerPower } from '../src/systems/enemyTypes'
 import { computeFormation } from '../src/systems/formation'
 import { getPlayfieldHalfWidth } from '../src/systems/roadGeometry'
+import { getScrollSpeed } from '../src/systems/speed'
 import { getStatCap } from '../src/systems/upgrades'
 
 const W = 390
@@ -197,5 +198,47 @@ describe('kein Trefferblitzen', () => {
 
   it('beruehrt die Figurengroessen nicht - nur die Einfaerbung ist weg', () => {
     expect(getFigureWidth(LIGHT)).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * Durchbruch: Ein Gegner, der die Truppenhoehe passiert, ohne getoetet worden zu sein,
+ * kostet Figuren (2026-08-23, Thomas: "Ja Bau das").
+ *
+ * Warum es die Regel gibt: Vorher war die einzige Verlustquelle die Beruehrung, der
+ * Schaden hing damit an der Gesamtbilanz - und die ist bistabil (gemessen sprang der
+ * Anteil durchkommender Gegner auf den Leveln 7-11 zwischen 1 % und 78 %). Wer an der
+ * Seite fuhr, liess 84 % durch und verlor dabei NULL Figuren. Verfehlen war folgenlos.
+ */
+describe('Durchbruch kostet Figuren', () => {
+  it('ist aktiv, aber nicht im ersten Level', () => {
+    expect(BALANCE.enemy.breakthroughDamageFactor).toBeGreaterThan(0)
+    expect(BALANCE.enemy.breakthroughMinLevel).toBeGreaterThanOrEqual(2)
+  })
+
+  it('startet nicht frueher als die roten Wandkacheln', () => {
+    // Beide Verlustquellen sollen denselben Einstiegsschutz haben: Level 1 ist zum
+    // Lernen da, dort startet die Truppe mit crowd.start Figuren.
+    expect(BALANCE.enemy.breakthroughMinLevel).toBeGreaterThanOrEqual(BALANCE.walls.badMinLevel)
+  })
+
+  it('kostet weniger als eine Beruehrung - Verfehlen ist nicht schlimmer als Getroffenwerden', () => {
+    expect(BALANCE.enemy.breakthroughDamageFactor).toBeLessThan(1)
+  })
+
+  it('laesst Dauerfahrt an der Sammelbahn netto noch lohnen', () => {
+    // Die eigentliche Bilanz, an der der Wert haengt - und die vorher niemand gebildet
+    // hat. Links gewinnt man Figuren und laesst dafuer fast alles durch.
+    // Level 6, weil die Messwerte unten von dort stammen. getScrollSpeed statt des
+    // Modulzustands: der Test darf nicht davon abhaengen, was zuletzt gesetzt wurde.
+    const kachelnProSek = getScrollSpeed(6) / BALANCE.walls.segmentHeightPx
+    const guterAnteil = 1 - BALANCE.walls.badChance / (1 + BALANCE.walls.badChance)
+    const gewinnProSek = kachelnProSek * guterAnteil * BALANCE.walls.pickupTeamGain
+    // Gemessen an der Sammelbahn (Level 6, Truppe 30): 84 % kommen durch bei rund
+    // 7 Gegnern je Sekunde, mittlerer contactDamage 1,3.
+    const verlustProSek = 7 * 0.84 * 1.3 * BALANCE.enemy.breakthroughDamageFactor
+    expect(gewinnProSek).toBeGreaterThan(verlustProSek)
+    // ... aber nicht mehr geschenkt sein: ohne die Regel waere der Gewinn ungebremst.
+    expect(verlustProSek).toBeGreaterThan(gewinnProSek * 0.4)
   })
 })

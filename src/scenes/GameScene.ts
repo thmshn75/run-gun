@@ -133,6 +133,10 @@ export class GameScene extends Phaser.Scene {
   private boss!: Boss
   private blockers!: Blockers
   private popups!: Popups
+  // Durchbrueche kosten Bruchteile einer Figur (enemy.breakthroughDamageFactor). Sie
+  // werden hier gesammelt und erst bei einer vollen Figur eingeloest - sonst gaebe es
+  // bei bis zu 6 Durchbruechen je Sekunde sechsmal Ton und Anzeige.
+  private breakthroughAccumulator = 0
   private audio!: GameAudio
   private currentLevel!: number
   private levelPhase!: LevelPhase
@@ -174,6 +178,9 @@ export class GameScene extends Phaser.Scene {
     this.gameOverStarted = false
     this.lastCrowdSize = -1
     this.currentLevel = 1
+    // Phaser konstruiert die Szene beim Neustart nicht neu - der Rest aus dem vorigen
+    // Lauf muss hier weg, sonst startet die naechste Runde mit angebrochenem Verlust.
+    this.breakthroughAccumulator = 0
     setCurrentScrollSpeed(getScrollSpeed(this.currentLevel))
     // Gegnertempo ist seit 2026-08-22 eine reine Levelgroesse, kein Ausbau mehr.
     this.runStats.set('speed', getEnemySpeed(this.currentLevel))
@@ -188,7 +195,7 @@ export class GameScene extends Phaser.Scene {
     this.scenery = new Scenery(this, () => Phaser.Math.RND.frac())
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
-    this.spawner = new Spawner(this, this.runStats, () => this.crowd.getAnchorX())
+    this.spawner = new Spawner(this, this.runStats, () => this.crowd.getAnchorX(), (contactDamage) => this.handleBreakthrough(contactDamage))
     this.blockers = new Blockers(
       this,
       (currentWeapon) => this.spawner.chooseBlockerWeapon(currentWeapon),
@@ -619,6 +626,40 @@ export class GameScene extends Phaser.Scene {
     }
     if (!this.boss.isEnemy(enemy)) this.spawner.recycle(enemy)
     this.handlePlayerDamage(contactDamage)
+  }
+
+  /**
+   * Ein Gegner hat die Truppenhoehe passiert, ohne getoetet worden zu sein.
+   *
+   * Bewusst NICHT ueber handlePlayerDamage: Das setzt die Unverwundbarkeit nach einem
+   * Treffer und laesst die Kamera wackeln. Beides waere hier falsch - die Unverwundbar-
+   * keit schuetzt vor einer Trefferserie, nicht vor den Folgen des eigenen Verfehlens
+   * (sie wuerde die Regel genau bei hohem Durchsatz aushebeln), und Wackeln bei sechs
+   * Ereignissen je Sekunde macht das Bild unruhig statt wuchtig. Die Quittung ist
+   * dieselbe wie beim Verlust an einer roten Wandkachel: Ton `crowdDown` und eine
+   * rote Zahl ueber der Truppe.
+   */
+  private handleBreakthrough(contactDamage: number): void {
+    if (this.gameOverStarted) return
+    this.breakthroughAccumulator += contactDamage * BALANCE.enemy.breakthroughDamageFactor
+    const figuren = Math.floor(this.breakthroughAccumulator)
+    if (figuren < 1) return
+    this.breakthroughAccumulator -= figuren
+    const before = this.runStats.get('hp')
+    this.runStats.set('hp', before - figuren)
+    this.syncCrowdSize()
+    const delta = Math.round(this.runStats.get('hp') - before)
+    if (delta !== 0) {
+      this.audio.play('crowdDown')
+      this.popups.spawn(
+        this.crowd.getAnchorX(),
+        this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
+        `${delta}`,
+        '#ff6b6b',
+      )
+    }
+    this.updateHud()
+    if (this.runStats.get('hp') <= 0) this.triggerGameOver()
   }
 
   private handlePlayerDamage(damage: number): void {

@@ -951,6 +951,48 @@ export const BALANCE = {
     // Enemy composition belongs to the level plan, never to elapsed spawn time.
     spawnRampPerSec: 6,
     spawnLaneSafetyGap: 5,
+    // DURCHBRUCH: Ein Gegner, der die Truppenhoehe passiert, ohne getoetet worden zu
+    // sein, kostet Figuren (Thomas 2026-08-23: "Ja Bau das").
+    //
+    // WARUM ES DAS BRAUCHT. Bis hierher war die einzige Verlustquelle die BERUEHRUNG.
+    // Damit haing der Schaden an der Gesamtbilanz "Feuerkraft gegen Nachschub" - und die
+    // ist bistabil: Sobald der Nachschub die Raeumleistung uebersteigt, staut es sich
+    // auf, durchgelaufene Gegner machen Spuren frei, und es verstaerkt sich selbst.
+    // Gemessen auf den Leveln 7-11 sprang der Anteil durchkommender Gegner zwischen 1 %
+    // und 78 %, ohne dass ein Zwischenzustand existierte. Schlimmer: Wer an der Seite
+    // fuhr, liess 84 % durch und verlor dabei NULL Figuren - die Gegner liefen an ihm
+    // vorbei ins Leere. Verfehlen war folgenlos.
+    // Jetzt haengt der Verlust an dem, was man VERFEHLT, statt an einer Bilanz. Das ist
+    // ein stetiger Zusammenhang: doppelt so viel durchgelassen heisst doppelter Verlust.
+    //
+    // WER DURCHBRICHT. Nur Gegner, die die Truppe nicht beruehrt haben - ein beruehrender
+    // Gegner wird in handlePlayerHit recycelt und hat bereits gekostet. Doppelt zahlt
+    // also niemand. Die Unverwundbarkeit nach einem Treffer (player.iframesMs) gilt hier
+    // BEWUSST NICHT: Sie schuetzt vor einer Trefferserie, nicht vor den Folgen des
+    // eigenen Verfehlens - sonst waere die Regel bei hohem Durchsatz genau dann
+    // wirkungslos, wenn sie greifen soll.
+    //
+    // HOEHE, hergeleitet aus dem Gegenstueck links. Die Sammelbahn liefert 1,875
+    // Kacheln/s; wer den roten ausweicht, gewinnt 1,41 Figuren/s. Wer dort faehrt, laesst
+    // gemessen 84 % der Gegner durch, auf Level 6 also 5,9/s bei einem mittleren
+    // contactDamage von 1,3 (Gewichte 25/45/30 auf 1/1/2). Damit Dauerfahrt links noch
+    // lohnt, aber nicht mehr geschenkt ist - Zielwert netto +0,5 Figuren/s statt +1,41:
+    //   1,41 - 5,9 x 1,3 x f = 0,5  ->  f = 0,118
+    // Gerundet 0,12. Ein leichter Gegner kostet damit 0,12 Figuren, ein schwerer 0,24 -
+    // es braucht also rund acht Durchbrueche fuer eine Figur. Die Bruchteile werden
+    // aufsummiert und erst bei einer vollen Figur eingeloest, sonst gaebe es bei 6
+    // Durchbruechen je Sekunde sechsmal Ton und Kamerawackeln.
+    breakthroughDamageFactor: 0.12,
+    // Level 1 bleibt frei - dieselbe Begruendung wie bei den roten Wandkacheln
+    // (walls.badMinLevel). Dort lernt man, wofuer die beiden Bahnen da sind, und startet
+    // mit crowd.start = 3 Figuren.
+    // Gemessen, warum das noetig ist: Der Durchbruchschaden hat eine Rueckkopplung -
+    // weniger Figuren heisst weniger Feuerkraft heisst mehr Durchbrueche. Mit Truppe 10
+    // und den Grundwerten stieg der Durchkommensanteil dadurch von 10 % auf 44 %, und die
+    // Truppe war nach 20 s aufgerieben. Im echten Spiel faengt die Sammelbahn das ab
+    // (1,875 Kacheln/s), aber genau darauf soll sich niemand im ersten Level verlassen
+    // muessen, bevor er die Regel ueberhaupt gesehen hat.
+    breakthroughMinLevel: 2,
     // Wie lange eine verschobene Spawn-Anforderung hoechstens im Weg liegen darf, bevor
     // der Spawner sie aufgibt (2026-08-23). Vorher gab es keine Grenze: Eine Horde, die
     // keine Spur fand, blockierte den gesamten Takt - auch jeden Einzelgegner. Bei

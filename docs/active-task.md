@@ -7,6 +7,77 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**Durchbruch: Gegner, die an der Truppe vorbeilaufen, kosten jetzt Figuren**
+(2026-08-23, Claude direkt. Thomas auf die vorgelegte Entscheidung: "Ja Bau das".)
+
+**Das Problem, das die Regel loest.** Bis hierher war die einzige Verlustquelle die
+BERUEHRUNG. Damit hing jeder Schaden an der Gesamtbilanz "Feuerkraft gegen Nachschub" -
+und die ist bistabil: Sobald der Nachschub die Raeumleistung uebersteigt, staut es sich
+auf, durchgelaufene Gegner machen Spuren frei, und es verstaerkt sich selbst. Gemessen
+auf den Leveln 7-11 sprang der Anteil durchkommender Gegner zwischen 1 % und 78 %, ohne
+dass ein Zwischenzustand existierte. Schlimmer war der Nebeneffekt: Wer an der Seite
+fuhr, liess 84 % der Gegner durch und verlor dabei **null Figuren** - sie liefen an ihm
+vorbei ins Leere. **Verfehlen war folgenlos.**
+Jetzt haengt der Verlust an dem, was man verfehlt. Das ist ein stetiger Zusammenhang:
+doppelt so viel durchgelassen heisst doppelter Verlust - keine Bilanz, die kippt.
+
+**Gebaut:**
+- `spawner.meldeDurchbruch` meldet einmalig, wenn ein Gegner die **Truppenhoehe**
+  passiert (nicht den Bildrand - dort steht die Truppe, dort ist das Ereignis). Flag
+  `durchgebrochen` verhindert Doppelzaehlung auf den restlichen 130 px.
+- **Wer beruehrt, kommt hier nie an:** `handlePlayerHit` recycelt den Gegner und er hat
+  dort bereits gekostet. Doppelt zahlt niemand.
+- **Die Unverwundbarkeit nach einem Treffer gilt bewusst NICHT** (`player.iframesMs`).
+  Sie schuetzt vor einer Trefferserie, nicht vor den Folgen des eigenen Verfehlens -
+  sonst waere die Regel bei hohem Durchsatz genau dann wirkungslos, wenn sie greifen soll.
+- **Eigene Verarbeitung** (`GameScene.handleBreakthrough`) statt `handlePlayerDamage`:
+  kein Kamerawackeln (bei bis zu 6 Ereignissen je Sekunde waere das Bild unruhig statt
+  wuchtig) und kein Setzen der Unverwundbarkeit. Quittung wie beim Verlust an einer roten
+  Wandkachel: Ton `crowdDown` und rote Zahl ueber der Truppe.
+- **Bruchteile werden gesammelt** und erst bei einer vollen Figur eingeloest.
+
+**Hoehe hergeleitet, nicht gewaehlt** (`enemy.breakthroughDamageFactor` 0,12): Die
+Sammelbahn links gewinnt 1,41 Figuren/s, wenn man den roten ausweicht. Wer dort faehrt,
+laesst gemessen 84 % durch, auf Level 6 also 5,9 Gegner/s bei mittlerem contactDamage
+1,3. Zielwert netto +0,5 Figuren/s statt +1,41:
+`1,41 - 5,9 x 1,3 x f = 0,5` → **f = 0,118**, gerundet 0,12. Ein leichter Gegner kostet
+damit 0,12 Figuren, ein schwerer 0,24 - es braucht rund acht Durchbrueche fuer eine Figur.
+
+**Level 1 bleibt frei** (`enemy.breakthroughMinLevel` 2, dieselbe Begruendung wie
+`walls.badMinLevel`). Gemessen, warum das noetig war: Die Regel hat eine Rueckkopplung -
+weniger Figuren heisst weniger Feuerkraft heisst mehr Durchbrueche. Mit Truppe 10 und den
+Grundwerten stieg der Durchkommensanteil dadurch von 10 % auf 44 %, und die Truppe war
+nach 20 s aufgerieben. Im echten Spiel faengt die Sammelbahn das ab - aber darauf soll
+sich niemand im ersten Level verlassen muessen, bevor er die Regel gesehen hat.
+
+**Ergebnis, gemessen** (Truppe mittig, 20 s, Truppe schrumpft echt mit, kein Sammeln):
+
+| Fall | kommt durch | Durchbrueche | Truppe | Verlust/s |
+|---|---|---|---|---|
+| L1 frisch (Regel aus) | 22 % | 0 | 10 → 0 | 0,50 (nur Beruehrung) |
+| L2 frisch | 14 % | 21 | 15 → 12 | 0,15 |
+| L3 ausgebaut | 3 % | 4 | 20 → 19 | 0,05 |
+| L6 ausgebaut | 11 % | 14 | 40 → 39 | 0,05 |
+| L12 ausgebaut | 25 % | 12 | 60 → 39 | 1,05 |
+
+Und die Positionsabwaegung, die vorher gar nicht existierte (Level 6, Truppe 40, 20 s):
+
+| Standort | kommt durch | Durchbrueche | Truppe |
+|---|---|---|---|
+| Mitte | 12 % | 15 | 40 → 32 |
+| halbrechts | 45 % | 65 | 40 → 30 |
+| links aussen | 84 % | 122 | 40 → 4 |
+
+Links aussen ist der ungebremste Fall: stur an der Sammelbahn kleben, ohne den roten
+Kacheln auszuweichen und ohne zu schiessen. Wer sauber sammelt, gleicht das aus (+1,41/s
+gegen -0,95/s Durchbruchverlust) - genau der Zielwert der Herleitung.
+
+**Vier neue Tests** in `tests/enemyResistance.test.ts`, darunter die Netto-Bilanz der
+Sammelbahn gegen den Durchbruchverlust - die Zahl, an der der Wert haengt.
+
+173 Tests gruen, `npm run check` sauber.
+**Offen: Thomas' iPhone-Urteil.**
+
 **Gegner-Widerstand neu aufgebaut: gedaempfte Kopplung, schmalere Feuerlinie, kein
 Trefferblitzen**
 (2026-08-23, Claude direkt. Thomas: "nehme deinen Vorschlag an" - zaehere Gegner plus
