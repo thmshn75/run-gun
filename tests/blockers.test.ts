@@ -71,7 +71,7 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
   it('derives wall hp from level and team, never rounding it to zero', () => {
     const weakest = getBlockerPlan(1, 1, 'normal', 1, 1)
     expect(weakest.maxHp).toBeGreaterThanOrEqual(1)
-    const strongest = getBlockerPlan(12, BALANCE.crowd.max, 'shotgun', BALANCE.stats.damage.cap, BALANCE.stats.shotsPerSec.cap)
+    const strongest = getBlockerPlan(12, BALANCE.crowd.max, 'shotgun', BALANCE.stats.damage.capAtLevelTwelve, BALANCE.stats.shotsPerSec.capAtLevelTwelve)
     expect(strongest.maxHp).toBeGreaterThanOrEqual(1)
   })
 
@@ -101,7 +101,7 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
   it('laesst den Truppenzaehler ueber die sichtbaren Figuren hinaus weiterlaufen', () => {
     // Ohne Reserve verpufft jedes Plaettchen ab crowd.max - und dort steht der
     // Spieler nach wenigen Sammelbahnen.
-    expect(BALANCE.stats.hp.cap).toBeGreaterThan(BALANCE.crowd.max)
+    expect(BALANCE.stats.hp.capAtLevelTwelve).toBeGreaterThan(BALANCE.crowd.max)
     // Der Zuwachs bleibt bei 1: viele kleine Quittungen statt weniger grosser.
     expect(BALANCE.walls.pickupTeamGain).toBe(1)
   })
@@ -174,8 +174,8 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     expect(source).not.toContain("content === 'coin'")
     // Die Zugewinne sind aus dem Gegenstueck links hergeleitet: 3,3 % der Spanne.
     const anteilLinks = BALANCE.walls.pickupTeamGain / BALANCE.crowd.max
-    const spanneSchaden = BALANCE.stats.damage.cap - BALANCE.stats.damage.base
-    const spanneRate = BALANCE.stats.shotsPerSec.cap - BALANCE.stats.shotsPerSec.base
+    const spanneSchaden = BALANCE.stats.damage.capAtLevelTwelve - BALANCE.stats.damage.base
+    const spanneRate = BALANCE.stats.shotsPerSec.capAtLevelTwelve - BALANCE.stats.shotsPerSec.base
     expect(BALANCE.walls.damageGain).toBeCloseTo(anteilLinks * spanneSchaden, 0)
     expect(BALANCE.walls.rateGain).toBeCloseTo(anteilLinks * spanneRate, 1)
   })
@@ -213,19 +213,16 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
   it('uses measured run stats for 1.5–2.5 second kills across the full cross product', () => {
     let cases = 0
     for (const level of [1, 6, 12]) {
-      for (const purchaseState of [
-        { damage: 0, rate: 0 },
-        { damage: BALANCE.upgradesShop.prices.length, rate: 0 },
-        { damage: 0, rate: BALANCE.upgradesShop.prices.length },
-        { damage: BALANCE.upgradesShop.prices.length, rate: BALANCE.upgradesShop.prices.length },
-      ]) {
+      // Die frueher hier durchgespielten Shop-Kaufstaende sind mit dem Shop entfallen
+      // (2026-08-23); die Werte damage/rate unten decken dieselbe Spanne direkt ab.
+      {
         for (const weapon of weaponKeys) {
           for (const teamSize of [2, 3, 6, 12, 20, 30]) {
             for (const damage of [1, 3, 10, 20]) {
               for (const rate of [1, 1.5, 3, 8]) {
                 const plan = getBlockerPlan(level, teamSize, weapon, damage, rate)
-                const dps = getCombatFirepower(teamSize, weapon) * damage * rate
-                const label = `L${level}, damage upgrade ${purchaseState.damage}, rate upgrade ${purchaseState.rate}`
+                const dps = getCombatFirepower(teamSize, weapon, level) * damage * rate
+                const label = `L${level}, ${weapon}, Truppe ${teamSize}, Schaden ${damage}, Rate ${rate}`
                 expect(plan.referenceDps, label).toBeCloseTo(dps)
                 // Rundung auf ganze HP verschiebt die Fokuszeit um bis zu einer halben HP.
                 const rundung = 0.5 / dps
@@ -238,7 +235,7 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
         }
       }
     }
-    expect(cases).toBe(8064)
+    expect(cases).toBe(2016)
   })
 
 })

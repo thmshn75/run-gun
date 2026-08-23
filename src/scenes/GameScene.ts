@@ -7,7 +7,6 @@ import { Coins } from '../systems/coins'
 import { selectChainLightningTargets } from '../systems/chainLightning'
 import { getGameAudio, type GameAudio } from '../systems/audio'
 import { Boss } from '../systems/boss'
-import type { BossUpgradeLevels } from '../systems/bossPlan'
 import { Crowd } from '../systems/crowd'
 import { getCrowdDamageMultiplier } from '../systems/crowdDamage'
 import { getLevelPlan } from '../systems/levelPlan'
@@ -17,7 +16,7 @@ import { Scenery } from '../systems/scenery'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { addScore, loadSave, qualifiesForScores, writeSave } from '../systems/save'
 import { Spawner } from '../systems/spawner'
-import { getUpgradeStartValue, RunStats } from '../systems/upgrades'
+import { RunStats } from '../systems/upgrades'
 import { WEAPON_LABELS, Weapons, type WeaponKey } from '../systems/weapons'
 
 interface HudSegments {
@@ -120,7 +119,6 @@ export class GameScene extends Phaser.Scene {
   private coins!: Coins
   private runStats!: RunStats
   private statFloor!: { damage: number; shotsPerSec: number }
-  private bossUpgrades!: BossUpgradeLevels
   private elapsedMs!: number
   private enemyContactIframeUntilMs!: number
   private blinkUntilMs!: number
@@ -158,11 +156,13 @@ export class GameScene extends Phaser.Scene {
 
   public create(): void {
     this.runStats = new RunStats()
-    const save = loadSave()
-    this.bossUpgrades = { ...save.upgrades }
-    this.runStats.set('hp', getUpgradeStartValue('team', save.upgrades.team))
-    this.runStats.set('damage', getUpgradeStartValue('damage', save.upgrades.damage))
-    this.runStats.set('shotsPerSec', getUpgradeStartValue('rate', save.upgrades.rate))
+    // Ein Run startet auf Level 1 mit den Basiswerten. Bis zum 2026-08-23 kamen sie aus
+    // gekauften Shop-Stufen; der Shop ist entfallen (Thomas: "Den Shop kannst du
+    // streichen"), alles wird jetzt im Lauf selbst erspielt.
+    this.runStats.setLevel(1)
+    this.runStats.set('hp', BALANCE.stats.hp.base)
+    this.runStats.set('damage', BALANCE.stats.damage.base)
+    this.runStats.set('shotsPerSec', BALANCE.stats.shotsPerSec.base)
     // Boden fuer die roten Segmente: Was in dieser Runde gefunden wurde, kann man
     // wieder verlieren - was Thomas im Laden gekauft hat, nicht.
     this.statFloor = { damage: this.runStats.get('damage'), shotsPerSec: this.runStats.get('shotsPerSec') }
@@ -676,7 +676,6 @@ export class GameScene extends Phaser.Scene {
       this.levelOverlay.setVisible(false)
       this.boss.activate(
         this.currentLevel,
-        this.bossUpgrades,
         this.runStats.get('hp'),
         this.weapons.getWeapon(),
         this.runStats.get('damage'),
@@ -704,6 +703,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private startLevel(): void {
+    // Die Spielerwert-Deckel haengen seit 2026-08-23 am Level und muessen VOR allem
+    // anderen stehen - sonst klemmt der erste set()-Aufruf noch gegen den alten Deckel.
+    this.runStats.setLevel(this.currentLevel)
     // Jedes Level ein wenig schneller (Thomas 2026-08-22). Eine Zahl fuer die ganze
     // Welt, damit Waende, Muenzen, Strasse, Haeuser und Laufanimation im Takt bleiben.
     setCurrentScrollSpeed(getScrollSpeed(this.currentLevel))
@@ -794,7 +796,7 @@ if (import.meta.env.DEV) {
   GameScene.prototype.debugSetState = function (options): void {
     const scene = this as unknown as {
       equipWeapon(weapon: WeaponKey): void
-      runStats: { set(stat: 'hp', value: number): void }
+      runStats: { set(stat: 'hp' | 'damage' | 'shotsPerSec', value: number): void, setLevel(level: number): void }
       currentLevel: number
       boss: { deactivate(): void }
       spawner: { recycleBossCompanions(): void }
@@ -806,6 +808,7 @@ if (import.meta.env.DEV) {
     if (options.teamSize !== undefined) scene.runStats.set('hp', options.teamSize)
     if (options.level !== undefined) {
       scene.currentLevel = Math.max(1, Math.floor(options.level))
+      scene.runStats.setLevel(scene.currentLevel)
       scene.boss.deactivate()
       scene.spawner.recycleBossCompanions()
       scene.startLevel()

@@ -11,12 +11,14 @@ export type BlockerPlan = Readonly<{
 export function getBlockerPlan(level: number, teamSize: number, weapon: WeaponKey, damage: number, rate: number): BlockerPlan {
   const config = BALANCE.blockers
   const safeLevel = Math.max(1, Math.floor(level))
-  const dps = Math.max(0.0001, getCombatFirepower(teamSize, weapon) * damage * rate)
+  const dps = Math.max(0.0001, getCombatFirepower(teamSize, weapon, level) * damage * rate)
 
   // Zielhaerte: Levelnummer treibt, die Truppengroesse zieht gedaempft mit. Die WAFFE
   // geht bewusst nicht ein — sie soll die Wand schneller fallen lassen, nicht haerter
   // machen (Herleitung und verworfenes Vormodell stehen in balance.ts, blockers).
-  const teamTerm = (getTeamFirepower(teamSize) / getTeamFirepower(BALANCE.upgradesShop.team.base)) ** config.teamDampening
+  // Bezug ist die Truppe am Rundenstart (BALANCE.stats.hp.base); der frueher hier
+  // stehende Shop-Startwert war dieselbe Zahl und ist mit dem Shop entfallen.
+  const teamTerm = (getTeamFirepower(teamSize, level) / getTeamFirepower(BALANCE.stats.hp.base, level)) ** config.teamDampening
   const target = config.baseHp * config.perLevelGrowth ** (safeLevel - 1) * teamTerm
 
   // Schutzgrenzen an der tatsaechlichen Feuerkraft, damit die Zielhaerte nie in eine

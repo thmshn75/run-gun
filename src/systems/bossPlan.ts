@@ -1,6 +1,7 @@
 import { BALANCE } from '../config/balance'
 import { getCrowdDamageMultiplier } from './crowdDamage'
 import { getLevelPlan } from './levelPlan'
+import { getStatCap } from './upgrades'
 import type { WeaponKey } from './weapons'
 
 export type BossPhase = 1 | 2
@@ -13,12 +14,6 @@ export type BossPhaseOneProfile = typeof BALANCE.boss.phaseOne & Readonly<{
 
 export type BossPhaseTwoProfile = BossPhaseTwoConfig & Readonly<{
   hordeIntervalMs: number
-}>
-
-export type BossUpgradeLevels = Readonly<{
-  readonly team: number
-  readonly damage: number
-  readonly rate: number
 }>
 
 export type BossPlan = {
@@ -38,8 +33,9 @@ export type BossPlan = {
 }
 
 // The same capped-shooter and crowd-bonus term used by the live combat damage.
-export function getTeamFirepower(teamSize: number): number {
-  return Math.min(teamSize, BALANCE.crowd.shootersPerSalvo) * getCrowdDamageMultiplier(teamSize)
+// Das Level gehoert dazu, seit der Schadensbonus mit ihm waechst (2026-08-23).
+export function getTeamFirepower(teamSize: number, level = 1): number {
+  return Math.min(teamSize, BALANCE.crowd.shootersPerSalvo) * getCrowdDamageMultiplier(teamSize, level)
 }
 
 // Weapon firepower normalized to normal. Splash and chaining intentionally do not count: a boss is one target.
@@ -50,10 +46,10 @@ export function getWeaponFirepower(weapon: WeaponKey): number {
 }
 
 // Actual combat output uses the weapon's real shooter count, which matters for small teams.
-export function getCombatFirepower(teamSize: number, weapon: WeaponKey): number {
+export function getCombatFirepower(teamSize: number, weapon: WeaponKey, level = 1): number {
   const config = BALANCE.weapon[weapon]
   return Math.min(teamSize, config.shootersPerSalvo)
-    * getCrowdDamageMultiplier(teamSize)
+    * getCrowdDamageMultiplier(teamSize, level)
     * config.rateFactor * config.damageFactor * config.bulletsPerShot
 }
 
@@ -148,7 +144,6 @@ export function getPhaseTwoProfile(level: number): BossPhaseTwoProfile {
 
 export function getBossPlan(
   level: number,
-  upgrades: BossUpgradeLevels,
   teamSize: number,
   weapon: WeaponKey,
   damage: number,
@@ -156,22 +151,18 @@ export function getBossPlan(
 ): BossPlan {
   const safeLevel = Math.max(1, Math.floor(level))
   const reference = BALANCE.boss.referenceFirepower
-  const damageUpgrade = BALANCE.upgradesShop.damage
-  const rateUpgrade = BALANCE.upgradesShop.rate
-  const assumedDamage = Math.min(
-    reference.damageCap,
-    damageUpgrade.base + upgrades.damage * damageUpgrade.effectPerLevel + (safeLevel - 1) * reference.damagePerLevel,
-  )
-  const assumedRate = Math.min(
-    reference.rateCap,
-    rateUpgrade.base + upgrades.rate * rateUpgrade.effectPerLevel + (safeLevel - 1) * reference.ratePerLevel,
-  )
-  const referenceDps = getCombatFirepower(teamSize, weapon) * damage * rate
-  const maxFirepower = getTeamFirepower(BALANCE.crowd.max)
+  // Erwarteter Ausbaustand beim Bosskampf. Frueher aus gekauften Shop-Stufen plus
+  // einem Levelzuschlag geschaetzt; seit der Shop entfallen ist (2026-08-23) ist es
+  // schlicht der Level-Deckel - dort steht der Spieler beim Boss, weil die Sammelbahnen
+  // ihn in unter einer Minute fuellen. Das ist nicht nur einfacher, sondern genauer.
+  const assumedDamage = Math.min(reference.damageCap, getStatCap('damage', safeLevel))
+  const assumedRate = Math.min(reference.rateCap, getStatCap('shotsPerSec', safeLevel))
+  const referenceDps = getCombatFirepower(teamSize, weapon, safeLevel) * damage * rate
+  const maxFirepower = getTeamFirepower(BALANCE.crowd.max, safeLevel)
   const statTerm = (assumedDamage * assumedRate / (damage * rate)) ** (1 - reference.statDampening)
   const unclampedFightSec =
     reference.fightSecAtMaxTeam
-    * (maxFirepower / getTeamFirepower(teamSize)) ** reference.teamDampening
+    * (maxFirepower / getTeamFirepower(teamSize, safeLevel)) ** reference.teamDampening
     * (1 / getWeaponFirepower(weapon)) ** (1 - reference.weaponDampening)
     * statTerm
   const fightSec = Math.min(getMaxFightSec(safeLevel), Math.max(reference.minFightSec, unclampedFightSec))

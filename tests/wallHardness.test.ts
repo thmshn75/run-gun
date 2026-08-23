@@ -52,7 +52,7 @@ describe('Wandhaerte', () => {
 
   it('haelt die Zahl auch im Vollausbau dreistellig statt vierstellig', () => {
     // Altes Modell: 1482 HP auf der Kachel. Der Boden minFocusSec setzt die neue Groesse.
-    const plan = getBlockerPlan(12, BALANCE.crowd.max, 'shotgun', BALANCE.upgradesShop.damage.max, BALANCE.upgradesShop.rate.max)
+    const plan = getBlockerPlan(12, BALANCE.crowd.max, 'shotgun', BALANCE.stats.damage.capAtLevelTwelve, BALANCE.stats.shotsPerSec.capAtLevelTwelve)
     expect(plan.maxHp).toBeLessThan(1000)
     expect(plan.focusSec).toBeGreaterThanOrEqual(BALANCE.blockers.minFocusSec - 0.5 / plan.referenceDps - 1e-9)
   })
@@ -66,7 +66,7 @@ describe('Wandhaerte', () => {
 
   it('faengt einen schwachen Run in hohen Leveln ab', () => {
     // Startteam in Level 12 darf nicht in einer Sackgasse landen.
-    const plan = getBlockerPlan(12, BALANCE.upgradesShop.team.base, 'normal', 1, 3)
+    const plan = getBlockerPlan(12, BALANCE.stats.hp.base, 'normal', 1, 3)
     expect(plan.focusSec).toBeLessThanOrEqual(BALANCE.blockers.maxFocusSec + 0.5 / plan.referenceDps + 1e-9)
   })
 

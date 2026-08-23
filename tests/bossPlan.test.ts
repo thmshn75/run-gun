@@ -15,7 +15,6 @@ import {
   getPhaseTwoProfile,
   getTeamFirepower,
   getWeaponFirepower,
-  type BossUpgradeLevels,
 } from '../src/systems/bossPlan'
 
 const weaponKeys = ['normal', 'shotgun', 'laser', 'rocket', 'minigun', 'flamethrower', 'chainlightning'] as const
@@ -23,13 +22,8 @@ const teamSizes = [2, 3, 6, 12, 20, 30]
 const damageValues = [1, 3, 10, 20]
 const rateValues = [1, 1.5, 3, 8]
 const levels = [1, 6, 12]
-const maxUpgradeLevel = BALANCE.upgradesShop.prices.length
-const purchaseStates: ReadonlyArray<Readonly<{ name: string; upgrades: BossUpgradeLevels }>> = [
-  { name: 'nothing bought', upgrades: { team: 0, damage: 0, rate: 0 } },
-  { name: 'damage built', upgrades: { team: 0, damage: maxUpgradeLevel, rate: 0 } },
-  { name: 'rate built', upgrades: { team: 0, damage: 0, rate: maxUpgradeLevel } },
-  { name: 'fully built', upgrades: { team: maxUpgradeLevel, damage: maxUpgradeLevel, rate: maxUpgradeLevel } },
-]
+// Die frueheren vier Shop-Kaufstaende sind mit dem Shop entfallen (2026-08-23). Die
+// Spanne, die sie abdeckten, steckt jetzt direkt in damageValues/rateValues.
 
 describe('boss plans', () => {
   it('leitet den Hordendruck aus dem Gegnerdruck der Normalphase ab', () => {
@@ -118,23 +112,30 @@ describe('boss plans', () => {
     expect(gameSceneSource).not.toContain('boss.getProjectiles')
   })
 
-  it('keeps team firepower as the unchanged crowd-only measure', () => {
-    expect(getTeamFirepower(BALANCE.crowd.max)).toBe(32)
-    expect(getTeamFirepower(6)).toBe(6)
-    expect(getTeamFirepower(12)).toBeCloseTo(12.48)
+  it('macht die Truppen-Feuerkraft levelabhaengig statt sie fest zu deckeln', () => {
+    // Der Schadensbonus aus der Truppengroesse folgt seit 2026-08-23 der Levelnummer
+    // (BALANCE.crowd.damageMultiplierCap*). Auf Level 1 deckelt er bei 1,5, auf Level 12
+    // bei 4 - eine volle Truppe ist damit am Anfang des Runs deutlich schwaecher als am
+    // Ende, was vorher nicht der Fall war.
+    expect(getTeamFirepower(BALANCE.crowd.max, 1)).toBeCloseTo(12)
+    expect(getTeamFirepower(BALANCE.crowd.max, 12)).toBeCloseTo(32)
+    expect(getTeamFirepower(BALANCE.crowd.max, 12)).toBeGreaterThan(getTeamFirepower(BALANCE.crowd.max, 1))
+    // Unterhalb der Schuetzenzahl gibt es keinen Bonus - dort ist das Level egal.
+    expect(getTeamFirepower(6, 1)).toBe(6)
+    expect(getTeamFirepower(6, 12)).toBe(6)
   })
 
-  it('uses measured run stats across the complete 8,064-case fight-duration cross product', () => {
+  it('uses measured run stats across the complete 2,016-case fight-duration cross product', () => {
     let cases = 0
-    for (const purchaseState of purchaseStates) {
+    {
       for (const level of levels) {
         for (const weapon of weaponKeys) {
           for (const teamSize of teamSizes) {
             for (const damage of damageValues) {
               for (const rate of rateValues) {
-                const plan = getBossPlan(level, purchaseState.upgrades, teamSize, weapon, damage, rate)
-                const expectedDps = getCombatFirepower(teamSize, weapon) * damage * rate
-                const label = `${purchaseState.name}, L${level}, ${weapon}, team ${teamSize}, damage ${damage}, rate ${rate}`
+                const plan = getBossPlan(level, teamSize, weapon, damage, rate)
+                const expectedDps = getCombatFirepower(teamSize, weapon, level) * damage * rate
+                const label = `L${level}, ${weapon}, team ${teamSize}, damage ${damage}, rate ${rate}`
                 expect(plan.referenceDps, label).toBeCloseTo(expectedDps)
                 const actualFightSec = plan.maxHp / plan.referenceDps
                 // Rounding maxHp by at most 0.5 HP at the minimum 1.12 DPS (laser, team 2, damage/rate 1) deviates by 0.446 s, so allow 0.5 s.
@@ -149,22 +150,18 @@ describe('boss plans', () => {
         }
       }
     }
-    expect(cases).toBe(8064)
+    expect(cases).toBe(2016)
   })
 
-  it('keeps Thomas’s level-one team-3 rocket run within its level-one cap and below the old guessed HP', () => {
-    const upgrades = purchaseStates[0].upgrades
-    const actual = getBossPlan(1, upgrades, 3, 'rocket', 1, 1)
-    const oldGuessedDps = getCombatFirepower(3, 'rocket') * BALANCE.upgradesShop.damage.base * BALANCE.upgradesShop.rate.base
-    const oldGuessedFightSec = Math.min(
-      BALANCE.boss.referenceFirepower.maxFightSecCap,
-      BALANCE.boss.referenceFirepower.fightSecAtMaxTeam
-        * (getTeamFirepower(BALANCE.crowd.max) / getTeamFirepower(3)) ** BALANCE.boss.referenceFirepower.teamDampening
-        * (1 / getWeaponFirepower('rocket')) ** (1 - BALANCE.boss.referenceFirepower.weaponDampening),
-    )
-    const oldGuessedHp = Math.round(oldGuessedDps * oldGuessedFightSec)
-    expect(actual.referenceFightSec).toBeLessThanOrEqual(getMaxFightSec(1) + 0.5)
-    expect(actual.maxHp).toBeLessThan(oldGuessedHp)
+  it('haelt Thomas\u2019 Level-1-Lauf mit Truppe 3 und Rakete im Zeitfenster', () => {
+    // Der frueher hier gefuehrte Vergleich gegen eine "geratene" HP-Zahl stammte aus der
+    // Shop-Zeit und ist mit dem Shop entfallen (2026-08-23). Geblieben ist, was der Test
+    // eigentlich absichern soll: Der schwaechste realistische Run darf nicht in einen
+    // Bosskampf laufen, der laenger dauert als das Zeitfenster des Levels erlaubt.
+    const plan = getBossPlan(1, 3, 'rocket', 1, 1)
+    const fightSec = plan.maxHp / plan.referenceDps
+    expect(fightSec).toBeGreaterThanOrEqual(BALANCE.boss.referenceFirepower.minFightSec - 0.5)
+    expect(fightSec).toBeLessThanOrEqual(getMaxFightSec(1) + 0.5)
   })
 
   it('keeps the specified dampening values and lets the boss arrive at the end of the fight window', () => {
@@ -213,14 +210,14 @@ describe('boss plans', () => {
   })
 
   it('switches phase only below half HP and keeps phase two latched', () => {
-    const plan = getBossPlan(6, purchaseStates[0].upgrades, 12, 'normal', 1, 3)
+    const plan = getBossPlan(6, 12, 'normal', 1, 3)
     expect(getBossPhase(plan.phaseThresholdHp, false, plan)).toBe(1)
     expect(getBossPhase(plan.phaseThresholdHp - 1, false, plan)).toBe(2)
     expect(getBossPhase(plan.maxHp, true, plan)).toBe(2)
   })
 
   it('macht Phase zwei schneller und dichter', () => {
-    const plan = getBossPlan(12, purchaseStates[0].upgrades, 12, 'normal', 1, 3)
+    const plan = getBossPlan(12, 12, 'normal', 1, 3)
     expect(plan.phaseTwo).toEqual(getPhaseTwoProfile(plan.level))
     expect(plan.phaseOne).toEqual(getPhaseOneProfile(plan.level))
     expect(plan.phaseTwo.hordeIntervalMs).toBeLessThan(plan.phaseOne.hordeIntervalMs)

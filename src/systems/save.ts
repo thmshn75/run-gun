@@ -7,25 +7,18 @@ export interface ScoreEntry {
 export interface SaveData {
   version: 1
   coins: number
-  upgrades: {
-    team: number
-    damage: number
-    rate: number
-  }
   highestLevel: number
   scores: ScoreEntry[]
 }
 
 const SAVE_KEY = 'rungun_save_v1'
 const BACKUP_SAVE_KEY = 'rungun_save_v1_backup'
-const MAX_UPGRADE_LEVEL = 5
 const MAX_SCORES = 10
 
 export function defaultSave(): SaveData {
   return {
     version: 1,
     coins: 0,
-    upgrades: { team: 0, damage: 0, rate: 0 },
     highestLevel: 1,
     scores: [],
   }
@@ -68,9 +61,11 @@ export function parseSave(text: string): { ok: true; data: SaveData } | { ok: fa
   if (!isNonNegativeNumber(value.coins) || !isFiniteNumberAtLeast(value.highestLevel, 1)) {
     return { ok: false, reason: 'Spielstand enthält ungültige Zahlen.' }
   }
-  if (!isRecord(value.upgrades) || !isUpgradeLevel(value.upgrades.team) || !isUpgradeLevel(value.upgrades.damage) || !isUpgradeLevel(value.upgrades.rate)) {
-    return { ok: false, reason: 'Spielstand enthält ungültige Stufen.' }
-  }
+  // Der Upgrade-Shop ist am 2026-08-23 entfallen (Thomas: "Den Shop kannst du
+  // streichen"). Ein vorhandenes 'upgrades'-Feld aus einem aelteren Spielstand wird
+  // ABSICHTLICH nur ignoriert und nicht mehr geprueft: Wuerde hier weiter validiert,
+  // verloere ein Geraet mit altem Stand seine Bestenliste - und genau die ist das
+  // einzige, was ohne Shop noch dauerhaft zaehlt.
   if (!Array.isArray(value.scores) || value.scores.length > MAX_SCORES || !value.scores.every(isScoreEntry)) {
     return { ok: false, reason: 'Bestenliste ist ungültig.' }
   }
@@ -80,11 +75,6 @@ export function parseSave(text: string): { ok: true; data: SaveData } | { ok: fa
     data: {
       version: 1,
       coins: clampNonNegative(value.coins),
-      upgrades: {
-        team: clampUpgradeLevel(value.upgrades.team),
-        damage: clampUpgradeLevel(value.upgrades.damage),
-        rate: clampUpgradeLevel(value.upgrades.rate),
-      },
       highestLevel: Math.max(1, value.highestLevel),
       scores: value.scores.map((entry) => ({
         coins: clampNonNegative(entry.coins),
@@ -109,7 +99,7 @@ export function addScore(data: SaveData, entry: ScoreEntry): SaveData {
   const scores = [...data.scores.map(copyScore), copyScore(entry)]
     .sort((left, right) => right.coins - left.coins)
     .slice(0, MAX_SCORES)
-  return { ...data, upgrades: { ...data.upgrades }, scores }
+  return { ...data, scores }
 }
 
 export function qualifiesForScores(data: SaveData, coins: number): boolean {
@@ -137,9 +127,6 @@ function isFiniteNumberAtLeast(value: unknown, minimum: number): value is number
   return isNonNegativeNumber(value) && value >= minimum
 }
 
-function isUpgradeLevel(value: unknown): value is number {
-  return isNonNegativeNumber(value) && value <= MAX_UPGRADE_LEVEL
-}
 
 function isScoreEntry(value: unknown): value is ScoreEntry {
   return isRecord(value)
@@ -152,9 +139,6 @@ function clampNonNegative(value: number): number {
   return Math.max(0, value)
 }
 
-function clampUpgradeLevel(value: number): number {
-  return Math.min(MAX_UPGRADE_LEVEL, clampNonNegative(value))
-}
 
 function copyScore(entry: ScoreEntry): ScoreEntry {
   return { coins: entry.coins, level: entry.level, timeMs: entry.timeMs }

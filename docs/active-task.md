@@ -7,6 +7,54 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**Feuerkraft-Deckel wachsen mit dem Level, Upgrade-Shop entfernt, Laser-Reichweite gesenkt**
+(2026-08-23, Claude direkt. Thomas: "mein Team kann ich einfach stehen lassen in der Mitte
+und es läuft durch", dazu "Den Shop kannst du streichen ich denk es ist nicht notwendig".)
+
+**Der Ausgangsbefund, gemessen statt vermutet.** Thomas' Screenshot zeigte auf LEVEL 2
+bereits alle drei alten Deckel erreicht (Truppe 60, Schaden 20, Rate 8). Gemessen bei
+diesem Stand: Feuerkraft 2.867 Schaden/s gegen einen Bedarf von 18 (Level 2) und 707
+(Level 12) — Faktor 155 bzw. 4. **Kein einziger Gegner erreichte die Truppe** (0 von 388
+auf Level 2, 0 von 718 auf Level 12), und Ausweichen war folgenlos: stehend 388
+Toetungen, pendelnd 425, Todeshoehe in beiden Faellen 225 px von 714.
+Ursache des Tempos: Die linke Sammelbahn liefert 1,875 Kacheln/s, davon drei Viertel gut
+— wer den roten ausweicht, gewinnt 1,41 Figuren/s und steht nach 40 s am Deckel. Ein
+Level dauert 75-88 s. Der Zufluss kannte die Levelnummer nicht.
+
+**Gebaut:**
+- **Deckel folgen dem Level.** `stats.damage` 1,5 -> 7 und `stats.shotsPerSec` 3,5 -> 8,
+  exponentiell interpoliert (der Bedarf waechst selbst exponentiell, eine Gerade
+  ueberversorgt die Mitte). Endpunkte gerechnet aus Bedarf = Nachschub x mittlere
+  Gegner-hp, Zielkorridor 2,5-faches davon.
+- **Nicht die Truppengroesse gedeckelt, sondern ihr Schadensbonus**
+  (`crowd.damageMultiplierCap*` 1,5 -> 4). Figuren bleiben Ueberlebenszeit, nur ihre
+  Feuerwirkung folgt dem Level — der schonendere Eingriff.
+- **Upgrade-Shop komplett entfernt** (Thomas). `BALANCE.upgradesShop`, die Kauf-Funktionen,
+  die Menue-Zeilen und das `upgrades`-Feld im Spielstand sind weg. Alte Spielstaende
+  werden weiter gelesen und das Feld nur verworfen — sonst haette ein bespieltes Geraet
+  seine Bestenliste verloren (eigener Test dafuer). Boss- und Wandhaerte beziehen ihre
+  Referenz jetzt auf die Level-Deckel statt auf gekaufte Stufen; das ist sogar genauer,
+  weil der Spieler beim Boss ohnehin am Deckel steht. Muenzen bleiben als Punktestand.
+- **Laser `engageShare` 0,85 -> 0,60.** 0,85 war der Ausreisser (naechster Wert: Rakete
+  0,72) und setzte die Feuerlinie auf y = 235 — die gemessene Todeshoehe von 225 lag
+  praktisch darauf.
+
+**Ergebnis, gemessen:** Feuerkraft am Deckel jetzt 2,2-5,5x Bedarf statt 4-260x. Auf
+Level 2 stehen Schaden 1,7 und Rate 3,8 statt 20 und 8. Todeshoehe von 225 auf **369**
+(Level 2) und **397** (Level 12).
+
+**NICHT erreicht, und der Grund ist belegt:** Es erreicht weiterhin kein Gegner die
+Truppe, und Stehenbleiben bleibt gleichwertig zum Ausweichen. Die Messung dahinter: Ein
+Gegner ueberlebt unter Beschuss **0,007 bis 0,29 Sekunden** und legt dabei **1 bis 32 px**
+zurueck — bei 564 px Anflugstrecke. Die Todeshoehe ist deshalb IMMER die Reichweitenlinie
+der Waffe, unabhaengig von der Feuerkraft. Damit ein Gegner ankommt, braeuchte er das
+20- bis 240-fache seiner Lebenspunkte; das waere ein anderes Genre.
+**Der eigentliche Befund fuer Thomas:** Gegner sind derzeit ueberhaupt keine Gefahr — die
+einzige Verlustquelle im Spiel sind die roten Wandkacheln. Weiter gedreht wurde daran
+bewusst nicht (Reissleine: maximal zwei Balance-Zyklen, dann Entscheidung mit Thomas).
+
+151 Tests gruen, `npm run check` sauber.
+
 **W7 Teil 1 — Plastische Figuren: umgesetzt und abgenommen**
 (2026-08-23. Codex hat die Bilder erzeugt, Claude Review + Code-Anpassung.)
 - **Fuenf Sprites ersetzt**, jeweils in doppelter Aufloesung: `player.png` 68x92,

@@ -56,10 +56,10 @@ describe('rote Kacheln: der Verlust in beiden Bahnen', () => {
 
   it('deckelt die Truppen-Reserve auf das Doppelte der sichtbaren Figuren', () => {
     // Ohne Deckel war ein Gegnertreffer folgenlos (Befund 2026-08-22).
-    expect(BALANCE.stats.hp.cap).toBe(BALANCE.crowd.max * 2)
+    expect(BALANCE.stats.hp.capAtLevelTwelve).toBe(BALANCE.crowd.max * 2)
     // Die Reserve muss mehrere rote Kacheln tragen, aber keinen ganzen Level.
-    expect(BALANCE.stats.hp.cap - BALANCE.crowd.max).toBeGreaterThan(BALANCE.walls.drainTeam * 4)
-    expect(BALANCE.stats.hp.cap - BALANCE.crowd.max).toBeLessThan(BALANCE.walls.drainTeam * 12)
+    expect(BALANCE.stats.hp.capAtLevelTwelve - BALANCE.crowd.max).toBeGreaterThan(BALANCE.walls.drainTeam * 4)
+    expect(BALANCE.stats.hp.capAtLevelTwelve - BALANCE.crowd.max).toBeLessThan(BALANCE.walls.drainTeam * 12)
   })
 })
 

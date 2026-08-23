@@ -21,7 +21,7 @@ function flightSeconds(weapon: WeaponKey): number {
 
 function peakProjectileLoad(weapon: WeaponKey): number {
   const config = BALANCE.weapon[weapon]
-  return BALANCE.stats.shotsPerSec.cap * config.rateFactor * config.shootersPerSalvo * config.bulletsPerShot * flightSeconds(weapon)
+  return BALANCE.stats.shotsPerSec.capAtLevelTwelve * config.rateFactor * config.shootersPerSalvo * config.bulletsPerShot * flightSeconds(weapon)
 }
 
 describe('additional weapons', () => {
@@ -51,8 +51,13 @@ describe('additional weapons', () => {
 
   it('staffelt die Reichweiten nach der Realitaet, ohne die Kampfzone aufzuheben', () => {
     // Thomas 2026-08-22: "Schussreichweite an Waffen anpassen - Vergleich zur Realitaet".
-    // Reihenfolge kurz -> weit: Flamme, Schrot, Blitz, Gewehr, Minigun, Rakete, Laser.
-    const reihenfolge: readonly WeaponKey[] = ['flamethrower', 'shotgun', 'chainlightning', 'normal', 'minigun', 'rocket', 'laser']
+    // Reihenfolge kurz -> weit: Flamme, Schrot, Blitz, Gewehr, Laser, Minigun, Rakete.
+    //
+    // Der Laser ist am 2026-08-23 von 0,85 auf 0,60 gefallen und liegt damit nicht mehr
+    // an der Spitze (Thomas: "noch eines Laser ... es laeuft durch"). Gemessen starben
+    // die Gegner mit 0,85 im Mittel auf y = 225, also praktisch in dem Moment, in dem
+    // sie beschiessbar wurden - die Kampfzone war fuer diese Waffe aufgehoben.
+    const reihenfolge: readonly WeaponKey[] = ['flamethrower', 'shotgun', 'chainlightning', 'normal', 'laser', 'minigun', 'rocket']
     for (let index = 1; index < reihenfolge.length; index += 1) {
       expect(BALANCE.weapon[reihenfolge[index]].engageShare, reihenfolge[index])
         .toBeGreaterThan(BALANCE.weapon[reihenfolge[index - 1]].engageShare)
@@ -60,7 +65,7 @@ describe('additional weapons', () => {
     // Auch die weiteste Waffe laesst einen Rest Anflugstrecke frei - sonst faellt der
     // Zweck der Begrenzung (Gegner sollen ankommen) mit dem ersten Waffenfund um.
     for (const weapon of weaponKeys) {
-      expect(BALANCE.weapon[weapon].engageShare, weapon).toBeLessThanOrEqual(0.85)
+      expect(BALANCE.weapon[weapon].engageShare, weapon).toBeLessThanOrEqual(0.75)
       expect(BALANCE.weapon[weapon].engageShare, weapon).toBeGreaterThan(0.2)
     }
   })

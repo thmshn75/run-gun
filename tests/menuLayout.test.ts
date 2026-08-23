@@ -5,7 +5,7 @@ import type { SafeAreaInsets } from '../src/systems/safeArea'
 const MENU_HEIGHT = 844
 
 function allBounds(layout: ReturnType<typeof computeMenuLayout>): VerticalBounds[] {
-  return [layout.title, layout.balance, ...layout.upgradeRows, layout.scoresTitle, ...layout.scoreLines, layout.resetButton, layout.playButton]
+  return [layout.title, layout.balance, layout.scoresTitle, ...layout.scoreLines, layout.resetButton, layout.playButton]
 }
 
 function expectSafeAndSeparate(insets: SafeAreaInsets): void {

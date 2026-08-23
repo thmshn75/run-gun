@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { getBossPhase, getBossPlan, type BossPlan, type BossUpgradeLevels } from './bossPlan'
+import { getBossPhase, getBossPlan, type BossPlan } from './bossPlan'
 import { getPerspectiveScale } from './road'
 import type { WeaponKey } from './weapons'
 
@@ -51,9 +51,9 @@ export class Boss {
     return enemy === this.enemy
   }
 
-  public activate(level: number, upgrades: BossUpgradeLevels, teamSize: number, weapon: WeaponKey, damage: number, rate: number): void {
+  public activate(level: number, teamSize: number, weapon: WeaponKey, damage: number, rate: number): void {
     const y = BALANCE.road.horizonY
-    this.plan = getBossPlan(level, upgrades, teamSize, weapon, damage, rate)
+    this.plan = getBossPlan(level, teamSize, weapon, damage, rate)
     this.fightElapsedMs = 0
     // Die erste Horde soll nicht sofort im Anmarsch stehen: Der Kampf beginnt mit dem
     // Boss allein, der Zaehler startet bei null und laeuft erst ab dem Kampfbeginn.

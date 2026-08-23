@@ -10,7 +10,6 @@ import {
   writeSave,
   type SaveData,
 } from '../src/systems/save'
-import { getUpgradePrice, getUpgradeStartValue, purchaseUpgrade } from '../src/systems/upgrades'
 
 const SAVE_KEY = 'rungun_save_v1'
 const BACKUP_SAVE_KEY = 'rungun_save_v1_backup'
@@ -59,7 +58,6 @@ describe('save system', () => {
     const save: SaveData = {
       version: 1,
       coins: 42,
-      upgrades: { team: 2, damage: 3, rate: 4 },
       highestLevel: 5,
       scores: [{ coins: 12, level: 2, timeMs: 3456 }],
     }
@@ -78,16 +76,15 @@ describe('save system', () => {
   it('rejects wrong versions and invalid numeric values', () => {
     expect(parseSave(JSON.stringify({ ...defaultSave(), version: 2 }))).toEqual({ ok: false, reason: 'Spielstand stammt aus einer anderen Version.' })
     for (const text of [
-      '{"version":1,"coins":NaN,"upgrades":{"team":0,"damage":0,"rate":0},"highestLevel":1,"scores":[]}',
+      '{"version":1,"coins":NaN,"highestLevel":1,"scores":[]}',
       JSON.stringify({ ...defaultSave(), coins: -5 }),
-      JSON.stringify({ ...defaultSave(), upgrades: { team: 9, damage: 0, rate: 0 } }),
       JSON.stringify({ ...defaultSave(), scores: Array.from({ length: 11 }, () => ({ coins: 1, level: 1, timeMs: 1 })) }),
       JSON.stringify({ ...defaultSave(), scores: [{ coins: 1, level: 1, timeMs: -1 }] }),
     ]) expect(parseSave(text).ok).toBe(false)
   })
 
   it('keeps the stored game untouched after a rejected import', () => {
-    const saved = { ...defaultSave(), coins: 88, upgrades: { team: 1, damage: 0, rate: 0 } }
+    const saved = { ...defaultSave(), coins: 88 }
     writeSave(saved)
     const parsed = parseSave('{kaputt')
     if (parsed.ok) writeSave(parsed.data)
@@ -126,7 +123,6 @@ describe('save system', () => {
     writeSave({
       ...defaultSave(),
       coins: 91,
-      upgrades: { team: 2, damage: 3, rate: 4 },
       highestLevel: 8,
       scores: [{ coins: 91, level: 8, timeMs: 1000 }],
     })
@@ -152,26 +148,27 @@ describe('save system', () => {
     expect(qualifiesForScores(full, 0)).toBe(false)
   })
 
-  it('buys exactly one upgrade level and persists it across a reload', () => {
-    const save = { ...defaultSave(), coins: 300 }
-    expect(getUpgradeStartValue('team', 0)).toBe(2)
-    expect(getUpgradeStartValue('rate', 0)).toBe(3)
-    const bought = purchaseUpgrade(save, 'team')
-    expect(bought).toEqual({ ...save, coins: 100, upgrades: { team: 1, damage: 0, rate: 0 } })
-    expect(save).toEqual({ ...defaultSave(), coins: 300 })
-    if (bought === undefined) throw new Error('Expected purchase to succeed')
-    writeSave(bought)
-    expect(loadSave()).toEqual(bought)
-    expect(getUpgradeStartValue('team', bought.upgrades.team)).toBe(3)
-    expect(getUpgradeStartValue('team', 5)).toBe(7)
-    expect(getUpgradeStartValue('damage', 5)).toBe(3.5)
-    expect(getUpgradeStartValue('rate', 5)).toBe(4.5)
-  })
-
-  it('does not buy an unaffordable or fully upgraded shop item', () => {
-    expect(getUpgradePrice('damage', 0)).toBe(200)
-    expect(getUpgradePrice('damage', 5)).toBeUndefined()
-    expect(purchaseUpgrade({ ...defaultSave(), coins: 199 }, 'damage')).toBeUndefined()
-    expect(purchaseUpgrade({ ...defaultSave(), coins: 9999, upgrades: { team: 5, damage: 0, rate: 0 } }, 'team')).toBeUndefined()
+  it('liest alte Spielstaende mit upgrades-Feld weiter und wirft nur das Feld weg', () => {
+    // Der Upgrade-Shop ist am 2026-08-23 entfallen. Ein Geraet, auf dem schon gespielt
+    // wurde, hat das alte Feld noch im Speicher - es darf den Stand NICHT ungueltig
+    // machen, sonst verliert Thomas seine Bestenliste. Der einzige Grund, warum dieser
+    // Test existiert.
+    const alt = {
+      version: 1,
+      coins: 873,
+      upgrades: { team: 5, damage: 5, rate: 5 },
+      highestLevel: 12,
+      scores: [{ coins: 3200, level: 12, timeMs: 463000 }],
+    }
+    const result = parseSave(JSON.stringify(alt))
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error('alter Spielstand wurde abgelehnt')
+    expect(result.data).toEqual({
+      version: 1,
+      coins: 873,
+      highestLevel: 12,
+      scores: [{ coins: 3200, level: 12, timeMs: 463000 }],
+    })
+    expect('upgrades' in result.data).toBe(false)
   })
 })

@@ -4,13 +4,8 @@ import { HUD_COLORS, MENU_COLORS } from '../config/colors'
 import { getGameAudio } from '../systems/audio'
 import { computeMenuLayout } from '../systems/menuLayout'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
-import { loadSave, resetSave, writeSave, type SaveData, type ScoreEntry } from '../systems/save'
+import { loadSave, resetSave, type SaveData, type ScoreEntry } from '../systems/save'
 import {
-  getShopUpgradeKeys,
-  getUpgradePrice,
-  getUpgradeStartValue,
-  purchaseUpgrade,
-  type ShopUpgradeKey,
 } from '../systems/upgrades'
 
 export class MenuScene extends Phaser.Scene {
@@ -107,9 +102,6 @@ export class MenuScene extends Phaser.Scene {
     const rowWidth = safeWidth - 2 * BALANCE.menu.sidePadding
     const layout = this.layout()
 
-    getShopUpgradeKeys().forEach((key, index) => {
-      this.renderUpgradeRow(key, rowX, layout.upgradeRows[index].top, rowWidth)
-    })
     this.renderScores(rowX, rowWidth, layout)
   }
 
@@ -130,45 +122,6 @@ export class MenuScene extends Phaser.Scene {
         fontFamily: 'system-ui', fontSize: '15px', color: this.colorFor(scores.length === 0 ? MENU_COLORS.mutedText : MENU_COLORS.text),
       }))
     })
-  }
-
-  private renderUpgradeRow(key: ShopUpgradeKey, x: number, y: number, width: number): void {
-    const config = BALANCE.upgradesShop[key]
-    const level = this.save.upgrades[key]
-    const price = getUpgradePrice(key, level)
-    const row = this.track(this.add.rectangle(x, y, width, BALANCE.menu.rowHeight, MENU_COLORS.row, 0.9).setOrigin(0, 0))
-    row.setStrokeStyle(1, MENU_COLORS.rowStroke, 0.9)
-    this.track(this.add.text(x + 12, y + 9, config.label, {
-      fontFamily: 'system-ui', fontSize: '16px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.text),
-    }))
-    this.track(this.add.text(x + width - 12, y + 9, `${getUpgradeStartValue(key, level)} / ${config.max}`, {
-      fontFamily: 'system-ui', fontSize: '15px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.text),
-    }).setOrigin(1, 0))
-
-    for (let point = 0; point < BALANCE.upgradesShop.prices.length; point += 1) {
-      this.track(this.add.circle(x + 18 + point * 17, y + 48, 6, point < level ? MENU_COLORS.levelFilled : MENU_COLORS.levelEmpty))
-    }
-
-    if (price === undefined) {
-      this.track(this.add.text(x + width - 14, y + 45, 'MAX', {
-        fontFamily: 'system-ui', fontSize: '18px', fontStyle: 'bold', color: this.colorFor(HUD_COLORS.coins),
-      }).setOrigin(1, 0.5))
-      return
-    }
-
-    const affordable = this.save.coins >= price
-    this.track(this.add.text(x + 110, y + 48, `¢ ${price}`, {
-      fontFamily: 'system-ui', fontSize: '17px', fontStyle: 'bold', color: this.colorFor(affordable ? HUD_COLORS.coins : MENU_COLORS.mutedText),
-    }).setOrigin(0, 0.5))
-    this.addButton(x + width - 89, y + 48, 76, 34, 'KAUFEN', affordable, () => this.buy(key), this.shopObjects)
-  }
-
-  private buy(key: ShopUpgradeKey): void {
-    const updatedSave = purchaseUpgrade(this.save, key)
-    if (updatedSave === undefined) return
-    this.save = updatedSave
-    writeSave(this.save)
-    this.renderShop()
   }
 
   private openResetConfirmation(): void {

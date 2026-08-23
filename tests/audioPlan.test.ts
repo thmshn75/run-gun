@@ -8,7 +8,7 @@ describe('Ton-Drosselung', () => {
     // Herleitung: shotsPerSec.cap ist der schnellste Takt, den der Spieler sich
     // erarbeiten kann. Die Drossel muss genau dort liegen - enger waere ein Teppich,
     // weiter wuerde die Ausbau-Spanne 3/s -> 8/s nicht mehr hoerbar.
-    expect(BALANCE.audio.events.shot.minGapMs).toBeCloseTo(1000 / BALANCE.stats.shotsPerSec.cap)
+    expect(BALANCE.audio.events.shot.minGapMs).toBeCloseTo(1000 / BALANCE.stats.shotsPerSec.capAtLevelTwelve)
 
     const countTones = (salvosPerSec: number): number => {
       const scheduler = new AudioScheduler()
@@ -21,14 +21,14 @@ describe('Ton-Drosselung', () => {
     }
 
     // Standardwaffe im Vollausbau liegt genau auf dem Deckel: jede Salve klingt.
-    expect(countTones(BALANCE.stats.shotsPerSec.cap * BALANCE.weapon.normal.rateFactor)).toBeCloseTo(8, 0)
+    expect(countTones(BALANCE.stats.shotsPerSec.capAtLevelTwelve * BALANCE.weapon.normal.rateFactor)).toBeCloseTo(8, 0)
     // Und die schnellste Waffe darf nicht LANGSAMER klingen als die langsamste - genau
     // das passierte mit einer festen Mindestpause (gemessen 5,9/s statt 8/s), weil ihr
     // Takt nicht auf das Drosselraster fiel.
-    const miniGunSalvosPerSec = BALANCE.stats.shotsPerSec.cap * BALANCE.weapon.minigun.rateFactor
+    const miniGunSalvosPerSec = BALANCE.stats.shotsPerSec.capAtLevelTwelve * BALANCE.weapon.minigun.rateFactor
     expect(countTones(miniGunSalvosPerSec)).toBeCloseTo(8, 0)
     // Ungedrosselt waere es das Dreifache - die Bremse wirkt also wirklich.
-    expect(miniGunSalvosPerSec).toBeGreaterThan(2 * BALANCE.stats.shotsPerSec.cap)
+    expect(miniGunSalvosPerSec).toBeGreaterThan(2 * BALANCE.stats.shotsPerSec.capAtLevelTwelve)
   })
 
   it('laesst langsames Feuer ungebremst durch', () => {

@@ -464,9 +464,53 @@ export const BALANCE = {
     // schlechter Abschnitt kostet groessenordnungsmaessig eine halbe Sichtbarkeitsbreite
     // (rote Plaettchen a -5, dazu Gegnertreffer a 1-2) - 30 Reserve traegt also mehrere
     // Fehler hintereinander, aber keinen ganzen Level unaufmerksames Fahren.
-    hp: { base: 2, cap: 60, floor: 0 },
-    damage: { base: 1, cap: 20, floor: 1 },
-    shotsPerSec: { base: 3, cap: 8, floor: 1 },
+    // OBERGRENZEN WACHSEN MIT DEM LEVEL (Thomas 2026-08-23, nach dem iPhone-Test:
+    // "mein Team kann ich einfach stehen lassen in der Mitte und es laeuft durch" -
+    // sein Screenshot zeigte auf LEVEL 2 bereits alle drei alten Deckel erreicht).
+    //
+    // Die alten festen Deckel (60 / 20 / 8) waren am 2026-08-22 gegen dieselbe
+    // Beschwerde gesetzt worden und haben nicht gewirkt, weil nicht ihre HOEHE das
+    // Problem war, sondern das TEMPO: Die linke Sammelbahn liefert 1,875 Kacheln je
+    // Sekunde, davon drei Viertel gut - wer den roten ausweicht, gewinnt 1,41 Figuren
+    // je Sekunde und steht nach 40 s am Deckel. Ein Level dauert 75-88 s.
+    //
+    // GEMESSEN am alten Stand (Truppe 60, Schaden 20, Rate 8, Laser): Feuerkraft
+    // 2.867 Schaden/s gegen einen Bedarf von 18 auf Level 2 und 707 auf Level 12 -
+    // Faktor 155 bzw. 4. Kein einziger Gegner erreichte die Truppe (0 von 388 auf
+    // Level 2, 0 von 718 auf Level 12), und Ausweichen aenderte daran nichts:
+    // stehend 388 Toetungen, pendelnd 425, Todeshoehe in beiden Faellen 225 px von
+    // 714. Deshalb fuehlt sich Stehenbleiben richtig an - es IST egal, wo man steht.
+    //
+    // NEUE REGEL: Der Deckel folgt dem Bedarf des Levels. Bedarf = Nachschub in
+    // Gegnern je Sekunde (im Browser gemessen: 6,5 auf Level 1 bis 12,6 auf Level 12)
+    // mal deren mittleren Lebenspunkten (enemyWeights der Leveltabelle x
+    // hpPerLevelGrowth). Zielkorridor ist eine Feuerkraft von rund dem 2,5-fachen
+    // dieses Bedarfs - genug, um alles zu raeumen, aber nicht mehr beliebig viel.
+    //
+    // Die Endwerte sind daraus gerechnet, nicht gewaehlt:
+    //   Level 12: Bedarf 705, Ziel 1.760 -> 8 Schuetzen x Bonus 4 x 7,0 x 8,0 = 1.792
+    // Die Startwerte liegen knapp ueber den Basiswerten (Schaden 1, Rate 3), damit auf
+    // Level 1 etwas zu gewinnen bleibt, ohne dass der Einstieg sofort ueberversorgt ist.
+    // Der frueher hier bindende Upgrade-Shop ist am 2026-08-23 entfallen (Thomas: "Den
+    // Shop kannst du streichen") - damit faellt auch die Untergrenze weg, die seine
+    // gekauften Startwerte erzwungen haben, und die Kurve darf tief anfangen.
+    //
+    // Dazwischen wird EXPONENTIELL interpoliert, nicht linear: Der Bedarf waechst
+    // selbst exponentiell (Lebenspunkte x 1,2 je Level), eine Gerade wuerde die
+    // mittleren Level ueberversorgen. Gerechnet ergibt die Kurve 14,2x auf Level 1,
+    // 8,5x auf Level 4, 4,6x auf Level 8 und 2,5x auf Level 12 - vorher 260x / 114x /
+    // 21x / 4x. Ab Level 13 bleibt es beim Level-12-Deckel.
+    //
+    // Der Zufluss aus den Waenden bleibt bewusst UNVERAENDERT: Der Spieler sammelt
+    // weiter gern und schnell, er laeuft nur frueher gegen einen Deckel, der zum
+    // Level passt. Rote Kacheln ziehen weiter ab, Nachsammeln bleibt also noetig.
+    // Die TRUPPENGROESSE bleibt fest gedeckelt: Sie ist Ueberlebenszeit, nicht
+    // Feuerkraft. Gebremst wird stattdessen der Schadensbonus, den sie erzeugt -
+    // siehe crowd.damageMultiplierCap*. So darf man weiter Figuren sammeln, ohne
+    // dass die Feuerkraft mitwaechst.
+    hp: { base: 2, capAtLevelOne: 60, capAtLevelTwelve: 60, floor: 0 },
+    damage: { base: 1, capAtLevelOne: 1.5, capAtLevelTwelve: 7, floor: 1 },
+    shotsPerSec: { base: 3, capAtLevelOne: 3.5, capAtLevelTwelve: 8, floor: 1 },
     // Gegnertempo. Seit 2026-08-22 KEIN Ausbau mehr, sondern reine Levelgroesse
     // (Thomas: "tempo einfach mit den leveln beschleunigen, kein seltenes tor daraus
     // machen und dann aus dem HUD raus nehmen"). Der Spieler kann es nicht beeinflussen,
@@ -476,16 +520,8 @@ export const BALANCE = {
     // bei hardness.max 1,6 = 168. Die Reaktionszeit vom Horizont bis zur Truppe
     // (564 px) sinkt damit von 5,4 s auf 3,6 s - spuerbar enger, aber weit davon
     // entfernt, eine Horde unbeschiessbar zu machen.
-    speed: { base: 105, cap: 305, floor: 70 },
-  },
-  upgradesShop: {
-    team: { label: 'TRUPPE', base: 2, max: 7, effectPerLevel: 1 },
-    damage: { label: 'SCHADEN', base: 1, max: 3.5, effectPerLevel: 0.5 },
-    rate: { label: 'FEUERRATE', base: 3, max: 4.5, effectPerLevel: 0.3 },
-    // Conservative level-table income per run: level 3 ~260, level 5 ~505, level 8 ~1,070,
-    // level 12 ~2,180 coins. A full three-row build costs 24,150 coins, or about 23 good
-    // level-8 runs. These values follow the level table; adjust them whenever that table changes.
-    prices: [200, 450, 1000, 2100, 4300],
+    // Gegnertempo, kein Spielerwert - deshalb weiter ein FESTER Deckel.
+    speed: { base: 105, capAtLevelOne: 305, capAtLevelTwelve: 305, floor: 70 },
   },
   menu: {
     overlayAlpha: 0.20,
@@ -546,7 +582,15 @@ export const BALANCE = {
       // Laser: Licht hat praktisch keine Reichweitengrenze. Bewusst trotzdem gedeckelt -
       // bei 1,0 waere die Kampfzone fuer diese Waffe komplett aufgehoben und Thomas'
       // Anliegen (Gegner sollen ankommen) fiele mit dem ersten Waffenfund wieder um.
-      engageShare: 0.85,
+      //
+      // 0,85 -> 0,60 (Thomas 2026-08-23: "noch eines Laser ... es laeuft durch"). 0,85
+      // war der Ausreisser im Waffenfeld (naechsthoeher: Kettenblitz 0,72, Standard
+      // 0,55) und setzte die Feuerlinie auf y = 235 - GEMESSEN starben die Gegner im
+      // Mittel auf 225, also praktisch in dem Moment, in dem sie beschiessbar wurden.
+      // Solange die Feuerkraft im Ueberschuss ist, bestimmt allein die Reichweite, wie
+      // weit ein Gegner kommt. 0,60 setzt die Linie auf y = 376 und laesst dem Laser
+      // seinen Charakter als Fernwaffe, ohne die Kampfzone aufzuheben.
+      engageShare: 0.6,
       pierces: true,
       splashRadiusPx: 0,
       splashDamageFactor: 0,
@@ -646,7 +690,16 @@ export const BALANCE = {
     hullWidthFigures: 2.4,
     hullHeightFigures: 1.6,
     damagePerExtraFigure: 0.14,
-    damageMultiplierCap: 4,
+    // DER SCHADENSBONUS AUS DER TRUPPENGROESSE WAECHST MIT DEM LEVEL (2026-08-23).
+    // Er war fest bei 4 und wurde schon bei Truppe 30 erreicht - zusammen mit den
+    // ebenfalls schnell vollen Schadens- und Ratenwerten stand die Feuerkraft ab
+    // Level 2 dauerhaft am Maximum. Hier zu bremsen statt an der Truppengroesse ist
+    // der schonendere Eingriff: Figuren sammeln bleibt sinnvoll (sie sind
+    // Ueberlebenszeit), nur ihre Schadenswirkung folgt jetzt dem Level.
+    // Endpunkte gerechnet wie bei BALANCE.stats: 8 Schuetzen x 4 x 7,0 x 8,0 = 1.792
+    // gegen einen Level-12-Bedarf von 705.
+    damageMultiplierCapAtLevelOne: 1.5,
+    damageMultiplierCapAtLevelTwelve: 4,
   },
   // Haerte der Wandsegmente (Thomas 2026-08-22: "immer noch schwer was zu holen,
   // speziell in weiteren Level, die Zahlen steigen zu schnell an").
