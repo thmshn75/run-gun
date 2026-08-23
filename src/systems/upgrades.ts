@@ -151,3 +151,15 @@ export class RunStats {
     }
   }
 }
+
+/**
+ * Preis fuers Weiterspielen nach dem Scheitern (B3).
+ *
+ * 250 x erreichtes Level, verdoppelt sich mit jedem weiteren Mal im selben Run.
+ * Gegenprobe an der gemessenen Einnahme: Ein voller Run bringt 10.454 und kostet 6.800
+ * an Stufen - es bleiben rund 3.650, also etwa ein Weiterspielen je Run.
+ */
+export function getContinuePrice(level: number, bereitsGenutzt: number): number {
+  const basis = BALANCE.continueRun.pricePerLevel * Math.max(1, Math.floor(level))
+  return Math.round(basis * BALANCE.continueRun.priceDoubling ** Math.max(0, bereitsGenutzt))
+}

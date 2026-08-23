@@ -2,20 +2,24 @@ import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { HUD_COLORS, MENU_COLORS } from '../config/colors'
 import { readSafeAreaInsets } from '../systems/safeArea'
-import { loadSave, type ScoreEntry } from '../systems/save'
+import { loadSave, writeSave, type ScoreEntry } from '../systems/save'
 
 export class GameOverScene extends Phaser.Scene {
   private elapsedMs!: number
   private coins!: number
   private scorePlace?: number
+  private weiterspielenPreis?: number
+  private level!: number
 
   public constructor() {
     super('GameOverScene')
   }
 
-  public init(data: Readonly<{ coins?: number; scorePlace?: number }>): void {
+  public init(data: Readonly<{ coins?: number; scorePlace?: number; weiterspielenPreis?: number; level?: number }>): void {
     this.coins = data.coins ?? 0
     this.scorePlace = data.scorePlace
+    this.weiterspielenPreis = data.weiterspielenPreis
+    this.level = data.level ?? 1
   }
 
   public create(): void {
@@ -41,15 +45,51 @@ export class GameOverScene extends Phaser.Scene {
       }).setOrigin(0.5)
     }
     this.renderScores(centerX, topY + 128)
-    this.add.text(centerX, topY + 270, 'Tippen für Menü', {
-      fontFamily: 'system-ui',
-      fontSize: '20px',
-      color: '#daf6ff',
-    }).setOrigin(0.5)
+
+    // WEITERSPIELEN (B3): Nur sichtbar, wenn das Konto reicht und der Deckel von
+    // continueRun.maxPerRun noch nicht erreicht ist. Das Level beginnt von vorn, die
+    // gekauften Stufen bleiben, die Truppe startet halbiert.
+    if (this.weiterspielenPreis !== undefined) {
+      const knopfY = topY + 258
+      const breite = this.scale.width - 2 * BALANCE.shop.ui.sidePadding - insets.left - insets.right
+      const knopf = this.add.rectangle(centerX, knopfY, breite, 68, MENU_COLORS.button)
+        .setInteractive({ useHandCursor: true })
+      this.add.text(centerX, knopfY - 11, 'WEITERSPIELEN', {
+        fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: '#ffffff',
+      }).setOrigin(0.5)
+      this.add.text(centerX, knopfY + 17, `LEVEL ${this.level}  ·  ¢ ${this.weiterspielenPreis}`, {
+        fontFamily: 'system-ui', fontSize: '16px',
+        color: `#${HUD_COLORS.coins.toString(16).padStart(6, '0')}`,
+      }).setOrigin(0.5)
+      knopf.on('pointerdown', (_p: unknown, _x: number, _y: number, ereignis: Phaser.Types.Input.EventData) => {
+        if (this.elapsedMs < BALANCE.feedback.gameOverRestartDelayMs) return
+        ereignis.stopPropagation()
+        this.kaufeWeiterspielen()
+      })
+      this.add.text(centerX, knopfY + 62, 'sonst tippen für Menü', {
+        fontFamily: 'system-ui', fontSize: '18px', color: '#8290a8',
+      }).setOrigin(0.5)
+    } else {
+      this.add.text(centerX, topY + 270, 'Tippen für Menü', {
+        fontFamily: 'system-ui',
+        fontSize: '20px',
+        color: '#daf6ff',
+      }).setOrigin(0.5)
+    }
+
     this.input.on('pointerdown', () => {
       if (this.elapsedMs < BALANCE.feedback.gameOverRestartDelayMs) return
       this.scene.start('MenuScene')
     })
+  }
+
+  private kaufeWeiterspielen(): void {
+    const preis = this.weiterspielenPreis
+    if (preis === undefined) return
+    const saved = loadSave()
+    if (saved.coins < preis || saved.run === undefined) return
+    writeSave({ ...saved, coins: saved.coins - preis })
+    this.scene.start('GameScene', { einstieg: 'weiterspielen' })
   }
 
   public update(_time: number, rawDeltaMs: number): void {

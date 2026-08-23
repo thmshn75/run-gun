@@ -49,8 +49,23 @@ export class MenuScene extends Phaser.Scene {
     }).setOrigin(0.5)
 
     this.addButton(safeLeft + safeWidth / 2, layout.playButton.top + layout.playButton.height / 2, safeWidth - 2 * BALANCE.menu.sidePadding, layout.playButton.height, 'SPIELEN', true, () => {
-      this.scene.start('GameScene')
+      this.scene.start('GameScene', { einstieg: 'neu' })
     })
+    // FORTSETZEN (B3): Nur, wenn ein Run an einer Levelgrenze gesichert ist. Er wird beim
+    // Game Over durch den Weiterspiel-Punkt ersetzt - wer stirbt, kommt hier nicht mehr
+    // kostenlos hinein, sondern zahlt im Game-Over-Bildschirm.
+    if (this.save.run !== undefined) {
+      const offenerRun = this.save.run
+      this.addButton(
+        safeLeft + safeWidth / 2,
+        layout.continueButton.top + layout.continueButton.height / 2,
+        safeWidth - 2 * BALANCE.menu.sidePadding,
+        layout.continueButton.height,
+        `FORTSETZEN — LEVEL ${offenerRun.level}`,
+        true,
+        () => { this.scene.start('GameScene', { einstieg: 'fortsetzen' }) },
+      )
+    }
     this.addButton(safeLeft + safeWidth / 2, layout.resetButton.top + layout.resetButton.height / 2, safeWidth - 2 * BALANCE.menu.sidePadding, layout.resetButton.height, 'ZURÜCKSETZEN', true, () => {
       this.openResetConfirmation()
     }, undefined, true)
@@ -197,7 +212,12 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private layout(): ReturnType<typeof computeMenuLayout> {
-    return computeMenuLayout(this.scale.height, this.insets, Math.min(BALANCE.menu.scoresShown, Math.max(1, this.save.scores.length)))
+    return computeMenuLayout(
+      this.scale.height,
+      this.insets,
+      Math.min(BALANCE.menu.scoresShown, Math.max(1, this.save.scores.length)),
+      this.save.run !== undefined,
+    )
   }
 
   private track<T extends Phaser.GameObjects.GameObject>(object: T): T {

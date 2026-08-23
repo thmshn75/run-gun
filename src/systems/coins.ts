@@ -28,6 +28,11 @@ export class Coins {
     return this.collected
   }
 
+  /** Nur fuer den Wiedereinstieg (B3): Ein fortgesetzter Run bringt seinen Stand mit. */
+  public setCount(value: number): void {
+    this.collected = Math.max(0, Math.floor(value))
+  }
+
   public spawnAt(x: number, y: number): void {
     const coin = this.coins.find((candidate) => !candidate.active)
     if (coin === undefined) {

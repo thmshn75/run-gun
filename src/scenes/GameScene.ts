@@ -17,8 +17,8 @@ import { Scenery } from '../systems/scenery'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { addScore, loadSave, qualifiesForScores, writeSave } from '../systems/save'
 import { Spawner } from '../systems/spawner'
-import { RunStats, type ShopLine, getStatCap, getShopPrice } from '../systems/upgrades'
-import { WEAPON_LABELS, Weapons, type WeaponKey } from '../systems/weapons'
+import { RunStats, type ShopLine, getStatCap, getShopPrice, getContinuePrice } from '../systems/upgrades'
+import { WEAPON_LABELS, Weapons, type WeaponKey, WEAPON_KEYS } from '../systems/weapons'
 
 interface HudSegments {
   hp: Phaser.GameObjects.Text
@@ -160,8 +160,16 @@ export class GameScene extends Phaser.Scene {
   private crowdRewardCollider: Phaser.Physics.Arcade.Collider | undefined
   private crowdPickupCollider: Phaser.Physics.Arcade.Collider | undefined
 
+  /** Wie dieser Run begonnen hat - frisch, fortgesetzt oder freigekauft. */
+  private einstieg: 'neu' | 'fortsetzen' | 'weiterspielen' = 'neu'
+  private continuesUsed = 0
+
   public constructor() {
     super('GameScene')
+  }
+
+  public init(data: Readonly<{ einstieg?: 'neu' | 'fortsetzen' | 'weiterspielen' }>): void {
+    this.einstieg = data.einstieg ?? 'neu'
   }
 
   public create(): void {
@@ -330,6 +338,11 @@ export class GameScene extends Phaser.Scene {
     })
     this.syncBossColliders()
     this.syncWallColliders()
+    // ZULETZT: Ein fortgesetzter oder freigekaufter Run ueberschreibt den frischen
+    // Zustand. Das muss nach dem gesamten Aufbau stehen - equipWeapon, Kollisionen und
+    // Truppengroesse muessen existieren, bevor der Spielstand darauf angewendet wird.
+    this.stelleEinstiegHer()
+    this.updateHud()
     if (BALANCE.debug) {
       this.drawSafeAreaDebug()
       console.debug(`GameScene children: ${this.children.length}`)
@@ -449,6 +462,70 @@ export class GameScene extends Phaser.Scene {
       '#ffd166',
     )
     this.updateHud()
+  }
+
+  /**
+   * Fortsetzen und Weiterspielen bauen auf demselben Wiedereinstieg auf (B3): Level von
+   * vorn, gekaufte Stufen und Muenzen bleiben. Der Unterschied ist die Truppe - beim
+   * freigekauften Weiterspielen startet sie bei continueRun.teamShareOnContinue des
+   * Deckels, beim Fortsetzen mit dem Stand, den man beim Aufhoeren hatte.
+   */
+  private stelleEinstiegHer(): void {
+    if (this.einstieg === 'neu') {
+      const saved = loadSave()
+      if (saved.run !== undefined) writeSave({ ...saved, run: undefined })
+      return
+    }
+    const snapshot = loadSave().run
+    if (snapshot === undefined) {
+      this.einstieg = 'neu'
+      return
+    }
+    this.currentLevel = Math.max(1, Math.floor(snapshot.level))
+    this.continuesUsed = snapshot.continuesUsed
+    this.gebuchteMuenzen = snapshot.bookedCoins
+    this.coins.setCount(snapshot.runCoins)
+    for (let i = 0; i < snapshot.firepowerSteps; i += 1) this.runStats.addStep('firepower')
+    for (let i = 0; i < snapshot.teamSteps; i += 1) this.runStats.addStep('team')
+    this.runStats.setLevel(this.currentLevel)
+    if (WEAPON_KEYS.includes(snapshot.weapon as WeaponKey)) this.equipWeapon(snapshot.weapon as WeaponKey)
+    this.runStats.set('damage', snapshot.damage)
+    this.runStats.set('shotsPerSec', snapshot.shotsPerSec)
+    this.statFloor = { damage: this.runStats.get('damage'), shotsPerSec: this.runStats.get('shotsPerSec') }
+    if (this.einstieg === 'weiterspielen') {
+      this.continuesUsed += 1
+      this.runStats.set('hp', Math.max(1, Math.round(
+        getStatCap('hp', this.currentLevel, this.runStats.getSteps()) * BALANCE.continueRun.teamShareOnContinue,
+      )))
+    } else {
+      this.runStats.set('hp', snapshot.hp)
+    }
+    this.startLevel()
+    this.syncCrowdSize()
+  }
+
+  /**
+   * Den offenen Run an der LEVELGRENZE sichern. Nur hier, nicht mitten im Level: Dort
+   * muessten Gegner im Anflug, Wandkette und Bossphase mitgeschrieben werden.
+   */
+  private sichereRun(): void {
+    const saved = loadSave()
+    const stufen = this.runStats.getSteps()
+    writeSave({
+      ...saved,
+      run: {
+        level: this.currentLevel,
+        hp: this.runStats.get('hp'),
+        damage: this.runStats.get('damage'),
+        shotsPerSec: this.runStats.get('shotsPerSec'),
+        weapon: this.weapons.getWeapon(),
+        firepowerSteps: stufen.firepower,
+        teamSteps: stufen.team,
+        runCoins: this.coins.getCount(),
+        bookedCoins: this.gebuchteMuenzen,
+        continuesUsed: this.continuesUsed,
+      },
+    })
   }
 
   private handleProjectileHit(projectile: Phaser.Physics.Arcade.Image, enemy: Phaser.Physics.Arcade.Image): void {
@@ -749,12 +826,39 @@ export class GameScene extends Phaser.Scene {
     // jeweiligen Levelende schon auf dem Konto (bucheMuenzenAufsKonto). Wer hier den
     // vollen Run-Stand addierte, zahlte alles zweimal aus.
     const offen = Math.max(0, runCoins - this.gebuchteMuenzen)
+    const konto = withScore.coins + offen
+    // Der Weiterspiel-Punkt fuer die naechste Runde: Level, Stufen und Muenzen bleiben,
+    // die Truppe startet halbiert. Er ersetzt den Fortsetzen-Punkt - wer stirbt, kann
+    // NICHT mehr kostenlos aus dem Menue einsteigen, sonst waere das Weiterspielen
+    // umsonst zu haben (App schliessen statt zahlen).
+    const stufen = this.runStats.getSteps()
+    const weiterMoeglich = this.continuesUsed < BALANCE.continueRun.maxPerRun
+    const preis = getContinuePrice(this.currentLevel, this.continuesUsed)
     writeSave({
       ...withScore,
-      coins: withScore.coins + offen,
+      coins: konto,
       highestLevel: Math.max(withScore.highestLevel, this.currentLevel),
+      run: weiterMoeglich
+        ? {
+          level: this.currentLevel,
+          hp: this.runStats.get('hp'),
+          damage: this.runStats.get('damage'),
+          shotsPerSec: this.runStats.get('shotsPerSec'),
+          weapon: this.weapons.getWeapon(),
+          firepowerSteps: stufen.firepower,
+          teamSteps: stufen.team,
+          runCoins,
+          bookedCoins: runCoins,
+          continuesUsed: this.continuesUsed,
+        }
+        : undefined,
     })
-    this.scene.start('GameOverScene', { coins: runCoins, scorePlace })
+    this.scene.start('GameOverScene', {
+      coins: runCoins,
+      scorePlace,
+      weiterspielenPreis: weiterMoeglich && konto >= preis ? preis : undefined,
+      level: this.currentLevel,
+    })
   }
 
   private updateLevelPhase(dt: number): void {
@@ -888,6 +992,10 @@ export class GameScene extends Phaser.Scene {
     this.levelOverlay.setVisible(false)
     this.spawner.resetForLevel(this.currentLevel)
     this.walls.resetForLevel(this.currentLevel)
+
+    // Levelgrenze: Hier wird der offene Run gesichert (B3). Wer die App schliesst,
+    // findet ihn im Menue wieder.
+    this.sichereRun()
   }
 
   private updateBossBar(): void {

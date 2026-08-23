@@ -6,11 +6,50 @@
 
 ## Task
 
-**B3 — Weiterspielen gegen Münzen + Fortsetzen** (Plan `docs/plan-v3.md`) — als Nächstes.
+**B5 — Zombie-Farbvarianten** (Plan `docs/plan-v3.md`) — als Nächstes, danach B4
+(Granatwerfer) und B6 (Waffenstaffelung). Beide brauchen Bilder aus einem gemeinsamen
+Codex-Auftrag.
 
 ---
 
 ## Abgeschlossen
+
+### B3 — Weiterspielen + Fortsetzen (2026-08-23), iPhone-Urteil offen
+
+**Beides nutzt denselben Wiedereinstieg** — deshalb war das Fortsetzen kaum Zusatzarbeit.
+
+**Gespeichert wird an der Levelgrenze, sonst nirgends** (`save.RunSnapshot`): Level,
+Truppe, Schaden, Rate, Waffe, gekaufte Stufen, Run-Münzen, gebuchte Münzen, verbrauchte
+Weiterspielen. Mitten im Level zu sichern hieße, Gegner im Anflug, Wandkette und Bossphase
+mitzuschreiben.
+
+**Missbrauch verhindert:** Der Fortsetzen-Punkt wird beim Game Over durch den
+Weiterspiel-Punkt **ersetzt**. Wer stirbt, kommt nicht mehr kostenlos aus dem Menü hinein,
+sondern zahlt — sonst wäre Weiterspielen durch App-Schließen umsonst zu haben.
+
+**Preis:** 250 × erreichtes Level, verdoppelt sich je weiterem Mal, höchstens zwei je Run.
+Truppe startet bei der Hälfte des Deckels.
+
+**Belegt im laufenden Spiel:**
+
+| Schritt | Ergebnis |
+|---|---|
+| Levelgrenze | gesichert: Level 7, hp 49, Laser, Stufen 1/1, 1.200 Münzen |
+| Fortsetzen | **alles wiederhergestellt** (Level 7, hp 49, Laser, Stufen 1/1, 1.200) |
+| Game Over auf Level 7 | Preis **1.750** = 250 × 7 |
+| Weiterspielen gekauft | Level 7, hp **31** (halber Deckel 62), Stufen bleiben, Konto 7.200 → 5.450 |
+
+**Ein Fehler beim Bauen:** Der Aufruf, der den Spielstand anwendet, landete versehentlich
+in `equipWeapon` statt am Ende von `create()` — das Fortsetzen startete stumm auf Level 1.
+Erst die Browser-Prüfung hat es gezeigt; die Testsuite war grün. Jetzt steht er ganz am
+Ende von `create()`, mit Kommentar warum.
+
+**Rückwärtskompatibel und per Test gesichert:** Ein Spielstand aus der Zeit vor B3 lädt
+weiter, ein unvollständiger Run wird stillschweigend verworfen statt den ganzen Spielstand
+zu verwerfen (dieselbe Falle wie beim entfernten `upgrades`-Feld).
+
+**Offen:** Thomas' iPhone-Test.
+
 
 ### B2 — Shop nach jedem Level (2026-08-23), iPhone-Urteil offen
 

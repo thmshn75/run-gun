@@ -4,11 +4,38 @@ export interface ScoreEntry {
   timeMs: number
 }
 
+/**
+ * Ein angefangener Run, gesichert an der LEVELGRENZE (B3, Thomas 2026-08-23: "die
+ * Moeglichkeit aufzuhoeren und spaeter an dieser Stelle weiterspielen").
+ *
+ * Mitten im Level zu sichern hiesse, Gegner im Anflug, Wandkette, Bossphase und alle
+ * Objekt-Pools mitzuschreiben - ein Vielfaches an Aufwand und die haeufigste Quelle
+ * kaputter Spielstaende. An der Levelgrenze ist der Zustand klein und vollstaendig.
+ */
+export interface RunSnapshot {
+  level: number
+  hp: number
+  damage: number
+  shotsPerSec: number
+  weapon: string
+  /** Gekaufte Shop-Stufen je Linie. */
+  firepowerSteps: number
+  teamSteps: number
+  /** Bisher im Run gesammelte Muenzen - fuer die Bestenliste. */
+  runCoins: number
+  /** Davon schon aufs Konto gebucht. */
+  bookedCoins: number
+  /** Wie oft in diesem Run schon weitergespielt wurde. */
+  continuesUsed: number
+}
+
 export interface SaveData {
   version: 1
   coins: number
   highestLevel: number
   scores: ScoreEntry[]
+  /** Fehlt, wenn kein Run offen ist. */
+  run?: RunSnapshot
 }
 
 const SAVE_KEY = 'rungun_save_v1'
@@ -70,6 +97,12 @@ export function parseSave(text: string): { ok: true; data: SaveData } | { ok: fa
     return { ok: false, reason: 'Bestenliste ist ungültig.' }
   }
 
+  // Der offene Run wird BEWUSST nur gelesen, wenn er vollstaendig ist, und sonst
+  // stillschweigend verworfen - nie als Fehler behandelt. Ein Spielstand aus der Zeit vor
+  // B3 hat das Feld nicht, und die Bestenliste eines bespielten Geraets darf daran nicht
+  // scheitern (dieselbe Falle wie beim entfernten 'upgrades'-Feld, 2026-08-23).
+  const run = isRunSnapshot(value.run) ? { ...value.run } : undefined
+
   return {
     ok: true,
     data: {
@@ -81,8 +114,20 @@ export function parseSave(text: string): { ok: true; data: SaveData } | { ok: fa
         level: clampNonNegative(entry.level),
         timeMs: clampNonNegative(entry.timeMs),
       })),
+      ...(run === undefined ? {} : { run }),
     },
   }
+}
+
+function isRunSnapshot(value: unknown): value is RunSnapshot {
+  if (!isRecord(value)) return false
+  const zahlen: Array<keyof RunSnapshot> = [
+    'level', 'hp', 'damage', 'shotsPerSec', 'firepowerSteps', 'teamSteps',
+    'runCoins', 'bookedCoins', 'continuesUsed',
+  ]
+  return zahlen.every((feld) => isNonNegativeNumber(value[feld]))
+    && typeof value.weapon === 'string'
+    && (value.level as number) >= 1
 }
 
 export function serializeSave(data: SaveData): string {
