@@ -1,11 +1,11 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-22 23:20
+Stand: 2026-08-23 10:05
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen, Tag
 `v1.0`** als Rueckschrittspunkt. Laufend: **V2-Spurenumbau**, Etappenplan `docs/plan-v2.md`
-(W1–W5 fertig, W7 und W6 offen). Live: https://thmshn75.github.io/run-gun/
+(W1–W5 und **W7 gebaut**, nur W6 offen). Live: https://thmshn75.github.io/run-gun/
 
 ## Harte Randbedingungen
 - Claude ist normalerweise Architekt/Reviewer; **fuer V2 hat Thomas Direktumsetzung durch
@@ -39,21 +39,43 @@ Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen,
      ohne die bremst die Spurvergabe statt des Takts.
   5. Wandkette laeuft perspektivisch (Weltkoordinaten statt Bildschirmpixel), Kacheln
      schrumpfen mit der Entfernung und sehen als Quader statt als Aufkleber aus.
-- Stand: 153 Tests gruen, `npm run check` sauber, alles gepusht, Arbeitsverzeichnis
-  sauber, `docs/active-task.md` auf IDLE, nichts laeuft im Hintergrund.
+- **W7 gebaut (2026-08-23), iPhone-Urteil offen.** Drei Teile:
+  1. **Plastische Figuren** (Codex): fuenf beleuchtete Sprites in doppelter Aufloesung.
+     Neuer Faktor `render.figureTextureScale` 0,5 rechnet sie auf Spielgroesse zurueck;
+     Koerpermasse an den neuen Bildern nachgemessen (`standard` 21 -> 25 px).
+  2. **Gegnermenge steigt wieder mit dem Level.** Der Fund dahinter: Sie stieg nicht
+     flach, sie fiel auf NULL — Level 6 lieferte 0,03 Gegner/s, Level 12 exakt 0,00.
+     Ursache war ein doppelter Perspektiv-Aufschlag in `spawnSquad` (Formation wurde
+     breiter geprueft als der Korridor ist), dazu eine Warteschlange ohne Verfallszeit
+     und ein fester Hordendeckel. Jetzt: Level 1 6,5 Gegner/s (Bestand 22), Level 12
+     12,6 (Bestand 73).
+  3. **Boss pendelt nicht mehr**, er kommt nur noch langsam auf die Truppe zu
+     (`advanceSpeed` unveraendert). X-Spanne im Kampf gemessen 0 px statt 216 px.
+- Stand: 154 Tests gruen, `npm run check` sauber, alles gepusht und Deploy gruen,
+  Arbeitsverzeichnis sauber, `docs/active-task.md` auf IDLE, nichts laeuft im Hintergrund.
 
 ## Offen — naechster Schritt zuerst
-1. **W7 — Plastische Figuren** (`plan-v2.md`, neue Etappe, Akzeptanzkriterien stehen dort).
-   Beleuchtete statt flacher Sprites fuer Truppe, drei Gegnertypen und Boss; danach
-   doppelte Aufloesung und `pixelArt: false` fuer glatte Kanten. **Codex-Auftrag** - alle
-   vorhandenen Sprites stammen aus Codex-Laeufen, Vorlagen in `assets/probe/` (136x184).
-   Claude schreibt die Spec und reviewt, Codex rendert. Achtung: Koerpermasse in
-   `balance.ts` gegen die neuen Bilder NACHMESSEN, nicht uebernehmen.
-2. **W6 — V2-Abnahme** (laeuft zuletzt): toten Code raus (`blockers.ts` heisst noch so,
+1. **Thomas' iPhone-Urteil zu W7** steht aus und hat Vorrang. Zu beurteilen sind drei
+   Dinge: wirken die Figuren jetzt plastisch statt flach; passt die Gegnermenge ueber die
+   Level; stoert es, dass der Boss nur noch geradeaus kommt.
+   Tuning ohne Umbau: `level.plans`, `level.squads.maxSize*`, `enemy.deferredMaxAgeMs`,
+   `enemy.figureScale`, `road.perspective`, `weapon.*.engageShare`, `boss.advanceSpeed`.
+2. **W6 — V2-Abnahme** (die letzte Etappe): toten Code raus (`blockers.ts` heisst noch so,
    meint aber Waende), Volllast-Messung, Netzwerk-Null-Check, Update-Pfad, README.
-3. **Thomas' iPhone-Urteil** zu allem seit W5 steht noch aus. Korrekturen haben Vorrang.
-   Tuning ohne Umbau: `road.perspective`, `enemy.figureScale`, `weapon.*.engageShare`,
-   `level.plans`, `enemy.spawnBands`, `walls.block`.
+
+## Befunde, die Thomas kennen sollte (nicht behoben, bewusst)
+- **Boss-Kampfdauer haengt am Gegnerschild, nicht an den Lebenspunkten.** Gemessen
+  2026-08-23 mit identischem Verfahren vorher/nachher: Das entfernte Pendeln aendert die
+  Dauer kaum (Level 1 104 -> 100 s, Level 6 115 -> 111 s), bei Level 12 streut sie so
+  stark, dass keine Aussage moeglich ist. Dieselbe Ursache war schon am 2026-08-22
+  dokumentiert. Die Reissleine (max. zwei Balance-Zyklen, dann Entscheidung mit Thomas)
+  ist gezogen — hier wurde bewusst nicht weitergedreht.
+- **Level 1 liegt 31 % ueber dem von Thomas abgenommenen Mengen-Stand** (4,95 -> 6,49
+  Gegner/s). Das ist Folge der Fehlerbehebung, nicht einer Anhebung der Leveltabelle.
+- **Rund 93 % der Spawn-Versuche werden weiterhin abgelehnt.** Das ist ab hier keine
+  Fehlfunktion, sondern volle Auslastung: Die Sperre verhindert, dass Gegner ineinander
+  erscheinen. Wer mehr Masse will, muss an der Verweildauer ansetzen (Tempo,
+  Lebenspunkte), nicht am Zufluss.
 
 ## Offene Nebenbefunde (nicht behoben, bewusst)
 - **Minigun und Rakete feuern nur mit 3 Figuren** (`shootersPerSalvo`) und sind dadurch
@@ -78,6 +100,7 @@ Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen,
 
 ## Einstiegssatz
 "Lies `docs/UEBERGABE.md`, `docs/lessons.md` und `docs/plan-v2.md` und arbeite dort weiter.
-**Nichts neu aufsetzen - V1 ist abgenommen (Tag `v1.0`), V2 ist bei W1-W5 fertig.**
-Naechster Schritt: Spec fuer W7 (plastische Figuren, Codex rendert) schreiben; vorher
-Thomas' iPhone-Urteil zu allem seit W5 abwarten, Korrekturen haben Vorrang."
+**Nichts neu aufsetzen - V1 ist abgenommen (Tag `v1.0`), von V2 sind W1-W5 und W7 gebaut.**
+Naechster Schritt: Thomas' iPhone-Urteil zu W7 abwarten (plastische Figuren, Gegnermenge
+ueber die Level, Boss ohne Pendeln) - Korrekturen haben Vorrang. Danach W6, die
+V2-Abnahme. Die offenen Befunde stehen in der UEBERGABE unter 'Befunde'."
