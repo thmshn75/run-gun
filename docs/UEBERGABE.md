@@ -1,6 +1,6 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-23 15:10
+Stand: 2026-08-23 16:10
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen, Tag
@@ -88,7 +88,14 @@ Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen,
   (Level 12, 30 sichtbar + 70 Reserve, aus dem gemessenen Verlust hergeleitet). Es
   entsteht daraus KEINE Feuerkraft - der Schadensbonus ist mit 30 Figuren ausgereizt,
   nachgerechnet und per Test gesichert.
-- Stand: 177 Tests gruen, `npm run check` sauber, Arbeitsverzeichnis sauber.
+- **Starttruppe 1 und Kampfstreifen an der Sammelbahn (2026-08-23, Thomas: "Starttruppe
+  auf 1 reduzieren" + "da verliere ich immer Team").** `stats.hp.base` 2 -> 1 (wer sofort
+  zur Bahn faehrt: 1 -> 30 in 20 s; wer steht: nach 8 s vorbei). Dazu behoben, dass blosses
+  Streifen der linken Bahn schon einsammelte - seit die Feuerlinie schmaler ist, muss man
+  dort kaempfen. Neu `walls.pickupOverlapFigures` 1,2 (Truppe muss zur Haelfte drin
+  stehen) und `walls.drainTeam` 5 -> 3 (blindes Durchfahren ist netto Null statt −1,3
+  Figuren/s). Kampfstreifen reicht jetzt bis −100 px statt −60 px.
+- Stand: 178 Tests gruen, `npm run check` sauber, Arbeitsverzeichnis sauber.
 
 ## Offen — naechster Schritt zuerst
 1. **Thomas' iPhone-Urteil zum neuen Gegner-Widerstand** hat Vorrang: Kommen jetzt genug

@@ -358,6 +358,23 @@ export const BALANCE = {
     // die Hoehe des einzelnen Treffers. Groessere Betraege waeren dieselbe Zahl mit
     // weniger Rueckmeldung.
     pickupTeamGain: 1,
+    // WIE TIEF MAN IN DIE SAMMELBAHN FAHREN MUSS, um ein Plaettchen einzuloesen
+    // (2026-08-23, Thomas: "wenn ich voll bin mit 30 Mann dann streife ich links die
+    // Waende beim Abschuessen der mobs - da verliere ich immer Team").
+    //
+    // Bis hierher genuegte eine BERUEHRUNG der Truppenhuelle. Gemessen (Level 6, Truppe
+    // 30, je 15 s auf fester Position): Bis 60 px links der Mitte wird gar nichts
+    // gesammelt, ab 80 px alles - die Zone schaltete also schlagartig, und zwar genau
+    // dort, wo man stehen muss, um die aeusseren Gegner zu treffen. Seit die Feuerlinie
+    // schmaler ist und Gegner ueber die ganze Strasse anlaufen (beides 2026-08-23), MUSS
+    // man dort kaempfen - und loeste dabei zwangslaeufig auch die roten Kacheln ein.
+    //
+    // Jetzt muss die Truppe zur HAELFTE in der Bahn stehen: 1,2 von 2,4 Figurenbreiten
+    // Huelle (crowd.hullWidthFigures). Damit entsteht ein Kampfstreifen am Rand, in dem
+    // man schiesst, ohne zu sammeln - wer sammeln will, faehrt bewusst ganz hinein.
+    // Die Regel ist absichtlich eine Ueberlappung und keine Ankerposition: Sie gilt
+    // dadurch unabhaengig von Bildschirmbreite und Perspektive.
+    pickupOverlapFigures: 1.2,
     // RECHTS: Feuerkraft (Thomas 2026-08-22, als Gegenstueck zur Masse links). JEDES
     // Segment traegt einen Gewinn - Waffe, Schaden oder Feuerrate - statt wie vorher
     // meistens nur Muenzen. Muenzen fallen jetzt bei JEDEM zerschossenen Segment ab,
@@ -415,7 +432,17 @@ export const BALANCE = {
     // wegfressen - verlieren kann man nur, was man in dieser Runde gefunden hat. Ohne
     // diesen Boden entstuende ausserdem eine Abwaertsspirale, aus der man sich nicht
     // mehr herausschiesst.
-    drainTeam: 5,
+    // 5 -> 3 (2026-08-23, gemessen). Die Herleitung darunter ("netto -2 je vier
+    // Kacheln") stimmte rechnerisch, setzte aber voraus, dass man den roten Kacheln
+    // AUSWEICHEN kann. Gemessen kostete Dauerfahrt an der Bahn 19 Figuren in 15 s
+    // (16 gute gegen 7 rote) - also 1,3 Figuren je Sekunde MINUS, waehrend die Bahn
+    // eigentlich die Quelle fuer Masse sein soll. Mit dem Kampfstreifen (siehe
+    // pickupOverlapFigures) ist Ausweichen wieder moeglich, aber 5 blieb selbst dann zu
+    // hart: Bei 1,875 Kacheln/s kommt rechnerisch alle 2,1 s eine rote, man muesste also
+    // im Sekundentakt hinein und hinaus. Mit 3 kostet blindes Durchfahren rund 5 Figuren
+    // je 23 Kacheln statt 19 - immer noch spuerbar negativ, wie im Entwurf gewollt, aber
+    // kein Grund mehr, die linke Bahn ganz zu meiden.
+    drainTeam: 3,
     weakenDamage: 1.5,
     weakenRate: 0.6,
     // Wie tief die Truppe sich an eine Wand druecken darf, in Figurenbreiten ueber die
@@ -535,7 +562,7 @@ export const BALANCE = {
     // (crowd.damageMultiplierCap*) und mit Truppe 30 bereits ausgereizt. Auch die
     // Gegner-Kopplung (enemy.firepowerCoupling) haengt an diesem gedeckelten Bonus, wird
     // also durch eine groessere Reserve nicht staerker.
-    hp: { base: 2, capAtLevelOne: 30, capAtLevelTwelve: 100, floor: 0 },
+    hp: { base: 1, capAtLevelOne: 30, capAtLevelTwelve: 100, floor: 0 },
     damage: { base: 1, capAtLevelOne: 1.5, capAtLevelTwelve: 7, floor: 1 },
     shotsPerSec: { base: 3, capAtLevelOne: 3.5, capAtLevelTwelve: 8, floor: 1 },
     // Gegnertempo. Seit 2026-08-22 KEIN Ausbau mehr, sondern reine Levelgroesse

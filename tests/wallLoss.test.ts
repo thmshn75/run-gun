@@ -23,13 +23,28 @@ describe('rote Kacheln: der Verlust in beiden Bahnen', () => {
     expect(BALANCE.walls.weakenRate).toBeCloseTo(guteJeRote * BALANCE.walls.rateGain, 2)
   })
 
-  it('macht blindes Durchfahren links zum Minusgeschaeft', () => {
-    // Links muss der Abzug STAERKER sein als der Zugewinn der drei blauen, sonst waere
-    // Durchfahren weiterhin kostenlos und die Bahn spielte sich von selbst.
+  it('laesst blindes Durchfahren links nicht vorankommen', () => {
+    // Auf vier Kacheln kommen im Erwartungswert drei blaue und eine rote. Wer nicht
+    // ausweicht, darf daraus keinen Fortschritt ziehen - sonst spielt sich die Bahn von
+    // selbst. 2026-08-23 von "muss bestrafen" auf "darf nicht belohnen" geaendert:
+    // Gemessen kostete Dauerfahrt an der Bahn 19 Figuren in 15 s, waehrend sie
+    // eigentlich die Quelle fuer Masse sein soll. Der Anreiz liegt jetzt im Ausweichen
+    // (+1 je Kachel), nicht in der Strafe.
     const gewinnJeVierKacheln = 3 * BALANCE.walls.pickupTeamGain
-    expect(BALANCE.walls.drainTeam).toBeGreaterThan(gewinnJeVierKacheln)
+    expect(BALANCE.walls.drainTeam).toBeGreaterThanOrEqual(gewinnJeVierKacheln)
     // Aber nicht so stark, dass eine einzige Kachel eine ausgewachsene Truppe halbiert.
     expect(BALANCE.walls.drainTeam).toBeLessThan(BALANCE.crowd.max / 4)
+  })
+
+  it('verlangt zum Sammeln echtes Hineinfahren, nicht blosses Streifen', () => {
+    // Sonst loest man beim Kaempfen am linken Rand zwangslaeufig auch die roten Kacheln
+    // ein (Thomas 2026-08-23: "da verliere ich immer Team"). Gemessen war es ein harter
+    // Schalter: bis 60 px links der Mitte gar nichts, ab 80 px alles.
+    expect(BALANCE.walls.pickupOverlapFigures).toBeGreaterThan(0)
+    // Die Truppe muss mindestens zur Haelfte in der Bahn stehen ...
+    expect(BALANCE.walls.pickupOverlapFigures).toBeGreaterThanOrEqual(BALANCE.crowd.hullWidthFigures / 2)
+    // ... aber nie mehr als ganz, sonst waere Sammeln unmoeglich.
+    expect(BALANCE.walls.pickupOverlapFigures).toBeLessThanOrEqual(BALANCE.crowd.hullWidthFigures)
   })
 
   it('schont das erste Level und verbietet zwei rote Kacheln in Folge', () => {
@@ -66,7 +81,9 @@ describe('rote Kacheln: der Verlust in beiden Bahnen', () => {
     // Oben muss die Reserve mehrere rote Kacheln tragen, aber keinen ganzen Run.
     const reserve = BALANCE.stats.hp.capAtLevelTwelve - BALANCE.crowd.max
     expect(reserve).toBeGreaterThan(BALANCE.walls.drainTeam * 4)
-    expect(reserve).toBeLessThan(BALANCE.walls.drainTeam * 20)
+    // Obergrenze: nicht mehr rote Kacheln, als in einem Level ueberhaupt vorkommen.
+    // 1,875 Kacheln/s x 80 s Levellaenge x 25 % rot = rund 37.
+    expect(reserve / BALANCE.walls.drainTeam).toBeLessThan(37)
   })
 
   it('haelt die Truppengroesse als Ueberlebenszeit, nicht als Feuerkraft', () => {

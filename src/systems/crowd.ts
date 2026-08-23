@@ -146,6 +146,10 @@ export class Crowd {
     return this.anchorY
   }
 
+  public getFigureWidth(): number {
+    return this.figureWidth
+  }
+
   public getFigureHeight(): number {
     return this.figureHeight
   }

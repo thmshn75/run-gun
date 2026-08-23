@@ -7,6 +7,69 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**Starttruppe 1, und Kaempfen am linken Rand kostet kein Team mehr**
+(2026-08-23, Claude direkt. Thomas: "Starttruppe auf 1 reduzieren und wenn ich voll bin
+mit 30 Mann dann streife ich links die Waende beim Abschuessen der mobs - da verliere ich
+immer Team".)
+
+**Teil 1 - Starttruppe `stats.hp.base` 2 -> 1.**
+Belegt, dass beides funktioniert: Wer sofort zur Sammelbahn faehrt, waechst
+1 -> 3 -> 12 -> 21 -> 30 in 20 s. Wer mittig stehen bleibt, ist nach 8 s vorbei - der
+erste Gegnertreffer beendet den Run. Das ist ein harter, aber lehrreicher Einstieg
+("fahr los und sammle"), und auf Level 1 gibt es weder rote Kacheln
+(`walls.badMinLevel` 2) noch Durchbruchschaden (`enemy.breakthroughMinLevel` 2).
+
+**Teil 2 - der eigentliche Befund, gemessen** (Level 6, Truppe 30, feste Position, 15 s):
+
+| Anker links der Mitte | gute Plaettchen | rote | netto |
+|---|---|---|---|
+| 0 bis −60 px | 0 | 0 | 0 |
+| −80 px | 16 | 7 | **−19** |
+| −152 px (ganz aussen) | 17 | 6 | −13 |
+
+Zwei Fehler auf einmal:
+1. **Die Sammelzone schaltete schlagartig.** Bis 60 px links der Mitte passierte nichts,
+   ab 80 px wurde alles eingeloest - es gab keinen Streifen, in dem man am Rand kaempfen
+   kann. Seit die Feuerlinie schmaler ist und Gegner ueber die ganze Strasse anlaufen
+   (beides am selben Tag gebaut), MUSS man dort kaempfen. Ausloeser war eine blosse
+   Beruehrung der Truppenhuelle, und die ist 82 px breit bei 155 px freiem Korridor.
+2. **Dauerfahrt an der Bahn war netto NEGATIV** - rund 1,3 Figuren je Sekunde MINUS,
+   waehrend die Bahn die Quelle fuer Masse sein soll. Die Herleitung dahinter ("netto −2
+   je vier Kacheln") stimmte rechnerisch, setzte aber voraus, dass man den roten Kacheln
+   ausweichen kann. Bei durchgehender Bahn, gleichzeitigem Kampf und einer roten alle
+   2,1 s ist das nicht spielbar.
+
+**Gebaut:**
+- **`walls.pickupOverlapFigures` 1,2** - die Truppe muss zur HAELFTE in der Bahn stehen
+  (1,2 von 2,4 Figurenbreiten Huelle), statt sie nur zu beruehren. Bewusst als
+  Ueberlappung formuliert und nicht als Ankerposition: So gilt die Regel unabhaengig von
+  Bildschirmbreite und Perspektive.
+- **`walls.drainTeam` 5 -> 3.** Damit ist blindes Durchfahren netto Null statt stark
+  negativ. Die Regel dreht sich von "wer nicht aufpasst, verliert" zu **"wer nicht
+  aufpasst, kommt nicht voran"** - der Anreiz liegt im Ausweichen (+1 je Kachel), nicht
+  in der Strafe.
+
+**Ergebnis, gemessen** (gleicher Aufbau):
+
+| Anker links der Mitte | gute | rote | netto |
+|---|---|---|---|
+| 0 bis −100 px | 0 | 0 | 0 |
+| −120 px | 15 | 8 | −9 |
+| −152 px | 19 | 4 | +7 |
+
+Der Kampfstreifen reicht jetzt bis −100 px statt bis −60 px. Zur Kontrolle nachgerechnet:
+Bei Anker −60 deckt die Formation (±39 px) den Bereich −99 bis −21 ab, der aeusserste
+anlaufende Gegner steht bei −77 px - man erreicht ihn also, ohne die Bahn zu beruehren.
+Die beiden Sammelwerte streuen um netto Null (roter Anteil 4 bzw. 8 statt der erwarteten
+6), was der Erwartung entspricht.
+
+**Zwei bestehende Tests umgeschrieben**, weil sie die alte Absicht festhielten
+("der Abzug muss STAERKER sein als der Zugewinn"). Sie pruefen jetzt die neue: Blindes
+Durchfahren darf nicht belohnen. Dazu ein neuer Test fuer die Sammeltiefe.
+
+178 Tests gruen, `npm run check` sauber.
+**Offen: Thomas' iPhone-Urteil.**
+
 **Truppengroesse waechst jetzt auch mit dem Level**
 (2026-08-23, Claude direkt. Thomas: "Aber ich selbst werde ja nie staerker in den Leveln
 oder schon? Bzw das Maximum an Team koennte man von Level zu Level anheben oder nicht?",

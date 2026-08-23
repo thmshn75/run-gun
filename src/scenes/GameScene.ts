@@ -557,7 +557,10 @@ export class GameScene extends Phaser.Scene {
       // Sammelbahn links: durchfahren genuegt, kein Schuss. Der Zuwachs wird in
       // blockers.collectPickup auf den DANN aktuellen Stand angewandt.
       if (this.blockers.isPickupSegment(target)) {
-        this.blockers.collectPickup(target as Phaser.Physics.Arcade.Image)
+        // Streifen sammelt nicht, Hineinfahren schon - siehe walls.pickupOverlapFigures.
+        if (this.crowdStehtInSammelbahn(target as Phaser.Physics.Arcade.Image)) {
+          this.blockers.collectPickup(target as Phaser.Physics.Arcade.Image)
+        }
         return
       }
       // Wandsegmente kosten bei Beruehrung NICHTS - das war seit W4 so und muss hier
@@ -578,6 +581,22 @@ export class GameScene extends Phaser.Scene {
       console.warn('Unhandled combat overlap: neither object identifies as a player projectile, boss projectile, or player hull.')
       this.lastUnknownCombatOverlapWarningAtMs = this.elapsedMs
     }
+  }
+
+  /**
+   * Steht die Truppe tief genug in der Sammelbahn, um ein Plaettchen einzuloesen?
+   *
+   * Ohne diese Pruefung genuegte eine Beruehrung der Huelle - und seit die Feuerlinie
+   * schmaler ist und Gegner ueber die ganze Strasse anlaufen, muss man am Rand kaempfen.
+   * Man loeste damit zwangslaeufig auch die roten Kacheln ein (Thomas 2026-08-23: "da
+   * verliere ich immer Team"). Gemessen war es ein harter Schalter: bis 60 px links der
+   * Mitte gar nichts, ab 80 px alles.
+   */
+  private crowdStehtInSammelbahn(segment: Phaser.Physics.Arcade.Image): boolean {
+    const huelle = this.crowd.getHullBounds().getBounds()
+    const bahn = segment.getBounds()
+    const ueberlappung = Math.min(huelle.right, bahn.right) - Math.max(huelle.left, bahn.left)
+    return ueberlappung >= this.crowd.getFigureWidth() * BALANCE.walls.pickupOverlapFigures
   }
 
   private findObjectWithData(
