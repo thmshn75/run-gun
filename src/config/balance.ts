@@ -375,6 +375,58 @@ export const BALANCE = {
     // Die Regel ist absichtlich eine Ueberlappung und keine Ankerposition: Sie gilt
     // dadurch unabhaengig von Bildschirmbreite und Perspektive.
     pickupOverlapFigures: 1.2,
+    // ROT VERLANGT MEHR TIEFE ALS BLAU (Thomas 2026-08-23, dritte Meldung zum selben
+    // Thema: "wenn man auf der linken Seite schiesst, nimmt man die +1 und -3
+    // automatisch mit ohne es zu wollen").
+    //
+    // Bis hierher galt EINE Schwelle fuer beide Sorten. Das kollidiert baulich mit dem
+    // Kampf am Rand: Die Feuerlinie ist 78 px breit (crowd.maxWidthRatio), der
+    // Anflugbereich auf Kampfhoehe 155 px - wer die linken Gegner treffen will, MUSS
+    // dorthin. Dieselbe Fingerbewegung steuert damit zielen, sammeln und ausweichen.
+    // Zweimal an den Zahlen zu drehen (pickupOverlapFigures 0 -> 1,2 und drainTeam
+    // 5 -> 3) hat das nicht geloest, weil nicht die Hoehe der Werte das Problem ist,
+    // sondern dass eine einzige Achse drei Dinge zugleich entscheidet.
+    //
+    // 1,6 Figurenbreiten - GEMESSEN hergeleitet, nicht aus der Huellenbreite gegriffen.
+    //
+    // Erster Versuch war 2,2 von 2,4 Figurenbreiten Huelle. Im laufenden Spiel gemessen
+    // (Level 11, Anker in Stufen festgehalten, Einloesungen je 5 s gezaehlt) war das
+    // Ergebnis: rote Kacheln loesten NIRGENDS mehr aus, auch nicht am linkesten
+    // fahrbaren Punkt. Der Grund steht in der Fahrgrenze, nicht in der Huelle: Die
+    // Strassenkante deckelt den Anker bei x = 60,9 (getDriveLimitHalfWidth, outerLimit),
+    // die Sammelbahn endet bei x = 84 - die groesstmoegliche Ueberlappung ist damit
+    // 63,8 px = 1,88 Figurenbreiten. Alles ab 1,9 ist unerreichbar.
+    //
+    // Der gesamte Sammelbereich ist also nur 23 px Fahrweg breit (Anker 61 bis 84).
+    // 1,6 = 54,4 px teilt ihn: rot ab Anker 70 und weiter links, blau im ganzen Bereich.
+    // Das laesst 14 px, in denen man sammelt ohne zu verlieren.
+    //
+    // Der eigentliche Kampfstreifen liegt ohnehin RECHTS davon: Ab Anker 90 loest
+    // gemessen gar nichts mehr aus, und dort (90 bis 160) findet der Kampf gegen die
+    // linken Gegner statt. Genau das war Thomas' Anliegen.
+    //
+    // Ein Test haelt beide Enden fest - dass rot erreichbar BLEIBT und dass rechts der
+    // Sammelbahn nichts ausloest. Der erste Test hatte nur die zweite Haelfte geprueft
+    // und den unerreichbaren Wert durchgelassen.
+    drainOverlapFigures: 1.6,
+    // MINDESTE VERTIKALE UEBERLAPPUNG, in Figurenhoehen.
+    //
+    // GEMESSEN 2026-08-23 (Browser, Level 11, Truppe 48, Anker fest auf x=120): Eine
+    // Kachel mit bahnY [609..677] loeste voll ein, waehrend die Truppenhuelle bei
+    // huelleY [677..751] stand - die beiden beruehrten sich an GENAU EINER LINIE. Die
+    // Pruefung in GameScene.crowdStehtInSammelbahn rechnete nur die X-Achse; die
+    // Y-Achse ueberliess sie der Physik, und die meldet schon bei Kantenberuehrung.
+    //
+    // Das verschiebt die Ausloesezone spuerbar nach rechts: Kacheln laufen
+    // perspektivisch, eine weiter oben stehende ragt weiter zur Strassenmitte
+    // (gemessen rechter Rand 84,2 px bei centerY 643 gegen 77,8 px auf Truppenhoehe
+    // 714). Ausgeloest wurde im Sweep bis Anker 120, waehrend die reine Geometrie auf
+    // Truppenhoehe bei 90 Schluss macht.
+    //
+    // 0,5 Figurenhoehen = 23 px von 72 px Kachelhoehe: Die Kachel muss neben der Truppe
+    // stehen, nicht ueber ihr. Kleiner waere wieder Kantenberuehrung, groesser wuerde
+    // die kurzen Kacheln am Horizont ganz aussperren.
+    pickupOverlapHeightFigures: 0.5,
     // RECHTS: Feuerkraft (Thomas 2026-08-22, als Gegenstueck zur Masse links). JEDES
     // Segment traegt einen Gewinn - Waffe, Schaden oder Feuerrate - statt wie vorher
     // meistens nur Muenzen. Muenzen fallen jetzt bei JEDEM zerschossenen Segment ab,

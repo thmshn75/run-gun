@@ -497,6 +497,24 @@ Mindestzahl an Toralternativen je Level festhält.
 **Akzeptanz:** Auf jedem Level erscheinen nur freigeschaltete Waffen; ab Level 7 sind alle
 acht verfügbar; kein Stärkewert wurde angefasst (das Waffenband bleibt unverändert, Test).
 
+### B7 — Ton (noch nicht startbereit)
+
+**Thomas 2026-08-23: „Den Ton müssen wir uns auch nochmal vornehmen irgendwann."**
+
+Der Ton ist gebaut und funktioniert: sieben synthetisch erzeugte Klänge über Web Audio,
+ohne eine einzige Audiodatei, mit Schalter im Menü (`audio.ts`, `audioPlan.ts`, seit
+2026-08-22). Was daran stört, ist **nicht gesagt** — und ohne diese Angabe ist die Etappe
+nicht spezifizierbar. Möglich ist alles von „klingt billig" über „zu laut / zu oft" bis
+„die falschen Ereignisse machen Geräusch".
+
+**Diese Etappe bleibt bewusst leer, bis Thomas oder Benni beschreibt, was konkret stört.**
+Sie hinter B4 zu setzen und mit einer erfundenen Aufgabenstellung zu füllen, wäre genau
+der Fehler, vor dem `docs/lessons.md` beim Sprite-Auftrag warnt: ein Ersatzprodukt statt
+der gefragten Sache.
+
+**Sinnvolle Frage an Benni, wenn es soweit ist:** Welcher Ton nervt, und welcher fehlt?
+Zwei konkrete Antworten reichen für eine Spec.
+
 ## Risiken & Reißleinen (Überblick)
 
 | Risiko | Reißleine |
@@ -522,7 +540,8 @@ acht verfügbar; kein Stärkewert wurde angefasst (das Waffenband bleibt unverä
 | B5 Zombie-Farbvarianten (inkl. Codex-Bilder, Atlas, Staffelung) | 1–1,5 Std |
 | B6 Waffen staffeln | 20–30 Min |
 | B4 Granatwerfer (inkl. Codex-Bilder, Balance-Messung) | 1,5–2 Std |
-| **Summe** | **8,75–13 Std** |
+| B7 Ton | noch nicht schätzbar — Aufgabenstellung fehlt |
+| **Summe** | **8,75–13 Std** (ohne B7) |
 
 Dazu kommen Thomas'/Bennis iPhone-Tests nach B0, B1, B2, B5, B6 und B4 — die zählen nicht
 als Maschinenzeit und bestimmen den Takt. Der gemeinsame Codex-Bildauftrag für B4 und B5
@@ -560,6 +579,11 @@ Messanlauf und den zusätzlichen Balance-Zyklus, den die Reißleine in B2 vorsie
    Möglichkeit aufzuhören und später an dieser Stelle weiterspielen". Mitten im Level zu
    speichern wäre ein Vielfaches an Aufwand; der Punkt wird beim Game Over gelöscht, damit
    daraus kein Gratis-Weiterspielen wird. Siehe B3 Teil 2.
+9. **Ton kommt „irgendwann"** — Thomas, ohne nähere Angabe. Als B7 aufgenommen, aber
+   ausdrücklich nicht startbereit: Was stört, ist nicht gesagt. Braucht zwei konkrete
+   Sätze von Thomas oder Benni, bevor daraus eine Spec wird.
+10. **Titelbild bleibt wie es ist** — Thomas 2026-08-23, nachdem er die Anpassung an die
+   neuen Mobs zuerst angefragt und dann gestrichen hat. Kein Punkt im Plan.
 8. **Wand-Bug wird in B0 mitbehoben** — Thomas mit Beleg-Screenshot. Die Teamzahl scheidet
    nach Codelage bereits aus (die Kollisionshülle ist fest); die Levelabhängigkeit ist
    offen und wird mitgemessen. Siehe B0.

@@ -167,6 +167,14 @@ export class Walls {
   }
 
   /**
+   * Zieht dieses Sammelplaettchen ab? Die Szene braucht das, weil rote Kacheln seit
+   * 2026-08-23 eine groessere Eindringtiefe verlangen als blaue (walls.drainOverlapFigures).
+   */
+  public isDrainSegment(candidate: Phaser.GameObjects.GameObject): boolean {
+    return this.pairs.some((pair) => pair.wall === candidate && pair.active && !pair.broken && pair.content === 'drain')
+  }
+
+  /**
    * Sammelplaettchen durch Beruehrung einloesen. Rueckgabe ist der Zuwachs (0, wenn
    * das Plaettchen schon weg ist), damit die Szene die Quittung nur einmal zeigt.
    */

@@ -1,11 +1,97 @@
 # Active Task
 
 ## Status
-`IDLE`
+`IN_ARBEIT`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
-_(kein aktiver Task — bereit für den nächsten)_
+
+**B0 — Sammelbahn: kämpfen ohne ungewolltes Einsammeln** (Plan `docs/plan-v3.md`)
+
+Zwei Teile: (1) Rotes Plättchen greift erst ab `walls.drainOverlapFigures` 2,0 statt
+1,2 — wer am linken Rand kämpft und streift, nimmt nur noch das Gute mit. (2) Der von
+Thomas mit Screenshot belegte Fehler: Die Bahn löst aus, obwohl die Truppe rechts steht.
+
+### Ergebnis (2026-08-23) — Ursache gefunden, behoben, im Spiel belegt
+
+**Hypothese A (Quittung wandert mit) — WIDERLEGT.** `popups.ts` schreibt `startX` beim
+Spawn und setzt jedes Bild `setPosition(popup.startX, ...)`. Popups bleiben stehen, wo sie
+erzeugt wurden. Das „+1" auf Thomas' Screenshot markiert die Ankerposition zum
+Einlösezeitpunkt (x ≈ 228 von 390) — rechts der Mitte. Es war ein echter Fehler.
+
+**Hypothese B (zu breite Kollisionskörper) — WIDERLEGT.** Der Körper der Wandsegmente
+skaliert korrekt mit: `setSize(128, segmentHeightPx)` setzt `sourceWidth`,
+`updateFromGameObject` rechnet `sourceWidth * scaleX` = gezeichnete Breite.
+
+**Die tatsächliche Ursache — zwei Fehler in derselben Zeile.** Beide im laufenden Spiel
+gemessen (Level 11, Anker in Stufen festgehalten):
+
+1. **Die Prüfung las eine Position, die der Truppe nicht folgt.**
+   `crowdStehtInSammelbahn` rechnete aus `crowd.getHullBounds().getBounds()`. Gemessen bei
+   Anker 90 / 150 / 250: Der **Physics-Body** folgte korrekt (49 / 109 / 209), die
+   **GameObject-Position derselben Zone** stand konstant bei **−15**. Verglichen wurde also
+   mit einer Truppenposition, die es nicht gab. Das erklärt „ist aber nicht immer so".
+2. **Die Y-Achse wurde gar nicht geprüft.** Rohdaten: Eine Kachel bei `y 609..677` löste
+   voll ein, während die Hülle bei `y 677..751` stand — Berührung an genau einer Linie.
+   Weil Kacheln perspektivisch laufen, ragt eine weiter oben stehende weiter zur
+   Straßenmitte (84,2 px gegen 77,8 px auf Truppenhöhe).
+
+**Ausgeschlossen:** Die Kollisionshülle ist fest und wächst nicht mit der Truppe
+(`crowd.ts:47`) — **die Teamzahl scheidet als Ursache aus** (Thomas' erste Vermutung).
+`getWallGeometry` kennt die Levelnummer nicht — **auch die Levelabhängigkeit scheidet aus**
+(seine zweite Vermutung). Ein grünes „+N" am Anker hat genau eine Quelle im Code
+(`GameScene.ts:216`, Sammelbahn-Callback); `collectPickup` recycelt sofort, Mehrfach-
+Einlösung ist ausgeschlossen.
+
+### Gebaut
+
+- `crowdStehtInSammelbahn` rechnet die Hülle aus **Anker + Hüllenmaßen** statt aus der
+  nachlaufenden Zone und prüft **beide Achsen**.
+- Neu `walls.pickupOverlapHeightFigures` 0,5 — mindeste vertikale Überlappung.
+- Neu `walls.drainOverlapFigures` 1,6 gegen `pickupOverlapFigures` 1,2: Rot verlangt mehr
+  Eindringtiefe als Blau. **Der Wert ist aus der Fahrgrenze hergeleitet, nicht aus der
+  Hüllenbreite** — die Straßenkante deckelt den Anker bei x = 60,9, die Bahn endet bei
+  x = 84, mehr als 1,88 Figurenbreiten sind unerreichbar. Ein erster Versuch mit 2,2 war
+  grün im Test und machte rote Kacheln im Spiel **unerreichbar** (siehe `lessons.md`).
+- Neu `walls.isDrainSegment` für die Unterscheidung.
+- `tests/sammelbahn.test.ts` mit sechs Fällen, darunter **beide Enden des Grenzwerts**.
+
+### Beleg im laufenden Spiel (Level 11, je 6 s je Position)
+
+| Anker | +1 eingelöst | −3 abgezogen |
+|---|---|---|
+| 61 (linker Anschlag) | 4 | **1** |
+| 70 | 10 | 0 |
+| 78 | 12 | 0 |
+| 86 | 0 | 0 |
+| 95 | 0 | 0 |
+| 130 | 0 | 0 |
+| 160 | 0 | 0 |
+| **229 (Screenshot-Position)** | **0** | **0** |
+
+Sammeln funktioniert unverändert gut (bis 12 Plättchen in 6 s), Rot greift nur noch am
+linken Anschlag, und der gesamte Kampfbereich (86 bis 229) löst nichts mehr aus.
+
+### Offen / bewusst nicht behoben
+- **Warum die GameObject-Position der Hülle bei −15 klebt, ist nicht geklärt.** Der Fix
+  umgeht es strukturell (er liest die Position gar nicht mehr), und die Stelle war die
+  einzige, die sie las — Gegnertreffer laufen über `crowd.overlapsFigure`, also über die
+  Figuren. Der Befund gehört trotzdem in die Übergabe.
+- **Rote Kacheln sind spürbar seltener geworden** (nur noch am linken Anschlag). Das ist
+  die gewollte Folge von Thomas' Auftrag, aber es verschiebt die Seiten-Ökonomie: Die
+  linke Bahn ist jetzt netto großzügiger als vor dem 2026-08-23. Falls das zu viel ist,
+  ist `drainOverlapFigures` die Stellschraube (kleiner = Rot greift früher).
+
+### Akzeptanzkriterien
+1. ✅ Bereich, in dem +1 gilt und −3 nicht: gemessen Anker 70–84, Test fordert ≥ 10 px.
+2. ✅ Rechts der Straßenmitte löst nichts aus (Test + Messung bei 229).
+3. ✅ Beide Hypothesen mit ihrer Vorhersage geprüft und beantwortet, auch die widerlegten.
+4. ✅ `npm run check` sauber, 184 Tests grün, Messsonden gelöscht.
+5. ⏳ **Offen: Thomas' iPhone-Test.**
+
+---
+
+## Archiv
 
 **W6 — V2-Abnahme: abgeschlossen**
 (2026-08-23, Claude direkt. Thomas: "Dann nimm als abgenommen hin und mach 1 und 3

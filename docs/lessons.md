@@ -12,6 +12,33 @@ Jede Nutzerkorrektur wird hier als Regel eingetragen. Zu Sitzungsbeginn lesen.
 - **Fehler:** Eine von Thomas manuell gekürzte Todo-Zeile wurde ungefragt als „Speicherfehler" bewertet.
 - **Regel:** Änderungen an Dateien, die Thomas selbst editiert, als bewusste Entscheidung annehmen. Nur nachfragen, wenn die Änderung eine laufende Aufgabe konkret blockiert — keine Ferndiagnose.
 
+### 2026-08-23 — Kollisionsprüfung las eine Position, die der Truppe nicht folgt
+- **Fehler:** `GameScene.crowdStehtInSammelbahn` rechnete die Überlappung aus
+  `crowd.getHullBounds().getBounds()`. Im laufenden Spiel gemessen (Anker auf 90 / 150 /
+  250 festgehalten): Der **Physics-Body** der Hülle folgte korrekt (49 / 109 / 209), die
+  **GameObject-Position derselben Zone** stand dabei konstant bei −15. Die Prüfung
+  verglich also die Kachel mit einer Truppenposition, die es nicht gab — Einlösungen
+  waren faktisch zufällig, und Thomas meldete dreimal dasselbe Symptom („da verliere ich
+  immer Team", zuletzt mit Screenshot: rechts stehen und trotzdem einsammeln).
+- **Regel:** Für eine Prüfung, die eine Physik-Kollision *bewertet*, nie die
+  Darstellungs-Bounds eines Objekts heranziehen, das der Physik nachläuft. Die
+  maßgebliche Größe aus der Quelle rechnen, die die Bewegung erzeugt — hier der Anker
+  plus die Hüllenmaße aus `BALANCE`. Zwei Positionen für dieselbe Sache sind immer eine
+  zu viel.
+
+### 2026-08-23 — Test sicherte nur die Richtung, aus der die Beschwerde kam
+- **Fehler:** Der erste Test zu den zwei Sammelbahn-Schwellen prüfte, dass rechts nichts
+  ausgelöst wird, und dass ein Kampfstreifen existiert. Beides war grün bei
+  `drainOverlapFigures` 2,2 — im laufenden Spiel gemessen löste damit **keine einzige
+  rote Kachel mehr aus**, an keiner erreichbaren Position. Die Fahrgrenze deckelt den
+  Anker bei x = 60,9, die Bahn endet bei x = 84, mehr als 1,88 Figurenbreiten
+  Überlappung sind also nicht erreichbar. Der Test kannte die Fahrgrenze nicht.
+- **Regel:** Wer eine Schwelle anhebt, um etwas zu verhindern, testet im selben Zug, dass
+  das Verhinderte **erreichbar bleibt**. Ein Grenzwert braucht immer beide Enden im
+  Test: „greift nicht zu früh" UND „greift überhaupt noch". Und: Schwellen, die gegen
+  eine Bewegungsgrenze arbeiten, sind aus dieser Grenze herzuleiten, nicht aus der Größe
+  des bewegten Objekts.
+
 ### 2026-08-20 — Reißleine erlaubte stillen Zielwechsel
 - **Fehler:** Die Spec für die Gegner-Sprites enthielt als Reißleine „notfalls programmatisch zeichnen". Codex zog sie, lieferte abstrakte Formen statt Figuren — spec-konform, aber am Wunsch vorbei. Thomas musste den Auftrag wiederholen.
 - **Regel:** Jede Reißleine benennt ausdrücklich, was **kein** zulässiger Ersatz ist, und verlangt bei Nichterreichbarkeit des Ziels eine Meldung statt eines Ersatzprodukts. Ein Ausweg ohne diese Grenze ist eine Erlaubnis, das Ziel zu tauschen.

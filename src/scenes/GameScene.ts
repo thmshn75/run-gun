@@ -586,17 +586,43 @@ export class GameScene extends Phaser.Scene {
   /**
    * Steht die Truppe tief genug in der Sammelbahn, um ein Plaettchen einzuloesen?
    *
-   * Ohne diese Pruefung genuegte eine Beruehrung der Huelle - und seit die Feuerlinie
-   * schmaler ist und Gegner ueber die ganze Strasse anlaufen, muss man am Rand kaempfen.
-   * Man loeste damit zwangslaeufig auch die roten Kacheln ein (Thomas 2026-08-23: "da
-   * verliere ich immer Team"). Gemessen war es ein harter Schalter: bis 60 px links der
-   * Mitte gar nichts, ab 80 px alles.
+   * Drei Dinge, die hier bewusst so stehen - alle drei aus Messungen, nicht aus Gefuehl:
+   *
+   * 1. DIE HUELLE WIRD AUS DEM ANKER GERECHNET, nicht aus der Zone. Die Zone wird erst
+   *    in crowd.update() nachgezogen, die Kollisionspruefung von Arcade laeuft davor.
+   *    Wer die Zone liest, prueft gegen die Truppenposition des VORIGEN Bildes -
+   *    waehrend die Quittung an der aktuellen erscheint. Genau dieses Auseinanderfallen
+   *    hat Thomas am 2026-08-23 als "ich bin rechts und sammle trotzdem ein" gemeldet.
+   *
+   * 2. DIE Y-ACHSE WIRD MITGEPRUEFT. Bis hierher stand hier nur die X-Rechnung, die
+   *    Y-Achse blieb der Physik ueberlassen - und die meldet schon bei Kantenberuehrung.
+   *    GEMESSEN (Level 11, Truppe 48, Anker fest x=120): Eine Kachel bei y 609..677 loeste
+   *    voll ein, waehrend die Huelle bei y 677..751 stand. Weil Kacheln perspektivisch
+   *    laufen, ragt eine weiter oben stehende weiter zur Strassenmitte (84,2 px gegen
+   *    77,8 px auf Truppenhoehe) - die Ausloesezone wanderte dadurch nach rechts.
+   *
+   * 3. ROT VERLANGT MEHR TIEFE ALS BLAU (walls.drainOverlapFigures 2,0 gegen
+   *    pickupOverlapFigures 1,2). Seit die Feuerlinie schmaler ist und Gegner ueber die
+   *    ganze Strasse anlaufen, MUSS man am Rand kaempfen; mit einer gemeinsamen Schwelle
+   *    loeste man dabei zwangslaeufig auch die roten Kacheln ein.
    */
   private crowdStehtInSammelbahn(segment: Phaser.Physics.Arcade.Image): boolean {
-    const huelle = this.crowd.getHullBounds().getBounds()
     const bahn = segment.getBounds()
-    const ueberlappung = Math.min(huelle.right, bahn.right) - Math.max(huelle.left, bahn.left)
-    return ueberlappung >= this.crowd.getFigureWidth() * BALANCE.walls.pickupOverlapFigures
+    const figurBreite = this.crowd.getFigureWidth()
+    const figurHoehe = this.crowd.getFigureHeight()
+    const halbeBreite = (figurBreite * BALANCE.crowd.hullWidthFigures) / 2
+    const halbeHoehe = (figurHoehe * BALANCE.crowd.hullHeightFigures) / 2
+    const ankerX = this.crowd.getAnchorX()
+    const ankerY = this.crowd.getAnchorY()
+
+    const ueberlappungX = Math.min(ankerX + halbeBreite, bahn.right) - Math.max(ankerX - halbeBreite, bahn.left)
+    const ueberlappungY = Math.min(ankerY + halbeHoehe, bahn.bottom) - Math.max(ankerY - halbeHoehe, bahn.top)
+
+    const tiefe = this.walls.isDrainSegment(segment)
+      ? BALANCE.walls.drainOverlapFigures
+      : BALANCE.walls.pickupOverlapFigures
+    return ueberlappungX >= figurBreite * tiefe
+      && ueberlappungY >= figurHoehe * BALANCE.walls.pickupOverlapHeightFigures
   }
 
   private findObjectWithData(
@@ -849,7 +875,7 @@ export class GameScene extends Phaser.Scene {
 }
 
 export interface GameScene {
-  debugSetState(options: { level?: number; teamSize?: number; weapon?: WeaponKey }): void
+  debugSetState(options: { level?: number; teamSize?: number; weapon?: WeaponKey; anchorX?: number }): void
 }
 
 if (import.meta.env.DEV) {
@@ -860,11 +886,13 @@ if (import.meta.env.DEV) {
       currentLevel: number
       boss: { deactivate(): void }
       spawner: { recycleBossCompanions(): void }
+      crowd: { setAnchorX(x: number): void }
       startLevel(): void
       syncBossColliders(): void
       updateHud(): void
     }
     if (options.weapon !== undefined) scene.equipWeapon(options.weapon)
+    if (options.anchorX !== undefined) scene.crowd.setAnchorX(options.anchorX)
     if (options.teamSize !== undefined) scene.runStats.set('hp', options.teamSize)
     if (options.level !== undefined) {
       scene.currentLevel = Math.max(1, Math.floor(options.level))
