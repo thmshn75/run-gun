@@ -92,11 +92,22 @@ export function getNormalPhaseEnemiesPerSec(level: number): number {
   return secondsPerEvent <= 0 ? 0 : enemiesPerEvent / secondsPerEvent
 }
 
-/** Der Boss ruft ganze Horden - so gross wie die groessten des Levels. */
+/**
+ * Der Boss ruft ganze Horden - so gross wie die groessten des Levels, aber mit EIGENEM
+ * Deckel.
+ *
+ * Der Levelnummern-Deckel der Normalphase (getMaxSquadSize) waechst seit 2026-08-23 mit;
+ * der Bossdruck darf ihm NICHT folgen. W5 ist auf hoechstens zwei gleichzeitige Horden
+ * ausgelegt und so gemessen (maxActiveCalled = 2 x bossHordeSizeCap): Waechst die
+ * Hordengroesse mit, passt nur noch EINE Horde in den Deckel und der Bossdruck saenke
+ * still - das Gegenteil der Absicht. Der Levelaufbau kommt beim Boss deshalb ueber den
+ * Ruf-TAKT (getBossHordeIntervalMs steigt mit getNormalPhaseEnemiesPerSec mit), nicht
+ * ueber die Groesse.
+ */
 export function getBossHordeSize(level: number): number {
   const plan = getLevelPlan(Math.max(1, Math.floor(level)))
   const largest = plan.squads.reduce((size, squad) => Math.max(size, squad.size), 0)
-  return Math.max(BALANCE.level.squads.minSize, Math.min(BALANCE.level.squads.maxSize, largest))
+  return Math.max(BALANCE.level.squads.minSize, Math.min(BALANCE.boss.hordePressure.hordeSizeCap, largest))
 }
 
 /**

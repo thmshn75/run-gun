@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { advanceAlongRoad, getFigureOverscanFactor, getPerspectiveScale, getPlayfieldHalfWidth, getRoadHalfWidth, getRoadSegment } from '../src/systems/roadGeometry'
 import { getFigureWidth } from '../src/systems/enemyTypes'
-import { computeHordeOffsets } from '../src/systems/squads'
+import { computeHordeOffsets, getSquadWidth } from '../src/systems/squads'
 
 const W = 390
 const H = 844
@@ -92,15 +92,49 @@ describe('perspektivische Groesse', () => {
     const schwer = Math.max(...BALANCE.enemy.types.map((type) => getFigureWidth(type)))
     const budget = Math.min(getPlayfieldHalfWidth(W, H, ANCHOR_Y) * 2, BALANCE.walls.hordeMaxWidthPx)
     const layout = computeHordeOffsets(
-      'cluster', BALANCE.level.squads.maxSize,
+      'cluster', BALANCE.level.squads.maxSizeCap,
       BALANCE.level.squads.spacingPx, BALANCE.level.squads.rowSpacingPx, schwer, budget,
     )
-    expect(layout.size).toBe(BALANCE.level.squads.maxSize)
-    const reihen = new Set(layout.offsets.map((offset) => offset.yOffset)).size
-    // 14 Gegner in hoechstens vier Reihen - vor der perspektivischen Skalierung waren
-    // es sechs bis sieben. Die vierte Reihe kam mit figureScale 1,25 dazu: groessere
-    // Figuren, also weniger je Reihe.
-    expect(reihen).toBeLessThanOrEqual(4)
+    expect(layout.size).toBe(BALANCE.level.squads.maxSizeCap)
+    // Seit der Deckel mit der Levelnummer waechst (2026-08-23), ist eine feste
+    // Reihenzahl kein sinnvolles Kriterium mehr - eine groessere Horde DARF tiefer
+    // werden (Dichteregel W3: waechst in die Tiefe, nicht in die Breite). Gefordert
+    // bleibt, dass sie ein BLOCK ist und keine Kolonne: mehrere Figuren je Reihe.
+    const proReihe = new Map<number, number>()
+    for (const offset of layout.offsets) proReihe.set(offset.yOffset, (proReihe.get(offset.yOffset) ?? 0) + 1)
+    expect(Math.max(...proReihe.values())).toBeGreaterThanOrEqual(3)
+  })
+
+  /**
+   * REGRESSION 2026-08-23: Der Perspektiv-Aufschlag darf nicht auf die ganze Formation
+   * gehen, sonst findet keine Horde je eine Spur.
+   *
+   * Der Fehler war strukturell und blieb lange unbemerkt, weil beide beteiligten
+   * Systeme fuer sich richtig gerechnet haben: computeHordeOffsets entwirft die Horde
+   * bis walls.hordeMaxWidthPx, und spawnSquad pruefte dieselbe Horde danach mit
+   * Breite x Overscan gegen genau diesen Korridor. Gemessen kam bei Level 12 dadurch
+   * KEIN einziger Gegner mehr an (0 von 3.577 Spawn-Versuchen).
+   *
+   * Geprueft wird gegen eine unabhaengige Schranke (Lesson 2026-08-22 "Test schrieb die
+   * Formel ab"): Was spawnSquad an chooseSpawnLane uebergibt, muss kleiner sein als der
+   * Korridor - sonst ist maxLane null und es gibt konstruktiv keine gueltige Spur.
+   */
+  it('haelt jede Formation innerhalb des Korridors, sonst findet keine Horde eine Spur', () => {
+    const korridor = getPlayfieldHalfWidth(W, H, ANCHOR_Y) * 2
+    const overscan = getFigureOverscanFactor(W, H)
+    const budget = Math.min(korridor, BALANCE.walls.hordeMaxWidthPx)
+    for (const kind of ['wedge', 'row', 'cluster'] as const) {
+      for (const type of BALANCE.enemy.types) {
+        const breite = getFigureWidth(type)
+        const layout = computeHordeOffsets(
+          kind, BALANCE.level.squads.maxSizeCap,
+          BALANCE.level.squads.spacingPx, BALANCE.level.squads.rowSpacingPx, breite, budget,
+        )
+        // Genau der Ausdruck aus spawner.spawnSquad: Aufschlag nur auf die Figur.
+        const geprueft = getSquadWidth(layout.offsets, breite) - breite + breite * overscan
+        expect(geprueft, `${kind}/${type.key}`).toBeLessThan(korridor)
+      }
+    }
   })
 
   it('zieht Kollisionskoerper, Schatten und Spurabstand mit der Groesse mit', () => {

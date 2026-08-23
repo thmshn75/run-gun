@@ -1,11 +1,62 @@
-# Active Task
-
-## Status
-`IDLE`
-<!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
-
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
+
+**W7 Teil 2: Gegnermenge steigt mit dem Level, Boss pendelt nicht mehr**
+(2026-08-23, Claude direkt. Thomas nach dem iPhone-Test: "W5 passt am iphone soweit, aber
+Gegner menge darf mit levels noch steigen, Boss soll sich nicht mehr links und rechts
+bewegen, sondern einfach langsam auf mich zu, geschwindigkeit wie jetzt".)
+
+**(e) Boss pendelt nicht mehr.** `moveAcrossRoad` und beide `moveSpeed`-Werte (110/170)
+sind entfernt; die X-Position steht ab `activate()` fest in der Strassenmitte. Das
+Vorruecken (`advanceSpeed` 8,35 px/s) bleibt unveraendert — "Geschwindigkeit wie jetzt"
+ist als das bestehende Vorrueck-Tempo gelesen, nicht als Uebertragung der
+Pendelgeschwindigkeit (110 px/s haetten die 334 px bis zur Truppe in 3 s zurueckgelegt).
+Belegt: In fuenf Messlaeufen betraegt die X-Spanne des Bosses ueber den ganzen Kampf
+exakt 0 px (vorher 216 px).
+**Befund zur Kampfdauer, NICHT nachbalanciert:** Die Vorhersage war, dass der stehende
+Boss dauerhaft in der Feuerlinie bleibt und der Kampf dadurch kuerzer wird. Der direkte
+Vorher/Nachher-Vergleich mit identischem Messverfahren widerlegt das: Level 1
+104,1 -> 100,4 s, Level 6 115,1 -> 110,5 s (je -4 %), Level 12 89,5 s -> Zeitlimit 180 s
+ohne Abschuss. Die Streuung innerhalb eines Falls ist groesser als der Unterschied
+zwischen den Faellen — bestimmend ist weiterhin der Gegnerschild vor dem Boss, nicht
+seine Bewegung (derselbe Befund wie am 2026-08-22). Nach der Reissleine in `plan-v2.md`
+(maximal zwei Balance-Zyklen, dann Entscheidung mit Thomas) wurde daran nichts gedreht.
+
+**(d) Gegnermenge — der eigentliche Fund: sie stieg nicht flach, sie fiel auf null.**
+Statt zum fuenften Mal an der Leveltabelle zu drehen, wurde die Kette durchgemessen
+(angefordert -> erzeugt). Ergebnis im Browser, je 60 s Fahrt, Truppe 30, Waffe normal:
+- **VORHER:** Level 1 4,95 Gegner/s (63 von 1.247 Versuchen), Level 6 **0,03** (2 von
+  3.495), Level 12 **0,00** (0 von 3.577). Bei hohen Leveln kam gar kein Gegner mehr an.
+- **Ursache 1 — doppelter Perspektiv-Aufschlag** (`spawner.spawnSquad`):
+  `computeHordeOffsets` entwirft die Horde auf bis zu 220 px, dieselbe Horde wurde danach
+  mit 220 x 1,519 = 334 px gegen den 234 px breiten Korridor geprueft. `chooseSpawnLane`
+  lieferte konstruktiv `maxLane = 0`. Korrigiert: Der Aufschlag gehoert nur auf die
+  FIGURENBREITE — die Mitglieds-Abstaende werden in `activateEnemy` ohnehin in
+  Spuranteile umgerechnet und wachsen damit genau wie der Korridor.
+- **Ursache 2 — Warteschlange ohne Verfallszeit:** Eine abgelehnte Horde blieb als
+  `deferredSpawn` liegen und blockierte den gesamten Takt, auch jeden Einzelgegner.
+  Gemessen lag eine Horde ueber 55 s im Weg. Neu: `enemy.deferredMaxAgeMs` (2.700 ms =
+  halbe Anflugzeit, hergeleitet), danach wird sie verworfen.
+- **Ursache 3 — fester Hordendeckel:** `level.squads.maxSize` 14 schnitt die
+  hardness-Skalierung ab Level 5 ab; ueber sieben Level stieg die Menge nur um 18 %. Neu
+  levelabhaengig (`maxSizeAtLevelOne` 14, `maxSizePerLevel` 1, `maxSizeCap` 26 — die
+  Kappe ist die Nachlaufpause: der Durchsatz laeuft gegen 1000/pausePerMemberMs = 25/s).
+  Die Boss-Hordengroesse folgt bewusst NICHT mit (eigener `hordePressure.hordeSizeCap`
+  14), sonst haette `maxActiveCalled` nur noch eine statt zwei Horden zugelassen und der
+  Bossdruck aus W5 waere still gesunken.
+- **NACHHER**, je drei Laeufe, Mittelwert, in Klammern der mittlere Bestand am Schirm:
+  Level 1 **6,49** /s (22,5) · Level 4 **8,31** /s (29,4) · Level 8 **10,30** /s (60,1) ·
+  Level 12 **12,56** /s (73,0). Der sichtbare Bestand steigt ueber den Run um Faktor 3,2.
+  Keine einzige Pool-Erschoepfung, hoechster Bestand 99 gegen Pool 264.
+- **Offen und bewusst nicht angefasst:** Level 1 liegt jetzt 31 % ueber dem von Thomas
+  abgenommenen Stand — Folge der Fehlerbehebung, nicht einer Anhebung der Tabelle.
+  Ausserdem werden weiterhin rund 93 % der Spawn-Versuche abgelehnt; das ist ab hier
+  keine Fehlfunktion mehr, sondern die Sperre gegen ineinander erscheinende Gegner bei
+  voller Auslastung. Wer mehr will, muss an der Verweildauer ansetzen, nicht am Zufluss.
+
+Regressionstest gegen Ursache 1 in `tests/perspective.test.ts` (prueft gegen den
+Korridor, nicht gegen die Formel). 154 Tests gruen, `npm run check` sauber.
+
 
 **Gegner auf Spielgroesse gebracht, Kurve steiler, nochmal mehr Nachschub**
 (2026-08-22, Claude direkt, Thomas zum DRITTEN Mal zur Groesse: "Die mobs wirken immer

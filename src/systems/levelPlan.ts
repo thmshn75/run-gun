@@ -13,6 +13,18 @@ export type LevelPlan = {
   readonly companionLimit: number
 }
 
+/**
+ * Deckel fuer die Hordengroesse des Levels. Waechst mit der Levelnummer, damit die
+ * Mengenkurve ueber den ganzen Run steigt (Thomas 2026-08-23) - vorher war der Deckel
+ * fest und schnitt die hardness-Skalierung ab Level 5 ab. Herleitung der Zahlen steht
+ * bei BALANCE.level.squads.
+ */
+export function getMaxSquadSize(level: number): number {
+  const safeLevel = Math.max(1, Math.floor(level))
+  const squads = BALANCE.level.squads
+  return Math.min(squads.maxSizeCap, squads.maxSizeAtLevelOne + (safeLevel - 1) * squads.maxSizePerLevel)
+}
+
 export function getLevelPlan(level: number): LevelPlan {
   const safeLevel = Math.max(1, Math.floor(level))
   const designLevel = ((safeLevel - 1) % BALANCE.level.plans.length) + 1
@@ -35,7 +47,7 @@ export function getLevelPlan(level: number): LevelPlan {
       // members with hardness until the shared safety cap is reached.
       size: squad.kind === 'row'
         ? squad.size
-        : Math.min(BALANCE.level.squads.maxSize, Math.max(BALANCE.level.squads.minSize, Math.ceil(squad.size * hardness))),
+        : Math.min(getMaxSquadSize(safeLevel), Math.max(BALANCE.level.squads.minSize, Math.ceil(squad.size * hardness))),
     })),
     companionLimit: definition.companionLimit,
   }

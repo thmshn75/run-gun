@@ -3,7 +3,7 @@ import { BALANCE } from '../config/balance'
 import { canSpawnBossHorde } from './bossPlan'
 import { chooseEnemyType, getEnemyHp, getFigureHeight, getFigureWidth, type EnemyType } from './enemyTypes'
 import { getEnemySpawnCenterY, getSquadSpawnBaseY, isRevealedAtHorizon } from './horizonReveal'
-import { getLevelPlan, type LevelPlan } from './levelPlan'
+import { getLevelPlan, getMaxSquadSize, type LevelPlan } from './levelPlan'
 import { getBobOffsetPx, getPhaseOffset, getStepCycleHz } from './gamefeel'
 import { getFigureOverscanFactor, getPerspectiveScale, getPlayfieldHalfWidth } from './road'
 import { chooseSpawnLane, type SpawnLaneEnemy } from './spawnLanes'
@@ -30,6 +30,7 @@ export class Spawner {
   private elapsedMs: number
   private lastPoolWarningAtMs: number
   private deferredSpawn: SpawnRequest | undefined
+  private deferredAgeMs: number
   private intervalSpawnCount: number
   private intervalDeferredCount: number
   private intervalPlannedCount: number
@@ -47,6 +48,7 @@ export class Spawner {
     this.elapsedMs = 0
     this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
     this.deferredSpawn = undefined
+    this.deferredAgeMs = 0
     this.intervalSpawnCount = 0
     this.intervalDeferredCount = 0
     this.intervalPlannedCount = 0
@@ -86,13 +88,17 @@ export class Spawner {
 
   public setSpawningEnabled(enabled: boolean): void {
     this.spawningEnabled = enabled
-    if (!enabled) this.deferredSpawn = undefined
+    if (!enabled) {
+      this.deferredSpawn = undefined
+      this.deferredAgeMs = 0
+    }
   }
 
   public resetForLevel(level: number): void {
     this.elapsedMs = 0
     this.spawnAccumulatorMs = 0
     this.deferredSpawn = undefined
+    this.deferredAgeMs = 0
     this.levelPlan = getLevelPlan(level)
     this.spawningEnabled = true
   }
@@ -188,7 +194,28 @@ export class Spawner {
   public update(dt: number): void {
     this.elapsedMs += dt
     if (this.spawningEnabled) this.spawnAccumulatorMs += dt
-    if (this.spawningEnabled && this.deferredSpawn !== undefined && this.spawn(this.deferredSpawn) === 'spawned') this.deferredSpawn = undefined
+    if (this.spawningEnabled && this.deferredSpawn !== undefined) {
+      if (this.spawn(this.deferredSpawn) === 'spawned') {
+        this.deferredSpawn = undefined
+        this.deferredAgeMs = 0
+      } else {
+        // AUFGEBEN STATT EWIG WARTEN (2026-08-23). Eine verschobene Horde blockierte
+        // vorher den kompletten Takt (`if (deferredSpawn !== undefined) continue`) -
+        // auch jeden EINZELGEGNER, der laengst gepasst haette. Gemessen lag bei Level 12
+        // eine unplatzierbare Horde ueber 55 Sekunden im Weg, in denen kein einziger
+        // Gegner mehr kam.
+        //
+        // deferredMaxAgeMs ist nicht geraten, sondern die Anflugzeit einer Figur ueber
+        // die halbe Strecke: Wer nach dieser Zeit keine Spur gefunden hat, findet sie
+        // auch nicht mehr durch Warten - die Lage am Horizont hat sich bis dahin
+        // vollstaendig erneuert. Der Takt darf dann weiterlaufen.
+        this.deferredAgeMs += dt
+        if (this.deferredAgeMs >= BALANCE.enemy.deferredMaxAgeMs) {
+          this.deferredSpawn = undefined
+          this.deferredAgeMs = 0
+        }
+      }
+    }
     const spawnIntervalMs = this.getSpawnIntervalMs()
     while (this.spawningEnabled && this.spawnAccumulatorMs >= spawnIntervalMs) {
       this.spawnAccumulatorMs -= spawnIntervalMs
@@ -197,6 +224,7 @@ export class Spawner {
       const request = this.chooseSpawnRequest()
       if (this.spawn(request) !== 'spawned') {
         this.deferredSpawn = request
+        this.deferredAgeMs = 0
         this.intervalDeferredCount += 1
         break
       }
@@ -328,7 +356,7 @@ export class Spawner {
     const maxWidthAnchor = Math.min(anchorHalfWidth * 2, BALANCE.walls.hordeMaxWidthPx)
     // Typen VOR dem Layout ziehen: Die Dichteregel staucht mit der echten breitesten
     // Figur der Horde — ein Keil aus Leichten wird dichter als ein Schwerer-Block.
-    const drawnTypes = this.getSquadTypes(squadKind, Math.min(requestedSize, BALANCE.level.squads.maxSize))
+    const drawnTypes = this.getSquadTypes(squadKind, Math.min(requestedSize, getMaxSquadSize(this.levelPlan.level)))
     const layout = computeHordeOffsets(
       squadKind,
       drawnTypes.length,
@@ -366,9 +394,29 @@ export class Spawner {
       () => Phaser.Math.RND.frac(),
       BALANCE.enemy.spawnLaneSafetyGap,
       BALANCE.enemy.spawnBands.hordeLaneShare,
-      // Wie beim Einzelgegner: Die Formationsbreite bestimmt nur den Randabstand und
-      // bekommt deshalb den Perspektiv-Aufschlag mit.
-      getSquadWidth(offsets, widestBodyWidth) * getFigureOverscanFactor(this.scene.scale.width, this.scene.scale.height),
+      // Perspektiv-Aufschlag NUR auf die Figurenbreite, nicht auf die ganze Formation
+      // (Korrektur 2026-08-23, gemessen - vorher fand ab Level 6 praktisch keine Horde
+      // mehr eine Spur, bei Level 12 gar keine):
+      //
+      // Die Mitglieds-ABSTAENDE werden in activateEnemy durch anchorHalfWidth geteilt
+      // und damit in Spuranteile umgerechnet. Sie wachsen also GENAU wie der Korridor
+      // und brauchen keinen Aufschlag. Nur die FIGUREN selbst wachsen nach der
+      // Perspektivkurve, die weiter oben staerker zulegt als der Korridor - das misst
+      // getFigureOverscanFactor, und nur darauf gehoert der Faktor.
+      //
+      // Vorher stand hier die GESAMTE Formationsbreite mal Overscan. Ergebnis war ein
+      // struktureller Widerspruch: computeHordeOffsets entwirft die Horde auf bis zu
+      // walls.hordeMaxWidthPx (220 px), und dieselbe Horde wurde danach mit 220 x 1,519
+      // = 334 px gegen den 234 px breiten Korridor geprueft. chooseSpawnLane lieferte
+      // deshalb maxLane = 0 und nie eine Spur. Gemessen ueber je 60 s Fahrt:
+      //   Level 1:   63 von 1.247 Versuchen erfolgreich, 4,95 Gegner/s
+      //   Level 6:    2 von 3.495 Versuchen erfolgreich, 0,03 Gegner/s
+      //   Level 12:   0 von 3.577 Versuchen erfolgreich, 0,00 Gegner/s
+      // Verschaerft wurde es dadurch, dass eine abgelehnte Horde als deferredSpawn
+      // liegen bleibt und in update() auch jeden EINZELGEGNER blockiert - eine
+      // unplatzierbare Horde legt den gesamten Nachschub still.
+      getSquadWidth(offsets, widestBodyWidth) - widestBodyWidth
+        + widestBodyWidth * getFigureOverscanFactor(this.scene.scale.width, this.scene.scale.height),
     )
     if (lane === undefined) return 'no-lane'
 

@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { getBossPhase, getBossPlan, type BossPlan, type BossUpgradeLevels } from './bossPlan'
-import { getPerspectiveScale, getRoadHalfWidth } from './road'
+import { getPerspectiveScale } from './road'
 import type { WeaponKey } from './weapons'
 
 export class Boss {
@@ -14,7 +14,6 @@ export class Boss {
   private plan: BossPlan | undefined
   private fightElapsedMs: number
   private hordeAccumulatorMs: number
-  private moveDirection: number
   private approaching: boolean
   private phaseTwoStarted: boolean
   private phaseFlashRemainingMs: number
@@ -39,7 +38,6 @@ export class Boss {
     this.plan = undefined
     this.fightElapsedMs = 0
     this.hordeAccumulatorMs = 0
-    this.moveDirection = 1
     this.approaching = false
     this.phaseTwoStarted = false
     this.phaseFlashRemainingMs = 0
@@ -60,7 +58,6 @@ export class Boss {
     // Die erste Horde soll nicht sofort im Anmarsch stehen: Der Kampf beginnt mit dem
     // Boss allein, der Zaehler startet bei null und laeuft erst ab dem Kampfbeginn.
     this.hordeAccumulatorMs = 0
-    this.moveDirection = 1
     this.approaching = true
     this.phaseTwoStarted = false
     this.phaseFlashRemainingMs = 0
@@ -98,7 +95,10 @@ export class Boss {
       this.fightElapsedMs += dt
       this.updatePhase(plan)
       const phase = this.phaseTwoStarted ? plan.phaseTwo : plan.phaseOne
-      this.moveAcrossRoad(dt, phase.moveSpeed)
+      // DER BOSS PENDELT NICHT MEHR SEITLICH (Thomas 2026-08-23 nach dem iPhone-Test:
+      // "Boss soll sich nicht mehr links und rechts bewegen, sondern einfach langsam auf
+      // mich zu"). Seine X-Position steht ab activate() fest in der Strassenmitte; die
+      // einzige Bewegung im Kampf ist das Vorruecken in advanceTowardsCrowd.
       // Der Boss schiesst seit V2 nicht mehr (Entscheidung Thomas 2026-08-22). Sein
       // Druck kommt aus gerufenen Horden und aus dem stetigen Vorruecken: Seit
       // pressureDelayMs auf 0 steht, setzt er sich ab dem ersten Kampfbild in Bewegung
@@ -137,23 +137,6 @@ export class Boss {
 
   private applyPerspectiveScale(): void {
     this.enemy.setScale(getPerspectiveScale(this.scene.scale.width, this.scene.scale.height, this.enemy.y))
-  }
-
-  private moveAcrossRoad(dt: number, speed: number): void {
-    const halfRoad = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, this.enemy.y)
-    // Skalierte Breite: Weiter hinten ist der Boss schmaler und darf entsprechend
-    // weiter nach aussen - sonst haelt er unnoetig Abstand zur Strassenkante.
-    const edge = Math.max(0, halfRoad - (BALANCE.boss.bodyWidth * this.enemy.scaleX) / 2)
-    const minX = this.scene.scale.width / 2 - edge
-    const maxX = this.scene.scale.width / 2 + edge
-    this.enemy.x += (this.moveDirection * speed * dt) / 1000
-    if (this.enemy.x >= maxX) {
-      this.enemy.x = maxX
-      this.moveDirection = -1
-    } else if (this.enemy.x <= minX) {
-      this.enemy.x = minX
-      this.moveDirection = 1
-    }
   }
 
   private advanceTowardsCrowd(dt: number, plan: BossPlan): void {

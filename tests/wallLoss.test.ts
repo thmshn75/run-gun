@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
-import { getLevelPlan } from '../src/systems/levelPlan'
+import { getLevelPlan, getMaxSquadSize } from '../src/systems/levelPlan'
 
 // Rote Kacheln (Thomas 2026-08-22: "man erreicht schnell das maximum ueberall und
 // verliert nie etwas"). Die Tests sichern die BEGRUENDUNG der Werte ab, nicht die
@@ -69,7 +69,7 @@ describe('groessere Horden', () => {
     // Masse kommt aus 'cluster' und 'wedge'.
     for (let level = 1; level <= 12; level += 1) {
       for (const squad of getLevelPlan(level).squads) {
-        expect(squad.size, `Level ${level} ${squad.kind}`).toBeLessThanOrEqual(BALANCE.level.squads.maxSize)
+        expect(squad.size, `Level ${level} ${squad.kind}`).toBeLessThanOrEqual(getMaxSquadSize(level))
         if (squad.kind === 'row') expect(squad.size, `Level ${level} row`).toBeLessThanOrEqual(4)
       }
     }
@@ -81,7 +81,7 @@ describe('groessere Horden', () => {
     // Tempo. Seit alle Typen gleich schnell sind, gibt es dafuer nur noch EIN Tempo.
     const streckePx = 881
     const verweilSec = streckePx / BALANCE.stats.speed.floor
-    const maxSize = BALANCE.level.squads.maxSize
+    const maxSize = BALANCE.level.squads.maxSizeCap
     const pauseSec = (BALANCE.level.squads.pauseBaseMs + maxSize * BALANCE.level.squads.pausePerMemberMs) / 1000
     const spitze = Math.ceil(verweilSec / pauseSec) * maxSize
     expect(BALANCE.pools.enemies).toBeGreaterThan(spitze)
@@ -93,6 +93,6 @@ describe('groessere Horden', () => {
   it('laesst den Boss hoechstens zwei Horden gleichzeitig halten', () => {
     // Mehr waere eine geschlossene Wand, die den Boss vor Beschuss abschirmt - genau
     // der Befund, an dem der erste Entwurf (64) gescheitert ist.
-    expect(BALANCE.boss.hordePressure.maxActiveCalled).toBe(BALANCE.level.squads.maxSize * 2)
+    expect(BALANCE.boss.hordePressure.maxActiveCalled).toBe(BALANCE.boss.hordePressure.hordeSizeCap * 2)
   })
 })

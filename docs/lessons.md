@@ -288,3 +288,36 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   naheliegendsten Namen. Bei mehreren Plaenen gilt der mit der hoechsten Versionsnummer,
   und `git tag -l` zeigt, was bereits abgenommen ist. Ein Projektstand wird nie aus dem
   Gedaechtnis oder aus einer einzelnen Datei beantwortet.
+
+### 2026-08-23 — Vier Anlaeufe an der Menge, waehrend ein Einheitenfehler sie auf null zog
+- **Fehler:** Thomas meldete zum FUENFTEN Mal zu wenige Gegner ("Gegnermenge darf mit
+  Levels noch steigen"). Die vier Anlaeufe davor hatten Gruppengroesse, Deckel,
+  Nachlaufpause und Spawn-Baender angefasst — alles in `balance.ts`, alles wirkungslos.
+  Die Messung im Browser zeigte, dass die Menge mit dem Level nicht flach blieb, sondern
+  auf NULL fiel: Level 1 4,95 Gegner/s, Level 6 0,03, Level 12 exakt 0,00 (0 von 3.577
+  Spawn-Versuchen erfolgreich). Ursache war ein doppelter Perspektiv-Aufschlag:
+  `computeHordeOffsets` entwirft die Horde auf bis zu 220 px Korridorbreite, und
+  `spawnSquad` prüfte dieselbe Horde danach mit 220 × 1,519 = 334 px gegen genau diesen
+  234 px breiten Korridor. `chooseSpawnLane` lieferte deshalb konstruktiv `maxLane = 0`
+  und nie eine Spur. Verschärft durch eine zweite Stelle: Eine abgelehnte Horde blieb als
+  `deferredSpawn` liegen und blockierte den gesamten Takt — gemessen über 55 Sekunden, in
+  denen auch kein einziger Einzelgegner mehr kam.
+- **Regel:** Wird dieselbe Beschwerde ein drittes Mal gemeldet, ist der eingestellte Wert
+  nicht mehr die Frage. Dann wird nicht die nächste Stellschraube gesucht, sondern **eine
+  Zahl gemessen, die den Wert gar nicht enthält**: erfolgreiche gegen versuchte
+  Operationen. `spawned / (spawned + abgelehnt)` hätte den Fehler in Minuten gezeigt und
+  war vier Anläufe lang nie erhoben worden — der `balance.ts`-Kommentar nannte die
+  Ablehnungsquote sogar ausdrücklich als Grenze für den nächsten Anlauf, und trotzdem
+  wurde erneut an der Menge gedreht statt sie zu messen. Eine Ablehnungsquote nahe 100 %
+  ist nie Auslastung, sondern immer ein Konstruktionsfehler.
+- **Zusatz (die eigentliche Falle):** Wo ein Wert einmal umgerechnet, gestaucht oder
+  normiert wurde, darf dieselbe Umrechnung nicht ein zweites Mal auf ihn angewendet
+  werden. Praktischer Test beim Schreiben: Für jeden Faktor in einer Bedingung benennen,
+  **welche Größe er in welches Bezugssystem bringt** — und ob die Vergleichsgröße auf der
+  anderen Seite schon in diesem System steht. Beide Seiten waren hier je für sich korrekt
+  hergeleitet und ausführlich kommentiert; der Fehler lag ausschließlich in ihrer
+  Kombination und ist deshalb durch Lesen einer einzelnen Stelle nicht zu finden.
+- **Dritte Lehre:** Ein Wartemechanismus ohne Verfallszeit ist eine Sperre. `deferredSpawn`
+  war als Höflichkeit gedacht ("die Horde kommt gleich"), wirkte aber als Totalblockade,
+  weil nichts sie je aufgab. Jede Warteschlange braucht eine hergeleitete Obergrenze, nach
+  der der Eintrag verworfen wird.

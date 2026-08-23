@@ -753,6 +753,18 @@ export const BALANCE = {
     // Enemy composition belongs to the level plan, never to elapsed spawn time.
     spawnRampPerSec: 6,
     spawnLaneSafetyGap: 5,
+    // Wie lange eine verschobene Spawn-Anforderung hoechstens im Weg liegen darf, bevor
+    // der Spawner sie aufgibt (2026-08-23). Vorher gab es keine Grenze: Eine Horde, die
+    // keine Spur fand, blockierte den gesamten Takt - auch jeden Einzelgegner. Bei
+    // Level 12 lag so ueber 55 s gemessen eine Horde fest und es kam GAR kein Gegner
+    // mehr.
+    //
+    // 2.700 ms ist nicht geraten, sondern die halbe Anflugzeit: Vom Horizont bis zur
+    // Truppe sind es 564 px, bei rund 105 px/s also 5,4 s (dieselbe Herleitung wie bei
+    // der Zielsuche weiter unten). Nach der Haelfte davon hat sich die Lage am Horizont
+    // vollstaendig erneuert - wer bis dahin keine Spur gefunden hat, findet sie nicht
+    // durch weiteres Warten, sondern blockiert nur den Nachschub.
+    deferredMaxAgeMs: 2700,
     // W3-Mittelband: Spawn-Schwerpunkte als Anteil der halben Spielfeldbreite.
     // Horden landen eng an der Mitte, Einzelgegner im mittleren Bereich — die
     // Korridor-Raender bleiben als Ausweichzone frei ("statt ueber Spuren verteilt").
@@ -784,7 +796,26 @@ export const BALANCE = {
       // gestaucht). Horden wachsen deshalb in die TIEFE: 'cluster' setzt vier je Reihe,
       // 14 ergeben vier gestaffelte Reihen. 'row' bleibt konstruktiv bei vier - eine
       // Reihe kann nicht tief werden, dort ist die Groesse in der Leveltabelle gedeckelt.
-      maxSize: 14,
+      // DECKEL WAECHST MIT DEM LEVEL (Thomas 2026-08-23: "Gegnermenge darf mit Levels
+      // noch steigen"). Vorher war 14 eine feste Zahl - und damit ab Level 5 die
+      // eigentliche Bremse der Levelkurve: hardness skaliert die Hordengroessen der
+      // Leveltabelle zwar mit (bis 1,6), lief aber gegen diesen Deckel und wurde
+      // abgeschnitten. Gemessen (Simulation der Spawner-Zeitschleife, tests/_throughput):
+      // Level 5 = 12,7 Gegner/s, Level 12 = 14,9 - ueber sieben Level nur +18 %.
+      //
+      // 14 + 1 je Level, gedeckelt bei 26. Bei Level 12 ergibt der Deckel 25, wirksam
+      // wird die Leveltabelle mit ceil(14 x 1,495) = 21. Die Horde waechst dabei in die
+      // TIEFE, nicht in die Breite: computeHordeOffsets setzt maxPerRow aus der
+      // Korridorbreite, 21 Mitglieder sind also gestaffelte Reihen (Dichteregel W3).
+      // Die Breite bleibt durch walls.hordeMaxWidthPx begrenzt, das Ausweichen erhalten.
+      //
+      // 26 als Kappe ist nicht frei gewaehlt, sondern die Nachlaufpause: Eine Horde
+      // kostet pauseBaseMs + n x pausePerMemberMs, der Durchsatz laeuft also gegen
+      // 1000 / pausePerMemberMs = 25 Gegner/s. Ueber 26 bringt jede weitere Figur
+      // rechnerisch fast nichts mehr, kostet aber Poolplatz und Rechenzeit.
+      maxSizeAtLevelOne: 14,
+      maxSizePerLevel: 1,
+      maxSizeCap: 26,
       // 44 -> 52 und 54 -> 62 mit enemy.figureScale 1,25. Bewusst UNTER dem Faktor
       // gehalten (1,18 statt 1,25): Die Horde soll dichter wirken als vorher, nicht nur
       // groesser - und vier Figuren muessen weiter nebeneinander passen.
@@ -839,6 +870,38 @@ export const BALANCE = {
     // 10 s (bei 12-14 geplanten Ereignissen). Nicht der Takt bremst dann, sondern die
     // Spurvergabe - wer hier weiter aufdreht, muss zuerst spawnBands oder
     // spawnLaneSafetyGap anfassen, sonst verpuffen kuerzere Intervalle wirkungslos.
+    //
+    // 2026-08-23, FUENFTER Anlauf (Thomas: "Gegnermenge darf mit Levels noch steigen").
+    // Diesmal wurde NICHT an dieser Tabelle gedreht, sondern die Kette durchgemessen -
+    // und dabei ein Fehler gefunden, der die Tabelle wirkungslos machte. Gemessen im
+    // Browser ueber je 60 s Fahrt (Truppe 30, Waffe normal), VORHER:
+    //   Level 1:  4,95 Gegner/s   (63 von 1.247 Spawn-Versuchen erfolgreich)
+    //   Level 6:  0,03 Gegner/s   ( 2 von 3.495)
+    //   Level 12: 0,00 Gegner/s   ( 0 von 3.577)
+    // Die Menge stieg mit dem Level also nicht - sie fiel auf NULL. Ursache war ein
+    // doppelter Perspektiv-Aufschlag in spawner.spawnSquad (dort ausfuehrlich
+    // kommentiert): Jede Formation wurde breiter geprueft, als der Korridor ist, und
+    // fand nie eine Spur. Verschaerft durch die fehlende Verfallszeit fuer verschobene
+    // Spawns - eine unplatzierbare Horde legte den gesamten Nachschub stumm.
+    //
+    // NACH den drei Aenderungen (Aufschlag korrigiert, Hordendeckel levelabhaengig,
+    // deferredMaxAgeMs), je drei Laeufe, Mittelwert - und in Klammern der mittlere
+    // Bestand auf dem Bildschirm, also das, was man tatsaechlich sieht:
+    //   Level 1:   6,49 Gegner/s  (22,5 gleichzeitig)
+    //   Level 4:   8,31 Gegner/s  (29,4)
+    //   Level 8:  10,30 Gegner/s  (60,1)
+    //   Level 12: 12,56 Gegner/s  (73,0)
+    // Der Bestand steigt damit ueber den Run um Faktor 3,2. Level 1 liegt 31 % ueber
+    // dem von Thomas abgenommenen Stand - das ist Folge der Fehlerbehebung, nicht eine
+    // Anhebung dieser Tabelle.
+    //
+    // GRENZE fuer den naechsten Anlauf ist jetzt eine andere: Auch nach der Korrektur
+    // werden rund 93 % der Spawn-Versuche abgelehnt, weil am Horizont bereits Gegner
+    // stehen (canMeet in spawnLanes.ts). Das ist kein Fehler mehr, sondern volle
+    // Auslastung - die Sperre verhindert, dass Gegner ineinander erscheinen, und die
+    // wurde teuer bezahlt (siehe docs/lessons.md, 2026-08-20). Wer hier weiter
+    // aufdrehen will, muss an der Verweildauer ansetzen (Tempo, Lebenspunkte), nicht
+    // am Zufluss.
     //
     // Formregel unveraendert: 'row' bleibt bei vier - eine einzelne Reihe kann nicht
     // ueber die Breitengrenze hinauswachsen. Masse kommt aus 'cluster' (vier je Reihe,
@@ -912,13 +975,24 @@ export const BALANCE = {
     // Der Boss SCHIESST SEIT V2 NICHT MEHR (Entscheidung Thomas 2026-08-22, plan-v2
     // "Boss V2"). Sein Druck kommt aus gerufenen Horden und dem Vorruecken bei
     // Zeitueberschreitung. Alle Salvenwerte sind deshalb entfallen.
+    // DER BOSS PENDELT SEIT 2026-08-23 NICHT MEHR SEITLICH (Thomas nach dem iPhone-Test:
+    // "Boss soll sich nicht mehr links und rechts bewegen, sondern einfach langsam auf
+    // mich zu, Geschwindigkeit wie jetzt"). Die frueheren moveSpeed-Werte (110 in Phase 1,
+    // 170 in Phase 2) und die zugehoerige Pendelbewegung in boss.ts sind entfallen.
+    // "Geschwindigkeit wie jetzt" ist als das BESTEHENDE VORRUECK-Tempo gelesen
+    // (advanceSpeed 8,35 px/s, unten hergeleitet), nicht als Uebertragung der
+    // Pendelgeschwindigkeit auf die Anflugrichtung - 110 px/s wuerden die 334 px bis zur
+    // Truppe in 3 s zuruecklegen und den Kampf zerstoeren.
+    //
+    // FOLGE, die beim Nachziehen zu beachten ist: Der stehende Boss bleibt dauerhaft in
+    // der Feuerlinie der Truppe (die schiesst spurtreu), waehrend der pendelnde
+    // regelmaessig aus ihr herauslief. Die gemessene Kampfdauer sinkt dadurch.
+    // Phase 2 unterscheidet sich jetzt nur noch ueber Hordendruck und Faerbung.
     phaseOne: {
       hordePressureShare: 0.5,
-      moveSpeed: 110,
     },
     phaseTwo: {
       hordePressureShare: 1,
-      moveSpeed: 170,
       tint: 0xff6a6a,
       transitionFlashMs: 180,
     },
@@ -953,6 +1027,11 @@ export const BALANCE = {
       // Kampfdauer haengt ab einer bestimmten Dichte am Schild statt an den
       // Lebenspunkten. 28 ist die obere Kante des Gemessenen, nicht ein sicherer Wert:
       // Faechert die Kampfdauer wieder auf, gehoert diese Zahl zuerst zurueckgedreht.
+      // Groesse EINER gerufenen Horde. Bewusst fest, waehrend der Deckel der Normalphase
+      // seit 2026-08-23 mit der Levelnummer waechst - Begruendung steht bei
+      // bossPlan.getBossHordeSize. maxActiveCalled ist genau das Doppelte davon, damit
+      // hoechstens zwei Horden gleichzeitig vor dem Boss stehen.
+      hordeSizeCap: 14,
       maxActiveCalled: 28,
       // Untergrenze fuer den Ruf-Takt: Unter einer halben Sekunde erscheint eine
       // Horde, bevor die vorige die Bildmitte erreicht hat - das liest sich als
@@ -1040,6 +1119,13 @@ export const BALANCE = {
     // Mit der verkuerzten Nachlaufpause (250 + 14 x 40 = 810 ms) sind es
     // ceil(12,6 / 0,81) x 14 = 224. 264 laesst 18 % Reserve fuer gemischte
     // Einzelspawns und verzoegertes Recycling.
+    // NACHGERECHNET 2026-08-23 mit dem levelabhaengigen Hordendeckel: Bei Level 12
+    // wird die groesste Horde 21 gross, ihre Pause 250 + 21 x 40 = 1,09 s. Der
+    // schlimmste Fall ist damit ceil(12,6 / 1,09) x 21 = 12 x 21 = 252 - der Pool
+    // traegt ihn weiter, die Reserve schrumpft aber auf 5 %. Wer den Deckel weiter
+    // anhebt, muss diese Zahl mit anheben.
+    // GEMESSEN im Browser (je drei Laeufe ueber 60 s, Truppe 30, Waffe normal):
+    // hoechster Bestand 99 bei Level 12, keine einzige Pool-Erschoepfung.
     // ACHTUNG: Das ist der Wert fuer den Fall, dass NICHT geschossen wird. Im Spiel
     // liegt der Bestand weit darunter, weil die Truppe raeumt - gemessen bei Level 12
     // mit realistischem Ausbau rund 20 gleichzeitig. Der Pool ist die Sicherung fuer

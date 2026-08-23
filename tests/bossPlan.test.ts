@@ -53,7 +53,16 @@ describe('boss plans', () => {
     // "koennen noch ein wenig mehr sein"). Auf den Boss schlaegt das erst ab Level 5
     // durch - bis Level 4 ruft er ueberhaupt keine Horde.
     expect(getNormalPhaseEnemiesPerSec(1)).toBeCloseTo(8.15, 1)
-    expect(getNormalPhaseEnemiesPerSec(12)).toBeCloseTo(15.74, 1)
+    // Level 12 stieg am 2026-08-23 von 15,74 auf 17,84, weil der Hordendeckel jetzt mit
+    // der Levelnummer waechst (getMaxSquadSize) - die groesste Horde ist dort 21 statt 14.
+    //
+    // ACHTUNG bei der Nutzung dieser Zahl: Sie ist der Takt, den der Spawner ANFORDERT.
+    // Im Spiel gemessen (2026-08-23, je drei Laeufe ueber 60 s) kommen bei Level 12
+    // 12,56 Gegner/s tatsaechlich an - rund 30 % weniger, weil die Spurvergabe ablehnt,
+    // solange am Horizont schon Gegner stehen. Der Boss-Ruftakt wird aus dieser
+    // Anforderung abgeleitet und liegt damit bewusst auf der schnellen Seite; begrenzt
+    // wird er durch hordePressure.minIntervalMs und maxActiveCalled.
+    expect(getNormalPhaseEnemiesPerSec(12)).toBeCloseTo(17.84, 1)
     // Und der Druck steigt ueber die Level, sonst waere die Ableitung sinnlos.
     for (let level = 2; level <= 12; level += 1) {
       expect(getNormalPhaseEnemiesPerSec(level)).toBeGreaterThan(getNormalPhaseEnemiesPerSec(1))
@@ -91,7 +100,7 @@ describe('boss plans', () => {
     // Der Deckel muss in den Pool passen; im Bosskampf ist der Normalspawner aus.
     expect(max).toBeLessThan(BALANCE.pools.enemies)
     // Und er ist aus der Geometrie hergeleitet: zwei volle Horden, nicht mehr.
-    expect(max).toBe(2 * BALANCE.level.squads.maxSize)
+    expect(max).toBe(2 * BALANCE.boss.hordePressure.hordeSizeCap)
     // Und er muss die groesste Horde jedes Levels aufnehmen koennen.
     for (let level = 1; level <= 12; level += 1) {
       expect(getBossHordeSize(level)).toBeLessThanOrEqual(max)
@@ -215,7 +224,11 @@ describe('boss plans', () => {
     expect(plan.phaseTwo).toEqual(getPhaseTwoProfile(plan.level))
     expect(plan.phaseOne).toEqual(getPhaseOneProfile(plan.level))
     expect(plan.phaseTwo.hordeIntervalMs).toBeLessThan(plan.phaseOne.hordeIntervalMs)
-    expect(plan.phaseTwo.moveSpeed).toBeGreaterThan(plan.phaseOne.moveSpeed)
+    // Der Boss pendelt seit 2026-08-23 nicht mehr seitlich (Thomas nach dem iPhone-Test).
+    // Phase 2 unterscheidet sich deshalb nur noch ueber den Hordendruck und die Faerbung -
+    // eine Bewegungsgeschwindigkeit darf in keiner Phase mehr auftauchen.
+    expect(plan.phaseOne).not.toHaveProperty('moveSpeed')
+    expect(plan.phaseTwo).not.toHaveProperty('moveSpeed')
     expect(plan.hordeSize).toBe(getBossHordeSize(12))
     expect(plan.maxActiveCalled).toBe(BALANCE.boss.hordePressure.maxActiveCalled)
   })
