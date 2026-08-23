@@ -1,5 +1,79 @@
 ## Task
-_(kein aktiver Task — bereit für den nächsten)_
+**W7 Teil 1 — Plastische Figuren (Codex-Auftrag)**
+
+### Ziel
+Die Figuren wirken flach wie Aufkleber. Sie sollen plastisch wirken — Volumen durch
+Licht, wie im 3D-Referenz-Reel, das Thomas geschickt hat. Erreicht wird das mit den
+Mitteln eines 2D-Motors: **gemalte Beleuchtung im Sprite selbst**. Echtes 3D ist
+ausgeschlossen (Phaser ist ein 2D-Renderer).
+
+### Was zu erzeugen ist
+Fuenf Bilder, jeweils als Ersatz fuer die bestehende Datei, in **doppelter Aufloesung**:
+
+| Datei | heute | neu (exakt) | Motiv |
+|---|---|---|---|
+| `src/assets/player.png` | 34x46 | **68x92** | Eigene Figur, **Rueckenansicht** |
+| `src/assets/enemy-light.png` | 28x38 | **56x76** | Leichter Gegner, Frontansicht |
+| `src/assets/enemy-standard.png` | 32x44 | **64x88** | Standard-Gegner, Frontansicht |
+| `src/assets/enemy-heavy.png` | 42x52 | **84x104** | Schwerer Gegner, Frontansicht, breit |
+| `src/assets/enemy-boss.png` | 120x120 | **240x240** | Boss, Frontansicht |
+
+**Die Ansichtsrichtung ist Bestand und wird NICHT geaendert.** Die eigene Figur ist
+bereits eine Rueckenansicht (der dunkle Bereich unter dem Helm ist der Nacken, kein
+Gesicht — das wurde am 2026-08-20 schon einmal falsch beurteilt und kostete zwei
+Laeufe). Vor dem Zeichnen die **grossen Vorlagen** in `assets/probe/` ansehen, nicht die
+34-px-Sprites: bei 34 px ist eine Ansicht nicht sicher zu erkennen.
+
+### Verfahren (im Projekt bewaehrt, nicht abweichen)
+**Gross rendern, dann herunterrechnen.** Alle brauchbaren Figuren dieses Projekts sind so
+entstanden: zuerst eine grosse Fassung (Vorlagen liegen als `*-136x184.png` und
+`*-gross.png` in `assets/probe/`), daraus die Zielgroesse herunterskaliert. Direkt in
+Zielgroesse erzeugte Figuren waren unbrauchbar. Die grossen Zwischenstaende gehoeren nach
+`assets/probe/` (Ordner ist gitignored), die fertigen Bilder nach `src/assets/`.
+
+### Wie „plastisch" konkret aussieht
+- **Licht von oben**, leicht von vorne links. Eine klare Lichtseite, eine Schattenseite,
+  dazwischen ein weicher Uebergang — keine harte Zweiteilung.
+- **Kantenlicht** an der lichtabgewandten Silhouette, damit die Figur sich vom
+  Hintergrund abhebt.
+- **Rundung an den Volumen**: Helm, Schultern, Brustkorb, Oberschenkel bekommen jeweils
+  eine eigene Lichtkante. Genau daran erkennt das Auge Volumen.
+- **Bodenkontakt**: nichts zeichnen. Der Bodenschatten ist bereits als eigenes Objekt
+  gebaut (`figure-shadow`) und bleibt unveraendert. Ein zweiter, ins Sprite gemalter
+  Schatten wuerde doppelt liegen.
+- Farbwelt und Silhouette der bestehenden Figuren bleiben erkennbar. Das ist eine
+  **Ueberarbeitung, kein Neuentwurf** — Thomas soll dieselben Figuren wiedererkennen,
+  nur plastisch.
+
+### Pruefung, die Codex selbst macht
+Ein **Kontrollbild** nach `assets/probe/w7-kontrolle.png`: alle fuenf Figuren
+nebeneinander, **je einmal auf der Fahrbahn (dunkelgrau) und einmal auf der Umgebung
+(gruen/hell)**. Beide Hintergruende muessen tragen — eine Figur, die nur auf der Strasse
+funktioniert, ist nicht fertig (das ist die Lehre aus dem Betongrau-Versuch).
+Zusaetzlich jede Figur einmal auf **Spielgroesse heruntergerechnet** ins Kontrollbild,
+denn dort wird sie beurteilt, nicht in der Vergroesserung.
+
+### Was Codex NICHT macht
+Den Code nicht anfassen. Die doppelte Aufloesung braucht eine Anpassung der
+Darstellungs-Skalierung und neu gemessene Koerpermasse in `balance.ts` — das ist eine
+Architekturentscheidung und macht Claude nach der Abnahme der Bilder. **Insbesondere
+`balance.ts` nicht editieren.**
+
+### Reissleine
+Wenn die gewuenschte Plastizitaet nicht erreichbar ist: **melden, nicht ersetzen.**
+Ausdruecklich **kein** zulaessiger Ersatz sind:
+- programmatisch gezeichnete Formen (Rechtecke, Kreise, Farbverlaeufe per Code),
+- abstrakte oder symbolhafte Figuren statt erkennbarer Koerper,
+- Figuren in einfacher statt doppelter Aufloesung,
+- eine geaenderte Ansichtsrichtung (die Rueckenansicht der eigenen Figur bleibt).
+Kommt eines davon heraus, ist der Auftrag nicht erfuellt — dann Abschlussbericht mit der
+Begruendung, was nicht ging, statt eines Ersatzprodukts abzuliefern.
+
+### Abschluss
+Status auf `IMPL_DONE`, Abschlussbericht: was geaendert, welche Zwischenstaende in
+`assets/probe/` liegen, was nicht ging und warum.
+
+---
 
 **W7 Teil 2: Gegnermenge steigt mit dem Level, Boss pendelt nicht mehr**
 (2026-08-23, Claude direkt. Thomas nach dem iPhone-Test: "W5 passt am iphone soweit, aber
