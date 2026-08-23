@@ -1158,18 +1158,35 @@ export const BALANCE = {
     // die Kurve OHNE Delle steigt: Die alte Tabelle fiel bei Level 5 von 2,33 auf 1,90
     // zurueck, weil dort die erste 'row' mit fester Groesse vier dazukam.
     plans: [
-      { normalPhaseSec: 75, enemyWeights: [75, 25, 0], spawnIntervalMs: 880, spawnIntervalMinMs: 550, squadChance: 0.58, squads: [{ kind: 'wedge', weight: 1, size: 7 }], companionLimit: 0 },
-      { normalPhaseSec: 78, enemyWeights: [60, 40, 0], spawnIntervalMs: 840, spawnIntervalMinMs: 530, squadChance: 0.61, squads: [{ kind: 'wedge', weight: 1, size: 8 }], companionLimit: 0 },
-      { normalPhaseSec: 78, enemyWeights: [65, 30, 5], spawnIntervalMs: 820, spawnIntervalMinMs: 510, squadChance: 0.63, squads: [{ kind: 'wedge', weight: 1, size: 9 }], companionLimit: 0 },
-      { normalPhaseSec: 80, enemyWeights: [55, 35, 10], spawnIntervalMs: 790, spawnIntervalMinMs: 490, squadChance: 0.65, squads: [{ kind: 'wedge', weight: 1, size: 10 }], companionLimit: 0 },
-      { normalPhaseSec: 80, enemyWeights: [35, 45, 20], spawnIntervalMs: 770, spawnIntervalMinMs: 480, squadChance: 0.67, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 3, size: 12 }], companionLimit: 1 },
-      { normalPhaseSec: 82, enemyWeights: [25, 45, 30], spawnIntervalMs: 740, spawnIntervalMinMs: 460, squadChance: 0.69, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'wedge', weight: 2, size: 13 }], companionLimit: 1 },
-      { normalPhaseSec: 82, enemyWeights: [25, 40, 35], spawnIntervalMs: 710, spawnIntervalMinMs: 440, squadChance: 0.71, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 3, size: 12 }], companionLimit: 2 },
-      { normalPhaseSec: 84, enemyWeights: [20, 40, 40], spawnIntervalMs: 690, spawnIntervalMinMs: 420, squadChance: 0.73, squads: [{ kind: 'cluster', weight: 3, size: 12 }, { kind: 'row', weight: 1, size: 4 }], companionLimit: 2 },
-      { normalPhaseSec: 84, enemyWeights: [25, 35, 40], spawnIntervalMs: 660, spawnIntervalMinMs: 400, squadChance: 0.75, squads: [{ kind: 'wedge', weight: 1, size: 10 }, { kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 3, size: 13 }], companionLimit: 3 },
-      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 630, spawnIntervalMinMs: 390, squadChance: 0.77, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 4, size: 13 }], companionLimit: 3 },
-      { normalPhaseSec: 86, enemyWeights: [20, 35, 45], spawnIntervalMs: 610, spawnIntervalMinMs: 370, squadChance: 0.79, squads: [{ kind: 'wedge', weight: 1, size: 11 }, { kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 4, size: 14 }], companionLimit: 4 },
-      { normalPhaseSec: 88, enemyWeights: [15, 35, 50], spawnIntervalMs: 580, spawnIntervalMinMs: 350, squadChance: 0.81, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 5, size: 14 }], companionLimit: 4 },
+      // GEWICHTE NEU GESETZT 2026-08-23, zusammen mit der Behebung der wedge-Sonderregel
+      // in spawner.getSquadTypes (Thomas: "bei Level 5 habe ich keine Chance mehr Gegner
+      // abzuschiessen"). Bis dahin bestand ein 'wedge' IMMER nur aus leichten Gegnern -
+      // und die Level 1-4 kennen ausschliesslich Keile. Diese Gewichte galten dort also
+      // faktisch nur fuer Einzelgegner, waehrend die Hordenmasse (rund zwei Drittel aller
+      // Spawns, je 10-12 Mitglieder) fest auf 'leicht' stand. Ab Level 5 kamen 'cluster'
+      // und 'row' dazu, die die Gewichte auswerten - und die Haerte vervierfachte sich
+      // schlagartig (mittlere Lebenspunkte je Gegner 4,1 -> 18,0).
+      //
+      // Jetzt gelten die Gewichte fuer ALLES. Damit die Level 1-4 dabei so bleiben, wie
+      // Thomas sie abgenommen hat, mussten sie deutlich leicht-lastiger werden als
+      // vorher: Sie schreiben jetzt auf, was dort ohnehin schon gespielt wurde.
+      // Mittlere Grundlebenspunkte je Level (Typen 2/8/23), ohne die Kopplung:
+      //   L1 2,24 · L2 2,42 · L3 2,60 · L4 2,78 · L5 3,17 · L6 3,83 · L7 4,49
+      //   L8 5,30 · L9 6,11 · L10 6,92 · L11 7,73 · L12 8,54
+      // Eine glatte Kurve ohne Sprung, Faktor 3,8 ueber elf Level. Der Anteil schwerer
+      // Gegner steigt trotzdem von 0 auf 20 %, damit das Bild sich sichtbar aendert.
+      { normalPhaseSec: 75, enemyWeights: [96, 4, 0], spawnIntervalMs: 880, spawnIntervalMinMs: 550, squadChance: 0.58, squads: [{ kind: 'wedge', weight: 1, size: 7 }], companionLimit: 0 },
+      { normalPhaseSec: 78, enemyWeights: [93, 7, 0], spawnIntervalMs: 840, spawnIntervalMinMs: 530, squadChance: 0.61, squads: [{ kind: 'wedge', weight: 1, size: 8 }], companionLimit: 0 },
+      { normalPhaseSec: 78, enemyWeights: [90, 10, 0], spawnIntervalMs: 820, spawnIntervalMinMs: 510, squadChance: 0.63, squads: [{ kind: 'wedge', weight: 1, size: 9 }], companionLimit: 0 },
+      { normalPhaseSec: 80, enemyWeights: [87, 13, 0], spawnIntervalMs: 790, spawnIntervalMinMs: 490, squadChance: 0.65, squads: [{ kind: 'wedge', weight: 1, size: 10 }], companionLimit: 0 },
+      { normalPhaseSec: 80, enemyWeights: [83, 16, 1], spawnIntervalMs: 770, spawnIntervalMinMs: 480, squadChance: 0.67, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 3, size: 12 }], companionLimit: 1 },
+      { normalPhaseSec: 82, enemyWeights: [77, 20, 3], spawnIntervalMs: 740, spawnIntervalMinMs: 460, squadChance: 0.69, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'wedge', weight: 2, size: 13 }], companionLimit: 1 },
+      { normalPhaseSec: 82, enemyWeights: [71, 24, 5], spawnIntervalMs: 710, spawnIntervalMinMs: 440, squadChance: 0.71, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 3, size: 12 }], companionLimit: 2 },
+      { normalPhaseSec: 84, enemyWeights: [65, 27, 8], spawnIntervalMs: 690, spawnIntervalMinMs: 420, squadChance: 0.73, squads: [{ kind: 'cluster', weight: 3, size: 12 }, { kind: 'row', weight: 1, size: 4 }], companionLimit: 2 },
+      { normalPhaseSec: 84, enemyWeights: [59, 30, 11], spawnIntervalMs: 660, spawnIntervalMinMs: 400, squadChance: 0.75, squads: [{ kind: 'wedge', weight: 1, size: 10 }, { kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 3, size: 13 }], companionLimit: 3 },
+      { normalPhaseSec: 86, enemyWeights: [53, 33, 14], spawnIntervalMs: 630, spawnIntervalMinMs: 390, squadChance: 0.77, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 4, size: 13 }], companionLimit: 3 },
+      { normalPhaseSec: 86, enemyWeights: [47, 36, 17], spawnIntervalMs: 610, spawnIntervalMinMs: 370, squadChance: 0.79, squads: [{ kind: 'wedge', weight: 1, size: 11 }, { kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 4, size: 14 }], companionLimit: 4 },
+      { normalPhaseSec: 88, enemyWeights: [41, 39, 20], spawnIntervalMs: 580, spawnIntervalMinMs: 350, squadChance: 0.81, squads: [{ kind: 'row', weight: 1, size: 4 }, { kind: 'cluster', weight: 5, size: 14 }], companionLimit: 4 },
     ] satisfies readonly LevelDefinition[],
   },
   boss: {

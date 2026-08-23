@@ -7,6 +7,85 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**Level 5 war unspielbar: Die Hordenform bestimmte die Gegnerstaerke**
+(2026-08-23, Claude direkt. Thomas: "Bis Level 4 alles ok, bei Level 5 habe ich keine
+Chance mehr Gegner abzuschiessen - zu schnell? Zu stark? Sieh dir das an und gleich das
+aus ab Level 5".)
+
+**Weder zu schnell noch zu stark - ein Konstruktionsfehler.** In `spawner.getSquadTypes`
+stand:
+```ts
+if (squadKind === 'wedge') return Array.from({ length: size }, () => light)
+```
+**Ein Keil bestand IMMER nur aus leichten Gegnern**, unabhaengig von der Leveltabelle.
+Die Level 1-4 kennen ausschliesslich Keile; ab Level 5 kommen `cluster` und `row` dazu,
+und die werteten die Gewichte aus. Da rund zwei Drittel aller Spawn-Ereignisse Horden mit
+je zehn bis zwoelf Mitgliedern sind, haengt fast die gesamte Gegnermasse daran: Die
+Gewichte der unteren Level galten faktisch nur fuer Einzelgegner.
+
+**Gemessen** (Truppe 40 am Level-Deckel, Standardwaffe, je 18 s):
+
+| Level | Abschuesse/s | kommt durch | Lebenspunkte je Gegner |
+|---|---|---|---|
+| 3 | 5,3 | 5 % | 3,3 |
+| 4 | 6,1 | 2 % | 4,1 |
+| **5** | **0,7** | **89 %** | **18,0** |
+| 6 | 4,3 | 10 % | 10,7 |
+
+Faktor 4,4 in einem einzigen Level - und Level 5 war damit **haerter als Level 6**, weil
+dort zwei Drittel der Horden wieder Keile sind. Ein Zickzack, den niemand beabsichtigt
+hatte und den die Leveltabelle auch nicht hergab (sie sieht von 4 auf 5 nur Faktor 1,44
+vor).
+
+**Isoliert statt geraten:** Die Leveltabelle wurde zur Laufzeit umgebogen, um die drei
+Unterschiede zwischen Level 4 und 5 einzeln zu pruefen (Gegnermischung, Hordenform,
+Begleiter). Nur die Hordenform hat gewirkt: Mit den Keilen von Level 4 fielen die
+mittleren Lebenspunkte von 16,4 auf 4,5.
+
+**Gebaut:**
+- **Sonderregel entfernt.** Alle Formationen wuerfeln jetzt nach `enemyWeights`. Die
+  Formation beschreibt die FORM einer Horde (Keil, Reihe, Klumpen), nicht ihre Staerke -
+  wer sie in der Leveltabelle wechselt, um das Bild zu variieren, darf damit nicht die
+  Haerte vervierfachen.
+- **Gewichte aller zwoelf Level neu gesetzt.** Sie mussten deutlich leicht-lastiger
+  werden, weil sie jetzt fuer ALLES gelten: Sie schreiben auf, was in den unteren Leveln
+  ohnehin schon gespielt wurde. Mittlere Grundlebenspunkte (Typen 2/8/23):
+  L1 2,24 · L2 2,42 · L3 2,60 · L4 2,78 · L5 3,17 · L6 3,83 · L7 4,49 · L8 5,30 ·
+  L9 6,11 · L10 6,92 · L11 7,73 · L12 8,54 - eine glatte Kurve, Faktor 3,8 ueber elf
+  Level. Der Anteil schwerer Gegner steigt trotzdem von 0 auf 20 %, damit sich das Bild
+  sichtbar aendert.
+
+**Ergebnis, gemessen** (gleicher Aufbau):
+
+| Level | Abschuesse/s | kommt durch | Lebenspunkte je Gegner |
+|---|---|---|---|
+| 3 | 5,3 | 1 % | 3,9 |
+| 4 | 5,8 | 4 % | 5,5 |
+| 5 | 5,0 | 10 % | 6,0 |
+| 6 | 5,9 | 5 % | 7,2 |
+| 8 | 7,3 | 20 % | 13,6 |
+
+Die Haerte steigt jetzt monoton, der Zickzack ist weg. Am Level-Deckel gemessen
+(Truppe schrumpft echt mit, 16 s): Level 5 40 → 37 Figuren, Level 10 50 → 49,
+Level 12 60 → 54. Wer NICHT aufruestet, kommt weiter unter Druck (Level 5 mit Truppe 20
+und halben Werten: 21 % kommen durch, 20 → 4 Figuren ohne Sammeln).
+
+**Nebenwirkung, bewusst in Kauf genommen:** Level 4 ist rund 1,3x haerter geworden
+(4 % statt 2 % kommen durch). Das liegt daran, dass dort jetzt auch Horden gemischte
+Typen enthalten koennen. Beides ist so niedrig, dass es die von Thomas abgenommene
+Spielbarkeit der unteren Level nicht beruehrt.
+
+**Zwei bestehende Tests mussten umgeschrieben werden**, weil sie die alten Gewichte als
+feste Zahlen festhielten (`[75, 25, 0]` und `[15, 35, 50]`). Sie pruefen jetzt die
+Eigenschaft statt der Werte - sonst haetten sie den Umbau blockiert, ohne etwas zu
+sichern.
+**Drei neue Tests** in `tests/enemyResistance.test.ts`: keine Formations-Sonderregel mehr
+im Quelltext, monoton steigende Haerte ohne Sprung ueber 1,5x, und der schwere Gegner
+bleibt oben erreichbar.
+
+176 Tests gruen, `npm run check` sauber.
+**Offen: Thomas' iPhone-Urteil.**
+
 **Durchbruch: Gegner, die an der Truppe vorbeilaufen, kosten jetzt Figuren**
 (2026-08-23, Claude direkt. Thomas auf die vorgelegte Entscheidung: "Ja Bau das".)
 

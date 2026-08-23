@@ -478,9 +478,27 @@ export class Spawner {
     return 'spawned'
   }
 
+  /**
+   * Gegnertypen einer Horde. Sie folgen der Leveltabelle (`enemyWeights`) - fuer JEDE
+   * Formation gleich.
+   *
+   * BEHOBEN am 2026-08-23 (Thomas: "bei Level 5 habe ich keine Chance mehr Gegner
+   * abzuschiessen"). Bis hierher stand hier eine Sonderregel: Ein 'wedge' bestand
+   * IMMER nur aus leichten Gegnern, unabhaengig von der Leveltabelle. Die Level 1-4
+   * kennen ausschliesslich Keile, ab Level 5 kommen 'cluster' und 'row' dazu - und die
+   * wuerfelten nach der Tabelle. Da rund zwei Drittel aller Spawn-Ereignisse Horden mit
+   * je zehn bis zwoelf Mitgliedern sind, haengt fast die gesamte Gegnermasse daran.
+   * GEMESSEN, Truppe 40 am Level-Deckel: Die mittleren Lebenspunkte je Gegner sprangen
+   * von 4,1 (Level 4) auf 18,0 (Level 5) - Faktor 4,4 in einem einzigen Level. Die
+   * Abschussrate fiel dabei von 6,1 auf 0,7 je Sekunde, 89 % der Gegner liefen durch.
+   * Level 6 war danach wieder leichter (10,7 Punkte), weil dort zwei Drittel der Horden
+   * wieder Keile sind - ein Zickzack, das niemand beabsichtigt hatte.
+   * Die Formation beschreibt die FORM einer Horde (Keil, Reihe, Klumpen), nicht ihre
+   * Staerke. Wer sie in der Leveltabelle wechselt, um das Bild zu variieren, darf damit
+   * nicht die Haerte vervierfachen. Die Gewichte in `level.plans` sind im selben Zug
+   * neu gesetzt worden, damit die tatsaechliche Mischung wieder der Tabelle entspricht.
+   */
   private getSquadTypes(squadKind: 'wedge' | 'row' | 'cluster', size: number): EnemyType[] {
-    const light = BALANCE.enemy.types.find((type) => type.key === 'light')!
-    if (squadKind === 'wedge') return Array.from({ length: size }, () => light)
     const types = Array.from({ length: size }, () => chooseEnemyType(this.levelPlan.enemyWeights, () => Phaser.Math.RND.frac()))
     if (squadKind === 'cluster' && types.every((type) => type.key === types[0].key)) {
       const alternate = BALANCE.enemy.types.find((type, index) => this.levelPlan.enemyWeights[index] > 0 && type.key !== types[0].key)

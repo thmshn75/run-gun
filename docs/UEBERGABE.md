@@ -1,6 +1,6 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-23 14:20
+Stand: 2026-08-23 14:55
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen, Tag
@@ -73,7 +73,15 @@ Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen,
   statt an einer Gesamtbilanz - das war der Ausweg aus der Bistabilitaet. Wer beruehrt,
   zahlt nicht doppelt (der Gegner ist dann schon recycelt); die Unverwundbarkeit nach
   einem Treffer gilt hier bewusst nicht.
-- Stand: 173 Tests gruen, `npm run check` sauber, Arbeitsverzeichnis sauber.
+- **Level-5-Sprung behoben (2026-08-23, Thomas: "bei Level 5 habe ich keine Chance
+  mehr Gegner abzuschiessen").** Ursache war ein Konstruktionsfehler, kein Balance-Thema:
+  `spawner.getSquadTypes` liess einen `wedge` IMMER nur aus leichten Gegnern bestehen.
+  Level 1-4 kennen nur Keile, ab Level 5 kommen `cluster`/`row` dazu, die die
+  Leveltabelle auswerten - die mittleren Lebenspunkte je Gegner sprangen dadurch von 4,1
+  auf 18,0 und Level 5 war haerter als Level 6. Sonderregel entfernt, Gewichte aller
+  zwoelf Level neu gesetzt (sie gelten jetzt fuer alle Horden, nicht nur fuer
+  Einzelgegner). Haerte steigt jetzt monoton, ein Test sichert das.
+- Stand: 176 Tests gruen, `npm run check` sauber, Arbeitsverzeichnis sauber.
 
 ## Offen — naechster Schritt zuerst
 1. **Thomas' iPhone-Urteil zum neuen Gegner-Widerstand** hat Vorrang: Kommen jetzt genug

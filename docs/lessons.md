@@ -387,3 +387,32 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   Wirkung genau umgekehrt, weil sie nur den Fall "Truppe steht aussen" betrachtete. Ein
   Regler, der ein Verhalten bestrafen soll, gehoert **in genau der Situation gemessen, die
   er bestrafen soll** — nicht in der, fuer die er gerechnet wurde.
+
+### 2026-08-23 — Eine Formations-Eigenschaft bestimmte heimlich die Schwierigkeit
+- **Fehler:** Thomas meldete "bis Level 4 alles ok, bei Level 5 keine Chance mehr". In
+  `spawner.getSquadTypes` stand eine Zeile, nach der ein `wedge` **immer nur aus leichten
+  Gegnern** besteht — unabhaengig von der Leveltabelle. Die Level 1-4 kennen
+  ausschliesslich Keile, ab Level 5 kommen `cluster` und `row` dazu, und die werten die
+  Gewichte aus. Da rund zwei Drittel aller Spawns Horden mit je zehn bis zwoelf
+  Mitgliedern sind, galten die `enemyWeights` der unteren Level faktisch nur fuer
+  Einzelgegner. Gemessen sprangen die mittleren Lebenspunkte je Gegner von 4,1 auf 18,0
+  (Faktor 4,4 in einem Level), die Abschussrate fiel von 6,1 auf 0,7 je Sekunde. Level 6
+  war danach wieder leichter, weil dort zwei Drittel der Horden wieder Keile sind.
+- **Regel:** Ein Parameter, der eine **Form, Anordnung oder Darstellung** benennt
+  (Formation, Layout, Variante, Skin), darf keine **Wirkung** mit sich tragen. Wo doch,
+  gehoert es in den Namen — oder besser getrennt. Sonst aendert jemand die Form, um das
+  Bild zu variieren, und verschiebt ungewollt die Balance. Der Nutzer sieht "Level 5 ist
+  unmoeglich" und niemand sucht in einer Formationsfunktion.
+- **Zweite Lehre (Ursache isolieren statt raten):** Zwischen Level 4 und 5 aendern sich
+  drei Dinge gleichzeitig (Gegnermischung, Hordenform, Begleiterzahl). Statt zu vermuten,
+  wurde die Leveltabelle **zur Laufzeit umgebogen** und jeder Unterschied einzeln
+  zurueckgesetzt. Nur einer wirkte — mit den Keilen von Level 4 fielen die Lebenspunkte
+  von 16,4 auf 4,5. Das kostete eine Messung statt einer Diskussion. Wo mehrere Groessen
+  gleichzeitig springen, ist die Einzelabschaltung der schnellste Weg zur Ursache.
+- **Dritte Lehre (Tests, die nur Werte abnicken):** Zwei bestehende Tests hielten die
+  alten Gewichte als feste Zahlen fest (`[75, 25, 0]`, `[15, 35, 50]`). Sie haben den
+  Fehler nicht gefunden — der lag im Code, nicht in der Tabelle — aber sie haetten die
+  Korrektur blockiert. Ein Test auf exakte Konfigurationswerte sichert nichts, er
+  zementiert. Was gesichert gehoert, ist die EIGENSCHAFT: dass die Haerte monoton steigt
+  und kein Level mehr als die Haelfte drauflegt. Genau diese Zahl hatte niemand gebildet,
+  deshalb blieb der Zickzack unbemerkt.

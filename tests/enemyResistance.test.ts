@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { getEnemyHp, getFigureWidth, getFirepowerCoupling, getPlayerPower } from '../src/systems/enemyTypes'
@@ -240,5 +241,55 @@ describe('Durchbruch kostet Figuren', () => {
     expect(gewinnProSek).toBeGreaterThan(verlustProSek)
     // ... aber nicht mehr geschenkt sein: ohne die Regel waere der Gewinn ungebremst.
     expect(verlustProSek).toBeGreaterThan(gewinnProSek * 0.4)
+  })
+})
+
+/**
+ * Die Haerte darf nicht an der FORM einer Horde haengen (2026-08-23).
+ *
+ * Der Fehler dahinter, von Thomas gemeldet ("bei Level 5 habe ich keine Chance mehr
+ * Gegner abzuschiessen"): `getSquadTypes` hatte eine Sonderregel, nach der ein 'wedge'
+ * IMMER nur aus leichten Gegnern bestand. Die Level 1-4 kennen ausschliesslich Keile,
+ * ab Level 5 kommen 'cluster' und 'row' dazu - und die werteten die Leveltabelle aus.
+ * Gemessen sprangen die mittleren Lebenspunkte je Gegner dadurch von 4,1 auf 18,0 und
+ * die Abschussrate fiel von 6,1 auf 0,7 je Sekunde. Level 6 war danach wieder leichter,
+ * weil dort zwei Drittel der Horden wieder Keile sind.
+ */
+describe('Gegnerstaerke haengt an der Leveltabelle, nicht an der Hordenform', () => {
+  const quelle = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
+  const funktion = quelle.slice(
+    quelle.indexOf('private getSquadTypes'),
+    quelle.indexOf('private activateEnemy'),
+  )
+
+  it('waehlt die Typen ohne Sonderfall fuer eine Formation', () => {
+    expect(funktion.length).toBeGreaterThan(0)
+    // Kein Zweig, der einer Formation einen festen Typ zuweist.
+    expect(funktion).not.toMatch(/squadKind === '(wedge|row)'/)
+    expect(funktion).toContain('this.levelPlan.enemyWeights')
+  })
+
+  it('steigert die Gegnerhaerte ueber die Level monoton und ohne Sprung', () => {
+    // Genau diese Kurve hat vorher niemand gebildet - deshalb blieb der Zickzack
+    // (Level 5 haerter als Level 6) unbemerkt.
+    const mittel = (level: number): number => {
+      const gewichte = BALANCE.level.plans[level - 1].enemyWeights
+      const summe = gewichte.reduce((s, g) => s + g, 0)
+      return gewichte.reduce((s, g, i) => s + g * BALANCE.enemy.types[i].hp, 0) / summe
+    }
+    for (let level = 2; level <= 12; level += 1) {
+      const vorher = mittel(level - 1)
+      const jetzt = mittel(level)
+      expect(jetzt).toBeGreaterThan(vorher)
+      // Kein Level darf die Haerte um mehr als die Haelfte anheben.
+      expect(jetzt / vorher).toBeLessThan(1.5)
+    }
+  })
+
+  it('laesst den Anteil schwerer Gegner trotzdem sichtbar steigen', () => {
+    // Die Mischung ist nicht nur Balance, sie ist auch das Bild: Spaeter sollen
+    // erkennbar andere Gegner kommen.
+    expect(BALANCE.level.plans[0].enemyWeights[2]).toBe(0)
+    expect(BALANCE.level.plans[11].enemyWeights[2]).toBeGreaterThanOrEqual(15)
   })
 })
