@@ -1,3 +1,9 @@
+# Active Task
+
+## Status
+`SPEC_READY`
+<!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
+
 ## Task
 **W7 Teil 1 — Plastische Figuren (Codex-Auftrag)**
 
