@@ -1,17 +1,45 @@
 import { BALANCE } from '../config/balance'
+import { getCrowdDamageMultiplier } from './crowdDamage'
 
 export type EnemyType = (typeof BALANCE.enemy.types)[number]
 
 /**
- * Lebenspunkte eines Gegnertyps auf einem Level. Reine Funktion, ohne Phaser testbar.
+ * Feuerkraft der Truppe in Schaden je Sekunde, OHNE die Waffe.
  *
- * Die Werte in der Typtabelle sind die Level-1-Werte; ab da waechst der Widerstand mit
- * der Levelnummer. Vorher waren sie ueber alle Level fest - siehe die Herleitung bei
- * BALANCE.enemy.hpPerLevelGrowth.
+ * Bezugsgroesse fuer die gedaempfte Gegner-Kopplung. Dass die Waffe bewusst fehlt, ist
+ * die Lehre aus der alten Wandhaerte: Dort ging sie ein, und wer eine Schrotflinte
+ * aufhob, machte die Waende schlagartig 4x haerter. Hier zaehlen nur die drei Groessen,
+ * die der Spieler bewusst sammelt - Truppengroesse, Schaden und Feuerrate.
  */
-export function getEnemyHp(type: EnemyType, level: number): number {
+export function getPlayerPower(teamSize: number, damage: number, shotsPerSec: number, level: number): number {
+  return Math.min(teamSize, BALANCE.crowd.shootersPerSalvo)
+    * getCrowdDamageMultiplier(teamSize, level)
+    * damage
+    * shotsPerSec
+}
+
+/**
+ * Zaehigkeitsfaktor aus der Spielerstaerke. Unterhalb der Referenz exakt 1 - wer schwach
+ * dasteht, trifft auf den reinen Levelwert und wird nicht zusaetzlich bestraft. Darueber
+ * gedaempft (Herleitung des Exponenten bei BALANCE.enemy.firepowerCoupling).
+ */
+export function getFirepowerCoupling(playerPower: number): number {
+  const { dampening, referencePower, maxFactor } = BALANCE.enemy.firepowerCoupling
+  if (!Number.isFinite(playerPower) || playerPower <= referencePower) return 1
+  return Math.min(maxFactor, (playerPower / referencePower) ** dampening)
+}
+
+/**
+ * Lebenspunkte eines Gegnertyps. Reine Funktion, ohne Phaser testbar.
+ *
+ * Drei Anteile: der Grundwert des Typs, die Levelkurve (steht seit 2026-08-23 auf 1,0,
+ * das Levelwachstum kommt aus Typmischung und Nachschub) und die gedaempfte Kopplung an
+ * die Spielerstaerke. Ohne playerPower ergibt sich exakt der ungekoppelte Wert.
+ */
+export function getEnemyHp(type: EnemyType, level: number, playerPower = 0): number {
   const safeLevel = Math.max(1, Math.floor(level))
-  return Math.max(1, Math.round(type.hp * BALANCE.enemy.hpPerLevelGrowth ** (safeLevel - 1)))
+  const base = type.hp * BALANCE.enemy.hpPerLevelGrowth ** (safeLevel - 1)
+  return Math.max(1, Math.round(base * getFirepowerCoupling(playerPower)))
 }
 
 /**

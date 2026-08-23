@@ -717,8 +717,24 @@ export const BALANCE = {
     rowSpacingY: 14,
     colSpacing: 24,
     minColSpacing: 11,
-    // Formation width is the share of the playfield available to the widest row.
-    maxWidthRatio: 0.44,
+    // BREITE DER FORMATION - und damit die Breite der Feuerlinie, weil jede Figur
+    // spurtreu nach oben schiesst (projectile.laneFollow).
+    //
+    // 0,44 -> 0,24 (2026-08-23). Gemessen, warum Stehenbleiben in der Mitte immer
+    // funktionierte: Gegner laufen ueber einen Spurbereich von -0,84 bis +0,83 an, die
+    // Truppe war bei 30 Figuren aber 130 px breit und deckte damit praktisch diesen
+    // ganzen Bereich ab. Es gab schlicht nichts, was an ihr vorbeilaufen konnte -
+    // gemessen starben 98 % der Gegner, der groesste Seitenabstand eines Todesortes
+    // lag bei 54 px.
+    // 0,20 ist der KLEINSTE zulaessige Wert, nicht ein gewaehlter: 8 Schuetzen
+    // brauchen bei minColSpacing 11 px mindestens 77 px nebeneinander, sonst stapelt
+    // die Formation in weitere Reihen und die Salve verliert ihre Breite ganz.
+    // 390 x 0,20 = 78 px. Damit deckt die Feuerlinie rund die Haelfte des
+    // Anflugbereichs (155 px auf Kampfhoehe) statt 84 % - was daneben laeuft, kommt
+    // durch. Wer weiter will, muss zuerst crowd.shootersPerSalvo oder minColSpacing
+    // anfassen; an maxWidthRatio allein ist hier Schluss (ein Test haelt beide
+    // Grenzen fest).
+    maxWidthRatio: 0.2,
     bottomMargin: 8,
     // The collision hull stays fixed instead of growing with the formation.
     hullWidthFigures: 2.4,
@@ -794,26 +810,102 @@ export const BALANCE = {
       //   light    18,0 -> 18,5   standard 21,0 -> 25,0   heavy 40,0 -> 41,0
       // 'standard' ist spuerbar breiter geworden, weil die neue Figur die Arme
       // abspreizt - genau dafuer wird nachgemessen statt uebernommen.
-      { key: 'light', texture: 'enemy-light', hp: 1, speedFactor: 1, contactDamage: 1, coinValue: 1, bodyWidth: 37, bodyHeight: 76 },
-      { key: 'standard', texture: 'enemy-standard', hp: 4, speedFactor: 1, contactDamage: 1, coinValue: 1, bodyWidth: 50, bodyHeight: 84 },
-      { key: 'heavy', texture: 'enemy-heavy', hp: 12, speedFactor: 1, contactDamage: 2, coinValue: 3, bodyWidth: 82, bodyHeight: 98 },
+      { key: 'light', texture: 'enemy-light', hp: 2, speedFactor: 1, contactDamage: 1, coinValue: 1, bodyWidth: 37, bodyHeight: 76 },
+      { key: 'standard', texture: 'enemy-standard', hp: 8, speedFactor: 1, contactDamage: 1, coinValue: 1, bodyWidth: 50, bodyHeight: 84 },
+      { key: 'heavy', texture: 'enemy-heavy', hp: 23, speedFactor: 1, contactDamage: 2, coinValue: 3, bodyWidth: 82, bodyHeight: 98 },
     ],
-    // Gegner-Lebenspunkte wachsen mit der LEVELNUMMER (Thomas 2026-08-22, nach dem
-    // Spieltest: "ich kann die Mannschaft immer noch in der Mitte stehen lassen und
-    // feuern"). Bis hierher waren die hp ueber alle zwoelf Level FEST, waehrend die
-    // Truppe von 9 auf ueber 5.000 Schaden je Sekunde wuchs. Gemessen bei Level 12:
-    // 1.732 dps gegen 12 hp - die Truppe toetete 144 Gegner je Sekunde bei 6 Nachschub.
-    // Kein Hordenwert der Welt kann das ausgleichen; Stehenbleiben MUSSTE funktionieren.
+    // WIDERSTAND DER GEGNER (2026-08-23 neu aufgebaut, Thomas: "nehme deinen Vorschlag
+    // an" - zaehere Gegner plus gedaempfte Kopplung an die Spielerstaerke).
     //
-    // Bezug ist bewusst die Levelnummer und NICHT die Feuerkraft der Truppe. Dieselbe
-    // Entscheidung wie bei der Wandhaerte (siehe blockers): Koppelt man die Haerte an
-    // die eigene Staerke, bringt Aufruesten nichts mehr - genau der Fehler, der dort
-    // schon einmal gebaut und wieder ausgebaut wurde.
+    // DER BEFUND, DER DAZU GEFUEHRT HAT. Gemessen wurde nicht die Feuerkraft, sondern
+    // was zaehlt: Wie viele Gegner erreichen die Truppe? Je Fall 12 s, Standardwaffe,
+    // 8 s Einschwingen davor, einmal frisch gestartet (Truppe 8, Grundwerte) und einmal
+    // voll ausgebaut (Truppe 60, Level-Deckel):
+    //   Level  1  2  3  4  6   8    10   12
+    //   voll   0  0  0  0  0   0    25 % 57 %
+    //   frisch 0  0  0  0  0   100% 100% 100%
+    // Das Spiel hatte damit ZWEI getrennte Haelften und keinen Uebergang: Bis Level 6
+    // war es folgenlos (kein Gegner kam an, kein Figurenverlust, Todeshoehe konstant
+    // 398 px = exakt die Reichweitenlinie der Waffe), ab Level 8 kippte es innerhalb
+    // von zwei Leveln auf "wer nicht am Deckel steht, wird vollstaendig ueberrannt".
+    // Genau das war Thomas' Erlebnis ("ab Level 3 kann ich meine Leute einfach stehen
+    // lassen"): Er spielte die untere Haelfte.
     //
-    // 1,2 je Level, also 1,2^11 = 7,4x auf Level 12: Ein schwerer Gegner haelt dort 89
-    // statt 12 Punkte aus. Derselbe Wachstumsfaktor wie bei den Waenden, damit beide
-    // Widerstaende im Run gleich schnell zunehmen.
-    hpPerLevelGrowth: 1.2,
+    // URSACHE, gerechnet: Der Bedarf wuchs ueber elf Level um Faktor 60
+    // (Lebenspunkte 7,4x mal Typmischung 4,3x mal Nachschub 1,9x), die Feuerkraft am
+    // Deckel nur um 28,5x (Schaden 4,7x mal Rate 2,3x mal Truppenbonus 2,7x). Der
+    // Bedarf stieg also doppelt so schnell - und weil Level 1 weit im Ueberschuss
+    // startete, brauchte es sechs Level, bis sich die Kurven trafen, und danach kippte
+    // es sofort.
+    //
+    // ZWEI AENDERUNGEN, BEIDE GERECHNET:
+    //
+    // (1) hpPerLevelGrowth 1,2 -> 1,0. Die gesetzte Levelkurve ist ERSATZLOS WEG. Sie
+    //     war der Grund fuer die doppelte Steilheit. Das Levelwachstum kommt jetzt aus
+    //     den beiden Groessen, die ohnehin schon mit dem Level steigen: der Typmischung
+    //     (enemyWeights, Level 1 zu 75 % leichte Gegner, Level 12 zu 50 % schwere -
+    //     Faktor 4,3) und dem Nachschub (6,5 -> 12,6 Gegner/s, Faktor 1,9). Zusammen
+    //     8,2x. Der Regler bleibt als Stellschraube stehen, steht aber auf 1,0: Wer
+    //     ihn anhebt, macht die Kurve wieder steiler als die Feuerkraft.
+    //
+    // (2) Die GRUNDWERTE steigen 1/4/12 -> 3/11/32 (Faktor 2,63, das Verhaeltnis der
+    //     Typen bleibt). Hergeleitet aus dem Startzustand: Truppe 8 mit den
+    //     Grundwerten macht 8 x 1 x 3 = 24 Schaden/s, Level 1 liefert 7 Gegner/s.
+    //     Fuer den Zielkorridor (rund ein Viertel kommt durch, wenn man nichts tut)
+    //     braucht ein Level-1-Gegner im Mittel 24 / 0,75 / 7 = 4,6 Punkte; bei der
+    //     Level-1-Mischung (75 % leicht, 25 % standard = 1,75 x Leichtenwert) sind das
+    //     2,63 Punkte fuer den leichten Gegner.
+    //     Der Nebeneffekt ist gewollt und war Teil des Auftrags: Ein Gegner stirbt
+    //     nicht mehr beim ersten Treffer, er kommt sichtbar naeher.
+    hpPerLevelGrowth: 1.0,
+    // GEDAEMPFTE KOPPLUNG AN DIE SPIELERSTAERKE (Thomas' urspruenglicher Auftrag:
+    // "sieh zu dass die Staerken der Gegner an die Waffen und die Menge meiner Leute
+    // angepasst werden zu jeder Zeit").
+    //
+    // Warum das hier RICHTIG ist, obwohl dieselbe Kopplung bei der Wandhaerte einmal
+    // gebaut und wieder ausgebaut wurde (siehe blockers): Dort war sie UNGEDAEMPFT und
+    // enthielt die WAFFE - jede Verbesserung war damit exakt wirkungslos, und wer eine
+    // Schrotflinte aufhob, machte die Waende schlagartig 4x haerter. Hier gilt beides
+    // nicht:
+    //   - Die Waffe geht NICHT ein. Nur die drei Groessen, die der Spieler sammelt:
+    //     Truppengroesse (ueber den Schadensbonus), Schaden und Feuerrate.
+    //   - Es gibt eine UNTERGRENZE: Unterhalb der Referenz greift die Kopplung gar
+    //     nicht (Faktor 1). Wer schwach dasteht, spielt gegen den reinen Levelwert.
+    //   - Sie ist GEDAEMPFT: Bei 0,42 macht doppelte Feuerkraft die Gegner nur 1,34x
+    //     zaeher - netto bleiben 1,49x mehr Durchsatz. Aufruesten wirkt also klar,
+    //     nur nicht mehr unbegrenzt.
+    //
+    // Der Wert 0,42 ist NICHT gewaehlt, sondern die Loesung der Bedingung "der Anteil
+    // durchkommender Gegner ist auf Level 12 derselbe wie auf Level 1":
+    //   (P12/P1)^(1-d) = Typmischung x Nachschub
+    //   28,44^(1-d) = 4,31 x 1,60 = 6,90  ->  1-d = ln 6,90 / ln 28,44 = 0,577
+    // wobei P1 = 63 und P12 = 1.792 die Feuerkraft am jeweiligen Level-Deckel sind.
+    //
+    // Ohne diese Kopplung bliebe der zweite Sprung bestehen: Der Spieler geht INNERHALB
+    // eines Levels von Truppe 3 auf 60 und von Schaden 1 auf den Deckel - auf Level 8
+    // gemessen der Unterschied zwischen "100 % kommen durch" und "0 %". Die Levelkurve
+    // allein kann das nicht auffangen, weil sie den Ausbaustand nicht kennt.
+    firepowerCoupling: {
+      // 0,42 -> 0,30 nach der Gegenprobe. Die 0,42 stammen aus der Bedingung "gleicher
+      // Durchkommensanteil auf Level 1 wie auf Level 12" und setzen voraus, dass der
+      // Nachschub gleichmaessig ueber die Level steigt. Gemessen tut er das nicht: Er
+      // springt zwischen Level 6 und 8 um 87 % (6,6 -> 12,4 Gegner/s), weil dort die
+      // Leveltabelle auf cluster-Horden und companionLimit 2 umstellt. Mit 0,42 wurden
+      // die oberen Level dadurch doppelt belastet und kippten vollstaendig (100 %
+      // kommen durch, auch voll ausgebaut) - schlechter als vor dem Umbau. 0,30 nimmt
+      // den Faktor bei Level 12 von 5,9 auf 3,7 zurueck und laesst die unteren Level
+      // praktisch unberuehrt (Level 1: 1,50 -> 1,33).
+      dampening: 0.30,
+      // Bezugspunkt: die Truppe mit voller Schuetzenzahl und den Grundwerten, also
+      // 8 Schuetzen x Bonus 1,0 x stats.damage.base 1 x stats.shotsPerSec.base 3 = 24.
+      // Wer darunter liegt (kleine Truppe am Levelanfang), trifft auf ungekoppelte
+      // Gegner - der Einstieg wird also nie zusaetzlich bestraft.
+      referencePower: 24,
+      // Sicherung gegen Ausreisser. Am Level-12-Deckel liegt der Faktor rechnerisch bei
+      // 74,7^0,30 = 3,7; 5 laesst Luft fuer Kombinationen, die die Rechnung nicht
+      // vorhersieht, ohne dass ein Gegner je unangreifbar wird.
+      maxFactor: 5,
+    },
     // GRUNDGROESSE der Gegner auf Kampfhoehe (Thomas 2026-08-22, DRITTE Meldung zur
     // Groesse: "die mobs wirken immer noch zu klein - muessen schneller wachsen").
     //
@@ -837,14 +929,25 @@ export const BALANCE = {
     // und war von allem anderen unbehelligt - Stehenbleiben war nicht nur moeglich,
     // es war die beste Spielweise.
     //
-    // Jetzt driften Gegner seitlich auf die Truppe zu. Die Staerke ist NICHT frei
-    // gewaehlt, sondern aus der Anflugzeit hergeleitet: Vom Horizont bis zur Truppe
-    // (714 - 150 = 564 px bei 105 px/s auf Level 1) sind es 5,4 s. Wer in dieser Zeit
-    // die halbe Korridorbreite (117 px) aufholt, braucht 21,7 px/s - dann traefe er
-    // aus jeder Startspur und Ausweichen waere sinnlos. Die HAELFTE davon macht daraus
-    // ein Spiel: Stehenbleiben wird zuverlaessig bestraft, eine Ausweichbewegung
-    // genuegt aber, um wieder frei zu sein.
-    seekSpeedPxPerSec: 11,
+    // Jetzt driften Gegner seitlich auf die Truppe zu.
+    //
+    // 11 -> 4 (2026-08-23). Die alte Herleitung (halbe Aufholrate = "Ausweichen wirkt
+    // noch") ist durch Messung WIDERLEGT. Gemessen wurde, wo Gegner sterben, je nach
+    // Standort der Truppe - Level 6, Truppe 30, je 18 s:
+    //   Truppe MITTE       1 % kommen durch, mittlerer Seitenabstand 4 px
+    //   Truppe links aussen 72 %,             58 px
+    //   Truppe rechts aussen 45 %,            83 px
+    // Bei 11 px/s zog die Suche praktisch JEDEN Gegner vor eine mittig stehende Truppe
+    // (Seitenabstand 4 px, groesster 38 px). Die Mitte war damit der SICHERE Ort - und
+    // genau das ist Thomas' Beschwerde, wortwoertlich: "mein Team kann ich einfach
+    // stehen lassen in der Mitte und es laeuft durch". Die Suche sollte Stehenbleiben
+    // bestrafen und hat es belohnt.
+    //
+    // 4 px/s sind rund 22 px Drift ueber den ganzen Anflug (5,4 s): genug, dass Gegner
+    // nicht stur an der Truppe vorbeilaufen, zu wenig, um eine feste Position sicher zu
+    // machen. Zusammen mit den breiteren Spawn-Baendern (spawnBands) gibt es damit
+    // keinen Standort mehr, der alles abdeckt - wer alles erwischen will, muss fahren.
+    seekSpeedPxPerSec: 4,
     // Enemy composition belongs to the level plan, never to elapsed spawn time.
     spawnRampPerSec: 6,
     spawnLaneSafetyGap: 5,
@@ -870,8 +973,16 @@ export const BALANCE = {
       // figureScale 1,25 braucht jede Figur jetzt mehr Korridor. Breitere Baender
       // schaffen den Platz, den kuerzere Intervalle sonst nur anfordern wuerden.
       // Die Raender bleiben trotzdem frei genug zum Ausweichen.
-      hordeLaneShare: 0.28,
-      singleLaneShare: 0.62,
+      // 0,28 -> 0,45 und 0,62 -> 0,66 (2026-08-23). Das Hordenzentrum streute bisher nur
+      // um +/- 28 % der halben Spielfeldbreite, also rund +/- 33 px um die Strassenmitte.
+      // Zusammen mit der Zielsuche landete damit alles vor einer mittig stehenden
+      // Truppe (gemessen: mittlerer Seitenabstand der Todesorte 4 px). 0,45 verteilt den
+      // Anflug ueber den nutzbaren Korridor, ohne in die Wandzone zu reichen: Diese
+      // beginnt bei walls.laneShare 0,34 von aussen, der freie Bereich endet also bei
+      // 0,66 - der Wert fuer Einzelgegner. Horden bleiben darunter, weil sie um ihr
+      // Zentrum noch nach beiden Seiten ausgreifen.
+      hordeLaneShare: 0.45,
+      singleLaneShare: 0.66,
     },
   },
   level: {
@@ -1161,7 +1272,14 @@ export const BALANCE = {
     bodyHeight: 236,
   },
   feedback: {
-    hitFlashMs: 80,
+    // TREFFERBLITZEN ENTFERNT (Thomas 2026-08-23: "das trefferblitzen weg lassen
+    // komplett"). Bis hierher wurde jeder getroffene Gegner fuer 80 ms voll weiss
+    // gefuellt (setTintFill). Bei bis zu 73 gleichzeitigen Gegnern und mehreren
+    // Salven je Sekunde flackerte damit ein grosser Teil des Bildes dauerhaft.
+    // Der Boss hatte denselben Zweig, aber seine flashRemainingMs wurde NIE gesetzt -
+    // toter Code, der mit entfernt ist. Die Phasenumschaltung des Bosses
+    // (boss.phaseTwo.transitionFlashMs) bleibt: Sie ist ein einmaliges Ereignis,
+    // kein Dauerflackern.
     gameOverRestartDelayMs: 400,
     poolWarningIntervalMs: 1000,
   },

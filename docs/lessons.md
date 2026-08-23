@@ -351,3 +351,39 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   Thomas entschied selbst um. Ein bekanntes Fehlermuster im Auftrag gehoert **vor** dem
   Bauen benannt, nicht danach im Abschlussbericht — aber als kurzer Hinweis mit Beleg,
   nicht als Verweigerung.
+
+### 2026-08-23 — Die Vergleichszahl war richtig gebildet und trotzdem die falsche
+- **Fehler:** Ueber Wochen wurde die Balance an einer Zahl gesteuert, die "Feuerkraft
+  gegen Bedarf" vergleicht (Schaden je Sekunde gegen Nachschub mal Lebenspunkte). Sie war
+  sauber hergeleitet, dokumentiert und wurde mehrfach nachgerechnet. Sie hat trotzdem in
+  die Irre gefuehrt, weil sie eine **Bilanz** misst und nicht das, was der Spieler erlebt.
+  Erst eine Messung der eigentlichen Zielgroesse — *wie viele Gegner erreichen die
+  Truppe?* — zeigte, dass das Spiel bis Level 6 vollstaendig folgenlos war (0 % kommen an,
+  0 Figurenverlust) und ab Level 8 komplett kippte (100 %). Beide Haelften waren mit der
+  alten Zahl unauffaellig.
+- **Regel:** Die Steuerungsgroesse muss die **Erlebnisgroesse** sein, nicht ihre
+  Vorstufe. Bevor an einer Balance gedreht wird, einmal fragen: Welche Zahl wuerde der
+  Nutzer nennen, wenn er das Problem beschreibt? Thomas sagte "es laeuft einfach durch" —
+  die passende Messung ist der Anteil durchkommender Gegner, nicht ein Schadensverhaeltnis.
+  Eine Bilanz taugt zum Rechnen einer Zielgroesse, nie als Abnahmekriterium.
+- **Zweite Lehre (die Messung selbst war zweimal falsch):** Der erste Messaufbau uebernahm
+  beim Zustandswechsel die Gegner des Vorlaufs — Level 1 zeigte dadurch 78 % Durchkommen
+  statt 0 %. Der zweite mass ohne Einschwingzeit ein halb leeres Feld. Beide Fehler waren
+  nur zu sehen, weil derselbe Fall **zweimal hintereinander** gemessen wurde und
+  unterschiedliche Werte lieferte. Eine Messsonde ist erst brauchbar, wenn sie diese
+  Wiederholprobe besteht; ein einzelner plausibler Wert beweist nichts.
+- **Dritte Lehre (eigene Empfehlung widerlegt):** Die Empfehlung an Thomas lautete
+  "zaehere Gegner verbreitern das Spielfenster". Die Messung zeigte: Zaehere Gegner
+  verschieben den Kipppunkt, verbreitern ihn aber nicht — das System ist bistabil
+  (mehr Durchkommer -> freie Spuren -> mehr Nachschub -> mehr Durchkommer). Wirksam war
+  stattdessen die **raeumliche** Aenderung: Die Truppe war 130 px breit und deckte damit
+  den ganzen 155 px breiten Anflugbereich ab, die Zielsuche zog den Rest vor sie. Wo eine
+  Bilanz bistabil ist, hilft kein Nachjustieren der Bilanz, sondern nur ein Mechanismus,
+  der am selben Ergebnis unabhaengig von ihr beteiligt ist.
+- **Vierte Lehre (Regler gegen sich selbst):** `seekSpeedPxPerSec` war 2026-08-22 mit
+  ausfuehrlicher Herleitung eingebaut worden, um Stehenbleiben zu bestrafen. Gemessen hat
+  er es **belohnt**: Er zog jeden Gegner vor die mittig stehende Truppe (mittlerer
+  Seitenabstand der Todesorte: 4 px). Die Herleitung war rechnerisch korrekt und die
+  Wirkung genau umgekehrt, weil sie nur den Fall "Truppe steht aussen" betrachtete. Ein
+  Regler, der ein Verhalten bestrafen soll, gehoert **in genau der Situation gemessen, die
+  er bestrafen soll** — nicht in der, fuer die er gerechnet wurde.

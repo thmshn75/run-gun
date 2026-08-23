@@ -1,6 +1,6 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-23 10:05
+Stand: 2026-08-23 14:10
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen, Tag
@@ -51,19 +51,49 @@ Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen,
      12,6 (Bestand 73).
   3. **Boss pendelt nicht mehr**, er kommt nur noch langsam auf die Truppe zu
      (`advanceSpeed` unveraendert). X-Spanne im Kampf gemessen 0 px statt 216 px.
-- Stand: 154 Tests gruen, `npm run check` sauber, alles gepusht und Deploy gruen,
-  Arbeitsverzeichnis sauber, `docs/active-task.md` auf IDLE, nichts laeuft im Hintergrund.
+- **W7 von Thomas abgenommen (2026-08-23): "w7 ok".**
+- **Gegner-Widerstand neu aufgebaut (2026-08-23), iPhone-Urteil offen.** Thomas hatte den
+  Vorschlag "zaehere Gegner plus gedaempfte Kopplung" angenommen. Gemessen wurde diesmal
+  die Erlebnisgroesse (Anteil Gegner, die die Truppe erreichen) statt einer Bilanz - und
+  die zeigte etwas anderes als erwartet: Bis Level 6 war das Spiel folgenlos (0 % kamen
+  an), ab Level 8 kippte es auf 100 %. Der eigentliche Grund war raeumlich: Die Truppe war
+  130 px breit und deckte den ganzen 155 px breiten Anflugbereich ab, die Zielsuche zog
+  den Rest vor sie - die Mitte war der sichere Ort. Gebaut: Levelkurve der Gegner-hp weg
+  (Wachstum kommt aus Typmischung und Nachschub), Grundwerte 1/4/12 -> 2/8/23, gedaempfte
+  Kopplung (`enemy.firepowerCoupling`, 0,30, ohne Waffe, mit Untergrenze), Zielsuche
+  11 -> 4 px/s, Spawn-Baender breiter, Feuerlinie 130 -> 78 px. Ergebnis: jedes Level im
+  Korridor 4-12 % statt 0 %/100 %, und die Position zaehlt (Mitte 13 % durch bei 8 Figuren
+  Verlust, Seite 84 % durch bei 0 Verlust).
+- **Trefferblitzen komplett entfernt (2026-08-23, Thomas).** Beim Boss war derselbe Zweig
+  toter Code (`flashRemainingMs` wurde nie gesetzt) und ist mit raus.
+- Stand: 169 Tests gruen, `npm run check` sauber, Arbeitsverzeichnis sauber.
 
 ## Offen — naechster Schritt zuerst
-1. **Thomas' iPhone-Urteil zu W7** steht aus und hat Vorrang. Zu beurteilen sind drei
-   Dinge: wirken die Figuren jetzt plastisch statt flach; passt die Gegnermenge ueber die
-   Level; stoert es, dass der Boss nur noch geradeaus kommt.
-   Tuning ohne Umbau: `level.plans`, `level.squads.maxSize*`, `enemy.deferredMaxAgeMs`,
-   `enemy.figureScale`, `road.perspective`, `weapon.*.engageShare`, `boss.advanceSpeed`.
-2. **W6 — V2-Abnahme** (die letzte Etappe): toten Code raus (`blockers.ts` heisst noch so,
+1. **Thomas' iPhone-Urteil zum neuen Gegner-Widerstand** hat Vorrang: Kommen jetzt genug
+   Gegner durch, ohne dass es unfair wird? Zaehlt die Position spuerbar? Fehlt das
+   Trefferblitzen?
+   Tuning ohne Umbau: `enemy.firepowerCoupling.dampening` (hoeher = Gegner folgen der
+   Spielerstaerke staerker), `enemy.types[].hp`, `crowd.maxWidthRatio` (Feuerlinie),
+   `enemy.seekSpeedPxPerSec`, `enemy.spawnBands`, `level.plans`.
+2. **Entscheidung, die auf Thomas wartet** (siehe Befunde unten): Soll ein Gegner, der die
+   Truppe passiert, ohne getoetet zu werden, etwas kosten? Ohne das bleibt der obere
+   Levelbereich bistabil.
+3. **W6 — V2-Abnahme** (die letzte Etappe): toten Code raus (`blockers.ts` heisst noch so,
    meint aber Waende), Volllast-Messung, Netzwerk-Null-Check, Update-Pfad, README.
+   Thomas 2026-08-23: "3. kommt erst dann" — also nach Punkt 1 und 2.
 
 ## Befunde, die Thomas kennen sollte (nicht behoben, bewusst)
+- **Der obere Levelbereich ist bistabil, wenn die Truppe steht.** Auf den Leveln 7-11
+  gemessen: 51 / 56 / 1 / 78 / 2 % Durchkommen - es gibt kaum einen Zwischenzustand.
+  Sobald der Nachschub die Raeumleistung uebersteigt, staut es sich auf, durchgelaufene
+  Gegner machen Spuren frei und es verstaerkt sich selbst. **Das laesst sich nicht
+  einstellen, das ist der Aufbau.** Aufloesen wuerde es ein Verlust fuer Gegner, die die
+  Truppenhoehe passieren, ohne getoetet zu werden - dann haengt der Schaden an dem, was
+  man verfehlt, statt an der Gesamtbilanz. Produktentscheidung, wartet auf Thomas.
+- **Die Feuerlinie ist am unteren Anschlag.** `crowd.maxWidthRatio` 0,20 = 78 px ist der
+  kleinste Wert, bei dem 8 Schuetzen noch nebeneinander stehen. Wer die Truppe weiter
+  verschmaelern will, muss zuerst `crowd.shootersPerSalvo` oder `crowd.minColSpacing`
+  anfassen; ein Test haelt beide Grenzen fest.
 - **Boss-Kampfdauer haengt am Gegnerschild, nicht an den Lebenspunkten.** Gemessen
   2026-08-23 mit identischem Verfahren vorher/nachher: Das entfernte Pendeln aendert die
   Dauer kaum (Level 1 104 -> 100 s, Level 6 115 -> 111 s), bei Level 12 streut sie so
@@ -100,7 +130,9 @@ Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen,
 
 ## Einstiegssatz
 "Lies `docs/UEBERGABE.md`, `docs/lessons.md` und `docs/plan-v2.md` und arbeite dort weiter.
-**Nichts neu aufsetzen - V1 ist abgenommen (Tag `v1.0`), von V2 sind W1-W5 und W7 gebaut.**
-Naechster Schritt: Thomas' iPhone-Urteil zu W7 abwarten (plastische Figuren, Gegnermenge
-ueber die Level, Boss ohne Pendeln) - Korrekturen haben Vorrang. Danach W6, die
-V2-Abnahme. Die offenen Befunde stehen in der UEBERGABE unter 'Befunde'."
+**Nichts neu aufsetzen - V1 ist abgenommen (Tag `v1.0`), von V2 sind W1-W5 und W7 gebaut,
+W7 ist abgenommen.** Naechster Schritt: Thomas' iPhone-Urteil zum neuen Gegner-Widerstand
+abwarten (kommen genug Gegner durch, zaehlt die Position, fehlt das Trefferblitzen) -
+Korrekturen haben Vorrang. Dann die offene Produktentscheidung (kosten Durchbrecher
+etwas?), dann W6, die V2-Abnahme. Die offenen Befunde stehen in der UEBERGABE unter
+'Befunde'."

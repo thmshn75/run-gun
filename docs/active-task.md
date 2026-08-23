@@ -7,6 +7,123 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**Gegner-Widerstand neu aufgebaut: gedaempfte Kopplung, schmalere Feuerlinie, kein
+Trefferblitzen**
+(2026-08-23, Claude direkt. Thomas: "nehme deinen Vorschlag an" - zaehere Gegner plus
+gedaempfte Kopplung; dazu "das trefferblitzen weg lassen komplett".)
+
+**Zuerst das Messwerkzeug, dann die Zahlen.** Bisher wurde Feuerkraft gegen Bedarf
+gerechnet. Gemessen wird jetzt, was zaehlt: **Wie viele Gegner erreichen die Truppe?**
+Die Sonde verfolgt jeden Gegner ueber seine `spawnId`, merkt sich den Ort seines
+Verschwindens und wertet Todeshoehe, Seitenabstand und Figurenverlust aus. Zwei Fallen
+haben die ersten Messreihen verfaelscht und sind behoben: Gegner aus dem Vorlauf blieben
+beim Zustandswechsel stehen (Level 1 zeigte dadurch 78 % Durchkommen statt 0 %), und ohne
+Einschwingzeit wurde ein halb leeres Feld gemessen.
+
+**DER AUSGANGSBEFUND - das Spiel hatte zwei Haelften und keinen Uebergang.**
+Je 12 s, Standardwaffe, Truppe mittig, einmal frisch (Truppe 8, Grundwerte) und einmal
+voll ausgebaut (Truppe 60, Level-Deckel):
+
+| Level | 1 | 2 | 3 | 4 | 6 | 8 | 10 | 12 |
+|---|---|---|---|---|---|---|---|---|
+| voll ausgebaut | 0 % | 0 % | 0 % | 0 % | 0 % | 0 % | 25 % | 57 % |
+| frisch | 0 % | 0 % | 0 % | 0 % | 0 % | 100 % | 100 % | 100 % |
+
+Bis Level 6 war das Spiel **folgenlos**: kein Gegner kam an, kein Figurenverlust,
+Todeshoehe konstant 398 px - das ist exakt die Reichweitenlinie der Waffe. Ab Level 8
+kippte es innerhalb von zwei Leveln ins Gegenteil. Thomas' Beschwerde ("ab Level 3 kann
+ich meine Leute einfach stehen lassen") beschreibt die untere Haelfte.
+Ursache, gerechnet: Der Bedarf wuchs ueber elf Level um Faktor 60, die Feuerkraft am
+Deckel nur um 28,5 - und Level 1 startete so weit im Ueberschuss, dass die Kurven sich
+erst bei Level 7 trafen.
+
+**DER EIGENTLICHE FUND kam aus einer Messung, die vorher niemand gemacht hatte:**
+Wo sterben Gegner in SEITLICHER Richtung? (Level 6, Truppe 30, je 18 s)
+
+| Truppe steht | kommt durch | mittlerer Seitenabstand der Todesorte |
+|---|---|---|
+| Mitte | 1 % | 4 px |
+| links aussen | 72 % | 58 px |
+| rechts aussen | 45 % | 83 px |
+
+Die Mitte war der **sichere Ort**, und zwar aus zwei Gruenden zusammen: Die Zielsuche
+(`seekSpeedPxPerSec` 11) zog praktisch jeden Gegner vor eine mittig stehende Truppe, und
+die Truppe war bei 30 Figuren **130 px breit** und deckte damit fast den ganzen
+Anflugbereich (155 px) ab. Es gab schlicht nichts, was vorbeilaufen konnte. Die
+Zielsuche war 2026-08-22 eingebaut worden, um Stehenbleiben zu bestrafen - gemessen hat
+sie es belohnt.
+
+**GEBAUT, alles mit Herleitung im Kommentar:**
+- **Levelkurve der Gegner-hp ersatzlos weg** (`hpPerLevelGrowth` 1,2 -> 1,0). Sie war der
+  Grund fuer die doppelte Steilheit. Das Levelwachstum kommt jetzt aus Typmischung
+  (4,3x) und Nachschub (1,9x), die ohnehin steigen.
+- **Grundwerte 1/4/12 -> 2/8/23.** Aus dem Startzustand gerechnet, Typverhaeltnis bleibt.
+  Ein Gegner stirbt nicht mehr am ersten Treffer.
+- **Gedaempfte Kopplung an die Spielerstaerke** (`enemy.firepowerCoupling`), also Thomas'
+  urspruenglicher Auftrag - aber in der Form, die die alte Wandhaerte-Falle vermeidet:
+  ohne Waffe, mit Untergrenze (unterhalb der Referenz greift sie gar nicht) und gedaempft
+  mit 0,30. Doppelte Feuerkraft macht Gegner 1,23x zaeher, netto bleiben 1,62x mehr
+  Durchsatz - Aufruesten wirkt also klar.
+  Der erste Wert 0,42 (aus der Bedingung "gleicher Anteil auf Level 1 wie auf Level 12")
+  war zu hoch: Er setzt gleichmaessigen Nachschub voraus, der aber zwischen Level 6 und 8
+  um 87 % springt. Die oberen Level kippten dadurch vollstaendig - schlechter als vorher.
+- **Zielsuche 11 -> 4 px/s** und **Spawn-Baender 0,28 -> 0,45 / 0,62 -> 0,66**: Gegner
+  laufen breiter an und werden nicht mehr vor die Truppe gezogen.
+- **Feuerlinie schmaler** (`crowd.maxWidthRatio` 0,44 -> 0,20 = 78 px). 0,20 ist der
+  kleinste zulaessige Wert, nicht ein gewaehlter: 8 Schuetzen brauchen bei
+  `minColSpacing` 11 px mindestens 77 px nebeneinander. Wer weiter will, muss zuerst
+  `shootersPerSalvo` oder `minColSpacing` anfassen.
+- **Trefferblitzen komplett entfernt** (Thomas). Jeder getroffene Gegner wurde 80 ms voll
+  weiss gefuellt; bei bis zu 73 gleichzeitigen Gegnern flackerte ein grosser Teil des
+  Bildes dauerhaft. Der Boss hatte denselben Zweig, seine `flashRemainingMs` wurde aber
+  NIE gesetzt - toter Code, mit entfernt. Die Phasenumschaltung des Bosses bleibt.
+
+**ERGEBNIS, gemessen (je 14 s, Truppe mittig):**
+
+| Level | voll ausgebaut | Figurenverlust | frisch | Figurenverlust |
+|---|---|---|---|---|
+| 1 | 4,5 % | 0 | 9,9 % | 6 |
+| 4 | 4,2 % | 2 | 8,9 % | 7 |
+| 6 | 6,3 % | 2 | 12,1 % | 7 |
+| 12 | 9,0 % | 4 | 100 % | 20 |
+
+Statt "0 % oder 100 %" liegt jetzt jedes Level im Korridor, und der Unterschied zwischen
+aufgeruestet und nicht aufgeruestet ist durchgehend sichtbar. Die Todeshoehe streut
+(427-508 statt konstant 398) - Gegner kommen naeher, statt an der Reichweitenlinie zu
+verpuffen.
+
+**Und die Position zaehlt jetzt** (Level 6, Truppe 30, je 14 s):
+
+| Standort | kommt durch | Figurenverlust |
+|---|---|---|
+| Mitte | 13,3 % | 8 |
+| halbrechts | 39,4 % | 0 |
+| rechts aussen | 83,7 % | 0 |
+
+Das ist eine echte Abwaegung statt einer besten Spielweise: In der Mitte raeumt man ab,
+zahlt aber mit Figuren. An der Seite verliert man nichts, laesst aber fast alles durch -
+und genau dort liegen die Sammelbahn (links) und die Feuerkraft (rechts).
+
+**NICHT GELOEST, gemessen und benannt:** Zwischen Level 7 und 11 streuen die Werte bei
+STEHENDER Truppe stark (gemessen 51 / 56 / 1 / 78 / 2 % auf den Leveln 7-11). Das System
+ist dort bistabil: Sobald der Nachschub die Raeumleistung uebersteigt, staut es sich auf,
+Spuren werden frei und es verstaerkt sich selbst. Ein Zwischenzustand existiert kaum.
+Das ist keine Zahl, die sich einstellen laesst, sondern eine Eigenschaft des Aufbaus -
+die Reissleine (max. zwei Balance-Zyklen, dann Entscheidung mit Thomas) ist gezogen.
+**Was es aufloesen wuerde:** ein Gegner, der die Truppenhoehe passiert, ohne getoetet zu
+werden, muesste etwas kosten. Dann haengt der Verlust an dem, was man verfehlt, statt an
+der Gesamtbilanz. Das ist eine Produktentscheidung und wartet auf Thomas.
+
+**Neue Regressionstests** in `tests/enemyResistance.test.ts` (17 Tests). Der wichtigste
+rechnet nach, dass verdoppelte Feuerkraft ueber die ganze Spanne MEHR Durchsatz gibt -
+genau die Eigenschaft, an der die alte Wandhaerte gescheitert ist und die vorher nirgends
+als Zahl gebildet war. Zwei weitere halten die Grenzen der Feuerlinie fest (nicht breiter
+als die halbe Anflugbreite, nicht schmaler als eine volle Salve) - beide haben beim ersten
+Lauf sofort angeschlagen und den Wert 0,24 auf 0,20 korrigiert.
+
+169 Tests gruen, `npm run check` sauber.
+**Offen: Thomas' iPhone-Urteil.**
+
 **Waffen auf ein gemeinsames Staerkeband gebracht (Minigun-Fix)**
 (2026-08-23, Claude direkt. Thomas: "Minigun macht kaum Schaden - sieh zu dass die
 Staerken der Gegner an die Waffen und die Menge meiner Leute angepasst werden zu jeder

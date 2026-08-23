@@ -73,7 +73,6 @@ export class Boss {
     this.enemy.setData('maxHp', this.plan.maxHp)
     this.enemy.setData('contactDamage', 0)
     this.enemy.setData('coinValue', BALANCE.boss.coinReward)
-    this.enemy.setData('flashRemainingMs', 0)
     this.enemy.setData('spawnId', this.nextSpawnId())
   }
 
@@ -151,9 +150,7 @@ export class Boss {
 
   private updateVisuals(dt: number, plan: BossPlan): void {
     this.phaseFlashRemainingMs = Math.max(0, this.phaseFlashRemainingMs - dt)
-    const hitFlashRemainingMs = Math.max(0, (this.enemy.getData('flashRemainingMs') as number) - dt)
-    this.enemy.setData('flashRemainingMs', hitFlashRemainingMs)
-    if (this.phaseFlashRemainingMs > 0 || hitFlashRemainingMs > 0) {
+    if (this.phaseFlashRemainingMs > 0) {
       this.enemy.setTintFill(0xffffff)
       return
     }

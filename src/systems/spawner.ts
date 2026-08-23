@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { canSpawnBossHorde } from './bossPlan'
-import { chooseEnemyType, getEnemyHp, getFigureHeight, getFigureWidth, type EnemyType } from './enemyTypes'
+import { chooseEnemyType, getEnemyHp, getFigureHeight, getFigureWidth, getPlayerPower, type EnemyType } from './enemyTypes'
 import { getEnemySpawnCenterY, getSquadSpawnBaseY, isRevealedAtHorizon } from './horizonReveal'
 import { getLevelPlan, getMaxSquadSize, type LevelPlan } from './levelPlan'
 import { getBobOffsetPx, getPhaseOffset, getStepCycleHz } from './gamefeel'
@@ -150,6 +150,22 @@ export class Spawner {
     }
   }
 
+  /**
+   * Aktuelle Feuerkraft der Truppe, Bezugsgroesse fuer die gedaempfte Gegner-Kopplung.
+   * Wird bei JEDEM Spawn frisch gelesen, nicht beim Levelstart eingefroren: Der Spieler
+   * ruestet mitten im Level auf, und genau diesen Sprung soll die Kopplung auffangen.
+   * Bereits laufende Gegner behalten ihre Lebenspunkte - eine Horde, die man gerade
+   * beschiesst, wird also nicht unter der Hand zaeher.
+   */
+  private getPlayerPower(): number {
+    return getPlayerPower(
+      this.runStats.get('hp'),
+      this.runStats.get('damage'),
+      this.runStats.get('shotsPerSec'),
+      this.levelPlan.level,
+    )
+  }
+
   public recycle(enemy: Phaser.Physics.Arcade.Image): void {
     enemy.disableBody(true, true)
     enemy.setActive(false).setVisible(false)
@@ -182,8 +198,6 @@ export class Spawner {
   public damage(enemy: Phaser.Physics.Arcade.Image, damage: number): boolean {
     const remainingHp = (enemy.getData('hp') as number) - damage
     enemy.setData('hp', remainingHp)
-    enemy.setTintFill(0xffffff)
-    enemy.setData('flashRemainingMs', BALANCE.feedback.hitFlashMs)
     if (remainingHp <= 0) {
       this.recycle(enemy)
       return true
@@ -267,9 +281,6 @@ export class Spawner {
       this.applyHorizonReveal(enemy)
       this.updateShadow(poolIndex, enemy, logicalY, bob)
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
-      const flashRemainingMs = Math.max(0, (enemy.getData('flashRemainingMs') as number) - dt)
-      enemy.setData('flashRemainingMs', flashRemainingMs)
-      if (flashRemainingMs === 0) enemy.clearTint()
       if (enemy.y - enemy.displayHeight / 2 > this.scene.scale.height) this.recycle(enemy)
     }
   }
@@ -465,7 +476,7 @@ export class Spawner {
     enemy.setActive(true).setVisible(true).clearTint()
     this.applyPerspectiveScale(enemy, y)
     this.applyHorizonReveal(enemy)
-    enemy.setData('hp', getEnemyHp(type, this.levelPlan.level))
+    enemy.setData('hp', getEnemyHp(type, this.levelPlan.level, this.getPlayerPower()))
     enemy.setData('speedFactor', type.speedFactor)
     enemy.setData('contactDamage', type.contactDamage)
     enemy.setData('coinValue', type.coinValue)
@@ -473,7 +484,6 @@ export class Spawner {
     // rechnen alle in diesem System (enemy.figureScale).
     enemy.setData('bodyWidth', getFigureWidth(type))
     enemy.setData('bodyHeight', getFigureHeight(type))
-    enemy.setData('flashRemainingMs', 0)
     enemy.setData('lane', lane)
     enemy.setData('bossCompanion', bossCompanion)
     enemy.setData('spawnId', this.allocateSpawnId())
