@@ -1,10 +1,45 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
+_(kein aktiver Task — bereit für den nächsten)_
+
+**W7 Teil 1 — Plastische Figuren: umgesetzt und abgenommen**
+(2026-08-23. Codex hat die Bilder erzeugt, Claude Review + Code-Anpassung.)
+- **Fuenf Sprites ersetzt**, jeweils in doppelter Aufloesung: `player.png` 68x92,
+  `enemy-light` 56x76, `enemy-standard` 64x88, `enemy-heavy` 84x104, `enemy-boss` 240x240.
+  Beleuchtung von oben/vorne links, Schattenseite, Kantenlicht. Kontrollbild auf
+  Fahrbahn UND heller Umgebung: `assets/probe/w7-kontrolle.png`.
+- **Review:** Silhouette, Farbwelt und Ansichtsrichtung sind erhalten (Vorher/Nachher
+  verglichen) — es ist eine Ueberarbeitung, kein Neuentwurf, wie in der Spec verlangt.
+  Die Reissleine wurde NICHT gezogen: echte Figuren, keine programmatisch gezeichneten
+  Formen. Der PIL-Code in Codex' Log diente dem Freistellen und dem Kontrollbild.
+- **Code-Anpassung (Claude, war bewusst nicht Codex' Aufgabe):** Neuer Faktor
+  `BALANCE.render.figureTextureScale` 0,5 rechnet die doppelte Aufloesung auf
+  Spielgroesse zurueck — angewendet in `spawner.applyPerspectiveScale`,
+  `boss.applyPerspectiveScale` und beim Anlegen der Truppen-Sprites in `crowd.ts`.
+  Ohne ihn waeren alle Figuren doppelt so gross.
+- **Koerpermasse NACHGEMESSEN, nicht umgerechnet** (Alpha-Schwelle 8 an den neuen
+  Bildern). In Kampfhoehen-Pixeln, alt -> neu: light 18,0 -> 18,5 · standard
+  21,0 -> **25,0** · heavy 40,0 -> 41,0 · Boss 118 -> 118. `standard` ist spuerbar
+  breiter, weil die neue Figur die Arme abspreizt — genau dafuer wird nachgemessen.
+- **Belegt im Browser:** Ein leichter Gegner auf Kampfhoehe wird mit 34,9 x 47,3 px
+  gezeichnet — identisch zum Stand vor dem Austausch. Durchsatz trotz breiterer
+  `standard`-Figur unveraendert: Level 1 6,21 Gegner/s, Level 12 12,34 (vorher 6,49 /
+  12,56, innerhalb der Streuung), keine Pool-Erschoepfung. Screenshot im Spiel geprueft.
+- **Dabei gefunden und behoben:** `tests/squads.test.ts` verglich Roh-Texturmasse gegen
+  Abstaende in Spielpixeln und meldete Ueberlappungen — derselbe Bezugssystem-Fehler wie
+  in `spawnSquad`, nur im Test. Jetzt ueber `getFigureWidth/-Height`.
+- `pixelArt: false` stand bereits seit 2026-08-22, Teil (b) der Etappe war damit erledigt.
+- 154 Tests gruen, `npm run check` sauber.
+- **Offen: Thomas' iPhone-Urteil** — Gamefeel und Optik gelten erst danach als erfuellt.
+
+---
+
+### Archiv: die Spec, nach der gebaut wurde
 **W7 Teil 1 — Plastische Figuren (Codex-Auftrag)**
 
 ### Ziel
@@ -78,6 +113,18 @@ Begruendung, was nicht ging, statt eines Ersatzprodukts abzuliefern.
 ### Abschluss
 Status auf `IMPL_DONE`, Abschlussbericht: was geaendert, welche Zwischenstaende in
 `assets/probe/` liegen, was nicht ging und warum.
+
+### Implementation Summary
+- Alle fuenf Figuren wurden als beleuchtete, gross gerenderte Vorlagen ueberarbeitet,
+  vor dem Herunterrechnen freigestellt und in den exakt doppelten Zielmassen nach
+  `src/assets/` ersetzt. Die Spielerfigur bleibt eine Rueckenansicht, die vier Gegner
+  bleiben Frontansichten; an keiner Figur ist ein Bodenschatten gemalt.
+- Zwischenstaende: `assets/probe/w7-*-gross-chroma.png` (farbige Freistellvorlagen),
+  `assets/probe/w7-*-gross.png` (freigestellte Grossfassungen) sowie
+  `assets/probe/w7-kontrolle.png` (Fahrbahn und helle Umgebung, jeweils mit
+  Spielgroessen-Kopie aller fuenf Figuren).
+- Geprueft: alle Zielmasse, vorhandene Transparenz pro Sprite und beide Hintergruende
+  im Kontrollbild. Kein Code und insbesondere keine `balance.ts` wurde geaendert.
 
 ---
 

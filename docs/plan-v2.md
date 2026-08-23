@@ -22,7 +22,7 @@ zulässiger Ersatz ist, Gamefeel gilt erst nach Thomas' iPhone-Test als erfüllt
 | W3 Horden mittig | **fertig**, iPhone-abgenommen |
 | W4 Seiten-Ökonomie | **fertig** inkl. drei Nachbesserungen (Tempo, Trefferbarkeit, Verlust statt Dauerwachstum) |
 | W5 Boss ohne Schuss | **fertig**, iPhone-Urteil 2026-08-23: „passt soweit"; eine Korrektur (Boss pendelt nicht mehr) läuft in W7 |
-| **W7 Plastische Figuren + 2 Gamefeel-Korrekturen** | **läuft** (unten spezifiziert; Teil 2 Claude direkt, Teil 1 Codex-Auftrag) |
+| **W7 Plastische Figuren + 2 Gamefeel-Korrekturen** | **gebaut** (Teil 2 Claude, Teil 1 Codex) — **iPhone-Urteil offen** |
 | W6 V2-Abnahme | **offen — läuft zuletzt**, nach W7 |
 
 **Nach W5 sind ohne eigene Etappe noch fünf Dinge dazugekommen** (jeweils aus einer

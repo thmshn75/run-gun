@@ -38,7 +38,10 @@ export class Crowd {
     this.figuresAlpha = 1
     this.members = []
 
-    const firstSprite = scene.add.image(anchorX, anchorY, 'player')
+    // Die Spielerfigur liegt seit W7 in doppelter Aufloesung vor - erst nach setScale
+    // stimmt displayWidth wieder mit der Spielgroesse ueberein, an der Formation,
+    // Fahrbereich und Schatten haengen.
+    const firstSprite = scene.add.image(anchorX, anchorY, 'player').setScale(BALANCE.render.figureTextureScale)
     this.figureWidth = firstSprite.displayWidth
     this.figureHeight = firstSprite.displayHeight
     const hullWidth = firstSprite.displayWidth * BALANCE.crowd.hullWidthFigures
@@ -48,7 +51,9 @@ export class Crowd {
     // Bodenschatten: einmal je Poolplatz erzeugt, nie zur Laufzeit.
     const shadowWidth = this.figureWidth * BALANCE.shadow.widthOfFigure
     for (let index = 0; index < BALANCE.pools.crowd; index += 1) {
-      const sprite = index === 0 ? firstSprite : scene.add.image(anchorX, anchorY, 'player')
+      const sprite = index === 0
+        ? firstSprite
+        : scene.add.image(anchorX, anchorY, 'player').setScale(BALANCE.render.figureTextureScale)
       sprite.setActive(false).setVisible(false)
       const shadow = scene.add.image(anchorX, anchorY, 'figure-shadow')
         .setDepth(BALANCE.layers.shadow)

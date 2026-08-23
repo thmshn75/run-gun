@@ -491,7 +491,9 @@ export class Spawner {
   private applyPerspectiveScale(enemy: Phaser.Physics.Arcade.Image, y: number): void {
     // Grundgroesse x Perspektive: figureScale hebt die Figur auf Spielgroesse, der
     // Perspektivfaktor schrumpft sie mit der Entfernung.
-    const faktor = BALANCE.enemy.figureScale * getPerspectiveScale(this.scene.scale.width, this.scene.scale.height, y)
+    // figureTextureScale halbiert die doppelt aufgeloeste Textur zurueck auf Spielgroesse.
+    const faktor = BALANCE.enemy.figureScale * BALANCE.render.figureTextureScale
+      * getPerspectiveScale(this.scene.scale.width, this.scene.scale.height, y)
     enemy.setScale(faktor)
     // Nachgefuehrte Groesse fuer alle, die mit der Figurenbreite rechnen (Schatten,
     // Spurreservierung). Die Rohbreite bleibt als bodyWidth erhalten.

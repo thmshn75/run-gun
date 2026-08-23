@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { BALANCE, type SquadKind } from '../src/config/balance'
+import { getFigureHeight, getFigureWidth } from '../src/systems/enemyTypes'
 import { getLevelPlan } from '../src/systems/levelPlan'
 import { getPlayfieldHalfWidth } from '../src/systems/roadGeometry'
 import { chooseSpawnLane } from '../src/systems/spawnLanes'
 import { computeHordeOffsets, computeSquadOffsets, getSquadWidth } from '../src/systems/squads'
 
 const PHONE_WIDTH = 390
-const WIDEST_ENEMY = Math.max(...BALANCE.enemy.types.map((type) => type.bodyWidth))
-const TALLEST_ENEMY = Math.max(...BALANCE.enemy.types.map((type) => type.bodyHeight))
+// KAMPFHOEHEN-Masse, nicht Rohmasse der Textur. Seit W7 (2026-08-23) liegen die Sprites
+// in doppelter Aufloesung vor, type.bodyWidth ist also ein TEXTURMASS - wer damit gegen
+// Abstaende in Spielpixeln prueft, vergleicht zwei Bezugssysteme (genau der Fehler, der
+// in spawnSquad den Nachschub lahmgelegt hat). getFigureWidth/-Height rechnen um.
+const WIDEST_ENEMY = Math.max(...BALANCE.enemy.types.map((type) => getFigureWidth(type)))
+const TALLEST_ENEMY = Math.max(...BALANCE.enemy.types.map((type) => getFigureHeight(type)))
 
 // Bezugssystem seit der perspektivischen Skalierung (2026-08-22): KAMPFHOEHE. Dort
 // haben die Figuren volle Groesse und treffen auf die Truppe. Der fruehere Vergleich
@@ -72,10 +77,10 @@ describe('horde density rule and centering (W3)', () => {
     // verkleinert. Beides ist unnoetig - eine zu breite Formation kann schlicht mehr
     // Reihen bilden. Alle acht kommen an, mit vollem Abstand.
     const light = BALANCE.enemy.types.find((type) => type.key === 'light')!
-    const layout = computeHordeOffsets('wedge', 8, spacing, rowSpacing, light.bodyWidth, 92)
+    const layout = computeHordeOffsets('wedge', 8, spacing, rowSpacing, getFigureWidth(light), 92)
     expect(layout.size).toBe(8)
     expect(layout.spacing).toBe(spacing)
-    expect(getSquadWidth(layout.offsets, light.bodyWidth)).toBeLessThanOrEqual(92 + 1e-9)
+    expect(getSquadWidth(layout.offsets, getFigureWidth(light))).toBeLessThanOrEqual(92 + 1e-9)
     // Und zwar in mehr Reihen, als der ungebremste Keil gebraucht haette (1+2+3+2).
     const reihen = new Set(layout.offsets.map((offset) => offset.yOffset))
     expect(reihen.size).toBeGreaterThan(4)
@@ -83,10 +88,10 @@ describe('horde density rule and centering (W3)', () => {
 
   it('keeps squeezed formations overlap-free within a row', () => {
     const light = BALANCE.enemy.types.find((type) => type.key === 'light')!
-    const layout = computeHordeOffsets('row', 4, spacing, rowSpacing, light.bodyWidth, 92)
+    const layout = computeHordeOffsets('row', 4, spacing, rowSpacing, getFigureWidth(light), 92)
     const sameRow = layout.offsets.filter((offset) => offset.yOffset === layout.offsets[0].yOffset)
     for (let index = 1; index < sameRow.length; index += 1) {
-      expect(Math.abs(sameRow[index].laneOffset - sameRow[index - 1].laneOffset)).toBeGreaterThanOrEqual(light.bodyWidth)
+      expect(Math.abs(sameRow[index].laneOffset - sameRow[index - 1].laneOffset)).toBeGreaterThanOrEqual(getFigureWidth(light))
     }
   })
 

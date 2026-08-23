@@ -699,9 +699,17 @@ export const BALANCE = {
     // hp gespreizt statt 1/3/9, damit die Typen ohne Tempo-Unterschied noch klar
     // auseinandergehen: Der Schwere haelt jetzt das Zwoelffache des Leichten aus.
     types: [
-      { key: 'light', texture: 'enemy-light', hp: 1, speedFactor: 1, contactDamage: 1, coinValue: 1, bodyWidth: 18, bodyHeight: 38 },
-      { key: 'standard', texture: 'enemy-standard', hp: 4, speedFactor: 1, contactDamage: 1, coinValue: 1, bodyWidth: 21, bodyHeight: 42 },
-      { key: 'heavy', texture: 'enemy-heavy', hp: 12, speedFactor: 1, contactDamage: 2, coinValue: 3, bodyWidth: 40, bodyHeight: 49 },
+      // bodyWidth/bodyHeight sind die gemessenen OPAKEN Masse der Textur, seit W7 also
+      // in der doppelten Aufloesung (2026-08-23 mit einem Alpha-Schwellwert von 8 an den
+      // neuen Bildern nachgemessen, nicht umgerechnet). Auf Spielgroesse kommen sie ueber
+      // getFigureWidth/-Height, die figureScale UND render.figureTextureScale anwenden.
+      // Zum Vergleich in Kampfhoehen-Pixeln (also halbiert), alt -> neu:
+      //   light    18,0 -> 18,5   standard 21,0 -> 25,0   heavy 40,0 -> 41,0
+      // 'standard' ist spuerbar breiter geworden, weil die neue Figur die Arme
+      // abspreizt - genau dafuer wird nachgemessen statt uebernommen.
+      { key: 'light', texture: 'enemy-light', hp: 1, speedFactor: 1, contactDamage: 1, coinValue: 1, bodyWidth: 37, bodyHeight: 76 },
+      { key: 'standard', texture: 'enemy-standard', hp: 4, speedFactor: 1, contactDamage: 1, coinValue: 1, bodyWidth: 50, bodyHeight: 84 },
+      { key: 'heavy', texture: 'enemy-heavy', hp: 12, speedFactor: 1, contactDamage: 2, coinValue: 3, bodyWidth: 82, bodyHeight: 98 },
     ],
     // Gegner-Lebenspunkte wachsen mit der LEVELNUMMER (Thomas 2026-08-22, nach dem
     // Spieltest: "ich kann die Mannschaft immer noch in der Mitte stehen lassen und
@@ -1058,9 +1066,12 @@ export const BALANCE = {
     advanceStopBeforeAnchorPx: 80,
     advanceContactDamage: 2,
     coinReward: 25,
-    // Measured opaque bounds of src/assets/enemy-boss.png, not the 120px canvas.
-    bodyWidth: 118,
-    bodyHeight: 118,
+    // Gemessene opake Masse von src/assets/enemy-boss.png, nicht die Leinwand.
+    // Seit W7 (2026-08-23) liegt das Bild in doppelter Aufloesung vor (240x240), die
+    // Masse sind entsprechend in Texturpixeln: 236 statt 118. Auf dem Bildschirm bleibt
+    // die Figur gleich gross, weil render.figureTextureScale sie halbiert.
+    bodyWidth: 236,
+    bodyHeight: 236,
   },
   feedback: {
     hitFlashMs: 80,
@@ -1088,6 +1099,19 @@ export const BALANCE = {
     collectDistance: 24,
     dropSpacing: 18,
     edgeInset: 7,
+  },
+  render: {
+    // Alle Figuren-Sprites (Truppe, drei Gegnertypen, Boss) liegen seit W7 in DOPPELTER
+    // Aufloesung vor. Grund: Mit pixelArt: false glaettet Phaser beim Skalieren, und
+    // enemy.figureScale 1,25 VERGROESSERT die Gegner - eine Textur in Zielgroesse wurde
+    // dabei hochgerechnet und wirkte weich. Aus der doppelten Aufloesung heraus wird
+    // dagegen immer verkleinert, und das bleibt scharf.
+    //
+    // Dieser Faktor rechnet die Texturpixel zurueck auf die Spielgroesse. Er gehoert
+    // ueberall dorthin, wo eine Figuren-Textur skaliert wird - dieselbe Stelle wie
+    // enemy.figureScale. Wer ihn vergisst, bekommt doppelt so grosse Figuren.
+    // 0,5 ist exakt der Kehrwert der Verdopplung; er ist KEIN Tuning-Wert.
+    figureTextureScale: 0.5,
   },
   pools: {
     projectiles: {

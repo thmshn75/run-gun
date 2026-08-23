@@ -17,16 +17,17 @@ export function getEnemyHp(type: EnemyType, level: number): number {
 /**
  * Breite und Hoehe einer Gegnerfigur auf KAMPFHOEHE, also in dem Bezugssystem, in dem
  * Spurwahl, Formationsbreite, Schatten und Trefferflaeche rechnen. Die Werte in der
- * Typtabelle sind die gemessenen SPRITE-Masse; BALANCE.enemy.figureScale hebt sie auf
- * die Spielgroesse. Wer die Rohmasse braucht (nur der Arcade-Body, den Phaser selbst
+ * Typtabelle sind die gemessenen SPRITE-Masse in TEXTURPIXELN (seit W7 in doppelter
+ * Aufloesung); render.figureTextureScale rechnet sie auf Spielpixel zurueck und
+ * BALANCE.enemy.figureScale hebt sie auf die Spielgroesse. Wer die Rohmasse braucht (nur der Arcade-Body, den Phaser selbst
  * mitskaliert), nimmt weiter type.bodyWidth/bodyHeight.
  */
 export function getFigureWidth(type: EnemyType): number {
-  return type.bodyWidth * BALANCE.enemy.figureScale
+  return type.bodyWidth * BALANCE.enemy.figureScale * BALANCE.render.figureTextureScale
 }
 
 export function getFigureHeight(type: EnemyType): number {
-  return type.bodyHeight * BALANCE.enemy.figureScale
+  return type.bodyHeight * BALANCE.enemy.figureScale * BALANCE.render.figureTextureScale
 }
 
 export function chooseEnemyType(weights: readonly number[], random: () => number = Math.random): EnemyType {

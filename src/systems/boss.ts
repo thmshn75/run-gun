@@ -136,7 +136,11 @@ export class Boss {
   }
 
   private applyPerspectiveScale(): void {
-    this.enemy.setScale(getPerspectiveScale(this.scene.scale.width, this.scene.scale.height, this.enemy.y))
+    // figureTextureScale halbiert die doppelt aufgeloeste Textur zurueck auf Spielgroesse.
+    this.enemy.setScale(
+      BALANCE.render.figureTextureScale
+      * getPerspectiveScale(this.scene.scale.width, this.scene.scale.height, this.enemy.y),
+    )
   }
 
   private advanceTowardsCrowd(dt: number, plan: BossPlan): void {
