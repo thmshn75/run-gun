@@ -321,3 +321,33 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   war als Höflichkeit gedacht ("die Horde kommt gleich"), wirkte aber als Totalblockade,
   weil nichts sie je aufgab. Jede Warteschlange braucht eine hergeleitete Obergrenze, nach
   der der Eintrag verworfen wird.
+
+### 2026-08-23 — Faktor 18 zwischen zwei Waffen, weil die Vergleichszahl nie gebildet wurde
+- **Fehler:** Thomas meldete "Minigun macht kaum Schaden". Die Messung ergab: Sie lag bei
+  0,23x der Standardwaffe, die Schrotflinte bei 4,20x — **Faktor 18** zwischen der
+  staerksten und der schwaechsten Waffe. Jede einzelne Waffe war fuer sich plausibel
+  parametrisiert und ausfuehrlich kommentiert; die Minigun hatte einen hohen Takt, dafuer
+  wenig Schaden, das liest sich beim Draufschauen richtig. Unsichtbar blieb, dass sie als
+  einzige gar keinen Flaecheneffekt hat (kein Durchschlag, kein Splash, keine Kette) UND
+  zusaetzlich nur mit 3 statt 8 Figuren feuerte — zwei Nachteile, die sich multiplizieren.
+  Der Abstand stand seit Wochen im Code und war in einem frueheren Lesson-Eintrag sogar
+  schon einmal beilaeufig erwaehnt worden, ohne dass jemand daraus eine Pruefung machte.
+- **Regel:** Wo mehrere Varianten desselben Bauteils nebeneinander existieren (Waffen,
+  Gegnertypen, Fahrzeuge, Tarife), gehoert **eine gemeinsame Vergleichszahl** in einen
+  Test — nicht die Einzelwerte, sondern ihr Verhaeltnis zueinander und die Spanne zwischen
+  Bestem und Schlechtestem. Solange diese Zahl nirgends gebildet wird, faellt kein
+  Ausreisser auf, weil jede Variante einzeln betrachtet vernuenftig aussieht. Der Test
+  prueft ein Band, keine Einzelwerte; sonst zementiert er den Zustand, statt ihn zu
+  ueberwachen.
+- **Zweite Lehre (Messaufbau):** Bei normaler Last sahen im Spiel ALLE Waffen gleich gut
+  aus (0,95x bis 1,06x) — die Messung bildete den Gegner-Nachschub ab, nicht die
+  Waffenstaerke, weil jede Waffe alles wegraeumte, was ankam. Erst unter **Ueberlast**
+  (hohes Level, kleine Truppe) trennte sie die Waffen. Wer die Leistungsgrenze eines
+  Bauteils messen will, muss es ueberfordern; im Normalbetrieb misst er die Zufuhr.
+- **Dritte Lehre (Auftrag mit bekanntem Fehlermuster):** Thomas' Auftrag lautete
+  woertlich, die Gegnerstaerke an Waffe und Truppengroesse zu koppeln — exakt die
+  Konstruktion, die in diesem Projekt schon einmal gebaut und wieder ausgebaut wurde. Ein
+  Satz genuegte, um das zu benennen ("im Projekt schon einmal schiefgegangen"), und
+  Thomas entschied selbst um. Ein bekanntes Fehlermuster im Auftrag gehoert **vor** dem
+  Bauen benannt, nicht danach im Abschlussbericht — aber als kurzer Hinweis mit Beleg,
+  nicht als Verweigerung.
