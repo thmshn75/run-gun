@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`IN_ARBEIT`
+`IDLE`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
