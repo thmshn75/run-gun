@@ -629,6 +629,125 @@ export const BALANCE = {
     // Gegnertempo, kein Spielerwert - deshalb weiter ein FESTER Deckel.
     speed: { base: 105, capAtLevelOne: 305, capAtLevelTwelve: 305, floor: 70 },
   },
+  // AUFWERTUNGEN ZWISCHEN DEN LEVELN (Thomas 2026-08-23, nach Bennis Wunsch: "nach jedem
+  // Level die Moeglichkeit seine DMG Rate und das maximale Team gegen Bezahlung
+  // upzugraden").
+  //
+  // VORGESCHICHTE, die den Bauplan bestimmt: Einen Shop gab es schon; Thomas hat ihn am
+  // 2026-08-23 gestrichen (Commit 120f784, "nicht notwendig"). Der Grund steht dort: Die
+  // Deckel sind ueber die beiden Wandbahnen nach rund 40 s von selbst erreicht, ein Level
+  // dauert 75-88 s. Was zusaetzlich obendrauf kommt, macht das Spiel leichter.
+  //
+  // Thomas hat sich am 2026-08-23 bewusst fuer genau das entschieden ("die automatische
+  // Erhoehung pro Level von Team rate dmg usw soll bleiben - das kaufen dazwischen wird
+  // zum Bonus"). Die Aufgabe ist deshalb nicht, den Effekt zu vermeiden, sondern ihn zu
+  // BEGRENZEN und messbar zu halten.
+  shop: {
+    // Preis je Stufe, Index 0 = erste Stufe (kaufbar nach Level 1).
+    //
+    // GEMESSEN 2026-08-23 im Browser (Truppe 40 mittig, Deckelwerte, je 40 s in der
+    // Normalphase, gedroppte gegen eingesammelte Muenzen):
+    //   Level 1: 4,55 Muenzen/s   Level 4: 6,75   Level 8: 10,07   Level 12: 13,30
+    //   Einsammelquote 97,8-100,2 % - der Magnet (coins.magnetRadius 200 px bei 390 px
+    //   Bildbreite) holt praktisch alles. Die Planannahme von 80 % war zu pessimistisch.
+    //
+    // Daraus die Einnahme je Level = Rate x (normalPhaseSec + 12,5 s Bossphase bei halber
+    // Rate) + boss.coinReward:
+    //   L1 423 · L2 503 · L3 570 · L4 649 · L5 726 · L6 820 · L7 898 · L8 997 · L9 1.075
+    //   L10 1.176 · L11 1.255 · L12 1.362 - zusammen 10.454 je vollem Run.
+    //
+    // PREIS = 37,5 % der Einnahme des Levels. Beide Knoepfe zusammen kosten damit drei
+    // Viertel dessen, was das Level einbringt. Voller Ausbau beider Linien: 6.800 von
+    // 9.092 bis zur letzten Kaufgelegenheit - wer sauber sammelt, kriegt fast alles und
+    // behaelt rund 2.300 fuers Konto; wer schlampt, muss waehlen. Genau diese Entscheidung
+    // ist der Zweck, und sie entsteht aus dem Sammeln statt aus einer hohen Preisliste.
+    prices: [160, 190, 210, 240, 270, 310, 340, 370, 400, 440, 470],
+    // TRUPPE ist der grosszuegige Knopf, und das ist kein Gefuehl, sondern Bauart: Aus
+    // ihr entsteht KEINE Feuerkraft. Der Schadensbonus der Truppe ist bei 30 Figuren
+    // ausgereizt (crowd.damageMultiplierCap, per Test gesichert), alles darueber ist
+    // Reserve, also Ueberlebenszeit. Ein grosser Truppenbonus macht das Spiel
+    // nachsichtiger, nicht schneller - er verzeiht Fehler, statt Gegner wegzuraeumen.
+    // 8 % je Stufe, 11 Stufen = +134 % Reserve (Level 12: Deckel 100 -> 234).
+    teamBonusPerStep: 0.08,
+    // FEUERKRAFT braucht einen harten Deckel. Die heutigen Grenzen liefern gemessen das
+    // 14,2-fache des Bedarfs auf Level 1, 8,5-fach auf Level 4, 4,6-fach auf Level 8 und
+    // nur noch 2,5-fach auf Level 12 (Herleitung bei stats). Unten ist viel Luft, oben
+    // fast keine. Ziel ist ein Gesamtbonus von rund +38 %: Das hebt Level 12 von 2,5x auf
+    // 3,5x Bedarf. MEHR IST OHNE NEUE MESSUNG NICHT ZULAESSIG - darueber verliert das
+    // Endspiel seinen Druck, und genau das war der Befund, den Thomas dreimal korrigieren
+    // musste.
+    //
+    // ZWEI WERTE, UNGLEICH VERTEILT - beides ist gerechnet, nicht gewaehlt.
+    //
+    // (1) Der Planentwurf hatte 3 % auf beide Werte vorgesehen und dabei einen
+    //     Rechenfehler gemacht, den erst der Test gefangen hat: Die Stufe hebt SCHADEN
+    //     UND FEUERRATE, und Feuerkraft ist deren PRODUKT. Der Bonus wirkt damit
+    //     quadratisch - 1,03^11 x 1,03^11 = 1,92, also +92 % statt der gewollten +38 %.
+    //
+    // (2) Gleichmaessig verteilt (1,5 % auf beide) stimmt die Summe, aber die ANZEIGE
+    //     ruehrt sich nicht: Schaden wird auf eine Nachkommastelle gerundet, und
+    //     3,02 x 1,015 = 3,065 bleibt 3,0 bzw. springt erst nach zwei Kaeufen. Fuer einen
+    //     Siebenjaehrigen ist ein Knopf, der sichtbar nichts tut, ein kaputter Knopf.
+    //
+    // Deshalb faellt der Loewenanteil auf den Schaden - die Zahl, die Benni meint:
+    //   1,025^11 = 1,312  x  1,005^11 = 1,056  ->  1,386, also +39 % Feuerkraft.
+    // Schaden springt damit ab Level 4 bei JEDEM Kauf sichtbar, auf Level 1 bei jedem
+    // zweiten. Wer diese Werte aendert, rechnet den Gesamtfaktor als PRODUKT beider
+    // Reihen - ein Test haelt die Obergrenze fest.
+    damageBonusPerStep: 0.025,
+    rateBonusPerStep: 0.005,
+    // Hoechstens eine Stufe je Knopf und Levelpause. Ohne diese Regel kauft ein volles
+    // Konto nach Level 1 alles frei, und der Bonus ist kein Bonus mehr, sondern ein
+    // Startvorteil. Damit bleibt die Kurve auch bei reichem Konto an die Levelzahl
+    // gebunden.
+    maxStepsPerPause: 1,
+    // Masse des Overlays. Ueber dem HUD (hud.depthText 91), damit nichts durchscheint.
+    // Grosse Flaechen statt kleiner Zeilen: Der Tester ist 7 und tippt mit dem Daumen.
+    ui: {
+      // Fast deckend: Bei 0,88 blieb das laufende Spielfeld so deutlich sichtbar, dass
+      // die Knoepfe darin untergingen (Screenshot-Pruefung 2026-08-23).
+      overlayAlpha: 0.97,
+      sidePadding: 20,
+      // Unter dem HUD-Panel: Es reicht bis hud.padding 12 + hud.panelHeight 62 = 74 px
+      // unter die Safe Area. Bei 70 lag die Ueberschrift darauf.
+      titleY: 106,
+      titleFontPx: 26,
+      balanceY: 148,
+      balanceFontPx: 24,
+      firstButtonY: 196,
+      buttonHeight: 132,
+      buttonGap: 22,
+      buttonTitleY: 34,
+      buttonTitleFontPx: 26,
+      buttonEffectY: 72,
+      buttonEffectFontPx: 15,
+      buttonPriceY: 104,
+      buttonPriceFontPx: 22,
+      continueBottomOffset: 70,
+      continueHeight: 76,
+      continueFontPx: 26,
+      disabledAlpha: 0.45,
+      depthPanel: 120,
+      depthText: 121,
+    },
+  },
+  // WEITERSPIELEN NACH DEM SCHEITERN (Benni: "wenn man ein level nicht schafft, dann soll
+  // man es gegen Bezahlung von Muenzen nochmal spielen koennen").
+  continueRun: {
+    // 250 x erreichtes Level: 750 auf Level 3, 2.000 auf Level 8, 3.000 auf Level 12.
+    // Gegenprobe an der Einnahme: Ein voller Run bringt 10.454 und kostet 6.800 an Stufen,
+    // es bleiben rund 3.650 - etwa ein Weiterspielen je Run ist finanzierbar. Ein frueher
+    // Tod auf Level 3 laesst rund 940 gegen 750 Preis, also gerade so.
+    pricePerLevel: 250,
+    // Jedes weitere Mal im selben Run kostet doppelt.
+    priceDoubling: 2,
+    // Danach ist Schluss - sonst spielt man einen Run endlos durch.
+    maxPerRun: 2,
+    // Das Level beginnt von vorn, die Truppe startet bei der Haelfte des Deckels:
+    // spuerbare Strafe, aber spielbar. Voll waere Sterben folgenlos, mit 1 Figur (dem
+    // Run-Startwert) waere es auf Level 8 aussichtslos.
+    teamShareOnContinue: 0.5,
+  },
   menu: {
     // topPadding, titleY, balanceY, rowHeight und rowGap sind am 2026-08-23 (W6)
     // entfernt worden: Sie stammen aus dem Upgrade-Shop, der am selben Tag entfallen

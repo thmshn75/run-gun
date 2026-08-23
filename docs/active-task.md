@@ -6,14 +6,52 @@
 
 ## Task
 
-**B2 — Shop nach jedem Level** (Plan `docs/plan-v3.md`) — noch nicht begonnen.
-
-Vorarbeit zuerst: Münz-Einnahme je Level im Browser messen (ersetzt die geschätzte
-Einsammelquote von 80 %), dann die Preistabelle daraus rechnen.
+**B3 — Weiterspielen gegen Münzen + Fortsetzen** (Plan `docs/plan-v3.md`) — als Nächstes.
 
 ---
 
 ## Abgeschlossen
+
+### B2 — Shop nach jedem Level (2026-08-23), iPhone-Urteil offen
+
+**Vorarbeit: Münz-Einnahme gemessen** (Browser, Truppe 40 mittig, Deckelwerte, je 40 s):
+
+| Level | gedroppt | eingesammelt | Quote | Münzen/s |
+|---|---|---|---|---|
+| 1 | 186 | 182 | 97,8 % | 4,55 |
+| 4 | 276 | 270 | 97,8 % | 6,75 |
+| 8 | 402 | 403 | 100,2 % | 10,07 |
+| 12 | 542 | 532 | 98,2 % | 13,30 |
+
+**Die Planannahme von 80 % Einsammelquote war zu pessimistisch** — der Magnet holt
+praktisch alles. Einnahme je Level daraus: 423 (L1) bis 1.362 (L12), **10.454 je vollem
+Run** statt geschätzter 9.650. Preise = 37,5 % der Levelseinnahme, also 160 bis 470.
+
+**Zwei Fehler, die erst der Test bzw. die Rundung gefangen haben:**
+1. **Der Bonus wirkt quadratisch.** Der Plan sah 3 % je Stufe auf Schaden *und* Feuerrate
+   vor — Feuerkraft ist deren **Produkt**, also 1,03^11 × 1,03^11 = **+92 %** statt der
+   gewollten +38 %. Ein Test hält die Obergrenze jetzt fest.
+2. **Gleichmäßig verteilt bewegt sich die Anzeige nicht.** Mit 1,5 % auf beide Werte
+   stimmt die Summe, aber der Schaden wird auf eine Nachkommastelle gerundet — der Knopf
+   sah für ein Kind kaputt aus. Jetzt 2,5 % auf Schaden, 0,5 % auf Rate: zusammen +39 %,
+   und die Zahl bewegt sich spätestens bei jedem zweiten Kauf.
+
+**Gebaut:** `BALANCE.shop` (Preise, Bonushöhen, UI-Maße), `BALANCE.continueRun` (für B3),
+`upgrades.ts` mit Stufen und Bonus obendrauf, `systems/shopOverlay.ts` (zwei große Knöpfe,
+Kontostand, WEITER), Levelphase `'shop'` in `GameScene`, Münzbuchung aufs Konto beim
+Levelende, `tests/shop.test.ts` (11 Fälle).
+
+**Belegt im laufenden Spiel:** Kauf zieht 160 vom Konto (1234 → 1074), Stufe steigt auf
+1/11, zweiter Klick auf denselben Knopf bleibt wirkungslos (Ein-Stufe-Regel), zweiter
+Knopf zieht erneut 160 (→ 914). Layout zweimal am Screenshot korrigiert: Überschrift lag
+auf dem HUD, Hintergrund war zu durchsichtig.
+
+**Unverändert und per Test gesichert:** Wer nichts kauft, spielt exakt das bisherige Spiel.
+Boss- und Wandhärte hängen weiter an der Levelnummer, nicht am Kaufverhalten.
+
+**Offen:** Thomas' iPhone-Test — ist das Overlay mit dem Daumen bedienbar, sind die
+Preise für Benni fair?
+
 
 ### B1 — Startruckeln (2026-08-23) — Ursache gefunden und behoben, iPhone-Urteil offen
 

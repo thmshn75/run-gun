@@ -4,6 +4,7 @@ import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
 import { Walls } from '../systems/walls'
 import { Popups } from '../systems/popups'
 import { Coins } from '../systems/coins'
+import { ShopOverlay } from '../systems/shopOverlay'
 import { selectChainLightningTargets } from '../systems/chainLightning'
 import { getGameAudio, type GameAudio } from '../systems/audio'
 import { Boss } from '../systems/boss'
@@ -16,7 +17,7 @@ import { Scenery } from '../systems/scenery'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { addScore, loadSave, qualifiesForScores, writeSave } from '../systems/save'
 import { Spawner } from '../systems/spawner'
-import { RunStats } from '../systems/upgrades'
+import { RunStats, type ShopLine, getStatCap, getShopPrice } from '../systems/upgrades'
 import { WEAPON_LABELS, Weapons, type WeaponKey } from '../systems/weapons'
 
 interface HudSegments {
@@ -38,7 +39,7 @@ interface ChainFlash {
   remainingMs: number
 }
 
-type LevelPhase = 'normal' | 'warning' | 'boss' | 'cleared'
+type LevelPhase = 'normal' | 'warning' | 'boss' | 'cleared' | 'shop'
 
 class SplashFlashPool {
   private readonly flashes: SplashFlash[]
@@ -146,6 +147,11 @@ export class GameScene extends Phaser.Scene {
   private bossBarWidth!: number
   private levelOverlayBackground!: Phaser.GameObjects.Rectangle
   private levelOverlay!: Phaser.GameObjects.Text
+  private shop!: ShopOverlay
+  /** Muenzen, die bereits aufs Konto gebucht sind - der Rest folgt beim naechsten Levelende. */
+  private gebuchteMuenzen!: number
+  /** In dieser Levelpause gekaufte Stufen je Knopf (shop.maxStepsPerPause). */
+  private kaeufeInPause!: { firepower: number; team: number }
   private lastUnknownCombatOverlapWarningAtMs!: number
   private projectileEnemyCollider!: Phaser.Physics.Arcade.Collider
   private projectileBossCollider: Phaser.Physics.Arcade.Collider | undefined
@@ -176,6 +182,8 @@ export class GameScene extends Phaser.Scene {
     this.nextBlinkAtMs = 0
     this.lastPointerX = null
     this.gameOverStarted = false
+    this.gebuchteMuenzen = 0
+    this.kaeufeInPause = { firepower: 0, team: 0 }
     this.lastCrowdSize = -1
     this.currentLevel = 1
     // Phaser konstruiert die Szene beim Neustart nicht neu - der Rest aus dem vorigen
@@ -244,6 +252,12 @@ export class GameScene extends Phaser.Scene {
       },
     )
     this.popups = new Popups(this)
+    this.shop = new ShopOverlay(
+      this,
+      this.insets,
+      (line) => this.kaufeStufe(line),
+      () => this.verlasseShop(),
+    )
     this.crowd.setWallPresenceProvider((y, halfSpan) => this.walls.getWallPresence(y, halfSpan))
     this.boss = new Boss(
       this,
@@ -731,16 +745,22 @@ export class GameScene extends Phaser.Scene {
       ? saved.scores.filter((score) => score.coins >= runCoins).length + 1
       : undefined
     const withScore = addScore(saved, { coins: runCoins, level: this.currentLevel, timeMs: this.elapsedMs })
+    // NUR DEN REST buchen: Was in abgeschlossenen Leveln verdient wurde, liegt seit dem
+    // jeweiligen Levelende schon auf dem Konto (bucheMuenzenAufsKonto). Wer hier den
+    // vollen Run-Stand addierte, zahlte alles zweimal aus.
+    const offen = Math.max(0, runCoins - this.gebuchteMuenzen)
     writeSave({
       ...withScore,
-      coins: withScore.coins + runCoins,
+      coins: withScore.coins + offen,
       highestLevel: Math.max(withScore.highestLevel, this.currentLevel),
     })
     this.scene.start('GameOverScene', { coins: runCoins, scorePlace })
   }
 
   private updateLevelPhase(dt: number): void {
-    if (this.levelPhase === 'boss') return
+    // Der Shop wartet auf WEITER, nicht auf einen Zeitgeber (Benni ist 7 - er soll in
+    // Ruhe lesen und tippen koennen).
+    if (this.levelPhase === 'boss' || this.levelPhase === 'shop') return
     this.phaseRemainingMs -= dt
     if (this.phaseRemainingMs > 0) return
     if (this.levelPhase === 'normal') {
@@ -769,6 +789,10 @@ export class GameScene extends Phaser.Scene {
       )
       return
     }
+    if (this.levelPhase === 'cleared') {
+      this.oeffneShop()
+      return
+    }
     this.startLevel()
   }
 
@@ -786,6 +810,65 @@ export class GameScene extends Phaser.Scene {
     this.phaseRemainingMs = BALANCE.level.clearedMs
     this.levelOverlayBackground.setVisible(true)
     this.levelOverlay.setText(`LEVEL ${this.currentLevel - 1} GESCHAFFT`).setVisible(true)
+  }
+
+  /**
+   * Was im Level gesammelt wurde, wandert aufs Konto - sonst koennte man im Shop nichts
+   * ausgeben, was man gerade erst verdient hat. Gebucht wird die DIFFERENZ seit der
+   * letzten Buchung; coins.getCount() bleibt der Run-Gesamtstand fuer die Bestenliste.
+   */
+  private bucheMuenzenAufsKonto(): number {
+    const offen = this.coins.getCount() - this.gebuchteMuenzen
+    if (offen <= 0) return 0
+    this.gebuchteMuenzen = this.coins.getCount()
+    const saved = loadSave()
+    writeSave({ ...saved, coins: saved.coins + offen })
+    return offen
+  }
+
+  private oeffneShop(): void {
+    this.levelPhase = 'shop'
+    this.kaeufeInPause = { firepower: 0, team: 0 }
+    this.bucheMuenzenAufsKonto()
+    this.levelOverlayBackground.setVisible(false)
+    this.levelOverlay.setVisible(false)
+    this.shop.zeigen(this.shopZustand())
+  }
+
+  private shopZustand() {
+    return {
+      level: this.currentLevel - 1,
+      konto: loadSave().coins,
+      stufen: this.runStats.getSteps(),
+      inDieserPause: { firepower: this.kaeufeInPause.firepower, team: this.kaeufeInPause.team },
+      werte: {
+        damage: this.runStats.get('damage'),
+        shotsPerSec: this.runStats.get('shotsPerSec'),
+        hp: getStatCap('hp', this.currentLevel, this.runStats.getSteps()),
+      },
+    }
+  }
+
+  private kaufeStufe(line: ShopLine): void {
+    if (this.levelPhase !== 'shop') return
+    if (this.kaeufeInPause[line] >= BALANCE.shop.maxStepsPerPause) return
+    const preis = getShopPrice(this.runStats.getStepCount(line))
+    if (preis === undefined) return
+    const saved = loadSave()
+    if (saved.coins < preis) return
+    if (!this.runStats.addStep(line)) return
+    writeSave({ ...saved, coins: saved.coins - preis })
+    this.kaeufeInPause[line] += 1
+    this.audio.play('crowdUp')
+    this.shop.aktualisieren(this.shopZustand())
+    this.syncCrowdSize()
+    this.updateHud()
+  }
+
+  private verlasseShop(): void {
+    if (this.levelPhase !== 'shop') return
+    this.shop.verstecken()
+    this.startLevel()
   }
 
   private startLevel(): void {
