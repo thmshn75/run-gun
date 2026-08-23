@@ -75,6 +75,8 @@ export class Walls {
   private readonly applyReinforcement: (apply: (current: number) => number) => void
   private readonly applyStat: (stat: 'damage' | 'rate', gain: number) => void
   private readonly pairs: WallPair[]
+  private readonly paarZuWand: Map<Phaser.GameObjects.GameObject, WallPair>
+  private readonly paarZuBelohnung: Map<Phaser.GameObjects.GameObject, WallPair>
   private readonly wallGroup: Phaser.Physics.Arcade.Group
   private readonly rewardGroup: Phaser.Physics.Arcade.Group
   private readonly drySpawns: Record<WallSide, number> = { left: 0, right: 0 }
@@ -111,6 +113,8 @@ export class Walls {
     this.applyReinforcement = applyReinforcement
     this.applyStat = applyStat
     this.pairs = []
+    this.paarZuWand = new Map()
+    this.paarZuBelohnung = new Map()
     this.wallGroup = scene.physics.add.group()
     this.rewardGroup = scene.physics.add.group()
     // Kette startet sofort: der erste update() spawnt das erste Segmentpaar.
@@ -119,7 +123,19 @@ export class Walls {
     this.elapsedMs = 0
     this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
     this.nextSpawnId = -1
-    for (let index = 0; index < BALANCE.pools.walls; index += 1) this.pairs.push(this.createPair())
+    for (let index = 0; index < BALANCE.pools.walls; index += 1) {
+      const pair = this.createPair()
+      this.pairs.push(pair)
+      // Nachschlagtabellen statt linearer Suche. Die Zuordnung Objekt -> Paar steht
+      // beim Erzeugen fest und aendert sich nie - die Paare sind ein fester Pool.
+      // GEMESSEN (Profil ueber 2 s Spielstart, 2026-08-23): isWall und die anonyme
+      // Funktion daneben kosteten zusammen 85 ms von 1.185 ms aktiver Rechenzeit, also
+      // 7 %. Jede Kollisionsmeldung lief vorher ueber pairs.some/find - 32 Vergleiche,
+      // und Kollisionen sind die groesste Rechenposten des Spiels ueberhaupt (contains,
+      // collideGroupVsGroup und Verwandte zusammen ueber 30 %).
+      this.paarZuWand.set(pair.wall, pair)
+      this.paarZuBelohnung.set(pair.reward, pair)
+    }
   }
 
   public getWalls(): Phaser.Physics.Arcade.Group { return this.wallGroup }
@@ -139,7 +155,7 @@ export class Walls {
   }
 
   public isWall(candidate: Phaser.GameObjects.GameObject): candidate is Phaser.Physics.Arcade.Image {
-    return this.pairs.some((pair) => pair.wall === candidate)
+    return this.paarZuWand.has(candidate)
   }
 
   // Liegt auf Hoehe y (plus Puffer) ein stehendes Wandsegment? Steuert den dynamischen
@@ -163,7 +179,8 @@ export class Walls {
   }
 
   public isPickupSegment(candidate: Phaser.GameObjects.GameObject): candidate is Phaser.Physics.Arcade.Image {
-    return this.pairs.some((pair) => pair.wall === candidate && pair.active && !pair.broken && isPickup(pair))
+    const pair = this.paarZuWand.get(candidate)
+    return pair !== undefined && pair.active && !pair.broken && isPickup(pair)
   }
 
   /**
@@ -171,7 +188,8 @@ export class Walls {
    * 2026-08-23 eine groessere Eindringtiefe verlangen als blaue (walls.drainOverlapFigures).
    */
   public isDrainSegment(candidate: Phaser.GameObjects.GameObject): boolean {
-    return this.pairs.some((pair) => pair.wall === candidate && pair.active && !pair.broken && pair.content === 'drain')
+    const pair = this.paarZuWand.get(candidate)
+    return pair !== undefined && pair.active && !pair.broken && pair.content === 'drain'
   }
 
   /**
@@ -179,7 +197,7 @@ export class Walls {
    * das Plaettchen schon weg ist), damit die Szene die Quittung nur einmal zeigt.
    */
   public collectPickup(wall: Phaser.Physics.Arcade.Image): number {
-    const pair = this.pairs.find((candidate) => candidate.wall === wall)
+    const pair = this.paarZuWand.get(wall)
     if (pair === undefined || !pair.active || pair.broken || !isPickup(pair)) return 0
     // Rot zieht ab, Blau gibt: dieselbe Beruehrung, entgegengesetztes Vorzeichen.
     const gain = pair.content === 'drain' ? -BALANCE.walls.drainTeam : BALANCE.walls.pickupTeamGain
@@ -189,11 +207,11 @@ export class Walls {
   }
 
   public isReward(candidate: Phaser.GameObjects.GameObject): candidate is Phaser.Physics.Arcade.Image {
-    return this.pairs.some((pair) => pair.reward === candidate)
+    return this.paarZuBelohnung.has(candidate)
   }
 
   public damage(wall: Phaser.Physics.Arcade.Image, damage: number): boolean {
-    const pair = this.pairs.find((candidate) => candidate.wall === wall)
+    const pair = this.paarZuWand.get(wall)
     if (pair === undefined || !pair.active || pair.broken) return false
     // Sammelplaettchen haben keine Lebenspunkte: Sie werden durchfahren, nicht
     // beschossen. Kugeln fliegen wirkungslos durch - sonst schoesse man sich die
@@ -242,7 +260,7 @@ export class Walls {
   }
 
   public collect(reward: Phaser.Physics.Arcade.Image): WeaponKey | undefined {
-    const pair = this.pairs.find((candidate) => candidate.reward === reward)
+    const pair = this.paarZuBelohnung.get(reward)
     if (pair === undefined || !pair.active || !pair.broken || !reward.active) return undefined
     const weapon = pair.weapon
     this.recycle(pair)

@@ -6,88 +6,101 @@
 
 ## Task
 
-**B0 — Sammelbahn: kämpfen ohne ungewolltes Einsammeln** (Plan `docs/plan-v3.md`)
+**B2 — Shop nach jedem Level** (Plan `docs/plan-v3.md`) — noch nicht begonnen.
 
-Zwei Teile: (1) Rotes Plättchen greift erst ab `walls.drainOverlapFigures` 2,0 statt
-1,2 — wer am linken Rand kämpft und streift, nimmt nur noch das Gute mit. (2) Der von
-Thomas mit Screenshot belegte Fehler: Die Bahn löst aus, obwohl die Truppe rechts steht.
+Vorarbeit zuerst: Münz-Einnahme je Level im Browser messen (ersetzt die geschätzte
+Einsammelquote von 80 %), dann die Preistabelle daraus rechnen.
 
-### Ergebnis (2026-08-23) — Ursache gefunden, behoben, im Spiel belegt
+---
 
-**Hypothese A (Quittung wandert mit) — WIDERLEGT.** `popups.ts` schreibt `startX` beim
-Spawn und setzt jedes Bild `setPosition(popup.startX, ...)`. Popups bleiben stehen, wo sie
-erzeugt wurden. Das „+1" auf Thomas' Screenshot markiert die Ankerposition zum
-Einlösezeitpunkt (x ≈ 228 von 390) — rechts der Mitte. Es war ein echter Fehler.
+## Abgeschlossen
 
-**Hypothese B (zu breite Kollisionskörper) — WIDERLEGT.** Der Körper der Wandsegmente
-skaliert korrekt mit: `setSize(128, segmentHeightPx)` setzt `sourceWidth`,
-`updateFromGameObject` rechnet `sourceWidth * scaleX` = gezeichnete Breite.
+### B1 — Startruckeln (2026-08-23) — Ursache gefunden und behoben, iPhone-Urteil offen
 
-**Die tatsächliche Ursache — zwei Fehler in derselben Zeile.** Beide im laufenden Spiel
-gemessen (Level 11, Anker in Stufen festgehalten):
+**Bennis Meldung:** „Gleich am Anfang wenn man startet, ruckelt es ein paar Sekunden" —
+und auf Nachfrage: „wenn das Spiel losläuft, aber nicht immer."
+
+**Reproduziert.** Auf ungedrosselter CPU ist nichts messbar. Bei **zweifach gedrosselter
+CPU** zeigte sich Bennis Muster exakt: 0–2 s nach dem Start 3 Bilder über 33 ms
+(schlimmstes 67 ms), danach glatte 60 fps ohne einen einzigen Ausreißer. Über fünf
+Spielstarts nacheinander: 2 / 1 / 0 / 0 / 0 Aussetzer — nur die ersten Starts, danach
+nie. (Sechsfache Drosselung ist als Messmittel unbrauchbar: Dort läuft das Spiel
+durchgehend mit 4 fps, das Muster verschwindet im Rauschen.)
+
+**Zwei Fehlschläge vor dem Treffer — beide in `lessons.md`:**
+1. Aus „nur die ersten Starts" wurde vorschnell **Textur-Upload** geschlossen und ein
+   Aufwärm-Durchlauf gebaut. Gegenprobe **negativ**, erster Lauf sogar schlechter.
+   Zurückgenommen. Dasselbe Muster passt genauso auf JIT-Kompilierung.
+2. Die ganze Verdächtigenliste (Service Worker, Texturen, Pool-Erzeugung,
+   Speicherbereinigung) war aus dem eigenen Code hergeleitet — die Ursache stand in
+   keiner davon.
+
+**Die Ursache, per Chrome-Profil gefunden:** Phasers Kollisions-Suchbaum. Er wird jedes
+Bild über alle Körper neu aufgebaut; das lohnt sich, wenn die meisten stillstehen — hier
+bewegt sich fast alles. Anteile an der aktiven Rechenzeit vor der Umstellung:
+`contains` 31 %, alle Baumfunktionen zusammen (`contains`, `search`, `toBBox`,
+`intersects`, `_all`) rund **48 %**.
+
+**Gebaut, beides belegt:**
+- `physics.arcade.useTree: false` in `main.ts`.
+- `walls.ts`: Die sieben linearen Suchen über den Wandpool (`pairs.some/find`) laufen
+  jetzt über zwei Nachschlagtabellen. Sie waren im Profil mit 85 ms von 1.185 ms (7 %)
+  sichtbar, weil sie bei **jeder** Kollisionsmeldung 32 Vergleiche machten.
+
+**Messwerte (2× gedrosselte CPU, aktive Rechenzeit):**
+
+| Szenario | vorher | nachher |
+|---|---|---|
+| Spielstart, je 2 s | 1.185 ms | **541 ms** (−54 %) |
+| Volllast, je 5 s (Level 12, Truppe 100, Schrotflinte) | 478 ms | **318 ms** (−33 %) |
+| `walls.ts`-Anteil | 85 ms (7 %) | 10 ms (1 %) |
+
+**Wirkung auf das gemeldete Ruckeln** (fünf Starts, Bilder über 33 ms in den ersten 3 s):
+
+| | Lauf 1 | 2 | 3 | 4 | 5 | schlimmstes Bild |
+|---|---|---|---|---|---|---|
+| vorher | 2 | 1 | 0 | 0 | 0 | 65 ms |
+| **nachher** | **0** | **0** | **0** | **0** | **0** | **19 ms** |
+
+**Gegenprobe unter Volllast bestanden:** Ohne Suchbaum wächst der Aufwand quadratisch mit
+der Körperzahl — deshalb gegengeprüft statt angenommen. Auch bei Level 12 mit Truppe 100
+und Schrotflinte ist die Variante ohne Baum günstiger (318 gegen 478 ms). Steigt die
+Gegnermenge später deutlich, ist hier neu zu messen; der Hinweis steht im Code.
+
+**Offen:** Bestätigung durch Benni am iPhone. Die Kollisionsergebnisse ändern sich nicht —
+es ist nur die Vorauswahl, welche Paare geprüft werden —, aber Gamefeel gilt erst nach
+dem Gerätetest.
+
+
+### B0 — Sammelbahn (2026-08-23, von Thomas am iPhone abgenommen: „Ok passt am Handy")
+
+Commit `78b07b4`. Ursache waren zwei Fehler in derselben Zeile, beide im laufenden Spiel
+gemessen:
 
 1. **Die Prüfung las eine Position, die der Truppe nicht folgt.**
    `crowdStehtInSammelbahn` rechnete aus `crowd.getHullBounds().getBounds()`. Gemessen bei
    Anker 90 / 150 / 250: Der **Physics-Body** folgte korrekt (49 / 109 / 209), die
-   **GameObject-Position derselben Zone** stand konstant bei **−15**. Verglichen wurde also
-   mit einer Truppenposition, die es nicht gab. Das erklärt „ist aber nicht immer so".
-2. **Die Y-Achse wurde gar nicht geprüft.** Rohdaten: Eine Kachel bei `y 609..677` löste
-   voll ein, während die Hülle bei `y 677..751` stand — Berührung an genau einer Linie.
-   Weil Kacheln perspektivisch laufen, ragt eine weiter oben stehende weiter zur
-   Straßenmitte (84,2 px gegen 77,8 px auf Truppenhöhe).
+   **GameObject-Position derselben Zone** stand konstant bei **−15**. Das erklärt Bennis
+   „ist aber nicht immer so".
+2. **Die Y-Achse wurde nicht geprüft.** Eine Kachel bei `y 609..677` löste voll ein,
+   während die Hülle bei `y 677..751` stand.
 
-**Ausgeschlossen:** Die Kollisionshülle ist fest und wächst nicht mit der Truppe
-(`crowd.ts:47`) — **die Teamzahl scheidet als Ursache aus** (Thomas' erste Vermutung).
-`getWallGeometry` kennt die Levelnummer nicht — **auch die Levelabhängigkeit scheidet aus**
-(seine zweite Vermutung). Ein grünes „+N" am Anker hat genau eine Quelle im Code
-(`GameScene.ts:216`, Sammelbahn-Callback); `collectPickup` recycelt sofort, Mehrfach-
-Einlösung ist ausgeschlossen.
+Beide Vermutungen von Thomas sind am Code widerlegt: Die Hülle ist fest (Teamzahl scheidet
+aus), `getWallGeometry` kennt die Levelnummer nicht (Level scheidet aus). Auch die beiden
+Vorab-Hypothesen (wandernde Quittung, zu breite Kollisionskörper) sind widerlegt.
 
-### Gebaut
+Gebaut: Hülle wird aus Anker + Hüllenmaßen gerechnet, beide Achsen geprüft, neu
+`walls.pickupOverlapHeightFigures` 0,5 und `walls.drainOverlapFigures` 1,6 (aus der
+**Fahrgrenze** hergeleitet — ein erster Versuch mit 2,2 war im Test grün und machte rote
+Kacheln im Spiel unerreichbar), `walls.isDrainSegment`, `tests/sammelbahn.test.ts`.
 
-- `crowdStehtInSammelbahn` rechnet die Hülle aus **Anker + Hüllenmaßen** statt aus der
-  nachlaufenden Zone und prüft **beide Achsen**.
-- Neu `walls.pickupOverlapHeightFigures` 0,5 — mindeste vertikale Überlappung.
-- Neu `walls.drainOverlapFigures` 1,6 gegen `pickupOverlapFigures` 1,2: Rot verlangt mehr
-  Eindringtiefe als Blau. **Der Wert ist aus der Fahrgrenze hergeleitet, nicht aus der
-  Hüllenbreite** — die Straßenkante deckelt den Anker bei x = 60,9, die Bahn endet bei
-  x = 84, mehr als 1,88 Figurenbreiten sind unerreichbar. Ein erster Versuch mit 2,2 war
-  grün im Test und machte rote Kacheln im Spiel **unerreichbar** (siehe `lessons.md`).
-- Neu `walls.isDrainSegment` für die Unterscheidung.
-- `tests/sammelbahn.test.ts` mit sechs Fällen, darunter **beide Enden des Grenzwerts**.
+Beleg (Level 11, je 6 s je Ankerposition, +1 / −3): 61 → 4/1 · 70 → 10/0 · 78 → 12/0 ·
+86, 95, 130, 160 → 0/0 · **229 (Screenshot-Position) → 0/0**.
 
-### Beleg im laufenden Spiel (Level 11, je 6 s je Position)
-
-| Anker | +1 eingelöst | −3 abgezogen |
-|---|---|---|
-| 61 (linker Anschlag) | 4 | **1** |
-| 70 | 10 | 0 |
-| 78 | 12 | 0 |
-| 86 | 0 | 0 |
-| 95 | 0 | 0 |
-| 130 | 0 | 0 |
-| 160 | 0 | 0 |
-| **229 (Screenshot-Position)** | **0** | **0** |
-
-Sammeln funktioniert unverändert gut (bis 12 Plättchen in 6 s), Rot greift nur noch am
-linken Anschlag, und der gesamte Kampfbereich (86 bis 229) löst nichts mehr aus.
-
-### Offen / bewusst nicht behoben
-- **Warum die GameObject-Position der Hülle bei −15 klebt, ist nicht geklärt.** Der Fix
-  umgeht es strukturell (er liest die Position gar nicht mehr), und die Stelle war die
-  einzige, die sie las — Gegnertreffer laufen über `crowd.overlapsFigure`, also über die
-  Figuren. Der Befund gehört trotzdem in die Übergabe.
-- **Rote Kacheln sind spürbar seltener geworden** (nur noch am linken Anschlag). Das ist
-  die gewollte Folge von Thomas' Auftrag, aber es verschiebt die Seiten-Ökonomie: Die
-  linke Bahn ist jetzt netto großzügiger als vor dem 2026-08-23. Falls das zu viel ist,
-  ist `drainOverlapFigures` die Stellschraube (kleiner = Rot greift früher).
-
-### Akzeptanzkriterien
-1. ✅ Bereich, in dem +1 gilt und −3 nicht: gemessen Anker 70–84, Test fordert ≥ 10 px.
-2. ✅ Rechts der Straßenmitte löst nichts aus (Test + Messung bei 229).
-3. ✅ Beide Hypothesen mit ihrer Vorhersage geprüft und beantwortet, auch die widerlegten.
-4. ✅ `npm run check` sauber, 184 Tests grün, Messsonden gelöscht.
-5. ⏳ **Offen: Thomas' iPhone-Test.**
+**Offen und bewusst nicht behoben:** Warum die GameObject-Position der Hülle bei −15
+klebt, ist nicht geklärt — der Fix umgeht es strukturell, und es war die einzige Stelle,
+die sie las. **Rote Kacheln sind seltener geworden**, die linke Bahn ist netto großzügiger
+als vor dem 2026-08-23; Stellschraube ist `drainOverlapFigures`.
 
 ---
 

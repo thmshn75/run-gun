@@ -12,6 +12,29 @@ Jede Nutzerkorrektur wird hier als Regel eingetragen. Zu Sitzungsbeginn lesen.
 - **Fehler:** Eine von Thomas manuell gekürzte Todo-Zeile wurde ungefragt als „Speicherfehler" bewertet.
 - **Regel:** Änderungen an Dateien, die Thomas selbst editiert, als bewusste Entscheidung annehmen. Nur nachfragen, wenn die Änderung eine laufende Aufgabe konkret blockiert — keine Ferndiagnose.
 
+### 2026-08-23 — Ursache zu früh benannt, Fix ohne Beleg gebaut
+- **Fehler:** Beim Startruckeln zeigte die Messung „Hänger nur bei den ersten ein bis zwei
+  Spielstarts, danach nie". Daraus wurde sofort „Textur-Upload zur Grafikkarte"
+  geschlossen und ein Aufwärm-Durchlauf gebaut. Die Gegenprobe war **negativ** — der
+  erste Lauf wurde sogar schlechter. Das Muster passte genauso gut auf die
+  JIT-Kompilierung des Codes, und die echte Ursache war eine dritte: Phasers
+  Kollisions-Suchbaum, der 48 % der Rechenzeit fraß.
+- **Regel:** Ein Zeitmuster („nur am Anfang", „nur beim ersten Mal") benennt keine
+  Ursache, es grenzt nur ein. Vor dem Bauen die Ursache **messen** — beim Rechenzeit-Thema
+  heißt das ein Profil, nicht eine Plausibilitätskette. Ein Profil hätte hier zwei
+  Anläufe gespart und stand nach einem einzigen Aufruf zur Verfügung.
+
+### 2026-08-23 — Die teuerste Funktion stand in keiner der Hypothesen
+- **Fehler/Fund:** Die Verdächtigenliste für das Startruckeln (Service Worker,
+  Textur-Upload, Pool-Erzeugung, Speicherbereinigung) war vollständig aus dem Code
+  hergeleitet — und keiner davon war es. Das Chrome-Profil zeigte auf Anhieb etwas, das
+  in keiner Hypothese vorkam: `contains` aus Phasers RTree mit 31 % der aktiven
+  Rechenzeit, die Baumfunktionen zusammen 48 %. `useTree: false` halbierte die
+  Rechenzeit und beseitigte das Ruckeln.
+- **Regel:** Bei Leistungsfragen zuerst profilieren, dann Hypothesen bilden — nicht
+  umgekehrt. Fremdcode (Engine, Bibliothek) taucht in selbst erstellten Verdächtigenlisten
+  systematisch nicht auf, ist aber genau dort, wo die Zeit verschwindet.
+
 ### 2026-08-23 — Kollisionsprüfung las eine Position, die der Truppe nicht folgt
 - **Fehler:** `GameScene.crowdStehtInSammelbahn` rechnete die Überlappung aus
   `crowd.getHullBounds().getBounds()`. Im laufenden Spiel gemessen (Anker auf 90 / 150 /
