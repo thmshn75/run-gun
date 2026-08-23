@@ -1,4 +1,4 @@
-# Run & Gun — Umsetzungsplan V3 (Bennis Runde: Sammelbahn, Ruckeln, Shop-Bonus, Weiterspielen, Zombie-Varianten, Granatwerfer)
+# Run & Gun — Umsetzungsplan V3 (Bennis Runde: Sammelbahn, Ruckeln, Shop-Bonus, Weiterspielen, Fortsetzen, Zombie-Varianten, Waffenstaffelung, Granatwerfer)
 
 Basis: **V2 ist am 2026-08-23 von Thomas abgenommen** und steht auf `main` (letzter
 Commit `f77dc11`). Ein Git-Tag für V2 fehlt noch — **vor der ersten V3-Etappe `v2.0`
@@ -24,6 +24,12 @@ des Spiels), plus einem Punkt, den Thomas selbst schon zweimal gemeldet hat:
 5. **(Thomas, dritte Meldung)** Wer am linken Rand kämpft, löst die Plättchen der
    Sammelbahn ungewollt mit ein — das +1 wie das −3.
 6. Mehr Abwechslung bei den Gegnern — mehr Zombie-Aussehen.
+7. **Bessere Waffen sollen erst in höheren Leveln kommen** — in jedem Level etwas Neues;
+   dasselbe gilt für die Zombie-Kleidung.
+8. **Aufhören und später an derselben Stelle weiterspielen** — Spielstand sichern und den
+   Run fortsetzen.
+9. **(Thomas, mit Beleg-Screenshot Level 11, TEAM 48)** Die Sammelbahn löst aus, obwohl die
+   Truppe rechts steht — „ist aber nicht immer so".
 
 ## Der Kern: Kaufen als Bonus auf die bestehende Levelkurve
 
@@ -145,12 +151,21 @@ lässt ~940 auf dem Konto gegen 750 Preis — gerade so, wie gewollt.
 
 ## Etappen
 
-Reihenfolge ist bewusst gewählt: erst die zwei Dinge, die den bestehenden Stand
-verbessern, ohne ihn umzubauen (B0, B1), dann der Umbau (B2, B3), dann die beiden Zusätze
-(B5, B4). **B5 muss nach B1 liegen** — es fügt Texturlast hinzu und würde eine
-unbehobene Ruckel-Ursache verschleiern. B4 und B5 brauchen beide neue Bilder von Codex;
-dieser Auftrag geht **einmal gemeinsam** raus, sobald B1 läuft, damit die Bilder fertig
-sind, wenn der Einbau drankommt.
+Reihenfolge: **B0 → B1 → B2 → B3 → B5 → B4 → B6.** Erst die zwei Dinge, die den
+bestehenden Stand reparieren, ohne ihn umzubauen (B0 Sammelbahn und Wand-Bug, B1 Ruckeln),
+dann der Umbau (B2 Shop, B3 Weiterspielen und Fortsetzen), dann die Zusätze (B5 Zombies,
+B4 Granatwerfer, B6 Waffenstaffelung).
+
+Drei Abhängigkeiten sind zwingend, nicht Geschmack:
+- **B5 nach B1** — es fügt Texturlast hinzu und würde eine unbehobene Ruckel-Ursache
+  verschleiern.
+- **B6 nach B4** — die Staffelung stuft den Granatwerfer mit ein; vorher gäbe es einen
+  Tabelleneintrag für eine Waffe, die es noch nicht gibt.
+- **B3 Teil 2 nach B3 Teil 1** — das Fortsetzen benutzt denselben Wiedereinstieg wie das
+  gekaufte Weiterspielen.
+
+B4 und B5 brauchen beide neue Bilder von Codex; dieser Auftrag geht **einmal gemeinsam**
+raus, sobald B1 läuft, damit die Bilder fertig sind, wenn der Einbau drankommt.
 
 ### B0 — Sammelbahn: kämpfen ohne ungewolltes Einsammeln
 
@@ -176,14 +191,55 @@ das Gute mit; wer bewusst zum Sammeln hineinfährt, trägt das Risiko wie bisher
 Entscheidung, die die roten Kacheln bauen sollen, bleibt vollständig erhalten — sie
 verlangt nur eine Absicht statt eines Zufalls.
 
+#### Zusätzlich zu klären: löst die Bahn auch von rechts aus?
+
+**Beleg (Thomas 2026-08-23, Screenshot Level 11, TEAM 48, DMG 5,3, RATE 6,9):** Die Truppe
+steht rechts der Mitte, über ihr steht die grüne Quittung „+1" — es wurde also eingelöst.
+„Ist aber nicht immer so."
+
+**Was der Code dazu schon hergibt** (gelesen, nicht gemessen): Die Kollisionshülle ist
+**fest** 2,4 Figurenbreiten breit und wächst **nicht** mit der Truppengröße
+(`crowd.ts:47`, Kommentar „The collision hull stays fixed instead of growing with the
+formation"). **Die Teamzahl scheidet damit als Ursache aus** — Thomas' Verdacht „Level oder
+Teamzahl" ist zur Hälfte beantwortet. Rein geometrisch aus dem Screenshot gerechnet liegt
+zwischen Hülle und linker Bahn zu diesem Zeitpunkt kein Kontakt.
+
+**Zwei Hypothesen, jede mit Vorhersage — beide werden geprüft, keine gilt ohne Gegenprobe
+als erledigt:**
+
+- **(A) Die Quittung wandert mit, die Einlösung war früher.** `GameScene` spawnt das
+  Popup an `crowd.getAnchorX()`, also dort, wo die Truppe **jetzt** steht — nicht an der
+  Kachel. Wer nach dem Einsammeln nach rechts zieht, sieht das „+1" mitfahren. **Vorhersage:
+  In der Messung liegt zwischen Einlösezeitpunkt und Anzeigezeitpunkt eine Ankerbewegung
+  nach rechts, und zum Einlösezeitpunkt lag echte Überlappung vor.** Trifft das zu, ist es
+  kein Sammel-Fehler, sondern eine irreführende Anzeige — Behebung: Quittung an der
+  Kachelposition erscheinen lassen. Das erklärt auch „nicht immer": Es passiert nur, wenn
+  man direkt nach dem Einsammeln wegzieht.
+- **(B) Echte Fehlauslösung durch zu breite Kollisionskörper.** Die Wandsegmente bekommen
+  in `walls.ts:276` einen festen Körper `setSize(128, segmentHeightPx)`, während die Grafik
+  perspektivisch skaliert wird. Weicht der Körper von der gezeichneten Kachel ab, meldet
+  die Physik einen Kontakt, den man im Bild nicht sieht. **Vorhersage: Bei fester
+  Ankerposition rechts der Mitte wird ein Kontakt gemeldet UND `crowdStehtInSammelbahn`
+  liefert `true`, obwohl die gezeichneten Rechtecke sich nicht überlappen.** Trifft das zu,
+  wird der Körper an die gezeichnete Kachel angeglichen.
+
+**Messvorschrift:** Anker in 10-px-Schritten von der linken Straßenkante bis zur rechten
+festhalten, je 15 s, protokolliert werden Ankerposition, gemeldeter Kontakt, Ergebnis von
+`crowdStehtInSammelbahn`, gezeichnete Überlappung in Pixeln und Einlösungen. Zusätzlich
+**auf mindestens drei Leveln** (1, 6, 11), weil Thomas' zweiter Verdacht — Levelabhängigkeit
+— noch offen ist. Aus derselben Messreihe fällt der Nachweis für den Streifen oben mit ab.
+
 **Bewusst NICHT gebaut (Thomas 2026-08-23):** eine sichtbare Markierung der Sammelgrenze.
 Der Vorschlag lag vor und ist gestrichen. Damit bleibt die Schwelle unsichtbar, und die
 Wirkung von B0 hängt allein daran, dass der Streifen breit genug ist — das macht das
 Messkriterium unten zum eigentlichen Beleg der Etappe.
 
-**Akzeptanz:** Gemessen an fester Position in 5-px-Schritten von der Mitte nach links:
-Es gibt einen Bereich von mindestens 30 px Breite, in dem +1 eingelöst wird und −3 nicht.
-Thomas bestätigt am iPhone, dass Kämpfen am linken Rand keine Figuren mehr kostet.
+**Akzeptanz:** (1) Aus der Messreihe: Es gibt einen Bereich von mindestens 30 px Breite, in
+dem +1 eingelöst wird und −3 nicht. (2) **Rechts der Straßenmitte wird auf keinem der drei
+gemessenen Level etwas eingelöst.** (3) Beide Hypothesen sind mit ihrer Vorhersage geprüft
+und im Commit beantwortet — auch die, die sich nicht bestätigt hat. (4) Thomas bestätigt am
+iPhone, dass Kämpfen am linken Rand keine Figuren mehr kostet und dass die Quittung dort
+erscheint, wo eingelöst wurde.
 
 **Reißleine:** Bleibt der Effekt nach einer Runde Nachjustieren aus, **rote Kacheln links
 ersatzlos streichen** und den Verlust ganz auf die rechte Bahn legen (dort heißt die
@@ -286,9 +342,35 @@ muss deshalb optional gelesen werden (fehlt es, gilt „kein Weiterspielen") —
 Bestenliste zu kosten. Ein Test sichert, dass ein alter Spielstand ohne das Feld weiter
 geladen wird.
 
+#### Teil 2: Aufhören und später weiterspielen
+
+**Wunsch (Thomas 2026-08-23):** „Die Möglichkeit aufzuhören und später an dieser Stelle
+weiterspielen."
+
+**Warum das hierher gehört und fast nichts extra kostet:** Teil 1 baut ohnehin einen
+Wiedereinstieg — „Level von vorn, gekaufte Stufen und Münzen bleiben". Das Fortsetzen nutzt
+**exakt dieselbe Funktion**, nur ausgelöst aus dem Menü statt aus dem Game Over. Als eigene
+Etappe wäre es doppelte Arbeit.
+
+**Wo gespeichert wird: an der Levelgrenze, sonst nirgends.** Den kompletten Spielzustand
+mitten im Level zu sichern (Gegner im Anflug, Wandkette, Bossphase, alle Objekt-Pools) wäre
+ein Vielfaches an Aufwand und die häufigste Fehlerquelle für kaputte Spielstände. Beim
+Levelwechsel dagegen ist der Zustand klein und vollständig beschreibbar: Levelnummer,
+Truppe, Schaden, Feuerrate, Waffe, Run-Münzen, gekaufte Stufen, verbrauchte Weiterspielen.
+Das Menü zeigt dann „FORTSETZEN — LEVEL 8", und dieses Level beginnt von vorn.
+
+**Missbrauch verhindern, ohne unfair zu werden:** Ohne Regel könnte man kurz vor dem Tod die
+App schließen und gratis beim letzten Levelanfang neu einsteigen — das würde Teil 1
+entwerten, der Münzen kostet. Regel deshalb: **Der Fortsetzen-Punkt wird gelöscht, sobald
+der Run endet** (Game Over). Wer stirbt, hat nur noch den kostenpflichtigen Knopf. Wer die
+App schließt, ohne zu sterben, findet seinen Punkt vor. Ein abgestürztes Handy verliert
+höchstens das angefangene Level, nie den Run.
+
 **Akzeptanz:** Preis stimmt mit der Formel überein, Konto wird korrekt belastet, nach dem
 zweiten Mal ist der Knopf weg, markierte Einträge sind in der Bestenliste erkennbar, ein
 Spielstand aus der Zeit davor lädt weiterhin, der Spielstand überlebt einen App-Neustart.
+Fortsetzen erscheint im Menü nur, wenn ein Punkt existiert; nach einem Game Over ist er
+weg; ein fortgesetzter Run behält Stufen, Waffe und Münzen.
 
 ### B5 — Mehr Zombie-Aussehen
 
@@ -316,10 +398,17 @@ von Last, die B1 gerade beseitigt hat.
 wenn das Startruckeln gemessen und behoben ist, sonst ist nicht mehr zu trennen, was die
 Ursache war.
 
-**Akzeptanz:** Zwölf Varianten im Atlas, sichtbar gemischte Horden, `enemy.types`
-unverändert, Bildbudget unter Volllast (Level 12) nicht schlechter als vor der Etappe —
-gemessen mit demselben Verfahren wie in W6 (dort 3 % Bildbudget). Benni bestätigt am
-iPhone, dass die Gegner abwechslungsreicher aussehen.
+**Gestaffelt freischalten (Thomas 2026-08-23):** Nicht alle vier Varianten von Anfang an,
+sondern **ab Level 1 eine, ab Level 3 zwei, ab Level 6 drei, ab Level 9 vier**. Damit
+verändert sich das Bild über den Run sichtbar weiter, auch nachdem alle Waffen da sind
+(B6 staffelt die bis Level 7) — die „immer noch was Neues"-Kette reißt dadurch nicht ab.
+Kostet keine zusätzliche Arbeit: eine Tabelle in `balance.ts`, die der Spawner beim Ziehen
+der Variante auswertet.
+
+**Akzeptanz:** Zwölf Varianten im Atlas, sichtbar gemischte Horden, Freischaltstufen greifen
+(Test), `enemy.types` unverändert, Bildbudget unter Volllast (Level 12) nicht schlechter als
+vor der Etappe — gemessen mit demselben Verfahren wie in W6 (dort 3 % Bildbudget). Benni
+bestätigt am iPhone, dass die Gegner abwechslungsreicher aussehen.
 
 **Reißleine:** Reicht Codex' Ergebnis optisch nicht, wird die Variantenzahl auf zwei je Typ
 gesenkt. **Kein zulässiger Ersatz:** die Sprites im Spiel einfach einfärben (`setTint`) —
@@ -366,6 +455,48 @@ informiert.
 Volllast nicht leer, Waffe erscheint ab Level 5 in der Auswahl, Thomas bestätigt am
 iPhone, dass sie sich nach Granatwerfer anfühlt.
 
+### B6 — Waffen über die Level staffeln
+
+**Wunsch (Benni, über Thomas 2026-08-23):** „Die besseren Waffen sollen auch erst in den
+höheren Leveln kommen — also immer noch was Neues dazu."
+
+**Ein ehrlicher Punkt vorweg, der die Umsetzung bestimmt.** „Bessere Waffen" gibt es im
+Spiel nicht: Alle sieben vorhandenen liegen bewusst im gemessenen Stärkeband 1,15–1,27×
+der Standardwaffe (Commit `a98a920`), der Granatwerfer kommt mit 1,20× dazu. Eine echte
+Steigerung — späte Waffen wirklich stärker — würde dieses Band aufbrechen und das Endspiel
+leichter machen; das wäre derselbe Fehler wie ein zu großer Feuerkraft-Bonus, nur an
+anderer Stelle.
+
+**Also: Freischaltung staffeln, Stärke gleich lassen.** Was sich steigert, ist die
+**Auffälligkeit** — was eine Waffe tut, nicht wie viel sie tut. Die Reihenfolge ist danach
+gewählt: schlicht → Durchschlag → Sprengwirkung → Dauerfeuer → Fächer → Kette → großer
+Sprengradius. Das fühlt sich nach Aufstieg an, ohne einer zu sein.
+
+| Waffe | `minLevel` heute | neu | Was neu daran auffällt |
+|---|---|---|---|
+| NORMAL | 1 | 1 | Startwaffe |
+| SCHROT | 1 | 1 | Streuung |
+| LASER | 1 | **2** | Durchschlag |
+| RAKETE | 1 | **3** | Sprengwirkung |
+| MINIGUN | 3 | **4** | Dauerfeuer |
+| FLAMME | 3 | **5** | Fächer, Nahbereich |
+| BLITZ | 3 | **6** | springt auf Nachbarn über |
+| GRANATWERFER | — | **7** | größter Sprengradius, ganze Bildbreite |
+
+**Prüfen, nicht annehmen:** Auf Level 1 bleibt damit **eine einzige** Alternative zur
+Startwaffe übrig (`weaponChoices.getWeaponRewardChoices` filtert nach `minLevel`), das
+Waffentor zeigt dort also immer dasselbe. Das ist für das Lernlevel vertretbar, muss aber
+im iPhone-Test bestätigt werden; ab Level 2 sind es zwei, ab Level 3 drei Alternativen.
+
+**Zusammenspiel mit B5:** Waffen liefern bis Level 7 in jedem Level etwas Neues, die
+Zombie-Farben ab Level 3, 6 und 9. Zusammen reißt die Kette über den ganzen Run nicht ab.
+
+**Aufwand:** Reine Zahlenänderung in `balance.ts` plus ein Test, der die Staffelung und die
+Mindestzahl an Toralternativen je Level festhält.
+
+**Akzeptanz:** Auf jedem Level erscheinen nur freigeschaltete Waffen; ab Level 7 sind alle
+acht verfügbar; kein Stärkewert wurde angefasst (das Waffenband bleibt unverändert, Test).
+
 ## Risiken & Reißleinen (Überblick)
 
 | Risiko | Reißleine |
@@ -376,22 +507,30 @@ iPhone, dass sie sich nach Granatwerfer anfühlt.
 | Granatwerfer hebt die Kampfzone auf | `engageShare` senken, Wunsch auf „weiteste Waffe" reduzieren, Thomas informieren |
 | Ruckel-Ursache nicht auffindbar | Nach zwei Messanläufen als Befund dokumentieren und schließen |
 | Zwölf Gegner-Texturen kosten Bildrate | Atlas statt Einzeldateien; B5 zwingend nach B1; bei Bedarf zwei Varianten je Typ |
+| Wand-Bug bleibt unerklärt, weil eine Hypothese ungeprüft „erledigt" wirkt | Beide Hypothesen aus B0 mit vorab formulierter Vorhersage prüfen; auch die widerlegte im Commit beantworten |
+| Fortsetzen wird zum Gratis-Weiterspielen | Fortsetzen-Punkt wird beim Game Over gelöscht |
+| Waffenstaffelung macht Level 1 eintönig (nur eine Toralternative) | Im iPhone-Test prüfen; notfalls LASER auf `minLevel` 1 zurück |
 
 ## Maschinenzeit-Schätzung
 
 | Etappe | Maschinenzeit |
 |---|---|
-| B0 Sammelbahn | 30–45 Min |
+| B0 Sammelbahn inkl. Wand-Bug (Messreihe über drei Level) | 1,25–2 Std |
 | B1 Ruckeln (messen + beheben) | 45–90 Min |
 | B2 Shop (inkl. Einnahme-Messung und Gegenprobe) | 2–3 Std |
-| B3 Weiterspielen | 1–1,5 Std |
-| B5 Zombie-Farbvarianten (inkl. Codex-Bilder, Atlas) | 1–1,5 Std |
+| B3 Weiterspielen **+ Fortsetzen** | 1,75–2,5 Std |
+| B5 Zombie-Farbvarianten (inkl. Codex-Bilder, Atlas, Staffelung) | 1–1,5 Std |
+| B6 Waffen staffeln | 20–30 Min |
 | B4 Granatwerfer (inkl. Codex-Bilder, Balance-Messung) | 1,5–2 Std |
-| **Summe** | **6,75–9,25 Std** |
+| **Summe** | **8,75–13 Std** |
 
-Dazu kommen Thomas'/Bennis iPhone-Tests nach B0, B1, B2, B5 und B4 — die zählen nicht als
-Maschinenzeit und bestimmen den Takt. Der gemeinsame Codex-Bildauftrag für B4 und B5 läuft
-parallel zu B1/B2 und steht deshalb nicht eigens in der Tabelle.
+Dazu kommen Thomas'/Bennis iPhone-Tests nach B0, B1, B2, B5, B6 und B4 — die zählen nicht
+als Maschinenzeit und bestimmen den Takt. Der gemeinsame Codex-Bildauftrag für B4 und B5
+läuft parallel zu B1/B2 und steht deshalb nicht eigens in der Tabelle.
+
+**Warum die Spanne so weit ist:** Die Untergrenze gilt, wenn die Messungen in B0 und B1
+beim ersten Anlauf eine klare Ursache zeigen. Die Obergrenze enthält je einen zweiten
+Messanlauf und den zusätzlichen Balance-Zyklus, den die Reißleine in B2 vorsieht.
 
 ## Entscheidungen (alle getroffen, 2026-08-23)
 
@@ -410,5 +549,19 @@ parallel zu B1/B2 und steht deshalb nicht eigens in der Tabelle.
 4. **Mehr Gegner-Abwechslung über Kleidungsfarben, keine neuen Gegnertypen** — Thomas:
    „die bestehenden 3 Arten von Zombies einfach mit mehr verschiedenen Kleidungsfarben
    ausstatten". Siehe B5.
+
+5. **Waffen erst in höheren Leveln freischalten, Stärke bleibt gleich** — Thomas/Benni:
+   „die besseren Waffen auch erst in den höheren Leveln". Echte Steigerung würde das
+   gemessene Waffenband aufbrechen; gestaffelt wird die Freischaltung, gesteigert die
+   Auffälligkeit. Siehe B6.
+6. **Zombie-Farben ebenfalls gestaffelt** (ab Level 1/3/6/9) — Thomas: „genauso könnten
+   wir das bei der Kleidung machen". Siehe B5.
+7. **Aufhören und später weiterspielen: Speicherpunkt an der Levelgrenze** — Thomas: „die
+   Möglichkeit aufzuhören und später an dieser Stelle weiterspielen". Mitten im Level zu
+   speichern wäre ein Vielfaches an Aufwand; der Punkt wird beim Game Over gelöscht, damit
+   daraus kein Gratis-Weiterspielen wird. Siehe B3 Teil 2.
+8. **Wand-Bug wird in B0 mitbehoben** — Thomas mit Beleg-Screenshot. Die Teamzahl scheidet
+   nach Codelage bereits aus (die Kollisionshülle ist fest); die Levelabhängigkeit ist
+   offen und wird mitgemessen. Siehe B0.
 
 **Keine offene Entscheidung mehr — V3 ist startbereit, sobald Thomas das Go gibt.**
