@@ -22,8 +22,16 @@ zulässiger Ersatz ist, Gamefeel gilt erst nach Thomas' iPhone-Test als erfüllt
 | W3 Horden mittig | **fertig**, iPhone-abgenommen |
 | W4 Seiten-Ökonomie | **fertig** inkl. drei Nachbesserungen (Tempo, Trefferbarkeit, Verlust statt Dauerwachstum) |
 | W5 Boss ohne Schuss | **fertig**, iPhone-Urteil 2026-08-23: „passt soweit"; eine Korrektur (Boss pendelt nicht mehr) läuft in W7 |
-| **W7 Plastische Figuren + 2 Gamefeel-Korrekturen** | **gebaut** (Teil 2 Claude, Teil 1 Codex) — **iPhone-Urteil offen** |
-| W6 V2-Abnahme | **offen — läuft zuletzt**, nach W7 |
+| **W7 Plastische Figuren + 2 Gamefeel-Korrekturen** | **fertig**, von Thomas am 2026-08-23 abgenommen ("nimm als abgenommen hin") |
+| **W6 V2-Abnahme** | **fertig** 2026-08-23 — toter Code raus, `blockers` → `walls` umbenannt, README neu, Netzwerk-Null und Offline-Start belegt, Volllast gemessen (3 % Bildbudget) |
+
+**V2 ist damit abgeschlossen.** Zwischen W7 und W6 sind am 2026-08-23 auf Zuruf von
+Thomas noch fünf Balance-Umbauten dazugekommen, alle mit Messwerten in
+`docs/active-task.md` belegt: Gegner-Widerstand neu aufgebaut (gedämpfte Kopplung statt
+gesetzter Levelkurve, schmalere Feuerlinie), Durchbruch-Regel (vorbeilaufende Gegner
+kosten Figuren), Level-5-Sprung behoben (die Hordenform bestimmte die Gegnerstärke),
+Truppengröße wächst mit dem Level (30 → 100), Starttruppe 1 plus Kampfstreifen an der
+Sammelbahn. Dazu ist das Trefferblitzen entfallen.
 
 **Nach W5 sind ohne eigene Etappe noch fünf Dinge dazugekommen** (jeweils aus einer
 iPhone-Rückmeldung von Thomas, alle committet und in `docs/active-task.md` mit Messwerten

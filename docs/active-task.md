@@ -7,6 +7,77 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**W6 — V2-Abnahme: abgeschlossen**
+(2026-08-23, Claude direkt. Thomas: "Dann nimm als abgenommen hin und mach 1 und 3
+fertig" — W7 und alle Korrekturen des Tages gelten damit ohne iPhone-Test als abgenommen.)
+
+**(1) Toter Code raus.** Systematisch gesucht statt vermutet: alle Dateien ohne Import,
+alle Exports ohne Referenz, alle `BALANCE`-Schluessel ohne Leser.
+- **Gefunden und entfernt:** `menu.topPadding` / `titleY` / `balanceY` / `rowHeight` /
+  `rowGap` (Reste des am selben Tag entfallenen Upgrade-Shops), `hud.statFontPx`,
+  `gamefeel.popMs`, `boss.hordePressure.damagePerLevel` / `ratePerLevel`, `crowd.start`
+  (nannte 3, waehrend der echte Startwert in `stats.hp.base` steht) und das nie
+  abonnierte Abo-System in `storagePersistence.ts`.
+- **Geprueft und BEHALTEN:** `scenerySimulation.ts` wird nur von einem Test importiert -
+  das ist Absicht (Herleitung der Poolgroesse), kein toter Code. `bossBurst.ts` war
+  bereits entfernt; ein Test wacht darueber, dass keine Spur zurueckkehrt.
+
+**(2) `blockers` heisst jetzt `walls`.** Der Name stammte aus V1, als hier noch die quer
+stehenden Sperren geregelt wurden; seit W2 sind es die Waende links und rechts.
+`blockers.ts` → `walls.ts`, `blockerPlan.ts` → `wallPlan.ts`, `tests/blockers.test.ts` →
+`tests/walls.test.ts`, alle Bezeichner mit. **Dabei aufgefallen:** Die Balance-Sektion
+`blockers` konnte nicht einfach `walls` heissen - der Name war fuer Geometrie und Inhalt
+der Waende schon vergeben. Sie heisst jetzt `wallHardness`, was praeziser ist als beide.
+
+**(3) Netzwerk-Null-Check — bestanden, am gebauten Stand gemessen.**
+Alle 46 Ladevorgaenge gehen an den eigenen Server oder sind lokal erzeugte
+`blob:`-Texturen; **kein einziger externer Aufruf**. Waehrend 12 Sekunden Spiel:
+**0 Requests**.
+
+**(4) Offline-Start — bestanden.** Der Preview-Server wurde GESTOPPT und die Seite neu
+geladen: Die App startet vollstaendig aus dem Service-Worker-Cache (28 Eintraege),
+Canvas 390x844, 21 Bilder, 25 Ressourcen mit `transferSize` 0.
+
+**(5) Update-Pfad geprueft.** `registerType: 'autoUpdate'` mit `skipWaiting` und
+`clientsClaim`. Der Ablauf in `src/main.ts` ist bewusst gebaut: Ein Update laedt die
+Seite **nicht mitten im Spiel** neu, sondern merkt sich den Wechsel (`pendingReload`) und
+fuehrt ihn erst beim naechsten Sichtbarwerden aus. Beim ersten Start (noch kein
+Controller) passiert gar nichts.
+
+**(6) Volllast-Messung.** Szenario: Level 12, Truppe 100, Deckelwerte, **Schrotflinte**
+(sieben Kugeln je Schuss, also die meisten Projektile), Boss aktiv mit Begleitern, Waende
+beidseitig, durchgehende Haeuserzeilen. 12 s Einschwingen, dann 900 Bilder gemessen:
+
+| Groesse | Wert |
+|---|---|
+| Rechenzeit je Bild, Median | **0,30 ms** |
+| 95. Perzentil | 0,50 ms |
+| schlechtester Fall | 0,70 ms |
+| Budget fuer 60 Bilder/s | 16,67 ms |
+| **Auslastung** | **3 %** |
+| Gegner gleichzeitig | 68 |
+| sichtbare Objekte | 311 (von 1.939 im Pool) |
+| gemessene Bildrate | 60,3/s |
+
+**Einschraenkung, die im README steht:** Gemessen ist die Rechenzeit der Spiellogik, nicht
+das Zeichnen. Am iPhone kann die Grafik der Engpass sein - deshalb bleibt der
+iPhone-Check im README als vierter Punkt stehen, obwohl Thomas V2 abgenommen hat.
+
+**(7) README neu geschrieben.** Es stand noch auf V1-Stand (Abnahme-Checks "E6"). Jetzt:
+was das Spiel ist und wie es sich spielt (die drei Zonen links/Mitte/rechts), die
+Befehle inkl. `test:dist`, eine Tabelle "wo was steht", die Grundregel "nie eine Groesse
+raten, die das Spiel messen kann", und die vier Abnahme-Checks mit den oben gemessenen
+Werten.
+
+**(8) Favicon.** Der Browser fragte `/favicon.ico` an der Wurzel an und bekam einen 404 -
+das Spiel liegt unter `/run-gun/`. `index.html` verweist jetzt auf das vorhandene
+PWA-Icon, statt eine zweite Datei zu pflegen.
+
+**Nachweise:** 178 Tests gruen, `npm run check` sauber, `npm run test:dist` gruen
+(Build + Tests), Messungen wie oben.
+
+---
+
 **Starttruppe 1, und Kaempfen am linken Rand kostet kein Team mehr**
 (2026-08-23, Claude direkt. Thomas: "Starttruppe auf 1 reduzieren und wenn ich voll bin
 mit 30 Mann dann streife ich links die Waende beim Abschuessen der mobs - da verliere ich

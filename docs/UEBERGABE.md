@@ -1,6 +1,6 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-23 16:10
+Stand: 2026-08-23 16:45
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen, Tag
@@ -98,16 +98,19 @@ Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen,
 - Stand: 178 Tests gruen, `npm run check` sauber, Arbeitsverzeichnis sauber.
 
 ## Offen — naechster Schritt zuerst
-1. **Thomas' iPhone-Urteil zum neuen Gegner-Widerstand** hat Vorrang: Kommen jetzt genug
+1. **Offen ist nur noch Thomas' eigener Eindruck am iPhone** — als Abnahme nicht mehr
+   noetig (er hat V2 am 2026-08-23 abgenommen), aber die Stellschrauben stehen bereit,
+   falls sich etwas falsch anfuehlt: Kommen jetzt genug
    Gegner durch, ohne dass es unfair wird? Zaehlt die Position spuerbar? Fehlt das
    Trefferblitzen?
    Tuning ohne Umbau: `enemy.breakthroughDamageFactor` (was ein Durchbruch kostet),
    `enemy.breakthroughMinLevel`, `enemy.firepowerCoupling.dampening` (hoeher = Gegner
    folgen der Spielerstaerke staerker), `enemy.types[].hp`, `crowd.maxWidthRatio`
    (Feuerlinie), `enemy.seekSpeedPxPerSec`, `enemy.spawnBands`, `level.plans`.
-2. **W6 — V2-Abnahme** (die letzte Etappe): toten Code raus (`blockers.ts` heisst noch so,
-   meint aber Waende), Volllast-Messung, Netzwerk-Null-Check, Update-Pfad, README.
-   Thomas 2026-08-23: "3. kommt erst dann" — also nach Punkt 1 und 2.
+2. **Nichts mehr — V2 ist fertig.** W6 ist am 2026-08-23 abgeschlossen (Details unten),
+   W7 und alle Korrekturen desselben Tages hat Thomas ohne iPhone-Test abgenommen
+   ("nimm als abgenommen hin"). Der naechste Schritt waere ein neuer Plan, kein Rest
+   aus V2.
 
 ## Befunde, die Thomas kennen sollte (nicht behoben, bewusst)
 - **Die Bistabilitaet im oberen Levelbereich ist entschaerft, nicht beseitigt.** Der
@@ -134,11 +137,6 @@ Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen,
   Lebenspunkte), nicht am Zufluss.
 
 ## Offene Nebenbefunde (nicht behoben, bewusst)
-- **`BALANCE.crowd.start` (3) wird nirgends gelesen** - toter Code. Die GameScene setzt
-  die Starttruppe aus `BALANCE.stats.hp.base` (2). Gefunden am 2026-08-23; gehoert nach
-  W6 (toten Code raus), nicht mitten in eine Balance-Aenderung.
-- **`favicon.ico` fehlt** (404 im Dev-Log, weil der Browser die Wurzel abfragt, das Spiel
-  aber unter `/run-gun/` liegt). Kosmetisch, gehoert zum PWA-Feinschliff in W6.
 - **Minigun und Rakete feuern nur mit 3 Figuren** (`shootersPerSalvo`) und sind dadurch
   nominell ~4x schwaecher als die Standardwaffe. Waffenbalance insgesamt offen.
 - **Muenzen fahren weiterhin in Bildschirmpixeln**, waehrend Waende und Kulisse
@@ -151,7 +149,7 @@ Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat). **V1 abgenommen,
 - Plan `docs/plan-v2.md` · Task `docs/active-task.md` · **Lessons `docs/lessons.md`** (zu
   Sitzungsbeginn lesen, enthaelt die teuer bezahlten Regeln)
 - Balance: `src/config/balance.ts` (alle Tuning-Werte mit Herleitung als Kommentar)
-- Waende: `blockers.ts`, `blockerPlan.ts`, `wallPattern.ts`, `reinforcementPlan.ts`
+- Waende: `walls.ts`, `wallPlan.ts`, `wallPattern.ts`, `reinforcementPlan.ts`
 - Geometrie: `roadGeometry.ts` (`getLaneRatio`, `getDriveLimitHalfWidth`)
 - Gamefeel: `gamefeel.ts`, `popups.ts` · Gegner: `spawner.ts`, `squads.ts`
 - Boss (W5): `boss.ts`, `bossPlan.ts`, `bossBurst.ts`

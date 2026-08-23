@@ -7,6 +7,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="apple-touch-icon" href="/run-gun/apple-touch-icon.png" />
+    <!-- Ohne diese Zeile fragt der Browser /favicon.ico an der Wurzel an und bekommt
+         einen 404 - das Spiel liegt unter /run-gun/. Wir zeigen auf das vorhandene
+         PWA-Icon, statt eine zweite Datei zu pflegen (W6, 2026-08-23). -->
+    <link rel="icon" type="image/png" href="/run-gun/icon-192.png" />
     <title>Run &amp; Gun</title>
   </head>
   <body>
