@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { getLevelPlan } from '../src/systems/levelPlan'
+import type { WeaponKey } from '../src/systems/weapons'
 import {
   canSpawnBossHorde,
   getBossHordeIntervalMs,
@@ -206,7 +207,42 @@ describe('boss plans', () => {
 
   it('normalizes weapon firepower against the normal weapon', () => {
     expect(getWeaponFirepower('normal')).toBe(1)
-    expect(getWeaponFirepower('shotgun')).toBe(4.2)
+  })
+
+  /**
+   * WAFFENBAND (Regressionstest, 2026-08-23). Thomas meldete "Minigun macht kaum
+   * Schaden"; gemessen lag sie bei 0,23x der Standardwaffe, die Schrotflinte bei 4,20x -
+   * Faktor 18 zwischen beiden. Dieser Abstand stand wochenlang im Code, ohne dass ihn
+   * jemand bemerkt hat, weil ihn keine Zahl irgendwo zusammenfasste.
+   *
+   * Geprueft wird die Feuerkraft gegen eine HORDE, denn dort spielt das Spiel: Splash,
+   * Durchschlag und Kettensprunge treffen mehrere Gegner und muessen deshalb mitzaehlen
+   * (getWeaponFirepower laesst sie bewusst weg, weil ein Boss ein Einzelziel ist).
+   * Die Rechnung steht absichtlich hier und nicht im Code - sie ist eine unabhaengige
+   * Modellrechnung und keine Kopie einer Implementierung.
+   */
+  it('haelt alle Waffen in einem engen Staerkeband statt Faktor 18 auseinander', () => {
+    const hordenFeuerkraft = (weapon: WeaponKey): number => {
+      const c = BALANCE.weapon[weapon]
+      const einzelziel = Math.min(BALANCE.crowd.shootersPerSalvo, c.shootersPerSalvo)
+        * c.rateFactor * c.damageFactor * c.bulletsPerShot
+      // Zusatzziele: Durchschlag trifft im Schnitt einen zweiten in der Reihe, Splash
+      // rund anderthalb weitere im Radius, jeder Kettensprung sein Ziel anteilig.
+      const zusatz = 1
+        + (c.pierces ? 1 : 0)
+        + (c.splashRadiusPx > 0 ? c.splashDamageFactor * 1.5 : 0)
+        + c.chainCount * c.chainDamageFactor
+      return einzelziel * zusatz
+    }
+    const basis = hordenFeuerkraft('normal')
+    const werte = weaponKeys.map((weapon) => ({ weapon, faktor: hordenFeuerkraft(weapon) / basis }))
+    for (const { weapon, faktor } of werte) {
+      expect(faktor, `${weapon} zu schwach`).toBeGreaterThanOrEqual(0.9)
+      expect(faktor, `${weapon} zu stark`).toBeLessThanOrEqual(1.4)
+    }
+    // Und der Abstand zwischen der staerksten und der schwaechsten Waffe bleibt klein.
+    const faktoren = werte.map((eintrag) => eintrag.faktor)
+    expect(Math.max(...faktoren) / Math.min(...faktoren)).toBeLessThanOrEqual(1.5)
   })
 
   it('switches phase only below half HP and keeps phase two latched', () => {

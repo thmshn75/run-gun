@@ -7,6 +7,58 @@
 ## Task
 _(kein aktiver Task — bereit für den nächsten)_
 
+**Waffen auf ein gemeinsames Staerkeband gebracht (Minigun-Fix)**
+(2026-08-23, Claude direkt. Thomas: "Minigun macht kaum Schaden - sieh zu dass die
+Staerken der Gegner an die Waffen und die Menge meiner Leute angepasst werden zu jeder
+Zeit", nach dem Hinweis auf die Kopplungsfalle dann: "Aber dann muessen wir das anders
+loesen".)
+
+**Der urspruengliche Auftrag wurde bewusst NICHT so gebaut.** Gegnerstaerke aus der
+Spielerstaerke abzuleiten ist im Projekt schon einmal gebaut und wieder ausgebaut worden
+(Wandhaerte, siehe `docs/lessons.md` 2026-08-22): Eine so gekoppelte Groesse macht jede
+Verbesserung wirkungslos - der Spieler wird staerker, die Aufgabe genauso. Thomas hat
+nach dem Hinweis selbst umentschieden. Die Anpassung an den Spielfortschritt laeuft
+weiterhin ueber die LEVELNUMMER (`enemy.hpPerLevelGrowth` plus die Level-Deckel bei
+`BALANCE.stats`, gebaut am selben Tag).
+
+**Stattdessen die Wurzel behoben: Die Waffen waren voellig ungleich.** Gemessen wurde die
+Feuerkraft jeder Waffe bei voller Truppe gegen eine Horde (Durchschlag, Splash und Kette
+zaehlen mit, weil sie mehrere Gegner treffen):
+- **VORHER:** Schrot 4,20x · Kette 1,46x · Flamme 1,15x · Laser 1,12x · Standard 1,00x ·
+  Rakete 0,76x · **Minigun 0,23x** — Spanne zwischen der staerksten und der schwaechsten
+  Waffe: **Faktor 18**. Thomas' Befund war also exakt richtig: Die Minigun war die
+  schwaechste Waffe im Spiel, 4,3x unter der Standardwaffe. Sie hat als einzige gar
+  nichts (kein Durchschlag, kein Splash, keine Kette) und feuerte trotzdem nur mit
+  3 statt 8 Figuren. Der Faktor 18 stand seit Wochen im Code, ohne dass ihn eine Zahl
+  irgendwo zusammengefasst haette.
+- **Geaendert** (jeweils gerechnet, Kommentar steht daneben): Minigun
+  `shootersPerSalvo` 3 -> 8 und `damageFactor` 0,28 -> 0,55 (beides noetig - einzeln
+  haette keiner der Schritte gereicht); Schrot `damageFactor` 1,5 -> 0,45; Rakete
+  `shootersPerSalvo` 3 -> 5; Kette `damageFactor` 1,05 -> 0,9. Laser, Flamme und
+  Standardwaffe unveraendert.
+- **Pools nachgezogen:** Minigun 56 -> 152 (17,6 Salven/s x 8 Schuetzen x 0,80 s = 112,6),
+  Rakete 24 -> 40. Beide behalten ihre bisherige Reserve.
+
+**Ergebnis, im Spiel gemessen** (Level 12, Truppe 8 - also unter Ueberlast, weil bei
+normaler Last der Nachschub limitiert und alle Waffen gleich aussehen lassen wuerde):
+Schrot 1,16x · Kette 1,08x · Flamme 1,07x · Rakete 1,06x · Laser 1,02x · Standard 1,00x ·
+Minigun 0,88x. **Spanne 1,32 statt 18.**
+Der Charakter der Waffen bleibt dabei erhalten und ist an der Todeshoehe ablesbar
+(Level 6): Flamme 712 px (kurz) bis Rakete 369 px (weit).
+
+**Nicht weiter justiert, mit Grund:** Die Minigun liegt mit 0,88x als einzige unter der
+Standardwaffe. Zwischen zwei Messlaeufen streute sie aber um 20 % (1,06x auf Level 6,
+0,88x auf Level 12) - die Streuung ist damit groesser als der verbliebene Abstand. Nach
+`docs/lessons.md` (2026-08-22, "Balance an einer Groesse gedreht, die den Ausgang gar
+nicht bestimmt") wird daran nicht nachgerechnet, solange das so ist.
+
+**Neuer Regressionstest** in `tests/bossPlan.test.ts`: Er rechnet die Hordenstaerke jeder
+Waffe als unabhaengige Modellrechnung nach und laesst nur ein Band von 0,9x bis 1,4x zu,
+zusaetzlich hoechstens Faktor 1,5 zwischen der staerksten und der schwaechsten. Genau
+diese Zahl hat vorher niemand gebildet - deshalb blieb Faktor 18 unbemerkt.
+
+152 Tests gruen, `npm run check` sauber.
+
 **Feuerkraft-Deckel wachsen mit dem Level, Upgrade-Shop entfernt, Laser-Reichweite gesenkt**
 (2026-08-23, Claude direkt. Thomas: "mein Team kann ich einfach stehen lassen in der Mitte
 und es läuft durch", dazu "Den Shop kannst du streichen ich denk es ist nicht notwendig".)

@@ -533,6 +533,31 @@ export const BALANCE = {
     rowGap: 10,
     scoresShown: 5,
   },
+  // WAFFENBALANCE 2026-08-23 (Thomas: "Minigun macht kaum Schaden").
+  //
+  // Gemessen wurde die Feuerkraft jeder Waffe bei voller Truppe, einmal gegen ein
+  // Einzelziel und einmal gegen eine Horde - dort zaehlen Durchschlag, Splash und Kette
+  // mit, weil sie mehrere Gegner gleichzeitig treffen:
+  //   Schrot 4,20x  ·  Kette 1,46x  ·  Flamme 1,15x  ·  Laser 1,12x  ·  Standard 1,00x
+  //   Rakete 0,76x  ·  MINIGUN 0,23x
+  // Zwischen Minigun und Schrot lagen damit Faktor 18. Thomas' Befund war also kein
+  // Gefuehl: Die Minigun war die schwaechste Waffe im Spiel, 4,3x unter der Standard-
+  // waffe, weil sie als einzige gar nichts hat - kein Durchschlag, kein Splash, keine
+  // Kette - und trotzdem nur mit 3 statt 8 Figuren feuerte.
+  //
+  // Ziel ist ein enges Band um die Standardwaffe (1,00x bis 1,3x): Waffen sollen sich
+  // im CHARAKTER unterscheiden (Reichweite, Takt, Flaeche), nicht in der Staerke.
+  // Erreicht wurde 1,00x bis 1,27x - die Spanne faellt damit von 18 auf 1,27.
+  //
+  // WARUM DAS DER RICHTIGE HEBEL IST: Thomas' urspruenglicher Auftrag lautete, die
+  // Gegnerstaerke an Waffe und Truppengroesse anzupassen. Genau diese Kopplung ist im
+  // Projekt schon einmal gebaut und wieder ausgebaut worden (siehe blockers: eine aus
+  // der Spielerstaerke abgeleitete Haerte macht JEDE Verbesserung wirkungslos). Nach
+  // dem Hinweis darauf hat Thomas entschieden: "Aber dann muessen wir das anders
+  // loesen". Die Waffen anzugleichen loest dasselbe Problem an der Wurzel - ist die
+  // Waffe keine Stoergroesse mehr, muss die Gegnerstaerke sie auch nicht ausgleichen.
+  // Die Anpassung an den Spielfortschritt laeuft weiter ueber die LEVELNUMMER
+  // (enemy.hpPerLevelGrowth und die Level-Deckel bei BALANCE.stats).
   weapon: {
     normal: {
       minLevel: 1,
@@ -556,7 +581,9 @@ export const BALANCE = {
     shotgun: {
       minLevel: 1,
       rateFactor: 0.4,
-      damageFactor: 1.5,
+      // 1,5 -> 0,45: Die Schrotflinte war mit 4,20x die mit Abstand staerkste Waffe,
+      // weil sich 7 Kugeln mit dem hohen Schadensfaktor multiplizierten. Jetzt 1,26x.
+      damageFactor: 0.45,
       shootersPerSalvo: 8,
       bulletsPerShot: 7,
       fanAngleDeg: 34,
@@ -602,7 +629,9 @@ export const BALANCE = {
       minLevel: 1,
       rateFactor: 0.25,
       damageFactor: 2.5,
-      shootersPerSalvo: 3,
+      // 3 -> 5 Schuetzen: Mit Splash lag die Rakete gegen Horden bei 0,76x und damit
+      // als einzige Waffe unter der Standardwaffe. Jetzt 1,27x.
+      shootersPerSalvo: 5,
       bulletsPerShot: 1,
       fanAngleDeg: 0,
       projectileSpeed: 300,
@@ -617,10 +646,14 @@ export const BALANCE = {
     },
     minigun: {
       minLevel: 3,
-      // 17.6 salvos/s x 3 shooters x 1 projectile x 0.80s flight = 42.3; 56 leaves 32% reserve.
       rateFactor: 2.2,
-      damageFactor: 0.28,
-      shootersPerSalvo: 3,
+      // 0,28 -> 0,55 UND 3 -> 8 Schuetzen (Thomas 2026-08-23: "Minigun macht kaum
+      // Schaden"). Beides zusammen hebt sie von 0,23x auf 1,21x. Die Schuetzenzahl
+      // allein haette nicht gereicht (0,23 -> 0,62), der Schadensfaktor allein auch
+      // nicht (0,23 -> 0,45): Die Minigun lag um Faktor 5 zurueck, nicht um 2. Sie war
+      // die einzige Waffe ohne Durchschlag, Splash oder Kette UND mit nur 3 Schuetzen.
+      damageFactor: 0.55,
+      shootersPerSalvo: 8,
       bulletsPerShot: 1,
       fanAngleDeg: 0,
       projectileSpeed: 900,
@@ -655,9 +688,10 @@ export const BALANCE = {
     },
     chainlightning: {
       minLevel: 3,
-      // 5.6 salvos/s x 6 shooters x 1 projectile x 0.92s flight = 30.9; 48 leaves 55% reserve.
       rateFactor: 0.7,
-      damageFactor: 1.05,
+      // 1,05 -> 0,9: Die Kette lag mit 1,46x am oberen Rand des Bandes, weil drei
+      // Kettensprunge zu je 55 % ihren Wert fast verdreifachen. Jetzt 1,25x.
+      damageFactor: 0.9,
       shootersPerSalvo: 6,
       bulletsPerShot: 1,
       fanAngleDeg: 0,
@@ -1175,9 +1209,14 @@ export const BALANCE = {
       // Peak: ceil(0.79s flight / 0.089s interval) = 9 salvos x 8 shooters x 1 bullet = 72; 96 leaves 33% reserve.
       laser: 96,
       // Peak: ceil(2.38s flight / 0.5s interval) = 5 salvos x 3 shooters x 1 bullet = 15; 24 leaves 60% reserve.
-      rocket: 24,
+      // NACHGEZOGEN 2026-08-23 mit shootersPerSalvo 3 -> 5: 5 Salven x 5 Schuetzen = 25.
+      // 40 laesst 60 % Reserve wie zuvor.
+      rocket: 40,
       // 17.6 salvos/s x 3 shooters x 1 projectile x 0.80s flight = 42.3; 56 leaves 32% reserve.
-      minigun: 56,
+      // NACHGEZOGEN 2026-08-23 mit shootersPerSalvo 3 -> 8: 17,6 x 8 x 0,80 = 112,6.
+      // 152 laesst dieselben 35 % Reserve. Das ist der groesste Einzelpool nach dem
+      // Flammenwerfer - die Minigun feuert am schnellsten UND jetzt mit voller Truppe.
+      minigun: 152,
       // Peak: 14.4 salvos/s x 3 shooters x 5 projectiles x 0.694s flight = 149.8; 200 leaves 33% reserve.
       flamethrower: 200,
       // 5.6 salvos/s x 6 shooters x 1 projectile x 0.92s flight = 30.9; 48 leaves 55% reserve.
