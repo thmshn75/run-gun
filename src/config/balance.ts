@@ -37,7 +37,7 @@ export const BALANCE = {
   // BEHOBEN am 2026-08-22: Waende fuhren mit konstanter BILDSCHIRM-Geschwindigkeit,
   // waehrend Strasse und Haeuser perspektivisch liefen - am Horizont war die Wand 5,1x
   // schneller als die Kulisse daneben. Jetzt zaehlt scrollSpeed WELT-Pixel (gemessen auf
-  // Kampfhoehe), und blockers.ts bildet sie ueber advanceAlongRoad auf den Bildschirm
+  // Kampfhoehe), und walls.ts bildet sie ueber advanceAlongRoad auf den Bildschirm
   // ab. Der Spawn-Takt der Kette haengt an derselben Weltstrecke, die Sammelrate von
   // 1,875 Plaettchen je Sekunde bleibt also unveraendert; nur die Fahrt vom Horizont bis
   // unten dauert jetzt 6,4 statt 5,1 s, weil die Wand oben langsamer kriecht.
@@ -135,7 +135,7 @@ export const BALANCE = {
     // Anteil der ANFLUGSTRECKE (Kampfhoehe bis Horizont, 564 px bei 390 x 844), nicht
     // eine geratene Pixelzahl - so sitzt die Linie auf jedem Geraet an derselben Stelle
     // des Spielfelds. Die Wandsegmente trifft man entsprechend spaeter; unkritisch, weil
-    // eine Wand nach blockers.maxFocusSec ohnehin in hoechstens 0,6 s faellt.
+    // eine Wand nach walls.maxFocusSec ohnehin in hoechstens 0,6 s faellt.
     //
     // IN DER BOSSPHASE GILT KEINE REICHWEITE - weder Linie noch Waffenwert. Der Boss
     // steht auf battleY 300, also 414 px vor der Truppe, und rueckt von dort in 40 s
@@ -173,8 +173,8 @@ export const BALANCE = {
     // Ohne Glaettung zuckt die Neigung pro Bild. 90 ms Halbwertszeit ist traege genug
     // fuer ein ruhiges Bild und schnell genug, um dem Finger zu folgen.
     leanHalfLifeMs: 90,
-    // Aufploppen beim Einsammeln.
-    popMs: 180,
+    // Aufploppen beim Einsammeln. Die Dauer steckt in gamefeel.popupMs; ein eigenes
+    // popMs gab es bis 2026-08-23 zusaetzlich, es wurde nie gelesen (W6).
     popOvershoot: 0.45,
     // Hochfliegende Zahl beim Einsammeln.
     popupRiseSpeedPxPerSec: 90,
@@ -413,7 +413,7 @@ export const BALANCE = {
     // eine Entscheidung, ohne dass die Bahn unbenutzbar wird.
     badChance: 0.3333,
     // Level 1 bleibt frei von roten Kacheln: Dort lernt man, wofuer die beiden Bahnen da
-    // sind, und startet mit crowd.start = 3 Figuren - eine rote Kachel (-5) waere dort
+    // sind, und startet mit einer einzigen Figur (stats.hp.base) - eine rote Kachel waere
     // ein Spielende nach wenigen Sekunden, bevor die Regel ueberhaupt gelesen wurde.
     // Ab Level 2 hat eine normal gespielte Runde die Truppe laengst zweistellig.
     badMinLevel: 2,
@@ -578,13 +578,12 @@ export const BALANCE = {
     speed: { base: 105, capAtLevelOne: 305, capAtLevelTwelve: 305, floor: 70 },
   },
   menu: {
+    // topPadding, titleY, balanceY, rowHeight und rowGap sind am 2026-08-23 (W6)
+    // entfernt worden: Sie stammen aus dem Upgrade-Shop, der am selben Tag entfallen
+    // ist, und wurden seither von keiner Zeile mehr gelesen. Das Menue rechnet seine
+    // Positionen in menuLayout.ts aus den Safe-Area-Insets.
     overlayAlpha: 0.20,
     sidePadding: 18,
-    topPadding: 18,
-    titleY: 48,
-    balanceY: 100,
-    rowHeight: 76,
-    rowGap: 10,
     scoresShown: 5,
   },
   // WAFFENBALANCE 2026-08-23 (Thomas: "Minigun macht kaum Schaden").
@@ -605,7 +604,7 @@ export const BALANCE = {
   //
   // WARUM DAS DER RICHTIGE HEBEL IST: Thomas' urspruenglicher Auftrag lautete, die
   // Gegnerstaerke an Waffe und Truppengroesse anzupassen. Genau diese Kopplung ist im
-  // Projekt schon einmal gebaut und wieder ausgebaut worden (siehe blockers: eine aus
+  // Projekt schon einmal gebaut und wieder ausgebaut worden (siehe walls: eine aus
   // der Spielerstaerke abgeleitete Haerte macht JEDE Verbesserung wirkungslos). Nach
   // dem Hinweis darauf hat Thomas entschieden: "Aber dann muessen wir das anders
   // loesen". Die Waffen anzugleichen loest dasselbe Problem an der Wurzel - ist die
@@ -764,7 +763,9 @@ export const BALANCE = {
     chainFlashMs: 120,
   },
   crowd: {
-    start: 3,
+    // Die Starttruppe steht in stats.hp.base, nicht hier. Ein zweites Feld `start` (3)
+    // stand bis 2026-08-23 daneben, wurde aber von keiner Zeile gelesen und widersprach
+    // dem tatsaechlichen Startwert - entfernt in W6.
     max: 30,
     // Maximum number of figures that fire together in one rotating salvo.
     shootersPerSalvo: 8,
@@ -820,8 +821,12 @@ export const BALANCE = {
   // Wand also schneller fallen, statt sie mitwachsen zu lassen. Zwei Schutzgrenzen an
   // der tatsaechlichen Feuerkraft verhindern beide Ausreisser: maxFocusSec deckelt den
   // schwachen Run (Wand nie eine Sackgasse), minFocusSec haelt einen Rest Widerstand.
-  blockers: {
-    // Level 1 mit Startteam (2 Figuren, normal, dmg 1, rate 3 -> 6 dps): 3 HP = 0,50 s.
+  // Der Block hiess bis 2026-08-23 `blockers` - ein Name aus V1, als hier noch die
+  // quer stehenden Sperren geregelt wurden. Er beschreibt seit W2 die HAERTE der
+  // Wandsegmente; ihre Geometrie und ihr Inhalt stehen in `walls`. In W6 umbenannt,
+  // damit der Name sagt, was er meint.
+  wallHardness: {
+    // Level 1 mit Startteam (1 Figur, normal, dmg 1, rate 3 -> 3 dps): 3 HP = 1,0 s.
     baseHp: 3,
     // Level 12 ist damit 1.2^11 = 7,4x so hart wie Level 1 — spuerbar, aber die Zahl
     // bleibt zweistellig statt vierstellig.
@@ -917,7 +922,7 @@ export const BALANCE = {
     // angepasst werden zu jeder Zeit").
     //
     // Warum das hier RICHTIG ist, obwohl dieselbe Kopplung bei der Wandhaerte einmal
-    // gebaut und wieder ausgebaut wurde (siehe blockers): Dort war sie UNGEDAEMPFT und
+    // gebaut und wieder ausgebaut wurde (siehe walls): Dort war sie UNGEDAEMPFT und
     // enthielt die WAFFE - jede Verbesserung war damit exakt wirkungslos, und wer eine
     // Schrotflinte aufhob, machte die Waende schlagartig 4x haerter. Hier gilt beides
     // nicht:
@@ -1039,7 +1044,7 @@ export const BALANCE = {
     breakthroughDamageFactor: 0.12,
     // Level 1 bleibt frei - dieselbe Begruendung wie bei den roten Wandkacheln
     // (walls.badMinLevel). Dort lernt man, wofuer die beiden Bahnen da sind, und startet
-    // mit crowd.start = 3 Figuren.
+    // mit einer einzigen Figur (stats.hp.base).
     // Gemessen, warum das noetig ist: Der Durchbruchschaden hat eine Rueckkopplung -
     // weniger Figuren heisst weniger Feuerkraft heisst mehr Durchbrueche. Mit Truppe 10
     // und den Grundwerten stieg der Durchkommensanteil dadurch von 10 % auf 44 %, und die
@@ -1284,9 +1289,7 @@ export const BALANCE = {
       weaponDampening: 0.8,
       // Earned damage and fire-rate changes matter, but are damped before the fight clamp.
       statDampening: 0.8,
-      damagePerLevel: 0.15,
       damageCap: 8,
-      ratePerLevel: 0.1,
       rateCap: 8,
     },
     approachSpeed: 90,
@@ -1406,7 +1409,6 @@ export const BALANCE = {
     rowOneOffsetY: 9,
     rowTwoOffsetY: 38,
     primaryFontPx: 22,
-    statFontPx: 15,
     secondaryFontPx: 14,
     depthPanel: 90,
     depthText: 91,
@@ -1494,7 +1496,7 @@ export const BALANCE = {
     // Sekunde und Seite stehen damit rund 12 Segmente je Seite gleichzeitig, beidseitig
     // 24; freigeschossene Waffen-Rewards halten ihr Paar laenger aktiv (+2). 32 deckt
     // die Spitze mit gut einem Viertel Reserve.
-    blockers: 32,
+    walls: 32,
     // Densest case is an uninterrupted block (no cross streets): the fixed 120s,
     // 16.667ms-step, 390x844 city simulation then reaches 24 concurrent objects at the
     // 400ms cadence (18 with cross streets); 30 keeps the peak plus six-object reserve.

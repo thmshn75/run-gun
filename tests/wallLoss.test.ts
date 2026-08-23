@@ -48,20 +48,21 @@ describe('rote Kacheln: der Verlust in beiden Bahnen', () => {
   })
 
   it('schont das erste Level und verbietet zwei rote Kacheln in Folge', () => {
-    // Level 1 startet mit crowd.start Figuren - eine rote Kachel waere dort das Ende,
-    // bevor die Regel gelesen ist.
+    // Level 1 startet mit stats.hp.base Figuren - eine rote Kachel waere dort das Ende,
+    // bevor die Regel gelesen ist. (Bis 2026-08-23 stand hier crowd.start; das Feld war
+    // toter Code und nannte einen anderen Wert als den tatsaechlichen Startwert.)
     expect(BALANCE.walls.badMinLevel).toBeGreaterThan(1)
-    expect(BALANCE.walls.drainTeam).toBeGreaterThanOrEqual(BALANCE.crowd.start)
+    expect(BALANCE.walls.drainTeam).toBeGreaterThanOrEqual(BALANCE.stats.hp.base)
     // Zwei rote hintereinander waeren links eine Sperre und rechts ein toter Abschnitt.
     expect(BALANCE.walls.badMaxRun).toBe(1)
   })
 
   it('laesst rote Kacheln weder abschiessen noch Muenzen abwerfen', () => {
-    const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../src/systems/walls.ts', import.meta.url), 'utf8')
     // Links unbeschiessbar: sonst raeumte man sie weg statt auszuweichen.
     expect(source).toContain("pair.content === 'pickup' || pair.content === 'drain'")
     // Rechts ohne Muenzen: sonst waere Draufhalten trotz Abzug noch belohnt.
-    expect(source).toContain('if (!isBad(pair.content)) this.onBroken(blocker.x, blocker.y)')
+    expect(source).toContain('if (!isBad(pair.content)) this.onBroken(wall.x, wall.y)')
   })
 
   it('deckelt den Verlust am Run-Startwert, damit gekaufte Ausbauten sicher sind', () => {

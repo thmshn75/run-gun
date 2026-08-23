@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
-import { getBlockerPlan } from '../src/systems/blockerPlan'
+import { getWallPlan } from '../src/systems/wallPlan'
 import { computeFormation } from '../src/systems/formation'
 import { getDriveLimitHalfWidth, getLaneRatio, getRoadHalfWidth } from '../src/systems/roadGeometry'
 
@@ -103,13 +103,13 @@ describe('Waende treffen (W4-Korrektur)', () => {
     // volle Feuerkraft. Die Zeit je Segment muss dann im Korridor minFocusSec..
     // maxFocusSec liegen (Rundung auf ganze HP erlaubt einen kleinen Aufschlag).
     for (const team of TEAM_SIZES) {
-      const plan = getBlockerPlan(1, team, 'normal', 1, 3)
+      const plan = getWallPlan(1, team, 'normal', 1, 3)
       const ratios = shooterLaneRatios(team, anchorAtWall(team))
       const hitting = ratios.filter((ratio) => ratio >= WALL_INNER && ratio <= WALL_OUTER).length
       expect(hitting, `team ${team}`).toBe(ratios.length)
       const focusSec = plan.maxHp / plan.referenceDps
-      expect(focusSec, `team ${team}`).toBeGreaterThanOrEqual(BALANCE.blockers.minFocusSec)
-      expect(focusSec, `team ${team}`).toBeLessThanOrEqual(BALANCE.blockers.maxFocusSec * 1.2)
+      expect(focusSec, `team ${team}`).toBeGreaterThanOrEqual(BALANCE.wallHardness.minFocusSec)
+      expect(focusSec, `team ${team}`).toBeLessThanOrEqual(BALANCE.wallHardness.maxFocusSec * 1.2)
     }
   })
 

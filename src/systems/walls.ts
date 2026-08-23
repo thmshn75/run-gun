@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { HUD_COLORS } from '../config/colors'
-import { getBlockerPlan } from './blockerPlan'
+import { getWallPlan } from './wallPlan'
 import { decideGoodie } from './reinforcementPlan'
 import { advanceAlongRoad, getPlayfieldHalfWidth, getRoadScale, getRoadSegment, getWallGeometry } from './road'
 import { isWallSlot } from './wallPattern'
@@ -33,8 +33,8 @@ import { getCurrentScrollSpeed } from './speed'
 type WallSide = 'left' | 'right'
 type WallContent = 'weapon' | 'damage' | 'rate' | 'pickup' | 'drain' | 'weakenDamage' | 'weakenRate'
 
-interface BlockerPair {
-  blocker: Phaser.Physics.Arcade.Image
+interface WallPair {
+  wall: Phaser.Physics.Arcade.Image
   label: Phaser.GameObjects.Text
   goodieText: Phaser.GameObjects.Text
   // WELTANKER der Kachel. Getrennt von der gezeichneten Position gefuehrt, weil die
@@ -54,7 +54,7 @@ interface BlockerPair {
  * gilt fuer die roten genauso: Waeren sie beschiessbar, koennte man sie wegraeumen
  * statt auszuweichen, und die Entscheidung waere wieder weg.
  */
-function isPickup(pair: BlockerPair): boolean {
+function isPickup(pair: WallPair): boolean {
   return pair.content === 'pickup' || pair.content === 'drain'
 }
 
@@ -63,7 +63,7 @@ function isBad(content: WallContent): boolean {
   return content === 'drain' || content === 'weakenDamage' || content === 'weakenRate'
 }
 
-export class Blockers {
+export class Walls {
   private readonly scene: Phaser.Scene
   private readonly chooseWeapon: (currentWeapon: WeaponKey) => WeaponKey
   private readonly getCurrentWeapon: () => WeaponKey
@@ -74,8 +74,8 @@ export class Blockers {
   private readonly onBroken: (x: number, y: number) => void
   private readonly applyReinforcement: (apply: (current: number) => number) => void
   private readonly applyStat: (stat: 'damage' | 'rate', gain: number) => void
-  private readonly pairs: BlockerPair[]
-  private readonly blockerGroup: Phaser.Physics.Arcade.Group
+  private readonly pairs: WallPair[]
+  private readonly wallGroup: Phaser.Physics.Arcade.Group
   private readonly rewardGroup: Phaser.Physics.Arcade.Group
   private readonly drySpawns: Record<WallSide, number> = { left: 0, right: 0 }
   // Wie viele rote Kacheln zuletzt in Folge kamen - Grundlage der badMaxRun-Regel.
@@ -111,7 +111,7 @@ export class Blockers {
     this.applyReinforcement = applyReinforcement
     this.applyStat = applyStat
     this.pairs = []
-    this.blockerGroup = scene.physics.add.group()
+    this.wallGroup = scene.physics.add.group()
     this.rewardGroup = scene.physics.add.group()
     // Kette startet sofort: der erste update() spawnt das erste Segmentpaar.
     this.chainAccumulatorPx = BALANCE.walls.segmentHeightPx
@@ -119,10 +119,10 @@ export class Blockers {
     this.elapsedMs = 0
     this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
     this.nextSpawnId = -1
-    for (let index = 0; index < BALANCE.pools.blockers; index += 1) this.pairs.push(this.createPair())
+    for (let index = 0; index < BALANCE.pools.walls; index += 1) this.pairs.push(this.createPair())
   }
 
-  public getBlockers(): Phaser.Physics.Arcade.Group { return this.blockerGroup }
+  public getWalls(): Phaser.Physics.Arcade.Group { return this.wallGroup }
 
   public getRewards(): Phaser.Physics.Arcade.Group { return this.rewardGroup }
 
@@ -138,8 +138,8 @@ export class Blockers {
     for (const pair of this.pairs) this.recycle(pair)
   }
 
-  public isBlocker(candidate: Phaser.GameObjects.GameObject): candidate is Phaser.Physics.Arcade.Image {
-    return this.pairs.some((pair) => pair.blocker === candidate)
+  public isWall(candidate: Phaser.GameObjects.GameObject): candidate is Phaser.Physics.Arcade.Image {
+    return this.pairs.some((pair) => pair.wall === candidate)
   }
 
   // Liegt auf Hoehe y (plus Puffer) ein stehendes Wandsegment? Steuert den dynamischen
@@ -148,13 +148,13 @@ export class Blockers {
     let left = false
     let right = false
     for (const pair of this.pairs) {
-      if (!pair.active || pair.broken || !pair.blocker.active) continue
+      if (!pair.active || pair.broken || !pair.wall.active) continue
       // Sammelplaettchen sind kein Hindernis: Wer sie einsammeln soll, muss auch
       // hineinfahren duerfen. Nur echte Wandsegmente begrenzen den Fahrbereich.
       if (isPickup(pair)) continue
       // Reichweite aus der TATSAECHLICHEN Hoehe des Segments: Seit die Kachel mit der
       // Entfernung schrumpft, waere die Nennhoehe von 72 px weiter oben zu grosszuegig.
-      if (Math.abs(pair.blocker.y - y) >= pair.blocker.displayHeight / 2 + halfSpanPx) continue
+      if (Math.abs(pair.wall.y - y) >= pair.wall.displayHeight / 2 + halfSpanPx) continue
       if (pair.side === 'left') left = true
       else right = true
       if (left && right) break
@@ -163,15 +163,15 @@ export class Blockers {
   }
 
   public isPickupSegment(candidate: Phaser.GameObjects.GameObject): candidate is Phaser.Physics.Arcade.Image {
-    return this.pairs.some((pair) => pair.blocker === candidate && pair.active && !pair.broken && isPickup(pair))
+    return this.pairs.some((pair) => pair.wall === candidate && pair.active && !pair.broken && isPickup(pair))
   }
 
   /**
    * Sammelplaettchen durch Beruehrung einloesen. Rueckgabe ist der Zuwachs (0, wenn
    * das Plaettchen schon weg ist), damit die Szene die Quittung nur einmal zeigt.
    */
-  public collectPickup(blocker: Phaser.Physics.Arcade.Image): number {
-    const pair = this.pairs.find((candidate) => candidate.blocker === blocker)
+  public collectPickup(wall: Phaser.Physics.Arcade.Image): number {
+    const pair = this.pairs.find((candidate) => candidate.wall === wall)
     if (pair === undefined || !pair.active || pair.broken || !isPickup(pair)) return 0
     // Rot zieht ab, Blau gibt: dieselbe Beruehrung, entgegengesetztes Vorzeichen.
     const gain = pair.content === 'drain' ? -BALANCE.walls.drainTeam : BALANCE.walls.pickupTeamGain
@@ -184,22 +184,22 @@ export class Blockers {
     return this.pairs.some((pair) => pair.reward === candidate)
   }
 
-  public damage(blocker: Phaser.Physics.Arcade.Image, damage: number): boolean {
-    const pair = this.pairs.find((candidate) => candidate.blocker === blocker)
+  public damage(wall: Phaser.Physics.Arcade.Image, damage: number): boolean {
+    const pair = this.pairs.find((candidate) => candidate.wall === wall)
     if (pair === undefined || !pair.active || pair.broken) return false
     // Sammelplaettchen haben keine Lebenspunkte: Sie werden durchfahren, nicht
     // beschossen. Kugeln fliegen wirkungslos durch - sonst schoesse man sich die
     // eigene Verstaerkung weg.
     if (isPickup(pair)) return false
-    const remainingHp = (blocker.getData('hp') as number) - damage
-    blocker.setData('hp', remainingHp)
+    const remainingHp = (wall.getData('hp') as number) - damage
+    wall.setData('hp', remainingHp)
     pair.label.setText(remainingHp <= 0 ? '' : `${Math.max(0, Math.ceil(remainingHp))}`)
     if (remainingHp > 0) return false
 
     // Muenzen fallen bei jedem zerschossenen BLAUEN Segment ab. Ein rotes gibt keine:
     // sonst waere Draufhalten trotz Abzug noch belohnt, und die Entscheidung, das Feuer
     // einzustellen, waere keine mehr.
-    if (!isBad(pair.content)) this.onBroken(blocker.x, blocker.y)
+    if (!isBad(pair.content)) this.onBroken(wall.x, wall.y)
     if (pair.content === 'damage' || pair.content === 'rate') {
       // Sofortwirkung auf den JETZT aktuellen Stand - wie bei der Sammelbahn.
       this.applyStat(pair.content, pair.content === 'damage' ? BALANCE.walls.damageGain : BALANCE.walls.rateGain)
@@ -217,8 +217,8 @@ export class Blockers {
       return true
     }
     pair.broken = true
-    blocker.disableBody(true, true)
-    blocker.setActive(false).setVisible(false)
+    wall.disableBody(true, true)
+    wall.setActive(false).setVisible(false)
     pair.label.setActive(false).setVisible(false)
     // Die freigeschossene Waffe faellt an die Korridorkante: Der Drag endet seit W4 am
     // Korridor, in der Wandspur waere sie unerreichbar.
@@ -227,7 +227,7 @@ export class Blockers {
     return true
   }
 
-  private rewardCollectX(pair: BlockerPair, y: number): number {
+  private rewardCollectX(pair: WallPair, y: number): number {
     const playfieldHalf = getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
     const sign = pair.side === 'left' ? -1 : 1
     return this.scene.scale.width / 2 + sign * (playfieldHalf - pair.reward.displayWidth / 2 - 4)
@@ -263,19 +263,19 @@ export class Blockers {
     for (const pair of this.pairs) {
       if (!pair.active) continue
       this.movePair(pair, movement)
-      if (pair.blocker.active && pair.blocker.y - pair.blocker.displayHeight / 2 > this.scene.scale.height) this.recycle(pair)
+      if (pair.wall.active && pair.wall.y - pair.wall.displayHeight / 2 > this.scene.scale.height) this.recycle(pair)
       else if (pair.broken && pair.reward.y - pair.reward.displayHeight / 2 > this.scene.scale.height) this.recycle(pair)
     }
   }
 
-  private createPair(): BlockerPair {
-    const blocker = this.scene.physics.add.image(0, 0, 'wall-segment-right')
+  private createPair(): WallPair {
+    const wall = this.scene.physics.add.image(0, 0, 'wall-segment-right')
       .setDepth(BALANCE.layers.gameplay).setActive(false).setVisible(false)
-    ;(blocker.body as Phaser.Physics.Arcade.Body).setAllowGravity(false)
+    ;(wall.body as Phaser.Physics.Arcade.Body).setAllowGravity(false)
     // Body einmal in Texturpixeln setzen: Arcade skaliert ihn mit der DisplaySize mit.
-    ;(blocker.body as Phaser.Physics.Arcade.Body).setSize(128, BALANCE.walls.segmentHeightPx, true)
-    blocker.disableBody(true, true)
-    this.blockerGroup.add(blocker)
+    ;(wall.body as Phaser.Physics.Arcade.Body).setSize(128, BALANCE.walls.segmentHeightPx, true)
+    wall.disableBody(true, true)
+    this.wallGroup.add(wall)
     const label = this.scene.add.text(0, 0, '', {
       fontFamily: 'system-ui', fontSize: '17px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 3, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(BALANCE.layers.gameplay + 1).setActive(false).setVisible(false)
@@ -287,7 +287,7 @@ export class Blockers {
     const reward = this.scene.physics.add.image(0, 0, 'weapon-normal-gate').setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false)
     reward.disableBody(true, true)
     this.rewardGroup.add(reward)
-    return { blocker, label, goodieText, reward, anchorY: BALANCE.road.horizonY, active: false, broken: false, content: 'damage', side: 'right', weapon: 'normal' }
+    return { wall, label, goodieText, reward, anchorY: BALANCE.road.horizonY, active: false, broken: false, content: 'damage', side: 'right', weapon: 'normal' }
   }
 
   private wallGeometry(side: WallSide, y: number): { x: number; width: number } {
@@ -343,7 +343,7 @@ export class Blockers {
     const segment = this.segmentAt(anchorY)
     const y = segment.centerY
     const geometry = this.wallGeometry(side, y)
-    const plan = getBlockerPlan(this.currentLevel, this.getTeamSize(), this.getCurrentWeapon(), this.getDamage(), this.getShotsPerSec())
+    const plan = getWallPlan(this.currentLevel, this.getTeamSize(), this.getCurrentWeapon(), this.getDamage(), this.getShotsPerSec())
     const maxHp = plan.maxHp
     const content = this.chooseContent(side)
     pair.active = true
@@ -354,15 +354,15 @@ export class Blockers {
     pair.weapon = content === 'weapon' ? this.chooseWeapon(this.getCurrentWeapon()) : 'normal'
     // Rot schlaegt die Seitenfarbe: Was abzieht, muss auf einen Blick als solches
     // erkennbar sein, noch bevor man die Beschriftung liest.
-    pair.blocker.setTexture(isBad(content) ? 'wall-segment-bad' : side === 'left' ? 'wall-segment-left' : 'wall-segment-right')
-    pair.blocker.enableBody(true, geometry.x, y, true, true)
-    pair.blocker.setDisplaySize(geometry.width, segment.height).setActive(true).setVisible(true).setAlpha(0)
-    const body = pair.blocker.body as Phaser.Physics.Arcade.Body
+    pair.wall.setTexture(isBad(content) ? 'wall-segment-bad' : side === 'left' ? 'wall-segment-left' : 'wall-segment-right')
+    pair.wall.enableBody(true, geometry.x, y, true, true)
+    pair.wall.setDisplaySize(geometry.width, segment.height).setActive(true).setVisible(true).setAlpha(0)
+    const body = pair.wall.body as Phaser.Physics.Arcade.Body
     body.moves = false
     body.updateFromGameObject()
-    pair.blocker.setData('hp', maxHp)
-    pair.blocker.setData('maxHp', maxHp)
-    pair.blocker.setData('spawnId', this.nextSpawnId)
+    pair.wall.setData('hp', maxHp)
+    pair.wall.setData('maxHp', maxHp)
+    pair.wall.setData('spawnId', this.nextSpawnId)
     this.nextSpawnId -= 1
     if (content === 'pickup' || content === 'drain') {
       // Kein Lebenspunkte-Label: Das Plaettchen zeigt, was es bringt oder nimmt, nicht
@@ -396,21 +396,21 @@ export class Blockers {
     pair.reward.setActive(false).setVisible(false)
   }
 
-  private movePair(pair: BlockerPair, movement: number): void {
+  private movePair(pair: WallPair, movement: number): void {
     // Welt-Bewegung statt Bildschirm-Bewegung, EINMAL je Paar: Kachel, Beschriftung und
     // Waffen-Reward haengen am selben Anker und duerfen nie auseinanderlaufen.
     pair.anchorY = this.advance(pair.anchorY, movement)
-    if (pair.blocker.active) {
+    if (pair.wall.active) {
       // Welt-Bewegung statt Bildschirm-Bewegung: Am Horizont deckt dieselbe Weltstrecke
       // weniger Pixel ab, das Segment kriecht dort und beschleunigt beim Naeherkommen -
       // wie die Haeuser daneben.
       const segment = this.segmentAt(pair.anchorY)
       const geometry = this.wallGeometry(pair.side, segment.centerY)
-      pair.blocker.setPosition(geometry.x, segment.centerY)
-      pair.blocker.setDisplaySize(geometry.width, segment.height)
-      ;(pair.blocker.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
+      pair.wall.setPosition(geometry.x, segment.centerY)
+      pair.wall.setDisplaySize(geometry.width, segment.height)
+      ;(pair.wall.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       const alpha = Math.min(1, Math.max(0, (segment.centerY - segment.height / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
-      pair.blocker.setAlpha(alpha)
+      pair.wall.setAlpha(alpha)
       // Auch die Beschriftung gehoert zur Kachel: fester Pixelabstand wuerde bei einer
       // 41 px hohen Ferndarstellung unten herausragen.
       const massstab = this.roadScaleAt(segment.centerY)
@@ -447,17 +447,17 @@ export class Blockers {
 
   // Der Inhalt scheint durch die Wand und darf sie nie ueberragen: auf die aktuelle
   // Wandbreite einpassen, aber nie ueber die natuerliche Texturgroesse vergroessern.
-  private fitRewardToWall(pair: BlockerPair, wallWidth: number): void {
+  private fitRewardToWall(pair: WallPair, wallWidth: number): void {
     const source = pair.reward.texture.getSourceImage() as { width: number; height: number }
     const targetWidth = Math.min(source.width, Math.max(8, wallWidth - 8))
     pair.reward.setDisplaySize(targetWidth, targetWidth * source.height / source.width)
   }
 
-  private recycle(pair: BlockerPair): void {
+  private recycle(pair: WallPair): void {
     pair.active = false
     pair.broken = false
-    pair.blocker.disableBody(true, true)
-    pair.blocker.setActive(false).setVisible(false)
+    pair.wall.disableBody(true, true)
+    pair.wall.setActive(false).setVisible(false)
     pair.label.setActive(false).setVisible(false)
     pair.goodieText.setActive(false).setVisible(false)
     pair.reward.disableBody(true, true)

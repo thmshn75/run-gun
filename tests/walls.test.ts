@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
-import { getBlockerPlan } from '../src/systems/blockerPlan'
+import { getWallPlan } from '../src/systems/wallPlan'
 import { getCombatFirepower } from '../src/systems/bossPlan'
 import { getFigureOverscanFactor, getPerspectiveScale, getPlayfieldHalfWidth, getRoadHalfWidth, getWallGeometry } from '../src/systems/roadGeometry'
 import { chooseSpawnLane } from '../src/systems/spawnLanes'
@@ -69,14 +69,14 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
   })
 
   it('derives wall hp from level and team, never rounding it to zero', () => {
-    const weakest = getBlockerPlan(1, 1, 'normal', 1, 1)
+    const weakest = getWallPlan(1, 1, 'normal', 1, 1)
     expect(weakest.maxHp).toBeGreaterThanOrEqual(1)
-    const strongest = getBlockerPlan(12, BALANCE.crowd.max, 'shotgun', BALANCE.stats.damage.capAtLevelTwelve, BALANCE.stats.shotsPerSec.capAtLevelTwelve)
+    const strongest = getWallPlan(12, BALANCE.crowd.max, 'shotgun', BALANCE.stats.damage.capAtLevelTwelve, BALANCE.stats.shotsPerSec.capAtLevelTwelve)
     expect(strongest.maxHp).toBeGreaterThanOrEqual(1)
   })
 
   it('macht links eine Sammelbahn und rechts eine Wand', () => {
-    const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../src/systems/walls.ts', import.meta.url), 'utf8')
     // Links ist JEDE Kachel ein Plaettchen - die Kette ist der Reiz, nicht der
     // seltene Treffer. Rechts bleibt die Goodie-Regel mit Garantie nach Nieten.
     expect(source).toContain("if (side === 'left') return bad ? 'drain' : 'pickup'")
@@ -86,7 +86,7 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
   })
 
   it('laesst Sammelplaettchen durchfahren statt beschiessen', () => {
-    const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../src/systems/walls.ts', import.meta.url), 'utf8')
     const scene = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
     // Kugeln gehen wirkungslos durch - sonst schoesse man sich die eigene
     // Verstaerkung weg, bevor man sie einsammeln kann.
@@ -94,8 +94,8 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     // Und sie bremsen die Truppe nicht: Wer einsammeln soll, muss hineinfahren duerfen.
     expect(source).toContain('if (isPickup(pair)) continue')
     // Eingeloest wird durch Beruehrung der Truppenhuelle.
-    expect(scene).toContain('this.blockers.isPickupSegment(target)')
-    expect(scene).toContain('this.blockers.collectPickup(')
+    expect(scene).toContain('this.walls.isPickupSegment(target)')
+    expect(scene).toContain('this.walls.collectPickup(')
   })
 
   it('laesst den Truppenzaehler ueber die sichtbaren Figuren hinaus weiterlaufen', () => {
@@ -107,7 +107,7 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
   })
 
   it('zeigt den Wandinhalt vor der deckenden Wand, einsammelbar erst nach dem Bruch', () => {
-    const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../src/systems/walls.ts', import.meta.url), 'utf8')
     const bootSource = readFileSync(new URL('../src/scenes/BootScene.ts', import.meta.url), 'utf8')
     // Deckend statt halbtransparent (Thomas 2026-08-22).
     expect(BALANCE.walls.fillAlpha).toBe(1)
@@ -140,7 +140,7 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
   })
 
   it('laesst die Sammelbahn links durchgehen und behaelt rechts die Abschnitte', () => {
-    const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../src/systems/walls.ts', import.meta.url), 'utf8')
     // Links kein isWallSlot mehr: kein Hindernis, also keine Ausweichluecke noetig.
     expect(source).toContain("side === 'left'\n          || isWallSlot(")
     // Rechts bleiben die Abschnitte, dort muss die Truppe ausweichen koennen.
@@ -154,23 +154,23 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     // zur Gegnerbehandlung durch. Sie hat kein contactDamage - der Trupp wurde auf
     // NaN gesetzt und verschwand komplett. Gemessen: 20 Figuren -> null.
     const scene = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
-    const pickupPos = scene.indexOf('this.blockers.isPickupSegment(target)')
-    const blockerPos = scene.indexOf('if (this.blockers.isBlocker(target)) return')
+    const pickupPos = scene.indexOf('this.walls.isPickupSegment(target)')
+    const wallPos = scene.indexOf('if (this.walls.isWall(target)) return')
     const gegnerPos = scene.indexOf('this.handlePlayerHit(enemyImage)')
-    expect(blockerPos).toBeGreaterThan(-1)
+    expect(wallPos).toBeGreaterThan(-1)
     // Die Wandpruefung muss VOR der Gegnerbehandlung stehen, sonst wirkt sie nicht.
-    expect(blockerPos).toBeGreaterThan(pickupPos)
-    expect(blockerPos).toBeLessThan(gegnerPos)
+    expect(wallPos).toBeGreaterThan(pickupPos)
+    expect(wallPos).toBeLessThan(gegnerPos)
     // Zweite Sicherung: Ein Objekt ohne Schadenswert ist kein Gegner.
     expect(scene).toContain("typeof contactDamage !== 'number' || !Number.isFinite(contactDamage)")
   })
 
   it('gibt rechts auf jedem Segment Feuerkraft statt meistens nur Muenzen', () => {
-    const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../src/systems/walls.ts', import.meta.url), 'utf8')
     // Waffen bleiben selten (grosser Sprung), sonst Schaden oder Feuerrate.
     expect(source).toContain("return this.rng() < 0.5 ? 'damage' : 'rate'")
     // Muenzen fallen bei JEDEM Bruch ab, sie sind Nebeneffekt statt Inhalt.
-    expect(source).toContain('this.onBroken(blocker.x, blocker.y)')
+    expect(source).toContain('this.onBroken(wall.x, wall.y)')
     expect(source).not.toContain("content === 'coin'")
     // Die Zugewinne sind aus dem Gegenstueck links hergeleitet: 3,3 % der Spanne.
     const anteilLinks = BALANCE.walls.pickupTeamGain / BALANCE.crowd.max
@@ -181,14 +181,14 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
   })
 
   it('beschriftet beide Seiten weiss', () => {
-    const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../src/systems/walls.ts', import.meta.url), 'utf8')
     // Auf deckendem Blau traegt Weiss am besten; die Seite erkennt man an der Kachel.
     expect(source).not.toContain("color: '#3ddc84'")
     expect((source.match(/color: '#ffffff'/g) ?? []).length).toBeGreaterThanOrEqual(2)
   })
 
   it('runs both walls as gapless chains sized by the derived pool', () => {
-    const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../src/systems/walls.ts', import.meta.url), 'utf8')
     // Kette statt Takt: Nach jeweils einer Segmenthoehe Scroll schliesst beidseitig das
     // naechste Segment am Horizont an — unabhaengig vom Zustand aelterer Segmente.
     expect(source).toContain('this.chainAccumulatorPx += movement')
@@ -200,11 +200,11 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     // beidseitig, plus Waffen-Reward-Nachlauf und Reserve.
     const cycle = BALANCE.walls.wallRunLength + BALANCE.walls.wallGapSlots
     const visiblePerSide = Math.ceil(Math.ceil((844 - BALANCE.road.horizonY) / BALANCE.walls.segmentHeightPx) * (BALANCE.walls.wallRunLength / cycle))
-    expect(BALANCE.pools.blockers).toBeGreaterThanOrEqual((visiblePerSide + 1) * 2 + 2)
+    expect(BALANCE.pools.walls).toBeGreaterThanOrEqual((visiblePerSide + 1) * 2 + 2)
   })
 
   it('preallocates every wall pair once and never creates or destroys in the hot path', () => {
-    const source = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../src/systems/walls.ts', import.meta.url), 'utf8')
     expect(source.match(/this\.createPair\(\)/g)).toHaveLength(1)
     expect(source).not.toContain('.destroy(')
     expect(source.indexOf('this.pairs.push(this.createPair())')).toBeLessThan(source.indexOf('public update'))
@@ -220,14 +220,14 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
           for (const teamSize of [2, 3, 6, 12, 20, 30]) {
             for (const damage of [1, 3, 10, 20]) {
               for (const rate of [1, 1.5, 3, 8]) {
-                const plan = getBlockerPlan(level, teamSize, weapon, damage, rate)
+                const plan = getWallPlan(level, teamSize, weapon, damage, rate)
                 const dps = getCombatFirepower(teamSize, weapon, level) * damage * rate
                 const label = `L${level}, ${weapon}, Truppe ${teamSize}, Schaden ${damage}, Rate ${rate}`
                 expect(plan.referenceDps, label).toBeCloseTo(dps)
                 // Rundung auf ganze HP verschiebt die Fokuszeit um bis zu einer halben HP.
                 const rundung = 0.5 / dps
-                expect(plan.focusSec, label).toBeGreaterThanOrEqual(BALANCE.blockers.minFocusSec - rundung - 1e-9)
-                expect(plan.focusSec, label).toBeLessThanOrEqual(BALANCE.blockers.maxFocusSec + rundung + 1e-9)
+                expect(plan.focusSec, label).toBeGreaterThanOrEqual(BALANCE.wallHardness.minFocusSec - rundung - 1e-9)
+                expect(plan.focusSec, label).toBeLessThanOrEqual(BALANCE.wallHardness.maxFocusSec + rundung + 1e-9)
                 cases += 1
               }
             }

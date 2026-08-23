@@ -219,7 +219,7 @@ describe('Durchbruch kostet Figuren', () => {
 
   it('startet nicht frueher als die roten Wandkacheln', () => {
     // Beide Verlustquellen sollen denselben Einstiegsschutz haben: Level 1 ist zum
-    // Lernen da, dort startet die Truppe mit crowd.start Figuren.
+    // Lernen da, dort startet die Truppe mit stats.hp.base Figuren.
     expect(BALANCE.enemy.breakthroughMinLevel).toBeGreaterThanOrEqual(BALANCE.walls.badMinLevel)
   })
 

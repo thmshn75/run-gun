@@ -143,13 +143,13 @@ describe('additional weapons', () => {
     expect(gameSceneSource).toContain('this.replaceProjectileColliders()')
   })
 
-  it('only registers boss and blocker colliders while their targets are active', () => {
+  it('only registers boss and wall colliders while their targets are active', () => {
     const gameSceneSource = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
 
     expect(gameSceneSource).toContain("if (this.levelPhase === 'boss')")
     expect(gameSceneSource).toContain('this.projectileBossCollider?.destroy()')
-    expect(gameSceneSource).toContain('if (this.blockers.hasActivePair())')
-    expect(gameSceneSource).toContain('this.projectileBlockerCollider?.destroy()')
+    expect(gameSceneSource).toContain('if (this.walls.hasActivePair())')
+    expect(gameSceneSource).toContain('this.projectileWallCollider?.destroy()')
     expect(gameSceneSource).toContain('this.crowdRewardCollider?.destroy()')
   })
 })

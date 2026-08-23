@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
-import { getBlockerPlan } from '../src/systems/blockerPlan'
+import { getWallPlan } from '../src/systems/wallPlan'
 
 type WeaponKey = keyof typeof BALANCE.weapon
 const WEAPONS = ['normal', 'shotgun', 'laser', 'rocket', 'minigun', 'flamethrower', 'chainlightning'] as const
@@ -14,11 +14,11 @@ describe('Wandhaerte', () => {
     for (const level of [1, 2, 4, 6, 8, 10, 12]) {
       for (const team of [1, 2, 4, 8, 16, BALANCE.crowd.max]) {
         for (const weapon of WEAPONS) {
-          const plan = getBlockerPlan(level, team, weapon as WeaponKey, 1, 3)
+          const plan = getWallPlan(level, team, weapon as WeaponKey, 1, 3)
           // Rundung auf ganze HP verschiebt die Fokuszeit um bis zu einer halben HP.
           const rundung = 0.5 / plan.referenceDps
           expect(plan.focusSec, `L${level} team${team} ${weapon}`)
-            .toBeLessThanOrEqual(BALANCE.blockers.maxFocusSec + rundung + 1e-9)
+            .toBeLessThanOrEqual(BALANCE.wallHardness.maxFocusSec + rundung + 1e-9)
         }
       }
     }
@@ -30,7 +30,7 @@ describe('Wandhaerte', () => {
     // zwischen Waffen nur noch leicht schwanken, und mehr Feuerkraft muss KUERZER dauern.
     const level = 3
     const team = 8
-    const plaene = WEAPONS.map((weapon) => ({ weapon, ...getBlockerPlan(level, team, weapon as WeaponKey, 1, 3) }))
+    const plaene = WEAPONS.map((weapon) => ({ weapon, ...getWallPlan(level, team, weapon as WeaponKey, 1, 3) }))
     const hps = plaene.map((p) => p.maxHp)
     expect(Math.max(...hps) / Math.min(...hps)).toBeLessThan(5)
 
@@ -43,8 +43,8 @@ describe('Wandhaerte', () => {
   it('belohnt eine groessere Truppe mit kuerzerer Fokuszeit', () => {
     // Im alten Modell blieb die Fokusdauer bei 0,70 s, egal wie stark die Truppe war —
     // Aufruesten war gegen Waende folgenlos. Die Daempfung muss das umdrehen.
-    const klein = getBlockerPlan(3, 2, 'normal', 1, 3)
-    const gross = getBlockerPlan(3, 16, 'normal', 1, 3)
+    const klein = getWallPlan(3, 2, 'normal', 1, 3)
+    const gross = getWallPlan(3, 16, 'normal', 1, 3)
     expect(gross.referenceDps).toBeGreaterThan(klein.referenceDps)
     expect(gross.focusSec).toBeLessThan(klein.focusSec)
     expect(gross.maxHp).toBeGreaterThan(klein.maxHp) // die Zahl waechst trotzdem sichtbar
@@ -52,29 +52,29 @@ describe('Wandhaerte', () => {
 
   it('haelt die Zahl auch im Vollausbau dreistellig statt vierstellig', () => {
     // Altes Modell: 1482 HP auf der Kachel. Der Boden minFocusSec setzt die neue Groesse.
-    const plan = getBlockerPlan(12, BALANCE.crowd.max, 'shotgun', BALANCE.stats.damage.capAtLevelTwelve, BALANCE.stats.shotsPerSec.capAtLevelTwelve)
+    const plan = getWallPlan(12, BALANCE.crowd.max, 'shotgun', BALANCE.stats.damage.capAtLevelTwelve, BALANCE.stats.shotsPerSec.capAtLevelTwelve)
     expect(plan.maxHp).toBeLessThan(1000)
-    expect(plan.focusSec).toBeGreaterThanOrEqual(BALANCE.blockers.minFocusSec - 0.5 / plan.referenceDps - 1e-9)
+    expect(plan.focusSec).toBeGreaterThanOrEqual(BALANCE.wallHardness.minFocusSec - 0.5 / plan.referenceDps - 1e-9)
   })
 
   it('waechst mit dem Level, solange der Deckel nicht greift', () => {
     const stark = { team: 20, weapon: 'normal' as WeaponKey, dmg: 2, rate: 4 }
-    const l1 = getBlockerPlan(1, stark.team, stark.weapon, stark.dmg, stark.rate)
-    const l8 = getBlockerPlan(8, stark.team, stark.weapon, stark.dmg, stark.rate)
+    const l1 = getWallPlan(1, stark.team, stark.weapon, stark.dmg, stark.rate)
+    const l8 = getWallPlan(8, stark.team, stark.weapon, stark.dmg, stark.rate)
     expect(l8.maxHp).toBeGreaterThan(l1.maxHp)
   })
 
   it('faengt einen schwachen Run in hohen Leveln ab', () => {
     // Startteam in Level 12 darf nicht in einer Sackgasse landen.
-    const plan = getBlockerPlan(12, BALANCE.stats.hp.base, 'normal', 1, 3)
-    expect(plan.focusSec).toBeLessThanOrEqual(BALANCE.blockers.maxFocusSec + 0.5 / plan.referenceDps + 1e-9)
+    const plan = getWallPlan(12, BALANCE.stats.hp.base, 'normal', 1, 3)
+    expect(plan.focusSec).toBeLessThanOrEqual(BALANCE.wallHardness.maxFocusSec + 0.5 / plan.referenceDps + 1e-9)
   })
 
   it('haelt einen 3er-Wandabschnitt innerhalb der Bildschirmzeit', () => {
     // Ein Abschnitt ist wallRunLength Segmente tief; er muss abraeumbar sein, bevor er
     // vorbeigezogen ist (Horizont bis unten bei scrollSpeed).
     const bildschirmSec = (844 - BALANCE.road.horizonY) / BALANCE.scrollSpeed
-    const schlimmster = BALANCE.blockers.maxFocusSec * BALANCE.walls.wallRunLength
+    const schlimmster = BALANCE.wallHardness.maxFocusSec * BALANCE.walls.wallRunLength
     expect(schlimmster).toBeLessThan(bildschirmSec)
   })
 })

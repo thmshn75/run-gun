@@ -2,20 +2,20 @@ import { BALANCE } from '../config/balance'
 import { getCombatFirepower, getTeamFirepower } from './bossPlan'
 import type { WeaponKey } from './weapons'
 
-export type BlockerPlan = Readonly<{
+export type WallPlan = Readonly<{
   maxHp: number
   referenceDps: number
   focusSec: number
 }>
 
-export function getBlockerPlan(level: number, teamSize: number, weapon: WeaponKey, damage: number, rate: number): BlockerPlan {
-  const config = BALANCE.blockers
+export function getWallPlan(level: number, teamSize: number, weapon: WeaponKey, damage: number, rate: number): WallPlan {
+  const config = BALANCE.wallHardness
   const safeLevel = Math.max(1, Math.floor(level))
   const dps = Math.max(0.0001, getCombatFirepower(teamSize, weapon, level) * damage * rate)
 
   // Zielhaerte: Levelnummer treibt, die Truppengroesse zieht gedaempft mit. Die WAFFE
   // geht bewusst nicht ein — sie soll die Wand schneller fallen lassen, nicht haerter
-  // machen (Herleitung und verworfenes Vormodell stehen in balance.ts, blockers).
+  // machen (Herleitung und verworfenes Vormodell stehen in balance.ts, wallHardness).
   // Bezug ist die Truppe am Rundenstart (BALANCE.stats.hp.base); der frueher hier
   // stehende Shop-Startwert war dieselbe Zahl und ist mit dem Shop entfallen.
   const teamTerm = (getTeamFirepower(teamSize, level) / getTeamFirepower(BALANCE.stats.hp.base, level)) ** config.teamDampening

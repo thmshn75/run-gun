@@ -195,10 +195,10 @@ describe('Wandkette laeuft in Weltkoordinaten', () => {
   it('zeichnet nach der Segmentmitte, fuehrt den Anker aber getrennt weiter', () => {
     // Regressionsschutz: Nimmt der naechste Frame die gezeichnete Mitte wieder als
     // Anker, wandert die Kachel Bild fuer Bild nach unten aus ihrer Kette heraus.
-    const quelle = readFileSync(new URL('../src/systems/blockers.ts', import.meta.url), 'utf8')
+    const quelle = readFileSync(new URL('../src/systems/walls.ts', import.meta.url), 'utf8')
     expect(quelle).toContain('pair.anchorY = this.advance(pair.anchorY, movement)')
     expect(quelle).toContain('const segment = this.segmentAt(pair.anchorY)')
-    expect(quelle).not.toContain('this.advance(pair.blocker.y')
+    expect(quelle).not.toContain('this.advance(pair.wall.y')
   })
 
   it('faehrt unabhaengig von der Bildrate', () => {
@@ -227,6 +227,6 @@ describe('Wandkette laeuft in Weltkoordinaten', () => {
       strecke += 10
     }
     const gleichzeitigJeSeite = strecke / SEGMENT
-    expect(BALANCE.pools.blockers).toBeGreaterThan(gleichzeitigJeSeite * 2)
+    expect(BALANCE.pools.walls).toBeGreaterThan(gleichzeitigJeSeite * 2)
   })
 })

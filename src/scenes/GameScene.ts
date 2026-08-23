@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
-import { Blockers } from '../systems/blockers'
+import { Walls } from '../systems/walls'
 import { Popups } from '../systems/popups'
 import { Coins } from '../systems/coins'
 import { selectChainLightningTargets } from '../systems/chainLightning'
@@ -131,7 +131,7 @@ export class GameScene extends Phaser.Scene {
   private splashFlashes!: SplashFlashPool
   private chainFlashes!: ChainFlashPool
   private boss!: Boss
-  private blockers!: Blockers
+  private walls!: Walls
   private popups!: Popups
   // Durchbrueche kosten Bruchteile einer Figur (enemy.breakthroughDamageFactor). Sie
   // werden hier gesammelt und erst bei einer vollen Figur eingeloest - sonst gaebe es
@@ -149,7 +149,7 @@ export class GameScene extends Phaser.Scene {
   private lastUnknownCombatOverlapWarningAtMs!: number
   private projectileEnemyCollider!: Phaser.Physics.Arcade.Collider
   private projectileBossCollider: Phaser.Physics.Arcade.Collider | undefined
-  private projectileBlockerCollider: Phaser.Physics.Arcade.Collider | undefined
+  private projectileWallCollider: Phaser.Physics.Arcade.Collider | undefined
   private crowdBossCollider: Phaser.Physics.Arcade.Collider | undefined
   private crowdRewardCollider: Phaser.Physics.Arcade.Collider | undefined
   private crowdPickupCollider: Phaser.Physics.Arcade.Collider | undefined
@@ -196,9 +196,9 @@ export class GameScene extends Phaser.Scene {
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
     this.spawner = new Spawner(this, this.runStats, () => this.crowd.getAnchorX(), (contactDamage) => this.handleBreakthrough(contactDamage))
-    this.blockers = new Blockers(
+    this.walls = new Walls(
       this,
-      (currentWeapon) => this.spawner.chooseBlockerWeapon(currentWeapon),
+      (currentWeapon) => this.spawner.chooseWallWeapon(currentWeapon),
       () => this.weapons.getWeapon(),
       () => this.runStats.get('hp'),
       () => this.runStats.get('damage'),
@@ -244,7 +244,7 @@ export class GameScene extends Phaser.Scene {
       },
     )
     this.popups = new Popups(this)
-    this.crowd.setWallPresenceProvider((y, halfSpan) => this.blockers.getWallPresence(y, halfSpan))
+    this.crowd.setWallPresenceProvider((y, halfSpan) => this.walls.getWallPresence(y, halfSpan))
     this.boss = new Boss(
       this,
       () => this.spawner.allocateSpawnId(),
@@ -315,7 +315,7 @@ export class GameScene extends Phaser.Scene {
       this.handleCombatOverlap(first as Phaser.GameObjects.GameObject, second as Phaser.GameObjects.GameObject)
     })
     this.syncBossColliders()
-    this.syncBlockerColliders()
+    this.syncWallColliders()
     if (BALANCE.debug) {
       this.drawSafeAreaDebug()
       console.debug(`GameScene children: ${this.children.length}`)
@@ -331,11 +331,11 @@ export class GameScene extends Phaser.Scene {
     this.updateLevelPhase(dt)
     if (this.weapons.update(dt) > 0) this.audio.play('shot')
     this.spawner.update(dt)
-    this.blockers.update(dt)
+    this.walls.update(dt)
     this.popups.update(dt)
     this.boss.update(dt)
     this.syncBossColliders()
-    this.syncBlockerColliders()
+    this.syncWallColliders()
     this.coins.update(dt, this.crowd.getAnchorX(), this.crowd.getAnchorY())
     this.splashFlashes.update(dt)
     this.chainFlashes.update(dt)
@@ -373,14 +373,14 @@ export class GameScene extends Phaser.Scene {
   private replaceProjectileColliders(): void {
     this.projectileEnemyCollider?.destroy()
     this.projectileBossCollider?.destroy()
-    this.projectileBlockerCollider?.destroy()
+    this.projectileWallCollider?.destroy()
     this.projectileBossCollider = undefined
-    this.projectileBlockerCollider = undefined
+    this.projectileWallCollider = undefined
 
     const projectiles = this.weapons.getProjectileGroup()
     this.projectileEnemyCollider = this.addCombatOverlap(projectiles, this.spawner.getEnemies())
     if (this.levelPhase === 'boss') this.projectileBossCollider = this.addCombatOverlap(projectiles, this.boss.getEnemy())
-    if (this.blockers.hasActivePair()) this.projectileBlockerCollider = this.addCombatOverlap(projectiles, this.blockers.getBlockers())
+    if (this.walls.hasActivePair()) this.projectileWallCollider = this.addCombatOverlap(projectiles, this.walls.getWalls())
   }
 
   private syncBossColliders(): void {
@@ -399,26 +399,26 @@ export class GameScene extends Phaser.Scene {
     this.crowdBossCollider = undefined
   }
 
-  private syncBlockerColliders(): void {
-    if (this.blockers.hasActivePair()) {
-      if (this.projectileBlockerCollider === undefined) {
-        this.projectileBlockerCollider = this.addCombatOverlap(this.weapons.getProjectileGroup(), this.blockers.getBlockers())
+  private syncWallColliders(): void {
+    if (this.walls.hasActivePair()) {
+      if (this.projectileWallCollider === undefined) {
+        this.projectileWallCollider = this.addCombatOverlap(this.weapons.getProjectileGroup(), this.walls.getWalls())
       }
       if (this.crowdRewardCollider === undefined) {
-        this.crowdRewardCollider = this.addCombatOverlap(this.crowd.getHullBounds(), this.blockers.getRewards())
+        this.crowdRewardCollider = this.addCombatOverlap(this.crowd.getHullBounds(), this.walls.getRewards())
       }
       if (this.crowdPickupCollider === undefined) {
         // Die Sammelplaettchen liegen in derselben Gruppe wie die Wandsegmente; der
         // Handler unterscheidet sie. Wandsegmente kosten bei Beruehrung nichts, das
         // war schon vorher so.
-        this.crowdPickupCollider = this.addCombatOverlap(this.crowd.getHullBounds(), this.blockers.getBlockers())
+        this.crowdPickupCollider = this.addCombatOverlap(this.crowd.getHullBounds(), this.walls.getWalls())
       }
       return
     }
-    this.projectileBlockerCollider?.destroy()
+    this.projectileWallCollider?.destroy()
     this.crowdRewardCollider?.destroy()
     this.crowdPickupCollider?.destroy()
-    this.projectileBlockerCollider = undefined
+    this.projectileWallCollider = undefined
     this.crowdRewardCollider = undefined
     this.crowdPickupCollider = undefined
   }
@@ -473,30 +473,30 @@ export class GameScene extends Phaser.Scene {
     this.weapons.recycle(projectile)
   }
 
-  private handleProjectileBlockerHit(projectile: Phaser.Physics.Arcade.Image, blocker: Phaser.Physics.Arcade.Image): void {
-    if (!projectile.active || !blocker.active) return
+  private handleProjectileWallHit(projectile: Phaser.Physics.Arcade.Image, wall: Phaser.Physics.Arcade.Image): void {
+    if (!projectile.active || !wall.active) return
     const weapon = projectile.getData('weapon') as WeaponKey
     const config = this.weapons.getWeaponConfig(weapon)
     const damage = this.runStats.get('damage') * this.getCrowdDamageMultiplier() * config.damageFactor
     if (config.pierces) {
       const hitSpawnIds = projectile.getData('hitSpawnIds') as Set<number>
-      const spawnId = blocker.getData('spawnId') as number
+      const spawnId = wall.getData('spawnId') as number
       if (hitSpawnIds.has(spawnId)) return
       hitSpawnIds.add(spawnId)
-      if (this.blockers.damage(blocker, damage)) this.audio.play('wallBreak')
+      if (this.walls.damage(wall, damage)) this.audio.play('wallBreak')
       return
     }
-    const impactX = blocker.x
-    const impactY = blocker.y
-    if (this.blockers.damage(blocker, damage)) this.audio.play('wallBreak')
+    const impactX = wall.x
+    const impactY = wall.y
+    if (this.walls.damage(wall, damage)) this.audio.play('wallBreak')
     if (config.splashRadiusPx > 0) {
       const radiusSquared = config.splashRadiusPx * config.splashRadiusPx
       const splashDamage = this.runStats.get('damage') * this.getCrowdDamageMultiplier() * config.splashDamageFactor
-      for (const child of this.blockers.getBlockers().getChildren()) {
+      for (const child of this.walls.getWalls().getChildren()) {
         const candidate = child as Phaser.Physics.Arcade.Image
         const dx = candidate.x - impactX
         const dy = candidate.y - impactY
-        if (candidate.active && dx * dx + dy * dy <= radiusSquared && this.blockers.damage(candidate, splashDamage)) this.audio.play('wallBreak')
+        if (candidate.active && dx * dx + dy * dy <= radiusSquared && this.walls.damage(candidate, splashDamage)) this.audio.play('wallBreak')
       }
       this.splashFlashes.spawn(impactX, impactY, config.splashRadiusPx)
     }
@@ -536,8 +536,8 @@ export class GameScene extends Phaser.Scene {
     const playerProjectile = this.findObjectWithData(first, second, 'weapon')
     if (playerProjectile !== undefined) {
       const enemy = playerProjectile === first ? second : first
-      if (this.blockers.isBlocker(enemy)) {
-        this.handleProjectileBlockerHit(playerProjectile as Phaser.Physics.Arcade.Image, enemy)
+      if (this.walls.isWall(enemy)) {
+        this.handleProjectileWallHit(playerProjectile as Phaser.Physics.Arcade.Image, enemy)
         return
       }
       this.handleProjectileHit(playerProjectile as Phaser.Physics.Arcade.Image, enemy as Phaser.Physics.Arcade.Image)
@@ -547,19 +547,19 @@ export class GameScene extends Phaser.Scene {
     const hull = this.crowd.getHullBounds()
     if (first === hull || second === hull) {
       const target = first === hull ? second : first
-      if (this.blockers.isReward(target)) {
-        const weapon = this.blockers.collect(target)
+      if (this.walls.isReward(target)) {
+        const weapon = this.walls.collect(target)
         if (weapon !== undefined) {
           this.equipWeapon(weapon)
         }
         return
       }
       // Sammelbahn links: durchfahren genuegt, kein Schuss. Der Zuwachs wird in
-      // blockers.collectPickup auf den DANN aktuellen Stand angewandt.
-      if (this.blockers.isPickupSegment(target)) {
+      // walls.collectPickup auf den DANN aktuellen Stand angewandt.
+      if (this.walls.isPickupSegment(target)) {
         // Streifen sammelt nicht, Hineinfahren schon - siehe walls.pickupOverlapFigures.
         if (this.crowdStehtInSammelbahn(target as Phaser.Physics.Arcade.Image)) {
-          this.blockers.collectPickup(target as Phaser.Physics.Arcade.Image)
+          this.walls.collectPickup(target as Phaser.Physics.Arcade.Image)
         }
         return
       }
@@ -569,7 +569,7 @@ export class GameScene extends Phaser.Scene {
       // Gegnerbehandlung durch. Sie hat kein contactDamage, der Trupp wurde damit auf
       // NaN gesetzt und verschwand komplett (Thomas 2026-08-22: "wenn ich mit meinen
       // Spielern nach rechts in eine blaue Wand fahre verschwinden sie ploetzlich").
-      if (this.blockers.isBlocker(target)) return
+      if (this.walls.isWall(target)) return
       const enemyImage = target as Phaser.Physics.Arcade.Image
       if (!this.crowd.overlapsFigure(enemyImage.getBounds())) return
       if (this.elapsedMs < this.enemyContactIframeUntilMs) return
@@ -721,7 +721,7 @@ export class GameScene extends Phaser.Scene {
       this.levelPhase = 'warning'
       this.phaseRemainingMs = BALANCE.level.warningMs
       this.spawner.setSpawningEnabled(false)
-      this.blockers.deactivateAll()
+      this.walls.deactivateAll()
       this.popups.deactivateAll()
       this.levelOverlayBackground.setVisible(false)
       this.levelOverlay.setText('BOSS').setVisible(true)
@@ -749,7 +749,7 @@ export class GameScene extends Phaser.Scene {
   private handleBossDefeated(): void {
     if (this.levelPhase !== 'boss') return
     this.spawner.recycleBossCompanions()
-    this.blockers.deactivateAll()
+    this.walls.deactivateAll()
     this.popups.deactivateAll()
     this.boss.deactivate()
     this.currentLevel += 1
@@ -778,7 +778,7 @@ export class GameScene extends Phaser.Scene {
     this.levelOverlayBackground.setVisible(false)
     this.levelOverlay.setVisible(false)
     this.spawner.resetForLevel(this.currentLevel)
-    this.blockers.resetForLevel(this.currentLevel)
+    this.walls.resetForLevel(this.currentLevel)
   }
 
   private updateBossBar(): void {

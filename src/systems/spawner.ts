@@ -145,7 +145,7 @@ export class Spawner {
     return squads[squads.length - 1].kind
   }
 
-  public chooseBlockerWeapon(currentWeapon: WeaponKey): WeaponKey {
+  public chooseWallWeapon(currentWeapon: WeaponKey): WeaponKey {
     const choices = getWeaponRewardChoices(currentWeapon, this.levelPlan.level)
     return choices[Math.min(choices.length - 1, Math.floor(Phaser.Math.RND.frac() * choices.length))]
   }

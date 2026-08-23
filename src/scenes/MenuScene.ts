@@ -132,8 +132,8 @@ export class MenuScene extends Phaser.Scene {
     const centerX = this.insets.left + safeWidth / 2
     const centerY = (height + this.insets.top - this.insets.bottom) / 2
     const panelWidth = safeWidth - 2 * BALANCE.menu.sidePadding
-    const blocker = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.65).setDepth(10).setInteractive()
-    blocker.on('pointerdown', () => undefined)
+    const wall = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.65).setDepth(10).setInteractive()
+    wall.on('pointerdown', () => undefined)
     const panel = this.add.rectangle(centerX, centerY, panelWidth, 244, MENU_COLORS.row, 1).setDepth(11)
       .setStrokeStyle(2, MENU_COLORS.rowStroke, 1)
     const question = this.add.text(centerX, centerY - 70, 'Alles zurücksetzen?', {
@@ -142,7 +142,7 @@ export class MenuScene extends Phaser.Scene {
     const explanation = this.add.text(centerX, centerY - 32, 'Münzen, Aufwertungen und Bestenliste\ngehen verloren.', {
       fontFamily: 'system-ui', fontSize: '16px', align: 'center', color: this.colorFor(MENU_COLORS.text),
     }).setOrigin(0.5).setDepth(12)
-    this.confirmationObjects.push(blocker, panel, question, explanation)
+    this.confirmationObjects.push(wall, panel, question, explanation)
     this.confirmationObjects.push(...this.addButton(centerX, centerY + 36, panelWidth - 32, 42, 'JA, LÖSCHEN', true, () => {
       this.save = resetSave()
       this.closeResetConfirmation()

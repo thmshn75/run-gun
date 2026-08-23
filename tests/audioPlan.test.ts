@@ -106,7 +106,7 @@ describe('Ton-Auslöser im Spiel', () => {
     // Sterben und Wandbruch haengen am true-Rueckgabewert von damage(), also am
     // tatsaechlichen Zerstoeren, nicht am Treffer.
     expect(gameScene).toContain("if (!this.spawner.damage(enemy, damage)) return\n    this.audio.play('enemyDown')")
-    expect(gameScene).toContain("if (this.blockers.damage(blocker, damage)) this.audio.play('wallBreak')")
+    expect(gameScene).toContain("if (this.walls.damage(wall, damage)) this.audio.play('wallBreak')")
     expect(gameScene).toContain("this.audio.play(delta > 0 ? 'crowdUp' : 'crowdDown')")
     expect(gameScene).toContain("this.audio.play('weaponSwap')")
     expect(gameScene).toContain("this.audio.play('playerHit')")
