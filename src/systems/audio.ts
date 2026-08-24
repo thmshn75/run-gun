@@ -210,24 +210,89 @@ export class GameAudio {
     // zwischen den Akkorden, sie gehen ineinander ueber.
     const dauer = musik.chordSeconds + musik.releaseSeconds
     for (const hz of akkord) {
-      const osz = context.createOscillator()
-      osz.type = 'sine'
-      osz.frequency.value = hz
-      const filter = context.createBiquadFilter()
-      filter.type = 'lowpass'
-      filter.frequency.value = musik.filterHz
-      const huelle = context.createGain()
-      huelle.gain.setValueAtTime(SILENCE, start)
-      huelle.gain.exponentialRampToValueAtTime(musik.volume / akkord.length, start + musik.attackSeconds)
-      huelle.gain.setValueAtTime(musik.volume / akkord.length, start + musik.chordSeconds)
-      huelle.gain.exponentialRampToValueAtTime(SILENCE, start + dauer)
-      osz.connect(filter)
-      filter.connect(huelle)
-      huelle.connect(ziel)
-      osz.start(start)
-      osz.stop(start + dauer + 0.05)
+      this.playPadVoice(hz, musik.volume / akkord.length, start, dauer, true)
     }
+    // REIBUNGSTON: ein Halbton ueber dem Grundton, sehr leise. Zwei so dicht liegende
+    // Toene schweben gegeneinander - man hoert keinen zweiten Ton, sondern Unruhe im
+    // ersten. Ohne Tremolo, sonst wird aus dem Schweben ein Flattern.
+    this.playPadVoice(akkord[0] * 2 ** (1 / 12), musik.frictionVolume, start, dauer, false)
+    this.playPulse(start)
     this.playMelody(start)
+  }
+
+  /**
+   * Eine Flaechenstimme. Saegezahn statt Sinus und optionales Tremolo sind die beiden
+   * Griffe, die den Klang rau und unruhig machen - Herleitung bei BALANCE.audio.music.
+   */
+  private playPadVoice(hz: number, lautstaerke: number, start: number, dauer: number, tremolo: boolean): void {
+    const context = this.context
+    const ziel = this.musicGain
+    if (context === undefined || ziel === undefined) return
+    const musik = BALANCE.audio.music
+
+    const osz = context.createOscillator()
+    osz.type = musik.padType
+    osz.frequency.value = hz
+    const filter = context.createBiquadFilter()
+    filter.type = 'lowpass'
+    filter.frequency.value = musik.filterHz
+    const huelle = context.createGain()
+    huelle.gain.setValueAtTime(SILENCE, start)
+    huelle.gain.exponentialRampToValueAtTime(lautstaerke, start + musik.attackSeconds)
+    huelle.gain.setValueAtTime(lautstaerke, start + musik.chordSeconds)
+    huelle.gain.exponentialRampToValueAtTime(SILENCE, start + dauer)
+    osz.connect(filter)
+    filter.connect(huelle)
+
+    if (tremolo) {
+      // Der LFO moduliert die Lautstaerke ADDITIV: Er haengt an einem eigenen
+      // Gain-Knoten hinter der Huelle, statt an huelle.gain zu ziehen. So bleibt der
+      // Huellkurvenverlauf (Anstieg, Halten, Ausklang) unangetastet und das Zittern
+      // legt sich darueber, statt mit ihm zu kaempfen.
+      const zitter = context.createGain()
+      zitter.gain.value = 1 - musik.tremoloDepth
+      const lfo = context.createOscillator()
+      lfo.type = 'sine'
+      lfo.frequency.value = musik.tremoloHz
+      const tiefe = context.createGain()
+      tiefe.gain.value = musik.tremoloDepth
+      lfo.connect(tiefe)
+      tiefe.connect(zitter.gain)
+      lfo.start(start)
+      lfo.stop(start + dauer + 0.05)
+      huelle.connect(zitter)
+      zitter.connect(ziel)
+    } else {
+      huelle.connect(ziel)
+    }
+
+    osz.start(start)
+    osz.stop(start + dauer + 0.05)
+  }
+
+  /**
+   * Kurzer dumpfer Schlag auf den Akkordwechsel - kein Schlagzeug, eher ein Herzschlag.
+   * Er gibt der Musik einen Koerper, ohne dass etwas mitzaehlt.
+   */
+  private playPulse(start: number): void {
+    const context = this.context
+    const ziel = this.musicGain
+    if (context === undefined || ziel === undefined) return
+    const musik = BALANCE.audio.music
+
+    const osz = context.createOscillator()
+    osz.type = 'sine'
+    // Leicht fallende Tonhoehe - das macht aus einem Piepen einen Schlag.
+    osz.frequency.setValueAtTime(musik.pulseHz, start)
+    osz.frequency.exponentialRampToValueAtTime(musik.pulseHz * 0.6, start + musik.pulseSeconds)
+    const huelle = context.createGain()
+    huelle.gain.setValueAtTime(SILENCE, start)
+    huelle.gain.exponentialRampToValueAtTime(musik.pulseVolume, start + 0.02)
+    huelle.gain.exponentialRampToValueAtTime(SILENCE, start + musik.pulseSeconds)
+    osz.connect(huelle)
+    huelle.connect(ziel)
+    osz.start(start)
+    osz.stop(start + musik.pulseSeconds + 0.05)
   }
 
   /**
@@ -254,7 +319,7 @@ export class GameAudio {
       if (hz <= 0) return
       const tonStart = start + index * abstand
       const osz = context.createOscillator()
-      osz.type = 'triangle'
+      osz.type = musik.padType
       osz.frequency.value = hz
       const filter = context.createBiquadFilter()
       filter.type = 'lowpass'

@@ -285,6 +285,43 @@ export const BALANCE = {
       releaseSeconds: 2.6,
       // Tiefpass nimmt den Obertonanteil weg, der auf Handylautsprechern schrill wirkt.
       filterHz: 850,
+      // KLANGFARBE UND TEXTUR (2026-08-24, zweiter Anlauf). Thomas' erste Rueckmeldung
+      // wurde an den NOTEN abgearbeitet - Tonart, Melodie, Tempo. Das war der falsche
+      // Hebel: Was diese Art Musik ausmacht, ist nicht die Notenwahl, sondern der Klang
+      // selbst. Ein Sinuston bleibt weich und freundlich, egal welche Noten er spielt.
+      //
+      // Drei Merkmale, alle unabhaengig von der Melodie und deshalb frei umsetzbar:
+      //
+      // 1. SAEGEZAHN STATT SINUS. Ein Sinus hat nur den Grundton, ein Saegezahn alle
+      //    Obertoene - stark tiefpassgefiltert ergibt das den rauen, streicherartigen
+      //    Klang, den weiche Flaechen nicht haben. Der Filter bleibt tief, sonst wird
+      //    es scharf statt dunkel.
+      padType: 'sawtooth' as OscillatorType,
+      // 2. TREMOLO. Die Flaechen zittern, statt still zu stehen. Das ist der
+      //    wirksamste einzelne Griff fuer Unruhe und kostet nichts: ein langsamer
+      //    Oszillator auf die Lautstaerke. 5,5 Hz liegt im Bereich, den das Ohr als
+      //    Beben liest und nicht als Rhythmus.
+      tremoloHz: 5.5,
+      // Anteil der Lautstaerke, der moduliert wird. Bei 1,0 setzt der Ton zwischendurch
+      // ganz aus - das klingt nach Effekt. 0,45 laesst ihn stehen und atmen.
+      tremoloDepth: 0.45,
+      // 3. REIBUNG. Ein zweiter Ton einen HALBTON ueber dem Akkordgrundton, sehr leise.
+      //    Zwei so dicht liegende Toene schweben gegeneinander - man hoert keinen
+      //    zweiten Ton, sondern eine Unruhe im ersten. Deutlich leiser als die
+      //    Akkordstimmen, sonst klingt es nach Fehler statt nach Absicht.
+      frictionVolume: 0.018,
+      // TIEFER PULS. Ein kurzer, dumpfer Schlag auf jeden Akkordwechsel - kein
+      // Schlagzeug, eher ein Herzschlag. Er gibt der Musik einen Koerper, ohne dass
+      // etwas mitzaehlt.
+      //
+      // Liegt ZWISCHEN Drone (110 Hz) und tiefstem Akkordton (196 Hz): tief genug, um
+      // dumpf zu wirken, hoch genug, dass ein Handylautsprecher ihn wiedergibt. Stand
+      // zuerst bei 82 Hz - das war der Wert aus dem Entwurf mit dem tieferen Drone und
+      // blieb beim Anheben der Lage stehen. Auf dem iPhone waere davon nichts
+      // angekommen; ein Test haelt die Reihenfolge jetzt fest.
+      pulseHz: 138.0,
+      pulseVolume: 0.09,
+      pulseSeconds: 0.45,
       // KARGE LAGE, phrygisch auf a. Bewusst OHNE Terz: Quinte und Oktave lassen offen,
       // ob Dur oder Moll gemeint ist - das ist der hohle Klang, um den es geht.
       // Akkord 2 ist der Halbtonschritt darueber (b), das charakteristische Intervall

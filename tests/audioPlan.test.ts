@@ -235,3 +235,37 @@ describe('Musik: duesterer Charakter (Thomas 2026-08-24)', () => {
     expect(musik.droneVolume).toBeGreaterThan(0)
   })
 })
+
+describe('Musik: Klangfarbe und Textur (Thomas 2026-08-24, zweiter Anlauf)', () => {
+  it('nutzt einen obertonreichen Klang statt weicher Sinustoene', () => {
+    // Der erste Anlauf arbeitete an den NOTEN (Tonart, Melodie, Tempo) und traf den
+    // Klang nicht. Ein Sinuston bleibt weich, egal welche Noten er spielt - die
+    // Klangfarbe ist der Hebel, nicht die Notenwahl.
+    expect(BALANCE.audio.music.padType).not.toBe('sine')
+  })
+
+  it('haelt das Tremolo im Bereich, den das Ohr als Beben liest', () => {
+    // Unter ~3 Hz hoert man einzelne Schwankungen, ueber ~8 Hz wird es zum Schnarren.
+    const musik = BALANCE.audio.music
+    expect(musik.tremoloHz).toBeGreaterThan(3)
+    expect(musik.tremoloHz).toBeLessThan(8)
+    // Bei Tiefe 1,0 setzt der Ton zwischendurch ganz aus - das klingt nach Effekt.
+    expect(musik.tremoloDepth).toBeGreaterThan(0)
+    expect(musik.tremoloDepth).toBeLessThan(1)
+  })
+
+  it('haelt den Reibungston deutlich unter den Akkordstimmen', () => {
+    // Er soll als Unruhe IM Akkord wirken, nicht als eigener Ton. Zu laut klingt es
+    // nach Fehler statt nach Absicht.
+    const musik = BALANCE.audio.music
+    expect(musik.frictionVolume).toBeLessThan(musik.volume / musik.chords[0].length)
+  })
+
+  it('setzt den Puls zwischen Drone und Akkord, damit er sich absetzt', () => {
+    const musik = BALANCE.audio.music
+    expect(musik.pulseHz).toBeGreaterThan(musik.droneHz)
+    expect(musik.pulseHz).toBeLessThan(Math.min(...musik.chords.flat()))
+    // Kurz: ein Schlag, kein Ton.
+    expect(musik.pulseSeconds).toBeLessThan(musik.chordSeconds / 4)
+  })
+})
