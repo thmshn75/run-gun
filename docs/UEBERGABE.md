@@ -1,6 +1,6 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-25 (Nachtlauf: E1, Ton, Waffenstaffelung, E3, Sammelbahn gebaut)
+Stand: 2026-08-25 (Nachtlauf fertig: E1, Ton, Waffen, E3, Sammelbahn, E4, E2)
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat), gespielt von Benni (7).
@@ -39,22 +39,30 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   Er war gemessen 1,35x stark, aber die traegste Waffe im Spiel. Pool 12 -> 24.
 - **Linke Sammelbahn** — wird mit dem Level dichter (kuerzere Kacheln, nicht schneller).
   Plaettchen je Sekunde: Level 1 1,88 (unveraendert) bis Level 30 3,65.
+- **E4 Dauerhafte Aufwertungen** — eigener Menue-Knopf, eigene Ansicht, zwei Linien
+  SCHLAGKRAFT und MANNSCHAFT a fuenf Stufen (6.000 x1,7). Gemeinsamer Deckel mit dem
+  Run-Shop auf der Feuerkraft. Waffenkauf noch offen.
+- **E2 Preise** — 37,5 % -> 200 % der Levelseinnahme je Stufe. Ein Run bis Level 12
+  erlaubt 9 von 22 Stufen. Der Knopf zeigt "NOCH ¢ X" statt tot dazustehen.
 
 ## Offen — naechster Schritt zuerst
-1. **Bennis iPhone-Test.** Alles unten Gebaute ist im Browser gemessen, aber Gamefeel
-   gilt erst nach seinem Test. Konkrete Fragen: Wird es ab Level 13 spuerbar schwerer?
-   Reicht die Pistole auf Level 1? Faellt auf, dass die linke Bahn spaeter dichter wird?
-2. **Zwei Entscheidungen fuer Thomas** (beide dokumentiert, nicht eigenmaechtig getroffen):
-   - **Waffen-Staerkeband.** Der V4-Plan wollte die spaeten Waffen bis 1,85x. Gerechnet
-     hebt alles ueber **1,25x** den E1-Effekt auf: Level 30 waere mit so einer Waffe
-     LEICHTER als Level 12. Das Band endet deshalb beim heutigen Maximum (Rakete 1,45x),
-     die vier neuen unterscheiden sich durch WIRKUNG statt durch die Zahl. Sollen sie
-     deutlich staerker sein, muss die Levelhaerte mit — und das sprengt den Korridor.
-   - **Schwierigkeits-Korridor 4–12 %.** Er laesst nur eine flache Steigerung zu
-     (Level 12: 7,5 %, Level 30: 8,7 %). Mehr geht nur, wenn der Korridor steigt.
-3. **Startbildschirm-Shop** (E4 + Thomas' Waffenkauf) — noch nicht gebaut, groesste
-   offene Etappe. Danach **E2 Preise**, dann E5 Gegner-Gestalten und E7 Elite-Boss
-   (beide brauchen Bilder, Abnahme ist Geschmackssache).
+1. **Bennis iPhone-Test.** Alles Gebaute ist im Browser gemessen, Gamefeel gilt erst
+   nach seinem Test. Konkrete Fragen: Wird es ab Level 13 spuerbar schwerer? Reicht die
+   Pistole auf Level 1? Sind die neuen Preise zu hart?
+2. **Vier Entscheidungen fuer Thomas** — alle dokumentiert, keine eigenmaechtig getroffen:
+   - **Waffenkauf im Menue-Shop.** Nicht gebaut. Seine Beschreibung ("im Startbildschirm
+     ... wo man dann auch Waffen kaufen kann" plus "gekaufte nur in den laufenden Runs")
+     laesst offen, fuer welchen Run ein im MENUE getaetigter Kauf gilt.
+   - **Waffen-Staerkeband.** Der Plan wollte bis 1,85x. Alles ueber **1,25x** hebt den
+     E1-Effekt auf: Level 30 waere damit LEICHTER als Level 12. Das Band endet deshalb
+     beim heutigen Maximum (Rakete 1,45x).
+   - **Stufenzahl im Run-Shop.** Bleibt bei elf, der Shop ist ab Level 13 also leer. Der
+     Versuch mit 22 Stufen scheiterte daran, dass ein Kauf dann die Anzeige nicht mehr
+     bewegt. Mehr Stufen gehen nur mit feinerer Anzeige oder hoeherer Endwirkung.
+   - **Schwierigkeits-Korridor 4–12 %.** Laesst nur eine flache Steigerung zu
+     (Level 12: 7,5 %, Level 30: 8,7 %).
+3. Danach **E5 Gegner-Gestalten** und **E7 Elite-Boss** — beide brauchen Bilder, und
+   deren Abnahme ist Geschmackssache.
 
 ## Wissen, das sonst Zyklen kostet
 - **Der Durchkommensanteil ist bistabil UND seine Empfindlichkeit waechst mit.**
@@ -74,6 +82,11 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
 - **Der Wandsegment-Zaehler laesst sich nicht ueber `spawn` messen** - eine Sonde darauf
   zeigte Faktor 7,5 zu wenig. Die Kachelhoehe direkt aus `walls.getSegmentHeight(side)`
   lesen; die Kette selbst laesst sich ueber `walls.pairs.filter(p => p.active)` pruefen.
+- **Die Anzeige rundet auf eine Nachkommastelle.** Ein Bonus unter rund 2 % je Stufe
+  bewegt sie nicht mehr - genau daran ist die Erweiterung des Run-Shops auf 22 Stufen
+  gescheitert. Wer die Stufenzahl erhoehen will, muss zuerst die Anzeige feiner machen.
+- **Feuerkraft-Deckel muessen auf das PRODUKT wirken**, nicht auf jeden Wert einzeln.
+  Ein Deckel von 1,7 je auf Schaden und Rate laesst zusammen 1,9 zu.
 - **`getEnemyHp` rundet auf ganze Punkte.** Der leichte Gegner (2 Punkte) waechst mit
   0,3 %/Level bis Level 87 nicht. Kleine Wachstumsfaktoren wirken bei kleinen
   Grundwerten gar nicht.
