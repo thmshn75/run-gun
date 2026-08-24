@@ -197,7 +197,10 @@ describe('Wandkette laeuft in Weltkoordinaten', () => {
     // Anker, wandert die Kachel Bild fuer Bild nach unten aus ihrer Kette heraus.
     const quelle = readFileSync(new URL('../src/systems/walls.ts', import.meta.url), 'utf8')
     expect(quelle).toContain('pair.anchorY = this.advance(pair.anchorY, movement)')
-    expect(quelle).toContain('const segment = this.segmentAt(pair.anchorY)')
+    // Die Signatur traegt seit 2026-08-24 die Seite mit: Links und rechts haben
+    // unterschiedlich hohe Kacheln (walls.leftLane), die Segmentgeometrie haengt also
+    // nicht mehr allein am Anker.
+    expect(quelle).toContain('const segment = this.segmentAt(pair.anchorY, pair.side)')
     expect(quelle).not.toContain('this.advance(pair.wall.y')
   })
 

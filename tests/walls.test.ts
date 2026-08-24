@@ -189,18 +189,31 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
 
   it('runs both walls as gapless chains sized by the derived pool', () => {
     const source = readFileSync(new URL('../src/systems/walls.ts', import.meta.url), 'utf8')
-    // Kette statt Takt: Nach jeweils einer Segmenthoehe Scroll schliesst beidseitig das
-    // naechste Segment am Horizont an — unabhaengig vom Zustand aelterer Segmente.
-    expect(source).toContain('this.chainAccumulatorPx += movement')
-    expect(source).toContain('while (this.chainAccumulatorPx >= BALANCE.walls.segmentHeightPx)')
+    // Kette statt Takt: Nach jeweils einer Segmenthoehe Scroll schliesst das naechste
+    // Segment am Horizont an — unabhaengig vom Zustand aelterer Segmente.
+    // JE SEITE ein eigener Akkumulator seit 2026-08-24: Die linke Bahn wird mit dem
+    // Level dichter (walls.leftLane), und ein gemeinsamer Takt kann nur eine
+    // Schrittweite haben.
+    expect(source).toContain('this.chainAccumulatorPx[side] += movement')
+    expect(source).toContain('while (this.chainAccumulatorPx[side] >= hoehe)')
     // Abschnitts-Muster: Wand-Slots nach isWallSlot, rechts versetzt gestartet.
     expect(source).toContain('isWallSlot(this.slotIndex[side], BALANCE.walls.wallRunLength, BALANCE.walls.wallGapSlots)')
     expect(source).toContain('right: BALANCE.walls.wallRightOffsetSlots')
-    // Pool-Herleitung: sichtbare Slots je Seite x Wandanteil plus das anschliessende,
-    // beidseitig, plus Waffen-Reward-Nachlauf und Reserve.
+    // Pool-Herleitung, NEU GERECHNET am 2026-08-24: Die beiden Seiten haben seither
+    // unterschiedlich hohe Kacheln, eine gemeinsame Zahl je Seite reicht nicht mehr.
+    //
+    // LINKS ist die Bahn durchgehend und bei voller Dichte am kuerzesten - dort stehen
+    // die meisten Segmente gleichzeitig im Bild. Genau dieser Fall bemisst den Pool;
+    // die alte Rechnung ging von 72 px auf beiden Seiten aus und haette den Zuwachs
+    // um die Haelfte unterschaetzt.
+    const sichtbareStrecke = 844 - BALANCE.road.horizonY
+    const kuerzesteLinks = BALANCE.walls.segmentHeightPx / BALANCE.walls.leftLane.densityCap
+    const linksSichtbar = Math.ceil(sichtbareStrecke / kuerzesteLinks)
     const cycle = BALANCE.walls.wallRunLength + BALANCE.walls.wallGapSlots
-    const visiblePerSide = Math.ceil(Math.ceil((844 - BALANCE.road.horizonY) / BALANCE.walls.segmentHeightPx) * (BALANCE.walls.wallRunLength / cycle))
-    expect(BALANCE.pools.walls).toBeGreaterThanOrEqual((visiblePerSide + 1) * 2 + 2)
+    const rechtsSichtbar = Math.ceil(Math.ceil(sichtbareStrecke / BALANCE.walls.segmentHeightPx) * (BALANCE.walls.wallRunLength / cycle))
+    // Je Seite eines mehr fuer das gerade am Horizont anschliessende, plus zwei fuer
+    // den Waffen-Reward-Nachlauf.
+    expect(BALANCE.pools.walls).toBeGreaterThanOrEqual(linksSichtbar + 1 + rechtsSichtbar + 1 + 2)
   })
 
   it('preallocates every wall pair once and never creates or destroys in the hot path', () => {
@@ -238,4 +251,43 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     expect(cases).toBe(2016)
   })
 
+})
+
+describe('Linke Sammelbahn wird mit dem Level dichter (Thomas 2026-08-24)', () => {
+  const dichte = (level: number): number => {
+    const { densityAtLevelOne, densityPerLevel, densityCap } = BALANCE.walls.leftLane
+    return Math.min(densityCap, densityAtLevelOne + (level - 1) * densityPerLevel)
+  }
+  const hoeheLinks = (level: number): number => BALANCE.walls.segmentHeightPx / dichte(level)
+
+  it('liefert auf hohen Leveln mehr Plaettchen je Sekunde als auf Level 1', () => {
+    // "damit man bei hoeheren Leveln schneller aufladen kann". Auf Level 1 unveraendert,
+    // damit der Einstieg bleibt, wie Thomas ihn abgenommen hat.
+    expect(hoeheLinks(1)).toBe(BALANCE.walls.segmentHeightPx)
+    expect(hoeheLinks(20)).toBeLessThan(hoeheLinks(1))
+    expect(hoeheLinks(30)).toBeLessThan(hoeheLinks(20))
+  })
+
+  it('steigt in spuerbaren Schritten, nicht schleichend', () => {
+    // Thomas' Vorgabe war "alle 2 oder 3 Level ein wenig schneller". Zu klein waere
+    // folgenlos, zu gross ein Sprung - beides waere hier zu sehen.
+    const proZweiLevel = dichte(3) / dichte(1)
+    expect(proZweiLevel).toBeGreaterThan(1.02)
+    expect(proZweiLevel).toBeLessThan(1.12)
+  })
+
+  it('deckelt die Dichte, bevor die Kachel unlesbar wird', () => {
+    // Unter rund 45 px passt die Beschriftung nicht mehr in die Kachel. Der Deckel ist
+    // aus dieser Grenze hergeleitet, nicht gewaehlt.
+    for (const level of [30, 60, 200]) {
+      expect(hoeheLinks(level)).toBeGreaterThanOrEqual(45)
+    }
+    expect(dichte(200)).toBe(BALANCE.walls.leftLane.densityCap)
+  })
+
+  it('laesst die RECHTE Bahn unangetastet', () => {
+    // "und nur diese" - rechts stehen die Waffen- und Wertkacheln, die zerschossen
+    // werden. Eine dichtere rechte Bahn waere eine Balance-Aenderung, keine Bequemlichkeit.
+    expect(BALANCE.walls.segmentHeightPx).toBe(72)
+  })
 })

@@ -365,6 +365,46 @@ export const BALANCE = {
     // versetzt, damit nie beide Seiten gleichzeitig dicht sind. Kacheln quer
     // (unten 136 x 72), groesser als zuvor gegen das "kommt zu schnell"-Gefuehl.
     segmentHeightPx: 72,
+    // DIE LINKE SAMMELBAHN WIRD MIT DEM LEVEL DICHTER (Thomas 2026-08-24: "dass die
+    // Waende der +1 Teams links (und nur diese) alle 2 oder 3 Level ein wenig schneller
+    // werden, damit man bei hoeheren Leveln schneller aufladen kann").
+    //
+    // WARUM NICHT UEBER DIE GESCHWINDIGKEIT: Die Welt faehrt mit levelSpeed und ist bei
+    // 175 px/s hart gedeckelt - 180 px/s hat Thomas selbst als "zu schnell" gemeldet.
+    // Ab Level 12 steht das Tempo also, und mit ihm der Nachschub der Bahn. Eine
+    // schnellere linke Bahn muesste ausserdem sichtbar schneller laufen als die Strasse,
+    // auf der sie steht.
+    //
+    // STATTDESSEN KUERZERE KACHELN: Bei gleicher Fahrgeschwindigkeit passen mehr davon
+    // in dieselbe Strecke, es kommen also mehr +1 je Sekunde an. Kuerzen statt enger
+    // setzen ist entscheidend - bei gleichbleibender Kachelhoehe wuerden sie einander
+    // ueberlappen und die Beschriftungen uebereinanderliegen.
+    //
+    // GERECHNET: Bei 135 px/s (Level 1) und 72 px Kachel kommen 1,875 Kacheln/s. Mit
+    // dem Deckel 1,5 sind es 48 px Kachel, bei 175 px/s (ab Level 12) also 3,65/s statt
+    // 2,43/s - rund 50 % mehr Teamnachschub am oberen Ende.
+    //
+    // 0,02 je Level heisst rund ein spuerbarer Schritt alle zwei bis drei Level, wie
+    // gewuenscht. Der Deckel 1,5 ist nicht frei gewaehlt: Darunter wird die Kachel
+    // kuerzer als die Figur breit ist, und die Beschriftung passt nicht mehr hinein.
+    //
+    // ACHTUNG, gilt auch fuer die ROTEN: Die Bahn traegt gute UND schlechte Kacheln im
+    // Verhaeltnis badChance. Dichter heisst mehr von beidem - netto bleibt ein Gewinn,
+    // aber kein doppelter.
+    //
+    // GEMESSEN im laufenden Spiel (Kachelhoehe direkt aus walls.getSegmentHeight):
+    //   Level  1: 72,0 px links / 72 rechts -> 1,88 Plaettchen/s
+    //   Level 10: 61,0 px       / 72        -> 2,73/s
+    //   Level 20: 52,2 px       / 72        -> 3,35/s
+    //   Level 30: 48,0 px       / 72        -> 3,65/s  (Deckel ab Level 26)
+    // Das ist fast eine VERDOPPELUNG (+94 %) statt der gerechneten +50 %: Kuerzere
+    // Kacheln und das mit dem Level steigende Fahrtempo multiplizieren sich. Level 1
+    // bleibt unveraendert, die rechte Bahn durchgehend bei 72 px.
+    leftLane: {
+      densityAtLevelOne: 1,
+      densityPerLevel: 0.02,
+      densityCap: 1.5,
+    },
     // Gilt nur noch RECHTS. Links laeuft die Sammelbahn seit 2026-08-22 durchgehend
     // ohne Pausen (Thomas: "die linken Waende durchgehend ohne Pausen") - sie ist kein
     // Hindernis, also braucht es dort keine Ausweichluecke.

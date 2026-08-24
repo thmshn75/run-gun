@@ -85,7 +85,7 @@ export class Walls {
   private readonly badRun: Record<WallSide, number> = { left: 0, right: 0 }
   // Rechts versetzt gestartet, damit die Luecken der beiden Seiten nie synchron liegen.
   private readonly slotIndex: Record<WallSide, number> = { left: 0, right: BALANCE.walls.wallRightOffsetSlots }
-  private chainAccumulatorPx: number
+  private readonly chainAccumulatorPx: { left: number; right: number }
   private currentLevel: number
   private elapsedMs: number
   private lastPoolWarningAtMs: number
@@ -121,7 +121,9 @@ export class Walls {
     this.wallGroup = scene.physics.add.group()
     this.rewardGroup = scene.physics.add.group()
     // Kette startet sofort: der erste update() spawnt das erste Segmentpaar.
-    this.chainAccumulatorPx = BALANCE.walls.segmentHeightPx
+    // JE SEITE ein eigener Akkumulator, seit die linke Bahn mit dem Level dichter wird
+    // (walls.leftLane) - ein gemeinsamer Takt kann nur eine Schrittweite haben.
+    this.chainAccumulatorPx = { left: BALANCE.walls.segmentHeightPx, right: BALANCE.walls.segmentHeightPx }
     this.currentLevel = 1
     this.elapsedMs = 0
     this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
@@ -150,7 +152,8 @@ export class Walls {
   public resetForLevel(level: number): void {
     this.currentLevel = Math.max(1, Math.floor(level))
     this.deactivateAll()
-    this.chainAccumulatorPx = BALANCE.walls.segmentHeightPx
+    this.chainAccumulatorPx.left = this.getSegmentHeight('left')
+    this.chainAccumulatorPx.right = this.getSegmentHeight('right')
   }
 
   public deactivateAll(): void {
@@ -276,10 +279,11 @@ export class Walls {
     // Dauerwand-Kette: sobald das zuletzt gespawnte Paar eine Segmenthoehe gescrollt
     // ist, schliesst am Horizont das naechste an — unabhaengig vom Objektzustand,
     // damit ein frueh zerschossenes Segment die Kette nicht stocken laesst.
-    this.chainAccumulatorPx += movement
-    while (this.chainAccumulatorPx >= BALANCE.walls.segmentHeightPx) {
-      this.chainAccumulatorPx -= BALANCE.walls.segmentHeightPx
-      for (const side of ['left', 'right'] as const) {
+    for (const side of ['left', 'right'] as const) {
+      const hoehe = this.getSegmentHeight(side)
+      this.chainAccumulatorPx[side] += movement
+      while (this.chainAccumulatorPx[side] >= hoehe) {
+        this.chainAccumulatorPx[side] -= hoehe
         // Links durchgehend ohne Pausen: Die Sammelbahn ist kein Hindernis, also
         // braucht sie keine Ausweichluecke. Rechts bleiben die Abschnitte, dort muss
         // die Truppe zwischen Wand und Strassenrand ausweichen koennen.
@@ -376,7 +380,7 @@ export class Walls {
     const pair = this.pairs.find((candidate) => !candidate.active)
     if (pair === undefined) return this.warnPoolExhausted()
     const anchorY = BALANCE.road.horizonY
-    const segment = this.segmentAt(anchorY)
+    const segment = this.segmentAt(anchorY, side)
     const y = segment.centerY
     const geometry = this.wallGeometry(side, y)
     const plan = getWallPlan(this.currentLevel, this.getTeamSize(), this.getCurrentWeapon(), this.getDamage(), this.getShotsPerSec())
@@ -440,7 +444,7 @@ export class Walls {
       // Welt-Bewegung statt Bildschirm-Bewegung: Am Horizont deckt dieselbe Weltstrecke
       // weniger Pixel ab, das Segment kriecht dort und beschleunigt beim Naeherkommen -
       // wie die Haeuser daneben.
-      const segment = this.segmentAt(pair.anchorY)
+      const segment = this.segmentAt(pair.anchorY, pair.side)
       const geometry = this.wallGeometry(pair.side, segment.centerY)
       pair.wall.setPosition(geometry.x, segment.centerY)
       pair.wall.setDisplaySize(geometry.width, segment.height)
@@ -459,7 +463,7 @@ export class Walls {
       }
     }
     if (pair.content !== 'weapon') return
-    const rewardY = this.segmentAt(pair.anchorY).centerY
+    const rewardY = this.segmentAt(pair.anchorY, pair.side).centerY
     const rewardGeometry = this.wallGeometry(pair.side, rewardY)
     pair.reward.setPosition(pair.broken ? this.rewardCollectX(pair, rewardY) : rewardGeometry.x, rewardY)
     this.fitRewardToWall(pair, rewardGeometry.width)
@@ -472,9 +476,23 @@ export class Walls {
     return advanceAlongRoad(this.scene.scale.width, this.scene.scale.height, y, worldPx)
   }
 
+  /**
+   * Kachelhoehe der Seite. Rechts konstant; LINKS schrumpft sie mit dem Level, damit
+   * mehr +1 je Sekunde ankommen (Herleitung bei BALANCE.walls.leftLane).
+   *
+   * Gekuerzt statt enger gesetzt: Bei gleichbleibender Hoehe wuerden die Kacheln
+   * einander ueberlappen und ihre Beschriftungen uebereinanderliegen.
+   */
+  public getSegmentHeight(side: WallSide): number {
+    if (side === 'right') return BALANCE.walls.segmentHeightPx
+    const { densityAtLevelOne, densityPerLevel, densityCap } = BALANCE.walls.leftLane
+    const dichte = Math.min(densityCap, densityAtLevelOne + (this.currentLevel - 1) * densityPerLevel)
+    return BALANCE.walls.segmentHeightPx / dichte
+  }
+
   /** Wo die Kachel mit Weltanker y zu zeichnen ist und wie hoch - siehe getRoadSegment. */
-  private segmentAt(anchorY: number): { centerY: number; height: number } {
-    return getRoadSegment(this.scene.scale.width, this.scene.scale.height, anchorY, BALANCE.walls.segmentHeightPx)
+  private segmentAt(anchorY: number, side: WallSide): { centerY: number; height: number } {
+    return getRoadSegment(this.scene.scale.width, this.scene.scale.height, anchorY, this.getSegmentHeight(side))
   }
 
   private roadScaleAt(y: number): number {
