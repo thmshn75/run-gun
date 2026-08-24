@@ -1,6 +1,6 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-24 (V4-E1 gebaut und gemessen, wartet auf iPhone-Test)
+Stand: 2026-08-25 (Nachtlauf: E1, Ton, Waffenstaffelung, E3, Sammelbahn gebaut)
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat), gespielt von Benni (7).
@@ -24,21 +24,37 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
 - V3 brachte: Sammelbahn-Fix, Startruckeln behoben (Kollisions-Suchbaum fraß 48 % der
   Rechenzeit), Shop nach jedem Level, Weiterspielen + Fortsetzen, Zombie-Farbvarianten,
   Granatwerfer, Waffenstaffelung, Musik statt Geballer, scharfe Schrift.
-- **V4-E1 Endlos-Skalierung** — gebaut, gemessen, committet; iPhone-Test steht aus.
-  Der Modulo-Ruecksprung ist weg (Level 13 war siebenmal leichter als Level 12),
-  Spielstand-Migration mit Marker, Bestenliste bei „SPEICHERN & BEENDEN".
+- **V4-E1 Endlos-Skalierung** — Der Modulo-Ruecksprung ist weg (Level 13 war siebenmal
+  leichter als Level 12), Spielstand-Migration mit Marker, Bestenliste bei „SPEICHERN &
+  BEENDEN". Durchkommensanteil auf Level 12/16/20/25/30: 7,5 / 9,2 / 9,4 / 8,1 / 8,7 %.
+- **Ton** — alle sieben Klangeffekte aus, nur Musik (Schalter `audio.effectsEnabled`).
+  Musik: zwei Umbauversuche zurueckgebaut, geblieben ist 6 -> 4 s je Akkord.
+- **Waffenstaffelung auf dreizehn Waffen** — Pistole 1, Sturmgewehr 2, Shotgun 3,
+  Minigun 5, Laser 7, Flamme 9, Blitz 11, Rakete 13, Granate 15, dann 18/21/25/30.
+  Der Haertegewinn steckt in der Umsortierung: Die Rakete ist die staerkste Waffe des
+  Spiels und war ab Level 3 zu haben. Gemessen: Pistole auf Level 1 bei 3,8 % gegen
+  3,4 % mit dem Sturmgewehr — sie ist messbar NICHT schwaecher, weil dort der Nachschub
+  der Engpass ist und nicht die Feuerkraft.
+- **E3 Granatwerfer** — nicht staerker, sondern schneller: Rate +73 %, Schaden -15 %.
+  Er war gemessen 1,35x stark, aber die traegste Waffe im Spiel. Pool 12 -> 24.
+- **Linke Sammelbahn** — wird mit dem Level dichter (kuerzere Kacheln, nicht schneller).
+  Plaettchen je Sekunde: Level 1 1,88 (unveraendert) bis Level 30 3,65.
 
 ## Offen — naechster Schritt zuerst
-1. **Bennis iPhone-Test von E1.** Die Endlos-Skalierung ist gebaut und im Browser
-   gemessen (Korridor haelt auf Level 12/16/20/25/30), aber Gamefeel gilt erst nach
-   seinem Test. **Konkrete Frage an ihn: Wird es ab Level 13 spuerbar schwerer?**
-2. **Thomas' Urteil zur Steigung** (er wollte nach E1 entscheiden). Der Korridor 4–12 %
-   laesst nur eine flache Steigerung zu — Details in `docs/active-task.md`, Abschnitt
-   „Offen fuer Thomas' Urteil". Will Benni mehr Widerstand, muss der Korridor angehoben
-   werden.
-3. Danach E2 Preise + Shop-Rhythmus · E3 Granatwerfer · E4 Meta-Ausbau ·
-   E5/E6/E7 Gegner-Gestalten, vier neue Waffen, Elite-Boss (gemeinsamer Codex-
-   Bildauftrag frueh rausschicken).
+1. **Bennis iPhone-Test.** Alles unten Gebaute ist im Browser gemessen, aber Gamefeel
+   gilt erst nach seinem Test. Konkrete Fragen: Wird es ab Level 13 spuerbar schwerer?
+   Reicht die Pistole auf Level 1? Faellt auf, dass die linke Bahn spaeter dichter wird?
+2. **Zwei Entscheidungen fuer Thomas** (beide dokumentiert, nicht eigenmaechtig getroffen):
+   - **Waffen-Staerkeband.** Der V4-Plan wollte die spaeten Waffen bis 1,85x. Gerechnet
+     hebt alles ueber **1,25x** den E1-Effekt auf: Level 30 waere mit so einer Waffe
+     LEICHTER als Level 12. Das Band endet deshalb beim heutigen Maximum (Rakete 1,45x),
+     die vier neuen unterscheiden sich durch WIRKUNG statt durch die Zahl. Sollen sie
+     deutlich staerker sein, muss die Levelhaerte mit — und das sprengt den Korridor.
+   - **Schwierigkeits-Korridor 4–12 %.** Er laesst nur eine flache Steigerung zu
+     (Level 12: 7,5 %, Level 30: 8,7 %). Mehr geht nur, wenn der Korridor steigt.
+3. **Startbildschirm-Shop** (E4 + Thomas' Waffenkauf) — noch nicht gebaut, groesste
+   offene Etappe. Danach **E2 Preise**, dann E5 Gegner-Gestalten und E7 Elite-Boss
+   (beide brauchen Bilder, Abnahme ist Geschmackssache).
 
 ## Wissen, das sonst Zyklen kostet
 - **Der Durchkommensanteil ist bistabil UND seine Empfindlichkeit waechst mit.**
@@ -51,6 +67,13 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
 - **Feuerkraft ist ein Produkt** aus Schuetzenzahl x Truppenbonus x Schaden x Rate. Im
   Endlosbereich traegt nur `stats.endless.damageGrowthPerLevel` den Zuwachs; `shotsPerSec`
   und `crowd.damageMultiplierCap*` stehen bewusst still, und ein Test haelt das fest.
+- **Auf den unteren Leveln ist der NACHSCHUB der Engpass, nicht die Feuerkraft.** Jede
+  Waffe raeumt dort weg, was ankommt. Waffenstaerken trennen sich erst unter Ueberlast
+  (hohes Level, kleine Truppe, niedrige Werte) - das hat in einer Nacht drei Messreihen
+  gekostet. Auch die Pistole ist deshalb auf Level 1 nicht messbar schwaecher.
+- **Der Wandsegment-Zaehler laesst sich nicht ueber `spawn` messen** - eine Sonde darauf
+  zeigte Faktor 7,5 zu wenig. Die Kachelhoehe direkt aus `walls.getSegmentHeight(side)`
+  lesen; die Kette selbst laesst sich ueber `walls.pairs.filter(p => p.active)` pruefen.
 - **`getEnemyHp` rundet auf ganze Punkte.** Der leichte Gegner (2 Punkte) waechst mit
   0,3 %/Level bis Level 87 nicht. Kleine Wachstumsfaktoren wirken bei kleinen
   Grundwerten gar nicht.
