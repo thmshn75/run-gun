@@ -136,21 +136,14 @@ describe('Ton nach Thomas 2026-08-23', () => {
     // Leiser als jede hoerbare Quittung - sonst uebertoent sie das, worauf es ankommt.
     const lauteste = Math.max(...Object.values(BALANCE.audio.events).map((e) => e.volume))
     expect(musik.volume).toBeLessThan(lauteste)
-    // Vier Akkorde a drei Toenen: kein Ausreisser nach oben, der auf
-    // Handylautsprechern schrill wird, und keiner nach unten, den sie nicht wiedergeben.
-    //
-    // Obergrenze 400 -> 500 am 2026-08-24. Der Satz ist beim Umbau auf den duesteren
-    // Charakter von enger Lage (Quinte, 220-330 Hz) auf Oktavlage gewechselt - ohne
-    // Terz, dafuer mit Oktave, das ist der hohle Klang. Der hoechste Ton liegt damit bei
-    // 466 Hz. Gesichert gehoert die EIGENSCHAFT "nicht schrill", und die faengt weit
-    // hoeher an; 466 Hz ist knapp ueber dem Kammerton. Die alte 400 beschrieb die alte
-    // Lage, nicht die Grenze.
+    // Vier Akkorde a drei Toenen, alle in enger Lage: kein Ausreisser nach oben, der
+    // auf Handylautsprechern schrill wird.
     expect(musik.chords).toHaveLength(4)
     for (const akkord of musik.chords) {
       expect(akkord).toHaveLength(3)
       for (const hz of akkord) {
         expect(hz).toBeGreaterThan(100)
-        expect(hz).toBeLessThan(500)
+        expect(hz).toBeLessThan(400)
       }
     }
     // Die Toene muessen ueberlappen, sonst entsteht zwischen den Akkorden eine Luecke.
@@ -171,101 +164,26 @@ describe('Klangeffekte abgeschaltet (Thomas 2026-08-24)', () => {
   })
 })
 
-describe('Musik: Tempo und Melodie (Thomas 2026-08-24)', () => {
-  it('hat zu jedem Akkord eine Melodiezeile gleicher Laenge', () => {
-    // "irgendwie zu langsam und mehr Melodie gewuenscht". Fehlte zu einem Akkord die
-    // Melodiezeile, liefe die Stimme gegen die Harmonie - und zwar erst nach Sekunden
-    // hoerbar, also genau die Art Fehler, die im Spieltest untergeht.
+describe('Musik: Tempo (Thomas 2026-08-24)', () => {
+  it('laeuft schneller als der abgenommene Erststand, bleibt aber eine Flaeche', () => {
+    // "muesste nur schneller sein als am Anfang" - 6 s je Akkord waren zu traege.
+    // Nach unten ebenfalls begrenzt: Unter 3 Sekunden wird aus der Grundierung eine
+    // Akkordfolge, der man zuhoert, und genau das soll sie nicht sein.
     const musik = BALANCE.audio.music
-    expect(musik.melody).toHaveLength(musik.chords.length)
-    for (const zeile of musik.melody) expect(zeile.length).toBeGreaterThan(0)
+    expect(musik.chordSeconds).toBeLessThan(6)
+    expect(musik.chordSeconds).toBeGreaterThanOrEqual(3)
+    // Der Anstieg darf die Akkorddauer nicht auffressen, sonst wirkt die Folge trotz
+    // kuerzerer Akkorde wieder traege.
+    expect(musik.attackSeconds).toBeLessThan(musik.chordSeconds / 2)
   })
 
-  it('haelt die Melodie in der Lage, die ein Handylautsprecher traegt', () => {
-    // Pausen (0) zaehlen hier nicht mit - sie sind gewollt, siehe eigener Test unten.
-    // Die Untergrenze ist dieselbe wie bei den Akkorden und aus demselben Grund: Auf
-    // einem iPhone-Lautsprecher faellt unterhalb von rund 200 Hz der Pegel weg. Nach
-    // oben begrenzt, damit nichts sticht.
-    const toene = BALANCE.audio.music.melody.flat().filter((ton) => ton > 0)
-    expect(toene.length).toBeGreaterThan(0)
-    for (const ton of toene) {
-      expect(ton).toBeGreaterThan(200)
-      expect(ton).toBeLessThan(1000)
-    }
-  })
-
-  it('laeuft schneller als die erste Fassung', () => {
-    // 6 s je Akkord waren der zweite Grund fuer "zu langsam".
-    expect(BALANCE.audio.music.chordSeconds).toBeLessThan(6)
-  })
-})
-
-describe('Musik: duesterer Charakter (Thomas 2026-08-24)', () => {
-  it('laesst die Terz weg und behaelt die kleine Sekunde', () => {
-    // Die Terz entscheidet ueber Dur oder Moll; ohne sie bleibt der Klang hohl und
-    // offen. Die kleine Sekunde ueber dem Grundton (a -> b, Verhaeltnis ~1,059) ist
-    // das Intervall, das die Unruhe traegt - beides zusammen ist der Charakter.
-    const musik = BALANCE.audio.music
-    // Je Akkord: Abstaende zum eigenen Grundton in Halbtoenen. 3 oder 4 waere die
-    // Terz - genau die soll fehlen, damit offen bleibt, ob Dur oder Moll gemeint ist.
-    for (const akkord of musik.chords) {
-      const stufen = akkord.map((ton) => Math.round(12 * Math.log2(ton / akkord[0])) % 12)
-      expect(stufen).not.toContain(3)
-      expect(stufen).not.toContain(4)
-      // Quinte (7) und Oktave (0) bleiben - das ist der hohle Klang.
-      expect(stufen).toContain(7)
-    }
-    // Der zweite Akkord liegt einen HALBTON ueber dem ersten. Diese kleine Sekunde ist
-    // das Intervall, das den bedrohlichen Zug traegt.
-    expect(Math.round(12 * Math.log2(musik.chords[1][0] / musik.chords[0][0]))).toBe(1)
-  })
-
-  it('haelt Pausen in der Melodie frei', () => {
-    // Die Stille ist Teil des Klangbilds. Eine durchlaufende Linie klaenge nach
-    // Spieluhr statt nach Bedrohung.
-    const pausen = BALANCE.audio.music.melody.flat().filter((ton) => ton === 0).length
-    expect(pausen).toBeGreaterThan(0)
-    const toene = BALANCE.audio.music.melody.flat().filter((ton) => ton > 0).length
-    expect(toene).toBeGreaterThan(pausen)
-  })
-
-  it('legt den Drone unter den tiefsten Akkordton', () => {
-    const musik = BALANCE.audio.music
-    expect(musik.droneHz).toBeLessThan(Math.min(...musik.chords.flat()))
-    expect(musik.droneVolume).toBeGreaterThan(0)
-  })
-})
-
-describe('Musik: Klangfarbe und Textur (Thomas 2026-08-24, zweiter Anlauf)', () => {
-  it('nutzt einen obertonreichen Klang statt weicher Sinustoene', () => {
-    // Der erste Anlauf arbeitete an den NOTEN (Tonart, Melodie, Tempo) und traf den
-    // Klang nicht. Ein Sinuston bleibt weich, egal welche Noten er spielt - die
-    // Klangfarbe ist der Hebel, nicht die Notenwahl.
-    expect(BALANCE.audio.music.padType).not.toBe('sine')
-  })
-
-  it('haelt das Tremolo im Bereich, den das Ohr als Beben liest', () => {
-    // Unter ~3 Hz hoert man einzelne Schwankungen, ueber ~8 Hz wird es zum Schnarren.
-    const musik = BALANCE.audio.music
-    expect(musik.tremoloHz).toBeGreaterThan(3)
-    expect(musik.tremoloHz).toBeLessThan(8)
-    // Bei Tiefe 1,0 setzt der Ton zwischendurch ganz aus - das klingt nach Effekt.
-    expect(musik.tremoloDepth).toBeGreaterThan(0)
-    expect(musik.tremoloDepth).toBeLessThan(1)
-  })
-
-  it('haelt den Reibungston deutlich unter den Akkordstimmen', () => {
-    // Er soll als Unruhe IM Akkord wirken, nicht als eigener Ton. Zu laut klingt es
-    // nach Fehler statt nach Absicht.
-    const musik = BALANCE.audio.music
-    expect(musik.frictionVolume).toBeLessThan(musik.volume / musik.chords[0].length)
-  })
-
-  it('setzt den Puls zwischen Drone und Akkord, damit er sich absetzt', () => {
-    const musik = BALANCE.audio.music
-    expect(musik.pulseHz).toBeGreaterThan(musik.droneHz)
-    expect(musik.pulseHz).toBeLessThan(Math.min(...musik.chords.flat()))
-    // Kurz: ein Schlag, kein Ton.
-    expect(musik.pulseSeconds).toBeLessThan(musik.chordSeconds / 4)
+  it('bleibt eine reine Akkordflaeche ohne Melodiestimme', () => {
+    // Zwei Versuche mit Melodie, Drone, Tremolo und Puls wurden am 2026-08-24
+    // zurueckgebaut (Thomas: "die Melodie passt mir gar nicht und das
+    // Hintergrundrauschen war vorher besser"). Der Test haelt die Entscheidung fest,
+    // damit sie nicht beim naechsten "mehr Melodie"-Impuls wieder aufgerollt wird.
+    expect('melody' in BALANCE.audio.music).toBe(false)
+    expect('droneHz' in BALANCE.audio.music).toBe(false)
+    expect('tremoloHz' in BALANCE.audio.music).toBe(false)
   })
 })

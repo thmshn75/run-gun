@@ -248,128 +248,46 @@ export const BALANCE = {
     // nie im Schussgeraeusch untergehen.
     maxCasualVoices: 6,
     // HINTERGRUNDMUSIK (Thomas 2026-08-23). Wie der Rest des Tons synthetisch, ohne
-    // Audiodatei: eine Akkordfolge aus weichen Sinustoenen, tiefpassgefiltert.
+    // Audiodatei: eine ruhige Akkordfolge aus weichen Sinustoenen, tiefpassgefiltert.
     //
-    // a-Moll - F - C/G - G: die verbreitetste ruhige Folge ueberhaupt.
+    // a-Moll - F - C/G - G: die verbreitetste ruhige Folge ueberhaupt, bewusst
+    // unauffaellig. Sie soll traegen, nicht auffallen.
     //
-    // UMGEBAUT 2026-08-24 (Thomas: "grundsaetzlich ok, aber irgendwie zu langsam und
-    // mehr Melodie gewuenscht"). Zwei Ursachen, beide behoben:
-    //   1. Es gab GAR KEINE Melodie - nur vier Akkordflaechen. Ohne Oberstimme hat ein
-    //      Pad nichts, dem das Ohr folgen kann; es klingt zwangslaeufig stehend.
-    //   2. 6 Sekunden je Akkord ergaben einen 24-Sekunden-Kreis. Das ist als
-    //      Grundierung richtig, aber es passiert darin nichts.
+    // ZWEI VERSUCHE AM 2026-08-24 ZURUECKGEBAUT, und der Befund ist es wert, hier zu
+    // stehen: Thomas wollte "mehr Melodie" und einen duestereren Klang. Gebaut wurden
+    // nacheinander eine Melodiestimme, phrygische Harmonik, ein Drone, Tremolo, ein
+    // Reibungston und ein Puls. Sein Urteil: "die Melodie passt mir gar nicht und das
+    // Hintergrundrauschen war vorher besser". Beide Male war die Diagnose falsch - die
+    // Musik war nicht zu einfach, sondern nur zu LANGSAM. Genau das hatte er beim
+    // ersten Mal auch gesagt ("irgendwie zu langsam"), und genau das wurde ueberhoert,
+    // weil der Halbsatz "mehr Melodie" nach der groesseren Aufgabe klang.
     //
-    // ZWEITER UMBAU am selben Tag: Thomas nannte als Vorbild den Klang einer bekannten
-    // Zombieserien-Titelmusik. Deren Melodie wird NICHT nachgebaut - sie ist geschuetzt,
-    // und nachgespielte Themen haben in einem veroeffentlichten Spiel nichts verloren.
-    // Uebernommen ist nur der CHARAKTER, und der laesst sich in vier Merkmalen fassen,
-    // die alle hier im Block stehen:
-    //   - PHRYGISCH statt Moll: die kleine Sekunde ueber dem Grundton (a -> b) ist das
-    //     Intervall, das den bedrohlichen Zug erzeugt. Eine gewoehnliche Moll-Kadenz
-    //     klingt traurig, diese klingt ungemuetlich - das ist der Unterschied.
-    //   - DRONE: ein tief liegender Dauerton traegt alles. Er nimmt der Harmonie die
-    //     Bewegung und laesst sie stehen, statt sie auffuehren zu lassen.
-    //   - RAUM: wenige, lange Melodietoene mit Pausen dazwischen statt einer Linie, die
-    //     durchlaeuft. Die Stille gehoert zum Klangbild.
-    //   - KARGE LAGE: kein voller Akkord, sondern Quinten und Oktaven ohne Terz. Die
-    //     Terz entscheidet ueber Dur oder Moll; laesst man sie weg, bleibt es offen und
-    //     hohl.
-    // Die vorherige freundliche a-Moll-Folge passte ohnehin schlecht zu einem Spiel
-    // ueber Zombies.
+    // LEHRE, die eine Sitzung gekostet hat: Wenn eine Rueckmeldung zwei Teile hat, den
+    // KLEINEN zuerst umsetzen und vorlegen. Eine Flaeche, die nichts tut, ist hier das
+    // Ziel und nicht der Mangel - sie soll traegen, nicht unterhalten.
     music: {
       // Deutlich unter den Effekten: Musik ist Grundierung, keine Quittung.
       volume: 0.075,
+      // 6 -> 4 Sekunden (Thomas 2026-08-24: "muesste nur schneller sein als am
+      // Anfang"). Vier Akkorde ergeben damit einen 16-Sekunden-Kreis statt eines
+      // 24-Sekunden-Kreises - immer noch lang genug, dass er nicht als Schleife
+      // auffaellt. Das ist die EINZIGE Aenderung gegenueber dem Stand, den er
+      // abgenommen hatte.
       chordSeconds: 4,
       // Weiche Kanten - ohne langen An- und Abstieg klingt ein Pad wie ein Signalton.
-      attackSeconds: 2,
+      // Anstieg 2 -> 1,5 s, weil er sonst bei 4 Sekunden Akkorddauer die halbe Zeit
+      // beansprucht und die Folge trotz kuerzerer Akkorde wieder traege wirkt.
+      attackSeconds: 1.5,
       releaseSeconds: 2.6,
       // Tiefpass nimmt den Obertonanteil weg, der auf Handylautsprechern schrill wirkt.
       filterHz: 850,
-      // KLANGFARBE UND TEXTUR (2026-08-24, zweiter Anlauf). Thomas' erste Rueckmeldung
-      // wurde an den NOTEN abgearbeitet - Tonart, Melodie, Tempo. Das war der falsche
-      // Hebel: Was diese Art Musik ausmacht, ist nicht die Notenwahl, sondern der Klang
-      // selbst. Ein Sinuston bleibt weich und freundlich, egal welche Noten er spielt.
-      //
-      // Drei Merkmale, alle unabhaengig von der Melodie und deshalb frei umsetzbar:
-      //
-      // 1. SAEGEZAHN STATT SINUS. Ein Sinus hat nur den Grundton, ein Saegezahn alle
-      //    Obertoene - stark tiefpassgefiltert ergibt das den rauen, streicherartigen
-      //    Klang, den weiche Flaechen nicht haben. Der Filter bleibt tief, sonst wird
-      //    es scharf statt dunkel.
-      padType: 'sawtooth' as OscillatorType,
-      // 2. TREMOLO. Die Flaechen zittern, statt still zu stehen. Das ist der
-      //    wirksamste einzelne Griff fuer Unruhe und kostet nichts: ein langsamer
-      //    Oszillator auf die Lautstaerke. 5,5 Hz liegt im Bereich, den das Ohr als
-      //    Beben liest und nicht als Rhythmus.
-      tremoloHz: 5.5,
-      // Anteil der Lautstaerke, der moduliert wird. Bei 1,0 setzt der Ton zwischendurch
-      // ganz aus - das klingt nach Effekt. 0,45 laesst ihn stehen und atmen.
-      tremoloDepth: 0.45,
-      // 3. REIBUNG. Ein zweiter Ton einen HALBTON ueber dem Akkordgrundton, sehr leise.
-      //    Zwei so dicht liegende Toene schweben gegeneinander - man hoert keinen
-      //    zweiten Ton, sondern eine Unruhe im ersten. Deutlich leiser als die
-      //    Akkordstimmen, sonst klingt es nach Fehler statt nach Absicht.
-      frictionVolume: 0.018,
-      // TIEFER PULS. Ein kurzer, dumpfer Schlag auf jeden Akkordwechsel - kein
-      // Schlagzeug, eher ein Herzschlag. Er gibt der Musik einen Koerper, ohne dass
-      // etwas mitzaehlt.
-      //
-      // Liegt ZWISCHEN Drone (110 Hz) und tiefstem Akkordton (196 Hz): tief genug, um
-      // dumpf zu wirken, hoch genug, dass ein Handylautsprecher ihn wiedergibt. Stand
-      // zuerst bei 82 Hz - das war der Wert aus dem Entwurf mit dem tieferen Drone und
-      // blieb beim Anheben der Lage stehen. Auf dem iPhone waere davon nichts
-      // angekommen; ein Test haelt die Reihenfolge jetzt fest.
-      pulseHz: 138.0,
-      pulseVolume: 0.09,
-      pulseSeconds: 0.45,
-      // KARGE LAGE, phrygisch auf a. Bewusst OHNE Terz: Quinte und Oktave lassen offen,
-      // ob Dur oder Moll gemeint ist - das ist der hohle Klang, um den es geht.
-      // Akkord 2 ist der Halbtonschritt darueber (b), das charakteristische Intervall
-      // dieser Tonart. Akkord 4 geht nach unten statt zurueck zum Grundton, damit die
-      // Schleife nicht rund wird, sondern haengen bleibt.
-      // LAGE AM HANDYLAUTSPRECHER AUSGERICHTET, nicht am Kopfhoerer. Der erste Entwurf
-      // dieses Blocks lag eine Oktave tiefer (98-233 Hz, Drone 55 Hz) - auf einem
-      // iPhone-Lautsprecher waere davon fast nichts uebrig geblieben, kleine Membranen
-      // geben unterhalb von rund 200 Hz kaum noch Pegel ab. Der duestere Eindruck haette
-      // im Kopfhoerer gestimmt und auf dem Geraet, auf dem Benni spielt, gefehlt.
-      // Ein bestehender Test haelt die Untergrenze von 100 Hz fest und hat genau das
-      // gefangen.
+      // Drei Toene je Akkord, enge Lage um 175-330 Hz.
       chords: [
-        [220.0, 329.6, 440.0],
-        [233.1, 349.2, 466.2],
-        [220.0, 329.6, 440.0],
-        [196.0, 293.7, 392.0],
+        [220.0, 261.6, 329.6],
+        [174.6, 220.0, 261.6],
+        [196.0, 261.6, 329.6],
+        [196.0, 246.9, 293.7],
       ],
-      // DRONE: durchgehender Grundton unter allem. Er ist der Grund, warum die Harmonie
-      // steht statt zu laufen - ohne ihn klingt dieselbe Folge nach Uebung, mit ihm
-      // nach Bedrohung. Eine Oktave unter dem tiefsten Akkordton, aber bewusst NICHT
-      // tiefer: 110 Hz traegt auf einem Handylautsprecher noch, 55 Hz nicht mehr.
-      droneHz: 110.0,
-      droneVolume: 0.05,
-      // MELODIE, phrygisch auf a (a b c d e f g). Vier Positionen je Akkord, aber
-      // NULL bedeutet PAUSE - das ist der Kern dieses Klangbilds. Von sechzehn
-      // Positionen sind sieben still; die Linie tropft, statt zu laufen.
-      //
-      // Die Phrase kreist eng um den Grundton und beruehrt zweimal die kleine Sekunde
-      // (b, 466 Hz) - das ist der Ton, der die Unruhe traegt. Sie endet auf g statt
-      // auf a: ein offener Schluss, der nicht ankommt.
-      //
-      // Lage 349-587 Hz, also enger und tiefer als die erste, freundliche Fassung. Hoch
-      // gespielte Melodien klingen hell und freundlich; genau das soll sie nicht.
-      melody: [
-        [440.0, 0, 523.3, 0],
-        [466.2, 440.0, 0, 0],
-        [349.2, 0, 440.0, 392.0],
-        [0, 349.2, 0, 329.6],
-      ],
-      // Lauter als eine einzelne Pad-Stimme, weil sie durch Drone und Flaeche muss.
-      melodyVolume: 0.06,
-      // LANG, fast der ganze Notenabstand: Die Toene sollen ausklingen und ineinander
-      // haengen, nicht gezupft wirken. Zusammen mit den Pausen ergibt das den kargen,
-      // getragenen Eindruck - kurze Toene klaengen nach Spieluhr.
-      melodyNoteSeconds: 1.1,
-      // Tiefer gefiltert als in der ersten Fassung (2200 Hz): weniger Glanz, mehr Holz.
-      melodyFilterHz: 1200,
     },
     events: {
       // Ein Ton je Salve, nicht je Kugel: Die Schrotflinte feuert 7 Kugeln gleichzeitig.

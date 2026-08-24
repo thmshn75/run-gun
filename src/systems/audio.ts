@@ -49,8 +49,6 @@ export class GameAudio {
   private noise: AudioBuffer | undefined
   private muted: boolean
   private musicGain: GainNode | undefined
-  private droneOsc: OscillatorNode | undefined
-
   private musicTimer: ReturnType<typeof setInterval> | undefined
   private musicChordIndex = 0
 
@@ -137,55 +135,14 @@ export class GameAudio {
     gain.connect(this.master)
     this.musicGain = gain
     this.musicChordIndex = 0
-    this.startDrone()
     this.playChord()
     this.musicTimer = setInterval(() => this.playChord(), BALANCE.audio.music.chordSeconds * 1000)
-  }
-
-  /**
-   * Durchgehender tiefer Grundton unter der Musik.
-   *
-   * Er laeuft als EIN Oszillator ueber die ganze Szene, nicht je Akkord neu: Ein Drone,
-   * der alle vier Sekunden neu einsetzt, wird zur Begleitstimme und faellt auf. Genau
-   * das soll er nicht - er soll da sein, ohne dass man ihn bemerkt.
-   */
-  private startDrone(): void {
-    const context = this.context
-    const ziel = this.musicGain
-    if (context === undefined || ziel === undefined || this.droneOsc !== undefined) return
-    const musik = BALANCE.audio.music
-    const osz = context.createOscillator()
-    osz.type = 'sine'
-    osz.frequency.value = musik.droneHz
-    const filter = context.createBiquadFilter()
-    filter.type = 'lowpass'
-    filter.frequency.value = musik.filterHz
-    const huelle = context.createGain()
-    // Langsam einblenden, sonst setzt der Grundton mit einem Schlag ein.
-    huelle.gain.setValueAtTime(SILENCE, context.currentTime)
-    huelle.gain.exponentialRampToValueAtTime(musik.droneVolume, context.currentTime + musik.attackSeconds)
-    osz.connect(filter)
-    filter.connect(huelle)
-    huelle.connect(ziel)
-    osz.start(context.currentTime)
-    this.droneOsc = osz
   }
 
   public stopMusic(): void {
     if (this.musicTimer !== undefined) {
       clearInterval(this.musicTimer)
       this.musicTimer = undefined
-    }
-    // Der Drone laeuft als EIN Oszillator ueber die ganze Szene und muss deshalb hier
-    // ausdruecklich enden. Ohne das liefe er nach dem Szenenwechsel weiter (unhoerbar,
-    // weil musicGain getrennt wird, aber weiter rechnend) - und schlimmer: startDrone
-    // prueft auf droneOsc und wuerde im naechsten Run gar nicht mehr anspringen, die
-    // Musik waere ab dem zweiten Lauf ohne Fundament.
-    if (this.droneOsc !== undefined) {
-      const drone = this.droneOsc
-      this.droneOsc = undefined
-      try { drone.stop((this.context?.currentTime ?? 0) + 0.5) } catch { /* schon beendet */ }
-      setTimeout(() => drone.disconnect(), 700)
     }
     if (this.musicGain !== undefined) {
       // Nicht hart abschneiden: Ein laufendes Pad knackt sonst beim Szenenwechsel.
@@ -210,133 +167,23 @@ export class GameAudio {
     // zwischen den Akkorden, sie gehen ineinander ueber.
     const dauer = musik.chordSeconds + musik.releaseSeconds
     for (const hz of akkord) {
-      this.playPadVoice(hz, musik.volume / akkord.length, start, dauer, true)
-    }
-    // REIBUNGSTON: ein Halbton ueber dem Grundton, sehr leise. Zwei so dicht liegende
-    // Toene schweben gegeneinander - man hoert keinen zweiten Ton, sondern Unruhe im
-    // ersten. Ohne Tremolo, sonst wird aus dem Schweben ein Flattern.
-    this.playPadVoice(akkord[0] * 2 ** (1 / 12), musik.frictionVolume, start, dauer, false)
-    this.playPulse(start)
-    this.playMelody(start)
-  }
-
-  /**
-   * Eine Flaechenstimme. Saegezahn statt Sinus und optionales Tremolo sind die beiden
-   * Griffe, die den Klang rau und unruhig machen - Herleitung bei BALANCE.audio.music.
-   */
-  private playPadVoice(hz: number, lautstaerke: number, start: number, dauer: number, tremolo: boolean): void {
-    const context = this.context
-    const ziel = this.musicGain
-    if (context === undefined || ziel === undefined) return
-    const musik = BALANCE.audio.music
-
-    const osz = context.createOscillator()
-    osz.type = musik.padType
-    osz.frequency.value = hz
-    const filter = context.createBiquadFilter()
-    filter.type = 'lowpass'
-    filter.frequency.value = musik.filterHz
-    const huelle = context.createGain()
-    huelle.gain.setValueAtTime(SILENCE, start)
-    huelle.gain.exponentialRampToValueAtTime(lautstaerke, start + musik.attackSeconds)
-    huelle.gain.setValueAtTime(lautstaerke, start + musik.chordSeconds)
-    huelle.gain.exponentialRampToValueAtTime(SILENCE, start + dauer)
-    osz.connect(filter)
-    filter.connect(huelle)
-
-    if (tremolo) {
-      // Der LFO moduliert die Lautstaerke ADDITIV: Er haengt an einem eigenen
-      // Gain-Knoten hinter der Huelle, statt an huelle.gain zu ziehen. So bleibt der
-      // Huellkurvenverlauf (Anstieg, Halten, Ausklang) unangetastet und das Zittern
-      // legt sich darueber, statt mit ihm zu kaempfen.
-      const zitter = context.createGain()
-      zitter.gain.value = 1 - musik.tremoloDepth
-      const lfo = context.createOscillator()
-      lfo.type = 'sine'
-      lfo.frequency.value = musik.tremoloHz
-      const tiefe = context.createGain()
-      tiefe.gain.value = musik.tremoloDepth
-      lfo.connect(tiefe)
-      tiefe.connect(zitter.gain)
-      lfo.start(start)
-      lfo.stop(start + dauer + 0.05)
-      huelle.connect(zitter)
-      zitter.connect(ziel)
-    } else {
-      huelle.connect(ziel)
-    }
-
-    osz.start(start)
-    osz.stop(start + dauer + 0.05)
-  }
-
-  /**
-   * Kurzer dumpfer Schlag auf den Akkordwechsel - kein Schlagzeug, eher ein Herzschlag.
-   * Er gibt der Musik einen Koerper, ohne dass etwas mitzaehlt.
-   */
-  private playPulse(start: number): void {
-    const context = this.context
-    const ziel = this.musicGain
-    if (context === undefined || ziel === undefined) return
-    const musik = BALANCE.audio.music
-
-    const osz = context.createOscillator()
-    osz.type = 'sine'
-    // Leicht fallende Tonhoehe - das macht aus einem Piepen einen Schlag.
-    osz.frequency.setValueAtTime(musik.pulseHz, start)
-    osz.frequency.exponentialRampToValueAtTime(musik.pulseHz * 0.6, start + musik.pulseSeconds)
-    const huelle = context.createGain()
-    huelle.gain.setValueAtTime(SILENCE, start)
-    huelle.gain.exponentialRampToValueAtTime(musik.pulseVolume, start + 0.02)
-    huelle.gain.exponentialRampToValueAtTime(SILENCE, start + musik.pulseSeconds)
-    osz.connect(huelle)
-    huelle.connect(ziel)
-    osz.start(start)
-    osz.stop(start + musik.pulseSeconds + 0.05)
-  }
-
-  /**
-   * Melodiestimme ueber dem laufenden Akkord (2026-08-24, Thomas: "zu langsam und mehr
-   * Melodie gewuenscht").
-   *
-   * Die Toene werden im VORAUS auf der Web-Audio-Uhr geplant, nicht per Timer
-   * nachgetaktet: setInterval schwankt im Browser um zweistellige Millisekunden und
-   * unter Last deutlich mehr - eine so getaktete Melodie eiert hoerbar. Die Audio-Uhr
-   * ist von der Bildrate unabhaengig, deshalb liegen die vier Toene exakt im Raster,
-   * auch wenn das Spiel gerade ruckelt.
-   */
-  private playMelody(start: number): void {
-    const context = this.context
-    const ziel = this.musicGain
-    if (context === undefined || ziel === undefined) return
-    const musik = BALANCE.audio.music
-    const noten = musik.melody[(this.musicChordIndex - 1) % musik.melody.length]
-    const abstand = musik.chordSeconds / noten.length
-
-    noten.forEach((hz, index) => {
-      // 0 heisst PAUSE. Die Stille ist Teil des Klangbilds, nicht eine Luecke -
-      // siehe Herleitung bei BALANCE.audio.music.melody.
-      if (hz <= 0) return
-      const tonStart = start + index * abstand
       const osz = context.createOscillator()
-      osz.type = musik.padType
+      osz.type = 'sine'
       osz.frequency.value = hz
       const filter = context.createBiquadFilter()
       filter.type = 'lowpass'
-      filter.frequency.value = musik.melodyFilterHz
+      filter.frequency.value = musik.filterHz
       const huelle = context.createGain()
-      // Kurzer Anstieg, langer Ausklang - das klingt gezupft. Ein symmetrischer
-      // Verlauf wie bei den Pads wuerde die Toene ineinanderlaufen lassen und genau
-      // den stehenden Eindruck erzeugen, der behoben werden soll.
-      huelle.gain.setValueAtTime(SILENCE, tonStart)
-      huelle.gain.exponentialRampToValueAtTime(musik.melodyVolume, tonStart + 0.04)
-      huelle.gain.exponentialRampToValueAtTime(SILENCE, tonStart + musik.melodyNoteSeconds)
+      huelle.gain.setValueAtTime(SILENCE, start)
+      huelle.gain.exponentialRampToValueAtTime(musik.volume / akkord.length, start + musik.attackSeconds)
+      huelle.gain.setValueAtTime(musik.volume / akkord.length, start + musik.chordSeconds)
+      huelle.gain.exponentialRampToValueAtTime(SILENCE, start + dauer)
       osz.connect(filter)
       filter.connect(huelle)
       huelle.connect(ziel)
-      osz.start(tonStart)
-      osz.stop(tonStart + musik.melodyNoteSeconds + 0.05)
-    })
+      osz.start(start)
+      osz.stop(start + dauer + 0.05)
+    }
   }
 
   private playNow(kind: AudioEventKind): void {
