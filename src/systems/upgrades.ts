@@ -46,7 +46,25 @@ function getShopBonus(stat: StatKey, steps: ShopSteps): number {
  * diese Funktion mit der reinen Levelnummer auf und sollen das weiter tun. Der Boss zieht
  * mit dem gekauften Bonus NICHT mit - genau darin besteht der Vorteil, den man kauft.
  */
-export function getStatCap(stat: StatKey, level: number, steps: ShopSteps = KEINE_STUFEN): number {
+/**
+ * Dauerhafter Bonus aus den gekauften Meta-Stufen (E4, 2026-08-24).
+ *
+ * NUR EINE GROESSE JE LINIE, sonst wirkt der Zuwachs multiplikativ - dieselbe Regel wie
+ * beim Endloswachstum: SCHLAGKRAFT geht ausschliesslich auf damage, MANNSCHAFT
+ * ausschliesslich auf hp. shotsPerSec bleibt in beiden Faellen unberuehrt.
+ */
+export function getMetaBonus(stat: StatKey, meta: ShopSteps): number {
+  if (stat === 'damage') return (1 + BALANCE.meta.firepowerBonusPerStep) ** meta.firepower
+  if (stat === 'hp') return (1 + BALANCE.meta.teamBonusPerStep) ** meta.team
+  return 1
+}
+
+export function getStatCap(
+  stat: StatKey,
+  level: number,
+  steps: ShopSteps = KEINE_STUFEN,
+  meta: ShopSteps = KEINE_STUFEN,
+): number {
   const { capAtLevelOne, capAtLevelTwelve } = BALANCE.stats[stat]
   // Die 12 ist die LAENGE DER LEVELTABELLE, nicht eine gewaehlte Zahl - bis dorthin
   // interpoliert die Kurve, darueber uebernimmt getEndlessGrowth. Sie muss mit
@@ -57,7 +75,22 @@ export function getStatCap(stat: StatKey, level: number, steps: ShopSteps = KEIN
   const levelWert = capAtLevelOne === capAtLevelTwelve
     ? capAtLevelOne
     : capAtLevelOne * (capAtLevelTwelve / capAtLevelOne) ** ((safeLevel - 1) / (letztesTabellenLevel - 1))
-  return levelWert * getEndlessGrowth(stat, level) * getShopBonus(stat, steps)
+  // Der gemeinsame Deckel begrenzt Run-Shop UND Meta zusammen (BALANCE.meta.totalBoostCap):
+  // Beide wirken multiplikativ auf dieselbe Feuerkraft, und bei zwei solchen Quellen
+  // potenziert sich jeder spaetere Einzelfehler. Er gilt auf dem BONUS, nicht auf dem
+  // Endwert - die Levelkurve selbst bleibt unberuehrt.
+  //
+  // ER GILT NUR FUER DIE FEUERKRAFT, NICHT FUER DIE TRUPPE. Ein erster Anlauf legte ihn
+  // auf alle Werte und wurde von einem bestehenden Test gefangen: Der volle
+  // Truppenausbau bringt Faktor 2,33 und DARF das, weil aus der Truppengroesse keine
+  // Feuerkraft entsteht - ihr Schadensbonus ist bei crowd.max Figuren ausgereizt. Sie
+  // kauft Ueberlebenszeit, und die zu deckeln haette den Run-Shop-Knopf TRUPPE still
+  // entwertet.
+  const rohBonus = getShopBonus(stat, steps) * getMetaBonus(stat, meta)
+  const bonus = stat === 'hp' || stat === 'speed'
+    ? rohBonus
+    : Math.min(BALANCE.meta.totalBoostCap, rohBonus)
+  return levelWert * getEndlessGrowth(stat, level) * bonus
 }
 
 /**
@@ -82,7 +115,13 @@ function getEndlessGrowth(stat: StatKey, level: number): number {
   return 1
 }
 
-export function clampStat(stat: StatKey, value: number, level = 1, steps: ShopSteps = KEINE_STUFEN): number {
+export function clampStat(
+  stat: StatKey,
+  value: number,
+  level = 1,
+  steps: ShopSteps = KEINE_STUFEN,
+  meta: ShopSteps = KEINE_STUFEN,
+): number {
   const roundedValue = stat === 'hp' || stat === 'speed'
     ? Math.round(value)
     : Math.round(value * 10) / 10
@@ -90,8 +129,8 @@ export function clampStat(stat: StatKey, value: number, level = 1, steps: ShopSt
   // Der Deckel wird auf dieselbe Stufe gerundet wie der Wert selbst, sonst zeigt die
   // Anzeige einen Wert, der eine Nachkommastelle unter der echten Grenze klebt.
   const cap = stat === 'hp' || stat === 'speed'
-    ? Math.round(getStatCap(stat, level, steps))
-    : Math.round(getStatCap(stat, level, steps) * 10) / 10
+    ? Math.round(getStatCap(stat, level, steps, meta))
+    : Math.round(getStatCap(stat, level, steps, meta) * 10) / 10
   return Math.min(cap, Math.max(floor, roundedValue))
 }
 
@@ -99,6 +138,11 @@ export class RunStats {
   private values!: Record<StatKey, number>
   private level = 1
   private steps: { firepower: number; team: number } = { firepower: 0, team: 0 }
+  /**
+   * Dauerhaft gekaufte Meta-Stufen (E4). Sie kommen aus dem Spielstand und aendern sich
+   * waehrend eines Runs nicht - gekauft wird nur im Hauptmenue.
+   */
+  private meta: { firepower: number; team: number } = { firepower: 0, team: 0 }
 
   public constructor() {
     this.values = {
@@ -131,6 +175,19 @@ export class RunStats {
     return { firepower: this.steps.firepower, team: this.steps.team }
   }
 
+  public getMeta(): ShopSteps {
+    return { firepower: this.meta.firepower, team: this.meta.team }
+  }
+
+  /**
+   * Meta-Stufen aus dem Spielstand uebernehmen. Muss VOR dem ersten setLevel stehen,
+   * sonst klemmt der erste Wert noch gegen den Deckel ohne Meta-Bonus.
+   */
+  public setMeta(meta: ShopSteps): void {
+    this.meta = { firepower: Math.max(0, Math.floor(meta.firepower)), team: Math.max(0, Math.floor(meta.team)) }
+    this.reclamp()
+  }
+
   public getStepCount(line: ShopLine): number {
     return this.steps[line]
   }
@@ -150,7 +207,7 @@ export class RunStats {
     // wird nichts.
     const amDeckel = new Map(betroffen.map((stat) => [
       stat,
-      this.values[stat] >= clampStat(stat, Number.MAX_SAFE_INTEGER, this.level, this.getSteps()),
+      this.values[stat] >= clampStat(stat, Number.MAX_SAFE_INTEGER, this.level, this.getSteps(), this.getMeta()),
     ]))
     this.steps[line] += 1
     for (const stat of betroffen) {
@@ -158,7 +215,7 @@ export class RunStats {
         ? BALANCE.shop.teamBonusPerStep
         : stat === 'damage' ? BALANCE.shop.damageBonusPerStep : BALANCE.shop.rateBonusPerStep)
       this.setRaw(stat, amDeckel.get(stat) === true
-        ? clampStat(stat, Number.MAX_SAFE_INTEGER, this.level, this.getSteps())
+        ? clampStat(stat, Number.MAX_SAFE_INTEGER, this.level, this.getSteps(), this.getMeta())
         : this.values[stat] * faktor)
     }
     return true
@@ -169,12 +226,12 @@ export class RunStats {
   }
 
   private setRaw(stat: StatKey, value: number): void {
-    this.values[stat] = clampStat(stat, value, this.level, this.getSteps())
+    this.values[stat] = clampStat(stat, value, this.level, this.getSteps(), this.getMeta())
   }
 
   private reclamp(): void {
     for (const stat of Object.keys(this.values) as StatKey[]) {
-      this.values[stat] = clampStat(stat, this.values[stat], this.level, this.getSteps())
+      this.values[stat] = clampStat(stat, this.values[stat], this.level, this.getSteps(), this.getMeta())
     }
   }
 }

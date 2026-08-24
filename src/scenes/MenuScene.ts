@@ -4,7 +4,7 @@ import { HUD_COLORS, MENU_COLORS } from '../config/colors'
 import { getGameAudio } from '../systems/audio'
 import { computeMenuLayout } from '../systems/menuLayout'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
-import { loadSave, resetSave, type SaveData, type ScoreEntry } from '../systems/save'
+import { getMetaPrice, getMetaSteps, loadSave, resetSave, writeSave, type SaveData, type ScoreEntry } from '../systems/save'
 import { enableSharpText } from '../systems/textSharpness'
 
 export class MenuScene extends Phaser.Scene {
@@ -66,6 +66,15 @@ export class MenuScene extends Phaser.Scene {
         () => { this.scene.start('GameScene', { einstieg: 'fortsetzen' }) },
       )
     }
+    this.addButton(
+      safeLeft + safeWidth / 2,
+      layout.shopButton.top + layout.shopButton.height / 2,
+      safeWidth - 2 * BALANCE.menu.sidePadding,
+      layout.shopButton.height,
+      'DAUERHAFTE AUFWERTUNG',
+      true,
+      () => { this.openMetaShop() },
+    )
     this.addButton(safeLeft + safeWidth / 2, layout.resetButton.top + layout.resetButton.height / 2, safeWidth - 2 * BALANCE.menu.sidePadding, layout.resetButton.height, 'ZURÜCKSETZEN', true, () => {
       this.openResetConfirmation()
     }, undefined, true)
@@ -166,6 +175,97 @@ export class MenuScene extends Phaser.Scene {
     this.confirmationObjects.push(...this.addButton(centerX, centerY + 88, panelWidth - 32, 36, 'ABBRECHEN', true, () => {
       this.closeResetConfirmation()
     }, undefined, true, 12))
+  }
+
+  /**
+   * Eigene Ansicht fuer die dauerhaften Aufwertungen (E4, 2026-08-24).
+   *
+   * WARUM EINE EIGENE ANSICHT und nicht Knoepfe im Menue: menuLayout kennt sechs
+   * Bloecke, an obere und untere Safe Area verankert, ohne Reserve. Zwei Linien a fuenf
+   * Stufen passen dort nicht dazwischen. Die Bauform ist dieselbe wie bei der
+   * Ruecksetz-Bestaetigung, die es schon gibt.
+   *
+   * EIGENE BEZEICHNUNGEN, nicht dieselben wie im Run-Shop: Der heisst FEUERKRAFT und
+   * TRUPPE. Hiessen die dauerhaften genauso, waere fuer ein Kind nicht unterscheidbar,
+   * was es gerade besitzt - das eine verfaellt am Rundenende, das andere kostet mehrere
+   * Abende.
+   */
+  private openMetaShop(): void {
+    if (this.confirmationObjects.length > 0) return
+    const width = this.scale.width
+    const height = this.scale.height
+    const safeWidth = width - this.insets.left - this.insets.right
+    const centerX = this.insets.left + safeWidth / 2
+    const centerY = (height + this.insets.top - this.insets.bottom) / 2
+    const panelWidth = safeWidth - 2 * BALANCE.menu.sidePadding
+
+    const wall = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.65).setDepth(10).setInteractive()
+    wall.on('pointerdown', () => undefined)
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, 340, MENU_COLORS.row, 1).setDepth(11)
+      .setStrokeStyle(2, MENU_COLORS.rowStroke, 1)
+    const titel = this.add.text(centerX, centerY - 148, 'DAUERHAFTE AUFWERTUNG', {
+      fontFamily: 'system-ui', fontSize: '20px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
+    }).setOrigin(0.5).setDepth(12)
+    const konto = this.add.text(centerX, centerY - 120, `KONTO  ¢ ${this.save.coins}`, {
+      fontFamily: 'system-ui', fontSize: '16px', color: this.colorFor(MENU_COLORS.text),
+    }).setOrigin(0.5).setDepth(12)
+    this.confirmationObjects.push(wall, panel, titel, konto)
+
+    this.addMetaLine('firepower', 'SCHLAGKRAFT', centerX, centerY - 74, panelWidth)
+    this.addMetaLine('team', 'MANNSCHAFT', centerX, centerY + 22, panelWidth)
+
+    this.confirmationObjects.push(...this.addButton(centerX, centerY + 130, panelWidth - 32, 40, 'ZURÜCK', true, () => {
+      this.closeMetaShop()
+    }, undefined, true, 12))
+  }
+
+  /** Eine Kauflinie: Stufenanzeige, Wirkung, Preis oder Grund, warum es nicht geht. */
+  private addMetaLine(line: 'firepower' | 'team', titel: string, centerX: number, y: number, panelWidth: number): void {
+    const stufen = getMetaSteps(this.save, line)
+    const maximum = BALANCE.meta.prices.length
+    const preis = getMetaPrice(stufen)
+    const bonus = line === 'firepower' ? BALANCE.meta.firepowerBonusPerStep : BALANCE.meta.teamBonusPerStep
+    const wirkung = Math.round(((1 + bonus) ** stufen - 1) * 100)
+
+    const kopf = this.add.text(centerX, y - 18, `${titel}   ${stufen}/${maximum}`, {
+      fontFamily: 'system-ui', fontSize: '17px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
+    }).setOrigin(0.5).setDepth(12)
+    const info = this.add.text(centerX, y + 4, wirkung > 0 ? `derzeit +${wirkung} %` : 'noch nichts gekauft', {
+      fontFamily: 'system-ui', fontSize: '14px', color: this.colorFor(MENU_COLORS.text),
+    }).setOrigin(0.5).setDepth(12)
+    this.confirmationObjects.push(kopf, info)
+
+    // AUSGEBAUT, ZU TEUER oder KAUFBAR - in allen drei Faellen sagt der Knopf, woran es
+    // liegt. Ein toter Knopf ohne Erklaerung ist fuer ein Kind eine Sackgasse.
+    const bezahlbar = preis !== undefined && this.save.coins >= preis
+    const beschriftung = preis === undefined
+      ? 'AUSGEBAUT'
+      : bezahlbar ? `KAUFEN  ¢ ${preis}` : `NOCH ¢ ${preis - this.save.coins}`
+    this.confirmationObjects.push(...this.addButton(
+      centerX, y + 34, panelWidth - 40, 34, beschriftung, bezahlbar,
+      () => { if (bezahlbar && preis !== undefined) this.kaufeMetaStufe(line, preis) },
+      undefined, !bezahlbar, 12,
+    ))
+  }
+
+  private kaufeMetaStufe(line: 'firepower' | 'team', preis: number): void {
+    const stufen = getMetaSteps(this.save, line)
+    if (stufen >= BALANCE.meta.prices.length || this.save.coins < preis) return
+    const aktualisiert: SaveData = {
+      ...this.save,
+      coins: this.save.coins - preis,
+      ...(line === 'firepower' ? { metaFirepowerSteps: stufen + 1 } : { metaTeamSteps: stufen + 1 }),
+    }
+    writeSave(aktualisiert)
+    this.save = aktualisiert
+    // Ansicht neu aufbauen, damit Konto, Stufenzahl und Preis sofort stimmen.
+    this.closeMetaShop()
+    this.renderShop()
+    this.openMetaShop()
+  }
+
+  private closeMetaShop(): void {
+    this.confirmationObjects.splice(0).forEach((object) => object.destroy())
   }
 
   private closeResetConfirmation(): void {

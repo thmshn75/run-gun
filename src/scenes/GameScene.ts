@@ -15,7 +15,7 @@ import { getRoadHalfWidth, Road } from '../systems/road'
 import { getEnemySpeed, getScrollSpeed, setCurrentScrollSpeed } from '../systems/speed'
 import { Scenery } from '../systems/scenery'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
-import { addScore, createRunId, loadSave, qualifiesForScores, writeSave } from '../systems/save'
+import { addScore, createRunId, getMetaSteps, loadSave, qualifiesForScores, writeSave } from '../systems/save'
 import { Spawner } from '../systems/spawner'
 import { getWeaponRewardChoices } from '../systems/weaponChoices'
 import { RunStats, type ShopLine, getStatCap, getShopPrice, getContinuePrice } from '../systems/upgrades'
@@ -180,6 +180,13 @@ export class GameScene extends Phaser.Scene {
   public create(): void {
     enableSharpText(this)
     this.runStats = new RunStats()
+    // MUSS VOR setLevel STEHEN: Die dauerhaften Aufwertungen heben die Deckel, und der
+    // erste set()-Aufruf klemmt sonst noch gegen den Deckel ohne sie (E4, 2026-08-24).
+    const gespeichert = loadSave()
+    this.runStats.setMeta({
+      firepower: getMetaSteps(gespeichert, 'firepower'),
+      team: getMetaSteps(gespeichert, 'team'),
+    })
     // Ein Run startet auf Level 1 mit den Basiswerten. Bis zum 2026-08-23 kamen sie aus
     // gekauften Shop-Stufen; der Shop ist entfallen (Thomas: "Den Shop kannst du
     // streichen"), alles wird jetzt im Lauf selbst erspielt.
@@ -513,7 +520,7 @@ export class GameScene extends Phaser.Scene {
     if (this.einstieg === 'weiterspielen') {
       this.continuesUsed += 1
       this.runStats.set('hp', Math.max(1, Math.round(
-        getStatCap('hp', this.currentLevel, this.runStats.getSteps()) * BALANCE.continueRun.teamShareOnContinue,
+        getStatCap('hp', this.currentLevel, this.runStats.getSteps(), this.runStats.getMeta()) * BALANCE.continueRun.teamShareOnContinue,
       )))
     } else {
       this.runStats.set('hp', snapshot.hp)
@@ -972,7 +979,7 @@ export class GameScene extends Phaser.Scene {
       werte: {
         damage: this.runStats.get('damage'),
         shotsPerSec: this.runStats.get('shotsPerSec'),
-        hp: getStatCap('hp', this.currentLevel, this.runStats.getSteps()),
+        hp: getStatCap('hp', this.currentLevel, this.runStats.getSteps(), this.runStats.getMeta()),
       },
     }
   }

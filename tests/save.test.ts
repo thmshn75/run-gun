@@ -3,6 +3,7 @@ import { BALANCE } from '../src/config/balance'
 import {
   addScore,
   defaultSave,
+  getMetaSteps,
   loadSave,
   migrateToV4,
   parseSave,
@@ -301,5 +302,52 @@ describe('Bestenliste bei Speichern & Beenden', () => {
 
     expect(stand.scores).toHaveLength(2)
     expect(stand.scores.map((eintrag) => eintrag.coins)).toEqual([5000, 4000])
+  })
+})
+
+describe('Dauerhafte Aufwertungen im Spielstand (E4, 2026-08-24)', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('nimmt einen Spielstand ohne Meta-Felder an und liest sie als 0', () => {
+    // Dieselbe Falle wie beim 'run'-Feld und beim v4Migrated-Marker: Ein neues Feld darf
+    // einen bespielten Spielstand NIE verwerfen.
+    const ohne = parseSave(JSON.stringify({
+      version: 1, coins: 500, highestLevel: 3, scores: [], v4Migrated: true,
+    }))
+    expect(ohne.ok).toBe(true)
+    if (!ohne.ok) return
+    expect(getMetaSteps(ohne.data, 'firepower')).toBe(0)
+    expect(getMetaSteps(ohne.data, 'team')).toBe(0)
+  })
+
+  it('liest Unsinn in den Meta-Feldern als 0, statt den Spielstand abzulehnen', () => {
+    for (const wert of [-3, 'viele', null, Number.NaN, undefined]) {
+      const geparst = parseSave(JSON.stringify({
+        version: 1, coins: 100, highestLevel: 1, scores: [], metaFirepowerSteps: wert,
+      }))
+      expect(geparst.ok, `Wert ${String(wert)} hat den Spielstand verworfen`).toBe(true)
+      if (geparst.ok) expect(getMetaSteps(geparst.data, 'firepower')).toBe(0)
+    }
+  })
+
+  it('deckelt gekaufte Stufen auf die Laenge der Preisliste', () => {
+    const zuViel = parseSave(JSON.stringify({
+      version: 1, coins: 0, highestLevel: 1, scores: [], metaTeamSteps: 999,
+    }))
+    expect(zuViel.ok).toBe(true)
+    if (zuViel.ok) expect(getMetaSteps(zuViel.data, 'team')).toBe(BALANCE.meta.prices.length)
+  })
+
+  it('loescht die dauerhaften Stufen beim Zuruecksetzen mit', () => {
+    // Sonst behaelt ein zurueckgesetzter Spielstand einen unsichtbaren Vorsprung - der
+    // Plan nennt das ausdruecklich.
+    writeSave({ ...defaultSave(), coins: 90000, metaFirepowerSteps: 4, metaTeamSteps: 5 })
+    expect(getMetaSteps(loadSave(), 'firepower')).toBe(4)
+
+    const zurueckgesetzt = resetSave()
+    expect(getMetaSteps(zurueckgesetzt, 'firepower')).toBe(0)
+    expect(getMetaSteps(zurueckgesetzt, 'team')).toBe(0)
+    expect(getMetaSteps(loadSave(), 'team')).toBe(0)
+    expect(loadSave().coins).toBe(0)
   })
 })

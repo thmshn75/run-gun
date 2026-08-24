@@ -139,3 +139,57 @@ describe('Shop', () => {
     expect(rest).toBeLessThan(preisAufLevelZwoelf * BALANCE.continueRun.priceDoubling)
   })
 })
+
+describe('Dauerhafte Aufwertungen (E4, 2026-08-24)', () => {
+  const meta = (firepower: number, team: number) => ({ firepower, team })
+
+  it('wirkt je Linie auf genau EINE Groesse', () => {
+    // Feuerkraft ist das Produkt aus Schuetzenzahl, Truppenbonus, Schaden und Rate. Ein
+    // Meta-Bonus auf mehrere dieser Faktoren wirkt multiplikativ - derselbe Fehler wie
+    // beim Endloswachstum, der dort erst im Modell auffiel.
+    const voll = meta(BALANCE.meta.prices.length, 0)
+    expect(getStatCap('damage', 12, KEINE_STUFEN, voll)).toBeGreaterThan(getStatCap('damage', 12))
+    expect(getStatCap('shotsPerSec', 12, KEINE_STUFEN, voll)).toBe(getStatCap('shotsPerSec', 12))
+    // Und umgekehrt: MANNSCHAFT laesst die Feuerkraft in Ruhe.
+    const vollTeam = meta(0, BALANCE.meta.prices.length)
+    expect(getStatCap('hp', 12, KEINE_STUFEN, vollTeam)).toBeGreaterThan(getStatCap('hp', 12))
+    expect(getStatCap('damage', 12, KEINE_STUFEN, vollTeam)).toBe(getStatCap('damage', 12))
+  })
+
+  it('deckelt Run-Shop und Meta GEMEINSAM auf der Feuerkraft', () => {
+    // Der Zielkonflikt aus dem V4-Plan: Zwei multiplikative Quellen auf derselben
+    // Groesse. Der Test haelt den Deckel gegen die Einzelwerte, damit eine spaetere
+    // Aenderung an einer der beiden ihn nicht still ueberschreitet.
+    const beideVoll = { firepower: getMaxShopSteps(), team: getMaxShopSteps() }
+    const metaVoll = meta(BALANCE.meta.prices.length, BALANCE.meta.prices.length)
+    const faktor = getStatCap('damage', 12, beideVoll, metaVoll) / getStatCap('damage', 12)
+    expect(faktor).toBeLessThanOrEqual(BALANCE.meta.totalBoostCap + 0.001)
+  })
+
+  it('deckelt die TRUPPE nicht - sie ist Ueberlebenszeit, keine Feuerkraft', () => {
+    // Ein erster Anlauf legte den Deckel auf alle Werte. Ein bestehender Test hat das
+    // gefangen: Der volle Truppenausbau bringt Faktor 2,33 und darf das, weil ihr
+    // Schadensbonus bei crowd.max Figuren ausgereizt ist.
+    const beideVoll = { firepower: 0, team: getMaxShopSteps() }
+    const metaVoll = meta(0, BALANCE.meta.prices.length)
+    const faktor = getStatCap('hp', 12, beideVoll, metaVoll) / getStatCap('hp', 12)
+    expect(faktor).toBeGreaterThan(BALANCE.meta.totalBoostCap)
+  })
+
+  it('laesst das Spiel ohne gekaufte Stufen exakt wie vorher', () => {
+    // Akzeptanzkriterium aus dem Plan: Ohne Meta-Kaeufe ist nichts anders.
+    for (const level of [1, 6, 12, 20, 30]) {
+      for (const stat of ['hp', 'damage', 'shotsPerSec'] as const) {
+        expect(getStatCap(stat, level, KEINE_STUFEN, meta(0, 0))).toBe(getStatCap(stat, level))
+      }
+    }
+  })
+
+  it('staffelt die Preise steigend und macht die erste Stufe teuer', () => {
+    const preise = BALANCE.meta.prices
+    for (let i = 1; i < preise.length; i += 1) expect(preise[i]).toBeGreaterThan(preise[i - 1])
+    // "muss halt sehr teuer sein" (Benni): Die erste Stufe kostet mehr als ein ganzer
+    // Run bis Level 12 einbringt - sie wird aus dem Endlosbereich bezahlt.
+    expect(preise[0]).toBeGreaterThan(5000)
+  })
+})

@@ -59,6 +59,15 @@ export interface SaveData {
    * entfernten 'upgrades'-Feld.
    */
   v4Migrated?: true
+  /**
+   * Dauerhaft gekaufte Meta-Stufen (E4, 2026-08-24). Sie ueberleben jeden Run.
+   *
+   * FEHLEND HEISST 0, nie ein Fehler - dieselbe Regel wie beim 'run'-Feld, beim
+   * entfernten 'upgrades'-Feld und beim v4Migrated-Marker. Diese Falle war dem Projekt
+   * schon zweimal fast die ganze Bestenliste eines bespielten Geraets wert.
+   */
+  metaFirepowerSteps?: number
+  metaTeamSteps?: number
 }
 
 const SAVE_KEY = 'rungun_save_v1'
@@ -185,6 +194,10 @@ export function parseSave(text: string): { ok: true; data: SaveData } | { ok: fa
   // den Spielstand abzulehnen.
   const v4Migrated = value.v4Migrated === true ? (true as const) : undefined
 
+  // Meta-Stufen: alles, was keine brauchbare Zahl ist, gilt als 0. Ein Spielstand darf
+  // daran NIE scheitern.
+  const metaStufe = (wert: unknown): number => (isNonNegativeNumber(wert) ? Math.floor(wert) : 0)
+
   return {
     ok: true,
     data: {
@@ -199,8 +212,27 @@ export function parseSave(text: string): { ok: true; data: SaveData } | { ok: fa
       })),
       ...(run === undefined ? {} : { run }),
       ...(v4Migrated === undefined ? {} : { v4Migrated }),
+      // Nur aufnehmen, wenn tatsaechlich etwas gekauft wurde - wie beim 'run'-Feld und
+      // beim v4Migrated-Marker. Ein Spielstand ohne Meta-Kaeufe sieht damit aus wie
+      // vorher, und der gespeicherte Text bleibt klein.
+      ...(metaStufe(value.metaFirepowerSteps) > 0 ? { metaFirepowerSteps: metaStufe(value.metaFirepowerSteps) } : {}),
+      ...(metaStufe(value.metaTeamSteps) > 0 ? { metaTeamSteps: metaStufe(value.metaTeamSteps) } : {}),
     },
   }
+}
+
+/** Gekaufte Meta-Stufen einer Linie. Fehlend = 0. */
+export function getMetaSteps(data: SaveData, line: 'firepower' | 'team'): number {
+  const wert = line === 'firepower' ? data.metaFirepowerSteps : data.metaTeamSteps
+  return typeof wert === 'number' && Number.isFinite(wert) && wert > 0
+    ? Math.min(Math.floor(wert), BALANCE.meta.prices.length)
+    : 0
+}
+
+/** Preis der naechsten Stufe. undefined, wenn die Linie ausgebaut ist. */
+export function getMetaPrice(steps: number): number | undefined {
+  if (steps < 0 || steps >= BALANCE.meta.prices.length) return undefined
+  return BALANCE.meta.prices[steps]
 }
 
 function isRunSnapshot(value: unknown): value is RunSnapshot {

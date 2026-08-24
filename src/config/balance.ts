@@ -865,6 +865,47 @@ export const BALANCE = {
   },
   // WEITERSPIELEN NACH DEM SCHEITERN (Benni: "wenn man ein level nicht schafft, dann soll
   // man es gegen Bezahlung von Muenzen nochmal spielen koennen").
+  // DAUERHAFTE AUFWERTUNGEN IM HAUPTMENUE (E4, Benni ueber Thomas 2026-08-24: "dauerhafte
+  // Aufwertungen im Hauptmenue fuer Feuerkraft und Truppe, die ueber Runs hinweg bleiben -
+  // muss halt sehr teuer sein").
+  //
+  // WARUM DAS JETZT GEHT, obwohl derselbe Wunsch am 2026-08-23 gestrichen wurde: Der
+  // Einwand war "sie summieren sich ueber viele Runs, bis das Spiel von selbst
+  // durchlaeuft". Das galt, solange die Schwierigkeit bei Level 12 endete. Seit E1
+  // endlos weiterrechnet, sind sie die Voraussetzung dafuer, dass ein Kind je Level 25
+  // sieht - dauerhafter Fortschritt PLUS endlose Steigerung, beides zusammen traegt.
+  //
+  // NUR EINE GROESSE JE LINIE, sonst wirkt der Zuwachs multiplikativ: SCHLAGKRAFT geht
+  // ausschliesslich auf damage, MANNSCHAFT ausschliesslich auf die Truppengroesse. Aus
+  // der Truppe entsteht keine Feuerkraft (crowd.damageMultiplierCap ist bei 30 Figuren
+  // ausgereizt), sie kauft Ueberlebenszeit.
+  meta: {
+    // Preise, Index 0 = erste Stufe. 6.000 dann x1,7.
+    //
+    // GERECHNET aus dem, was ein Run uebrig laesst - und das kommt aus dem
+    // ENDLOSBEREICH: Bis Level 12 bleiben nach dem Run-Shop nur rund 124 Muenzen ueber.
+    // Ab Level 13 ist der Run-Shop erschoepft, dort fliesst alles aufs Konto. Mit der
+    // gemessenen Muenzrate bringt ein Run bis Level 16 rund 5.900 aufs Konto, bis
+    // Level 20 rund 12.600, bis Level 30 rund 32.600.
+    // Die erste Stufe entspricht damit etwa einem guten Run bis Level 16, die fuenfte
+    // rund acht Runs bis Level 20. Beide Linien voll auszubauen ist ein Ziel ueber viele
+    // Abende - genau das war Bennis "muss halt sehr teuer sein".
+    prices: [6000, 10200, 17340, 29500, 50100],
+    // +4 % je Stufe, fuenf Stufen = +21,7 % je Linie. Bewusst klein: Der Run-Shop bringt
+    // bei vollem Ausbau bereits +38,5 % Feuerkraft.
+    firepowerBonusPerStep: 0.04,
+    teamBonusPerStep: 0.04,
+    // GEMEINSAMER DECKEL fuer Meta UND Run-Shop (der Zielkonflikt aus dem V4-Plan).
+    // Feuerkraft ist das Produkt aus Schuetzenzahl, Truppenbonus, Schaden und Rate; bei
+    // zwei multiplikativen Quellen potenziert sich jeder Fehler. Gerechnet:
+    //   Run-Shop voll: damage 1,025^11 x rate 1,005^11 = 1,385
+    //   Meta voll:     1,04^5 = 1,217
+    //   zusammen:      1,686
+    // 1,70 laesst gerade so viel Luft, dass keine der beiden Quellen den Deckel allein
+    // durch Rundung reisst. Ein Test haelt ihn gegen die Einzelwerte - damit eine
+    // spaetere Aenderung an einer der beiden ihn nicht still ueberschreitet.
+    totalBoostCap: 1.7,
+  },
   continueRun: {
     // 250 x erreichtes Level: 750 auf Level 3, 2.000 auf Level 8, 3.000 auf Level 12.
     // Gegenprobe an der Einnahme: Ein voller Run bringt 10.454 und kostet 6.800 an Stufen,

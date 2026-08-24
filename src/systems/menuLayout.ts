@@ -11,6 +11,8 @@ export interface MenuLayout {
   scoresTitle: VerticalBounds
   scoreLines: VerticalBounds[]
   resetButton: VerticalBounds
+  /** Fuehrt in die eigene Ansicht der dauerhaften Aufwertungen (E4). */
+  shopButton: VerticalBounds
   playButton: VerticalBounds
   /** Nur belegt, wenn ein angefangener Run vorliegt (B3). */
   continueButton: VerticalBounds
@@ -21,6 +23,7 @@ const BALANCE_HEIGHT = 28
 const SCORE_TITLE_HEIGHT = 26
 const SCORE_LINE_HEIGHT = 21
 const RESET_BUTTON_HEIGHT = 36
+const SHOP_BUTTON_HEIGHT = 44
 const FOOTER_GAP = 12
 const PLAY_BUTTON_HEIGHT = 54
 const CONTINUE_BUTTON_HEIGHT = 54
@@ -52,7 +55,16 @@ export function computeMenuLayout(
     top: playButton.top - FOOTER_GAP - CONTINUE_BUTTON_HEIGHT,
     height: hasOpenRun ? CONTINUE_BUTTON_HEIGHT : 0,
   }
-  const resetTop = (hasOpenRun ? continueButton.top : playButton.top) - FOOTER_GAP - RESET_BUTTON_HEIGHT
+  // SHOP sitzt ueber FORTSETZEN/SPIELEN und schiebt ZURUECKSETZEN weiter nach oben.
+  // Er bekommt einen EIGENEN Slot, statt sich einen zu teilen: menuLayout kennt sonst
+  // sechs Bloecke ohne Reserve, und zwei Linien a fuenf Stufen passen dort nicht
+  // dazwischen - deshalb liegen die Aufwertungen in einer eigenen Ansicht und hier steht
+  // nur die Tuer dorthin.
+  const shopButton = {
+    top: (hasOpenRun ? continueButton.top : playButton.top) - FOOTER_GAP - SHOP_BUTTON_HEIGHT,
+    height: SHOP_BUTTON_HEIGHT,
+  }
+  const resetTop = shopButton.top - FOOTER_GAP - RESET_BUTTON_HEIGHT
 
   return {
     title: { top: insets.top + 25, height: TITLE_HEIGHT },
@@ -63,6 +75,7 @@ export function computeMenuLayout(
       height: SCORE_LINE_HEIGHT,
     })),
     resetButton: { top: resetTop, height: RESET_BUTTON_HEIGHT },
+    shopButton,
     playButton,
     continueButton,
   }
