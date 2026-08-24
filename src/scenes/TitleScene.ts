@@ -3,6 +3,7 @@ import { BALANCE } from '../config/balance'
 import { MENU_COLORS } from '../config/colors'
 import { readSafeAreaInsets } from '../systems/safeArea'
 import { computeTitleLayout } from '../systems/titleLayout'
+import { enableSharpText } from '../systems/textSharpness'
 
 export class TitleScene extends Phaser.Scene {
   public constructor() {
@@ -10,6 +11,7 @@ export class TitleScene extends Phaser.Scene {
   }
 
   public create(): void {
+    enableSharpText(this)
     const width = this.scale.width
     const height = this.scale.height
     const insets = readSafeAreaInsets(this.game.canvas)

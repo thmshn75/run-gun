@@ -3,6 +3,7 @@ import { BALANCE } from '../config/balance'
 import { HUD_COLORS, MENU_COLORS } from '../config/colors'
 import { readSafeAreaInsets } from '../systems/safeArea'
 import { loadSave, writeSave, type ScoreEntry } from '../systems/save'
+import { enableSharpText } from '../systems/textSharpness'
 
 export class GameOverScene extends Phaser.Scene {
   private elapsedMs!: number
@@ -23,6 +24,7 @@ export class GameOverScene extends Phaser.Scene {
   }
 
   public create(): void {
+    enableSharpText(this)
     this.elapsedMs = 0
     const insets = readSafeAreaInsets(this.game.canvas)
     const centerX = this.scale.width / 2

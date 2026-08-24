@@ -1703,6 +1703,11 @@ export const BALANCE = {
     edgeInset: 7,
   },
   render: {
+    // Deckel fuer die Schrift-Aufloesung (siehe systems/textSharpness.ts). Gemessen wird
+    // die tatsaechliche Streckung; auf einem iPhone mit 390 Punkten Breite und dreifacher
+    // Geraeteaufloesung ist sie genau 3. Darueber ist kein Unterschied mehr sichtbar, und
+    // jede Stufe kostet quadratisch Texturflaeche.
+    maxTextResolution: 3,
     // Alle Figuren-Sprites (Truppe, drei Gegnertypen, Boss) liegen seit W7 in DOPPELTER
     // Aufloesung vor. Grund: Mit pixelArt: false glaettet Phaser beim Skalieren, und
     // enemy.figureScale 1,25 VERGROESSERT die Gegner - eine Textur in Zielgroesse wurde

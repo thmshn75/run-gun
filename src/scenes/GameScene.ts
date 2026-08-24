@@ -19,6 +19,7 @@ import { addScore, loadSave, qualifiesForScores, writeSave } from '../systems/sa
 import { Spawner } from '../systems/spawner'
 import { RunStats, type ShopLine, getStatCap, getShopPrice, getContinuePrice } from '../systems/upgrades'
 import { WEAPON_LABELS, Weapons, type WeaponKey, WEAPON_KEYS } from '../systems/weapons'
+import { enableSharpText } from '../systems/textSharpness'
 
 interface HudSegments {
   hp: Phaser.GameObjects.Text
@@ -173,6 +174,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   public create(): void {
+    enableSharpText(this)
     this.runStats = new RunStats()
     // Ein Run startet auf Level 1 mit den Basiswerten. Bis zum 2026-08-23 kamen sie aus
     // gekauften Shop-Stufen; der Shop ist entfallen (Thomas: "Den Shop kannst du

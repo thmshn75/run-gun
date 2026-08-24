@@ -5,8 +5,7 @@ import { getGameAudio } from '../systems/audio'
 import { computeMenuLayout } from '../systems/menuLayout'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { loadSave, resetSave, type SaveData, type ScoreEntry } from '../systems/save'
-import {
-} from '../systems/upgrades'
+import { enableSharpText } from '../systems/textSharpness'
 
 export class MenuScene extends Phaser.Scene {
   private save!: SaveData
@@ -20,6 +19,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   public create(): void {
+    enableSharpText(this)
     this.save = loadSave()
     this.insets = readSafeAreaInsets(this.game.canvas)
     this.input.setTopOnly(true)

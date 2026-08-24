@@ -6,11 +6,43 @@
 
 ## Task
 
-`IDLE` — V3 ist vollständig gebaut. Alles wartet auf Thomas' iPhone-Test.
+`IDLE` — V3 vollständig gebaut. Alles wartet auf Thomas' iPhone-Test.
 
 ---
 
 ## Abgeschlossen
+
+### Unscharfe Schrift auf den Knöpfen (2026-08-24)
+
+**Thomas:** „Die weiße Schrift in den orangen Buttons ist etwas unscharf."
+
+**Ursache gemessen, nicht vermutet:** Das Spiel rechnet in einem festen Feld von 390 × 844
+Punkten, und Phaser legt den Zeichenbereich genau so groß an — **390 echte Bildpunkte
+breit**. Ein iPhone zeigt diese 390 Punkte auf **1.170 Gerätepunkten** an; jeder
+gezeichnete Punkt wird auf drei gestreckt (im Browser mit iPhone-Maßen nachgemessen:
+Streckung exakt 3,0). Bilder verkraften das, weil sie ohnehin in doppelter Auflösung
+vorliegen. Schrift nicht: Phaser rendert sie in eine Textur in der Größe, die sie im Feld
+hat, und die wird mitgestreckt.
+
+**Behebung:** Die Schrift-Textur in der Auflösung rendern, in der sie tatsächlich zu sehen
+ist (`Text.setResolution`). Layout, Schriftgröße und Position bleiben unverändert.
+
+**Belegt:** Die Textur des SPIELEN-Knopfes ist jetzt **291 × 78 statt 97 × 26** — dreifach
+— bei unveränderter Anzeigebreite von 97 Punkten. Im Bildvergleich (vierfach vergrößert)
+sind die Kanten klar statt ausgefranst.
+
+**Alle Texte erfasst, auch später erzeugte:** Der Haken auf `ADDED_TO_SCENE` greift für
+jeden Text, egal wann er entsteht — gemessen **96 von 96** in der Spielszene inklusive
+Shop-Overlay, das erst in der Levelpause gebaut wird. Das war der Grund, es so zu lösen
+statt an 36 einzelnen `add.text`-Aufrufen: So kann keine Stelle vergessen werden.
+
+**Kostet keine Leistung:** Volllast (Level 12, Truppe 100, Schrotflinte, 2× gedrosselte
+CPU) weiterhin 60 fps, schlimmstes Bild 19 ms, kein Bild über 33 ms. Der Faktor ist auf 3
+gedeckelt, weil jede Stufe quadratisch Texturfläche kostet.
+
+**Nebenbei aufgeräumt:** In `MenuScene` stand ein leerer `import {} from
+'../systems/upgrades'` — ein Rest aus der Shop-Entfernung vom 2026-08-23.
+
 
 ### Speicherpunkte nachgebessert + B7 Ton (2026-08-24)
 

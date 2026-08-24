@@ -40,6 +40,7 @@ import weaponGrenadeHudUrl from '../assets/weapon-grenade-hud.png'
 import { BALANCE } from '../config/balance'
 import { mix, WORLD_COLORS } from '../config/colors'
 import { getRoadHalfWidth } from '../systems/road'
+import { enableSharpText } from '../systems/textSharpness'
 
 export class BootScene extends Phaser.Scene {
   public constructor() {
@@ -88,6 +89,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   public create(): void {
+    enableSharpText(this)
     this.createProjectileTextures()
     this.createBackgroundTextures()
     this.createRoadTextures()
