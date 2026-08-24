@@ -233,6 +233,30 @@ export const BALANCE = {
     // Aufsammeln, Waffenwechsel) unterliegen dem Deckel bewusst NICHT - sie duerfen
     // nie im Schussgeraeusch untergehen.
     maxCasualVoices: 6,
+    // HINTERGRUNDMUSIK (Thomas 2026-08-23). Wie der Rest des Tons synthetisch, ohne
+    // Audiodatei: eine ruhige Akkordfolge aus weichen Sinustoenen, tiefpassgefiltert.
+    // Vier Akkorde a 6 Sekunden ergeben einen 24-Sekunden-Kreis - lang genug, dass er
+    // nicht als Schleife auffaellt, kurz genug, dass er nichts kostet.
+    //
+    // a-Moll - F - C/G - G: die verbreitetste ruhige Folge ueberhaupt, bewusst
+    // unauffaellig. Sie soll traegen, nicht auffallen.
+    music: {
+      // Deutlich unter den Effekten: Musik ist Grundierung, keine Quittung.
+      volume: 0.075,
+      chordSeconds: 6,
+      // Weiche Kanten - ohne langen An- und Abstieg klingt ein Pad wie ein Signalton.
+      attackSeconds: 2,
+      releaseSeconds: 2.6,
+      // Tiefpass nimmt den Obertonanteil weg, der auf Handylautsprechern schrill wirkt.
+      filterHz: 850,
+      // Drei Toene je Akkord, enge Lage um 175-330 Hz.
+      chords: [
+        [220.0, 261.6, 329.6],
+        [174.6, 220.0, 261.6],
+        [196.0, 261.6, 329.6],
+        [196.0, 246.9, 293.7],
+      ],
+    },
     events: {
       // Ein Ton je Salve, nicht je Kugel: Die Schrotflinte feuert 7 Kugeln gleichzeitig.
       // Drossel 125 ms = 1000 / shotsPerSec.cap (8/s): So hoert man die volle
@@ -240,9 +264,14 @@ export const BALANCE = {
       // (17,6 Salven/s) und Flammenwerfer (14,4/s) laufen in den Deckel - dort ist ein
       // Einzelschuss ohnehin nicht mehr trennbar, das Ohr hoert ab ~10/s einen Teppich.
       // Leisester Ton im Spiel, weil mit Abstand der haeufigste.
-      shot: { volume: 0.16, durationMs: 60, minGapMs: 125, casual: true },
+      // STUMM seit 2026-08-23 (Thomas: "diese Schiessgeraeusche nerven, ich moechte
+      // einfach eine angenehme Musikuntermalung"). Der Ton bleibt im Code stehen und
+      // ist ueber diese eine Zahl zurueckzuholen - 0,16 war der alte Wert.
+      shot: { volume: 0, durationMs: 60, minGapMs: 125, casual: true },
       // 70 ms Abstand macht aus acht gleichzeitigen Toten eine hoerbare Kette.
-      enemyDown: { volume: 0.22, durationMs: 130, minGapMs: 70, casual: true },
+      // Ebenfalls stumm: Bei 6-13 Gegnern je Sekunde ist der Sterbeton Teil desselben
+      // Dauergeraeuschs wie der Schuss - "das Geballer" meint beides. Alter Wert 0,22.
+      enemyDown: { volume: 0, durationMs: 130, minGapMs: 70, casual: true },
       // Wandbruch ist das Ereignis, auf das der Spieler hinarbeitet (0,12-0,50 s Fokus
       // je nach Level) - entsprechend laut und mit Wucht unterlegt.
       wallBreak: { volume: 0.45, durationMs: 220, minGapMs: 40, casual: false },
@@ -726,6 +755,11 @@ export const BALANCE = {
       continueBottomOffset: 70,
       continueHeight: 76,
       continueFontPx: 26,
+      // "SPEICHERN & BEENDEN" ueber WEITER: kleiner und ruhiger, weil es der seltenere
+      // Weg ist - aber sichtbar, damit man nicht die App wegwischen muss.
+      quitGap: 14,
+      quitHeight: 48,
+      quitFontPx: 17,
       disabledAlpha: 0.45,
       depthPanel: 120,
       depthText: 121,

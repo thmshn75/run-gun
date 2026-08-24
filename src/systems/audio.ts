@@ -48,6 +48,9 @@ export class GameAudio {
   private readonly scheduler: AudioScheduler
   private noise: AudioBuffer | undefined
   private muted: boolean
+  private musicGain: GainNode | undefined
+  private musicTimer: ReturnType<typeof setInterval> | undefined
+  private musicChordIndex = 0
 
   public constructor(scene: Phaser.Scene) {
     this.scheduler = new AudioScheduler()
@@ -105,11 +108,89 @@ export class GameAudio {
     this.playNow(kind)
   }
 
+  /**
+   * Ruhige Hintergrundmusik (Thomas 2026-08-23: "ich moechte einfach eine angenehme
+   * Musikuntermalung"). Synthetisch wie der Rest des Tons - keine Audiodatei, nichts
+   * nachzuladen, offline identisch.
+   *
+   * Sie haengt am selben Master-Regler wie die Effekte, der Stummschalter im Menue
+   * erfasst sie also mit. Auf iOS ist Web Audio bis zur ersten Nutzergeste gesperrt;
+   * deshalb derselbe resume()-Umweg wie bei den Effekten.
+   */
+  public startMusic(): void {
+    const context = this.context
+    if (context === undefined || this.master === undefined || this.musicTimer !== undefined) return
+    if (context.state === 'suspended') {
+      void context.resume().then(() => {
+        if (context.state === 'running' && this.musicTimer === undefined) this.startMusic()
+      })
+      return
+    }
+    const gain = context.createGain()
+    gain.gain.value = 1
+    gain.connect(this.master)
+    this.musicGain = gain
+    this.musicChordIndex = 0
+    this.playChord()
+    this.musicTimer = setInterval(() => this.playChord(), BALANCE.audio.music.chordSeconds * 1000)
+  }
+
+  public stopMusic(): void {
+    if (this.musicTimer !== undefined) {
+      clearInterval(this.musicTimer)
+      this.musicTimer = undefined
+    }
+    if (this.musicGain !== undefined) {
+      // Nicht hart abschneiden: Ein laufendes Pad knackt sonst beim Szenenwechsel.
+      const jetzt = this.context?.currentTime ?? 0
+      this.musicGain.gain.setValueAtTime(this.musicGain.gain.value, jetzt)
+      this.musicGain.gain.exponentialRampToValueAtTime(SILENCE, jetzt + 0.4)
+      const alt = this.musicGain
+      setTimeout(() => alt.disconnect(), 600)
+      this.musicGain = undefined
+    }
+  }
+
+  private playChord(): void {
+    const context = this.context
+    const ziel = this.musicGain
+    if (context === undefined || ziel === undefined) return
+    const musik = BALANCE.audio.music
+    const akkord = musik.chords[this.musicChordIndex % musik.chords.length]
+    this.musicChordIndex += 1
+    const start = context.currentTime
+    // Die Toene ueberlappen bewusst (Dauer > Akkordabstand): So gibt es keine Luecke
+    // zwischen den Akkorden, sie gehen ineinander ueber.
+    const dauer = musik.chordSeconds + musik.releaseSeconds
+    for (const hz of akkord) {
+      const osz = context.createOscillator()
+      osz.type = 'sine'
+      osz.frequency.value = hz
+      const filter = context.createBiquadFilter()
+      filter.type = 'lowpass'
+      filter.frequency.value = musik.filterHz
+      const huelle = context.createGain()
+      huelle.gain.setValueAtTime(SILENCE, start)
+      huelle.gain.exponentialRampToValueAtTime(musik.volume / akkord.length, start + musik.attackSeconds)
+      huelle.gain.setValueAtTime(musik.volume / akkord.length, start + musik.chordSeconds)
+      huelle.gain.exponentialRampToValueAtTime(SILENCE, start + dauer)
+      osz.connect(filter)
+      filter.connect(huelle)
+      huelle.connect(ziel)
+      osz.start(start)
+      osz.stop(start + dauer + 0.05)
+    }
+  }
+
   private playNow(kind: AudioEventKind): void {
     const context = this.context
     if (this.muted || context === undefined || this.master === undefined) return
-    if (!this.scheduler.request(kind, context.currentTime * 1000)) return
     const volume = BALANCE.audio.events[kind].volume
+    // Auf 0 gestellte Ereignisse gar nicht erst erzeugen (Schuss und Sterbeton seit
+    // 2026-08-23). Der Zweig darunter bleibt stehen, damit ein Zurueckdrehen eine
+    // Zahl ist und kein Umbau.
+    if (volume <= 0) return
+    if (!this.scheduler.request(kind, context.currentTime * 1000)) return
     switch (kind) {
       case 'shot':
         // Trockener Knall: kurzer gefilterter Rauschstoss plus tiefer Koerper.

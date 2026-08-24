@@ -497,23 +497,28 @@ Mindestzahl an Toralternativen je Level festhält.
 **Akzeptanz:** Auf jedem Level erscheinen nur freigeschaltete Waffen; ab Level 7 sind alle
 acht verfügbar; kein Stärkewert wurde angefasst (das Waffenband bleibt unverändert, Test).
 
-### B7 — Ton (noch nicht startbereit)
+### B7 — Ton: Geballer raus, Musik rein
 
-**Thomas 2026-08-23: „Den Ton müssen wir uns auch nochmal vornehmen irgendwann."**
+**Thomas 2026-08-23, jetzt konkret:** „Diese Schießgeräusche nerven, ich möchte einfach
+eine angenehme Musikuntermalung."
 
-Der Ton ist gebaut und funktioniert: sieben synthetisch erzeugte Klänge über Web Audio,
-ohne eine einzige Audiodatei, mit Schalter im Menü (`audio.ts`, `audioPlan.ts`, seit
-2026-08-22). Was daran stört, ist **nicht gesagt** — und ohne diese Angabe ist die Etappe
-nicht spezifizierbar. Möglich ist alles von „klingt billig" über „zu laut / zu oft" bis
-„die falschen Ereignisse machen Geräusch".
+**Gebaut, zwei Teile:**
 
-**Diese Etappe bleibt bewusst leer, bis Thomas oder Benni beschreibt, was konkret stört.**
-Sie hinter B4 zu setzen und mit einer erfundenen Aufgabenstellung zu füllen, wäre genau
-der Fehler, vor dem `docs/lessons.md` beim Sprite-Auftrag warnt: ein Ersatzprodukt statt
-der gefragten Sache.
+1. **Das Dauergeräusch ist stumm.** Schuss und Sterbeton stehen auf Lautstärke 0 — bei
+   6 bis 13 Gegnern je Sekunde sind das nicht zwei Töne, sondern ein Teppich. Der
+   Erzeugungscode bleibt stehen: Zurückgedreht wird über **eine Zahl**, nicht über einen
+   Umbau. Die seltenen, bedeutungstragenden Quittungen (Wandbruch, Truppe größer/kleiner,
+   Waffenwechsel) bleiben unverändert hörbar — sie sagen etwas, das man sonst übersieht.
+2. **Ruhige Hintergrundmusik**, wie der übrige Ton **synthetisch ohne Audiodatei**: vier
+   Akkorde à sechs Sekunden (a-Moll – F – C/G – G) aus weichen, tiefpassgefilterten
+   Sinustönen, die ineinander übergehen. 24-Sekunden-Kreis — lang genug, dass er nicht als
+   Schleife auffällt. Sie hängt am selben Regler wie die Effekte, der Stummschalter im
+   Menü erfasst sie also mit.
 
-**Sinnvolle Frage an Benni, wenn es soweit ist:** Welcher Ton nervt, und welcher fehlt?
-Zwei konkrete Antworten reichen für eine Spec.
+**Belegt:** Am Pegelmesser im laufenden Spiel 0,0745 gegen eingestellte 0,075.
+
+**Offen:** Thomas' Urteil am iPhone — trägt die Folge über einen ganzen Run, ohne zu
+nerven? Stellschrauben: `audio.music.volume`, `chordSeconds`, `chords`.
 
 ## Risiken & Reißleinen (Überblick)
 

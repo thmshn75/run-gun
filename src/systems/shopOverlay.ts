@@ -32,12 +32,15 @@ export class ShopOverlay {
   private readonly scene: Phaser.Scene
   private readonly onKauf: (line: ShopLine) => void
   private readonly onWeiter: () => void
+  private readonly onBeenden: () => void
   private readonly hintergrund: Phaser.GameObjects.Rectangle
   private readonly ueberschrift: Phaser.GameObjects.Text
   private readonly konto: Phaser.GameObjects.Text
   private readonly knoepfe: Record<ShopLine, Knopf>
   private readonly weiter: Phaser.GameObjects.Rectangle
   private readonly weiterText: Phaser.GameObjects.Text
+  private readonly beenden: Phaser.GameObjects.Rectangle
+  private readonly beendenText: Phaser.GameObjects.Text
   private readonly alleObjekte: Array<Phaser.GameObjects.Rectangle | Phaser.GameObjects.Text>
   private sichtbar = false
 
@@ -46,10 +49,12 @@ export class ShopOverlay {
     insets: { top: number; bottom: number; left: number; right: number },
     onKauf: (line: ShopLine) => void,
     onWeiter: () => void,
+    onBeenden: () => void,
   ) {
     this.scene = scene
     this.onKauf = onKauf
     this.onWeiter = onWeiter
+    this.onBeenden = onBeenden
     const breite = scene.scale.width
     const hoehe = scene.scale.height
     const mitte = breite / 2
@@ -80,8 +85,22 @@ export class ShopOverlay {
     }).setOrigin(0.5).setDepth(BALANCE.shop.ui.depthText)
     this.weiter.on('pointerdown', () => { if (this.sichtbar) this.onWeiter() })
 
+    // SPEICHERN & BEENDEN: Der Stand liegt hier ohnehin schon im Spielstand - der Knopf
+    // fuehrt nur ins Menue zurueck. Er ist trotzdem noetig, weil man sonst die App
+    // wegwischen muesste und nie wuesste, ob gespeichert wurde (Thomas 2026-08-23).
+    const beendenY = weiterY - BALANCE.shop.ui.continueHeight - BALANCE.shop.ui.quitGap
+    this.beenden = scene.add.rectangle(mitte, beendenY, knopfBreite, BALANCE.shop.ui.quitHeight, MENU_COLORS.row)
+      .setStrokeStyle(2, MENU_COLORS.rowStroke)
+      .setDepth(BALANCE.shop.ui.depthPanel).setInteractive({ useHandCursor: true })
+    this.beendenText = scene.add.text(mitte, beendenY, 'SPEICHERN & BEENDEN', {
+      fontFamily: 'system-ui', fontSize: `${BALANCE.shop.ui.quitFontPx}px`, fontStyle: 'bold',
+      color: this.farbe(MENU_COLORS.text),
+    }).setOrigin(0.5).setDepth(BALANCE.shop.ui.depthText)
+    this.beenden.on('pointerdown', () => { if (this.sichtbar) this.onBeenden() })
+
     this.alleObjekte = [
       this.hintergrund, this.ueberschrift, this.konto, this.weiter, this.weiterText,
+      this.beenden, this.beendenText,
       ...Object.values(this.knoepfe).flatMap((k) => [k.hintergrund, k.titel, k.wirkung, k.preis]),
     ]
     this.verstecken()

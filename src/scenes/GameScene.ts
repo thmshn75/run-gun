@@ -206,6 +206,9 @@ export class GameScene extends Phaser.Scene {
     this.insets = readSafeAreaInsets(this.game.canvas)
     this.audio = getGameAudio(this)
     this.audio.resetRun()
+    // Musik laeuft ueber den ganzen Run und endet mit der Szene (Thomas 2026-08-23).
+    this.audio.startMusic()
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.audio.stopMusic())
     this.cameras.main.setBackgroundColor(WORLD_COLORS.background)
     this.road = new Road(this)
     this.scenery = new Scenery(this, () => Phaser.Math.RND.frac())
@@ -265,6 +268,7 @@ export class GameScene extends Phaser.Scene {
       this.insets,
       (line) => this.kaufeStufe(line),
       () => this.verlasseShop(),
+      () => this.speichernUndBeenden(),
     )
     this.crowd.setWallPresenceProvider((y, halfSpan) => this.walls.getWallPresence(y, halfSpan))
     this.boss = new Boss(
@@ -472,8 +476,10 @@ export class GameScene extends Phaser.Scene {
    */
   private stelleEinstiegHer(): void {
     if (this.einstieg === 'neu') {
-      const saved = loadSave()
-      if (saved.run !== undefined) writeSave({ ...saved, run: undefined })
+      // Auch der frische Run wird sofort gesichert. Vorher lief sichereRun() nur in
+      // startLevel(), und das wird beim ERSTEN Level gar nicht aufgerufen - wer Level 1
+      // spielte und aufhoerte, hatte keinen Punkt zum Fortsetzen.
+      this.sichereRun()
       return
     }
     const snapshot = loadSave().run
@@ -934,6 +940,11 @@ export class GameScene extends Phaser.Scene {
     this.levelPhase = 'shop'
     this.kaeufeInPause = { firepower: 0, team: 0 }
     this.bucheMuenzenAufsKonto()
+    // SOFORT sichern, nicht erst beim Weitergehen (Thomas 2026-08-23: "wenn ich ein
+    // Level fertig habe muss ich erst ein neues anfangen, damit der Stand gespeichert
+    // wird"). Beim Betreten des Shops ist currentLevel bereits hochgezaehlt - das
+    // geschaffte Level ist damit in dem Moment gesichert, in dem es geschafft ist.
+    this.sichereRun()
     this.levelOverlayBackground.setVisible(false)
     this.levelOverlay.setVisible(false)
     this.shop.zeigen(this.shopZustand())
@@ -973,6 +984,20 @@ export class GameScene extends Phaser.Scene {
     if (this.levelPhase !== 'shop') return
     this.shop.verstecken()
     this.startLevel()
+  }
+
+  /**
+   * Bewusst aufhoeren (Thomas 2026-08-23: "es gibt nicht die Moeglichkeit selbst zu
+   * speichern?"). Der Stand liegt beim Betreten des Shops bereits vollstaendig im
+   * Spielstand - dieser Knopf geht deshalb nur zurueck ins Menue. Er ist trotzdem
+   * wichtig: Ohne ihn muesste man die App wegwischen und wuesste nie, ob gespeichert
+   * wurde.
+   */
+  private speichernUndBeenden(): void {
+    if (this.levelPhase !== 'shop') return
+    this.sichereRun()
+    this.shop.verstecken()
+    this.scene.start('MenuScene')
   }
 
   private startLevel(): void {

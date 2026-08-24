@@ -118,3 +118,36 @@ describe('Ton-Auslöser im Spiel', () => {
     expect(gameScene).not.toContain("audio.play('coin')")
   })
 })
+
+describe('Ton nach Thomas 2026-08-23', () => {
+  it('das Dauergeraeusch ist stumm, die seltenen Quittungen bleiben', () => {
+    // Thomas: "diese Schiessgeraeusche nerven". Schuss und Sterbeton sind bei 6-13
+    // Gegnern je Sekunde dasselbe Dauergeraeusch - beide auf 0.
+    expect(BALANCE.audio.events.shot.volume).toBe(0)
+    expect(BALANCE.audio.events.enemyDown.volume).toBe(0)
+    // Die seltenen, bedeutungstragenden Toene bleiben hoerbar.
+    for (const kind of ['wallBreak', 'crowdUp', 'crowdDown', 'weaponSwap'] as const) {
+      expect(BALANCE.audio.events[kind].volume, `${kind} darf nicht stumm sein`).toBeGreaterThan(0)
+    }
+  })
+
+  it('die Hintergrundmusik ist Grundierung, keine Quittung', () => {
+    const musik = BALANCE.audio.music
+    // Leiser als jede hoerbare Quittung - sonst uebertoent sie das, worauf es ankommt.
+    const lauteste = Math.max(...Object.values(BALANCE.audio.events).map((e) => e.volume))
+    expect(musik.volume).toBeLessThan(lauteste)
+    // Vier Akkorde a drei Toenen, alle in enger Lage: kein Ausreisser nach oben, der
+    // auf Handylautsprechern schrill wird.
+    expect(musik.chords).toHaveLength(4)
+    for (const akkord of musik.chords) {
+      expect(akkord).toHaveLength(3)
+      for (const hz of akkord) {
+        expect(hz).toBeGreaterThan(100)
+        expect(hz).toBeLessThan(400)
+      }
+    }
+    // Die Toene muessen ueberlappen, sonst entsteht zwischen den Akkorden eine Luecke.
+    expect(musik.releaseSeconds).toBeGreaterThan(0)
+    expect(musik.attackSeconds).toBeLessThan(musik.chordSeconds)
+  })
+})

@@ -6,14 +6,38 @@
 
 ## Task
 
-`IDLE` — V3 ist bis auf **B7 (Ton)** gebaut. Der ist nicht startbereit: Thomas muss
-sagen, was am Ton stört.
-
-**Alles Gebaute wartet auf Thomas' iPhone-Test** (Reihenfolge in `docs/UEBERGABE.md`).
+`IDLE` — V3 ist vollständig gebaut. Alles wartet auf Thomas' iPhone-Test.
 
 ---
 
 ## Abgeschlossen
+
+### Speicherpunkte nachgebessert + B7 Ton (2026-08-24)
+
+**Thomas' Befund zum Speichern war richtig und der Fehler größer als gedacht:**
+`sichereRun()` lief nur in `startLevel()` — und das wird beim **ersten** Level gar nicht
+aufgerufen. Wer Level 1 spielte und aufhörte, hatte keinen Punkt zum Fortsetzen; wer im
+Shop aufhörte, verlor das gerade geschaffte Level.
+
+Jetzt wird an **drei** Stellen gesichert: beim Start eines frischen Runs, **beim Betreten
+des Shops** (dort ist das Level bereits hochgezählt — das geschaffte Level ist in dem
+Moment gesichert, in dem es geschafft ist) und beim Start des nächsten Levels. Dazu ein
+Knopf **„SPEICHERN & BEENDEN"** im Shop, der ins Menü zurückführt: Der Stand liegt dort
+ohnehin schon im Spielstand, aber ohne den Knopf müsste man die App wegwischen und wüsste
+nie, ob gespeichert wurde.
+
+**Belegt im laufenden Spiel:**
+
+| Schritt | Gesicherter Stand |
+|---|---|
+| frischer Run gestartet | Level 1 — vorher **gar nichts** |
+| Level geschafft, im Shop, **ohne WEITER** | Level 4 mit Truppe und Waffe |
+| SPEICHERN & BEENDEN | Menü offen, Stand erhalten |
+
+**B7 Ton:** Schuss und Sterbeton auf 0 (Erzeugungscode bleibt, Rückweg ist eine Zahl),
+seltene Quittungen bleiben hörbar, dazu synthetische Hintergrundmusik — vier Akkorde à
+sechs Sekunden, ineinander übergehend. Am Pegelmesser 0,0745 gegen eingestellte 0,075.
+
 
 ### B5 + B4 + B6 — Zombie-Varianten, Granatwerfer, Waffenstaffelung (2026-08-23)
 
