@@ -170,7 +170,14 @@ export class ShopOverlay {
       return
     }
     const bezahlbar = preis !== undefined && zustand.konto >= preis
-    knopf.preis.setText(`¢ ${preis}`)
+    // "NOCH ¢ X" STATT EINES TOTEN KNOPFES (E2, 2026-08-24): Seit eine Stufe rund zwei
+    // Level Einkommen kostet, ist sie in der Mehrzahl der Pausen nicht bezahlbar. Ein
+    // Kind saehe sonst wiederholt einen Kaufbildschirm, auf dem nichts geht und nichts
+    // erklaert wird - das ist kein Rechenfehler, sondern ein Rhythmusfehler. So wird aus
+    // der Blockade ein sichtbarer Fortschritt: Die Zahl schrumpft mit jedem Level.
+    knopf.preis.setText(bezahlbar || preis === undefined
+      ? `¢ ${preis}`
+      : `NOCH ¢ ${preis - zustand.konto}`)
     this.setzeZustand(knopf, bezahlbar)
   }
 

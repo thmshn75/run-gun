@@ -783,12 +783,37 @@ export const BALANCE = {
     //   L1 423 · L2 503 · L3 570 · L4 649 · L5 726 · L6 820 · L7 898 · L8 997 · L9 1.075
     //   L10 1.176 · L11 1.255 · L12 1.362 - zusammen 10.454 je vollem Run.
     //
-    // PREIS = 37,5 % der Einnahme des Levels. Beide Knoepfe zusammen kosten damit drei
-    // Viertel dessen, was das Level einbringt. Voller Ausbau beider Linien: 6.800 von
-    // 9.092 bis zur letzten Kaufgelegenheit - wer sauber sammelt, kriegt fast alles und
-    // behaelt rund 2.300 fuers Konto; wer schlampt, muss waehlen. Genau diese Entscheidung
-    // ist der Zweck, und sie entsteht aus dem Sammeln statt aus einer hohen Preisliste.
-    prices: [160, 190, 210, 240, 270, 310, 340, 370, 400, 440, 470],
+    // PREIS = 200 % der Einnahme des Levels (E2, Thomas 2026-08-24: "durchaus so, dass
+    // man zwei Level spielen muss, um sich ein Upgrade zu kaufen").
+    //
+    // Vorher waren es 37,5 %, also gut ein Drittel eines Levels je Stufe - man kaufte
+    // fast alles. Die Preise sind daraus mit Faktor 5,3 hochgerechnet, der Verlauf ueber
+    // die Stufen bleibt derselbe.
+    //
+    // NACHGERECHNET, weil eine erste Schaetzung falsch war: Aus dem Geldanteil (10.454
+    // Einnahme gegen rund 36.000 fuer alle Stufen) wurden zuerst "4-6 Stufen je Run"
+    // gefolgert. Das ist der falsche Schluss - bei steigenden Preisen kauft man ZUERST
+    // die guenstigen fruehen Stufen, der Stufenanteil liegt also ueber dem Geldanteil.
+    // Simuliert mit den gemessenen Level-Einnahmen und der Regel "immer die guenstigste
+    // leistbare Stufe, beide Linien": 9 Stufen bis Level 12 fuer 9.910 Muenzen, Rest 544.
+    // Genau der Korridor, den der V4-Plan als Akzeptanz nennt (8-10 von 22).
+    //
+    // ES BLEIBEN ELF STUFEN - und das ist ein Befund, kein Versehen. Der V4-Plan nennt
+    // als Folgefund, dass der Shop im Endlosbereich ab Level 13 LEER ist, und schlaegt
+    // vor, die Stufenzahl mitwachsen zu lassen. Der Versuch (22 Stufen, Wirkung je Stufe
+    // entsprechend halbiert, damit die gemessene Endwirkung gleich bleibt) ist an einem
+    // bestehenden Test gescheitert: Bei halber Wirkung BEWEGT EIN KAUF DIE ANZEIGE NICHT
+    // MEHR - auf Level 1 bleibt der Schadenswert nach zwei Kaeufen sichtbar bei 1,5. Ein
+    // Kauf fuer 850 Muenzen, der nichts anzeigt, ist schlimmer als ein Shop, der spaeter
+    // nichts mehr anbietet.
+    //
+    // OFFEN FUER THOMAS: Mehr Stufen gehen nur, wenn entweder die Anzeige feiner wird
+    // (zwei Nachkommastellen) oder die Endwirkung des Run-Shops steigen darf - Letzteres
+    // beruehrt die gemessene Grenze von 1,40, ueber der Level 12 seinen Druck verliert.
+    //
+    // Der Rest fliesst aufs Konto und finanziert die dauerhaften Aufwertungen (meta) -
+    // deren Preise sind auf genau diesen schmalen Rest gerechnet.
+    prices: [850, 1010, 1110, 1270, 1430, 1640, 1800, 1960, 2120, 2330, 2490],
     // TRUPPE ist der grosszuegige Knopf, und das ist kein Gefuehl, sondern Bauart: Aus
     // ihr entsteht KEINE Feuerkraft. Der Schadensbonus der Truppe ist bei 30 Figuren
     // ausgereizt (crowd.damageMultiplierCap, per Test gesichert), alles darueber ist

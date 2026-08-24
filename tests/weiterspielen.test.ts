@@ -26,11 +26,22 @@ describe('Weiterspielen und Fortsetzen', () => {
     expect(getContinuePrice(8, 2)).toBe(8000)
   })
 
-  it('ein voller Run finanziert genau ein Weiterspielen, kein zweites', () => {
-    // Gemessen 2026-08-23: 10.454 Muenzen je vollem Run, 6.800 fuer beide Ausbaulinien.
-    const rest = 10454 - 2 * BALANCE.shop.prices.reduce((a, b) => a + b, 0)
-    expect(rest).toBeGreaterThan(getContinuePrice(12, 0))
-    expect(rest).toBeLessThan(getContinuePrice(12, 0) + getContinuePrice(12, 1))
+  it('laesst die Wahl zwischen Aufwertungen und einem Weiterspielen', () => {
+    // Bis 2026-08-24 finanzierte ein voller Run beides: alle Stufen UND ein
+    // Weiterspielen. Seit E2 eine Stufe rund zwei Level Einkommen kostet, ist das eine
+    // ENTSCHEIDUNG - und genau die ist der Zweck der Preiserhoehung.
+    //
+    // Gesichert gehoert deshalb nicht mehr "beides geht", sondern: Wer sich beim Kaufen
+    // zurueckhaelt, kann sich das Weiterspielen leisten. Sonst waere der Knopf tot.
+    const einnahmeBisLevelZwoelf = 10454
+    const sechsGuenstigsteStufen = 2 * (BALANCE.shop.prices[0] + BALANCE.shop.prices[1] + BALANCE.shop.prices[2])
+    const restBeiZurueckhaltung = einnahmeBisLevelZwoelf - sechsGuenstigsteStufen
+    expect(restBeiZurueckhaltung).toBeGreaterThan(getContinuePrice(12, 0))
+
+    // Und wer alles ausgibt, was er hat, kann es sich NICHT leisten - sonst gaebe es
+    // nichts zu entscheiden.
+    const vieleStufen = 2 * BALANCE.shop.prices.slice(0, 5).reduce((a, b) => a + b, 0)
+    expect(einnahmeBisLevelZwoelf - vieleStufen).toBeLessThan(getContinuePrice(12, 0))
   })
 
   it('ein offener Run ueberlebt Speichern und Laden', () => {

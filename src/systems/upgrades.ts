@@ -47,6 +47,30 @@ function getShopBonus(stat: StatKey, steps: ShopSteps): number {
  * mit dem gekauften Bonus NICHT mit - genau darin besteht der Vorteil, den man kauft.
  */
 /**
+ * Begrenzt den Bonus auf BALANCE.meta.totalBoostCap - aber auf die FEUERKRAFT als
+ * Ganzes, nicht auf jeden Wert einzeln.
+ *
+ * DAS IST DER PUNKT, an dem ein erster Anlauf falsch lag: Feuerkraft ist das PRODUKT
+ * aus Schaden und Rate. Ein Deckel, der beide je einzeln auf 1,7 begrenzt, laesst
+ * zusammen 1,7 x 1,12 = 1,90 zu - gemessen genau der Wert, mit dem ein bestehender
+ * Test angeschlagen hat, nachdem der Shop von elf auf 22 Stufen erweitert wurde.
+ *
+ * Gedeckelt wird deshalb der Schaden, und zwar gegen den bereits vergebenen
+ * Ratenbonus: damage <= cap / rate. Die Rate selbst bleibt frei - ihr Bonus ist mit
+ * 1,005 je Stufe der kleinere von beiden, und zwei gegeneinander laufende Deckel waeren
+ * nicht mehr nachvollziehbar.
+ *
+ * hp und speed sind ausgenommen: Aus der Truppengroesse entsteht keine Feuerkraft (ihr
+ * Schadensbonus ist bei crowd.max Figuren ausgereizt), sie kauft Ueberlebenszeit.
+ */
+function begrenzeBonus(stat: StatKey, rohBonus: number, steps: ShopSteps, meta: ShopSteps): number {
+  if (stat === 'hp' || stat === 'speed') return rohBonus
+  if (stat === 'shotsPerSec') return rohBonus
+  const ratenBonus = getShopBonus('shotsPerSec', steps) * getMetaBonus('shotsPerSec', meta)
+  return Math.min(BALANCE.meta.totalBoostCap / ratenBonus, rohBonus)
+}
+
+/**
  * Dauerhafter Bonus aus den gekauften Meta-Stufen (E4, 2026-08-24).
  *
  * NUR EINE GROESSE JE LINIE, sonst wirkt der Zuwachs multiplikativ - dieselbe Regel wie
@@ -87,9 +111,7 @@ export function getStatCap(
   // kauft Ueberlebenszeit, und die zu deckeln haette den Run-Shop-Knopf TRUPPE still
   // entwertet.
   const rohBonus = getShopBonus(stat, steps) * getMetaBonus(stat, meta)
-  const bonus = stat === 'hp' || stat === 'speed'
-    ? rohBonus
-    : Math.min(BALANCE.meta.totalBoostCap, rohBonus)
+  const bonus = begrenzeBonus(stat, rohBonus, steps, meta)
   return levelWert * getEndlessGrowth(stat, level) * bonus
 }
 

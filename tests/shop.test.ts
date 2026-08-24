@@ -116,27 +116,60 @@ describe('Shop', () => {
     expect(getShopPrice(getMaxShopSteps())).toBeUndefined()
   })
 
-  it('die Preise decken drei Viertel der gemessenen Einnahmen', () => {
-    // Gemessen 2026-08-23: Einnahme je Level 423 .. 1.255 bis zur letzten
-    // Kaufgelegenheit, zusammen 9.092. Herleitung steht in balance.ts.
-    const einnahmenBisLetzterKauf = 9092
-    const vollerAusbauBeiderLinien = 2 * BALANCE.shop.prices.reduce((a, b) => a + b, 0)
-    const deckung = vollerAusbauBeiderLinien / einnahmenBisLetzterKauf
-    expect(deckung).toBeGreaterThan(0.65)
-    expect(deckung, 'Ueber 0,85 bleibt nichts fuers Weiterspielen uebrig').toBeLessThan(0.85)
-    // Die Preise muessen mit dem Level steigen, sonst ist die spaete Stufe geschenkt.
+  it('laesst einen Run bis Level 12 acht bis zehn Stufen kaufen, nicht alle', () => {
+    // E2, Thomas 2026-08-24: "durchaus so, dass man zwei Level spielen muss, um sich ein
+    // Upgrade zu kaufen". Vorher deckten die Preise drei Viertel der Einnahmen und man
+    // kaufte fast alles - DIESER Test hielt genau das fest und musste mitgezogen werden.
+    //
+    // Gesichert gehoert jetzt die Eigenschaft "wenige, wichtige Entscheidungen": Ein
+    // normal gespielter Run bis Level 12 erlaubt einen Teil der 22 Stufen, nicht alle
+    // und nicht bloss zwei. Simuliert wird mit der Regel, die ein Spieler naheliegend
+    // anwendet - immer die guenstigste leistbare Stufe.
+    const einnahmeBisLevelZwoelf = 10454
+    let firepower = 0
+    let team = 0
+    let ausgegeben = 0
+    for (;;) {
+      const kandidaten = [getShopPrice(firepower), getShopPrice(team)]
+        .filter((preis): preis is number => preis !== undefined)
+      const guenstigste = Math.min(...kandidaten)
+      if (kandidaten.length === 0 || ausgegeben + guenstigste > einnahmeBisLevelZwoelf) break
+      if (getShopPrice(firepower) === guenstigste) firepower += 1
+      else team += 1
+      ausgegeben += guenstigste
+    }
+    const stufen = firepower + team
+    expect(stufen).toBeGreaterThanOrEqual(8)
+    expect(stufen).toBeLessThanOrEqual(10)
+    // Nicht alles: Sonst waere die Entscheidung wieder weg.
+    expect(stufen).toBeLessThan(2 * getMaxShopSteps())
+
+    // Die Preise muessen mit der Stufe steigen, sonst ist die spaete Stufe geschenkt.
     for (let i = 1; i < BALANCE.shop.prices.length; i += 1) {
       expect(BALANCE.shop.prices[i]).toBeGreaterThan(BALANCE.shop.prices[i - 1])
     }
   })
 
-  it('ein Weiterspielen ist nach einem vollen Run finanzierbar, aber nicht mehrere', () => {
+  it('macht eine Stufe rund zwei Level teuer', () => {
+    // Die woertliche Vorgabe. Level 1 bringt 423 Muenzen, die erste Stufe kostet mehr -
+    // man kann sie also fruehestens nach dem zweiten Level kaufen.
+    const einnahmeLevelEins = 423
+    expect(BALANCE.shop.prices[0]).toBeGreaterThan(einnahmeLevelEins)
+    expect(BALANCE.shop.prices[0]).toBeLessThan(einnahmeLevelEins * 3)
+  })
+
+  it('haelt das Weiterspielen erreichbar, wenn man nicht alles verkauft bekommt', () => {
+    // Bis 2026-08-24 rechnete dieser Test mit dem VOLLEN Ausbau beider Linien und
+    // pruefte, dass danach noch ein Weiterspielen drin ist. Seit E2 ist der volle Ausbau
+    // in einem Run gar nicht mehr bezahlbar - das ist der Zweck der Preiserhoehung, und
+    // der Test hielt die alte Welt fest.
+    //
+    // Die Eigenschaft, die bleibt: Der Weiterspiel-Knopf darf nicht unerreichbar werden.
+    // Wer sich beim Kaufen zurueckhaelt, kommt an ihn heran.
     const einnahmenGanzerRun = 10454
-    const ausbau = 2 * BALANCE.shop.prices.reduce((a, b) => a + b, 0)
-    const rest = einnahmenGanzerRun - ausbau
     const preisAufLevelZwoelf = BALANCE.continueRun.pricePerLevel * 12
-    expect(rest).toBeGreaterThan(preisAufLevelZwoelf)
-    expect(rest).toBeLessThan(preisAufLevelZwoelf * BALANCE.continueRun.priceDoubling)
+    const dreiStufenJeLinie = 2 * BALANCE.shop.prices.slice(0, 3).reduce((a, b) => a + b, 0)
+    expect(einnahmenGanzerRun - dreiStufenJeLinie).toBeGreaterThan(preisAufLevelZwoelf)
   })
 })
 
