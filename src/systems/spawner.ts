@@ -9,7 +9,7 @@ import { getFigureOverscanFactor, getPerspectiveScale, getPlayfieldHalfWidth } f
 import { chooseSpawnLane, type SpawnLaneEnemy } from './spawnLanes'
 import { computeHordeOffsets, getSquadWidth } from './squads'
 import type { RunStats } from './upgrades'
-import { getWeaponRewardChoices } from './weaponChoices'
+import { chooseWeightedWeapon, getWeaponRewardChoices } from './weaponChoices'
 import type { WeaponKey } from './weapons'
 
 type SpawnResult = 'spawned' | 'no-lane' | 'pool-exhausted'
@@ -147,7 +147,9 @@ export class Spawner {
 
   public chooseWallWeapon(currentWeapon: WeaponKey): WeaponKey {
     const choices = getWeaponRewardChoices(currentWeapon, this.levelPlan.level)
-    return choices[Math.min(choices.length - 1, Math.floor(Phaser.Math.RND.frac() * choices.length))]
+    // Gewichtet statt gleichverteilt: Sonst wird die gerade freigeschaltete Waffe mit
+    // jeder weiteren seltener statt haeufiger (Herleitung bei weapon.rewardNewnessBias).
+    return chooseWeightedWeapon(choices, Phaser.Math.RND.frac()) ?? currentWeapon
   }
 
   public recycleBossCompanions(): void {
