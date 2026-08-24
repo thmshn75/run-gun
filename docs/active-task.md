@@ -6,11 +6,64 @@
 
 ## Task
 
-`IDLE` — V3 vollständig gebaut. Alles wartet auf Thomas' iPhone-Test.
+`IDLE` — E1 (Endlos-Skalierung) gebaut und gemessen. Wartet auf Thomas'/Bennis
+iPhone-Test, danach E2.
 
 ---
 
 ## Abgeschlossen
+
+### E1 — Endlos-Skalierung (2026-08-24)
+
+**Ursache fuer Bennis „zu leicht", in Zahlen:** `getLevelPlan` rechnete
+`designLevel = ((level − 1) mod 12) + 1`. Level 13 bekam damit die Gegnermischung von
+Level 1. Als Verhaeltnis aus Feuerkraft und Bedarf gemessen war Level 13 **siebenmal
+leichter** als Level 12 (4,58 gegen 32,48). Dazu drei weitere Deckel, die alle bei
+Level 12 griffen: `getStatCap`, `getCrowdDamageMultiplier` und `hardness.max` (ab
+Level 14).
+
+**Gebaut:** `designLevel = Math.min(12, level)`; neuer Abschnitt `level.endless`
+(Mischungsverschiebung mit Enddeckel, `hardness` laeuft flacher weiter);
+`enemy.endlessHpGrowthPerLevel`; `stats.endless` fuer Schaden und Truppenreserve;
+`pools.enemies` 264 → 288 neu hergeleitet; Spielstand-Migration mit Marker;
+„SPEICHERN & BEENDEN" traegt in die Bestenliste ein.
+
+**Gemessen (Mediane aus je drei Laeufen, frische Szene, 8 s einschwingen, 30 s zaehlen):**
+
+| Level | 12 | 16 | 20 | 25 | 30 |
+|---|---|---|---|---|---|
+| Durchkommen vorher | 5,7 % | 8,6 % | 23,1 % | 21,0 % | 30,9 % |
+| **Durchkommen jetzt** | **7,5 %** | **9,2 %** | **9,4 %** | **8,1 %** | **8,7 %** |
+| Bildrate | 60 | 61 | 60 | 60 | 60 fps |
+| Hoechstbestand | 68 | 71 | 70 | 75 | 72 |
+
+Alle fuenf im Korridor 4–12 %. Keine Pool-Erschoepfung.
+
+**Zwei Bauzyklen, beide dokumentiert in `docs/lessons.md`:**
+1. Der erste Entwurf legte den Spielerzuwachs auf Schaden, Rate und Truppenbonus
+   gleichzeitig — kubisch statt linear. Das Spiel waere ab Level 25 wieder leichter
+   geworden, der Sagezahn nur um zwoelf Level verschoben.
+2. Die erste Steigung riss den Korridor (23,1 % auf Level 20). Der Durchkommensanteil
+   ist bistabil, und seine Empfindlichkeit waechst selbst mit — Faktor 2,4 zwischen
+   Level 12 und 16, Faktor 8,7 zwischen 16 und 20. Alle vier Regler wurden um das Vier-
+   bis Sechsfache flacher gestellt.
+
+**Offen fuer Thomas' Urteil:** Die Kurve ist damit fast flach (7,5 % → 8,7 %), und die
+Messstreuung derselben Groesse betraegt rund 2 Prozentpunkte. Mehr gibt der Korridor
+nicht her, weil der Kipppunkt bei rund 10–12 % liegt. Die Steigerung im Endlosmodus
+laeuft deshalb ueber die **sichtbaren** Groessen — mehr schwere Gegner, zaehere Gegner,
+hoeheres Tempo, groessere Horden — bei konstant forderndem Durchkommensanteil. Will
+Benni mehr Widerstand, muesste der Korridor angehoben werden; das ist eine
+Produktentscheidung, keine Herleitung.
+
+**Akzeptanzkriterien:** 1 ✓ (Level 13 haerter, Test) · 1b ✓ (Rueckstufung, Test mit
+echtem V3-Spielstand) · 2 ✓ (Korridor auf allen fuenf Messpunkten) · 3 ✓ (Test auf
+hardness, Hordengroesse, mittlere Zaehigkeit) · 4 ✓ (60 fps auf Level 30) · 5 ✓ (Level
+1–12 unveraendert, Test) · 6 ✓ (Bestenliste genau einmal geleert, Test).
+
+**Noch nicht abgenommen:** Gamefeel gilt erst nach dem iPhone-Test.
+
+
 
 ### Unscharfe Schrift auf den Knöpfen (2026-08-24)
 

@@ -48,11 +48,38 @@ function getShopBonus(stat: StatKey, steps: ShopSteps): number {
  */
 export function getStatCap(stat: StatKey, level: number, steps: ShopSteps = KEINE_STUFEN): number {
   const { capAtLevelOne, capAtLevelTwelve } = BALANCE.stats[stat]
-  const safeLevel = Math.min(12, Math.max(1, Math.floor(level)))
+  // Die 12 ist die LAENGE DER LEVELTABELLE, nicht eine gewaehlte Zahl - bis dorthin
+  // interpoliert die Kurve, darueber uebernimmt getEndlessGrowth. Sie muss mit
+  // level.endless.fromLevel uebereinstimmen; ein Test in levelPlan.test.ts haelt das
+  // fest, weil ein Auseinanderlaufen eine stille Luecke oder Doppelzaehlung erzeugte.
+  const letztesTabellenLevel = BALANCE.level.plans.length
+  const safeLevel = Math.min(letztesTabellenLevel, Math.max(1, Math.floor(level)))
   const levelWert = capAtLevelOne === capAtLevelTwelve
     ? capAtLevelOne
-    : capAtLevelOne * (capAtLevelTwelve / capAtLevelOne) ** ((safeLevel - 1) / 11)
-  return levelWert * getShopBonus(stat, steps)
+    : capAtLevelOne * (capAtLevelTwelve / capAtLevelOne) ** ((safeLevel - 1) / (letztesTabellenLevel - 1))
+  return levelWert * getEndlessGrowth(stat, level) * getShopBonus(stat, steps)
+}
+
+/**
+ * Wachstum oberhalb von level.endless.fromLevel (E1, 2026-08-24).
+ *
+ * NUR damage und hp wachsen weiter. shotsPerSec bleibt bewusst auf dem Level-12-Wert:
+ * Feuerkraft ist das PRODUKT aus Schuetzenzahl, Truppenbonus, Schaden und Rate - ein
+ * Zuwachs auf mehrere dieser Faktoren wirkt multiplikativ. Im ersten Modelllauf zu E1
+ * lag er auf dreien gleichzeitig, und das Spiel wurde ab Level 25 wieder LEICHTER
+ * (Verhaeltnis aus Feuerkraft und Bedarf: 0,87 bei L20, dann 5,92 bei L25). Herleitung
+ * der beiden Faktoren steht bei BALANCE.stats.endless.
+ *
+ * speed ist Gegnertempo und kein Spielerwert - es waechst ueber level.hardness
+ * (systems/speed.ts) und hat hier nichts zu suchen.
+ */
+function getEndlessGrowth(stat: StatKey, level: number): number {
+  const { fromLevel } = BALANCE.level.endless
+  const ueber = Math.max(0, Math.floor(level) - fromLevel)
+  if (ueber === 0) return 1
+  if (stat === 'damage') return BALANCE.stats.endless.damageGrowthPerLevel ** ueber
+  if (stat === 'hp') return BALANCE.stats.endless.hpGrowthPerLevel ** ueber
+  return 1
 }
 
 export function clampStat(stat: StatKey, value: number, level = 1, steps: ShopSteps = KEINE_STUFEN): number {

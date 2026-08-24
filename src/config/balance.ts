@@ -657,6 +657,32 @@ export const BALANCE = {
     // entfernt, eine Horde unbeschiessbar zu machen.
     // Gegnertempo, kein Spielerwert - deshalb weiter ein FESTER Deckel.
     speed: { base: 105, capAtLevelOne: 305, capAtLevelTwelve: 305, floor: 70 },
+    // WACHSTUM DER SPIELERDECKEL IM ENDLOSBEREICH (E1, 2026-08-24).
+    //
+    // DIE WICHTIGSTE ZEILE DIESES BLOCKS: Der Zuwachs liegt auf GENAU EINER Groesse.
+    // Feuerkraft ist das Produkt aus Schuetzenzahl x Truppenbonus x Schaden x Rate -
+    // wer einen Zuwachs auf mehrere dieser Faktoren legt, multipliziert ihn. Der erste
+    // Modelllauf zu E1 tat genau das (Schaden, Rate und Truppenbonus je +5 %/Level, also
+    // kubisch): Das Verhaeltnis aus Feuerkraft und Bedarf fiel bis Level 20 auf 0,87 und
+    // stieg dann wieder auf 5,92 (L25) und 9,25 (L30) - das Spiel waere nach dem
+    // Reparieren des Modulo-Sprungs ab Level 25 erneut zu leicht geworden. Derselbe
+    // Fehler steht im V3-Plan schon einmal (geplant +38 %, real +92 %).
+    //
+    // Deshalb: shotsPerSec und der Truppen-Schadensbonus (crowd.damageMultiplierCap*)
+    // bleiben auf ihrem Level-12-Wert stehen. Nur damage waechst.
+    endless: {
+      // Spielerschaden je Level ueber level.endless.fromLevel. Herleitung des Abstands
+      // zur Gegnerkurve steht bei enemy.endlessHpGrowthPerLevel.
+      // Level 30: 7,0 x 1,004^18 = 7,5 · Level 50: 8,2.
+      damageGrowthPerLevel: 1.004,
+      // Truppenreserve. Sie ist UEBERLEBENSZEIT, nicht Feuerkraft - der Schadensbonus
+      // daraus bleibt bei seinem Level-12-Deckel, eine groessere Reserve macht also
+      // nicht staerker, sondern nur laenger durchhaltend. Sie muss mitwachsen, weil der
+      // Anteil schwerer Gegner steigt und die mit contactDamage 2 durchbrechen statt
+      // mit 1: Bei Level 30 sind 38 % der Horde schwer gegen 20 % auf Level 12.
+      // Level 30: 100 x 1,01^18 = 120 · Level 50: 146.
+      hpGrowthPerLevel: 1.01,
+    },
   },
   // AUFWERTUNGEN ZWISCHEN DEN LEVELN (Thomas 2026-08-23, nach Bennis Wunsch: "nach jedem
   // Level die Moeglichkeit seine DMG Rate und das maximale Team gegen Bezahlung
@@ -1199,6 +1225,46 @@ export const BALANCE = {
     //     Der Nebeneffekt ist gewollt und war Teil des Auftrags: Ein Gegner stirbt
     //     nicht mehr beim ersten Treffer, er kommt sichtbar naeher.
     hpPerLevelGrowth: 1.0,
+    // WACHSTUM IM ENDLOSBEREICH (E1, 2026-08-24). Oberhalb von level.endless.fromLevel
+    // wachsen die Grundlebenspunkte jedes Typs weiter - das ist neben der
+    // Mischungsverschiebung der zweite und der DAUERHAFTE Haertekanal, weil die
+    // Mischung bei Level 32 in ihren Deckel laeuft und der Nachschub schon ab Level 13
+    // gesaettigt ist.
+    //
+    // 1,003 ist NICHT gewaehlt, sondern aus dem Abstand zur Spielerkurve gerechnet. Mit
+    // der gedaempften Kopplung (firepowerCoupling.dampening 0,30) gilt fuer das
+    // Verhaeltnis V aus Feuerkraft und Bedarf:
+    //   V ~ Spielerschaden^0,70 / (Gegner-hp x Mischung)
+    // Mit stats.endless.damageGrowthPerLevel 1,004 ist 1,004^0,70 = 1,0028. Gegen
+    // 1,003 ergibt das 0,9998 je Level - V faellt also dauerhaft und sehr sanft, statt
+    // irgendwann wieder zu steigen. Waere der Spielerzuwachs groesser als hp^(1/0,70)
+    // = 1,0043, kaeme der Sagezahn in neuer Form zurueck: Das Spiel wuerde ab dem
+    // Mischungsdeckel wieder leichter.
+    //
+    // WARUM DIE ZAHLEN SO KLEIN SIND - der teuerste Befund dieser Etappe: Der
+    // Durchkommensanteil reagiert NICHT proportional auf dieses Verhaeltnis, sondern
+    // beschleunigend. Gemessen im Browser (je drei Laeufe, Median):
+    //   V 1,00 (Level 12) -> 5,7 %      V 0,84 (Level 16) ->  8,6 %
+    //   V 0,75 (Level 20) -> 23,1 %     V 0,56 (Level 30) -> 30,9 %
+    // Zwischen Level 16 und 20 faellt V um 11 % und der Anteil steigt um 168 %. Die
+    // Empfindlichkeit waechst dabei selbst mit - von Faktor 2,4 (L12->L16) auf 8,7
+    // (L16->L20). Das ist die in docs/lessons.md dokumentierte Bistabilitaet: Mehr
+    // Durchkommer -> freie Spawn-Spuren -> mehr Nachschub -> noch mehr Durchkommer.
+    // Der Kipppunkt liegt bei rund V = 0,84; darunter ist die Groesse nicht mehr
+    // steuerbar. Ausgelegt wird deshalb mit Abstand: V faellt bis Level 30 nur auf
+    // 0,85.
+    //
+    // GERECHNETE KURVE (Verhaeltnis zu Level 12), am gebauten Code nachgeprueft:
+    //   L13 0,997 · L16 0,948 · L20 0,914 · L25 0,880 · L30 0,855 · L50 0,816
+    // Monoton fallend, kein Ruecksprung, mit Abstand zum Kipppunkt. Zum Vergleich der
+    // Zustand davor: L13 sprang auf 7,09 - Level 13 war siebenmal leichter als Level 12.
+    // ACHTUNG BEI KLEINEN GRUNDWERTEN: getEnemyHp rundet auf ganze Punkte. Bei 0,3 %
+    // je Level bleibt der leichte Gegner (2 Punkte) bis Level 87 bei 2 und der
+    // Standardgegner bis Level 62 bei 8 - nur der schwere (23) waechst frueh sichtbar.
+    // Das ist hingenommen, nicht uebersehen: Die Haerte im erreichbaren Bereich traegt
+    // ohnehin die Mischung, dieser Regler ist der Kanal fuer die sehr hohen Level. Wer
+    // ihn anhebt, muss die Kurve neu messen - sie liegt dicht am Kipppunkt.
+    endlessHpGrowthPerLevel: 1.003,
     // GEDAEMPFTE KOPPLUNG AN DIE SPIELERSTAERKE (Thomas' urspruenglicher Auftrag:
     // "sieh zu dass die Staerken der Gegner an die Waffen und die Menge meiner Leute
     // angepasst werden zu jeder Zeit").
@@ -1374,6 +1440,75 @@ export const BALANCE = {
     hardness: {
       perLevel: 0.045,
       max: 1.6,
+    },
+    // ENDLOS-SKALIERUNG AB LEVEL 12 (E1, Thomas/Benni 2026-08-24: "zu leicht", er
+    // erreichte auf Anhieb Level 16).
+    //
+    // DER BEFUND, DER DIESEN BLOCK AUSLOEST: getLevelPlan rechnete
+    // designLevel = ((level - 1) mod 12) + 1. Level 13 bekam damit die Gegnermischung
+    // von Level 1 (96/4/0 statt 41/39/20). Gerechnet als Feuerkraft am Level-Deckel
+    // geteilt durch Bedarf (Nachschub x mittlere gekoppelte Lebenspunkte):
+    //   Level 12 = 4,58   Level 13 = 32,48   Level 16 = 18,13   Level 25 = 29,99
+    // Level 13 war also SIEBENMAL leichter als Level 12. Dazu standen ab Level 12 alle
+    // Wachstumsgroessen still - getStatCap und getCrowdDamageMultiplier klemmten beide
+    // auf Level 12, hardness lief bei Level 14 in ihren Deckel 1,6.
+    //
+    // WOHER DIE HAERTE IM ENDLOSBEREICH KOMMT - und woher NICHT: Der Nachschub ist ab
+    // Level 13 gesaettigt. Der Hordendeckel (squads.maxSizeCap 26) ist dort erreicht,
+    // und er ist keine frei gewaehlte Zahl, sondern die Durchsatzgrenze der
+    // Nachlaufpause: 1000 / pausePerMemberMs 40 = 25 Gegner/s. Ueber 26 bringt jede
+    // weitere Figur rechnerisch fast nichts und kostet nur Poolplatz. Die Endlos-Haerte
+    // kommt deshalb aus ZAEHIGKEIT (endlessHpGrowthPerLevel) und MISCHUNG, nicht aus
+    // der Menge - im Modell steigt der Nachschub von Level 12 auf 30 nur von 12,6 auf
+    // 14,8 Gegner/s, die mittleren Grundlebenspunkte dagegen von 8,5 auf 17,6.
+    endless: {
+      // Ab hier gilt die Endloskurve. Bis einschliesslich Level 12 aendert sich NICHTS
+      // (Akzeptanzkriterium 5: Benni soll den Anfang wiedererkennen).
+      fromLevel: 12,
+      // Verschiebung der Gegnermischung Richtung schwer, in Gewichtspunkten je Level
+      // ueber fromLevel. Der Zuwachs geht zuerst von 'leicht' ab, danach von 'standard'.
+      //
+      // 0,25 Punkte je Level - der Endzustand ist bei Level 28 erreicht.
+      //
+      // DIESE ZAHL IST GEMESSEN, NICHT GERECHNET, und sie stand zuerst viermal hoeher.
+      // Der erste Bauzyklus setzte 1 Punkt je Level (Deckel 40 % schwer). Die Messung
+      // im Browser ergab damit einen Durchkommensanteil von 23,1 % auf Level 20 und
+      // 30,9 % auf Level 30 - der Zielkorridor endet bei 12 %.
+      //
+      // NACH DER ABFLACHUNG GEMESSEN (Mediane aus je drei Laeufen, frische Szene, 8 s
+      // einschwingen, 30 s zaehlen - die Vorschrift aus docs/lessons.md):
+      //   Level 12  7,5 %   Level 16  9,2 %   Level 20  9,4 %
+      //   Level 25  8,1 %   Level 30  8,7 %
+      // Alle fuenf im Korridor, Bildrate durchgehend 60 fps, keine Pool-Erschoepfung.
+      //
+      // EHRLICH DAZU: Die Kurve ist damit fast flach. Die Streuung derselben Messung
+      // betraegt rund 2 Prozentpunkte (Level 12 mass in zwei Zyklen 5,7 % und 7,5 %,
+      // obwohl es unveraendert ist und ein Test das festhaelt), der Zuwachs von Level 12
+      // auf 30 liegt also knapp im Rauschen. Mehr gibt der Korridor nicht her: Der
+      // Kipppunkt liegt bei rund 10-12 %, und darueber ist die Groesse nicht mehr
+      // steuerbar. Die Steigerung im Endlosmodus ist deshalb bewusst eine der
+      // SICHTBAREN Groessen - mehr schwere Gegner, zaehere Gegner, hoeheres Tempo,
+      // groessere Horden - bei konstant forderndem Durchkommensanteil.
+      weightShiftPerLevel: 0.25,
+      // ENDDECKEL DER MISCHUNG. Ohne ihn bestuende die Horde irgendwann nur aus
+      // schweren Gegnern - und weil der schwere Gegner drei Muenzen wert ist statt
+      // einer, wuerde die Muenzrate mitexplodieren und E4 finanziell aushebeln.
+      // 24 % schwer gegen 20 % auf Level 12: die mittleren Grundlebenspunkte steigen
+      // allein dadurch von 8,54 auf 9,38 (Faktor 1,10).
+      maxHeavyWeight: 24,
+      // hardness laeuft weiter, aber FLACHER als bis Level 12 (0,045) und ohne den
+      // Deckel 1,6, der frueher schon bei Level 14 griff. Bei Level 30 sind es 1,585.
+      //
+      // SIE IST EIN DRITTER HAERTEKANAL und wurde im ersten Bauzyklus als solcher
+      // uebersehen: Sie treibt Spawntakt UND Gegnertempo zugleich. Mit 0,02 je Level
+      // lag der Nachschub auf Level 50 um 23 % ueber Level 12 - zusammen mit Zaehigkeit
+      // und Mischung genug, um den Korridor zu reissen.
+      hardnessPerLevel: 0.005,
+      // Obergrenze des Gegnertempos ueber stats.speed: 105 x 1,9 = 200 px/s, also unter
+      // dem Deckel 305. Die Reaktionszeit vom Horizont bis zur Truppe (564 px) sinkt
+      // damit von 3,6 s auf Level 12 auf 2,8 s - spuerbar enger, aber die Horde bleibt
+      // beschiessbar. Erreicht wird der Deckel erst bei Level 93.
+      hardnessMax: 1.9,
     },
     squads: {
       minSize: 2,
@@ -1763,13 +1898,37 @@ export const BALANCE = {
     // schlimmste Fall ist damit ceil(12,6 / 1,09) x 21 = 12 x 21 = 252 - der Pool
     // traegt ihn weiter, die Reserve schrumpft aber auf 5 %. Wer den Deckel weiter
     // anhebt, muss diese Zahl mit anheben.
+    //
+    // 264 -> 288, NEU HERGELEITET FUER DEN ENDLOSMODUS (E1, 2026-08-24). Genau der oben
+    // angekuendigte Fall ist eingetreten: Der Hordendeckel squads.maxSizeCap (26) wurde
+    // bis Level 12 nie erreicht - dort waren 21 wirksam. Ab Level 13 liefert
+    // getMaxSquadSize ihn voll aus, und weil es jetzt Level 13 aufwaerts ueberhaupt
+    // gibt, ist er der neue Bemessungsfall:
+    //   Pause     = 250 + 26 x 40 = 1,29 s
+    //   Standzeit = 881 px / speed.floor 70 px/s = 12,6 s (derselbe Worst Case wie oben:
+    //               ein Gegner am unteren Tempo-Rand, der die volle Strecke laeuft)
+    //   Bestand   = ceil(12,6 / 1,29) x 26 = 10 x 26 = 260
+    // Bei 264 blieben davon 1,5 % Reserve - zu wenig, um Rundungen und verzoegertes
+    // Recycling aufzufangen. 288 laesst 10,8 %.
+    //
+    // GEMESSEN im Browser (je drei Laeufe ueber 30 s, volle Feuerkraft, frische Szene):
+    // hoechster Bestand 66 bei Level 12, 86 bei Level 20, 96 bei Level 30 - keine
+    // einzige Pool-Erschoepfung. Der Abstand zur Rechnung ist gewollt: Die 260 gelten
+    // fuer einen Run, in dem NICHT geschossen wird. Der Pool sichert den schwachen Run
+    // ab, er ist nicht der Erwartungswert.
+    //
+    // Bemerkenswert und der Grund, warum die Zahl nicht weiter steigen muss: Hoehere
+    // Level machen den Bestand NICHT beliebig groesser, weil das Gegnertempo mit
+    // hardness mitwaechst und die Figuren dadurch kuerzer im Bild stehen. Bei Level 30
+    // (Tempo 166 px/s) sind es rechnerisch 130 gleichzeitig, bei Level 12 (157 px/s)
+    // 126 - der Endlosmodus verschiebt den Bemessungsfall also kaum.
     // GEMESSEN im Browser (je drei Laeufe ueber 60 s, Truppe 30, Waffe normal):
     // hoechster Bestand 99 bei Level 12, keine einzige Pool-Erschoepfung.
     // ACHTUNG: Das ist der Wert fuer den Fall, dass NICHT geschossen wird. Im Spiel
     // liegt der Bestand weit darunter, weil die Truppe raeumt - gemessen bei Level 12
     // mit realistischem Ausbau rund 20 gleichzeitig. Der Pool ist die Sicherung fuer
     // den schwachen Run, nicht der Erwartungswert.
-    enemies: 264,
+    enemies: 288,
     // Must be >= crowd.max because all figures are created once and then only shown or hidden.
     crowd: 30,
     // Neu hergeleitet 2026-08-22, nachdem der Pool im Test 84-mal in Folge leerlief

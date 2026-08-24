@@ -339,6 +339,52 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   und `git tag -l` zeigt, was bereits abgenommen ist. Ein Projektstand wird nie aus dem
   Gedaechtnis oder aus einer einzelnen Datei beantwortet.
 
+### 2026-08-24 — Steuergroesse war bistabil, das Modell sagte die Haelfte voraus
+- **Fehler/Fund:** Fuer die Endlos-Skalierung (E1) wurde eine Kurve aus dem Verhaeltnis
+  „Feuerkraft geteilt durch Bedarf" hergeleitet und die Steigung so gewaehlt, dass dieses
+  Verhaeltnis bis Level 30 auf 0,57 faellt. Die Rechnung war sauber und im Kommentar
+  belegt. Gemessen wurde damit auf Level 20 ein Durchkommensanteil von **23,1 %** — der
+  Zielkorridor endet bei 12 %. Das Modell hatte 11,3 % vorhergesagt, also **die Haelfte**.
+  Ursache ist die schon zweimal dokumentierte Bistabilitaet: Zwischen Level 16 und 20
+  faellt das Verhaeltnis nur um 11 %, der Anteil steigt um 168 %. Die Empfindlichkeit
+  waechst dabei **selbst** mit — Faktor 2,4 zwischen Level 12 und 16, Faktor 8,7 zwischen
+  16 und 20. Die vier Regler mussten danach um das Vier- bis Sechsfache flacher gestellt
+  werden.
+- **Regel:** Eine Balance-Groesse, die als bistabil bekannt ist, darf nicht aus einem
+  Modell **extrapoliert** werden — auch nicht aus einem, das an zwei Messpunkten geeicht
+  ist. Aus zwei Punkten laesst sich die Empfindlichkeit nur *innerhalb* ihres Bereichs
+  ablesen; ausserhalb ist sie eine andere Zahl. Praktisch: Den Arbeitspunkt so waehlen,
+  dass er im **gemessenen** Bereich liegt, und den Abstand zum Kipppunkt ausdruecklich
+  als Sicherheitsabstand hinschreiben. Wo das Modell trotzdem gebraucht wird, gehoert
+  eine zweite, pessimistische Schaetzung daneben — ausgelegt wird auf die pessimistische.
+- **Zweite Lehre (Sattigung tauscht das Vorzeichen):** Level 25 mass mit 21,0 % **weniger**
+  als Level 20 mit 23,1 %, obwohl es rechnerisch haerter ist. Grund: Jenseits des
+  Kipppunkts stehen so viele Gegner im Feld, dass die Spurvergabe den Nachschub selbst
+  bremst (Spawn-Versuche fielen von 520 auf 402). Oberhalb des Kipppunkts misst man also
+  nicht mehr die Schwierigkeit, sondern die Sperre — eine Messung dort taugt weder zum
+  Steuern noch zum Vergleichen.
+- **Dritte Lehre (der uebersehene dritte Kanal):** Die Steigung wurde zuerst nur an
+  Gegner-Zaehigkeit und Gegnermischung eingestellt. `hardness` lief als dritter Kanal mit
+  und traf Spawntakt UND Gegnertempo zugleich — auf Level 50 allein +23 % Nachschub. Wer
+  eine Zielgroesse ueber mehrere Regler steuert, muss vorher **aufzaehlen, welche Regler
+  ueberhaupt auf sie wirken**, und jeden einzeln beziffern. Ein Kanal, der in der
+  Aufzaehlung fehlt, taucht als unerklaerliche Abweichung wieder auf.
+
+### 2026-08-24 — Ein Zuwachs auf drei Faktoren eines Produkts wirkt kubisch
+- **Fehler:** Der erste Entwurf der Endlos-Skalierung liess die Spielerdeckel fuer
+  Schaden, Feuerrate und Truppen-Schadensbonus gemeinsam um 5 % je Level wachsen.
+  Feuerkraft ist das **Produkt** dieser Groessen, der Zuwachs wirkte also kubisch
+  (1,05 hoch 3 = 1,157 je Level), waehrend die Gegnerseite nur linear-exponentiell stieg
+  und ihr Nachschub ohnehin gesaettigt war. Das Modell zeigte: Bis Level 20 wurde es
+  haerter, ab Level 25 **wieder leichter** (Verhaeltnis 0,87 bei L20, dann 5,92 bei L25
+  und 9,25 bei L30). Der Umbau haette den Sagezahn also nur um zwoelf Level verschoben.
+  Derselbe Fehlertyp steht im V3-Plan bereits (geplant +38 %, real +92 %).
+- **Regel:** Wo mehrere Groessen **multiplikativ** in dieselbe Wirkung eingehen, traegt
+  den Zuwachs genau EINE davon. Vor dem Setzen eines Wachstumsfaktors die Wirkungsformel
+  hinschreiben und abzaehlen, wie oft der Faktor darin vorkommt. Ein Test, der die
+  unbeteiligten Groessen ausdruecklich als **konstant** festhaelt, ist billiger als die
+  Messung, die den Rueckfall spaeter findet.
+
 ### 2026-08-23 — Vier Anlaeufe an der Menge, waehrend ein Einheitenfehler sie auf null zog
 - **Fehler:** Thomas meldete zum FUENFTEN Mal zu wenige Gegner ("Gegnermenge darf mit
   Levels noch steigen"). Die vier Anlaeufe davor hatten Gruppengroesse, Deckel,

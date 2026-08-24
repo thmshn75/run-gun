@@ -1,8 +1,10 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { BALANCE } from '../src/config/balance'
 import {
   addScore,
   defaultSave,
   loadSave,
+  migrateToV4,
   parseSave,
   qualifiesForScores,
   resetSave,
@@ -60,6 +62,9 @@ describe('save system', () => {
       coins: 42,
       highestLevel: 5,
       scores: [{ coins: 12, level: 2, timeMs: 3456 }],
+      // Bereits migriert - sonst leert loadSave() die Bestenliste, und der Test pruefte
+      // die Migration statt den Rundlauf.
+      v4Migrated: true,
     }
     writeSave(save)
     expect(loadSave()).toEqual(save)
@@ -170,5 +175,131 @@ describe('save system', () => {
       scores: [{ coins: 3200, level: 12, timeMs: 463000 }],
     })
     expect('upgrades' in result.data).toBe(false)
+  })
+})
+
+/**
+ * DIE EINMALIGE V4-UMSTELLUNG (E1, 2026-08-24).
+ *
+ * Diese Gruppe sichert die beiden Faelle ab, die im Plan als groesstes Risiko stehen:
+ * dass die Bestenliste bei JEDEM Start geleert wird statt einmal, und dass ein neues
+ * Feld einen bespielten V3-Spielstand verwirft. Beide Fehler waeren schlimmer als das
+ * Problem, das die Migration loest.
+ */
+describe('V4-Umstellung', () => {
+  const v3Spielstand = () => ({
+    version: 1 as const,
+    coins: 8400,
+    highestLevel: 16,
+    scores: [
+      { coins: 9100, level: 16, timeMs: 900_000 },
+      { coins: 3200, level: 7, timeMs: 400_000 },
+    ],
+    run: {
+      level: 16, hp: 100, damage: 7, shotsPerSec: 8, weapon: 'laser',
+      firepowerSteps: 11, teamSteps: 11, runCoins: 9100, bookedCoins: 9100, continuesUsed: 1,
+    },
+  })
+
+  beforeEach(() => localStorage.clear())
+
+  it('stuft einen offenen Run oberhalb Level zwoelf zurueck und behaelt alles andere', () => {
+    // Bennis Fall: Sein Run stand auf Level 16. Unter V3 hiess das die Gegnermischung
+    // von Level 4; nach E1 hiesse es die haerteste Mischung des Spiels plus vier Level
+    // Aufschlag - mit denselben festen Werten im Snapshot.
+    const alt = v3Spielstand()
+    localStorage.setItem('rungun_save_v1', JSON.stringify(alt))
+
+    const geladen = loadSave()
+
+    expect(geladen.run?.level).toBe(BALANCE.level.endless.fromLevel)
+    // Werte, Waffe, Stufen und Muenzen bleiben unangetastet - kein Fortschrittsverlust.
+    expect(geladen.run).toMatchObject({
+      hp: 100, damage: 7, shotsPerSec: 8, weapon: 'laser',
+      firepowerSteps: 11, teamSteps: 11, runCoins: 9100, continuesUsed: 1,
+    })
+    // DAS KONTO BLEIBT - Benni hat es erspielt, und E4 baut darauf auf.
+    expect(geladen.coins).toBe(8400)
+    expect(geladen.scores).toEqual([])
+  })
+
+  it('leert die Bestenliste GENAU EINMAL, auch ueber mehrere Starts', () => {
+    localStorage.setItem('rungun_save_v1', JSON.stringify(v3Spielstand()))
+
+    expect(loadSave().scores).toEqual([])
+
+    // Nach der Umstellung erspielter Eintrag - er muss den naechsten Start ueberleben.
+    const nachher = addScore(loadSave(), { coins: 500, level: 13, timeMs: 60_000, runId: 7 })
+    writeSave(nachher)
+
+    expect(loadSave().scores).toHaveLength(1)
+    expect(loadSave().scores).toHaveLength(1)
+    expect(loadSave().scores[0].coins).toBe(500)
+  })
+
+  it('stuft einen spaeteren, ehrlich erspielten Endlos-Run NICHT zurueck', () => {
+    // Der gefaehrlichste denkbare Fehler dieser Etappe: Ohne die Kopplung an den Marker
+    // wuerde jeder Endlos-Run bei jedem Laden auf Level 12 zurueckfallen.
+    writeSave({
+      ...defaultSave(),
+      run: {
+        level: 24, hp: 130, damage: 9, shotsPerSec: 8, weapon: 'grenade',
+        firepowerSteps: 4, teamSteps: 3, runCoins: 20_000, bookedCoins: 18_000,
+        continuesUsed: 0, runId: 42,
+      },
+    })
+
+    expect(loadSave().run?.level).toBe(24)
+    expect(loadSave().run?.level).toBe(24)
+  })
+
+  it('nimmt einen V3-Spielstand ohne die neuen Felder an, statt ihn zu verwerfen', () => {
+    // Dieselbe Falle wie beim 'run'- und beim entfernten 'upgrades'-Feld: Eine strenge
+    // Pruefung neuer Felder war dem Geraet schon zweimal fast die ganze Bestenliste wert.
+    const ohneNeueFelder = parseSave(JSON.stringify(v3Spielstand()))
+
+    expect(ohneNeueFelder.ok).toBe(true)
+    if (!ohneNeueFelder.ok) return
+    expect(ohneNeueFelder.data.coins).toBe(8400)
+    expect(ohneNeueFelder.data.scores).toHaveLength(2)
+    expect(ohneNeueFelder.data.run?.level).toBe(16)
+    expect(ohneNeueFelder.data.v4Migrated).toBeUndefined()
+  })
+
+  it('reicht den Marker durch Schreiben und Lesen durch', () => {
+    // Ginge er hier verloren, liefe die Migration bei jedem Start erneut - die
+    // Bestenliste waere dauerhaft leer und niemand wuesste warum.
+    const migriert = migrateToV4(v3Spielstand()).data
+    writeSave(migriert)
+
+    const wiedergelesen = parseSave(serializeSave(migriert))
+    expect(wiedergelesen.ok && wiedergelesen.data.v4Migrated).toBe(true)
+    expect(migrateToV4(loadSave()).changed).toBe(false)
+  })
+})
+
+describe('Bestenliste bei Speichern & Beenden', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('ersetzt den Zwischenstand desselben Runs, statt ihn zu verdoppeln', () => {
+    // Ein Endlos-Run wird ueber mehrere Abende gespielt und jedes Mal beendet. Ohne die
+    // Run-Kennung fuellte er die Zehnerliste allein mit lauter schlechteren Fassungen
+    // seiner selbst.
+    let stand = defaultSave()
+    for (const muenzen of [1200, 4800, 11_500]) {
+      stand = addScore(stand, { coins: muenzen, level: 20, timeMs: 600_000, runId: 99 })
+    }
+
+    expect(stand.scores).toHaveLength(1)
+    expect(stand.scores[0].coins).toBe(11_500)
+  })
+
+  it('laesst Eintraege anderer Runs und solche ohne Kennung stehen', () => {
+    let stand = addScore(defaultSave(), { coins: 5000, level: 9, timeMs: 300_000 })
+    stand = addScore(stand, { coins: 3000, level: 6, timeMs: 200_000, runId: 1 })
+    stand = addScore(stand, { coins: 4000, level: 8, timeMs: 250_000, runId: 1 })
+
+    expect(stand.scores).toHaveLength(2)
+    expect(stand.scores.map((eintrag) => eintrag.coins)).toEqual([5000, 4000])
   })
 })

@@ -15,7 +15,7 @@ import { getRoadHalfWidth, Road } from '../systems/road'
 import { getEnemySpeed, getScrollSpeed, setCurrentScrollSpeed } from '../systems/speed'
 import { Scenery } from '../systems/scenery'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
-import { addScore, loadSave, qualifiesForScores, writeSave } from '../systems/save'
+import { addScore, createRunId, loadSave, qualifiesForScores, writeSave } from '../systems/save'
 import { Spawner } from '../systems/spawner'
 import { RunStats, type ShopLine, getStatCap, getShopPrice, getContinuePrice } from '../systems/upgrades'
 import { WEAPON_LABELS, Weapons, type WeaponKey, WEAPON_KEYS } from '../systems/weapons'
@@ -165,6 +165,9 @@ export class GameScene extends Phaser.Scene {
   private einstieg: 'neu' | 'fortsetzen' | 'weiterspielen' = 'neu'
   private continuesUsed = 0
 
+  /** Kennung des laufenden Runs - haelt seine Bestenlisten-Eintraege zusammen. */
+  private runId = 0
+
   public constructor() {
     super('GameScene')
   }
@@ -193,6 +196,7 @@ export class GameScene extends Phaser.Scene {
     this.lastPointerX = null
     this.gameOverStarted = false
     this.gebuchteMuenzen = 0
+    this.runId = createRunId()
     this.kaeufeInPause = { firepower: 0, team: 0 }
     this.lastCrowdSize = -1
     this.currentLevel = 1
@@ -490,6 +494,10 @@ export class GameScene extends Phaser.Scene {
       return
     }
     this.currentLevel = Math.max(1, Math.floor(snapshot.level))
+    // Ein fortgesetzter Run behaelt seine Kennung, damit sein Bestenlisten-Eintrag beim
+    // naechsten Beenden ersetzt statt verdoppelt wird. Ein V3-Spielstand hat keine -
+    // dann bleibt die frisch erzeugte stehen.
+    if (snapshot.runId !== undefined) this.runId = snapshot.runId
     this.continuesUsed = snapshot.continuesUsed
     this.gebuchteMuenzen = snapshot.bookedCoins
     this.coins.setCount(snapshot.runCoins)
@@ -532,6 +540,7 @@ export class GameScene extends Phaser.Scene {
         runCoins: this.coins.getCount(),
         bookedCoins: this.gebuchteMuenzen,
         continuesUsed: this.continuesUsed,
+        runId: this.runId,
       },
     })
   }
@@ -829,7 +838,7 @@ export class GameScene extends Phaser.Scene {
     const scorePlace = qualifiesForScores(saved, runCoins)
       ? saved.scores.filter((score) => score.coins >= runCoins).length + 1
       : undefined
-    const withScore = addScore(saved, { coins: runCoins, level: this.currentLevel, timeMs: this.elapsedMs })
+    const withScore = addScore(saved, { coins: runCoins, level: this.currentLevel, timeMs: this.elapsedMs, runId: this.runId })
     // NUR DEN REST buchen: Was in abgeschlossenen Leveln verdient wurde, liegt seit dem
     // jeweiligen Levelende schon auf dem Konto (bucheMuenzenAufsKonto). Wer hier den
     // vollen Run-Stand addierte, zahlte alles zweimal aus.
@@ -998,8 +1007,33 @@ export class GameScene extends Phaser.Scene {
   private speichernUndBeenden(): void {
     if (this.levelPhase !== 'shop') return
     this.sichereRun()
+    this.trageZwischenstandEin()
     this.shop.verstecken()
     this.scene.start('MenuScene')
+  }
+
+  /**
+   * Der Zwischenstand zaehlt fuer die Bestenliste (E1, 2026-08-24).
+   *
+   * Ohne das bliebe der Endlosmodus unbelohnt: Ein Eintrag entstand bisher NUR beim Game
+   * Over. Bei rund 80 Sekunden je Level sind dreissig Level etwa vierzig Minuten reine
+   * Spielzeit - fuer einen Siebenjaehrigen mehrere Abende, die er dank Fortsetzen auch
+   * so spielt. Wer ueber Wochen immer weiterkommt und nie stirbt, tauchte in der Liste
+   * nie auf.
+   *
+   * Der Eintrag traegt die Run-Kennung und ERSETZT deshalb den vorigen Zwischenstand
+   * desselben Runs, statt die Zehnerliste mit lauter schlechteren Fassungen zu fuellen
+   * (addScore in save.ts).
+   */
+  private trageZwischenstandEin(): void {
+    const runCoins = this.coins.getCount()
+    const saved = loadSave()
+    writeSave(addScore(saved, {
+      coins: runCoins,
+      level: this.currentLevel,
+      timeMs: this.elapsedMs,
+      runId: this.runId,
+    }))
   }
 
   private startLevel(): void {

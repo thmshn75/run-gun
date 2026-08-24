@@ -39,7 +39,20 @@ export function getFirepowerCoupling(playerPower: number): number {
 export function getEnemyHp(type: EnemyType, level: number, playerPower = 0): number {
   const safeLevel = Math.max(1, Math.floor(level))
   const base = type.hp * BALANCE.enemy.hpPerLevelGrowth ** (safeLevel - 1)
-  return Math.max(1, Math.round(base * getFirepowerCoupling(playerPower)))
+  return Math.max(1, Math.round(base * getEndlessHpGrowth(safeLevel) * getFirepowerCoupling(playerPower)))
+}
+
+/**
+ * Zaehigkeitszuwachs oberhalb von level.endless.fromLevel (E1, 2026-08-24).
+ *
+ * Das ist der DAUERHAFTE Haertekanal des Endlosmodus. Die beiden anderen laufen aus:
+ * Die Gegnermischung erreicht bei Level 32 ihren Enddeckel, und der Nachschub ist schon
+ * ab Level 13 gesaettigt, weil der Hordendeckel dort steht (Herleitung bei
+ * BALANCE.level.endless).
+ */
+function getEndlessHpGrowth(level: number): number {
+  const ueber = Math.max(0, level - BALANCE.level.endless.fromLevel)
+  return BALANCE.enemy.endlessHpGrowthPerLevel ** ueber
 }
 
 /**
