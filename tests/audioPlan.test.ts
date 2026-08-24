@@ -151,3 +151,15 @@ describe('Ton nach Thomas 2026-08-23', () => {
     expect(musik.attackSeconds).toBeLessThan(musik.chordSeconds)
   })
 })
+
+describe('Klangeffekte abgeschaltet (Thomas 2026-08-24)', () => {
+  it('spielt keine Quittungen mehr, laesst die Musik aber laufen', () => {
+    // "das klicken und schiess geeraeusche weg, nur die musik im hintergrund sonst
+    // nichts". Der Test haelt die ENTSCHEIDUNG fest, nicht die Umsetzung: Wer den
+    // Schalter versehentlich zurueckdreht, faellt hier auf.
+    expect(BALANCE.audio.effectsEnabled).toBe(false)
+    // Die Musik haengt an eigenen Werten und darf davon nicht beruehrt sein.
+    expect(BALANCE.audio.music).toBeDefined()
+    expect(BALANCE.audio.masterVolume).toBeGreaterThan(0)
+  })
+})

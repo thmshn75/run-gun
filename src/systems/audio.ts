@@ -94,6 +94,10 @@ export class GameAudio {
   }
 
   public play(kind: AudioEventKind): void {
+    // Effekte sind seit 2026-08-24 abgeschaltet (BALANCE.audio.effectsEnabled) - nur
+    // die Hintergrundmusik bleibt. Die Pruefung steht hier an der EINEN Stelle, durch
+    // die jede Quittung laeuft, statt an den zehn Aufrufstellen im Spiel.
+    if (!BALANCE.audio.effectsEnabled) return
     const context = this.context
     if (this.muted || context === undefined || this.master === undefined) return
     if (context.state === 'suspended') {

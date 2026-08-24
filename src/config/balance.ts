@@ -226,6 +226,20 @@ export const BALANCE = {
     // ACHTUNG iPhone: Steht der seitliche Stummschalter auf lautlos, spielt iOS auch
     // Web Audio nicht ab. Das ist Systemverhalten, kein Fehler des Spiels.
     masterVolume: 0.6,
+    // KLANGEFFEKTE AUS (Thomas 2026-08-24: "das klicken und schiess geeraeusche weg,
+    // nur die musik im hintergrund sonst nichts").
+    //
+    // Betrifft ALLE Quittungen - Schuss, Treffer am eigenen Trupp, sterbender Gegner,
+    // Wandbruch, Truppe rauf und runter, Waffenwechsel. Die Hintergrundmusik laeuft
+    // unveraendert weiter, sie haengt nicht an diesem Schalter.
+    //
+    // Bewusst ein Schalter statt geloeschtem Code: Der Ton war zwei Bauzyklen Arbeit
+    // (Drossel als Ratenbegrenzung statt Raster, Stimmen-Deckel, iOS-Freischaltung per
+    // Nutzergeste), und Thomas kann einzelne Quittungen zurueckwollen. Wer hier wieder
+    // true setzt, bekommt exakt den Stand von V3 zurueck. Bleibt es dauerhaft aus,
+    // gehoert der Effektzweig samt audioPlan.ts in einer Aufraeumrunde raus - ein
+    // Schalter, der nie wieder umgelegt wird, ist toter Code mit Deckmantel.
+    effectsEnabled: false,
     // Stimmen-Deckel fuer die haeufigen Toene (Schuss, Sterben). Eine Splash-Explosion
     // kann acht Gegner im selben Bild toeten; ohne Deckel wird daraus ein Knall statt
     // acht Quittungen. 6 gleichzeitige Stimmen a 0,22 liegen summiert noch unter dem

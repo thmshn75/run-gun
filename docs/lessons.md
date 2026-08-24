@@ -339,6 +339,33 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   und `git tag -l` zeigt, was bereits abgenommen ist. Ein Projektstand wird nie aus dem
   Gedaechtnis oder aus einer einzelnen Datei beantwortet.
 
+### 2026-08-24 — Dreimal eine 14-Minuten-Messreihe gestartet, zweimal mass sie das Falsche
+- **Fehler:** Fuer die Waffenliste wurden nacheinander DREI volle Messreihen (je 24 Laeufe,
+  rund 14 Minuten) gestartet. Die ersten beiden massen nicht die Waffenstaerke, sondern
+  den Gegnernachschub — alle Waffen lagen bei 11-13 Toetungen/s, exakt beim Nachschub von
+  12,6/s. Ursache eins: zu schwache Ueberlast (die Truppe raeumte alles weg). Ursache
+  zwei: Die Sonde patchte `recycle()`, das an ZWEI Stellen gerufen wird — beim Tod durch
+  Schaden UND wenn ein Gegner unten aus dem Bild laeuft; gezaehlt wurde also der
+  Durchsatz. Beide Male stand der Beleg schon nach dem ERSTEN Lauf da (35 Sekunden), und
+  beide Male fiel es erst auf, weil **Thomas nachfragte**. Ohne seine Nachfrage waere
+  jeweils die volle Reihe durchgelaufen.
+- **Regel:** Eine Messreihe wird nie am Stueck gestartet. Erst **ein** Lauf, dann die
+  Plausibilitaetspruefung, dann die Reihe. Die Pruefung wird VOR dem Start hingeschrieben,
+  nicht danach improvisiert — als Bilanz, die aufgehen muss, und als Grenze, die nicht
+  verletzt werden darf. Hier waren es zwei Zeilen: „Toetungen + Durchgelaufene muessen dem
+  Nachschub entsprechen" und „die Todeshoehe muss ueber der Truppe liegen". Beide haetten
+  den Fehler sofort gezeigt; die zweite Zahl (722 px gegen Truppe bei 714 px) lag in der
+  Ausgabe der ersten falschen Reihe bereits vor und wurde ueberlesen.
+- **Zweite Lehre (wer die Abbruchbedingung prueft):** Ein laufender Langlauf gehoert vom
+  Agenten selbst kontrolliert, nicht vom Nutzer. Wer eine Messung startet und erst auf
+  Nachfrage hinsieht, verlagert die Qualitaetssicherung auf den Auftraggeber — und
+  verbrennt dessen Zeit und Kontingent. Bei jedem Lauf ueber ein paar Minuten gilt:
+  Zwischenstand nach dem ersten Ergebnis selbst pruefen und bei Verdacht sofort abbrechen.
+- **Dritte Lehre (verdaechtige Gleichheit):** Wenn mehrere Varianten, die sich unterscheiden
+  SOLLEN, alle dasselbe Ergebnis liefern, misst die Sonde fast immer eine gemeinsame
+  vorgelagerte Groesse — nicht die Varianten. Gleichheit ist dann kein Befund, sondern ein
+  Alarmzeichen.
+
 ### 2026-08-24 — Steuergroesse war bistabil, das Modell sagte die Haelfte voraus
 - **Fehler/Fund:** Fuer die Endlos-Skalierung (E1) wurde eine Kurve aus dem Verhaeltnis
   „Feuerkraft geteilt durch Bedarf" hergeleitet und die Steigung so gewaehlt, dass dieses
