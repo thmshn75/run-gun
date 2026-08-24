@@ -912,8 +912,56 @@ export const BALANCE = {
     // verschwaenden die fruehen Waffen praktisch; bei 1,0 waere die Gleichverteilung
     // zurueck, die das Problem ueberhaupt erzeugt hat.
     rewardNewnessBias: 1.2,
-    normal: {
+    // PISTOLE - die Startwaffe seit 2026-08-24 (Thomas: "im ersten Level eine Pistole
+    // noch vor dem Sturmgewehr"). Schwaechster Eintrag im Spiel.
+    //
+    // Sie ist SCHNELL und SCHWACH, nicht langsam und schwach: Ein Kind soll auf Level 1
+    // dauernd etwas passieren sehen. Der Nachteil steckt im Schaden und in der kuerzeren
+    // Reichweite - die Gegner kommen naeher heran als beim Sturmgewehr, und genau das
+    // macht den Wechsel auf Stufe 2 spuerbar.
+    //
+    // Nur EIN Faktor traegt den Abstand zum Sturmgewehr (damageFactor). Rate und
+    // Schuetzenzahl bleiben voll, sonst wirkt der Abzug multiplikativ und Level 1 wird
+    // haerter als beabsichtigt - Thomas' Vorgabe war "nur marginal schwerer".
+    //
+    // GEMESSEN (je drei Laeufe, frische Szene, 8 s einschwingen, 30 s zaehlen), Anteil
+    // durchkommender Gegner:
+    //   Level 1: Pistole 3,8 %  gegen Sturmgewehr 3,4 %
+    //   Level 2: Pistole 9,1 %  gegen Sturmgewehr 9,4 %
+    //
+    // Die Pistole ist damit MESSBAR NICHT SCHWAECHER, obwohl sie nominal bei 0,71x
+    // liegt. Der Grund ist derselbe, der auch die Waffenmessung zweimal verdorben hat:
+    // Auf den unteren Leveln ist nicht die Feuerkraft der Engpass, sondern der
+    // Gegnernachschub - jede Waffe raeumt weg, was ankommt. Ein Staerkeunterschied wird
+    // dort erst sichtbar, wenn die Truppe ueberfordert ist.
+    //
+    // DAS IST KEIN FEHLER DER AUSLEGUNG, sondern die Antwort auf Thomas' Frage "kommt
+    // man mit der Pistole allein durch das erste Level?": ja, ohne Weiteres. Der
+    // spuerbare Unterschied zum Sturmgewehr liegt nicht in der Bilanz, sondern in der
+    // REICHWEITE (engageShare 0,48 gegen 0,55) - die Gegner kommen naeher heran, bevor
+    // sie fallen. Das sieht man, auch wenn die Zahl es nicht zeigt.
+    //
+    // Wer den Unterschied groesser haben will, muss den Nachschub auf Level 1-2 anheben,
+    // nicht die Pistole weiter schwaechen - Letzteres bliebe folgenlos.
+    pistol: {
       minLevel: 1,
+      rateFactor: 1.15,
+      damageFactor: 0.62,
+      shootersPerSalvo: 8,
+      bulletsPerShot: 1,
+      fanAngleDeg: 0,
+      projectileSpeed: 600,
+      // Kuerzer als das Sturmgewehr (0,55): Der Kampf beginnt tiefer im Bild.
+      engageShare: 0.48,
+      pierces: false,
+      splashRadiusPx: 0,
+      splashDamageFactor: 0,
+      chainCount: 0,
+      chainRadiusPx: 0,
+      chainDamageFactor: 0,
+    },
+    normal: {
+      minLevel: 2,
       rateFactor: 1,
       damageFactor: 1,
       shootersPerSalvo: 8,
@@ -932,7 +980,7 @@ export const BALANCE = {
       chainDamageFactor: 0,
     },
     shotgun: {
-      minLevel: 1,
+      minLevel: 3,
       rateFactor: 0.4,
       // 1,5 -> 0,45: Die Schrotflinte war mit 4,20x die mit Abstand staerkste Waffe,
       // weil sich 7 Kugeln mit dem hohen Schadensfaktor multiplizierten. Jetzt 1,26x.
@@ -952,9 +1000,13 @@ export const BALANCE = {
       chainDamageFactor: 0,
     },
     laser: {
-      minLevel: 2,
+      // 1,10x -> Ziel 1,26x (2026-08-24). Gemessen liess er von allen Waffen die
+      // MEISTEN Gegner durch (6,08/s gegen 5,96 der Startwaffe), obwohl er Durchschlag
+      // hat: Seine Feuerlinie ist schmal, er trifft nur, was in der Spur steht. Nur
+      // damageFactor angehoben, aus demselben Grund wie bei der Minigun.
+      minLevel: 7,
       rateFactor: 1.4,
-      damageFactor: 0.4,
+      damageFactor: 0.46,
       shootersPerSalvo: 8,
       bulletsPerShot: 1,
       fanAngleDeg: 0,
@@ -979,7 +1031,7 @@ export const BALANCE = {
       chainDamageFactor: 0,
     },
     rocket: {
-      minLevel: 3,
+      minLevel: 13,
       rateFactor: 0.25,
       damageFactor: 2.5,
       // 3 -> 5 Schuetzen: Mit Splash lag die Rakete gegen Horden bei 0,76x und damit
@@ -998,14 +1050,18 @@ export const BALANCE = {
       chainDamageFactor: 0,
     },
     minigun: {
-      minLevel: 4,
+      // 1,01x -> Ziel 1,20x (2026-08-24). Gemessen war sie praktisch so stark wie die
+      // Startwaffe und stand trotzdem auf Stufe 4 - der schwaechste Punkt der alten
+      // Staffelung. Angehoben wird NUR damageFactor: Feuerkraft ist ein Produkt, ein
+      // Zuwachs auf Rate UND Schaden wirkt quadratisch.
+      minLevel: 5,
       rateFactor: 2.2,
       // 0,28 -> 0,55 UND 3 -> 8 Schuetzen (Thomas 2026-08-23: "Minigun macht kaum
       // Schaden"). Beides zusammen hebt sie von 0,23x auf 1,21x. Die Schuetzenzahl
       // allein haette nicht gereicht (0,23 -> 0,62), der Schadensfaktor allein auch
       // nicht (0,23 -> 0,45): Die Minigun lag um Faktor 5 zurueck, nicht um 2. Sie war
       // die einzige Waffe ohne Durchschlag, Splash oder Kette UND mit nur 3 Schuetzen.
-      damageFactor: 0.55,
+      damageFactor: 0.63,
       shootersPerSalvo: 8,
       bulletsPerShot: 1,
       fanAngleDeg: 0,
@@ -1021,7 +1077,7 @@ export const BALANCE = {
       chainDamageFactor: 0,
     },
     flamethrower: {
-      minLevel: 5,
+      minLevel: 9,
       // 14.4 salvos/s x 3 shooters x 5 projectiles x 0.694s flight = 149.8; 200 leaves 33% reserve.
       rateFactor: 1.8,
       damageFactor: 0.34,
@@ -1040,7 +1096,7 @@ export const BALANCE = {
       chainDamageFactor: 0,
     },
     chainlightning: {
-      minLevel: 6,
+      minLevel: 11,
       rateFactor: 0.7,
       // 1,05 -> 0,9: Die Kette lag mit 1,46x am oberen Rand des Bandes, weil drei
       // Kettensprunge zu je 55 % ihren Wert fast verdreifachen. Jetzt 1,25x.
@@ -1072,13 +1128,28 @@ export const BALANCE = {
     // also rund 3,2. Mit groesserem Radius und hoeherem Faktor hier konservativ 5,0
     // angesetzt: 1,92 x 5,0 = 9,6 = 1,20x. Der Aufschlag ist GESCHAETZT und muss wie bei
     // den anderen Waffen gemessen werden; danach wird damageFactor nachgezogen.
+    // GRANATWERFER (E3, Thomas/Benni 2026-08-24: "zu schwach").
+    //
+    // GEMESSEN war er das nicht - 1,35x der Standardwaffe. Was Benni spuert, ist die
+    // TRAEGHEIT: rateFactor 0,15 war mit Abstand der niedrigste Wert im Spiel, man
+    // wartete auf jeden Schuss. Der Test, der die Flaechenwirkung mitrechnet, sah ihn
+    // sogar bei 0,82 und damit unter dem Band aller anderen Waffen - er stand nur nicht
+    // in dessen Waffenliste und fiel deshalb nie auf.
+    //
+    // Behoben wird die TRAEGHEIT, nicht der Schaden: Feuerrate +73 % (0,15 -> 0,26),
+    // Schaden -15 % als Gegengewicht (3,2 -> 2,71). Netto liegt er damit bei rund 1,20
+    // statt 0,82. Wer stattdessen den Schaden angehoben haette, bekaeme dieselbe
+    // Wartezeit mit groesserer Zahl - das war der ausdrueckliche Befund im V4-Plan.
+    //
+    // DER POOL MUSSTE MIT (pools.projectiles.grenade 12 -> 24): Er war exakt aus
+    // rateFactor 0,15 gerechnet und waere bei 0,26 auf null Reserve gelaufen.
     grenade: {
-      // Letzte Waffe der Staffelung (siehe Kommentar am Anfang von weapon).
-      minLevel: 7,
+      // Letzte Waffe der V3-Staffelung; seit 2026-08-24 Stufe 15 von dreizehn Waffen.
+      minLevel: 15,
       // Langsamste Waffe im Spiel (Rakete 0,25) - "schiesst weniger oft".
-      rateFactor: 0.15,
+      rateFactor: 0.26,
       // Hoechster Schadensfaktor im Spiel (Rakete 2,5) - "viel Schaden".
-      damageFactor: 3.2,
+      damageFactor: 2.71,
       shootersPerSalvo: 4,
       bulletsPerShot: 1,
       fanAngleDeg: 0,
@@ -1095,6 +1166,106 @@ export const BALANCE = {
       // Groesster Wirkbereich im Spiel (Rakete 70).
       splashRadiusPx: 110,
       splashDamageFactor: 1.6,
+      chainCount: 0,
+      chainRadiusPx: 0,
+      chainDamageFactor: 0,
+    },
+    // ---- DIE VIER SPAETEN WAFFEN (2026-08-24) ----
+    //
+    // WARUM SIE NICHT STAERKER SIND ALS DIE RAKETE, obwohl der V4-Plan bis 1,85x gehen
+    // wollte: Gerechnet gegen die gemessene Endloskurve hebt jede Waffe ueber 1,25x den
+    // ganzen E1-Effekt auf. V(30) liegt bei 0,855 der Level-12-Haerte; mit einer
+    // 1,85x-Waffe waere Level 30 um 32 % LEICHTER als Level 12, mit 2,15x um 46 %.
+    // Der Plan hat das Band unter der Annahme geoeffnet, E1 mache die Level deutlich
+    // haerter - gemessen sind es 15 %, weil der Zielkorridor (4-12 % Durchkommen) nicht
+    // mehr hergibt.
+    //
+    // Das Band endet deshalb beim HEUTIGEN Maximum von 1,45x (Rakete). Die vier
+    // unterscheiden sich durch ihre WIRKUNG, nicht durch die Zahl - das war schon die
+    // Regel der V3-Staffelung und sie ist hier aus der Bilanz heraus richtig.
+    // Der eigentliche Haertegewinn kommt ohnehin aus der Umsortierung: Die Rakete war
+    // die staerkste Waffe des Spiels und ab Level 3 zu haben; jetzt ab Level 13.
+    //
+    // ENTSCHEIDUNG FUER THOMAS, dokumentiert statt eigenmaechtig getroffen: Sollen die
+    // spaeten Waffen deutlich staerker sein, muss die Levelhaerte mit - und das sprengt
+    // den Korridor. Beides zusammen geht nicht.
+
+    // PRELLSCHUSS - schnelle Salven mit Durchschlag. Das Abprallen an den Korridorwaenden
+    // aus dem V4-Plan braucht eine eigene Flugbahn-Logik und ist NICHT gebaut; hier steht
+    // die Naeherung mit vorhandenen Mitteln (Durchschlag statt Abprall). Als Befund
+    // notiert, nicht stillschweigend ersetzt.
+    ricochet: {
+      minLevel: 18,
+      rateFactor: 1.5,
+      damageFactor: 0.44,
+      shootersPerSalvo: 8,
+      bulletsPerShot: 1,
+      fanAngleDeg: 0,
+      projectileSpeed: 720,
+      engageShare: 0.6,
+      pierces: true,
+      splashRadiusPx: 0,
+      splashDamageFactor: 0,
+      chainCount: 0,
+      chainRadiusPx: 0,
+      chainDamageFactor: 0,
+    },
+    // STREUBOMBE - drei Geschosse je Salve, jedes mit eigener Sprengwirkung. Flaeche
+    // statt Punkt, der Gegenentwurf zum Granatwerfer: kleinerer Radius, dafuer dreifach
+    // und breiter gestreut.
+    cluster: {
+      minLevel: 21,
+      rateFactor: 0.4,
+      damageFactor: 0.54,
+      shootersPerSalvo: 6,
+      bulletsPerShot: 3,
+      fanAngleDeg: 20,
+      projectileSpeed: 440,
+      engageShare: 0.78,
+      pierces: false,
+      splashRadiusPx: 62,
+      splashDamageFactor: 1.2,
+      chainCount: 0,
+      chainRadiusPx: 0,
+      chainDamageFactor: 0,
+    },
+    // SAEGEBLATT - langsames Blatt, das durch die Horde maeht. Der Durchschlag ist hier
+    // die Hauptwirkung, nicht eine Zugabe: Bei 220 px/s bleibt das Blatt lange im Bild
+    // und nimmt alles mit, was in seiner Spur steht. Voellig anderes Timing als alles
+    // andere - man legt eine Schneise, statt auf Ziele zu schiessen.
+    sawblade: {
+      minLevel: 25,
+      rateFactor: 0.42,
+      damageFactor: 2.1,
+      shootersPerSalvo: 5,
+      bulletsPerShot: 1,
+      fanAngleDeg: 0,
+      projectileSpeed: 220,
+      engageShare: 0.88,
+      pierces: true,
+      splashRadiusPx: 0,
+      splashDamageFactor: 0,
+      chainCount: 0,
+      chainRadiusPx: 0,
+      chainDamageFactor: 0,
+    },
+    // SCHOCKWELLE - kurzer Radialstoss dicht vor der Truppe. Die kleinste engageShare im
+    // Spiel (0,22) bei mit Abstand groesstem Sprengradius: Sie wirkt erst, wenn die
+    // Gegner nah heran sind, dann aber rundum. Damit ist sie die Antwort auf
+    // Durchbrueche - die einzige Waffe, die etwas gegen bereits herangekommene Gegner
+    // ausrichtet.
+    shockwave: {
+      minLevel: 30,
+      rateFactor: 0.5,
+      damageFactor: 1.19,
+      shootersPerSalvo: 6,
+      bulletsPerShot: 1,
+      fanAngleDeg: 0,
+      projectileSpeed: 880,
+      engageShare: 0.22,
+      pierces: false,
+      splashRadiusPx: 135,
+      splashDamageFactor: 1.35,
       chainCount: 0,
       chainRadiusPx: 0,
       chainDamageFactor: 0,
@@ -1923,9 +2094,31 @@ export const BALANCE = {
       flamethrower: 200,
       // 5.6 salvos/s x 6 shooters x 1 projectile x 0.92s flight = 30.9; 48 leaves 55% reserve.
       chainlightning: 48,
-      // Peak: shotsPerSec-Deckel 8 x rateFactor 0,15 = 1,2 Salven/s x 4 Schuetzen x
-      // 1,41 s Flugzeit (536 px bei 380 px/s) = 6,8; 12 laesst 76 % Reserve.
-      grenade: 12,
+      // Peak: shotsPerSec-Deckel 8 x rateFactor 0,26 = 2,08 Salven/s x 4 Schuetzen x
+      // 1,41 s Flugzeit (536 px bei 380 px/s) = 11,7; 24 laesst 51 % Reserve.
+      // 12 -> 24 mit der E3-Ratenerhoehung: Der alte Wert war exakt aus rateFactor 0,15
+      // gerechnet und waere auf null Reserve gelaufen.
+      grenade: 24,
+      // ---- Die fuenf Waffen von 2026-08-24 ----
+      // Alle nach derselben Formel wie oben: Salven/s x Schuetzen x Kugeln x Flugzeit,
+      // Salven/s = shotsPerSec-Deckel 8 x rateFactor. Fuer die Flugzeit ist konservativ
+      // die volle Bildhoehe von 700 px angesetzt, nicht die tatsaechliche Reichweite -
+      // ein zu grosser Pool kostet Speicher, ein zu kleiner laesst ein Geschoss stumm
+      // ausfallen (im Projekt bereits passiert, siehe die Muenzen weiter unten).
+      //
+      // 9,2 Salven/s x 8 Schuetzen x 1 x 1,17 s (700/600) = 86; 120 laesst 39 % Reserve.
+      pistol: 120,
+      // 12,0 x 8 x 1 x 0,97 s (700/720) = 93; 128 laesst 38 %.
+      ricochet: 128,
+      // 3,2 x 6 x 3 Kugeln x 1,59 s (700/440) = 92; 128 laesst 39 %. Der Dreifachschuss
+      // macht sie trotz niedriger Rate zu einem der groesseren Pools.
+      cluster: 128,
+      // 3,36 x 5 x 1 x 3,18 s (700/220) = 53; 72 laesst 36 %. Das langsame Blatt steht
+      // mehr als drei Sekunden im Bild - deshalb trotz niedrigster Rate kein kleiner Pool.
+      sawblade: 72,
+      // 4,0 x 6 x 1 x 0,80 s (700/880) = 19; 32 laesst 68 %. Kleinster Pool im Spiel:
+      // schnelles Geschoss, kurze Reichweite, es raeumt sich selbst schnell ab.
+      shockwave: 32,
     },
     // Peak: 2 salvos/s x 3 rockets x 0.18s = 1.1 flashes; 12 leaves generous reserve.
     splashFlashes: 12,

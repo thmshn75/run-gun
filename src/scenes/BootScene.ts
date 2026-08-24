@@ -25,6 +25,16 @@ import weaponLaserGateUrl from '../assets/weapon-laser-gate.png'
 import weaponLaserHudUrl from '../assets/weapon-laser-hud.png'
 import weaponMinigunGateUrl from '../assets/weapon-minigun-gate.png'
 import weaponMinigunHudUrl from '../assets/weapon-minigun-hud.png'
+import weaponPistolGateUrl from '../assets/weapon-pistol-gate.png'
+import weaponPistolHudUrl from '../assets/weapon-pistol-hud.png'
+import weaponRicochetGateUrl from '../assets/weapon-ricochet-gate.png'
+import weaponRicochetHudUrl from '../assets/weapon-ricochet-hud.png'
+import weaponClusterGateUrl from '../assets/weapon-cluster-gate.png'
+import weaponClusterHudUrl from '../assets/weapon-cluster-hud.png'
+import weaponSawbladeGateUrl from '../assets/weapon-sawblade-gate.png'
+import weaponSawbladeHudUrl from '../assets/weapon-sawblade-hud.png'
+import weaponShockwaveGateUrl from '../assets/weapon-shockwave-gate.png'
+import weaponShockwaveHudUrl from '../assets/weapon-shockwave-hud.png'
 import weaponNormalGateUrl from '../assets/weapon-normal-gate.png'
 import weaponNormalHudUrl from '../assets/weapon-normal-hud.png'
 import weaponRocketGateUrl from '../assets/weapon-rocket-gate.png'
@@ -70,6 +80,16 @@ export class BootScene extends Phaser.Scene {
     this.load.image('scenery-tower-a', sceneryTowerAUrl)
     this.load.image('scenery-tower-b', sceneryTowerBUrl)
     this.load.image('scenery-tower-c', sceneryTowerCUrl)
+    this.load.image('weapon-pistol-gate', weaponPistolGateUrl)
+    this.load.image('weapon-pistol-hud', weaponPistolHudUrl)
+    this.load.image('weapon-ricochet-gate', weaponRicochetGateUrl)
+    this.load.image('weapon-ricochet-hud', weaponRicochetHudUrl)
+    this.load.image('weapon-cluster-gate', weaponClusterGateUrl)
+    this.load.image('weapon-cluster-hud', weaponClusterHudUrl)
+    this.load.image('weapon-sawblade-gate', weaponSawbladeGateUrl)
+    this.load.image('weapon-sawblade-hud', weaponSawbladeHudUrl)
+    this.load.image('weapon-shockwave-gate', weaponShockwaveGateUrl)
+    this.load.image('weapon-shockwave-hud', weaponShockwaveHudUrl)
     this.load.image('weapon-normal-gate', weaponNormalGateUrl)
     this.load.image('weapon-shotgun-gate', weaponShotgunGateUrl)
     this.load.image('weapon-laser-gate', weaponLaserGateUrl)
@@ -171,6 +191,55 @@ export class BootScene extends Phaser.Scene {
     graphics.fillRect(3, 0, 4, 3)
     graphics.generateTexture('projectile-grenade', 10, 14)
     graphics.clear()
+    // ---- Die fuenf Geschosse von 2026-08-24 ----
+    // Jedes muss sich im Flug von den anderen unterscheiden lassen, nicht nur im Tor.
+    // Nur fillRect/fillCircle/fillTriangle - Verlaeufe wirken unter generateTexture
+    // nicht (Canvas-Pfad, siehe docs/lessons.md 2026-08-20).
+
+    // Pistole: wie die Gewehrkugel, aber kleiner und blasser - die schwaechste Waffe
+    // soll auch im Flug bescheiden aussehen.
+    graphics.fillStyle(0xc9a227)
+    graphics.fillRect(0, 0, 4, 10)
+    graphics.fillStyle(0xffe9a8)
+    graphics.fillRect(1, 1, 2, 6)
+    graphics.generateTexture('projectile-pistol', 4, 10)
+    graphics.clear()
+    // Prellschuss: kraeftiges Blau wie sein Torbild, laenglich und hell - sie fliegt am
+    // schnellsten und muss trotzdem sichtbar bleiben.
+    graphics.fillStyle(0x1f6feb)
+    graphics.fillRect(0, 0, 4, 16)
+    graphics.fillStyle(0xa5d8ff)
+    graphics.fillRect(1, 1, 2, 11)
+    graphics.generateTexture('projectile-ricochet', 4, 16)
+    graphics.clear()
+    // Streubombe: gedrungener goldener Koerper - im Flug als das erkennbar, was sich
+    // gleich teilt.
+    graphics.fillStyle(0xb8860b)
+    graphics.fillCircle(6, 6, 6)
+    graphics.fillStyle(0xffd97d)
+    graphics.fillCircle(6, 6, 3)
+    graphics.generateTexture('projectile-cluster', 12, 12)
+    graphics.clear()
+    // Saegeblatt: runde Scheibe mit Zaehnen. Das groesste Geschoss im Spiel und das
+    // einzige, das nicht laenglich ist - es muss auf den ersten Blick anders aussehen,
+    // weil es sich auch voellig anders verhaelt.
+    graphics.fillStyle(0x9a6b3f)
+    graphics.fillCircle(9, 9, 9)
+    graphics.fillStyle(0xd9d9d9)
+    graphics.fillCircle(9, 9, 7)
+    graphics.fillStyle(0x9a6b3f)
+    graphics.fillCircle(9, 9, 3)
+    graphics.generateTexture('projectile-sawblade', 18, 18)
+    graphics.clear()
+    // Schockwelle: heller Ring statt Koerper - sie wirkt rundum, und das soll man dem
+    // Geschoss ansehen.
+    graphics.fillStyle(0xff5fd2)
+    graphics.fillCircle(8, 8, 8)
+    graphics.fillStyle(0xffe3f7)
+    graphics.fillCircle(8, 8, 4)
+    graphics.generateTexture('projectile-shockwave', 16, 16)
+    graphics.clear()
+
     graphics.fillStyle(WORLD_COLORS.splashFlash)
     graphics.fillCircle(16, 16, 16)
     graphics.generateTexture('splash-flash', 32, 32)

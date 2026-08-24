@@ -17,6 +17,7 @@ import { Scenery } from '../systems/scenery'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { addScore, createRunId, loadSave, qualifiesForScores, writeSave } from '../systems/save'
 import { Spawner } from '../systems/spawner'
+import { getWeaponRewardChoices } from '../systems/weaponChoices'
 import { RunStats, type ShopLine, getStatCap, getShopPrice, getContinuePrice } from '../systems/upgrades'
 import { WEAPON_LABELS, Weapons, type WeaponKey, WEAPON_KEYS } from '../systems/weapons'
 import { enableSharpText } from '../systems/textSharpness'
@@ -225,6 +226,7 @@ export class GameScene extends Phaser.Scene {
       this,
       (currentWeapon) => this.spawner.chooseWallWeapon(currentWeapon),
       () => this.weapons.getWeapon(),
+      () => getWeaponRewardChoices(this.weapons.getWeapon(), this.currentLevel).length > 0,
       () => this.runStats.get('hp'),
       () => this.runStats.get('damage'),
       () => this.runStats.get('shotsPerSec'),

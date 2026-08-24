@@ -3,10 +3,12 @@ import { BALANCE } from '../config/balance'
 import { getEngageLineY, getLaneRatio, getLaneSlope, getRoadHalfWidth } from './roadGeometry'
 import type { RunStats } from './upgrades'
 
-export type WeaponKey = 'normal' | 'shotgun' | 'laser' | 'rocket' | 'minigun' | 'flamethrower' | 'chainlightning' | 'grenade'
+export type WeaponKey = 'pistol' | 'normal' | 'shotgun' | 'laser' | 'rocket' | 'minigun' | 'flamethrower' | 'chainlightning' | 'grenade'
+  | 'ricochet' | 'cluster' | 'sawblade' | 'shockwave'
 
 export const WEAPON_LABELS: Record<WeaponKey, string> = {
-  normal: 'NORMAL',
+  pistol: 'PISTOLE',
+  normal: 'GEWEHR',
   shotgun: 'SCHROT',
   laser: 'LASER',
   rocket: 'RAKETE',
@@ -14,9 +16,18 @@ export const WEAPON_LABELS: Record<WeaponKey, string> = {
   flamethrower: 'FLAMME',
   chainlightning: 'BLITZ',
   grenade: 'GRANATE',
+  ricochet: 'PRELLSCHUSS',
+  cluster: 'STREUBOMBE',
+  sawblade: 'SAEGEBLATT',
+  shockwave: 'SCHOCKWELLE',
 }
 
-export const WEAPON_KEYS: readonly WeaponKey[] = ['normal', 'shotgun', 'laser', 'rocket', 'minigun', 'flamethrower', 'chainlightning', 'grenade']
+// Reihenfolge = Staffelung (BALANCE.weapon[].minLevel). Die Pistole steht seit
+// 2026-08-24 vorne, die vier spaeten hinten.
+export const WEAPON_KEYS: readonly WeaponKey[] = [
+  'pistol', 'normal', 'shotgun', 'minigun', 'laser', 'flamethrower', 'chainlightning',
+  'rocket', 'grenade', 'ricochet', 'cluster', 'sawblade', 'shockwave',
+]
 
 interface ProjectileSegment {
   start: number
@@ -46,6 +57,7 @@ export class Weapons {
     this.getSalvoPositions = getSalvoPositions
     this.runStats = runStats
     this.projectileGroups = {
+      pistol: scene.physics.add.group(),
       normal: scene.physics.add.group(),
       shotgun: scene.physics.add.group(),
       laser: scene.physics.add.group(),
@@ -54,9 +66,14 @@ export class Weapons {
       flamethrower: scene.physics.add.group(),
       chainlightning: scene.physics.add.group(),
       grenade: scene.physics.add.group(),
+      ricochet: scene.physics.add.group(),
+      cluster: scene.physics.add.group(),
+      sawblade: scene.physics.add.group(),
+      shockwave: scene.physics.add.group(),
     }
     this.projectileList = []
     this.segments = {
+      pistol: { start: 0, end: 0, nextIndex: 0 },
       normal: { start: 0, end: 0, nextIndex: 0 },
       shotgun: { start: 0, end: 0, nextIndex: 0 },
       laser: { start: 0, end: 0, nextIndex: 0 },
@@ -65,11 +82,16 @@ export class Weapons {
       flamethrower: { start: 0, end: 0, nextIndex: 0 },
       chainlightning: { start: 0, end: 0, nextIndex: 0 },
       grenade: { start: 0, end: 0, nextIndex: 0 },
+      ricochet: { start: 0, end: 0, nextIndex: 0 },
+      cluster: { start: 0, end: 0, nextIndex: 0 },
+      sawblade: { start: 0, end: 0, nextIndex: 0 },
+      shockwave: { start: 0, end: 0, nextIndex: 0 },
     }
     this.fireAccumulatorMs = 0
     this.lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
     this.elapsedMs = 0
-    this.activeWeapon = 'normal'
+    // Startwaffe seit 2026-08-24: die Pistole, nicht mehr das Sturmgewehr.
+    this.activeWeapon = 'pistol'
     this.engageLimitEnabled = true
 
     for (const key of WEAPON_KEYS) {

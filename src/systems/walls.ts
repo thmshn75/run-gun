@@ -67,6 +67,7 @@ export class Walls {
   private readonly scene: Phaser.Scene
   private readonly chooseWeapon: (currentWeapon: WeaponKey) => WeaponKey
   private readonly getCurrentWeapon: () => WeaponKey
+  private readonly hasWeaponAlternative: () => boolean
   private readonly getTeamSize: () => number
   private readonly getDamage: () => number
   private readonly getShotsPerSec: () => number
@@ -94,6 +95,7 @@ export class Walls {
     scene: Phaser.Scene,
     chooseWeapon: (currentWeapon: WeaponKey) => WeaponKey,
     getCurrentWeapon: () => WeaponKey,
+    hasWeaponAlternative: () => boolean,
     getTeamSize: () => number,
     getDamage: () => number,
     getShotsPerSec: () => number,
@@ -104,6 +106,7 @@ export class Walls {
   ) {
     this.scene = scene
     this.chooseWeapon = chooseWeapon
+    this.hasWeaponAlternative = hasWeaponAlternative
     this.getCurrentWeapon = getCurrentWeapon
     this.getTeamSize = getTeamSize
     this.getDamage = getDamage
@@ -352,9 +355,16 @@ export class Walls {
       this.drySpawns[side] += 1
       return this.rng() < 0.5 ? 'weakenDamage' : 'weakenRate'
     }
+    // KEIN Waffentor, wenn es nichts zu holen gibt (2026-08-24). Seit die Pistole die
+    // Startwaffe ist, kennt Level 1 genau EINE Waffe - ein Waffensegment zeigte dort die
+    // Waffe, die der Spieler schon traegt, und das Zerschiessen waere folgenlos. Die
+    // Nietenzaehlung laeuft bewusst weiter: Sobald auf Level 2 das Sturmgewehr
+    // dazukommt, ist die Garantie sofort faellig statt erst nach weiteren Kacheln.
     if (decideGoodie(this.drySpawns[side], BALANCE.walls.weaponChance, BALANCE.walls.goodieMaxDry, this.rng)) {
-      this.drySpawns[side] = 0
-      return 'weapon'
+      if (this.hasWeaponAlternative()) {
+        this.drySpawns[side] = 0
+        return 'weapon'
+      }
     }
     this.drySpawns[side] += 1
     // Sonst zu gleichen Teilen Schaden oder Feuerrate - beides wirkt sofort beim

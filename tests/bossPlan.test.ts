@@ -18,7 +18,20 @@ import {
   getWeaponFirepower,
 } from '../src/systems/bossPlan'
 
-const weaponKeys = ['normal', 'shotgun', 'laser', 'rocket', 'minigun', 'flamethrower', 'chainlightning'] as const
+// AUS DER BALANCE ABGELEITET statt hart kodiert (2026-08-24). Die alte Liste war
+// handgepflegt und hatte den Granatwerfer nie erfasst - der Test prueste sieben von
+// damals acht Waffen und haette die fuenf neuen ebenfalls uebersehen. Eine Liste, die
+// beim Erweitern von Hand nachgezogen werden muss, wird irgendwann nicht nachgezogen.
+//
+// Die PISTOLE ist bewusst ausgenommen: Sie ist die Startwaffe auf Level 1 und SOLL
+// unter dem Band liegen - genau das ist ihr Zweck (Thomas 2026-08-24). Ein eigener Test
+// in waffenstaffelung.test.ts haelt fest, dass sie schwaecher als das Sturmgewehr ist.
+const weaponKeys = (Object.keys(BALANCE.weapon) as string[])
+  .filter((key) => {
+    const eintrag = (BALANCE.weapon as Record<string, unknown>)[key]
+    return typeof eintrag === 'object' && eintrag !== null && 'minLevel' in eintrag
+  })
+  .filter((key) => key !== 'pistol') as unknown as readonly WeaponKey[]
 const teamSizes = [2, 3, 6, 12, 20, 30]
 const damageValues = [1, 3, 10, 20]
 const rateValues = [1, 1.5, 3, 8]
@@ -126,7 +139,7 @@ describe('boss plans', () => {
     expect(getTeamFirepower(6, 12)).toBe(6)
   })
 
-  it('uses measured run stats across the complete 2,016-case fight-duration cross product', () => {
+  it('uses measured run stats across the complete vollstaendigen fight-duration cross product', () => {
     let cases = 0
     {
       for (const level of levels) {
@@ -151,7 +164,7 @@ describe('boss plans', () => {
         }
       }
     }
-    expect(cases).toBe(2016)
+    expect(cases).toBe(weaponKeys.length * teamSizes.length * damageValues.length * rateValues.length * levels.length)
   })
 
   it('haelt Thomas\u2019 Level-1-Lauf mit Truppe 3 und Rakete im Zeitfenster', () => {

@@ -11,17 +11,35 @@ const WEAPON_KEYS = (Object.keys(BALANCE.weapon) as string[])
     && 'minLevel' in ((BALANCE.weapon as Record<string, Record<string, unknown>>)[k])) as WeaponKey[]
 
 describe('Waffen-Staffelung (B6)', () => {
-  it('es sind acht Waffen', () => {
-    expect(WEAPON_KEYS).toHaveLength(8)
-    expect(WEAPON_KEYS).toContain('grenade')
+  it('die Pistole steht am Anfang, die Staffelung reicht weit in den Endlosbereich', () => {
+    // Thomas 2026-08-24: "im ersten Level eine Pistole noch vor dem Sturmgewehr, und das
+    // in Level zwei und in Level drei die Shotgun dazu ... nicht jedes Level was dazu, so
+    // dass man auch in spaeteren Leveln was bekommt".
+    expect(BALANCE.weapon.pistol.minLevel).toBe(1)
+    expect(BALANCE.weapon.normal.minLevel).toBe(2)
+    expect(BALANCE.weapon.shotgun.minLevel).toBe(3)
+    // Genau EINE Waffe auf Level 1 - der Einstieg hat noch keine Wahl.
+    const stufen = WEAPON_KEYS.map((key) => BALANCE.weapon[key].minLevel)
+    expect(stufen.filter((stufe) => stufe === 1)).toHaveLength(1)
+    // Die Staffelung reicht bis weit in den Endlosbereich, statt bei Level 7 zu enden.
+    expect(Math.max(...stufen)).toBeGreaterThanOrEqual(25)
   })
 
-  it('bis Level 7 kommt in jedem Level etwas Neues dazu', () => {
-    const stufen = WEAPON_KEYS.map((key) => BALANCE.weapon[key].minLevel)
-    for (let level = 2; level <= 7; level += 1) {
-      expect(stufen, `auf Level ${level} kommt keine neue Waffe`).toContain(level)
+  it('macht die Pistole schwaecher als die Startwaffe', () => {
+    // Nur DIESER Vergleich ist mit der Nominalformel zulaessig: Pistole und Sturmgewehr
+    // haben beide keinen Flaecheneffekt, ihre Werte sind also direkt vergleichbar.
+    //
+    // FUER ALLE ANDEREN TAUGT DIE FORMEL NICHT, und das ist hier teuer gelernt worden:
+    // Die Rakete hat den NIEDRIGSTEN Nominalwert im Spiel (3,1) und ist gemessen die
+    // STAERKSTE Waffe (1,45x) - Sprengwirkung kommt in der Formel nicht vor. Ein erster
+    // Anlauf dieses Tests hat daraus prompt "Kettenblitz zu schwach" gefolgert, obwohl
+    // er gemessen 1,24x liegt. Die belastbare Vergleichszahl steht unten und stammt aus
+    // einer Messung im laufenden Spiel unter Ueberlast.
+    const nominal = (k: WeaponKey) => {
+      const w = BALANCE.weapon[k]
+      return w.rateFactor * w.damageFactor * w.shootersPerSalvo * w.bulletsPerShot
     }
-    expect(Math.max(...stufen)).toBe(7)
+    expect(nominal('pistol')).toBeLessThan(nominal('normal'))
   })
 
   it('die Staffelung aendert KEINE Staerke - das Waffenband bleibt', () => {
@@ -36,8 +54,11 @@ describe('Waffen-Staffelung (B6)', () => {
     }
   })
 
-  it('auf jedem Level gibt es mindestens eine Toralternative', () => {
-    for (let level = 1; level <= 12; level += 1) {
+  it('auf jedem Level ab zwei gibt es mindestens eine Toralternative', () => {
+    // AB Level 2, nicht ab 1: Seit die Pistole die Startwaffe ist, kennt Level 1 genau
+    // eine Waffe. Das Wandtor zeigt dort deshalb gar kein Waffensegment mehr, sonst
+    // haenge dort die Waffe, die der Spieler schon traegt (walls.chooseContent).
+    for (let level = 2; level <= 12; level += 1) {
       for (const aktuell of WEAPON_KEYS) {
         if (BALANCE.weapon[aktuell].minLevel > level) continue
         const auswahl = getWeaponRewardChoices(aktuell as WeaponKey, level)
@@ -52,6 +73,13 @@ describe('Waffen-Staffelung (B6)', () => {
       expect(getWeaponRewardChoices('normal', level).length).toBeGreaterThanOrEqual(2)
     }
   })
+
+  it('gibt auf Level 1 keine Waffenauswahl - und der Rest des Spiels merkt das', () => {
+    // Wenn diese Zusicherung faellt, muss walls.chooseContent angepasst werden: Dort
+    // haengt daran, ob ueberhaupt ein Waffensegment erzeugt wird.
+    expect(getWeaponRewardChoices('pistol', 1)).toHaveLength(0)
+    expect(getWeaponRewardChoices('pistol', 2)).toContain('normal')
+  })
 })
 
 describe('Zombie-Farbvarianten (B5)', () => {
@@ -65,9 +93,13 @@ describe('Zombie-Farbvarianten (B5)', () => {
   })
 
   it('die Kette reisst nach der letzten Waffe nicht ab', () => {
-    // Waffen kommen bis Level 7, Farben ab 3/6/9 - nach Level 7 traegt die Optik weiter.
+    // Bis 2026-08-24 endeten die Waffen bei Level 7 und die Farben trugen danach weiter.
+    // Seit der Endlos-Staffelung ist es umgekehrt: Die Farben sind bei Level 9 fertig,
+    // die Waffen laufen bis 30. Gesichert gehoert, dass ueberhaupt EINE der beiden
+    // Ketten weiterlaeuft - nach dem letzten Farbwechsel darf nicht Stillstand sein.
     const letzteWaffe = Math.max(...WEAPON_KEYS.map((k) => BALANCE.weapon[k].minLevel))
     const letzteFarbe = Math.max(...BALANCE.enemy.variantUnlockLevels)
-    expect(letzteFarbe).toBeGreaterThan(letzteWaffe)
+    expect(Math.max(letzteWaffe, letzteFarbe)).toBeGreaterThan(Math.min(letzteWaffe, letzteFarbe))
+    expect(letzteWaffe).toBeGreaterThan(letzteFarbe)
   })
 })
