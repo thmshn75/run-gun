@@ -5,7 +5,8 @@ import { HUD_COLORS, MENU_COLORS } from '../config/colors'
 import { getGameAudio } from '../systems/audio'
 import { computeMenuLayout } from '../systems/menuLayout'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
-import { getMetaPrice, getMetaSteps, getOwnedWeapons, getWeaponUnlockPrice, loadSave, resetSave, writeSave, type SaveData, type ScoreEntry } from '../systems/save'
+import { getMetaPrice, getMetaSteps, getOwnedWeapons, getWeaponUnlockPrice, loadSave, resetSave, writeSave, type RunSnapshot, type SaveData, type ScoreEntry } from '../systems/save'
+import { getStartWeaponChoices } from '../systems/weaponChoices'
 import { enableSharpText } from '../systems/textSharpness'
 
 export class MenuScene extends Phaser.Scene {
@@ -16,6 +17,8 @@ export class MenuScene extends Phaser.Scene {
   private readonly confirmationObjects: Phaser.GameObjects.GameObject[] = []
   /** Die Waffen-Detailansicht liegt UEBER dem Laden und wird getrennt aufgeraeumt. */
   private readonly detailObjects: Phaser.GameObjects.GameObject[] = []
+  /** Vorwahl im Fenster vor dem FORTSETZEN - erst LOS GEHT'S schreibt sie in den Stand. */
+  private startwaffe: WeaponKey | undefined
 
   public constructor() {
     super('MenuScene')
@@ -66,7 +69,7 @@ export class MenuScene extends Phaser.Scene {
         layout.continueButton.height,
         `FORTSETZEN — LEVEL ${offenerRun.level}`,
         true,
-        () => { this.scene.start('GameScene', { einstieg: 'fortsetzen' }) },
+        () => { this.fortsetzen(offenerRun) },
       )
     }
     this.addButton(
@@ -149,6 +152,130 @@ export class MenuScene extends Phaser.Scene {
         fontFamily: 'system-ui', fontSize: '15px', color: this.colorFor(scores.length === 0 ? MENU_COLORS.mutedText : MENU_COLORS.text),
       }))
     })
+  }
+
+  /**
+   * FORTSETZEN MIT WAFFENWAHL (Thomas 2026-08-25: "wenn ich speicher und bevor ich
+   * weiterspiele, will ich auch waehlen koennen").
+   *
+   * Bis dahin ging es nur in der Levelpause. Wer den Lauf beendet, im Laden eine Waffe
+   * kauft und dann fortsetzt, startete trotzdem mit der alten - die naechste Gelegenheit
+   * kam erst ein Level spaeter.
+   *
+   * Das Fenster geht nur auf, wenn es mehr als eine Moeglichkeit gibt. Wer noch nichts
+   * gekauft hat, hat genau eine; dann waere es ein Extratipp ohne Inhalt.
+   */
+  private fortsetzen(run: RunSnapshot): void {
+    const wahl = getStartWeaponChoices(run.weapon, run.level, getOwnedWeapons(this.save))
+    if (wahl.length < 2) {
+      this.scene.start('GameScene', { einstieg: 'fortsetzen' })
+      return
+    }
+    this.startwaffe = wahl.find((weapon) => weapon === run.weapon) ?? wahl[0]
+    this.zeigeStartwaffenwahl(run, wahl)
+  }
+
+  /**
+   * Das Wahlfenster. Gebaut wie der Laden und die Ruecksetz-Frage: Wand, Panel, Kacheln.
+   *
+   * Die Wahl wird NICHT sofort gespeichert, anders als in der Levelpause. Dort laeuft ein
+   * Run, hier steht man davor - wer ZURUECK drueckt, soll seinen gesicherten Stand
+   * unveraendert vorfinden.
+   */
+  private zeigeStartwaffenwahl(run: RunSnapshot, wahl: readonly WeaponKey[]): void {
+    const width = this.scale.width
+    const height = this.scale.height
+    const safeWidth = width - this.insets.left - this.insets.right
+    const centerX = this.insets.left + safeWidth / 2
+    const centerY = (height + this.insets.top - this.insets.bottom) / 2
+    const panelWidth = safeWidth - 2 * BALANCE.menu.sidePadding
+    const spalten = 3
+    const abstand = 8
+    const kachelBreite = (panelWidth - 32 - abstand * (spalten - 1)) / spalten
+    const kachelHoehe = 66
+    const reihen = Math.ceil(wahl.length / spalten)
+    // Kopf 76 + Regal + Luft 8 + LOS 44 + Luft 10 + ZURUECK 36 + Rand 18.
+    const panelHeight = 76 + reihen * (kachelHoehe + abstand) + 116
+    const oben = centerY - panelHeight / 2
+    const linkeKante = centerX - (panelWidth - 32) / 2
+
+    const wall = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.65).setDepth(10).setInteractive()
+    wall.on('pointerdown', () => undefined)
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, MENU_COLORS.row, 1).setDepth(11)
+      .setStrokeStyle(2, MENU_COLORS.rowStroke, 1)
+    const titel = this.add.text(centerX, oben + 26, 'STARTWAFFE', {
+      fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
+    }).setOrigin(0.5).setDepth(12)
+    const frage = this.add.text(centerX, oben + 54, `Womit gehst du in Level ${run.level}?`, {
+      fontFamily: 'system-ui', fontSize: '14px', color: this.colorFor(MENU_COLORS.text),
+    }).setOrigin(0.5).setDepth(12)
+    this.confirmationObjects.push(wall, panel, titel, frage)
+
+    wahl.forEach((weapon, index) => {
+      const spalte = index % spalten
+      const reihe = Math.floor(index / spalten)
+      this.addStartwaffenKachel(
+        weapon, run, wahl,
+        linkeKante + kachelBreite / 2 + spalte * (kachelBreite + abstand),
+        oben + 76 + kachelHoehe / 2 + reihe * (kachelHoehe + abstand),
+        kachelBreite, kachelHoehe,
+      )
+    })
+
+    this.confirmationObjects.push(...this.addButton(
+      centerX, oben + panelHeight - 74, panelWidth - 32, 44, "LOS GEHT'S", true,
+      () => { this.starteMitStartwaffe(run) }, undefined, false, 12,
+    ))
+    this.confirmationObjects.push(...this.addButton(
+      centerX, oben + panelHeight - 28, panelWidth - 32, 36, 'ZURÜCK', true,
+      () => { this.closeShop() }, undefined, true, 12,
+    ))
+  }
+
+  /**
+   * Eine Kachel im Wahlfenster. Kein Preis - hier ist nichts zu kaufen, alles ist schon
+   * bezahlt. Der gruene Rahmen sagt, womit gestartet wird.
+   */
+  private addStartwaffenKachel(
+    weapon: WeaponKey, run: RunSnapshot, wahl: readonly WeaponKey[],
+    x: number, y: number, breite: number, hoehe: number,
+  ): void {
+    const gewaehlt = weapon === this.startwaffe
+    const kachel = this.add.rectangle(x, y, breite, hoehe, gewaehlt ? MENU_COLORS.ownedFill : MENU_COLORS.shelf, 1)
+      .setStrokeStyle(gewaehlt ? 3 : 2, gewaehlt ? MENU_COLORS.owned : MENU_COLORS.buttonStroke, 1)
+      .setOrigin(0.5).setDepth(12)
+    const name = this.add.text(x, y - 22, WEAPON_LABELS[weapon], {
+      fontFamily: 'system-ui', fontSize: '9px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.text),
+    }).setOrigin(0.5).setDepth(13)
+    const bild = this.add.image(x, y - 4, `weapon-${weapon}-hud`).setDepth(13)
+    bild.setScale(Math.min((breite - 16) / bild.width, 1.1)).setAlpha(gewaehlt ? 1 : 0.75)
+    const status = this.add.text(x, y + 20, gewaehlt ? '✓ START' : 'WÄHLEN', {
+      fontFamily: 'system-ui', fontSize: '11px', fontStyle: 'bold',
+      color: this.colorFor(gewaehlt ? MENU_COLORS.owned : MENU_COLORS.mutedText),
+    }).setOrigin(0.5).setDepth(13)
+    this.confirmationObjects.push(kachel, name, bild, status)
+
+    kachel.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+      this.startwaffe = weapon
+      // Neu zeichnen statt einzelne Kacheln umfaerben: Es haengen vier Objekte je Kachel
+      // daran, und der Laden macht es beim Kauf genauso.
+      this.closeShop()
+      this.zeigeStartwaffenwahl(run, wahl)
+    })
+  }
+
+  /**
+   * Die Wahl in den gesicherten Run schreiben und starten. GameScene liest die Waffe
+   * beim Fortsetzen aus genau diesem Feld - es braucht dort keine Sonderbehandlung.
+   */
+  private starteMitStartwaffe(run: RunSnapshot): void {
+    if (this.startwaffe !== undefined && this.startwaffe !== run.weapon) {
+      const aktualisiert: SaveData = { ...this.save, run: { ...run, weapon: this.startwaffe } }
+      writeSave(aktualisiert)
+      this.save = aktualisiert
+    }
+    this.closeShop()
+    this.scene.start('GameScene', { einstieg: 'fortsetzen' })
   }
 
   private openResetConfirmation(): void {

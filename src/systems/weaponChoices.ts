@@ -67,3 +67,38 @@ export function chooseWeightedWeapon(choices: readonly WeaponKey[], zufall: numb
   }
   return choices[choices.length - 1]
 }
+
+/**
+ * Welche Waffen darf der Spieler als STARTWAFFE waehlen - in der Levelpause und vor dem
+ * Fortsetzen aus dem Menue?
+ *
+ * Drei Quellen, und die dritte ist der Grund, warum es diese Funktion gibt:
+ * 1. die Pistole, die es immer gibt,
+ * 2. gekaufte Waffen, sobald sie fuer dieses Level freigeschaltet sind (ein Level
+ *    frueher als regulaer, `BALANCE.weapon.ownedLevelBonus`),
+ * 3. `behalten` - was beim OEFFNEN der Auswahl getragen wurde.
+ *
+ * OHNE (3) IST DIE WAHL EINE EINBAHNSTRASSE (Thomas 2026-08-25: "wenn ich z. B. eine
+ * auswaehle, kann ich nicht direkt zurueck auf die anderen"). Die Liste wurde bei jeder
+ * Wahl neu aus der GERADE getragenen Waffe gebaut. Eine im Lauf gefundene, nicht
+ * gekaufte Waffe fiel damit genau in dem Moment aus der Liste, in dem man sie abwaehlte -
+ * und war nicht mehr zurueckzuholen.
+ */
+export function getStartWeaponChoices(
+  getragen: string,
+  level: number,
+  owned: readonly string[],
+  behalten: readonly string[] = [],
+): WeaponKey[] {
+  return (Object.keys(BALANCE.weapon) as WeaponKey[])
+    .filter((weapon) => {
+      const eintrag = BALANCE.weapon[weapon] as { minLevel?: number } | undefined
+      if (typeof eintrag?.minLevel !== 'number') return false
+      if (weapon === 'pistol' || weapon === getragen || behalten.includes(weapon)) return true
+      return owned.includes(weapon) && eintrag.minLevel - BALANCE.weapon.ownedLevelBonus <= level
+    })
+    // Nach Freischaltlevel sortiert: Die Reihe liest von schwach nach stark, und eine
+    // Kachel wechselt ihren Platz nicht, wenn eine Waffe dazukommt oder wegfaellt.
+    .sort((a, b) => (BALANCE.weapon[a] as { minLevel: number }).minLevel
+      - (BALANCE.weapon[b] as { minLevel: number }).minLevel)
+}

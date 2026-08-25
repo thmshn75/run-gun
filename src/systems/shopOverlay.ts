@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { HUD_COLORS, MENU_COLORS } from '../config/colors'
+import { computeWeaponRowLayout, type WeaponRowLayout } from './shopWeaponRow'
 import { getMaxShopSteps, getShopPrice, type ShopLine } from './upgrades'
 
 export interface ShopZustand {
@@ -53,6 +54,9 @@ export class ShopOverlay {
   /** Fester Vorrat an Kacheln - die Zahl der waehlbaren Waffen wechselt je Level. */
   private readonly waffenKacheln: Array<{ rahmen: Phaser.GameObjects.Rectangle; bild: Phaser.GameObjects.Image }>
   private readonly onWaffenwahl: (weapon: string) => void
+  /** Gerechnete Masse der Kachelreihe - sie haengen an beiden Safe-Area-Raendern. */
+  private readonly reihenLayout: WeaponRowLayout
+  private readonly mitte: number
   private sichtbar = false
 
   public constructor(
@@ -113,22 +117,25 @@ export class ShopOverlay {
 
     // WAFFENWAHL: Titel plus ein fester Vorrat an Kacheln. Erzeugt wird alles hier, weil
     // Phaser-Objekte nicht bei jedem Oeffnen neu entstehen sollen; sichtbar wird nur, was
-    // das kommende Level hergibt.
-    const wahlY = insets.top + BALANCE.shop.ui.weaponRowY
-    this.waffenTitel = scene.add.text(mitte, wahlY - 14, 'STARTWAFFE', {
+    // das kommende Level hergibt. Die Masse kommen aus computeWeaponRowLayout - sie
+    // haengen an BEIDEN Safe-Area-Raendern und duerfen deshalb nicht fest stehen.
+    const reihe1 = computeWeaponRowLayout(insets, hoehe)
+    this.reihenLayout = reihe1
+    this.mitte = mitte
+    this.waffenTitel = scene.add.text(mitte, reihe1.titelY, 'STARTWAFFE', {
       fontFamily: 'system-ui', fontSize: '13px', fontStyle: 'bold', color: this.farbe(MENU_COLORS.text),
     }).setOrigin(0.5).setDepth(BALANCE.shop.ui.depthText)
     this.waffenKacheln = []
-    const proReihe = BALANCE.shop.ui.weaponsPerRow
-    const kb = BALANCE.shop.ui.weaponTileWidth
-    const kh = BALANCE.shop.ui.weaponTileHeight
-    const luecke = BALANCE.shop.ui.weaponTileGap
-    for (let i = 0; i < 2 * proReihe; i += 1) {
+    const proReihe = reihe1.proReihe
+    const kb = reihe1.kachelBreite
+    const kh = reihe1.kachelHoehe
+    const luecke = reihe1.luecke
+    for (let i = 0; i < reihe1.reihen * proReihe; i += 1) {
       const spalte = i % proReihe
       const reihe = Math.floor(i / proReihe)
       const zeilenBreite = proReihe * kb + (proReihe - 1) * luecke
       const x = mitte - zeilenBreite / 2 + kb / 2 + spalte * (kb + luecke)
-      const y = wahlY + kh / 2 + reihe * (kh + luecke)
+      const y = reihe1.ersteReiheY + reihe * (kh + luecke)
       const rahmen = scene.add.rectangle(x, y, kb, kh, MENU_COLORS.shelf, 1)
         .setStrokeStyle(2, MENU_COLORS.rowStroke, 1).setDepth(BALANCE.shop.ui.depthPanel)
       const bild = scene.add.image(x, y, 'weapon-pistol-hud').setDepth(BALANCE.shop.ui.depthText)
@@ -193,6 +200,7 @@ export class ShopOverlay {
   private aktualisiereWaffen(zustand: ShopZustand): void {
     const zeigen = zustand.waffen.length > 1
     this.waffenTitel.setVisible(zeigen)
+    this.ordneKacheln(zeigen ? zustand.waffen.length : 0)
     this.waffenKacheln.forEach((kachel, index) => {
       const eintrag = zeigen ? zustand.waffen[index] : undefined
       const sichtbar = eintrag !== undefined
@@ -205,12 +213,42 @@ export class ShopOverlay {
       }
       const textur = `weapon-${eintrag.key}-hud`
       if (this.scene.textures.exists(textur)) kachel.bild.setTexture(textur)
-      const skala = Math.min((BALANCE.shop.ui.weaponTileWidth - 8) / kachel.bild.width, 1)
+      const skala = Math.min(
+        (this.reihenLayout.kachelBreite - 8) / kachel.bild.width,
+        (this.reihenLayout.kachelHoehe - 8) / kachel.bild.height,
+        1,
+      )
       kachel.bild.setScale(skala).setAlpha(eintrag.aktiv ? 1 : 0.7)
       kachel.rahmen.setStrokeStyle(eintrag.aktiv ? 3 : 2, eintrag.aktiv ? MENU_COLORS.owned : MENU_COLORS.rowStroke, 1)
       kachel.rahmen.setFillStyle(eintrag.aktiv ? MENU_COLORS.ownedFill : MENU_COLORS.shelf, 1)
       kachel.rahmen.setInteractive({ useHandCursor: true })
         .on('pointerdown', () => { if (this.sichtbar) this.onWaffenwahl(eintrag.key) })
+    })
+  }
+
+  /**
+   * Die Kacheln an der TATSAECHLICHEN Zahl ausrichten, nicht am Vorrat.
+   *
+   * Der Vorrat sind vierzehn Plaetze, gewaehlt werden meist zwei bis sechs Waffen. Fest
+   * gesetzte Plaetze liessen die Reihe dann linksbuendig stehen und eine leere zweite
+   * Reihe Platz belegen - beides sieht aus wie ein Fehler. Jede Reihe wird deshalb fuer
+   * sich zentriert, und eine einzeln belegte Reihe rutscht in die Mitte des reservierten
+   * Raums.
+   */
+  private ordneKacheln(anzahl: number): void {
+    const l = this.reihenLayout
+    const reihenGefuellt = Math.max(1, Math.ceil(anzahl / l.proReihe))
+    const versatzY = ((l.reihen - reihenGefuellt) * (l.kachelHoehe + l.luecke)) / 2
+    this.waffenTitel.setY(l.titelY + versatzY)
+    this.waffenKacheln.forEach((kachel, index) => {
+      const reihe = Math.floor(index / l.proReihe)
+      const spalte = index % l.proReihe
+      const inDieserReihe = Math.min(l.proReihe, Math.max(1, anzahl - reihe * l.proReihe))
+      const zeilenBreite = inDieserReihe * l.kachelBreite + (inDieserReihe - 1) * l.luecke
+      const x = this.mitte - zeilenBreite / 2 + l.kachelBreite / 2 + spalte * (l.kachelBreite + l.luecke)
+      const y = l.ersteReiheY + versatzY + reihe * (l.kachelHoehe + l.luecke)
+      kachel.rahmen.setPosition(x, y)
+      kachel.bild.setPosition(x, y)
     })
   }
 

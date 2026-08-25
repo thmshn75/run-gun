@@ -17,7 +17,7 @@ import { Scenery } from '../systems/scenery'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { addScore, createRunId, getMetaSteps, getOwnedWeapons, loadSave, qualifiesForScores, writeSave } from '../systems/save'
 import { Spawner } from '../systems/spawner'
-import { getWeaponRewardChoices } from '../systems/weaponChoices'
+import { getStartWeaponChoices, getWeaponRewardChoices } from '../systems/weaponChoices'
 import { RunStats, type ShopLine, getStatCap, getShopPrice, getContinuePrice } from '../systems/upgrades'
 import { WEAPON_LABELS, Weapons, type WeaponKey, WEAPON_KEYS } from '../systems/weapons'
 import { enableSharpText } from '../systems/textSharpness'
@@ -165,6 +165,12 @@ export class GameScene extends Phaser.Scene {
   private kontoStand!: number
   /** In dieser Levelpause gekaufte Stufen je Knopf (shop.maxStepsPerPause). */
   private kaeufeInPause!: { firepower: number; team: number }
+  /**
+   * Womit ist der Spieler in DIESE Levelpause gekommen? Bleibt waehrend der ganzen Pause
+   * waehlbar, auch nachdem er einmal gewechselt hat - sonst ist die Wahl eine
+   * Einbahnstrasse (Thomas 2026-08-25).
+   */
+  private waffenwahlAusgang: WeaponKey | undefined
   private lastUnknownCombatOverlapWarningAtMs!: number
   private projectileEnemyCollider!: Phaser.Physics.Arcade.Collider
   private projectileBossCollider: Phaser.Physics.Arcade.Collider | undefined
@@ -990,6 +996,7 @@ export class GameScene extends Phaser.Scene {
   private oeffneShop(): void {
     this.levelPhase = 'shop'
     this.kaeufeInPause = { firepower: 0, team: 0 }
+    this.waffenwahlAusgang = this.weapons.getWeapon()
     this.bucheMuenzenAufsKonto()
     // SOFORT sichern, nicht erst beim Weitergehen (Thomas 2026-08-23: "wenn ich ein
     // Level fertig habe muss ich erst ein neues anfangen, damit der Stand gespeichert
@@ -1020,21 +1027,16 @@ export class GameScene extends Phaser.Scene {
    * Womit darf der Spieler ins naechste Level starten? (Thomas 2026-08-25: "wenn einmal
    * gekauft soll er vor jedem level auswaehlen koennen, mit welcher er startet")
    *
-   * Gekaufte Waffen, sobald sie fuer dieses Level freigeschaltet sind - ein Level frueher
-   * als regulaer (BALANCE.weapon.ownedLevelBonus). Dazu die gerade getragene, sonst
-   * koennte man eine im Lauf gefundene Waffe durch Wegtippen verlieren, und die Pistole
-   * als Startwaffe, die es immer gibt.
+   * Die Regel steht in getStartWeaponChoices, weil das Menue vor dem FORTSETZEN dieselbe
+   * braucht. Hier kommt nur dazu, WOMIT die Pause begonnen hat: Diese Waffe bleibt bis
+   * zum WEITER waehlbar, damit man beliebig hin und her wechseln kann. Ohne sie fiele
+   * eine im Lauf gefundene Waffe beim ersten Wechsel aus der Liste und waere verloren.
    */
   private waehlbareWaffen(): { key: string; aktiv: boolean }[] {
     const getragen = this.weapons.getWeapon()
-    const gekauft = getOwnedWeapons(loadSave())
-    const schluessel = (Object.keys(BALANCE.weapon) as WeaponKey[]).filter((weapon) => {
-      const eintrag = BALANCE.weapon[weapon] as { minLevel?: number } | undefined
-      if (typeof eintrag?.minLevel !== 'number') return false
-      if (weapon === getragen || weapon === 'pistol') return true
-      return gekauft.includes(weapon) && eintrag.minLevel - BALANCE.weapon.ownedLevelBonus <= this.currentLevel
-    })
-    return schluessel.map((key) => ({ key, aktiv: key === getragen }))
+    const behalten = this.waffenwahlAusgang === undefined ? [] : [this.waffenwahlAusgang]
+    return getStartWeaponChoices(getragen, this.currentLevel, getOwnedWeapons(loadSave()), behalten)
+      .map((key) => ({ key, aktiv: key === getragen }))
   }
 
   private waehleWaffe(weapon: string): void {
@@ -1070,6 +1072,7 @@ export class GameScene extends Phaser.Scene {
 
   private verlasseShop(): void {
     if (this.levelPhase !== 'shop') return
+    this.waffenwahlAusgang = undefined
     this.shop.verstecken()
     this.startLevel()
   }

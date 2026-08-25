@@ -66,6 +66,19 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
     verschiedene Werte angezeigt wieso?"). Das HUD zeigte den RUN-Zaehler, das Menue den
     Kontostand - beides richtig, nebeneinander aber wie ein Fehler (4.565 gegen 1.254).
     Jetzt zeigt das HUD ueberall das Gesamtvermoegen.
+- **Startwaffe frei waehlbar - hin und her, und auch vor dem FORTSETZEN** (Thomas
+  2026-08-25: "wenn ich z. B. eine auswaehle, kann ich nicht direkt zurueck auf die
+  anderen" und "wenn ich speicher und bevor ich weiterspiele will ich auch waehlen
+  koennen"). Die Wahlliste wurde bei JEDER Wahl neu aus der gerade getragenen Waffe
+  gebaut - eine im Lauf gefundene, nicht gekaufte Waffe fiel damit beim Abwaehlen aus der
+  Liste. Regel jetzt in `getStartWeaponChoices`, mit der Ausgangswaffe der Pause als
+  drittem Eingang. Der FORTSETZEN-Knopf im Menue oeffnet dieselbe Wahl als Fenster (nur,
+  wenn es mehr als eine Moeglichkeit gibt) und schreibt sie in den gesicherten Run.
+  - **Dabei gefunden: die zweite Kachelreihe lag auf dem iPhone unter dem Knopf.** Feste
+    Y-Position plus obere Safe Area gegen einen unten verankerten Knopf - am Schreibtisch
+    178 px Luft, auf dem iPhone 85. Die Position kommt jetzt aus `shopWeaponRow.ts`, die
+    Kaufknoepfe sind von 132 auf 112 px gekuerzt, damit die Kacheln ihre volle Hoehe
+    behalten. Test prueft vier Geraeteprofile. Siehe `docs/lessons.md`, 2026-08-25.
 - **Waffen-Staffelung nach gemessener Staerke neu sortiert** (Thomas: "flammenwerfer ist
   schlechter als Laser, obwohl er spaeter kommt"). Er hatte recht: Gestaffelt wurde nach
   `getWeaponFirepower`, und die zaehlt Durchschlag, Sprengwirkung und Kettenspruenge

@@ -656,3 +656,21 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
 - **Zweite Lehre:** Zwei Tests standen auf Waffennamen statt auf Eigenschaften ("die
   Schockwelle ist die teuerste Waffe"). Beim Umsortieren schlugen sie an, obwohl die
   gepruefte Eigenschaft weiter galt - die teuerste Waffe war nur eine andere geworden.
+
+### 2026-08-25 — Layout an beiden Safe-Area-Raendern zugleich
+- **Fehler:** Die Startwaffen-Kacheln in der Levelpause standen auf einem festen Y-Wert,
+  zu dem `insets.top` addiert wurde. Der Knopf "SPEICHERN & BEENDEN" darunter haengt an
+  `insets.bottom`. Am Schreibtisch (beide Insets 0) lagen 178 px dazwischen und alles sah
+  richtig aus; auf dem iPhone (oben 59, unten 34) sind es 85 px, und die zweite
+  Kachelreihe lag komplett unter dem Knopf - unsichtbar und nicht antippbar. Aufgefallen
+  ist es nur, weil beim Bau einer neuen Kachelreihe nachgerechnet wurde, nicht beim
+  Ansehen im Browser.
+- **Regel:** Zwei Elemente, die an VERSCHIEDENEN Safe-Area-Raendern haengen, laufen bei
+  wachsenden Raendern aufeinander zu. Wer eins davon fest setzt, hat den Abstand nur fuer
+  sein eigenes Geraet richtig. Der freie Raum dazwischen muss gerechnet werden
+  (`shopWeaponRow.ts`), und der Test muss die echten Geraetewerte mitpruefen - ein Test
+  mit Insets 0 haette hier bestanden.
+- **Zweite Lehre:** Eine Auswahl, die ihre Liste aus dem AKTUELLEN Zustand neu baut, ist
+  eine Einbahnstrasse. Die getragene Waffe stand in der Liste, weil sie getragen wurde -
+  wer wechselte, verlor damit den Weg zurueck. Was zu Beginn einer Auswahl galt, muss bis
+  zu ihrem Ende gelten (`behalten`-Argument in `getStartWeaponChoices`).

@@ -893,13 +893,19 @@ export const BALANCE = {
       balanceY: 148,
       balanceFontPx: 24,
       firstButtonY: 196,
-      buttonHeight: 132,
+      // 112 STATT 132 (2026-08-25): Die zwei Kaufknoepfe waren die groessten Flaechen des
+      // Bildschirms und nahmen der Waffenwahl darunter den Platz. Auf dem iPhone blieben
+      // zwischen dem zweiten Knopf und SPEICHERN & BEENDEN nur 51 px fuer Titel und zwei
+      // Kachelreihen - die Kacheln waeren auf 23 px geschrumpft. Mit 112 sind es 91 px
+      // und die Kacheln behalten ihre volle Hoehe. Der Knopfinhalt braucht 103 px:
+      // Titel (26 px Schrift, Mitte bei 30) bis Preis (22 px, Mitte bei 92) - passt.
+      buttonHeight: 112,
       buttonGap: 22,
-      buttonTitleY: 34,
+      buttonTitleY: 30,
       buttonTitleFontPx: 26,
-      buttonEffectY: 72,
+      buttonEffectY: 62,
       buttonEffectFontPx: 15,
-      buttonPriceY: 104,
+      buttonPriceY: 92,
       buttonPriceFontPx: 22,
       continueBottomOffset: 70,
       continueHeight: 76,
@@ -910,16 +916,25 @@ export const BALANCE = {
       quitHeight: 48,
       quitFontPx: 17,
       disabledAlpha: 0.45,
-      // WAFFENWAHL VOR DEM LEVEL (2026-08-25). Sie sitzt im freien Raum zwischen dem
-      // zweiten Kaufknopf (endet bei 196 + 2 x 132 + 22 = 482) und SPEICHERN & BEENDEN
-      // (beginnt bei rund 660). Zwei Reihen a sechs Kacheln brauchen 86 px und passen
-      // damit auch auf dem kleinsten Geraet. 516 statt 482 laesst dem Titel Luft - bei
-      // 500 klebte er am Knopf darueber.
-      weaponRowY: 516,
-      weaponTileWidth: 46,
+      // WAFFENWAHL VOR DEM LEVEL (2026-08-25). Ihre POSITION steht nicht mehr hier,
+      // sondern wird in shopWeaponRow.ts aus dem freien Raum zwischen dem zweiten
+      // Kaufknopf und SPEICHERN & BEENDEN gerechnet. Grund steht dort: Die feste Zahl
+      // haing an der oberen Safe Area, der Knopf darunter an der unteren - auf dem iPhone
+      // lag die zweite Reihe deshalb unter dem Knopf und war nicht antippbar.
+      //
+      // SIEBEN STATT SECHS JE REIHE: Zwei Reihen a sechs sind zwoelf Plaetze - es gibt
+      // aber DREIZEHN Waffen. Wer alle gekauft hat und weit genug ist, saehe eine davon
+      // nicht mehr. Zeilenbreite jetzt 7 x 40 + 6 x 5 = 310 von 390 px Spielbreite.
+      weaponTileWidth: 40,
       weaponTileHeight: 40,
-      weaponTileGap: 6,
-      weaponsPerRow: 6,
+      // Untergrenze, wenn der Platz fuer die volle Hoehe nicht reicht. 26 px sind mit dem
+      // 20 px hohen HUD-Bild darin noch ein Tippziel, das ein Kind trifft.
+      weaponTileMinHeight: 26,
+      weaponTileGap: 5,
+      weaponsPerRow: 7,
+      weaponRows: 2,
+      weaponTitleHeight: 18,
+      weaponRowMargin: 8,
       depthPanel: 120,
       depthText: 121,
     },
