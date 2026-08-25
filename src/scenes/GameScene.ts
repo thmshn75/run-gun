@@ -15,7 +15,7 @@ import { getRoadHalfWidth, Road } from '../systems/road'
 import { getEnemySpeed, getScrollSpeed, setCurrentScrollSpeed } from '../systems/speed'
 import { Scenery } from '../systems/scenery'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
-import { addScore, createRunId, getMetaSteps, loadSave, qualifiesForScores, writeSave } from '../systems/save'
+import { addScore, createRunId, getMetaSteps, getOwnedWeapons, loadSave, qualifiesForScores, writeSave } from '../systems/save'
 import { Spawner } from '../systems/spawner'
 import { getWeaponRewardChoices } from '../systems/weaponChoices'
 import { RunStats, type ShopLine, getStatCap, getShopPrice, getContinuePrice } from '../systems/upgrades'
@@ -169,6 +169,12 @@ export class GameScene extends Phaser.Scene {
   /** Kennung des laufenden Runs - haelt seine Bestenlisten-Eintraege zusammen. */
   private runId = 0
 
+  /**
+   * Dauerhaft freigeschaltete Waffen aus dem Spielstand. Einmal beim Szenenstart
+   * gelesen: Gekauft wird nur im Hauptmenue, waehrend eines Runs aendert sich das nicht.
+   */
+  private gekaufteWaffen: readonly string[] = []
+
   public constructor() {
     super('GameScene')
   }
@@ -183,6 +189,7 @@ export class GameScene extends Phaser.Scene {
     // MUSS VOR setLevel STEHEN: Die dauerhaften Aufwertungen heben die Deckel, und der
     // erste set()-Aufruf klemmt sonst noch gegen den Deckel ohne sie (E4, 2026-08-24).
     const gespeichert = loadSave()
+    this.gekaufteWaffen = getOwnedWeapons(gespeichert)
     this.runStats.setMeta({
       firepower: getMetaSteps(gespeichert, 'firepower'),
       team: getMetaSteps(gespeichert, 'team'),
@@ -231,9 +238,9 @@ export class GameScene extends Phaser.Scene {
     this.spawner = new Spawner(this, this.runStats, () => this.crowd.getAnchorX(), (contactDamage) => this.handleBreakthrough(contactDamage))
     this.walls = new Walls(
       this,
-      (currentWeapon) => this.spawner.chooseWallWeapon(currentWeapon),
+      (currentWeapon) => this.spawner.chooseWallWeapon(currentWeapon, this.gekaufteWaffen),
       () => this.weapons.getWeapon(),
-      () => getWeaponRewardChoices(this.weapons.getWeapon(), this.currentLevel).length > 0,
+      () => getWeaponRewardChoices(this.weapons.getWeapon(), this.currentLevel, this.gekaufteWaffen).length > 0,
       () => this.runStats.get('hp'),
       () => this.runStats.get('damage'),
       () => this.runStats.get('shotsPerSec'),

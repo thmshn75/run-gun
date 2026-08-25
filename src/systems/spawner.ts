@@ -145,8 +145,8 @@ export class Spawner {
     return squads[squads.length - 1].kind
   }
 
-  public chooseWallWeapon(currentWeapon: WeaponKey): WeaponKey {
-    const choices = getWeaponRewardChoices(currentWeapon, this.levelPlan.level)
+  public chooseWallWeapon(currentWeapon: WeaponKey, owned: readonly string[] = []): WeaponKey {
+    const choices = getWeaponRewardChoices(currentWeapon, this.levelPlan.level, owned)
     // Gewichtet statt gleichverteilt: Sonst wird die gerade freigeschaltete Waffe mit
     // jeder weiteren seltener statt haeufiger (Herleitung bei weapon.rewardNewnessBias).
     return chooseWeightedWeapon(choices, Phaser.Math.RND.frac()) ?? currentWeapon

@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
+import { getWeaponUnlockPrice } from '../src/systems/save'
+import { getWeaponRewardChoices } from '../src/systems/weaponChoices'
 import { getBossPlan } from '../src/systems/bossPlan'
 import { getMaxShopSteps, getShopPrice, getStatCap, KEINE_STUFEN, RunStats } from '../src/systems/upgrades'
 
@@ -224,5 +226,44 @@ describe('Dauerhafte Aufwertungen (E4, 2026-08-24)', () => {
     // "muss halt sehr teuer sein" (Benni): Die erste Stufe kostet mehr als ein ganzer
     // Run bis Level 12 einbringt - sie wird aus dem Endlosbereich bezahlt.
     expect(preise[0]).toBeGreaterThan(5000)
+  })
+})
+
+describe('Dauerhaft gekaufte Waffen (Benni 2026-08-25)', () => {
+  it('staffelt den Preis nach dem Freischaltlevel', () => {
+    // "entsprechend teuer, damit er sie nicht sofort kaufen kann". Je spaeter eine Waffe
+    // regulaer kommt, desto teurer ist der Vorgriff darauf.
+    const sturmgewehr = getWeaponUnlockPrice('normal')
+    const schockwelle = getWeaponUnlockPrice('shockwave')
+    expect(sturmgewehr).toBeDefined()
+    expect(schockwelle).toBeDefined()
+    expect(schockwelle!).toBeGreaterThan(sturmgewehr! * 10)
+  })
+
+  it('gibt der Startwaffe keinen Preis - es gibt nichts freizuschalten', () => {
+    expect(getWeaponUnlockPrice('pistol')).toBeUndefined()
+  })
+
+  it('macht die teuerste Waffe erst nach mehreren guten Runs erreichbar', () => {
+    // Gegengerechnet an dem, was ein Run aufs Konto bringt (nach E2): bis Level 20 rund
+    // 12.600, bis Level 30 rund 32.600. Die Schockwelle darf nicht nach einem Run
+    // dastehen - sonst waere Bennis "nicht sofort kaufen" verfehlt.
+    expect(getWeaponUnlockPrice('shockwave')!).toBeGreaterThan(32600)
+  })
+
+  it('laesst eine gekaufte Waffe ab Level 1 im Tor erscheinen', () => {
+    // Der Kern von "die er dann IMMER hat": Sie haengt nicht mehr am Freischaltlevel.
+    expect(getWeaponRewardChoices('pistol', 1)).not.toContain('rocket')
+    expect(getWeaponRewardChoices('pistol', 1, ['rocket'])).toContain('rocket')
+  })
+
+  it('legt die gekaufte Waffe nicht in die Hand - das Tor bleibt', () => {
+    // Gekauft wird die MOEGLICHKEIT. Die Waffe steht in der Auswahl, aus der das Wandtor
+    // zieht; gefunden und zerschossen werden muss es weiterhin. Das ist der Grund,
+    // warum eine gekaufte 1,45x-Waffe die fruehen Level nicht sofort entwertet.
+    const auswahl = getWeaponRewardChoices('pistol', 1, ['shockwave'])
+    expect(auswahl).toContain('shockwave')
+    // Die aktuell getragene Waffe ist nie in der Auswahl - sonst zeigte das Tor, was man hat.
+    expect(auswahl).not.toContain('pistol')
   })
 })

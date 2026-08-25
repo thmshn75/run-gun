@@ -930,6 +930,34 @@ export const BALANCE = {
     // durch Rundung reisst. Ein Test haelt ihn gegen die Einzelwerte - damit eine
     // spaetere Aenderung an einer der beiden ihn nicht still ueberschreitet.
     totalBoostCap: 1.7,
+    // DAUERHAFT GEKAUFTE WAFFEN (Benni ueber Thomas 2026-08-25: "er will Waffen kaufen
+    // koennen, die er dann IMMER hat, abgeloest von Run oder neuem Spiel - wenn wir das
+    // so machen, muessen sie natuerlich entsprechend teuer sein, damit er sie nicht
+    // sofort kaufen kann").
+    //
+    // WAS DER KAUF GENAU BEWIRKT - das ist der Unterschied, der die Balance rettet: Er
+    // schaltet die Waffe in den WANDTOREN frei, ab Level 1 und dauerhaft. Er legt sie
+    // dem Spieler NICHT in die Hand. Man muss das Tor weiterhin finden und
+    // zerschiessen, und die Ziehung ist gewichtet (weapon.rewardNewnessBias). Gekauft
+    // wird also die Moeglichkeit, nicht die Waffe.
+    //
+    // PREIS = basis x wachstum^(Freischaltlevel - 1), auf Hunderter gerundet. Je spaeter
+    // eine Waffe reguar kommt, desto teurer ist der Vorgriff:
+    //   Sturmgewehr (ab 2)   1.700     Rakete (ab 13)        6.500
+    //   Shotgun (ab 3)       1.900     Granatwerfer (ab 15)  8.300
+    //   Minigun (ab 5)       2.400     Prellschuss (ab 18)  12.000
+    //   Laser (ab 7)         3.100     Streubombe (ab 21)   17.300
+    //   Flamme (ab 9)        4.000     Saegeblatt (ab 25)   28.200
+    //   Blitz (ab 11)        5.100     Schockwelle (ab 30)  51.900
+    //
+    // Gegengerechnet an dem, was ein Run aufs Konto bringt (nach E2): bis Level 12 rund
+    // 544, bis Level 20 rund 12.600, bis Level 30 rund 32.600. Das Sturmgewehr ist damit
+    // nach ein paar Runs zu haben, die Schockwelle erst, wenn Benni ohnehin regelmaessig
+    // Level 30 sieht - genau die "entsprechend teuer"-Vorgabe.
+    //
+    // DIE PISTOLE FEHLT BEWUSST: Sie ist die Startwaffe, es gibt nichts freizuschalten.
+    weaponPriceBase: 1500,
+    weaponPriceGrowthPerLevel: 1.13,
   },
   continueRun: {
     // 250 x erreichtes Level: 750 auf Level 3, 2.000 auf Level 8, 3.000 auf Level 12.

@@ -68,6 +68,15 @@ export interface SaveData {
    */
   metaFirepowerSteps?: number
   metaTeamSteps?: number
+  /**
+   * Dauerhaft freigeschaltete Waffen (2026-08-25). Sie erscheinen ab Level 1 in den
+   * Wandtoren, ueber alle Runs hinweg.
+   *
+   * FEHLEND HEISST "keine", nie ein Fehler - dieselbe Regel wie bei allen anderen neuen
+   * Feldern. Unbekannte Namen werden beim Lesen verworfen, damit ein Spielstand nicht
+   * scheitert, wenn eine Waffe spaeter umbenannt wird.
+   */
+  ownedWeapons?: string[]
 }
 
 const SAVE_KEY = 'rungun_save_v1'
@@ -198,6 +207,17 @@ export function parseSave(text: string): { ok: true; data: SaveData } | { ok: fa
   // daran NIE scheitern.
   const metaStufe = (wert: unknown): number => (isNonNegativeNumber(wert) ? Math.floor(wert) : 0)
 
+  // Gekaufte Waffen: Nur bekannte Namen uebernehmen. Ein unbekannter Eintrag (etwa nach
+  // einer Umbenennung) wird still verworfen statt den Spielstand abzulehnen.
+  const bekannteWaffen = new Set(
+    Object.entries(BALANCE.weapon)
+      .filter(([, eintrag]) => typeof eintrag === 'object' && eintrag !== null && 'minLevel' in eintrag)
+      .map(([name]) => name),
+  )
+  const ownedWeapons = Array.isArray(value.ownedWeapons)
+    ? value.ownedWeapons.filter((name): name is string => typeof name === 'string' && bekannteWaffen.has(name))
+    : []
+
   return {
     ok: true,
     data: {
@@ -217,6 +237,7 @@ export function parseSave(text: string): { ok: true; data: SaveData } | { ok: fa
       // vorher, und der gespeicherte Text bleibt klein.
       ...(metaStufe(value.metaFirepowerSteps) > 0 ? { metaFirepowerSteps: metaStufe(value.metaFirepowerSteps) } : {}),
       ...(metaStufe(value.metaTeamSteps) > 0 ? { metaTeamSteps: metaStufe(value.metaTeamSteps) } : {}),
+      ...(ownedWeapons.length > 0 ? { ownedWeapons } : {}),
     },
   }
 }
@@ -227,6 +248,26 @@ export function getMetaSteps(data: SaveData, line: 'firepower' | 'team'): number
   return typeof wert === 'number' && Number.isFinite(wert) && wert > 0
     ? Math.min(Math.floor(wert), BALANCE.meta.prices.length)
     : 0
+}
+
+/** Dauerhaft freigeschaltete Waffen. Fehlend = keine. */
+export function getOwnedWeapons(data: SaveData): readonly string[] {
+  return Array.isArray(data.ownedWeapons) ? data.ownedWeapons : []
+}
+
+/**
+ * Preis einer dauerhaften Waffenfreischaltung. undefined fuer die Startwaffe - sie hat
+ * nichts freizuschalten. Herleitung bei BALANCE.meta.weaponPrice*.
+ */
+export function getWeaponUnlockPrice(weapon: string): number | undefined {
+  // BALANCE.weapon traegt neben den Waffen auch rewardNewnessBias - deshalb geprueft
+  // statt gecastet: Ein Cast wuerde diesen Wert stillschweigend als Waffe durchlassen.
+  const eintrag = (BALANCE.weapon as unknown as Record<string, unknown>)[weapon]
+  if (typeof eintrag !== 'object' || eintrag === null || !('minLevel' in eintrag)) return undefined
+  const minLevel = (eintrag as { minLevel: unknown }).minLevel
+  if (typeof minLevel !== 'number' || minLevel <= 1) return undefined
+  const roh = BALANCE.meta.weaponPriceBase * BALANCE.meta.weaponPriceGrowthPerLevel ** (minLevel - 1)
+  return Math.round(roh / 100) * 100
 }
 
 /** Preis der naechsten Stufe. undefined, wenn die Linie ausgebaut ist. */

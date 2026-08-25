@@ -1,9 +1,28 @@
 import { BALANCE } from '../config/balance'
 import type { WeaponKey } from './weapons'
 
-export function getWeaponRewardChoices(currentWeapon: WeaponKey, level: number): WeaponKey[] {
+/**
+ * Welche Waffen koennen auf diesem Level im Wandtor erscheinen?
+ *
+ * Zwei Wege hinein: das regulaere Freischaltlevel ODER ein dauerhafter Kauf im
+ * Menue-Shop (2026-08-25). Eine gekaufte Waffe steht damit ab Level 1 zur Verfuegung -
+ * das ist Bennis ausdruecklicher Wunsch ("die er dann IMMER hat").
+ *
+ * Sie liegt ihm deshalb nicht in der Hand: Das Tor muss weiterhin gefunden und
+ * zerschossen werden. Gekauft wird die Moeglichkeit, nicht die Waffe.
+ */
+export function getWeaponRewardChoices(
+  currentWeapon: WeaponKey,
+  level: number,
+  owned: readonly string[] = [],
+): WeaponKey[] {
   return (Object.keys(BALANCE.weapon) as WeaponKey[])
-    .filter((weapon) => weapon !== currentWeapon && BALANCE.weapon[weapon].minLevel <= level)
+    .filter((weapon) => {
+      const eintrag = BALANCE.weapon[weapon] as { minLevel?: number } | undefined
+      if (typeof eintrag?.minLevel !== 'number') return false
+      if (weapon === currentWeapon) return false
+      return eintrag.minLevel <= level || owned.includes(weapon)
+    })
 }
 
 /**

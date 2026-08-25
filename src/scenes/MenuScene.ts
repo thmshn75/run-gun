@@ -1,10 +1,11 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import { WEAPON_LABELS, type WeaponKey } from '../systems/weapons'
 import { HUD_COLORS, MENU_COLORS } from '../config/colors'
 import { getGameAudio } from '../systems/audio'
 import { computeMenuLayout } from '../systems/menuLayout'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
-import { getMetaPrice, getMetaSteps, loadSave, resetSave, writeSave, type SaveData, type ScoreEntry } from '../systems/save'
+import { getMetaPrice, getMetaSteps, getOwnedWeapons, getWeaponUnlockPrice, loadSave, resetSave, writeSave, type SaveData, type ScoreEntry } from '../systems/save'
 import { enableSharpText } from '../systems/textSharpness'
 
 export class MenuScene extends Phaser.Scene {
@@ -201,20 +202,21 @@ export class MenuScene extends Phaser.Scene {
 
     const wall = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.65).setDepth(10).setInteractive()
     wall.on('pointerdown', () => undefined)
-    const panel = this.add.rectangle(centerX, centerY, panelWidth, 340, MENU_COLORS.row, 1).setDepth(11)
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, 430, MENU_COLORS.row, 1).setDepth(11)
       .setStrokeStyle(2, MENU_COLORS.rowStroke, 1)
-    const titel = this.add.text(centerX, centerY - 148, 'DAUERHAFTE AUFWERTUNG', {
+    const titel = this.add.text(centerX, centerY - 193, 'DAUERHAFTE AUFWERTUNG', {
       fontFamily: 'system-ui', fontSize: '20px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
     }).setOrigin(0.5).setDepth(12)
-    const konto = this.add.text(centerX, centerY - 120, `KONTO  ¢ ${this.save.coins}`, {
+    const konto = this.add.text(centerX, centerY - 165, `KONTO  ¢ ${this.save.coins}`, {
       fontFamily: 'system-ui', fontSize: '16px', color: this.colorFor(MENU_COLORS.text),
     }).setOrigin(0.5).setDepth(12)
     this.confirmationObjects.push(wall, panel, titel, konto)
 
-    this.addMetaLine('firepower', 'SCHLAGKRAFT', centerX, centerY - 74, panelWidth)
-    this.addMetaLine('team', 'MANNSCHAFT', centerX, centerY + 22, panelWidth)
+    this.addMetaLine('firepower', 'SCHLAGKRAFT', centerX, centerY - 120, panelWidth)
+    this.addMetaLine('team', 'MANNSCHAFT', centerX, centerY - 24, panelWidth)
+    this.addWeaponLine(centerX, centerY + 72, panelWidth)
 
-    this.confirmationObjects.push(...this.addButton(centerX, centerY + 130, panelWidth - 32, 40, 'ZURÜCK', true, () => {
+    this.confirmationObjects.push(...this.addButton(centerX, centerY + 175, panelWidth - 32, 40, 'ZURÜCK', true, () => {
       this.closeMetaShop()
     }, undefined, true, 12))
   }
@@ -246,6 +248,62 @@ export class MenuScene extends Phaser.Scene {
       () => { if (bezahlbar && preis !== undefined) this.kaufeMetaStufe(line, preis) },
       undefined, !bezahlbar, 12,
     ))
+  }
+
+  /**
+   * Waffen-Freischaltung (Benni 2026-08-25: "Waffen kaufen koennen, die er dann IMMER
+   * hat, abgeloest von Run oder neuem Spiel").
+   *
+   * Es wird immer nur die NAECHSTE Waffe angeboten, nicht alle zwoelf: Eine Liste mit
+   * zwoelf Zeilen passt weder in die Ansicht noch in den Kopf eines Siebenjaehrigen.
+   * Die Reihenfolge ist die der Staffelung, also von guenstig nach teuer - wer die
+   * Schockwelle will, muss sich durch alle davor kaufen.
+   */
+  private addWeaponLine(centerX: number, y: number, panelWidth: number): void {
+    const gekauft = getOwnedWeapons(this.save)
+    const naechste = (Object.keys(BALANCE.weapon) as WeaponKey[])
+      .filter((key) => getWeaponUnlockPrice(key) !== undefined && !gekauft.includes(key))
+      .sort((a, b) => (getWeaponUnlockPrice(a) ?? 0) - (getWeaponUnlockPrice(b) ?? 0))[0]
+
+    const kopf = this.add.text(centerX, y - 18, `WAFFEN   ${gekauft.length}/12 freigeschaltet`, {
+      fontFamily: 'system-ui', fontSize: '17px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
+    }).setOrigin(0.5).setDepth(12)
+    this.confirmationObjects.push(kopf)
+
+    if (naechste === undefined) {
+      this.confirmationObjects.push(this.add.text(centerX, y + 4, 'alle freigeschaltet', {
+        fontFamily: 'system-ui', fontSize: '14px', color: this.colorFor(MENU_COLORS.text),
+      }).setOrigin(0.5).setDepth(12))
+      return
+    }
+
+    const preis = getWeaponUnlockPrice(naechste) ?? 0
+    const bezahlbar = this.save.coins >= preis
+    const info = this.add.text(centerX, y + 4, `nächste: ${WEAPON_LABELS[naechste]} — ab Level ${BALANCE.weapon[naechste].minLevel}`, {
+      fontFamily: 'system-ui', fontSize: '14px', color: this.colorFor(MENU_COLORS.text),
+    }).setOrigin(0.5).setDepth(12)
+    this.confirmationObjects.push(info)
+    this.confirmationObjects.push(...this.addButton(
+      centerX, y + 34, panelWidth - 40, 34,
+      bezahlbar ? `FREISCHALTEN  ¢ ${preis}` : `NOCH ¢ ${preis - this.save.coins}`,
+      bezahlbar,
+      () => { if (bezahlbar) this.kaufeWaffe(naechste, preis) },
+      undefined, !bezahlbar, 12,
+    ))
+  }
+
+  private kaufeWaffe(weapon: WeaponKey, preis: number): void {
+    if (this.save.coins < preis || getOwnedWeapons(this.save).includes(weapon)) return
+    const aktualisiert: SaveData = {
+      ...this.save,
+      coins: this.save.coins - preis,
+      ownedWeapons: [...getOwnedWeapons(this.save), weapon],
+    }
+    writeSave(aktualisiert)
+    this.save = aktualisiert
+    this.closeMetaShop()
+    this.renderShop()
+    this.openMetaShop()
   }
 
   private kaufeMetaStufe(line: 'firepower' | 'team', preis: number): void {
