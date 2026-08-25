@@ -267,6 +267,9 @@ export class MenuScene extends Phaser.Scene {
     const kachel = this.add.rectangle(centerX, y, breite, 66, MENU_COLORS.shelf, 1)
       .setStrokeStyle(2, preis === undefined ? MENU_COLORS.owned : bezahlbar ? MENU_COLORS.buttonStroke : MENU_COLORS.disabledStroke, 1)
       .setOrigin(0.5).setDepth(12)
+    // Antippen oeffnet die Detailansicht - wie bei den Waffen (Thomas 2026-08-25:
+    // "dasselbe fuer schlagkraft und mannschaft").
+    kachel.setInteractive({ useHandCursor: true }).on('pointerdown', () => { this.zeigeAufwertungDetail(line) })
     const kopf = this.add.text(linkeKante + 12, y - 20, titel, {
       fontFamily: 'system-ui', fontSize: '15px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
     }).setOrigin(0, 0.5).setDepth(13)
@@ -447,6 +450,99 @@ export class MenuScene extends Phaser.Scene {
     ))
   }
 
+  /**
+   * DETAILANSICHT DER AUFWERTUNGEN (Thomas 2026-08-25: "dasselbe fuer schlagkraft und
+   * mannschaft - also ein vergroessrungs feld wo drinnen steht, was es ist und was es
+   * bewirkt").
+   *
+   * Sie traegt eine Information, die mit der Umbenennung von "DAUERHAFTE AUFWERTUNG" auf
+   * "SHOP" sonst verloren gegangen waere: dass diese Kaeufe in JEDEM Lauf gelten - anders
+   * als die Stufen, die man in der Levelpause kauft und die mit dem Lauf enden.
+   */
+  private zeigeAufwertungDetail(line: 'firepower' | 'team'): void {
+    const width = this.scale.width
+    const height = this.scale.height
+    const safeWidth = width - this.insets.left - this.insets.right
+    const centerX = this.insets.left + safeWidth / 2
+    const centerY = (height + this.insets.top - this.insets.bottom) / 2
+    const panelWidth = safeWidth - 8
+    const stufen = getMetaSteps(this.save, line)
+    const maximum = BALANCE.meta.prices.length
+    const preis = getMetaPrice(stufen)
+    const bezahlbar = preis !== undefined && this.save.coins >= preis
+    const bonus = line === 'firepower' ? BALANCE.meta.firepowerBonusPerStep : BALANCE.meta.teamBonusPerStep
+    const jetzt = Math.round(((1 + bonus) ** stufen - 1) * 100)
+    const danach = Math.round(((1 + bonus) ** (stufen + 1) - 1) * 100)
+    const titel = line === 'firepower' ? 'SCHLAGKRAFT' : 'MANNSCHAFT'
+    const was = line === 'firepower'
+      ? 'Deine Truppe richtet mehr Schaden an — jede Stufe\ngibt dauerhaft mehr Feuerkraft.'
+      : 'Deine Truppe darf größer werden — jede Stufe hebt\ndauerhaft die Obergrenze.'
+
+    const wall = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82)
+      .setDepth(20).setInteractive()
+    wall.on('pointerdown', () => this.schliesseWaffenDetail())
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, 430, MENU_COLORS.row, 1)
+      .setDepth(21).setStrokeStyle(2, preis === undefined ? MENU_COLORS.owned : MENU_COLORS.rowStroke, 1)
+    panel.setInteractive().on('pointerdown', () => undefined)
+    const kopf = this.add.text(centerX, centerY - 185, titel, {
+      fontFamily: 'system-ui', fontSize: '26px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
+    }).setOrigin(0.5).setDepth(22)
+    this.detailObjects.push(wall, panel, kopf)
+
+    // Symbol: die Truppenfigur fuer MANNSCHAFT, das Sturmgewehr fuer SCHLAGKRAFT. Beide
+    // Bilder gibt es bereits - eigene Symbole waeren ein Bildauftrag fuer einen Nutzen,
+    // den diese zwei genauso erfuellen.
+    const bild = this.add.image(centerX, centerY - 112, line === 'team' ? 'player' : 'weapon-normal-gate').setDepth(22)
+    // BEIDE Richtungen deckeln: Das Gewehr ist quer (150 x 44), die Truppenfigur hochkant.
+    // Eine Skalierung nur ueber die Breite liess die Figur in den Titel ragen.
+    bild.setScale(Math.min((panelWidth - 120) / bild.width, 92 / bild.height, 2.4))
+    this.detailObjects.push(bild)
+
+    // Stufen als grosse Punktreihe - dieselbe Darstellung wie im Regal, nur lesbarer.
+    const punktBreite = 26
+    const start = centerX - ((maximum - 1) * punktBreite) / 2
+    for (let i = 0; i < maximum; i += 1) {
+      this.detailObjects.push(this.add.rectangle(
+        start + i * punktBreite, centerY - 56, 18, 18,
+        i < stufen ? MENU_COLORS.levelFilled : MENU_COLORS.levelEmpty, 1,
+      ).setOrigin(0.5).setDepth(22))
+    }
+    this.detailObjects.push(this.add.text(centerX, centerY - 30, `STUFE ${stufen} VON ${maximum}`, {
+      fontFamily: 'system-ui', fontSize: '13px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.mutedText),
+    }).setOrigin(0.5).setDepth(22))
+
+    this.detailObjects.push(this.add.text(centerX, centerY + 2, was, {
+      fontFamily: 'system-ui', fontSize: '14px', color: this.colorFor(MENU_COLORS.text),
+      align: 'center', lineSpacing: 3,
+    }).setOrigin(0.5, 0).setDepth(22))
+
+    // WAS ES BEWIRKT, in Zahlen: jetzt gegen nachher. Ohne den Vergleich ist "+4 %" eine
+    // Zahl ohne Bezug.
+    const wirkung = preis === undefined
+      ? `Voll ausgebaut: +${jetzt} % in jedem Lauf.`
+      : stufen === 0
+        ? `Nach dem Kauf: +${danach} % — in JEDEM Lauf, auch nach einem\nNeustart.`
+        : `Jetzt +${jetzt} %, nach dem Kauf +${danach} % — in JEDEM Lauf,\nauch nach einem Neustart.`
+    this.detailObjects.push(this.add.text(centerX, centerY + 62, wirkung, {
+      fontFamily: 'system-ui', fontSize: '13px', fontStyle: 'bold',
+      color: this.colorFor(preis === undefined ? MENU_COLORS.owned : MENU_COLORS.priceText),
+      align: 'center', lineSpacing: 3,
+    }).setOrigin(0.5, 0).setDepth(22))
+
+    const beschriftung = preis === undefined
+      ? '✓ VOLL AUSGEBAUT'
+      : bezahlbar ? `KAUFEN  ¢ ${preis}` : `NOCH ¢ ${preis - this.save.coins}`
+    this.detailObjects.push(...this.addButton(
+      centerX, centerY + 148, panelWidth - 48, 44, beschriftung, bezahlbar,
+      () => { if (bezahlbar && preis !== undefined) this.kaufeMetaStufe(line, preis) },
+      undefined, !bezahlbar, 22,
+    ))
+    this.detailObjects.push(...this.addButton(
+      centerX, centerY + 196, panelWidth - 48, 36, 'ZURÜCK', true,
+      () => { this.schliesseWaffenDetail() }, undefined, true, 22,
+    ))
+  }
+
   private schliesseWaffenDetail(): void {
     for (const object of this.detailObjects) object.destroy()
     this.detailObjects.length = 0
@@ -480,9 +576,14 @@ export class MenuScene extends Phaser.Scene {
     writeSave(aktualisiert)
     this.save = aktualisiert
     // Ansicht neu aufbauen, damit Konto, Stufenzahl und Preis sofort stimmen.
+    const warOffen = this.detailObjects.length > 0
     this.closeShop()
     this.renderShop()
     this.openShop()
+    // Anders als bei den Waffen bleibt die Detailansicht offen: Hier gibt es fuenf
+    // Stufen, und wer die zweite kauft, will meist gleich die dritte sehen. Der
+    // Punktbalken zeigt den Fortschritt dabei direkt.
+    if (warOffen) this.zeigeAufwertungDetail(line)
   }
 
   private closeShop(): void {

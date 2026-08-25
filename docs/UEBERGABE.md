@@ -56,6 +56,12 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
     Gemessene Begruendung: Mit der Streubombe ab Level 1 kommt auf Level 1, 5 und 12 KEIN
     Gegner mehr durch (gegen 4,3 / 15,8 / 19,1 % mit der Pistole, Korridor 4-12 %). Der
     Kauf gibt Sicherheit statt Vorsprung.
+  - **Detailansicht** fuer jede Waffe UND fuer beide Aufwertungen: grosses Bild (Waffen
+    zeigen ihr Wandtor-Bild), Staerke als Sterne aus dem gemessenen `killsPerSec`, ein
+    Satz zur Wirkung und die LEVELANGABE in beiden Faellen ("Ohne Kauf ab Level 30 ...
+    gekauft schon ab Level 29"). Gekauft wird nur dort, nicht durch Antippen der Kachel -
+    kein Fehlkauf durch Danebentippen. Bei den Aufwertungen bleibt die Ansicht nach dem
+    Kauf offen, weil es fuenf Stufen sind.
   - **Muenzanzeige vereinheitlicht** (Thomas: "im Shop und im Spiel werden aber 2
     verschiedene Werte angezeigt wieso?"). Das HUD zeigte den RUN-Zaehler, das Menue den
     Kontostand - beides richtig, nebeneinander aber wie ein Fehler (4.565 gegen 1.254).
