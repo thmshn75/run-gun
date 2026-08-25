@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { WEAPON_LABELS, type WeaponKey } from '../systems/weapons'
+import { WEAPON_DESCRIPTIONS, WEAPON_LABELS, type WeaponKey } from '../systems/weapons'
 import { HUD_COLORS, MENU_COLORS } from '../config/colors'
 import { getGameAudio } from '../systems/audio'
 import { computeMenuLayout } from '../systems/menuLayout'
@@ -14,6 +14,8 @@ export class MenuScene extends Phaser.Scene {
   private balanceText!: Phaser.GameObjects.Text
   private readonly shopObjects: Phaser.GameObjects.GameObject[] = []
   private readonly confirmationObjects: Phaser.GameObjects.GameObject[] = []
+  /** Die Waffen-Detailansicht liegt UEBER dem Laden und wird getrennt aufgeraeumt. */
+  private readonly detailObjects: Phaser.GameObjects.GameObject[] = []
 
   public constructor() {
     super('MenuScene')
@@ -361,9 +363,93 @@ export class MenuScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(13)
     this.confirmationObjects.push(kachel, name, bild, text)
 
-    if (bezahlbar) {
-      kachel.setInteractive({ useHandCursor: true }).on('pointerdown', () => { this.kaufeWaffe(weapon, preis) })
-    }
+    // JEDE Kachel ist antippbar, auch die zu teure (Thomas 2026-08-25: "auch wenn die
+    // waffe noch nicht gekauft ist soll man sie klicken koennen"). Gekauft wird erst in
+    // der Detailansicht - so ist ein Fehlkauf durch Danebentippen ausgeschlossen.
+    kachel.setInteractive({ useHandCursor: true }).on('pointerdown', () => { this.zeigeWaffenDetail(weapon) })
+  }
+
+  /**
+   * DIE DETAILANSICHT (Thomas 2026-08-25: "in einem groesseren bild (bildschirmbreite)
+   * ansehen koennen" und "irgendwo muessen wir klar machen, wann die waffe dann
+   * erscheint, wenn man sie gekauft hat").
+   *
+   * Sie legt sich UEBER den Laden statt ihn zu ersetzen: Zurueck landet man wieder im
+   * Regal an derselben Stelle. Das Bild ist das Wandtor-Bild, nicht das kleine aus der
+   * HUD-Ecke - es ist gut viermal so gross und zeigt die Waffe so, wie man sie im Spiel
+   * im Tor sieht.
+   */
+  private zeigeWaffenDetail(weapon: WeaponKey): void {
+    const width = this.scale.width
+    const height = this.scale.height
+    const safeWidth = width - this.insets.left - this.insets.right
+    const centerX = this.insets.left + safeWidth / 2
+    const centerY = (height + this.insets.top - this.insets.bottom) / 2
+    const panelWidth = safeWidth - 8
+    const preis = getWeaponUnlockPrice(weapon) ?? 0
+    const gekauft = getOwnedWeapons(this.save).includes(weapon)
+    const bezahlbar = !gekauft && this.save.coins >= preis
+    const minLevel = (BALANCE.weapon[weapon] as { minLevel: number }).minLevel
+    const abLevel = Math.max(1, minLevel - BALANCE.weapon.ownedLevelBonus)
+
+    const wall = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82)
+      .setDepth(20).setInteractive()
+    wall.on('pointerdown', () => this.schliesseWaffenDetail())
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, 430, MENU_COLORS.row, 1)
+      .setDepth(21).setStrokeStyle(2, gekauft ? MENU_COLORS.owned : MENU_COLORS.rowStroke, 1)
+    // Der Klick auf das Panel darf NICHT durchschlagen und die Ansicht schliessen.
+    panel.setInteractive().on('pointerdown', () => undefined)
+    const name = this.add.text(centerX, centerY - 185, WEAPON_LABELS[weapon], {
+      fontFamily: 'system-ui', fontSize: '26px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
+    }).setOrigin(0.5).setDepth(22)
+    this.detailObjects.push(wall, panel, name)
+
+    // GROSSES BILD: das Wandtor-Bild (150 x 44) auf die Panelbreite gezogen.
+    const bild = this.add.image(centerX, centerY - 110, `weapon-${weapon}-gate`).setDepth(22)
+    bild.setScale(Math.min((panelWidth - 40) / bild.width, 3))
+    this.detailObjects.push(bild)
+
+    // STAERKE als Sterne aus dem gemessenen Wert - fuenf Sterne hat die staerkste Waffe.
+    const alle = (Object.keys(BALANCE.weapon) as WeaponKey[])
+      .filter((k) => typeof (BALANCE.weapon[k] as { killsPerSec?: number }).killsPerSec === 'number')
+      .map((k) => (BALANCE.weapon[k] as { killsPerSec: number }).killsPerSec)
+    const meine = (BALANCE.weapon[weapon] as { killsPerSec: number }).killsPerSec
+    const sterne = Math.max(1, Math.round((meine / Math.max(...alle)) * 5))
+    this.detailObjects.push(this.add.text(centerX, centerY - 52, `STÄRKE  ${'★'.repeat(sterne)}${'☆'.repeat(5 - sterne)}`, {
+      fontFamily: 'system-ui', fontSize: '17px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.priceText),
+    }).setOrigin(0.5).setDepth(22))
+
+    this.detailObjects.push(this.add.text(centerX, centerY - 8, WEAPON_DESCRIPTIONS[weapon], {
+      fontFamily: 'system-ui', fontSize: '14px', color: this.colorFor(MENU_COLORS.text),
+      align: 'center', wordWrap: { width: panelWidth - 48 },
+    }).setOrigin(0.5, 0).setDepth(22))
+
+    // WANN SIE KOMMT - der Punkt, den Thomas ausdruecklich verlangt hat. Beide Faelle
+    // nennen eine Levelnummer, damit man nicht raten muss.
+    const hinweis = gekauft
+      ? `Gekauft. Ab Level ${abLevel} kannst du damit starten\nund sie erscheint in den Wandtoren.`
+      : `Ohne Kauf erscheint sie ab Level ${minLevel} in den Wandtoren.\nGekauft schon ab Level ${abLevel} — und du kannst\ndamit ins Level starten.`
+    this.detailObjects.push(this.add.text(centerX, centerY + 62, hinweis, {
+      fontFamily: 'system-ui', fontSize: '13px', color: this.colorFor(gekauft ? MENU_COLORS.owned : MENU_COLORS.text),
+      align: 'center', lineSpacing: 3,
+    }).setOrigin(0.5, 0).setDepth(22))
+
+    const beschriftung = gekauft
+      ? '✓ GEKAUFT'
+      : bezahlbar ? `KAUFEN  ¢ ${preis}` : `NOCH ¢ ${preis - this.save.coins}`
+    this.detailObjects.push(...this.addButton(
+      centerX, centerY + 148, panelWidth - 48, 44, beschriftung, bezahlbar,
+      () => { if (bezahlbar) this.kaufeWaffe(weapon, preis) }, undefined, !bezahlbar, 22,
+    ))
+    this.detailObjects.push(...this.addButton(
+      centerX, centerY + 196, panelWidth - 48, 36, 'ZURÜCK', true,
+      () => { this.schliesseWaffenDetail() }, undefined, true, 22,
+    ))
+  }
+
+  private schliesseWaffenDetail(): void {
+    for (const object of this.detailObjects) object.destroy()
+    this.detailObjects.length = 0
   }
 
   private kaufeWaffe(weapon: WeaponKey, preis: number): void {
@@ -375,6 +461,9 @@ export class MenuScene extends Phaser.Scene {
     }
     writeSave(aktualisiert)
     this.save = aktualisiert
+    // Erst die Detailansicht weg, dann der Laden neu - sonst blieben ihre Objekte liegen
+    // und lägen ueber dem frisch gezeichneten Regal.
+    this.schliesseWaffenDetail()
     this.closeShop()
     this.renderShop()
     this.openShop()
@@ -397,6 +486,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private closeShop(): void {
+    this.schliesseWaffenDetail()
     this.confirmationObjects.splice(0).forEach((object) => object.destroy())
   }
 

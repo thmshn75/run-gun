@@ -1088,6 +1088,11 @@ export const BALANCE = {
   // dasselbe. Fuer das Lernlevel vertretbar, ab Level 2 sind es zwei, ab Level 3 drei.
   // Ein Test haelt Staffelung und Mindestzahl an Toralternativen fest.
   weapon: {
+    // killsPerSec bei jeder Waffe ist der MESSWERT aus dieser Reihe, nicht nur eine Notiz
+    // im Kommentar: Der Laden zeigt daraus die Staerke-Sterne in der Detailansicht, und
+    // ein Test haelt fest, dass Preis und Staerke gleich sortiert sind. Wer eine Waffe
+    // aendert, muss diesen Wert nachmessen - sonst zeigt der Laden etwas an, das nicht
+    // mehr stimmt.
     // KAUFPREISE (unlockPrice bei jeder Waffe) - hergeleitet aus der GEMESSENEN Staerke,
     // nicht aus der Levelnummer (Thomas 2026-08-25: "logische Preise dafuer").
     //
@@ -1161,6 +1166,7 @@ export const BALANCE = {
     // nicht die Pistole weiter schwaechen - Letzteres bliebe folgenlos.
     pistol: {
       minLevel: 1,
+      killsPerSec: 1.75,
       rateFactor: 1.15,
       damageFactor: 0.62,
       shootersPerSalvo: 8,
@@ -1178,6 +1184,7 @@ export const BALANCE = {
     },
     normal: {
       minLevel: 2,
+      killsPerSec: 3.4,
       unlockPrice: 2400,
       rateFactor: 1,
       damageFactor: 1,
@@ -1198,6 +1205,7 @@ export const BALANCE = {
     },
     shotgun: {
       minLevel: 3,
+      killsPerSec: 3.13,
       unlockPrice: 2100,
       rateFactor: 0.4,
       // 1,5 -> 0,45: Die Schrotflinte war mit 4,20x die mit Abstand staerkste Waffe,
@@ -1223,6 +1231,7 @@ export const BALANCE = {
       // hat: Seine Feuerlinie ist schmal, er trifft nur, was in der Spur steht. Nur
       // damageFactor angehoben, aus demselben Grund wie bei der Minigun.
       minLevel: 18,
+      killsPerSec: 8.27,
       unlockPrice: 9300,
       rateFactor: 1.4,
       damageFactor: 0.46,
@@ -1251,6 +1260,7 @@ export const BALANCE = {
     },
     rocket: {
       minLevel: 11,
+      killsPerSec: 7.47,
       unlockPrice: 7900,
       rateFactor: 0.25,
       damageFactor: 2.5,
@@ -1275,6 +1285,7 @@ export const BALANCE = {
       // Staffelung. Angehoben wird NUR damageFactor: Feuerkraft ist ein Produkt, ein
       // Zuwachs auf Rate UND Schaden wirkt quadratisch.
       minLevel: 5,
+      killsPerSec: 3.97,
       unlockPrice: 3100,
       rateFactor: 2.2,
       // 0,28 -> 0,55 UND 3 -> 8 Schuetzen (Thomas 2026-08-23: "Minigun macht kaum
@@ -1299,6 +1310,7 @@ export const BALANCE = {
     },
     flamethrower: {
       minLevel: 7,
+      killsPerSec: 4.83,
       unlockPrice: 4100,
       // 14.4 salvos/s x 3 shooters x 5 projectiles x 0.694s flight = 149.8; 200 leaves 33% reserve.
       rateFactor: 1.8,
@@ -1319,6 +1331,7 @@ export const BALANCE = {
     },
     chainlightning: {
       minLevel: 9,
+      killsPerSec: 5.07,
       unlockPrice: 4500,
       rateFactor: 0.7,
       // 1,05 -> 0,9: Die Kette lag mit 1,46x am oberen Rand des Bandes, weil drei
@@ -1369,6 +1382,7 @@ export const BALANCE = {
     grenade: {
       // Letzte Waffe der V3-Staffelung; seit 2026-08-24 Stufe 15 von dreizehn Waffen.
       minLevel: 21,
+      killsPerSec: 10.27,
       unlockPrice: 12800,
       // Langsamste Waffe im Spiel (Rakete 0,25) - "schiesst weniger oft".
       rateFactor: 0.26,
@@ -1420,6 +1434,7 @@ export const BALANCE = {
     // notiert, nicht stillschweigend ersetzt.
     ricochet: {
       minLevel: 13,
+      killsPerSec: 7.67,
       unlockPrice: 8300,
       rateFactor: 1.5,
       damageFactor: 0.44,
@@ -1440,6 +1455,7 @@ export const BALANCE = {
     // und breiter gestreut.
     cluster: {
       minLevel: 30,
+      killsPerSec: 13.8,
       unlockPrice: 20000,
       rateFactor: 0.4,
       damageFactor: 0.54,
@@ -1461,6 +1477,7 @@ export const BALANCE = {
     // andere - man legt eine Schneise, statt auf Ziele zu schiessen.
     sawblade: {
       minLevel: 15,
+      killsPerSec: 7.67,
       unlockPrice: 8300,
       rateFactor: 0.42,
       damageFactor: 2.1,
@@ -1483,6 +1500,7 @@ export const BALANCE = {
     // ausrichtet.
     shockwave: {
       minLevel: 25,
+      killsPerSec: 12.47,
       unlockPrice: 17100,
       rateFactor: 0.5,
       damageFactor: 1.19,

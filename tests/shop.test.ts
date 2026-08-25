@@ -250,6 +250,33 @@ describe('Dauerhaft gekaufte Waffen (Benni 2026-08-25)', () => {
     expect(Math.max(...preise)).toBeGreaterThan(Math.min(...preise) * 5)
   })
 
+  it('haelt Preis und gemessene Staerke in derselben Reihenfolge', () => {
+    // Der Laden zeigt beides: den Preis auf der Kachel und die Staerke als Sterne in der
+    // Detailansicht. Laufen sie auseinander, steht dort eine teure Waffe mit weniger
+    // Sternen als eine billige - und der Spieler kann der Anzeige nicht mehr trauen.
+    // killsPerSec ist der Messwert aus der Reihe, nach der auch die Staffelung sortiert
+    // ist (Herleitung in balance.ts).
+    const mitPreis = (Object.keys(BALANCE.weapon) as (keyof typeof BALANCE.weapon)[])
+      .filter((k) => getWeaponUnlockPrice(k) !== undefined)
+      .map((k) => ({
+        waffe: k,
+        preis: getWeaponUnlockPrice(k)!,
+        staerke: (BALANCE.weapon[k] as { killsPerSec: number }).killsPerSec,
+      }))
+      .sort((a, b) => a.staerke - b.staerke)
+    for (let i = 1; i < mitPreis.length; i += 1) {
+      expect(mitPreis[i].preis, `${mitPreis[i].waffe} gegen ${mitPreis[i - 1].waffe}`)
+        .toBeGreaterThanOrEqual(mitPreis[i - 1].preis)
+    }
+    // Und jede Waffe braucht einen Messwert - auch die Startwaffe, deren Sterne der
+    // Laden ebenfalls anzeigt.
+    for (const waffe of Object.keys(BALANCE.weapon) as (keyof typeof BALANCE.weapon)[]) {
+      const eintrag = BALANCE.weapon[waffe] as { minLevel?: number; killsPerSec?: number }
+      if (typeof eintrag.minLevel !== 'number') continue
+      expect(eintrag.killsPerSec, String(waffe)).toBeGreaterThan(0)
+    }
+  })
+
   it('gibt der Startwaffe keinen Preis - es gibt nichts freizuschalten', () => {
     expect(getWeaponUnlockPrice('pistol')).toBeUndefined()
   })

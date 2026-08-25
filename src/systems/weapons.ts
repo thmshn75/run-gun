@@ -22,6 +22,31 @@ export const WEAPON_LABELS: Record<WeaponKey, string> = {
   shockwave: 'SCHOCKWELLE',
 }
 
+/**
+ * Was die Waffe TUT, in einem Satz - fuer die Detailansicht im Laden (Thomas 2026-08-25:
+ * "in einem groesseren bild ... ansehen koennen"). Beschrieben wird die EIGENSCHAFT, nicht
+ * die Zahl: Ein Siebenjaehriger entscheidet danach, ob ihm etwas gefaellt, nicht nach
+ * Schaden je Sekunde. Die Staerke steht daneben als Sterne.
+ *
+ * ECHTE UMLAUTE, anders als in den Kommentaren dieses Projekts: Das hier liest ein Kind
+ * auf dem Bildschirm, nicht ein Entwickler im Editor.
+ */
+export const WEAPON_DESCRIPTIONS: Record<WeaponKey, string> = {
+  pistol: 'Die Startwaffe. Klein, schnell und die schwächste im Spiel.',
+  normal: 'Der Allrounder: mittlere Reichweite, gleichmäßiges Feuer.',
+  shotgun: 'Streut breit und erwischt mehrere Gegner nebeneinander.',
+  minigun: 'Dauerfeuer mit der höchsten Schussrate.',
+  flamethrower: 'Ein Fächer aus Flammen — aber nur ganz nah vor der Truppe.',
+  chainlightning: 'Der Blitz springt vom Getroffenen auf seine Nachbarn über.',
+  rocket: 'Sprengt beim Treffer und erwischt alles im Umkreis.',
+  ricochet: 'Schlägt durch mehrere Gegner hintereinander durch.',
+  sawblade: 'Ein langsames Sägeblatt, das sich durch die ganze Reihe frisst.',
+  laser: 'Durchschlägt eine ganze Reihe, mit der weitesten Reichweite.',
+  grenade: 'Der größte Sprengradius im Spiel.',
+  shockwave: 'Eine Druckwelle rundherum — hilft auch gegen Gegner, die schon nah sind.',
+  cluster: 'Teilt sich in mehrere Sprengsätze auf, die einzeln explodieren.',
+}
+
 // Reihenfolge = Staffelung (BALANCE.weapon[].minLevel). Die Pistole steht seit
 // 2026-08-24 vorne, die vier spaeten hinten.
 export const WEAPON_KEYS: readonly WeaponKey[] = [
