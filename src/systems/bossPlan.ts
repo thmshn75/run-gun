@@ -169,19 +169,19 @@ export function isEliteBossLevel(level: number): boolean {
  */
 export function getBossHitEfficiency(weapon: WeaponKey, level = 1): number {
   const reference = BALANCE.boss.referenceFirepower
-  type Stuetzstellen = { beiLevel1: number; beiLevel9: number; beiLevel20: number }
+  type Stuetzstellen = { beiLevel1: number; beiLevel9: number; abLevel12: number }
   const tabelle: Record<WeaponKey, Stuetzstellen> = reference.hitEfficiencyByWeapon
   const werte = tabelle[weapon]
   const stufen = reference.hitEfficiencyLevels
   const stufe = Math.max(1, Math.floor(level))
   if (stufe <= stufen.unten) return werte.beiLevel1
-  // Ab der obersten Stuetzstelle bleibt der Wert stehen: Zwischen Level 20 und 30 wurde
-  // KEIN weiterer Abfall gemessen (Laser 0,370 -> 0,369). Eine fortgesetzte Kurve haette
-  // dem Boss dort zu wenig Lebenspunkte gegeben.
-  if (stufe >= stufen.oben) return werte.beiLevel20
+  // Ab der obersten Stuetzstelle bleibt der Wert stehen: Zwischen Level 12, 20 und 30
+  // wurde KEIN weiterer Abfall gemessen (Laser 0,372 / 0,371 / 0,369). Sie liegt bei 12,
+  // weil dort die Leveltabelle endet und die Hordendichte danach kaum noch waechst.
+  if (stufe >= stufen.oben) return werte.abLevel12
   const [vonLevel, vonWert, bisLevel, bisWert] = stufe <= stufen.mitte
     ? [stufen.unten, werte.beiLevel1, stufen.mitte, werte.beiLevel9]
-    : [stufen.mitte, werte.beiLevel9, stufen.oben, werte.beiLevel20]
+    : [stufen.mitte, werte.beiLevel9, stufen.oben, werte.abLevel12]
   const anteil = (stufe - vonLevel) / (bisLevel - vonLevel)
   return vonWert + (bisWert - vonWert) * anteil
 }

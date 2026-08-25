@@ -2136,19 +2136,19 @@ export const BALANCE = {
       // bewusst nicht mit ("ein Boss ist ein Ziel"), die Streubombe trifft ihn aber mit
       // mehreren Teilsprengungen zugleich.
       hitEfficiencyByWeapon: {
-        pistol: { beiLevel1: 0.574, beiLevel9: 0.178, beiLevel20: 0.099 },
-        normal: { beiLevel1: 0.67, beiLevel9: 0.281, beiLevel20: 0.148 },
-        shotgun: { beiLevel1: 0.41, beiLevel9: 0.237, beiLevel20: 0.179 },
-        minigun: { beiLevel1: 0.778, beiLevel9: 0.332, beiLevel20: 0.208 },
-        flamethrower: { beiLevel1: 0.274, beiLevel9: 0.149, beiLevel20: 0.119 },
-        laser: { beiLevel1: 0.976, beiLevel9: 0.484, beiLevel20: 0.371 },
-        chainlightning: { beiLevel1: 0.971, beiLevel9: 0.482, beiLevel20: 0.363 },
-        rocket: { beiLevel1: 1.451, beiLevel9: 0.681, beiLevel20: 0.498 },
-        grenade: { beiLevel1: 1.482, beiLevel9: 0.734, beiLevel20: 0.558 },
-        ricochet: { beiLevel1: 0.972, beiLevel9: 0.482, beiLevel20: 0.371 },
-        sawblade: { beiLevel1: 0.92, beiLevel9: 0.468, beiLevel20: 0.361 },
-        cluster: { beiLevel1: 2.994, beiLevel9: 1.483, beiLevel20: 1.077 },
-        shockwave: { beiLevel1: 2.063, beiLevel9: 1.023, beiLevel20: 0.789 },
+        pistol: { beiLevel1: 0.48, beiLevel9: 0.178, abLevel12: 0.099 },
+        normal: { beiLevel1: 0.67, beiLevel9: 0.281, abLevel12: 0.17 },
+        shotgun: { beiLevel1: 0.41, beiLevel9: 0.237, abLevel12: 0.179 },
+        minigun: { beiLevel1: 0.778, beiLevel9: 0.332, abLevel12: 0.208 },
+        flamethrower: { beiLevel1: 0.274, beiLevel9: 0.149, abLevel12: 0.119 },
+        laser: { beiLevel1: 0.976, beiLevel9: 0.484, abLevel12: 0.371 },
+        chainlightning: { beiLevel1: 0.971, beiLevel9: 0.482, abLevel12: 0.363 },
+        rocket: { beiLevel1: 1.451, beiLevel9: 0.681, abLevel12: 0.498 },
+        grenade: { beiLevel1: 1.482, beiLevel9: 0.734, abLevel12: 0.558 },
+        ricochet: { beiLevel1: 0.972, beiLevel9: 0.482, abLevel12: 0.371 },
+        sawblade: { beiLevel1: 0.92, beiLevel9: 0.468, abLevel12: 0.361 },
+        cluster: { beiLevel1: 2.994, beiLevel9: 1.483, abLevel12: 1.077 },
+        shockwave: { beiLevel1: 2.063, beiLevel9: 1.023, abLevel12: 0.789 },
         // VOLLSTAENDIGKEIT erzwingt bossPlan.ts mit einer Record<WeaponKey, ...>-Annahme -
         // hier ginge das nur ueber einen Import aus weapons.ts, und der zeigt zurueck auf
         // diese Datei.
@@ -2166,6 +2166,14 @@ export const BALANCE = {
       //   Level 30 gemessen 15 s statt 20 - zwischen 20 und 30 faellt die Rate GAR NICHT
       //            mehr (Laser 0,370 -> 0,369, Streubombe 1,071 -> 1,081). Der Verfall
       //            saettigt, die Formel rechnete ihn weiter herunter.
+      //
+      // DIE OBERE STUETZSTELLE LIEGT BEI 12, NICHT BEI 20 (korrigiert 2026-08-25, nachdem
+      // Level 12 reproduzierbar 36 bis 42 s dauerte statt der geplanten 30). Gemessen ist
+      // die Rate dort BEREITS auf dem Niveau von Level 20: Laser 0,372 gegen 0,371, und
+      // auf Level 30 noch einmal 0,369. Der Abfall endet also genau dort, wo auch die
+      // Leveltabelle endet (level.plans hat zwoelf Eintraege) - darueber uebernimmt der
+      // Endlosmodus, und der laesst die Hordendichte kaum noch wachsen. Die Werte in
+      // abLevel12 sind auf Level 20 gemessen und auf Level 12 und 30 bestaetigt.
       // Deshalb Messwerte statt Kurve. Die Interpolation dazwischen ist linear und liegt
       // damit eher UEBER der wahren Kurve - der Kampf wird dort im Zweifel etwas laenger
       // als geplant, nicht kuerzer, und das ist die Richtung, die Thomas verlangt hat.
@@ -2181,6 +2189,13 @@ export const BALANCE = {
       //
       // WER HIER NACHMISST, muss deshalb ZWEIMAL messen: einmal, um den Wert zu
       // bekommen, und einmal, um zu sehen, was er mit der Kampfdauer macht.
+      //
+      // DRITTE RUNDE (2026-08-25, nach der Anhebung des Zeitfensters auf 30 s): Wer die
+      // Mindestdauer aendert, aendert die Kampfdauer und damit wieder die Rate - zwei
+      // Werte mussten nachgezogen werden. Das SPRINGT INS AUGE, welche: Es sind wieder
+      // Pistole und Sturmgewehr, die beiden mit der kuerzesten Reichweite. Die
+      // streuungsarmen Waffen sassen ohne Nacharbeit (Laser exakt 30,0 s auf Level 12
+      // UND auf Level 30).
       //
       // ERGEBNIS, ueber sechs Level voll ausgefochten (Sekunden, ein Kampf je Feld):
       //          L1     L5     L9     L14    L20    L30
@@ -2199,7 +2214,7 @@ export const BALANCE = {
       // Die Pistole ab Level 14 (53 s) ist der bekannte Grenzfall: Sie ist die Startwaffe
       // und wird ab Level 2 ersetzt - dort zu landen heisst, vierzehn Level lang keine
       // einzige Waffe aufgesammelt zu haben.
-      hitEfficiencyLevels: { unten: 1, mitte: 9, oben: 20 },
+      hitEfficiencyLevels: { unten: 1, mitte: 9, oben: 12 },
       // BEZUGSWERT der Tabelle: Er legt fest, welche Waffe am Zielfenster gemessen wird.
       // 0,30 liegt knapp ueber dem Sturmgewehr auf Level 9 (0,275), damit die Bezugswaffe
       // im unteren Drittel des Fensters landet und die staerkeren Waffen Luft nach unten
@@ -2241,10 +2256,20 @@ export const BALANCE = {
       // 26 s bei Level 1 x 0,78 = 20 s real und 32 s bei Level 12 x 1,17 = 37 s real
       // fuer schwache. Der erste Entwurf (20 / 20 / +1,8) verfehlte das Fenster in
       // zwei von sechs Messungen: L1 schwach 15,5 s, L12 schwach 46,6 s.
-      minFightSec: 20,
-      maxFightSecAtLevelOne: 26,
+      // ANGEHOBEN AM 2026-08-25 (Thomas nach dem Spielen bis Level 9 mit gekauften
+      // Aufwertungen: "die Bosse sind zu einfach (zu schnell) zu besiegen"). Gemessen
+      // dauerte ein Kampf mit seinem Ausbaustand 20,0 bis 22,5 s - das System hielt also
+      // genau seine Untergrenze, sie war nur zu niedrig. Ohne gekaufte Aufwertungen
+      // waren es 26 bis 27 s; wer ausbaut, drueckt den Kampf also an die Untergrenze,
+      // und genau dort stand Thomas.
+      //
+      // Alle drei Werte muessen zusammen wandern: Eine Untergrenze ueber der Obergrenze
+      // von Level 1 wuerde still von Math.min gewonnen, das Fenster waere dort also
+      // wirkungslos.
+      minFightSec: 30,
+      maxFightSecAtLevelOne: 34,
       maxFightSecPerLevel: 0.545,
-      maxFightSecCap: 40,
+      maxFightSecCap: 45,
       // 0 ignores crowd strength; 1 scales boss HP fully with it. This value halves
       // the fight from the smallest crowd to crowd.max without erasing the reward.
       teamDampening: 0.41,
@@ -2400,13 +2425,16 @@ export const BALANCE = {
     // 34 -> 8,5 px/s. Hergeleitet aus der Strecke und dem Zeitfenster, nicht geschaetzt:
     // Von battleY 300 bis zum Halt (Anker 714 minus advanceStopBeforeAnchorPx 80 = 634)
     // sind es 334 px. Der Boss soll genau dann ankommen, wenn das Kampf-Zeitfenster
-    // ausgereizt ist (maxFightSecCap 40 s): 334 / 40 = 8,35 px/s - nicht gerundet,
-    // damit die Ankunft exakt auf dem Fensterende liegt und der Test das pruefen kann.
-    // Damit stimmt beides, was Thomas verlangt hat: Er kommt sichtbar naeher (ueber
-    // 20 s rund 167 px, also mehr als eine Bosslaenge), und er ist mit 8,35 px/s um den
-    // Faktor 6 langsamer als der langsamste Gegner (schwerer Gegner am Tempo-Boden:
-    // 70 x 0,7 = 49 px/s).
-    advanceSpeed: 8.35,
+    // ausgereizt ist: 334 / maxFightSecCap. Nicht gerundet, damit die Ankunft exakt auf
+    // dem Fensterende liegt und der Test das pruefen kann.
+    // 2026-08-25 mit dem Fenster nachgezogen: 334 / 45 = 7,42 statt 334 / 40 = 8,35.
+    // WER maxFightSecCap AENDERT, MUSS DIESE ZAHL NACHRECHNEN - sonst erreicht der Boss
+    // die Truppe, bevor der Kampf entschieden ist.
+    // Damit stimmt beides, was Thomas verlangt hat: Er kommt sichtbar naeher (ueber die
+    // 30 s Mindestdauer rund 223 px, also mehr als eine Bosslaenge), und er ist mit
+    // 7,42 px/s um den Faktor 6 langsamer als der langsamste Gegner (schwerer Gegner am
+    // Tempo-Boden: 70 x 0,7 = 49 px/s).
+    advanceSpeed: 7.42,
     // The boss centre stops before the crowd anchor; its lower collision edge can
     // still touch a stationary formation, but lateral escape remains available.
     advanceStopBeforeAnchorPx: 80,

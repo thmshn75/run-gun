@@ -44,6 +44,14 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   Run-Shop auf der Feuerkraft. Waffenkauf noch offen.
 - **E2 Preise** — 37,5 % -> 200 % der Levelseinnahme je Stufe. Ein Run bis Level 12
   erlaubt 9 von 22 Stufen. Der Knopf zeigt "NOCH ¢ X" statt tot dazustehen.
+- **Bosskampf laenger** (Thomas nach dem Spielen bis Level 9: "die Bosse sind zu einfach
+  (zu schnell) zu besiegen"). Gemessen dauerte ein Kampf mit seinem Ausbaustand 20 bis
+  22 s - das System hielt genau seine Untergrenze, sie war nur zu niedrig. Fenster von
+  20-40 auf 30-45 s angehoben, `boss.advanceSpeed` nachgerechnet (334 px / maxFightSecCap).
+  Dabei fiel auf: Die obere Stuetzstelle des Trefferwirkungsgrads gehoert auf Level 12,
+  nicht 20 - dort ist die Rate BEREITS auf Endniveau (Laser 0,372 / 0,371 / 0,369 auf
+  Level 12 / 20 / 30), weil dort die Leveltabelle endet. Ergebnis: Level 5 bis 30 liegen
+  zwischen 26,5 und 32 s.
 - **Tore der rechten Wand** (Thomas: "man erreicht zu schnell die hoechste Stufe im
   Level"). Ein Tor gab einen festen Betrag gegen einen prozentual wachsenden Deckel und
   deckte ab Level 2 den ganzen Levelsprung ab - bei 22 bis 46 Toren je Level. Jetzt
