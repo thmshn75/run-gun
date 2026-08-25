@@ -10,6 +10,13 @@ export interface ShopZustand {
   /** In dieser Pause bereits gekauft - hoechstens eine Stufe je Knopf. */
   readonly inDieserPause: { readonly firepower: number; readonly team: number }
   readonly werte: { readonly damage: number; readonly shotsPerSec: number; readonly hp: number }
+  /**
+   * Waehlbare Startwaffen fuer das kommende Level (Thomas 2026-08-25: "wenn einmal
+   * gekauft soll er vor jedem level auswaehlen koennen, mit welcher er startet").
+   * Enthaelt die gekauften Waffen, die fuer dieses Level freigeschaltet sind, plus die
+   * gerade getragene. Leer heisst: nichts zu waehlen, die Reihe bleibt unsichtbar.
+   */
+  readonly waffen: readonly { readonly key: string; readonly aktiv: boolean }[]
 }
 
 interface Knopf {
@@ -41,7 +48,11 @@ export class ShopOverlay {
   private readonly weiterText: Phaser.GameObjects.Text
   private readonly beenden: Phaser.GameObjects.Rectangle
   private readonly beendenText: Phaser.GameObjects.Text
-  private readonly alleObjekte: Array<Phaser.GameObjects.Rectangle | Phaser.GameObjects.Text>
+  private readonly alleObjekte: Array<Phaser.GameObjects.Rectangle | Phaser.GameObjects.Text | Phaser.GameObjects.Image>
+  private readonly waffenTitel: Phaser.GameObjects.Text
+  /** Fester Vorrat an Kacheln - die Zahl der waehlbaren Waffen wechselt je Level. */
+  private readonly waffenKacheln: Array<{ rahmen: Phaser.GameObjects.Rectangle; bild: Phaser.GameObjects.Image }>
+  private readonly onWaffenwahl: (weapon: string) => void
   private sichtbar = false
 
   public constructor(
@@ -50,11 +61,13 @@ export class ShopOverlay {
     onKauf: (line: ShopLine) => void,
     onWeiter: () => void,
     onBeenden: () => void,
+    onWaffenwahl: (weapon: string) => void = () => undefined,
   ) {
     this.scene = scene
     this.onKauf = onKauf
     this.onWeiter = onWeiter
     this.onBeenden = onBeenden
+    this.onWaffenwahl = onWaffenwahl
     const breite = scene.scale.width
     const hoehe = scene.scale.height
     const mitte = breite / 2
@@ -98,10 +111,35 @@ export class ShopOverlay {
     }).setOrigin(0.5).setDepth(BALANCE.shop.ui.depthText)
     this.beenden.on('pointerdown', () => { if (this.sichtbar) this.onBeenden() })
 
+    // WAFFENWAHL: Titel plus ein fester Vorrat an Kacheln. Erzeugt wird alles hier, weil
+    // Phaser-Objekte nicht bei jedem Oeffnen neu entstehen sollen; sichtbar wird nur, was
+    // das kommende Level hergibt.
+    const wahlY = insets.top + BALANCE.shop.ui.weaponRowY
+    this.waffenTitel = scene.add.text(mitte, wahlY - 14, 'STARTWAFFE', {
+      fontFamily: 'system-ui', fontSize: '13px', fontStyle: 'bold', color: this.farbe(MENU_COLORS.text),
+    }).setOrigin(0.5).setDepth(BALANCE.shop.ui.depthText)
+    this.waffenKacheln = []
+    const proReihe = BALANCE.shop.ui.weaponsPerRow
+    const kb = BALANCE.shop.ui.weaponTileWidth
+    const kh = BALANCE.shop.ui.weaponTileHeight
+    const luecke = BALANCE.shop.ui.weaponTileGap
+    for (let i = 0; i < 2 * proReihe; i += 1) {
+      const spalte = i % proReihe
+      const reihe = Math.floor(i / proReihe)
+      const zeilenBreite = proReihe * kb + (proReihe - 1) * luecke
+      const x = mitte - zeilenBreite / 2 + kb / 2 + spalte * (kb + luecke)
+      const y = wahlY + kh / 2 + reihe * (kh + luecke)
+      const rahmen = scene.add.rectangle(x, y, kb, kh, MENU_COLORS.shelf, 1)
+        .setStrokeStyle(2, MENU_COLORS.rowStroke, 1).setDepth(BALANCE.shop.ui.depthPanel)
+      const bild = scene.add.image(x, y, 'weapon-pistol-hud').setDepth(BALANCE.shop.ui.depthText)
+      this.waffenKacheln.push({ rahmen, bild })
+    }
+
     this.alleObjekte = [
       this.hintergrund, this.ueberschrift, this.konto, this.weiter, this.weiterText,
-      this.beenden, this.beendenText,
+      this.beenden, this.beendenText, this.waffenTitel,
       ...Object.values(this.knoepfe).flatMap((k) => [k.hintergrund, k.titel, k.wirkung, k.preis]),
+      ...this.waffenKacheln.flatMap((k) => [k.rahmen, k.bild]),
     ]
     this.verstecken()
   }
@@ -144,6 +182,36 @@ export class ShopOverlay {
     this.konto.setText(`¢ ${zustand.konto}`)
     this.aktualisiereKnopf('firepower', zustand)
     this.aktualisiereKnopf('team', zustand)
+    this.aktualisiereWaffen(zustand)
+  }
+
+  /**
+   * Die Kachelreihe der waehlbaren Startwaffen. Mit weniger als zwei Waffen bleibt sie
+   * ganz aus: Eine Auswahl mit einem einzigen Eintrag ist keine Auswahl, sondern nur
+   * eine Kachel, auf die zu druecken nichts bewirkt.
+   */
+  private aktualisiereWaffen(zustand: ShopZustand): void {
+    const zeigen = zustand.waffen.length > 1
+    this.waffenTitel.setVisible(zeigen)
+    this.waffenKacheln.forEach((kachel, index) => {
+      const eintrag = zeigen ? zustand.waffen[index] : undefined
+      const sichtbar = eintrag !== undefined
+      kachel.rahmen.setVisible(sichtbar)
+      kachel.bild.setVisible(sichtbar)
+      kachel.rahmen.removeAllListeners('pointerdown')
+      if (eintrag === undefined) {
+        kachel.rahmen.disableInteractive()
+        return
+      }
+      const textur = `weapon-${eintrag.key}-hud`
+      if (this.scene.textures.exists(textur)) kachel.bild.setTexture(textur)
+      const skala = Math.min((BALANCE.shop.ui.weaponTileWidth - 8) / kachel.bild.width, 1)
+      kachel.bild.setScale(skala).setAlpha(eintrag.aktiv ? 1 : 0.7)
+      kachel.rahmen.setStrokeStyle(eintrag.aktiv ? 3 : 2, eintrag.aktiv ? MENU_COLORS.owned : MENU_COLORS.rowStroke, 1)
+      kachel.rahmen.setFillStyle(eintrag.aktiv ? MENU_COLORS.ownedFill : MENU_COLORS.shelf, 1)
+      kachel.rahmen.setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => { if (this.sichtbar) this.onWaffenwahl(eintrag.key) })
+    })
   }
 
   private aktualisiereKnopf(line: ShopLine, zustand: ShopZustand): void {

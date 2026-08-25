@@ -72,9 +72,9 @@ export class MenuScene extends Phaser.Scene {
       layout.shopButton.top + layout.shopButton.height / 2,
       safeWidth - 2 * BALANCE.menu.sidePadding,
       layout.shopButton.height,
-      'DAUERHAFTE AUFWERTUNG',
+      'SHOP',
       true,
-      () => { this.openMetaShop() },
+      () => { this.openShop() },
     )
     this.addButton(safeLeft + safeWidth / 2, layout.resetButton.top + layout.resetButton.height / 2, safeWidth - 2 * BALANCE.menu.sidePadding, layout.resetButton.height, 'ZURÜCKSETZEN', true, () => {
       this.openResetConfirmation()
@@ -191,7 +191,16 @@ export class MenuScene extends Phaser.Scene {
    * was es gerade besitzt - das eine verfaellt am Rundenende, das andere kostet mehrere
    * Abende.
    */
-  private openMetaShop(): void {
+  /**
+   * DER LADEN (Thomas 2026-08-25: "es soll auch shop heissen und nicht dauerhafte
+   * aufwertung und dann auch wie ein shop seite aussehen, wie ein laden in dem man
+   * aussuchen und einkaufen kann - auch fuer die aufwertungen so").
+   *
+   * Zwei Regale untereinander: oben die beiden Aufwertungen, unten alle zwoelf Waffen als
+   * Kacheln mit ihrem eigenen Bild. Vorher stand hier eine einzige Textzeile, die immer
+   * nur die naechste Waffe anbot - aussuchen konnte man nichts.
+   */
+  private openShop(): void {
     if (this.confirmationObjects.length > 0) return
     const width = this.scale.width
     const height = this.scale.height
@@ -199,97 +208,162 @@ export class MenuScene extends Phaser.Scene {
     const centerX = this.insets.left + safeWidth / 2
     const centerY = (height + this.insets.top - this.insets.bottom) / 2
     const panelWidth = safeWidth - 2 * BALANCE.menu.sidePadding
+    const panelHeight = Math.min(700, height - this.insets.top - this.insets.bottom - 24)
+    const oben = centerY - panelHeight / 2
 
     const wall = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.65).setDepth(10).setInteractive()
     wall.on('pointerdown', () => undefined)
-    const panel = this.add.rectangle(centerX, centerY, panelWidth, 430, MENU_COLORS.row, 1).setDepth(11)
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, MENU_COLORS.row, 1).setDepth(11)
       .setStrokeStyle(2, MENU_COLORS.rowStroke, 1)
-    const titel = this.add.text(centerX, centerY - 193, 'DAUERHAFTE AUFWERTUNG', {
-      fontFamily: 'system-ui', fontSize: '20px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
+    const titel = this.add.text(centerX, oben + 26, 'SHOP', {
+      fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
     }).setOrigin(0.5).setDepth(12)
-    const konto = this.add.text(centerX, centerY - 165, `KONTO  ¢ ${this.save.coins}`, {
-      fontFamily: 'system-ui', fontSize: '16px', color: this.colorFor(MENU_COLORS.text),
+    const konto = this.add.text(centerX, oben + 52, `KONTO  ¢ ${this.save.coins}`, {
+      fontFamily: 'system-ui', fontSize: '16px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.priceText),
     }).setOrigin(0.5).setDepth(12)
     this.confirmationObjects.push(wall, panel, titel, konto)
 
-    this.addMetaLine('firepower', 'SCHLAGKRAFT', centerX, centerY - 120, panelWidth)
-    this.addMetaLine('team', 'MANNSCHAFT', centerX, centerY - 24, panelWidth)
-    this.addWeaponLine(centerX, centerY + 72, panelWidth)
+    // REGAL 1 - Aufwertungen
+    this.addRegalKopf('AUFWERTUNGEN', centerX, oben + 82, panelWidth)
+    this.addMetaLine('firepower', 'SCHLAGKRAFT', centerX, oben + 128, panelWidth)
+    this.addMetaLine('team', 'MANNSCHAFT', centerX, oben + 208, panelWidth)
 
-    this.confirmationObjects.push(...this.addButton(centerX, centerY + 175, panelWidth - 32, 40, 'ZURÜCK', true, () => {
-      this.closeMetaShop()
+    // REGAL 2 - Waffen
+    this.addRegalKopf('WAFFEN', centerX, oben + 274, panelWidth)
+    this.addWeaponGrid(centerX, oben + 296, panelWidth)
+
+    this.confirmationObjects.push(...this.addButton(centerX, oben + panelHeight - 30, panelWidth - 32, 40, 'ZURÜCK', true, () => {
+      this.closeShop()
     }, undefined, true, 12))
   }
 
-  /** Eine Kauflinie: Stufenanzeige, Wirkung, Preis oder Grund, warum es nicht geht. */
+  /** Regalbrett mit Beschriftung - trennt die beiden Abteilungen des Ladens. */
+  private addRegalKopf(titel: string, centerX: number, y: number, panelWidth: number): void {
+    const brett = this.add.rectangle(centerX, y + 12, panelWidth - 24, 2, MENU_COLORS.shelfEdge, 1)
+      .setOrigin(0.5).setDepth(12)
+    const text = this.add.text(centerX - panelWidth / 2 + 16, y, titel, {
+      fontFamily: 'system-ui', fontSize: '13px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.mutedText),
+    }).setOrigin(0, 0.5).setDepth(12)
+    this.confirmationObjects.push(brett, text)
+  }
+
+  /**
+   * Ein Regalplatz im Laden: Name, Stufenanzeige als Punktreihe, Wirkung, Kaufknopf.
+   * Dieselbe Optik wie die Waffenkacheln, damit beide Abteilungen als EIN Laden lesbar
+   * sind (Thomas 2026-08-25: "auch fuer die aufwertungen so").
+   */
   private addMetaLine(line: 'firepower' | 'team', titel: string, centerX: number, y: number, panelWidth: number): void {
     const stufen = getMetaSteps(this.save, line)
     const maximum = BALANCE.meta.prices.length
     const preis = getMetaPrice(stufen)
     const bonus = line === 'firepower' ? BALANCE.meta.firepowerBonusPerStep : BALANCE.meta.teamBonusPerStep
     const wirkung = Math.round(((1 + bonus) ** stufen - 1) * 100)
+    const bezahlbar = preis !== undefined && this.save.coins >= preis
+    const breite = panelWidth - 32
+    const linkeKante = centerX - breite / 2
 
-    const kopf = this.add.text(centerX, y - 18, `${titel}   ${stufen}/${maximum}`, {
-      fontFamily: 'system-ui', fontSize: '17px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
-    }).setOrigin(0.5).setDepth(12)
-    const info = this.add.text(centerX, y + 4, wirkung > 0 ? `derzeit +${wirkung} %` : 'noch nichts gekauft', {
-      fontFamily: 'system-ui', fontSize: '14px', color: this.colorFor(MENU_COLORS.text),
-    }).setOrigin(0.5).setDepth(12)
-    this.confirmationObjects.push(kopf, info)
+    const kachel = this.add.rectangle(centerX, y, breite, 66, MENU_COLORS.shelf, 1)
+      .setStrokeStyle(2, preis === undefined ? MENU_COLORS.owned : bezahlbar ? MENU_COLORS.buttonStroke : MENU_COLORS.disabledStroke, 1)
+      .setOrigin(0.5).setDepth(12)
+    const kopf = this.add.text(linkeKante + 12, y - 20, titel, {
+      fontFamily: 'system-ui', fontSize: '15px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
+    }).setOrigin(0, 0.5).setDepth(13)
+    const info = this.add.text(linkeKante + 12, y + 2, wirkung > 0 ? `derzeit +${wirkung} %` : 'noch nichts gekauft', {
+      fontFamily: 'system-ui', fontSize: '12px', color: this.colorFor(MENU_COLORS.text),
+    }).setOrigin(0, 0.5).setDepth(13)
+    this.confirmationObjects.push(kachel, kopf, info)
+
+    // Stufen als Punktreihe statt "0/5": Ein Kind sieht auf einen Blick, wie viel noch
+    // fehlt, ohne zu rechnen.
+    for (let i = 0; i < maximum; i += 1) {
+      this.confirmationObjects.push(this.add.rectangle(
+        linkeKante + 14 + i * 14, y + 20, 9, 9,
+        i < stufen ? MENU_COLORS.levelFilled : MENU_COLORS.levelEmpty, 1,
+      ).setOrigin(0.5).setDepth(13))
+    }
 
     // AUSGEBAUT, ZU TEUER oder KAUFBAR - in allen drei Faellen sagt der Knopf, woran es
     // liegt. Ein toter Knopf ohne Erklaerung ist fuer ein Kind eine Sackgasse.
-    const bezahlbar = preis !== undefined && this.save.coins >= preis
     const beschriftung = preis === undefined
-      ? 'AUSGEBAUT'
+      ? '✓ AUSGEBAUT'
       : bezahlbar ? `KAUFEN  ¢ ${preis}` : `NOCH ¢ ${preis - this.save.coins}`
     this.confirmationObjects.push(...this.addButton(
-      centerX, y + 34, panelWidth - 40, 34, beschriftung, bezahlbar,
+      centerX + breite / 2 - 62, y, 112, 34, beschriftung, bezahlbar,
       () => { if (bezahlbar && preis !== undefined) this.kaufeMetaStufe(line, preis) },
-      undefined, !bezahlbar, 12,
+      undefined, !bezahlbar, 13,
     ))
   }
 
   /**
-   * Waffen-Freischaltung (Benni 2026-08-25: "Waffen kaufen koennen, die er dann IMMER
-   * hat, abgeloest von Run oder neuem Spiel").
+   * DAS WAFFENREGAL - alle zwoelf auf einen Blick, mit Bild und Preis.
    *
-   * Es wird immer nur die NAECHSTE Waffe angeboten, nicht alle zwoelf: Eine Liste mit
-   * zwoelf Zeilen passt weder in die Ansicht noch in den Kopf eines Siebenjaehrigen.
-   * Die Reihenfolge ist die der Staffelung, also von guenstig nach teuer - wer die
-   * Schockwelle will, muss sich durch alle davor kaufen.
+   * Vorher stand hier eine Textzeile, die immer nur die naechste Waffe anbot: Wer die
+   * Schockwelle wollte, musste sich durch alle davor kaufen und sah nie, was es
+   * ueberhaupt gibt. Thomas 2026-08-25: "wo er alle waffen immer kaufen kann".
+   *
+   * Sortiert nach Preis, nicht nach Freischaltlevel: Die Schrotflinte ist gemessen
+   * minimal schwaecher als das Sturmgewehr und deshalb billiger, obwohl sie spaeter
+   * erscheint - nach Level sortiert saehe das wie ein Fehler aus.
    */
-  private addWeaponLine(centerX: number, y: number, panelWidth: number): void {
+  private addWeaponGrid(centerX: number, y: number, panelWidth: number): void {
     const gekauft = getOwnedWeapons(this.save)
-    const naechste = (Object.keys(BALANCE.weapon) as WeaponKey[])
-      .filter((key) => getWeaponUnlockPrice(key) !== undefined && !gekauft.includes(key))
-      .sort((a, b) => (getWeaponUnlockPrice(a) ?? 0) - (getWeaponUnlockPrice(b) ?? 0))[0]
+    const waffen = (Object.keys(BALANCE.weapon) as WeaponKey[])
+      .filter((key) => getWeaponUnlockPrice(key) !== undefined)
+      .sort((a, b) => (getWeaponUnlockPrice(a) ?? 0) - (getWeaponUnlockPrice(b) ?? 0))
 
-    const kopf = this.add.text(centerX, y - 18, `WAFFEN   ${gekauft.length}/12 freigeschaltet`, {
-      fontFamily: 'system-ui', fontSize: '17px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
-    }).setOrigin(0.5).setDepth(12)
-    this.confirmationObjects.push(kopf)
+    const spalten = 3
+    const abstand = 8
+    const breite = (panelWidth - 32 - abstand * (spalten - 1)) / spalten
+    const hoehe = 66
+    const linkeKante = centerX - (panelWidth - 32) / 2
 
-    if (naechste === undefined) {
-      this.confirmationObjects.push(this.add.text(centerX, y + 4, 'alle freigeschaltet', {
-        fontFamily: 'system-ui', fontSize: '14px', color: this.colorFor(MENU_COLORS.text),
-      }).setOrigin(0.5).setDepth(12))
-      return
+    waffen.forEach((weapon, index) => {
+      const spalte = index % spalten
+      const reihe = Math.floor(index / spalten)
+      this.addWeaponTile(
+        weapon,
+        linkeKante + breite / 2 + spalte * (breite + abstand),
+        y + hoehe / 2 + reihe * (hoehe + abstand),
+        breite, hoehe, gekauft.includes(weapon),
+      )
+    })
+  }
+
+  /**
+   * Eine Kachel im Regal. Drei Zustaende, und jeder sagt ohne Text, woran man ist:
+   * gekauft (gruener Rahmen, Haken), bezahlbar (heller Rahmen, Preis in Gold),
+   * zu teuer (gedimmt, Preis grau). Ein toter Knopf ohne Erklaerung ist fuer ein Kind
+   * eine Sackgasse - dieselbe Regel wie bei den Aufwertungen.
+   */
+  private addWeaponTile(
+    weapon: WeaponKey, x: number, y: number, breite: number, hoehe: number, gekauft: boolean,
+  ): void {
+    const preis = getWeaponUnlockPrice(weapon) ?? 0
+    const bezahlbar = !gekauft && this.save.coins >= preis
+    const rahmen = gekauft ? MENU_COLORS.owned : bezahlbar ? MENU_COLORS.buttonStroke : MENU_COLORS.disabledStroke
+    const fuellung = gekauft ? MENU_COLORS.ownedFill : MENU_COLORS.shelf
+
+    const kachel = this.add.rectangle(x, y, breite, hoehe, fuellung, 1)
+      .setStrokeStyle(2, rahmen, 1).setOrigin(0.5).setDepth(12)
+    // Das HUD-Bild der Waffe, auf Kachelbreite eingepasst. Es ist 72 x 20 - dieselbe
+    // Grafik, die im Spiel oben in der Ecke steht, damit die Wiedererkennung stimmt.
+    const name = this.add.text(x, y - 22, WEAPON_LABELS[weapon], {
+      fontFamily: 'system-ui', fontSize: '9px', fontStyle: 'bold',
+      color: this.colorFor(gekauft || bezahlbar ? MENU_COLORS.text : MENU_COLORS.mutedText),
+    }).setOrigin(0.5).setDepth(13)
+    const bild = this.add.image(x, y - 4, `weapon-${weapon}-hud`).setDepth(13)
+    const skala = Math.min((breite - 16) / bild.width, 1.1)
+    bild.setScale(skala).setAlpha(gekauft || bezahlbar ? 1 : 0.45)
+    const beschriftung = gekauft ? '✓ GEKAUFT' : `¢ ${preis}`
+    const text = this.add.text(x, y + 20, beschriftung, {
+      fontFamily: 'system-ui', fontSize: '11px', fontStyle: 'bold',
+      color: this.colorFor(gekauft ? MENU_COLORS.owned : bezahlbar ? MENU_COLORS.priceText : MENU_COLORS.mutedText),
+    }).setOrigin(0.5).setDepth(13)
+    this.confirmationObjects.push(kachel, name, bild, text)
+
+    if (bezahlbar) {
+      kachel.setInteractive({ useHandCursor: true }).on('pointerdown', () => { this.kaufeWaffe(weapon, preis) })
     }
-
-    const preis = getWeaponUnlockPrice(naechste) ?? 0
-    const bezahlbar = this.save.coins >= preis
-    const info = this.add.text(centerX, y + 4, `nächste: ${WEAPON_LABELS[naechste]} — ab Level ${BALANCE.weapon[naechste].minLevel}`, {
-      fontFamily: 'system-ui', fontSize: '14px', color: this.colorFor(MENU_COLORS.text),
-    }).setOrigin(0.5).setDepth(12)
-    this.confirmationObjects.push(info)
-    this.confirmationObjects.push(...this.addButton(
-      centerX, y + 34, panelWidth - 40, 34,
-      bezahlbar ? `FREISCHALTEN  ¢ ${preis}` : `NOCH ¢ ${preis - this.save.coins}`,
-      bezahlbar,
-      () => { if (bezahlbar) this.kaufeWaffe(naechste, preis) },
-      undefined, !bezahlbar, 12,
-    ))
   }
 
   private kaufeWaffe(weapon: WeaponKey, preis: number): void {
@@ -301,9 +375,9 @@ export class MenuScene extends Phaser.Scene {
     }
     writeSave(aktualisiert)
     this.save = aktualisiert
-    this.closeMetaShop()
+    this.closeShop()
     this.renderShop()
-    this.openMetaShop()
+    this.openShop()
   }
 
   private kaufeMetaStufe(line: 'firepower' | 'team', preis: number): void {
@@ -317,12 +391,12 @@ export class MenuScene extends Phaser.Scene {
     writeSave(aktualisiert)
     this.save = aktualisiert
     // Ansicht neu aufbauen, damit Konto, Stufenzahl und Preis sofort stimmen.
-    this.closeMetaShop()
+    this.closeShop()
     this.renderShop()
-    this.openMetaShop()
+    this.openShop()
   }
 
-  private closeMetaShop(): void {
+  private closeShop(): void {
     this.confirmationObjects.splice(0).forEach((object) => object.destroy())
   }
 

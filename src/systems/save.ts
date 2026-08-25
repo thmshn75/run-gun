@@ -264,10 +264,11 @@ export function getWeaponUnlockPrice(weapon: string): number | undefined {
   // statt gecastet: Ein Cast wuerde diesen Wert stillschweigend als Waffe durchlassen.
   const eintrag = (BALANCE.weapon as unknown as Record<string, unknown>)[weapon]
   if (typeof eintrag !== 'object' || eintrag === null || !('minLevel' in eintrag)) return undefined
-  const minLevel = (eintrag as { minLevel: unknown }).minLevel
-  if (typeof minLevel !== 'number' || minLevel <= 1) return undefined
-  const roh = BALANCE.meta.weaponPriceBase * BALANCE.meta.weaponPriceGrowthPerLevel ** (minLevel - 1)
-  return Math.round(roh / 100) * 100
+  // Fester Preis je Waffe, aus der gemessenen Staerke abgeleitet (Herleitung bei
+  // BALANCE.weapon). Bis 2026-08-25 aus der Levelnummer gerechnet - das band den Preis
+  // an die Reihenfolge statt an das, was die Waffe im Spiel leistet.
+  const preis = (eintrag as { unlockPrice?: unknown }).unlockPrice
+  return typeof preis === 'number' && preis > 0 ? preis : undefined
 }
 
 /** Preis der naechsten Stufe. undefined, wenn die Linie ausgebaut ist. */

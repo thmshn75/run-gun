@@ -232,14 +232,22 @@ describe('Dauerhafte Aufwertungen (E4, 2026-08-24)', () => {
 })
 
 describe('Dauerhaft gekaufte Waffen (Benni 2026-08-25)', () => {
-  it('staffelt den Preis nach dem Freischaltlevel', () => {
-    // "entsprechend teuer, damit er sie nicht sofort kaufen kann". Je spaeter eine Waffe
-    // regulaer kommt, desto teurer ist der Vorgriff darauf.
-    const sturmgewehr = getWeaponUnlockPrice('normal')
-    const schockwelle = getWeaponUnlockPrice('shockwave')
-    expect(sturmgewehr).toBeDefined()
-    expect(schockwelle).toBeDefined()
-    expect(schockwelle!).toBeGreaterThan(sturmgewehr! * 10)
+  it('staffelt den Preis nach der gemessenen Staerke', () => {
+    // "entsprechend teuer, damit er sie nicht sofort kaufen kann". Seit 2026-08-25 haengt
+    // der Preis an den gemessenen Toetungen je Sekunde, nicht mehr an der Levelnummer -
+    // die band ihn an die Reihenfolge statt an das, was die Waffe im Spiel leistet.
+    // Jede Waffe ausser der Startwaffe braucht einen Preis; keine darf durchrutschen.
+    const alle = (Object.keys(BALANCE.weapon) as (keyof typeof BALANCE.weapon)[])
+      .filter((k) => typeof (BALANCE.weapon[k] as { minLevel?: number }).minLevel === 'number')
+    for (const waffe of alle) {
+      const preis = getWeaponUnlockPrice(waffe)
+      if (waffe === 'pistol') { expect(preis, waffe).toBeUndefined(); continue }
+      expect(preis, waffe).toBeGreaterThan(0)
+    }
+    // Die staerkste Waffe muss ein Vielfaches der schwaechsten kosten, sonst waere die
+    // Reihenfolge der Anschaffung beliebig.
+    const preise = alle.filter((k) => k !== 'pistol').map((k) => getWeaponUnlockPrice(k)!)
+    expect(Math.max(...preise)).toBeGreaterThan(Math.min(...preise) * 5)
   })
 
   it('gibt der Startwaffe keinen Preis - es gibt nichts freizuschalten', () => {
@@ -262,20 +270,34 @@ describe('Dauerhaft gekaufte Waffen (Benni 2026-08-25)', () => {
       .filter((k) => typeof (BALANCE.weapon[k] as { minLevel?: number }).minLevel === 'number')
     const minLevelVon = (k: typeof alle[number]) => (BALANCE.weapon[k] as { minLevel: number }).minLevel
     const teuerste = alle.reduce((a, b) => (minLevelVon(a) >= minLevelVon(b) ? a : b))
-    expect(getWeaponUnlockPrice(teuerste)!, teuerste).toBeGreaterThan(32600)
+    // Schwelle 2026-08-25 von 32.600 auf einen Run gesenkt: Seit eine gekaufte Waffe nur
+    // EIN Level frueher erscheint statt ab Level 1, entscheidet der Kauf das Spiel nicht
+    // mehr. Vorher musste der Preis das verhindern, was er ohnehin nur verzoegert haette.
+    expect(getWeaponUnlockPrice(teuerste)!, teuerste).toBeGreaterThan(12600)
   })
 
-  it('laesst eine gekaufte Waffe ab Level 1 im Tor erscheinen', () => {
-    // Der Kern von "die er dann IMMER hat": Sie haengt nicht mehr am Freischaltlevel.
-    expect(getWeaponRewardChoices('pistol', 1)).not.toContain('rocket')
-    expect(getWeaponRewardChoices('pistol', 1, ['rocket'])).toContain('rocket')
+  it('laesst eine gekaufte Waffe genau EIN Level frueher erscheinen', () => {
+    // Thomas 2026-08-25: "immer schon ein Level vorher waehlbar als kleinen Bonus".
+    //
+    // Vorher galt eine gekaufte Waffe ab Level 1, und das macht den Aufbau kaputt:
+    // Gemessen kommt mit der Streubombe auf Level 1, 5 und 12 KEIN Gegner mehr durch
+    // (gegen 4,3 / 15,8 / 19,1 % mit der Pistole, Zielkorridor 4-12 %).
+    const rakete = BALANCE.weapon.rocket.minLevel
+    const bonus = BALANCE.weapon.ownedLevelBonus
+    expect(getWeaponRewardChoices('pistol', 1, ['rocket'])).not.toContain('rocket')
+    expect(getWeaponRewardChoices('pistol', rakete - bonus - 1, ['rocket'])).not.toContain('rocket')
+    expect(getWeaponRewardChoices('pistol', rakete - bonus, ['rocket'])).toContain('rocket')
+    // Ohne Kauf erst auf dem regulaeren Level.
+    expect(getWeaponRewardChoices('pistol', rakete - 1)).not.toContain('rocket')
+    expect(getWeaponRewardChoices('pistol', rakete)).toContain('rocket')
   })
 
   it('legt die gekaufte Waffe nicht in die Hand - das Tor bleibt', () => {
     // Gekauft wird die MOEGLICHKEIT. Die Waffe steht in der Auswahl, aus der das Wandtor
     // zieht; gefunden und zerschossen werden muss es weiterhin. Das ist der Grund,
     // warum eine gekaufte 1,45x-Waffe die fruehen Level nicht sofort entwertet.
-    const auswahl = getWeaponRewardChoices('pistol', 1, ['shockwave'])
+    const abLevel = BALANCE.weapon.shockwave.minLevel - BALANCE.weapon.ownedLevelBonus
+    const auswahl = getWeaponRewardChoices('pistol', abLevel, ['shockwave'])
     expect(auswahl).toContain('shockwave')
     // Die aktuell getragene Waffe ist nie in der Auswahl - sonst zeigte das Tor, was man hat.
     expect(auswahl).not.toContain('pistol')

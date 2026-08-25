@@ -87,4 +87,11 @@ export const MENU_COLORS = {
   disabledStroke: 0x657185,
   levelFilled: 0xffd84c,
   levelEmpty: 0x4d596d,
+  // Ladenoptik (2026-08-25, Thomas: "wie ein laden in dem man aussuchen und einkaufen
+  // kann"). Das Regalbrett traegt die Reihen, der gruene Rahmen zeigt Besitz.
+  shelf: 0x1c2740,
+  shelfEdge: 0x3a4c6e,
+  owned: 0x3ddc84,
+  ownedFill: 0x14301f,
+  priceText: 0xffd84c,
 } as const

@@ -910,6 +910,16 @@ export const BALANCE = {
       quitHeight: 48,
       quitFontPx: 17,
       disabledAlpha: 0.45,
+      // WAFFENWAHL VOR DEM LEVEL (2026-08-25). Sie sitzt im freien Raum zwischen dem
+      // zweiten Kaufknopf (endet bei 196 + 2 x 132 + 22 = 482) und SPEICHERN & BEENDEN
+      // (beginnt bei rund 660). Zwei Reihen a sechs Kacheln brauchen 86 px und passen
+      // damit auch auf dem kleinsten Geraet. 516 statt 482 laesst dem Titel Luft - bei
+      // 500 klebte er am Knopf darueber.
+      weaponRowY: 516,
+      weaponTileWidth: 46,
+      weaponTileHeight: 40,
+      weaponTileGap: 6,
+      weaponsPerRow: 6,
       depthPanel: 120,
       depthText: 121,
     },
@@ -1078,6 +1088,31 @@ export const BALANCE = {
   // dasselbe. Fuer das Lernlevel vertretbar, ab Level 2 sind es zwei, ab Level 3 drei.
   // Ein Test haelt Staffelung und Mindestzahl an Toralternativen fest.
   weapon: {
+    // KAUFPREISE (unlockPrice bei jeder Waffe) - hergeleitet aus der GEMESSENEN Staerke,
+    // nicht aus der Levelnummer (Thomas 2026-08-25: "logische Preise dafuer").
+    //
+    // Grundlage sind die Toetungen je Sekunde aus derselben Messreihe, nach der auch die
+    // Staffelung sortiert ist (Herleitung dort). Preis = 900 x (Staerke / 1,75)^1,5, auf
+    // hundert gerundet: ueberproportional, damit die starken Waffen spuerbar mehr kosten,
+    // aber nicht so steil, dass die letzte unerreichbar wird.
+    //   Sturmgewehr 2.400 · Schrotflinte 2.100 · Minigun 3.100 · Flammenwerfer 4.100
+    //   Blitz 4.500 · Rakete 7.900 · Prellschuss 8.300 · Saegeblatt 8.300 · Laser 9.300
+    //   Granate 12.800 · Schockwelle 17.100 · Streubombe 20.000
+    // Zusammen rund 100.000. Ein Run bis Level 20 bringt etwa 12.600 aufs Konto, alle
+    // zwoelf Waffen kosten also gut acht gute Runs.
+    //
+    // Die Schrotflinte ist billiger als das Sturmgewehr, obwohl sie spaeter erscheint:
+    // Sie ist gemessen minimal schwaecher (3,13 gegen 3,40). Der Laden sortiert nach
+    // Preis, damit das nicht als Fehler aussieht.
+    // Um wie viele Level frueher eine GEKAUFTE Waffe erscheint (Thomas 2026-08-25:
+    // "immer schon ein Level vorher waehlbar als kleinen Bonus").
+    //
+    // Vorher galt eine gekaufte Waffe ab Level 1, und das macht den Aufbau des Spiels
+    // kaputt: Gemessen kommt mit der Streubombe auf Level 1, 5 und 12 KEIN EINZIGER
+    // Gegner mehr durch - gegen 4,3 / 15,8 / 19,1 % mit der Pistole, bei einem
+    // Zielkorridor von 4 bis 12 %. Der Kauf gibt deshalb Sicherheit statt Vorsprung:
+    // Man HAT die Waffe, statt auf ein Wandtor zu hoffen, und bekommt ein Level Vorlauf.
+    ownedLevelBonus: 1,
     // GEWICHTUNG DER TORZIEHUNG (Thomas 2026-08-24: "neue waffen bevorzugen, aber alte
     // trotzdem bringen"). Gewicht = rewardNewnessBias ^ (minLevel - 1).
     //
@@ -1143,6 +1178,7 @@ export const BALANCE = {
     },
     normal: {
       minLevel: 2,
+      unlockPrice: 2400,
       rateFactor: 1,
       damageFactor: 1,
       shootersPerSalvo: 8,
@@ -1162,6 +1198,7 @@ export const BALANCE = {
     },
     shotgun: {
       minLevel: 3,
+      unlockPrice: 2100,
       rateFactor: 0.4,
       // 1,5 -> 0,45: Die Schrotflinte war mit 4,20x die mit Abstand staerkste Waffe,
       // weil sich 7 Kugeln mit dem hohen Schadensfaktor multiplizierten. Jetzt 1,26x.
@@ -1186,6 +1223,7 @@ export const BALANCE = {
       // hat: Seine Feuerlinie ist schmal, er trifft nur, was in der Spur steht. Nur
       // damageFactor angehoben, aus demselben Grund wie bei der Minigun.
       minLevel: 18,
+      unlockPrice: 9300,
       rateFactor: 1.4,
       damageFactor: 0.46,
       shootersPerSalvo: 8,
@@ -1213,6 +1251,7 @@ export const BALANCE = {
     },
     rocket: {
       minLevel: 11,
+      unlockPrice: 7900,
       rateFactor: 0.25,
       damageFactor: 2.5,
       // 3 -> 5 Schuetzen: Mit Splash lag die Rakete gegen Horden bei 0,76x und damit
@@ -1236,6 +1275,7 @@ export const BALANCE = {
       // Staffelung. Angehoben wird NUR damageFactor: Feuerkraft ist ein Produkt, ein
       // Zuwachs auf Rate UND Schaden wirkt quadratisch.
       minLevel: 5,
+      unlockPrice: 3100,
       rateFactor: 2.2,
       // 0,28 -> 0,55 UND 3 -> 8 Schuetzen (Thomas 2026-08-23: "Minigun macht kaum
       // Schaden"). Beides zusammen hebt sie von 0,23x auf 1,21x. Die Schuetzenzahl
@@ -1259,6 +1299,7 @@ export const BALANCE = {
     },
     flamethrower: {
       minLevel: 7,
+      unlockPrice: 4100,
       // 14.4 salvos/s x 3 shooters x 5 projectiles x 0.694s flight = 149.8; 200 leaves 33% reserve.
       rateFactor: 1.8,
       damageFactor: 0.34,
@@ -1278,6 +1319,7 @@ export const BALANCE = {
     },
     chainlightning: {
       minLevel: 9,
+      unlockPrice: 4500,
       rateFactor: 0.7,
       // 1,05 -> 0,9: Die Kette lag mit 1,46x am oberen Rand des Bandes, weil drei
       // Kettensprunge zu je 55 % ihren Wert fast verdreifachen. Jetzt 1,25x.
@@ -1327,6 +1369,7 @@ export const BALANCE = {
     grenade: {
       // Letzte Waffe der V3-Staffelung; seit 2026-08-24 Stufe 15 von dreizehn Waffen.
       minLevel: 21,
+      unlockPrice: 12800,
       // Langsamste Waffe im Spiel (Rakete 0,25) - "schiesst weniger oft".
       rateFactor: 0.26,
       // Hoechster Schadensfaktor im Spiel (Rakete 2,5) - "viel Schaden".
@@ -1377,6 +1420,7 @@ export const BALANCE = {
     // notiert, nicht stillschweigend ersetzt.
     ricochet: {
       minLevel: 13,
+      unlockPrice: 8300,
       rateFactor: 1.5,
       damageFactor: 0.44,
       shootersPerSalvo: 8,
@@ -1396,6 +1440,7 @@ export const BALANCE = {
     // und breiter gestreut.
     cluster: {
       minLevel: 30,
+      unlockPrice: 20000,
       rateFactor: 0.4,
       damageFactor: 0.54,
       shootersPerSalvo: 6,
@@ -1416,6 +1461,7 @@ export const BALANCE = {
     // andere - man legt eine Schneise, statt auf Ziele zu schiessen.
     sawblade: {
       minLevel: 15,
+      unlockPrice: 8300,
       rateFactor: 0.42,
       damageFactor: 2.1,
       shootersPerSalvo: 5,
@@ -1437,6 +1483,7 @@ export const BALANCE = {
     // ausrichtet.
     shockwave: {
       minLevel: 25,
+      unlockPrice: 17100,
       rateFactor: 0.5,
       damageFactor: 1.19,
       shootersPerSalvo: 6,

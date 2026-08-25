@@ -21,7 +21,16 @@ export function getWeaponRewardChoices(
       const eintrag = BALANCE.weapon[weapon] as { minLevel?: number } | undefined
       if (typeof eintrag?.minLevel !== 'number') return false
       if (weapon === currentWeapon) return false
-      return eintrag.minLevel <= level || owned.includes(weapon)
+      // GEKAUFTE WAFFEN KOMMEN EIN LEVEL FRUEHER, nicht ab Level 1 (Thomas 2026-08-25:
+      // "immer schon ein Level vorher waehlbar als kleinen Bonus").
+      //
+      // Bis dahin galt eine gekaufte Waffe ab Level 1. Gemessen macht das den Aufbau des
+      // Spiels kaputt: Mit der Streubombe kommt auf Level 1, 5 UND 12 KEIN EINZIGER
+      // Gegner mehr durch (gegen 4,3 / 15,8 / 19,1 % mit der Pistole, Zielkorridor 4-12 %).
+      // Der Kauf ist damit die Sicherheit, sie zu HABEN, statt auf ein Wandtor zu hoffen -
+      // plus ein Level Vorsprung. Nicht mehr.
+      const frueher = owned.includes(weapon) ? BALANCE.weapon.ownedLevelBonus : 0
+      return eintrag.minLevel - frueher <= level
     })
 }
 

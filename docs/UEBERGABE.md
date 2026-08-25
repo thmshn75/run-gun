@@ -44,6 +44,22 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   Run-Shop auf der Feuerkraft. Waffenkauf noch offen.
 - **E2 Preise** — 37,5 % -> 200 % der Levelseinnahme je Stufe. Ein Run bis Level 12
   erlaubt 9 von 22 Stufen. Der Knopf zeigt "NOCH ¢ X" statt tot dazustehen.
+- **SHOP** (Thomas 2026-08-25: "es soll wie ein echter shop sein ... wie ein laden in dem
+  man aussuchen und einkaufen kann"). Aus "DAUERHAFTE AUFWERTUNG" wurde ein Laden mit zwei
+  Regalen: oben die beiden Aufwertungen mit Stufen als Punktreihe, unten alle zwoelf
+  Waffen als Kacheln mit Bild und Preis, nach Preis sortiert. Vorher wurde immer nur die
+  naechste Waffe angeboten - aussuchen konnte man nichts.
+  - **Preise aus der gemessenen Staerke** statt aus der Levelnummer: 2.100 (Schrotflinte)
+    bis 20.000 (Streubombe), zusammen rund 100.000 = gut acht gute Runs.
+  - **Startwaffe vor jedem Level waehlbar** (Levelpause, Reihe STARTWAFFE). Waehlbar sind
+    gekaufte Waffen ab einem Level VOR ihrem regulaeren Erscheinen (`ownedLevelBonus`).
+    Gemessene Begruendung: Mit der Streubombe ab Level 1 kommt auf Level 1, 5 und 12 KEIN
+    Gegner mehr durch (gegen 4,3 / 15,8 / 19,1 % mit der Pistole, Korridor 4-12 %). Der
+    Kauf gibt Sicherheit statt Vorsprung.
+  - **Muenzanzeige vereinheitlicht** (Thomas: "im Shop und im Spiel werden aber 2
+    verschiedene Werte angezeigt wieso?"). Das HUD zeigte den RUN-Zaehler, das Menue den
+    Kontostand - beides richtig, nebeneinander aber wie ein Fehler (4.565 gegen 1.254).
+    Jetzt zeigt das HUD ueberall das Gesamtvermoegen.
 - **Waffen-Staffelung nach gemessener Staerke neu sortiert** (Thomas: "flammenwerfer ist
   schlechter als Laser, obwohl er spaeter kommt"). Er hatte recht: Gestaffelt wurde nach
   `getWeaponFirepower`, und die zaehlt Durchschlag, Sprengwirkung und Kettenspruenge

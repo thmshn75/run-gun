@@ -152,6 +152,17 @@ export class GameScene extends Phaser.Scene {
   private shop!: ShopOverlay
   /** Muenzen, die bereits aufs Konto gebucht sind - der Rest folgt beim naechsten Levelende. */
   private gebuchteMuenzen!: number
+  /**
+   * Kontostand aus dem Spielstand, im Speicher gehalten (2026-08-25, Thomas: "im Shop und
+   * im Spiel werden aber 2 verschiedene Werte angezeigt wieso?").
+   *
+   * Das HUD zeigte bis dahin den RUN-Zaehler, das Menue den Kontostand - beides richtig,
+   * nebeneinander aber wie ein Fehler: Nach einem Kauf im Laden standen 4.565 im Spiel
+   * und 1.254 im Menue. Jetzt zeigt das HUD ueberall dasselbe, naemlich das gesamte
+   * Vermoegen. Gecacht statt bei jeder Muenze aus dem Speicher gelesen: updateHud laeuft
+   * bei jedem eingesammelten Stueck.
+   */
+  private kontoStand!: number
   /** In dieser Levelpause gekaufte Stufen je Knopf (shop.maxStepsPerPause). */
   private kaeufeInPause!: { firepower: number; team: number }
   private lastUnknownCombatOverlapWarningAtMs!: number
@@ -211,6 +222,7 @@ export class GameScene extends Phaser.Scene {
     this.lastPointerX = null
     this.gameOverStarted = false
     this.gebuchteMuenzen = 0
+    this.kontoStand = gespeichert.coins
     this.runId = createRunId()
     this.kaeufeInPause = { firepower: 0, team: 0 }
     this.lastCrowdSize = -1
@@ -296,6 +308,7 @@ export class GameScene extends Phaser.Scene {
       (line) => this.kaufeStufe(line),
       () => this.verlasseShop(),
       () => this.speichernUndBeenden(),
+      (weapon) => this.waehleWaffe(weapon),
     )
     this.crowd.setWallPresenceProvider((y, halfSpan) => this.walls.getWallPresence(y, halfSpan))
     this.boss = new Boss(
@@ -523,6 +536,9 @@ export class GameScene extends Phaser.Scene {
     if (snapshot.runId !== undefined) this.runId = snapshot.runId
     this.continuesUsed = snapshot.continuesUsed
     this.gebuchteMuenzen = snapshot.bookedCoins
+    // Kontostand beim Fortsetzen neu einlesen: Zwischen Beenden und Weiterspielen kann im
+    // Menue gekauft worden sein.
+    this.kontoStand = loadSave().coins
     this.coins.setCount(snapshot.runCoins)
     for (let i = 0; i < snapshot.firepowerSteps; i += 1) this.runStats.addStep('firepower')
     for (let i = 0; i < snapshot.teamSteps; i += 1) this.runStats.addStep('team')
@@ -966,7 +982,8 @@ export class GameScene extends Phaser.Scene {
     if (offen <= 0) return 0
     this.gebuchteMuenzen = this.coins.getCount()
     const saved = loadSave()
-    writeSave({ ...saved, coins: saved.coins + offen })
+    this.kontoStand = saved.coins + offen
+    writeSave({ ...saved, coins: this.kontoStand })
     return offen
   }
 
@@ -987,7 +1004,8 @@ export class GameScene extends Phaser.Scene {
   private shopZustand() {
     return {
       level: this.currentLevel - 1,
-      konto: loadSave().coins,
+      konto: this.kontoStand,
+      waffen: this.waehlbareWaffen(),
       stufen: this.runStats.getSteps(),
       inDieserPause: { firepower: this.kaeufeInPause.firepower, team: this.kaeufeInPause.team },
       werte: {
@@ -998,6 +1016,41 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Womit darf der Spieler ins naechste Level starten? (Thomas 2026-08-25: "wenn einmal
+   * gekauft soll er vor jedem level auswaehlen koennen, mit welcher er startet")
+   *
+   * Gekaufte Waffen, sobald sie fuer dieses Level freigeschaltet sind - ein Level frueher
+   * als regulaer (BALANCE.weapon.ownedLevelBonus). Dazu die gerade getragene, sonst
+   * koennte man eine im Lauf gefundene Waffe durch Wegtippen verlieren, und die Pistole
+   * als Startwaffe, die es immer gibt.
+   */
+  private waehlbareWaffen(): { key: string; aktiv: boolean }[] {
+    const getragen = this.weapons.getWeapon()
+    const gekauft = getOwnedWeapons(loadSave())
+    const schluessel = (Object.keys(BALANCE.weapon) as WeaponKey[]).filter((weapon) => {
+      const eintrag = BALANCE.weapon[weapon] as { minLevel?: number } | undefined
+      if (typeof eintrag?.minLevel !== 'number') return false
+      if (weapon === getragen || weapon === 'pistol') return true
+      return gekauft.includes(weapon) && eintrag.minLevel - BALANCE.weapon.ownedLevelBonus <= this.currentLevel
+    })
+    return schluessel.map((key) => ({ key, aktiv: key === getragen }))
+  }
+
+  private waehleWaffe(weapon: string): void {
+    if (this.levelPhase !== 'shop') return
+    if (!WEAPON_KEYS.includes(weapon as WeaponKey)) return
+    if (!this.waehlbareWaffen().some((eintrag) => eintrag.key === weapon)) return
+    this.equipWeapon(weapon as WeaponKey)
+    // Sofort sichern: Der Spielstand wurde beim OEFFNEN der Pause geschrieben, also vor
+    // der Wahl. Ohne das ginge sie verloren, wenn die App zwischen Wahl und WEITER
+    // weggewischt wird.
+    this.sichereRun()
+    this.audio.play('crowdUp')
+    this.shop.aktualisieren(this.shopZustand())
+    this.updateHud()
+  }
+
   private kaufeStufe(line: ShopLine): void {
     if (this.levelPhase !== 'shop') return
     if (this.kaeufeInPause[line] >= BALANCE.shop.maxStepsPerPause) return
@@ -1006,7 +1059,8 @@ export class GameScene extends Phaser.Scene {
     const saved = loadSave()
     if (saved.coins < preis) return
     if (!this.runStats.addStep(line)) return
-    writeSave({ ...saved, coins: saved.coins - preis })
+    this.kontoStand = saved.coins - preis
+    writeSave({ ...saved, coins: this.kontoStand })
     this.kaeufeInPause[line] += 1
     this.audio.play('crowdUp')
     this.shop.aktualisieren(this.shopZustand())
@@ -1112,7 +1166,9 @@ export class GameScene extends Phaser.Scene {
     const damage = this.runStats.get('damage').toFixed(2)
     const shotsPerSec = this.runStats.get('shotsPerSec').toFixed(2)
     this.hud.hp.setText(`TEAM ${this.runStats.get('hp')}`)
-    this.hud.coins.setText(`¢ ${this.coins.getCount()}`)
+    // GESAMTVERMOEGEN, nicht der Run-Zaehler: Konto plus das, was seit der letzten
+    // Buchung dazugekommen ist (Herleitung bei kontoStand).
+    this.hud.coins.setText(`¢ ${this.kontoStand + Math.max(0, this.coins.getCount() - this.gebuchteMuenzen)}`)
     this.hud.level.setText(`LEVEL ${this.currentLevel}`)
     this.hud.damage.setText(`DMG ${damage}`)
     this.hud.rate.setText(`RATE ${shotsPerSec}`)
