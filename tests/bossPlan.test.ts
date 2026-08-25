@@ -6,6 +6,7 @@ import type { WeaponKey } from '../src/systems/weapons'
 import {
   canSpawnBossHorde,
   getBossHordeIntervalMs,
+  getBossHitEfficiency,
   getBossHordeSize,
   getBossPhase,
   getBossPlan,
@@ -364,17 +365,61 @@ describe('Pendeln darf den Kampf nicht nur verlaengern (E7)', () => {
 })
 
 describe('Kampfdauer bleibt im Rahmen (Thomas 2026-08-25)', () => {
-  it('rechnet die Lebenspunkte gegen die TATSAECHLICHE Trefferrate', () => {
-    // "das ist zu lange, der Bosskampf darf maximal 40 Sekunden dauern". Die
-    // Lebenspunkte kamen aus der theoretischen Feuerkraft; was davon den weit oben
-    // stehenden Boss trifft, ist ein Bruchteil - gemessen zwischen 0,177 (Pistole) und
-    // 0,494 (Laser). Ohne diesen Faktor dauerte ein Kampf ein bis zwei Minuten.
-    const wirkungsgrad = BALANCE.boss.referenceFirepower.hitEfficiency
-    expect(wirkungsgrad).toBeGreaterThan(0)
-    expect(wirkungsgrad).toBeLessThan(1)
-    // Am schwaechsten gemessenen Wirkungsgrad ausgelegt, nicht am mittleren: Sonst
-    // reisst die schwaechste Waffe die Vorgabe, und das ist ausgerechnet die Startwaffe.
-    expect(wirkungsgrad).toBeLessThanOrEqual(0.22)
+  it('haelt KEINEN Kampf unter der Untergrenze - auch nicht mit der staerksten Waffe', () => {
+    // Thomas 2026-08-25: "9 Sekunden ist eindeutig zu wenig, dann lieber mit Pistole
+    // viel laenger machen." Vorher war das Zeitfenster eine RECHENGROESSE, die der
+    // Spieler nie erlebte: gemessen dauerte ein Kampf zwischen 4,0 s (Streubombe) und
+    // 23,8 s (Pistole). Seit die Grenzen auf der erlebten Dauer sitzen, ist das die
+    // Zusage, die der Test halten muss - und zwar fuer JEDE Waffe.
+    for (const weapon of weaponKeys) {
+      for (const level of [1, 5, 9, 12, 20, 30]) {
+        const plan = getBossPlan(level, 30, weapon, 7, 8)
+        const label = `${weapon} L${level}`
+        // Rundungstoleranz: maxHp ist ganzzahlig. Sie faellt hier klein aus, weil mit
+        // voller Truppe gerechnet wird - der Kreuzprodukt-Test oben deckt die
+        // schwachen Kombinationen mit der groesseren Toleranz ab.
+        expect(plan.referenceFightSec, label).toBeGreaterThanOrEqual(
+          BALANCE.boss.referenceFirepower.minFightSec - 0.1,
+        )
+        expect(plan.referenceFightSec, label).toBeLessThanOrEqual(getMaxFightSec(level) + 0.1)
+      }
+    }
+  })
+
+  it('rechnet je Waffe mit einem eigenen, gemessenen Trefferwirkungsgrad', () => {
+    // Der Wirkungsgrad haengt an der Waffe (0,18 Pistole bis 1,15 Streubombe). Ein
+    // einziger Mittelwert liess die Kampfdauer um Faktor 6 schwanken.
+    for (const weapon of weaponKeys) {
+      const wirkungsgrad = getBossHitEfficiency(weapon)
+      expect(wirkungsgrad, weapon).toBeGreaterThan(0)
+      // Ueber 1 ist zulaessig und kein Messfehler: getWeaponFirepower zaehlt
+      // Sprengwirkung nicht mit, die Streubombe trifft den Boss aber mehrfach - auf
+      // Level 1, wo nichts abschirmt, mit gemessenen 2,9.
+      expect(wirkungsgrad, weapon).toBeLessThan(4)
+      // Die Rate muss mit dem Level FALLEN: Der Boss ruft mit steigendem Level dichtere
+      // Horden, die Beschuss abfangen. Eine steigende Reihe waere ein Tippfehler in der
+      // Tabelle - und der wuerde dem Boss auf hohen Leveln zu viele Lebenspunkte geben.
+      expect(getBossHitEfficiency(weapon, 1), weapon).toBeGreaterThan(getBossHitEfficiency(weapon, 9))
+      expect(getBossHitEfficiency(weapon, 9), weapon).toBeGreaterThan(getBossHitEfficiency(weapon, 20))
+      // Ab der obersten Stuetzstelle steht der Wert still (zwischen 20 und 30 gemessen).
+      expect(getBossHitEfficiency(weapon, 30), weapon).toBe(getBossHitEfficiency(weapon, 20))
+    }
+    // Die Spannweite muss erhalten bleiben - sie ist der Grund fuer die Tabelle.
+    const alle = weaponKeys.map((weapon) => getBossHitEfficiency(weapon))
+    expect(Math.max(...alle) / Math.min(...alle)).toBeGreaterThan(3)
+  })
+
+  it('daempft den Waffenunterschied, loescht ihn aber nicht aus', () => {
+    // Thomas 2026-08-25: "es ist ok, dass es unterschiedlich lange dauert". Bei
+    // hitDampening 1 dauerte jeder Kampf gleich lang, bei 0 bliebe die volle
+    // Spannweite. Beides ist ausdruecklich nicht gewollt.
+    const daempfung = BALANCE.boss.referenceFirepower.hitDampening
+    expect(daempfung).toBeGreaterThan(0)
+    expect(daempfung).toBeLessThan(1)
+    // Die starke Waffe muss vor der schwachen fertig sein - sonst ist die Belohnung weg.
+    const schwach = getBossPlan(9, 30, 'pistol', 7, 8).referenceFightSec
+    const stark = getBossPlan(9, 30, 'cluster', 7, 8).referenceFightSec
+    expect(stark).toBeLessThan(schwach)
   })
 
   it('meldet als referenceFightSec die ERLEBTE Dauer, nicht die gerechnete', () => {

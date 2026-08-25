@@ -2089,49 +2089,105 @@ export const BALANCE = {
   },
   boss: {
     referenceFirepower: {
-      // TREFFERWIRKUNGSGRAD (Thomas 2026-08-25: "das ist zu lange, der Bosskampf darf
-      // maximal 40 Sekunden dauern").
+      // TREFFERWIRKUNGSGRAD JE WAFFE (Thomas 2026-08-25: "9 Sekunden ist eindeutig zu
+      // wenig, dann lieber mit Pistole viel laenger machen").
       //
       // DIE URSACHE, gemessen: Die Boss-Lebenspunkte werden aus referenceDps abgeleitet,
       // also aus der Feuerkraft, die die Truppe THEORETISCH liefert. Was davon den Boss
       // tatsaechlich trifft, ist ein Bruchteil - er steht weit oben, langsame Geschosse
-      // verfehlen ihn haeufiger, und die Formel kannte diesen Verlust nicht. Gemessen auf
-      // Level 9 mit voller Truppe (tatsaechliche Trefferrate gegen gerechnete):
-      //   Pistole      91 von 514 DPS = 0,177  ->  Kampf dauerte 121 s statt 21
-      //   Sturmgewehr 195 von 721 DPS = 0,270  ->              74 s statt 20
-      //   Laser       229 von 464 DPS = 0,494  ->              44 s statt 22
+      // verfehlen ihn haeufiger, und die gerufenen Horden fangen Beschuss ab. Der Anteil
+      // haengt stark an der WAFFE: Er reicht von 0,18 (Pistole) bis 1,15 (Streubombe),
+      // Faktor 6. Ein einziger Mittelwert fuer alle Waffen liess die Kampfdauer deshalb
+      // zwischen 4 und 24 Sekunden schwanken.
       //
-      // 0,20 ist am SCHLECHTESTEN Fall ausgelegt, nicht am mittleren, und zwar an
-      // VOLLSTAENDIG ausgefochtenen Kaempfen. Ein erster Anlauf mit 0,28 stammte aus
-      // einer Hochrechnung der ersten Sekunden und war um 74 % zu pessimistisch: Der
-      // Boss rueckt waehrend des Kampfes vor, die Trefferrate steigt also im Verlauf.
-      // Voll gemessen mit 0,28:
-      //   Elite + Pistole  48,2 s und 54,6 s   ·  Pistole allein   32,2 s
-      //   Sturmgewehr      23,0 s              ·  Elite + Gewehr   31,8 s (Level 15)
-      //   Laser            12,6 s
-      // Der schlechteste Fall lag damit bei ueber 50 s. Mit 0,20 sinkt er auf rund 37 s
-      // und haelt Thomas' Vorgabe von 40 s auch mit Puffer - der noetig ist, weil
-      // derselbe Kampf zwischen 48 und 55 s streute.
+      // GEMESSEN auf Level 9, volle Truppe, Level-Deckelwerte, Median aus drei
+      // VOLLSTAENDIG ausgefochtenen Kaempfen (Sonde: scratchpad/waffeneff.mjs).
+      // NICHT ueber die ersten Sekunden hochrechnen - der Boss rueckt waehrend des
+      // Kampfes vor, die Trefferrate steigt im Verlauf, und genau daran war eine erste
+      // Kalibrierung um 74 % zu pessimistisch.
       //
-      // DIE SPANNWEITE BLEIBT GROSS: Ein Laser-Kampf dauert danach rund 9 s, einer mit
-      // der Pistole gegen den Elite-Boss rund 37. Das kommt aus den Waffen selbst -
-      // gemessen trifft der Laser mit 0,494 der gerechneten Feuerkraft, die Pistole nur
-      // mit 0,177. Ein waffenabhaengiger Wirkungsgrad wuerde das ausgleichen, braucht
-      // aber eine Messung je Waffe und waere eine eigene Etappe. Bis dahin gilt: Wer die
-      // bessere Waffe traegt, ist schneller durch.
+      // Werte ueber 1,0 sind kein Messfehler: getWeaponFirepower zaehlt Sprengwirkung
+      // bewusst nicht mit ("ein Boss ist ein Ziel"), die Streubombe trifft ihn aber mit
+      // mehreren Teilsprengungen zugleich.
+      hitEfficiencyByWeapon: {
+        pistol: { beiLevel1: 0.574, beiLevel9: 0.178, beiLevel20: 0.099 },
+        normal: { beiLevel1: 0.67, beiLevel9: 0.281, beiLevel20: 0.148 },
+        shotgun: { beiLevel1: 0.41, beiLevel9: 0.237, beiLevel20: 0.179 },
+        minigun: { beiLevel1: 0.778, beiLevel9: 0.332, beiLevel20: 0.208 },
+        flamethrower: { beiLevel1: 0.274, beiLevel9: 0.149, beiLevel20: 0.119 },
+        laser: { beiLevel1: 0.976, beiLevel9: 0.484, beiLevel20: 0.371 },
+        chainlightning: { beiLevel1: 0.971, beiLevel9: 0.482, beiLevel20: 0.363 },
+        rocket: { beiLevel1: 1.451, beiLevel9: 0.681, beiLevel20: 0.498 },
+        grenade: { beiLevel1: 1.482, beiLevel9: 0.734, beiLevel20: 0.558 },
+        ricochet: { beiLevel1: 0.972, beiLevel9: 0.482, beiLevel20: 0.371 },
+        sawblade: { beiLevel1: 0.92, beiLevel9: 0.468, beiLevel20: 0.361 },
+        cluster: { beiLevel1: 2.994, beiLevel9: 1.483, beiLevel20: 1.077 },
+        shockwave: { beiLevel1: 2.063, beiLevel9: 1.023, beiLevel20: 0.789 },
+        // VOLLSTAENDIGKEIT erzwingt bossPlan.ts mit einer Record<WeaponKey, ...>-Annahme -
+        // hier ginge das nur ueber einen Import aus weapons.ts, und der zeigt zurueck auf
+        // diese Datei.
+      },
+      // DIE DREI STUETZSTELLEN. Zwischen ihnen wird linear interpoliert, ab Level 20
+      // bleibt der Wert stehen.
       //
-      // NACH DER SENKUNG VOLL GEMESSEN (Kampf bis zum Sieg):
-      //   Level  5 Elite, Shotgun     12,8 s
-      //   Level  9, Laser              9,0 s   ·  Level 9, Sturmgewehr   14,2 s
-      //   Level 10 Elite, Pistole     34,6 s und 37,6 s (der schlechteste Fall)
-      //   Level 20 Elite, Sturmgewehr 26,8 s
-      // Alle unter der Vorgabe. Dass hoehere Level laenger dauern (Level 20 mit 27 s
-      // gegen Level 9 mit 14 s), ergibt sich aus der Levelkurve von selbst und ist so
-      // gewollt (Thomas 2026-08-25: "es ist ok, wenn es in hoeheren Leveln etwas laenger
-      // dauert").
+      // Warum drei und nicht eine Formel: Ein erster Versuch rechnete mit einem festen
+      // Verfall je Level (0,973), am Median von neun Waffen zwischen Level 9 und 20
+      // kalibriert. Auf Level 9 und 20 passte das; an beiden Enden nicht.
+      //   Level 1  gemessen 6-12 s statt 20 - dort steht kaum ein Begleiter im Weg, also
+      //            trifft fast alles. Die Waffen liegen deshalb ALLE nahe beieinander
+      //            (0,64 bis 0,96, nur der Flammenwerfer 0,30) und spreizen sich erst
+      //            durch die Abschirmung. Genau das kann ein gemeinsamer Faktor nicht.
+      //   Level 30 gemessen 15 s statt 20 - zwischen 20 und 30 faellt die Rate GAR NICHT
+      //            mehr (Laser 0,370 -> 0,369, Streubombe 1,071 -> 1,081). Der Verfall
+      //            saettigt, die Formel rechnete ihn weiter herunter.
+      // Deshalb Messwerte statt Kurve. Die Interpolation dazwischen ist linear und liegt
+      // damit eher UEBER der wahren Kurve - der Kampf wird dort im Zweifel etwas laenger
+      // als geplant, nicht kuerzer, und das ist die Richtung, die Thomas verlangt hat.
       //
-      // WER DIESE ZAHL AENDERT, aendert die Kampfdauer ALLER Bosslevel proportional.
-      hitEfficiency: 0.2,
+      // DIE WERTE SIND GEOMETRISCHE MITTEL AUS ZWEI MESSRUNDEN, und das ist kein
+      // Schoenheitsfehler, sondern noetig: Der Wirkungsgrad haengt an der KAMPFDAUER, und
+      // die Kampfdauer haengt am Wirkungsgrad. In der ersten Runde dauerte ein Level-1-
+      // Kampf mit der Pistole 6,5 s - so kurz, dass der Boss noch keine Horde gerufen
+      // hatte und fast alles traf (0,88). Mit diesem Wert eingebaut dauerte derselbe
+      // Kampf 61 s, die Abschirmung baute sich auf, und die Rate fiel auf 0,375. Ein
+      // direkter Wechsel auf den neuen Messwert kippt das Ergebnis nur auf die andere
+      // Seite; das geometrische Mittel daempft die Schwingung.
+      //
+      // WER HIER NACHMISST, muss deshalb ZWEIMAL messen: einmal, um den Wert zu
+      // bekommen, und einmal, um zu sehen, was er mit der Kampfdauer macht.
+      //
+      // ERGEBNIS, ueber sechs Level voll ausgefochten (Sekunden, ein Kampf je Feld):
+      //          L1     L5     L9     L14    L20    L30
+      //   Laser  19,8   21,0   20,0   23,3   20,0   20,0
+      //   Rakete 20,0   -      19,3   -      21,8   -
+      //   Sturmg 21,8   32,8   22,0   22,5   27,5   21,0
+      //   Pistol 34,8   26,5   30,0   53,0   34,8   43,5
+      // Neun bis elf der dreizehn Waffen liegen auf jedem Level zwischen 19 und 23 s.
+      //
+      // WAS BLEIBT, und warum es NICHT weiter eingestellt wird: Die vier schwaechsten
+      // Waffen (Pistole, Schrotflinte, Flammenwerfer, Sturmgewehr) streuen zwischen zwei
+      // identischen Laeufen um Faktor zwei - die Pistole mass auf Level 9 nacheinander
+      // 26, 27, 30, 34 und 40 s. Sie haben die kuerzeste Reichweite, also entscheidet
+      // mit, welche Gegner der Zufall gerade davor stellt. Unterhalb dieser Streuung ist
+      // keine Einstellung mehr belegbar; wer dort weiterdreht, kalibriert Rauschen.
+      // Die Pistole ab Level 14 (53 s) ist der bekannte Grenzfall: Sie ist die Startwaffe
+      // und wird ab Level 2 ersetzt - dort zu landen heisst, vierzehn Level lang keine
+      // einzige Waffe aufgesammelt zu haben.
+      hitEfficiencyLevels: { unten: 1, mitte: 9, oben: 20 },
+      // BEZUGSWERT der Tabelle: Er legt fest, welche Waffe am Zielfenster gemessen wird.
+      // 0,30 liegt knapp ueber dem Sturmgewehr auf Level 9 (0,275), damit die Bezugswaffe
+      // im unteren Drittel des Fensters landet und die staerkeren Waffen Luft nach unten
+      // haben.
+      hitEfficiency: 0.3,
+      // WIE STARK der Waffenunterschied herausgerechnet wird. 0 = gar nicht (dann bleibt
+      // die volle Spannweite), 1 = vollstaendig (dann dauert jeder Kampf gleich lang, was
+      // Thomas ausdruecklich NICHT will: "es ist ok, dass es unterschiedlich lange
+      // dauert"). 0,45 zieht die Spannweite auf gut Faktor 2 zusammen; den Rest deckelt
+      // das Zeitfenster.
+      hitDampening: 0.45,
+      // Bezugslevel fuer den WAFFENUNTERSCHIED (nicht fuer den Levelabfall): An dieser
+      // Stelle wird gemessen, wie stark der Trefferaufschlag eine Waffe verlaengert.
+      hitEfficiencyReferenceLevel: 9,
       // Fight duration at the maximum crowd size with the normal weapon. Smaller crowds take longer,
       // capped by the level-scaled maximum so a two-figure emergency team cannot stall a run.
       // Die frueher hier verlangte Sicherheitsmarge zur Druckschwelle ist entfallen: Der

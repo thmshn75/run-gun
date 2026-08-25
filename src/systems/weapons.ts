@@ -100,7 +100,16 @@ export class Weapons {
       for (let index = 0; index < BALANCE.pools.projectiles[key]; index += 1) {
         const projectile = scene.physics.add.image(0, 0, `projectile-${key}`).setDepth(BALANCE.layers.gameplay)
         projectile.setData('weapon', key)
-        if (key === 'laser') projectile.setData('hitSpawnIds', new Set<number>())
+        // Trefferliste fuer JEDES Geschoss, nicht nur fuer den Laser (Fehler vom
+        // 2026-08-25): Sie wird bei durchschlagenden Waffen gebraucht, damit ein Geschoss
+        // denselben Gegner nicht mehrfach schaedigt. Die Bedingung stand hier auf dem
+        // Waffennamen, als der Laser die einzige durchschlagende Waffe war. Mit V4 kamen
+        // PRELLSCHUSS und SAEGEBLATT dazu - beide bekamen die Liste nie, jeder ihrer
+        // Treffer lief in einen Fehler, und sie richteten im ganzen Spiel KEINEN Schaden
+        // an. Aufgefallen erst beim Bosskampf: Er war mit ihnen nicht zu gewinnen.
+        // Deshalb an die EIGENSCHAFT statt an den Namen gebunden, und gleich fuer alle
+        // angelegt - ein leeres Set je Geschoss kostet nichts und kann nicht fehlen.
+        projectile.setData('hitSpawnIds', new Set<number>())
         projectile.setActive(false).setVisible(false)
         projectile.disableBody(true, true)
         this.projectileGroups[key].add(projectile)
@@ -228,7 +237,7 @@ export class Weapons {
         projectile.setData('laneRatio', laneRatio)
         projectile.setData('laneOriginX', laneOriginX)
         projectile.setData('lateralPx', 0)
-        if (weaponKey === 'laser') (projectile.getData('hitSpawnIds') as Set<number>).clear()
+        ;(projectile.getData('hitSpawnIds') as Set<number>).clear()
         ;(projectile.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0)
       }
     }

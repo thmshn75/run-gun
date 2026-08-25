@@ -564,3 +564,53 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   zementiert. Was gesichert gehoert, ist die EIGENSCHAFT: dass die Haerte monoton steigt
   und kein Level mehr als die Haelfte drauflegt. Genau diese Zahl hatte niemand gebildet,
   deshalb blieb der Zickzack unbemerkt.
+
+### 2026-08-25 — Zwei Waffen richteten im ganzen Spiel keinen Schaden an
+- **Fehler:** PRELLSCHUSS (ab Level 18) und SAEGEBLATT (ab Level 25) toeteten nichts. Kein
+  Gegner, keine Wand, kein Boss. Aufgefallen ist es erst, weil ein Bosskampf mit ihnen
+  nach 150 Sekunden noch lief — im normalen Spiel sah man nur Geschosse fliegen und hielt
+  die Waffen fuer schwach. Ursache: Durchschlagende Geschosse brauchen eine Trefferliste,
+  damit dasselbe Geschoss denselben Gegner nicht mehrfach schaedigt. Die Liste wurde in
+  `weapons.ts` an **zwei Stellen am Waffennamen** angelegt und geleert (`key === 'laser'`),
+  weil der Laser einmal die einzige durchschlagende Waffe war. Die beiden neuen Waffen aus
+  V4 haben `pierces: true`, bekamen die Liste aber nie — jeder ihrer Treffer lief in einen
+  Fehler, noch bevor Schaden gerechnet wurde.
+- **Regel:** Ein Sonderfall haengt an der **Eigenschaft**, nie am Namen. `if (key ===
+  'laser')` ist immer ein Fehler in Wartestellung: Er ist zum Zeitpunkt des Schreibens
+  richtig und wird beim naechsten Zuwachs still falsch. Wo eine Vorbereitung so billig ist
+  wie ein leeres Set je Geschoss, gehoert sie fuer **alle** angelegt, nicht fuer die
+  aktuell betroffenen.
+- **Zweite Lehre (was 265 gruene Tests nicht sehen):** Keine einzige Pruefung deckte ab,
+  dass eine Waffe ueberhaupt Schaden anrichtet. Getestet waren Konfigurationswerte,
+  Pools, Reichweiten — alles, was ohne Phaser-Szene zu haben ist. Der Ausfall lag genau
+  dort, wo die Tests aufhoeren. Eine Waffe, die niemand im Spiel ausprobiert hat, ist
+  ungetestet, auch wenn ihre Zahlen gepruefte Zahlen sind.
+
+### 2026-08-25 — Ein Modell, das nur dort stimmt, wo es kalibriert wurde
+- **Fehler:** Der Trefferwirkungsgrad des Bosses (welcher Anteil der gerechneten
+  Feuerkraft ihn wirklich trifft) wurde als Formel mit festem Verfall je Level gebaut und
+  am Median von neun Waffen zwischen Level 9 und 20 kalibriert. Auf Level 9 und 20 sass er
+  danach genau. Die erste Messung ausserhalb dieses Bereichs zeigte Level 1 mit 6 bis 12
+  Sekunden statt 20 (Faktor 3 daneben) und Level 30 mit 15 statt 20. An beiden Enden gilt
+  die Kurve nicht: Auf Level 1 schirmt nichts ab, alle Waffen treffen fast alles und
+  liegen deshalb dicht beieinander; ab Level 20 saettigt der Abfall und geht gar nicht
+  mehr weiter (Laser 0,370 -> 0,369 zwischen Level 20 und 30).
+- **Regel:** Ein kalibriertes Modell **immer ausserhalb des kalibrierten Bereichs
+  nachmessen**, bevor es eingebaut bleibt. Innerhalb passt es zwangslaeufig — das ist
+  keine Bestaetigung, das ist die Kalibrierung, die sich selbst bescheinigt. Drei
+  gemessene Stuetzstellen mit linearer Interpolation schlagen jede Kurve, die aus einem
+  Ausschnitt hochgerechnet ist.
+- **Zweite Lehre (Rueckkopplung erkennen):** Der Wirkungsgrad haengt an der Kampfdauer,
+  und die Kampfdauer haengt am Wirkungsgrad — ein kurzer Kampf laesst dem Boss keine Zeit,
+  Horden zu rufen, also trifft alles. Erste Messung Level 1 mit der Pistole: 6,5 s und
+  Rate 0,88. Mit diesem Wert eingebaut: 61 s und Rate 0,375. Der direkte Wechsel auf den
+  neuen Messwert kippt nur auf die andere Seite. Wo Messgroesse und Stellgroesse sich
+  gegenseitig bedingen, den **geometrischen Mittelwert beider Runden** nehmen und die
+  Zahl der Runden vorher festlegen — sonst hat das Verfahren kein Ende.
+- **Dritte Lehre (Hypothesen mit Vorhersage pruefen):** Aus vier Messpunkten sah es so
+  aus, als verloeren Waffen mit Einzelgeschoss beim Levelanstieg deutlich mehr als
+  durchschlagende und sprengende. Die Gegenprobe wurde MIT VORHERSAGE gestartet
+  (Schrotflinte, Minigun, Flammenwerfer bei 0,54-0,60 erwartet) und ergab 0,74 / 0,72 /
+  0,84 — die Hypothese war widerlegt, die vermeintliche Gruppenstruktur bestand aus der
+  Streuung von zwei Waffen. Ohne vorab notierte Vorhersage waere aus denselben Zahlen eine
+  Bestaetigung geworden.

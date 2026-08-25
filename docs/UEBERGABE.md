@@ -1,6 +1,6 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-25 (Nachtlauf fertig: E1, Ton, Waffen, E3, Sammelbahn, E4, E2)
+Stand: 2026-08-25 (V4 gebaut: E1-E7 plus Bosskampfdauer; offen ist Bennis iPhone-Test)
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat), gespielt von Benni (7).
@@ -44,6 +44,23 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   Run-Shop auf der Feuerkraft. Waffenkauf noch offen.
 - **E2 Preise** — 37,5 % -> 200 % der Levelseinnahme je Stufe. Ein Run bis Level 12
   erlaubt 9 von 22 Stufen. Der Knopf zeigt "NOCH ¢ X" statt tot dazustehen.
+- **E5 Gegner-Gestalten und E7 Elite-Boss** — 18 neue Gestalten in drei Figurstaerken,
+  Elite-Boss alle fuenf Level (anderes Bild, pendelt leicht, mehr Begleiter, schneller
+  vorrueckend). Bilder von Thomas abgenommen.
+- **Bosskampfdauer** (Thomas: "9 Sekunden ist eindeutig zu wenig, dann lieber mit Pistole
+  viel laenger"). Zwei Aenderungen:
+  1. **Das Zeitfenster wirkt jetzt auf die ERLEBTE Dauer**, nicht auf eine gerechnete, die
+     niemand erlebt. minFightSec 20 und getMaxFightSec sind damit eine Zusage statt einer
+     Rechengroesse; ein Test prueft sie fuer jede Waffe auf sechs Leveln.
+  2. **Trefferwirkungsgrad je Waffe, an drei Leveln gemessen** (1 / 9 / 20, dazwischen
+     linear, ab 20 konstant). Vorher dauerte ein Kampf zwischen 4,0 s (Streubombe) und
+     74,3 s (Pistole auf Level 20), jetzt liegen neun bis elf der dreizehn Waffen auf
+     jedem Level zwischen 19 und 23 s.
+- **FEHLER GEFUNDEN UND BEHOBEN: Prellschuss und Saegeblatt richteten im ganzen Spiel
+  keinen Schaden an** — die Trefferliste durchschlagender Geschosse hing am Waffennamen
+  "laser" statt an `pierces`. Beide sind erst seither ueberhaupt spielbar. **Ihre Staerke
+  im Normalspiel ist damit ungemessen** (der Durchkommensanteil wurde nie mit ihnen
+  bestimmt) — das ist der einzige neue offene Punkt aus dieser Sitzung.
 
 ## Offen — naechster Schritt zuerst
 1. **Bennis iPhone-Test.** Alles Gebaute ist im Browser gemessen, Gamefeel gilt erst
@@ -61,8 +78,10 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
      bewegt. Mehr Stufen gehen nur mit feinerer Anzeige oder hoeherer Endwirkung.
    - **Schwierigkeits-Korridor 4–12 %.** Laesst nur eine flache Steigerung zu
      (Level 12: 7,5 %, Level 30: 8,7 %).
-3. Danach **E5 Gegner-Gestalten** und **E7 Elite-Boss** — beide brauchen Bilder, und
-   deren Abnahme ist Geschmackssache.
+3. **Staerke von Prellschuss und Saegeblatt im Normalspiel** — bis zum 2026-08-25
+   richteten beide keinen Schaden an, ihre Balance-Werte sind also nie an einem echten
+   Lauf geprueft worden. Vor dem naechsten Feinschliff den Durchkommensanteil auf Level 18
+   und 25 mit ihnen messen.
 
 ## Wissen, das sonst Zyklen kostet
 - **Der Durchkommensanteil ist bistabil UND seine Empfindlichkeit waechst mit.**
@@ -96,6 +115,16 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   Wiederholungen, Median. Sonde: `scratchpad/messung.mjs` (Playwright, zaehlt in
   `activateEnemy` und `meldeDurchbruch`). Wurde schon zweimal falsch gemessen.
 - **Boss-Kampfdauer streut um Faktor 3,7** bei identischem Aufbau — nie einzeln messen.
+  Der Wert gilt fuer die vier KURZREICHWEITIGEN Waffen (Pistole, Schrotflinte,
+  Flammenwerfer, Sturmgewehr); die uebrigen neun messen auf 0,5 s reproduzierbar. Wer bei
+  den ersten vier unter Faktor zwei einstellt, kalibriert Rauschen.
+- **Trefferwirkungsgrad und Kampfdauer bedingen sich gegenseitig.** Ein kurzer Kampf
+  laesst dem Boss keine Zeit, Horden zu rufen, also trifft alles — die gemessene Rate
+  faellt, sobald der Kampf laenger wird. Beim Nachmessen deshalb ZWEI Runden fahren und
+  das geometrische Mittel nehmen (Herleitung in `balance.ts` bei `hitEfficiencyLevels`).
+- **Ein kalibriertes Modell immer AUSSERHALB des kalibrierten Bereichs nachmessen.**
+  Innerhalb passt es zwangslaeufig. Die Wirkungsgrad-Formel sass auf Level 9 und 20 genau
+  und war auf Level 1 um Faktor 3 daneben.
 - **Neue Spielstand-Felder: fehlend = 0, nie Fehler.** Sonst verliert ein bespieltes
   Geraet seine Bestenliste (die Falle ist in `save.ts` zweimal kommentiert).
 - **GameObject-Position der Truppenhuelle klebt bei −15** — ungeklaert, wird umgangen.
@@ -112,5 +141,5 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
 
 ## Einstiegssatz
 "Lies `docs/UEBERGABE.md`, `docs/lessons.md` und `docs/plan-v4.md` und arbeite dort weiter.
-**Nichts neu aufsetzen** — V1/V2/V3 sind abgenommen und getaggt, E1 ist gebaut und
-gemessen. Naechster Schritt: Bennis iPhone-Test von E1, danach E2 (Preise)."
+**Nichts neu aufsetzen** — V1/V2/V3 sind abgenommen und getaggt, V4 ist gebaut und
+gemessen. Naechster Schritt: Bennis iPhone-Test des ganzen V4."

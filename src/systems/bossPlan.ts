@@ -157,6 +157,35 @@ export function isEliteBossLevel(level: number): boolean {
   return alle > 0 && safeLevel >= alle && safeLevel % alle === 0
 }
 
+/**
+ * Anteil der gerechneten Feuerkraft, der beim Boss WIRKLICH ankommt - gemessen je Waffe
+ * und je Waffe an drei Leveln gemessen, weil dichtere Horden mehr Beschuss abfangen
+ * (Herleitung und Messwerte bei BALANCE.boss.referenceFirepower.hitEfficiencyByWeapon).
+ *
+ * Die Record-Annahme ist Absicht: Sie laesst tsc scheitern, wenn eine neue Waffe keinen
+ * gemessenen Wert bekommt. Ein stiller Rueckfall auf einen Mittelwert waere hier
+ * gefaehrlich - bei PRELLSCHUSS und SAEGEBLATT hat genau so ein namensgebundener
+ * Sonderfall dazu gefuehrt, dass sie ueberhaupt keinen Schaden anrichteten.
+ */
+export function getBossHitEfficiency(weapon: WeaponKey, level = 1): number {
+  const reference = BALANCE.boss.referenceFirepower
+  type Stuetzstellen = { beiLevel1: number; beiLevel9: number; beiLevel20: number }
+  const tabelle: Record<WeaponKey, Stuetzstellen> = reference.hitEfficiencyByWeapon
+  const werte = tabelle[weapon]
+  const stufen = reference.hitEfficiencyLevels
+  const stufe = Math.max(1, Math.floor(level))
+  if (stufe <= stufen.unten) return werte.beiLevel1
+  // Ab der obersten Stuetzstelle bleibt der Wert stehen: Zwischen Level 20 und 30 wurde
+  // KEIN weiterer Abfall gemessen (Laser 0,370 -> 0,369). Eine fortgesetzte Kurve haette
+  // dem Boss dort zu wenig Lebenspunkte gegeben.
+  if (stufe >= stufen.oben) return werte.beiLevel20
+  const [vonLevel, vonWert, bisLevel, bisWert] = stufe <= stufen.mitte
+    ? [stufen.unten, werte.beiLevel1, stufen.mitte, werte.beiLevel9]
+    : [stufen.mitte, werte.beiLevel9, stufen.oben, werte.beiLevel20]
+  const anteil = (stufe - vonLevel) / (bisLevel - vonLevel)
+  return vonWert + (bisWert - vonWert) * anteil
+}
+
 export function getBossPlan(
   level: number,
   teamSize: number,
@@ -180,18 +209,36 @@ export function getBossPlan(
     * (maxFirepower / getTeamFirepower(teamSize, safeLevel)) ** reference.teamDampening
     * (1 / getWeaponFirepower(weapon)) ** (1 - reference.weaponDampening)
     * statTerm
-  const fightSec = Math.min(getMaxFightSec(safeLevel), Math.max(reference.minFightSec, unclampedFightSec))
   // Der Elite-Boss bekommt nur einen KLEINEN Lebenspunkt-Aufschlag. Mehr waere hier der
   // falsche Hebel: Gemessen haengt die Kampfdauer am Gegnerschild, nicht an seinen
   // Lebenspunkten - ein zaeherer Boss wird nur laenger (Herleitung bei BALANCE.boss.elite).
   const elite = isEliteBossLevel(safeLevel)
-  // hitEfficiency rechnet den gemessenen Trefferverlust heraus: referenceDps ist die
-  // THEORETISCHE Feuerkraft der Truppe, beim Boss kommt davon nur ein Bruchteil an
-  // (Herleitung bei BALANCE.boss.referenceFirepower.hitEfficiency). Ohne diesen Faktor
-  // dauerte ein Kampf ein bis zwei Minuten statt der geplanten Sekundenzahl.
-  const maxHp = Math.round(
-    referenceDps * reference.hitEfficiency * fightSec * (elite ? BALANCE.boss.elite.maxHpFactor : 1),
+  // DAS ZEITFENSTER WIRKT SEIT 2026-08-25 AUF DIE ERLEBTE DAUER, nicht mehr auf die
+  // gerechnete (Thomas: "9 Sekunden ist eindeutig zu wenig"). Vorher war minFightSec 20
+  // eine Rechengroesse, die der Spieler nie erlebte - real dauerte ein Kampf zwischen 4
+  // und 24 Sekunden, je nach Waffe. Jetzt ist fightSec die Sekundenzahl, die der Spieler
+  // tatsaechlich vor dem Boss steht, und minFightSec/getMaxFightSec begrenzen genau die.
+  //
+  // Der Trefferaufschlag uebersetzt die gerechnete in die erlebte Dauer. hitDampening
+  // bestimmt, wie viel vom Waffenunterschied stehen bleibt: Bei 0 traegt die schwache
+  // Waffe den vollen Faktor 6, bei 1 verschwindet der Unterschied ganz.
+  // Der Aufschlag rechnet mit dem BEZUGSLEVEL der Tabelle, nicht mit dem gespielten:
+  // Er soll den Waffenunterschied abbilden, nicht den Levelabfall - sonst wuerde der
+  // Kampf auf hohen Leveln zweimal verlaengert (Herleitung bei hitEfficiencyLevelDecay).
+  const trefferAufschlag =
+    (reference.hitEfficiency / getBossHitEfficiency(weapon, reference.hitEfficiencyReferenceLevel))
+    ** (1 - reference.hitDampening)
+  // Der Elite-Aufschlag steht INNERHALB des Deckels, nicht darueber: Sonst reisst
+  // ausgerechnet der Elite-Boss die Obergrenze, und der Boss erreicht die Truppe, bevor
+  // der Kampf entschieden ist (advanceSpeed ist aus maxFightSecCap hergeleitet).
+  const eliteFaktor = elite ? BALANCE.boss.elite.maxHpFactor : 1
+  const fightSec = Math.min(
+    getMaxFightSec(safeLevel),
+    Math.max(reference.minFightSec, unclampedFightSec * trefferAufschlag * eliteFaktor),
   )
+  // Lebenspunkte rueckwaerts aus der gewuenschten Dauer: Was den Boss trifft, ist
+  // referenceDps x Wirkungsgrad - mal der Sekundenzahl, die der Kampf dauern soll.
+  const maxHp = Math.round(referenceDps * getBossHitEfficiency(weapon, safeLevel) * fightSec)
 
   return {
     level: safeLevel,
@@ -199,11 +246,10 @@ export function getBossPlan(
     maxHp,
     phaseThresholdHp: maxHp / 2,
     referenceDps,
-    // ERWARTETE REALE Kampfdauer, nicht die gerechnete: Der Trefferwirkungsgrad gehoert
-    // in den Nenner, sonst meldet die Kennzahl eine Dauer, die der Spieler nie erlebt -
-    // vor der Kalibrierung war sie um Faktor 3 bis 6 zu optimistisch. Die Steuergroesse
-    // muss die Erlebnisgroesse sein (docs/lessons.md, 2026-08-23).
-    referenceFightSec: maxHp / (referenceDps * reference.hitEfficiency),
+    // ERWARTETE REALE Kampfdauer. Seit maxHp rueckwaerts aus fightSec kommt, ist das
+    // exakt dieselbe Groesse - bis auf die Rundung von maxHp auf ganze Punkte. Die
+    // Steuergroesse muss die Erlebnisgroesse sein (docs/lessons.md, 2026-08-23).
+    referenceFightSec: maxHp / (referenceDps * getBossHitEfficiency(weapon, safeLevel)),
     phaseOne: getPhaseOneProfile(safeLevel),
     phaseTwo: getPhaseTwoProfile(safeLevel),
     // DIE EIGENTLICHEN ELITE-HEBEL: mehr Begleiter und schnelleres Vorruecken. Beides
