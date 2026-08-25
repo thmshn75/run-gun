@@ -1,4 +1,5 @@
 import { BALANCE } from '../config/balance'
+import { getContinuePrice } from './upgrades'
 
 export interface ScoreEntry {
   coins: number
@@ -44,6 +45,21 @@ export interface RunSnapshot {
    * Spielstand aus V3 nicht verworfen wird - isRunSnapshot prueft ihn deshalb NICHT.
    */
   runId?: number
+  /**
+   * DIESER RUN IST GESCHEITERT, er wartet auf ein bezahltes Weiterspielen
+   * (Thomas 2026-08-25: "wenn man stirbt, steht dann dort z. B. weiter in Level 7, aber
+   * wenn man dann drueckt, steht dort der Game-Over-Bildschirm").
+   *
+   * WAS DAHINTERSTECKTE: Beim Tod bleibt der Run gespeichert, damit man ihn freikaufen
+   * kann - aber im Menue war er vom gesicherten Levelstand nicht zu unterscheiden. Der
+   * FORTSETZEN-Knopf bot ihn kostenlos an und startete das Spiel mit `hp` aus dem
+   * Todeszeitpunkt, also mit NULL Figuren: sofort wieder Game Over. Der Marker trennt
+   * die beiden Faelle.
+   *
+   * FEHLEND HEISST "lebt", nie ein Fehler - dieselbe Regel wie bei allen anderen neuen
+   * Feldern. isRunSnapshot prueft ihn deshalb NICHT.
+   */
+  gestorben?: true
 }
 
 export interface SaveData {
@@ -77,6 +93,15 @@ export interface SaveData {
    * scheitert, wenn eine Waffe spaeter umbenannt wird.
    */
   ownedWeapons?: string[]
+  /**
+   * Aufruestungsstufen JE WAFFE (Thomas 2026-08-25: "die moeglichkeit die Waffen
+   * upzugraden - gegen Bezahlung 5 Stufen jeweils die feuerkraft erhoehen").
+   *
+   * Schluessel ist der Waffenname, Wert die Zahl gekaufter Stufen (0 bis
+   * BALANCE.meta.weaponSteps). FEHLEND HEISST 0, ein unbekannter Name wird beim Lesen
+   * still verworfen - dieselbe Regel wie bei ownedWeapons.
+   */
+  weaponSteps?: Record<string, number>
 }
 
 const SAVE_KEY = 'rungun_save_v1'
@@ -195,7 +220,12 @@ export function parseSave(text: string): { ok: true; data: SaveData } | { ok: fa
   // stillschweigend verworfen - nie als Fehler behandelt. Ein Spielstand aus der Zeit vor
   // B3 hat das Feld nicht, und die Bestenliste eines bespielten Geraets darf daran nicht
   // scheitern (dieselbe Falle wie beim entfernten 'upgrades'-Feld, 2026-08-23).
-  const run = isRunSnapshot(value.run) ? { ...value.run } : undefined
+  // Den Todes-Marker normalisieren statt durchzureichen: Nur exakt true zaehlt, alles
+  // andere heisst "lebt". Ein Spielstand darf daran nie scheitern.
+  const rohRun = isRunSnapshot(value.run) ? value.run : undefined
+  const run = rohRun === undefined
+    ? undefined
+    : (({ gestorben, ...rest }) => (gestorben === true ? { ...rest, gestorben: true as const } : rest))(rohRun)
 
   // DEN MARKER DURCHREICHEN, sonst geht er beim naechsten Schreib-/Lesezyklus verloren
   // und die Bestenliste wird bei JEDEM Start geleert. Genau wie beim 'run'-Feld gilt:
@@ -218,6 +248,17 @@ export function parseSave(text: string): { ok: true; data: SaveData } | { ok: fa
     ? value.ownedWeapons.filter((name): name is string => typeof name === 'string' && bekannteWaffen.has(name))
     : []
 
+  // Aufruestungsstufen: nur bekannte Waffen, nur ganze Zahlen im gueltigen Bereich.
+  // Alles andere faellt still weg, statt den Spielstand abzulehnen.
+  const weaponSteps: Record<string, number> = {}
+  if (isRecord(value.weaponSteps)) {
+    for (const [name, stufe] of Object.entries(value.weaponSteps)) {
+      if (!bekannteWaffen.has(name) || !isNonNegativeNumber(stufe)) continue
+      const begrenzt = Math.min(Math.floor(stufe), BALANCE.meta.weaponSteps)
+      if (begrenzt > 0) weaponSteps[name] = begrenzt
+    }
+  }
+
   return {
     ok: true,
     data: {
@@ -238,6 +279,7 @@ export function parseSave(text: string): { ok: true; data: SaveData } | { ok: fa
       ...(metaStufe(value.metaFirepowerSteps) > 0 ? { metaFirepowerSteps: metaStufe(value.metaFirepowerSteps) } : {}),
       ...(metaStufe(value.metaTeamSteps) > 0 ? { metaTeamSteps: metaStufe(value.metaTeamSteps) } : {}),
       ...(ownedWeapons.length > 0 ? { ownedWeapons } : {}),
+      ...(Object.keys(weaponSteps).length > 0 ? { weaponSteps } : {}),
     },
   }
 }
@@ -269,6 +311,76 @@ export function getWeaponUnlockPrice(weapon: string): number | undefined {
   // an die Reihenfolge statt an das, was die Waffe im Spiel leistet.
   const preis = (eintrag as { unlockPrice?: unknown }).unlockPrice
   return typeof preis === 'number' && preis > 0 ? preis : undefined
+}
+
+/** Gekaufte Aufruestungsstufen einer Waffe. Fehlend = 0. */
+export function getWeaponSteps(data: SaveData, weapon: string): number {
+  const wert = data.weaponSteps?.[weapon]
+  return typeof wert === 'number' && Number.isFinite(wert) && wert > 0
+    ? Math.min(Math.floor(wert), BALANCE.meta.weaponSteps)
+    : 0
+}
+
+/**
+ * Preis der naechsten Aufruestungsstufe. undefined heisst "geht nicht": die Waffe ist
+ * voll ausgebaut, oder sie hat gar keinen Kaufpreis (die Pistole).
+ *
+ * ANTEIL AM WAFFENPREIS statt eigener Zahlenreihe: Sonst muesste jede der zwoelf Waffen
+ * eine eigene Preisliste tragen, und eine Preisaenderung an der Waffe liesse die
+ * Stufenpreise still daneben stehen.
+ */
+export function getWeaponStepPrice(weapon: string, steps: number): number | undefined {
+  const basis = getWeaponUnlockPrice(weapon)
+  if (basis === undefined || steps >= BALANCE.meta.weaponSteps || steps < 0) return undefined
+  const roh = basis * BALANCE.meta.weaponStepPriceShare * BALANCE.meta.weaponStepPriceGrowth ** steps
+  return Math.round(roh / 100) * 100
+}
+
+/**
+ * Was die gekauften Stufen an der Feuerkraft DIESER Waffe bewirken (1 = nichts gekauft).
+ *
+ * Der Faktor greift am damageFactor der Waffe an, nicht an den Run-Werten - deshalb
+ * faellt er NICHT unter meta.totalBoostCap. Herleitung bei BALANCE.meta.weaponSteps.
+ */
+export function getWeaponFirepowerFactor(data: SaveData, weapon: string): number {
+  return (1 + BALANCE.meta.weaponStepFirepowerBonus) ** getWeaponSteps(data, weapon)
+}
+
+/**
+ * Eine Aufruestungsstufe kaufen. undefined heisst "geht nicht": Waffe nicht gekauft,
+ * voll ausgebaut oder Konto zu klein.
+ */
+export function kaufeWaffenStufe(data: SaveData, weapon: string): SaveData | undefined {
+  if (!getOwnedWeapons(data).includes(weapon)) return undefined
+  const stufen = getWeaponSteps(data, weapon)
+  const preis = getWeaponStepPrice(weapon, stufen)
+  if (preis === undefined || data.coins < preis) return undefined
+  return {
+    ...data,
+    coins: data.coins - preis,
+    weaponSteps: { ...(data.weaponSteps ?? {}), [weapon]: stufen + 1 },
+  }
+}
+
+/**
+ * Ein gescheiterter Run wird freigekauft: Preis abziehen, Marker entfernen.
+ *
+ * ALS REINE FUNKTION, weil beide Wege hier hereinlaufen - der Knopf im
+ * Game-Over-Bildschirm und der im Menue. Vorher rechnete nur der Game-Over-Bildschirm,
+ * und das Menue bot denselben Run kostenlos an.
+ *
+ * undefined heisst "geht nicht": kein Run, keiner der gestorben ist, Konto zu klein
+ * oder der Deckel aus continueRun.maxPerRun erreicht. Der Aufrufer zeigt dann keinen
+ * Knopf - er entscheidet nicht selbst, ob es reicht.
+ */
+export function kaufeWeiterspielen(data: SaveData): SaveData | undefined {
+  const run = data.run
+  if (run === undefined || run.gestorben !== true) return undefined
+  if (run.continuesUsed >= BALANCE.continueRun.maxPerRun) return undefined
+  const preis = getContinuePrice(run.level, run.continuesUsed)
+  if (data.coins < preis) return undefined
+  const { gestorben: _tot, ...weiter } = run
+  return { ...data, coins: data.coins - preis, run: weiter }
 }
 
 /** Preis der naechsten Stufe. undefined, wenn die Linie ausgebaut ist. */

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { computeMenuLayout } from '../src/systems/menuLayout'
-import { defaultSave, parseSave, serializeSave, type SaveData } from '../src/systems/save'
+import { defaultSave, kaufeWeiterspielen, parseSave, serializeSave, type SaveData } from '../src/systems/save'
 import { getContinuePrice } from '../src/systems/upgrades'
 
 const INSETS = { top: 47, bottom: 34, left: 0, right: 0 }
@@ -16,6 +16,67 @@ function mitRun(): SaveData {
     },
   }
 }
+
+/**
+ * DER GESCHEITERTE RUN (Thomas 2026-08-25: "wenn man stirbt, steht dann dort z. B.
+ * weiter in Level 7, aber wenn man dann drueckt, steht dort der Game-Over-Bildschirm").
+ *
+ * Beim Tod bleibt der Run gespeichert, damit man ihn freikaufen kann - er war im Menue
+ * aber nicht vom gesicherten Levelstand zu unterscheiden. Der FORTSETZEN-Knopf bot ihn
+ * kostenlos an und startete das Spiel mit hp aus dem Todeszeitpunkt, also null Figuren.
+ */
+function gestorben(coins = 5000, continuesUsed = 0): SaveData {
+  return {
+    ...mitRun(),
+    coins,
+    run: { ...mitRun().run!, continuesUsed, gestorben: true },
+  }
+}
+
+describe('Gescheiterter Run', () => {
+  it('ist nicht kostenlos zu haben - freikaufen zieht den Preis ab', () => {
+    const stand = gestorben(5000)
+    const preis = getContinuePrice(7, 0)
+    const bezahlt = kaufeWeiterspielen(stand)
+    expect(bezahlt).toBeDefined()
+    expect(bezahlt!.coins).toBe(5000 - preis)
+  })
+
+  it('verliert beim Freikaufen den Todes-Marker', () => {
+    // SONST BOETE DAS MENUE DENSELBEN RUN NOCH EINMAL ZUM KAUF AN, und der Preis waere
+    // ein zweites Mal faellig.
+    const bezahlt = kaufeWeiterspielen(gestorben(5000))!
+    expect(bezahlt.run?.gestorben).toBeUndefined()
+    expect(bezahlt.run?.level).toBe(7)
+    expect(kaufeWeiterspielen(bezahlt)).toBeUndefined()
+  })
+
+  it('bleibt gesperrt, wenn das Konto nicht reicht oder der Deckel erreicht ist', () => {
+    expect(kaufeWeiterspielen(gestorben(getContinuePrice(7, 0) - 1))).toBeUndefined()
+    expect(kaufeWeiterspielen(gestorben(999999, BALANCE.continueRun.maxPerRun))).toBeUndefined()
+  })
+
+  it('laesst einen lebenden Run in Ruhe - der wird kostenlos fortgesetzt', () => {
+    expect(kaufeWeiterspielen(mitRun())).toBeUndefined()
+    expect(kaufeWeiterspielen(defaultSave())).toBeUndefined()
+  })
+
+  it('ueberlebt Speichern und Laden, und nur exakt true zaehlt als tot', () => {
+    const gelesen = parseSave(serializeSave(gestorben()))
+    expect(gelesen.ok).toBe(true)
+    if (!gelesen.ok) return
+    expect(gelesen.data.run?.gestorben).toBe(true)
+
+    // Alles andere heisst "lebt" - ein Spielstand darf daran nie scheitern.
+    const roh = JSON.parse(serializeSave(gestorben())) as Record<string, unknown>
+    ;(roh.run as Record<string, unknown>).gestorben = 'ja'
+    const seltsam = parseSave(JSON.stringify(roh))
+    expect(seltsam.ok).toBe(true)
+    if (!seltsam.ok) return
+    expect(seltsam.data.run?.gestorben).toBeUndefined()
+    expect(seltsam.data.run?.level).toBe(7)
+  })
+})
 
 describe('Weiterspielen und Fortsetzen', () => {
   it('der Preis steigt mit dem Level und verdoppelt sich je Nutzung', () => {

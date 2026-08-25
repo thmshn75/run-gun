@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { HUD_COLORS, MENU_COLORS } from '../config/colors'
 import { readSafeAreaInsets } from '../systems/safeArea'
-import { loadSave, writeSave, type ScoreEntry } from '../systems/save'
+import { kaufeWeiterspielen, loadSave, writeSave, type ScoreEntry } from '../systems/save'
 import { enableSharpText } from '../systems/textSharpness'
 
 export class GameOverScene extends Phaser.Scene {
@@ -48,28 +48,40 @@ export class GameOverScene extends Phaser.Scene {
     }
     this.renderScores(centerX, topY + 128)
 
-    // WEITERSPIELEN (B3): Nur sichtbar, wenn das Konto reicht und der Deckel von
-    // continueRun.maxPerRun noch nicht erreicht ist. Das Level beginnt von vorn, die
-    // gekauften Stufen bleiben, die Truppe startet halbiert.
+    // WEITERSPIELEN (B3): Sichtbar, solange der Deckel aus continueRun.maxPerRun nicht
+    // erreicht ist - AUCH wenn das Konto nicht reicht (2026-08-25). Vorher verschwand
+    // der Knopf in dem Fall spurlos, und damit die einzige Stelle im Spiel, an der
+    // ueberhaupt steht, dass man sich ein Weiterspielen kaufen KANN. Jetzt steht dort,
+    // was noch fehlt - dasselbe Muster wie im Shop.
+    //
+    // Das Level beginnt von vorn, die gekauften Stufen bleiben, die Truppe startet
+    // halbiert. Derselbe Knopf steht im Menue, falls man vorher hinausgeht.
     if (this.weiterspielenPreis !== undefined) {
+      const preis = this.weiterspielenPreis
+      const bezahlbar = loadSave().coins >= preis
       const knopfY = topY + 258
       const breite = this.scale.width - 2 * BALANCE.shop.ui.sidePadding - insets.left - insets.right
-      const knopf = this.add.rectangle(centerX, knopfY, breite, 68, MENU_COLORS.button)
-        .setInteractive({ useHandCursor: true })
+      const knopf = this.add.rectangle(centerX, knopfY, breite, 68, bezahlbar ? MENU_COLORS.button : MENU_COLORS.disabledButton)
+        .setStrokeStyle(2, bezahlbar ? MENU_COLORS.buttonStroke : MENU_COLORS.disabledStroke)
+      if (bezahlbar) knopf.setInteractive({ useHandCursor: true })
       this.add.text(centerX, knopfY - 11, 'WEITERSPIELEN', {
-        fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: '#ffffff',
+        fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold',
+        color: bezahlbar ? '#ffffff' : `#${MENU_COLORS.mutedText.toString(16).padStart(6, '0')}`,
       }).setOrigin(0.5)
-      this.add.text(centerX, knopfY + 17, `LEVEL ${this.level}  ·  ¢ ${this.weiterspielenPreis}`, {
+      this.add.text(centerX, knopfY + 17, bezahlbar
+        ? `LEVEL ${this.level}  ·  ¢ ${preis}`
+        : `LEVEL ${this.level}  ·  NOCH ¢ ${preis - loadSave().coins}`, {
         fontFamily: 'system-ui', fontSize: '16px',
-        color: `#${HUD_COLORS.coins.toString(16).padStart(6, '0')}`,
+        color: `#${(bezahlbar ? HUD_COLORS.coins : MENU_COLORS.mutedText).toString(16).padStart(6, '0')}`,
       }).setOrigin(0.5)
       knopf.on('pointerdown', (_p: unknown, _x: number, _y: number, ereignis: Phaser.Types.Input.EventData) => {
         if (this.elapsedMs < BALANCE.feedback.gameOverRestartDelayMs) return
         ereignis.stopPropagation()
         this.kaufeWeiterspielen()
       })
-      this.add.text(centerX, knopfY + 62, 'sonst tippen für Menü', {
-        fontFamily: 'system-ui', fontSize: '18px', color: '#8290a8',
+      // Der Weg zurueck bleibt: Der Run wartet im Menue weiter, dort steht derselbe Knopf.
+      this.add.text(centerX, knopfY + 62, bezahlbar ? 'sonst tippen für Menü' : 'tippen für Menü — der Lauf wartet dort auf dich', {
+        fontFamily: 'system-ui', fontSize: bezahlbar ? '18px' : '15px', color: '#8290a8',
       }).setOrigin(0.5)
     } else {
       this.add.text(centerX, topY + 270, 'Tippen für Menü', {
@@ -86,11 +98,11 @@ export class GameOverScene extends Phaser.Scene {
   }
 
   private kaufeWeiterspielen(): void {
-    const preis = this.weiterspielenPreis
-    if (preis === undefined) return
-    const saved = loadSave()
-    if (saved.coins < preis || saved.run === undefined) return
-    writeSave({ ...saved, coins: saved.coins - preis })
+    // Preis abziehen UND den Todes-Marker entfernen - beides steckt in kaufeWeiterspielen.
+    // Bliebe der Marker stehen, boete das Menue denselben Run noch einmal zum Kauf an.
+    const bezahlt = kaufeWeiterspielen(loadSave())
+    if (bezahlt === undefined) return
+    writeSave(bezahlt)
     this.scene.start('GameScene', { einstieg: 'weiterspielen' })
   }
 

@@ -15,7 +15,7 @@ import { getRoadHalfWidth, Road } from '../systems/road'
 import { getEnemySpeed, getScrollSpeed, setCurrentScrollSpeed } from '../systems/speed'
 import { Scenery } from '../systems/scenery'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
-import { addScore, createRunId, getMetaSteps, getOwnedWeapons, loadSave, qualifiesForScores, writeSave } from '../systems/save'
+import { addScore, createRunId, getMetaSteps, getOwnedWeapons, getWeaponFirepowerFactor, loadSave, qualifiesForScores, writeSave } from '../systems/save'
 import { Spawner } from '../systems/spawner'
 import { getStartWeaponChoices, getWeaponRewardChoices } from '../systems/weaponChoices'
 import { RunStats, type ShopLine, getStatCap, getShopPrice, getContinuePrice } from '../systems/upgrades'
@@ -192,6 +192,16 @@ export class GameScene extends Phaser.Scene {
    */
   private gekaufteWaffen: readonly string[] = []
 
+  /**
+   * Feuerkraft-Faktor der dauerhaften Aufruestung, je Waffe (2026-08-25). Einmal beim
+   * Szenenstart gerechnet - aufgeruestet wird nur im Hauptmenue.
+   *
+   * ER GREIFT AM WAFFENSCHADEN AN, nicht an runStats: Der Deckel meta.totalBoostCap
+   * sitzt auf damage und shotsPerSec und wuerde den Zugewinn beim Vielspieler
+   * verschlucken. Herleitung bei BALANCE.meta.weaponSteps.
+   */
+  private waffenAufwertung: ReadonlyMap<string, number> = new Map()
+
   public constructor() {
     super('GameScene')
   }
@@ -207,6 +217,7 @@ export class GameScene extends Phaser.Scene {
     // erste set()-Aufruf klemmt sonst noch gegen den Deckel ohne sie (E4, 2026-08-24).
     const gespeichert = loadSave()
     this.gekaufteWaffen = getOwnedWeapons(gespeichert)
+    this.waffenAufwertung = new Map(WEAPON_KEYS.map((key) => [key, getWeaponFirepowerFactor(gespeichert, key)]))
     this.runStats.setMeta({
       firepower: getMetaSteps(gespeichert, 'firepower'),
       team: getMetaSteps(gespeichert, 'team'),
@@ -590,11 +601,16 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  /** Aufruestungsfaktor dieser Waffe. 1, solange nichts gekauft ist. */
+  private aufwertung(weapon: WeaponKey): number {
+    return this.waffenAufwertung.get(weapon) ?? 1
+  }
+
   private handleProjectileHit(projectile: Phaser.Physics.Arcade.Image, enemy: Phaser.Physics.Arcade.Image): void {
     if (!projectile.active || !enemy.active) return
     const weapon = projectile.getData('weapon') as WeaponKey
     const config = this.weapons.getWeaponConfig(weapon)
-    const damage = this.runStats.get('damage') * this.getCrowdDamageMultiplier() * config.damageFactor
+    const damage = this.runStats.get('damage') * this.getCrowdDamageMultiplier() * config.damageFactor * this.aufwertung(weapon)
     if (config.pierces) {
       const hitSpawnIds = projectile.getData('hitSpawnIds') as Set<number>
       const spawnId = enemy.getData('spawnId') as number
@@ -609,7 +625,7 @@ export class GameScene extends Phaser.Scene {
     this.applyChainLightning(enemy, config, damage)
     if (config.splashRadiusPx > 0) {
       const radiusSquared = config.splashRadiusPx * config.splashRadiusPx
-      const splashDamage = this.runStats.get('damage') * this.getCrowdDamageMultiplier() * config.splashDamageFactor
+      const splashDamage = this.runStats.get('damage') * this.getCrowdDamageMultiplier() * config.splashDamageFactor * this.aufwertung(weapon)
       for (const child of this.spawner.getEnemies().getChildren()) {
         const candidate = child as Phaser.Physics.Arcade.Image
         const dx = candidate.x - impactX
@@ -630,7 +646,7 @@ export class GameScene extends Phaser.Scene {
     if (!projectile.active || !wall.active) return
     const weapon = projectile.getData('weapon') as WeaponKey
     const config = this.weapons.getWeaponConfig(weapon)
-    const damage = this.runStats.get('damage') * this.getCrowdDamageMultiplier() * config.damageFactor
+    const damage = this.runStats.get('damage') * this.getCrowdDamageMultiplier() * config.damageFactor * this.aufwertung(weapon)
     if (config.pierces) {
       const hitSpawnIds = projectile.getData('hitSpawnIds') as Set<number>
       const spawnId = wall.getData('spawnId') as number
@@ -644,7 +660,7 @@ export class GameScene extends Phaser.Scene {
     if (this.walls.damage(wall, damage)) this.audio.play('wallBreak')
     if (config.splashRadiusPx > 0) {
       const radiusSquared = config.splashRadiusPx * config.splashRadiusPx
-      const splashDamage = this.runStats.get('damage') * this.getCrowdDamageMultiplier() * config.splashDamageFactor
+      const splashDamage = this.runStats.get('damage') * this.getCrowdDamageMultiplier() * config.splashDamageFactor * this.aufwertung(weapon)
       for (const child of this.walls.getWalls().getChildren()) {
         const candidate = child as Phaser.Physics.Arcade.Image
         const dx = candidate.x - impactX
@@ -902,6 +918,10 @@ export class GameScene extends Phaser.Scene {
       highestLevel: Math.max(withScore.highestLevel, this.currentLevel),
       run: weiterMoeglich
         ? {
+          // DER TODES-MARKER (2026-08-25): Ohne ihn sah dieser Run im Menue aus wie ein
+          // an der Levelgrenze gesicherter, wurde dort kostenlos als FORTSETZEN
+          // angeboten und startete mit hp = 0 sofort wieder im Game Over.
+          gestorben: true as const,
           level: this.currentLevel,
           hp: this.runStats.get('hp'),
           damage: this.runStats.get('damage'),
@@ -918,7 +938,9 @@ export class GameScene extends Phaser.Scene {
     this.scene.start('GameOverScene', {
       coins: runCoins,
       scorePlace,
-      weiterspielenPreis: weiterMoeglich && konto >= preis ? preis : undefined,
+      // Der Preis geht auch dann mit, wenn das Konto nicht reicht: Der Knopf zeigt dann
+      // "NOCH ¢ X", statt spurlos zu verschwinden (2026-08-25).
+      weiterspielenPreis: weiterMoeglich ? preis : undefined,
       level: this.currentLevel,
     })
   }

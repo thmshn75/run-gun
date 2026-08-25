@@ -5,7 +5,8 @@ import { HUD_COLORS, MENU_COLORS } from '../config/colors'
 import { getGameAudio } from '../systems/audio'
 import { computeMenuLayout } from '../systems/menuLayout'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
-import { getMetaPrice, getMetaSteps, getOwnedWeapons, getWeaponUnlockPrice, loadSave, resetSave, writeSave, type RunSnapshot, type SaveData, type ScoreEntry } from '../systems/save'
+import { getMetaPrice, getMetaSteps, getOwnedWeapons, getWeaponStepPrice, getWeaponSteps, getWeaponUnlockPrice, kaufeWaffenStufe, kaufeWeiterspielen, loadSave, resetSave, writeSave, type RunSnapshot, type SaveData, type ScoreEntry } from '../systems/save'
+import { getContinuePrice } from '../systems/upgrades'
 import { getStartWeaponChoices } from '../systems/weaponChoices'
 import { enableSharpText } from '../systems/textSharpness'
 
@@ -57,18 +58,30 @@ export class MenuScene extends Phaser.Scene {
     this.addButton(safeLeft + safeWidth / 2, layout.playButton.top + layout.playButton.height / 2, safeWidth - 2 * BALANCE.menu.sidePadding, layout.playButton.height, 'SPIELEN', true, () => {
       this.scene.start('GameScene', { einstieg: 'neu' })
     })
-    // FORTSETZEN (B3): Nur, wenn ein Run an einer Levelgrenze gesichert ist. Er wird beim
-    // Game Over durch den Weiterspiel-Punkt ersetzt - wer stirbt, kommt hier nicht mehr
-    // kostenlos hinein, sondern zahlt im Game-Over-Bildschirm.
+    // DERSELBE KNOPF FUER ZWEI FAELLE (2026-08-25). Ein offener Run ist entweder an der
+    // Levelgrenze gesichert - dann geht es kostenlos weiter - oder er ist GESCHEITERT,
+    // dann kostet der Wiedereinstieg dasselbe wie im Game-Over-Bildschirm.
+    //
+    // Vorher stand hier in beiden Faellen FORTSETZEN. Beim gescheiterten Run startete das
+    // Spiel mit der Truppengroesse aus dem Todeszeitpunkt, also null Figuren: Der Knopf
+    // fuehrte schnurstracks zurueck ins Game Over (Thomas 2026-08-25).
     if (this.save.run !== undefined) {
       const offenerRun = this.save.run
+      const gestorben = offenerRun.gestorben === true
+      const preis = gestorben ? getContinuePrice(offenerRun.level, offenerRun.continuesUsed) : 0
+      const bezahlbar = !gestorben || this.save.coins >= preis
+      const beschriftung = !gestorben
+        ? `FORTSETZEN — LEVEL ${offenerRun.level}`
+        : bezahlbar
+          ? `WEITERSPIELEN — LEVEL ${offenerRun.level}  ·  ¢ ${preis}`
+          : `WEITERSPIELEN — LEVEL ${offenerRun.level}  ·  NOCH ¢ ${preis - this.save.coins}`
       this.addButton(
         safeLeft + safeWidth / 2,
         layout.continueButton.top + layout.continueButton.height / 2,
         safeWidth - 2 * BALANCE.menu.sidePadding,
         layout.continueButton.height,
-        `FORTSETZEN — LEVEL ${offenerRun.level}`,
-        true,
+        beschriftung,
+        bezahlbar,
         () => { this.fortsetzen(offenerRun) },
       )
     }
@@ -168,7 +181,10 @@ export class MenuScene extends Phaser.Scene {
   private fortsetzen(run: RunSnapshot): void {
     const wahl = getStartWeaponChoices(run.weapon, run.level, getOwnedWeapons(this.save))
     if (wahl.length < 2) {
-      this.scene.start('GameScene', { einstieg: 'fortsetzen' })
+      // Ohne Wahl trotzdem ueber denselben Weg: Dort haengt die Bezahlung des
+      // gescheiterten Runs dran, die hier sonst uebersprungen wuerde.
+      this.startwaffe = undefined
+      this.starteMitStartwaffe(run)
       return
     }
     this.startwaffe = wahl.find((weapon) => weapon === run.weapon) ?? wahl[0]
@@ -269,13 +285,25 @@ export class MenuScene extends Phaser.Scene {
    * beim Fortsetzen aus genau diesem Feld - es braucht dort keine Sonderbehandlung.
    */
   private starteMitStartwaffe(run: RunSnapshot): void {
+    const gestorben = run.gestorben === true
+    let stand: SaveData = this.save
     if (this.startwaffe !== undefined && this.startwaffe !== run.weapon) {
-      const aktualisiert: SaveData = { ...this.save, run: { ...run, weapon: this.startwaffe } }
-      writeSave(aktualisiert)
-      this.save = aktualisiert
+      stand = { ...stand, run: { ...run, weapon: this.startwaffe } }
+    }
+    if (gestorben) {
+      // Bezahlen und den Todes-Marker entfernen - dieselbe Funktion wie im
+      // Game-Over-Bildschirm. Reicht das Konto nicht, passiert nichts; der Knopf war
+      // dann ohnehin nicht antippbar.
+      const bezahlt = kaufeWeiterspielen(stand)
+      if (bezahlt === undefined) return
+      stand = bezahlt
+    }
+    if (stand !== this.save) {
+      writeSave(stand)
+      this.save = stand
     }
     this.closeShop()
-    this.scene.start('GameScene', { einstieg: 'fortsetzen' })
+    this.scene.start('GameScene', { einstieg: gestorben ? 'weiterspielen' : 'fortsetzen' })
   }
 
   private openResetConfirmation(): void {
@@ -492,7 +520,12 @@ export class MenuScene extends Phaser.Scene {
     const bild = this.add.image(x, y - 4, `weapon-${weapon}-hud`).setDepth(13)
     const skala = Math.min((breite - 16) / bild.width, 1.1)
     bild.setScale(skala).setAlpha(gekauft || bezahlbar ? 1 : 0.45)
-    const beschriftung = gekauft ? '✓ GEKAUFT' : `¢ ${preis}`
+    // Die Kachel zeigt bei gekauften Waffen die Ausbaustufe: Ohne sie muesste man jede
+    // Waffe einzeln oeffnen, um zu sehen, wo noch etwas fehlt.
+    const stufen = getWeaponSteps(this.save, weapon)
+    const beschriftung = gekauft
+      ? (stufen > 0 ? `✓ STUFE ${stufen}/${BALANCE.meta.weaponSteps}` : '✓ GEKAUFT')
+      : `¢ ${preis}`
     const text = this.add.text(x, y + 20, beschriftung, {
       fontFamily: 'system-ui', fontSize: '11px', fontStyle: 'bold',
       color: this.colorFor(gekauft ? MENU_COLORS.owned : bezahlbar ? MENU_COLORS.priceText : MENU_COLORS.mutedText),
@@ -526,16 +559,20 @@ export class MenuScene extends Phaser.Scene {
     const gekauft = getOwnedWeapons(this.save).includes(weapon)
     const bezahlbar = !gekauft && this.save.coins >= preis
     const minLevel = (BALANCE.weapon[weapon] as { minLevel: number }).minLevel
-    const abLevel = Math.max(1, minLevel - BALANCE.weapon.ownedLevelBonus)
+    const abLevel = BALANCE.weapon.ownedFromLevel
 
     const wall = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82)
       .setDepth(20).setInteractive()
     wall.on('pointerdown', () => this.schliesseWaffenDetail())
-    const panel = this.add.rectangle(centerX, centerY, panelWidth, 430, MENU_COLORS.row, 1)
+    // Eine gekaufte Waffe traegt zusaetzlich die Aufruestung (Stufenreihe und Knopf) -
+    // das Panel waechst dafuer nach unten. Gerechnet, nicht geraten: Der ZURUECK-Knopf
+    // sitzt bei +222 und ist 36 hoch, endet also 10 px ueber der Panelkante bei +250.
+    const panelHoehe = gekauft ? 500 : 430
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHoehe, MENU_COLORS.row, 1)
       .setDepth(21).setStrokeStyle(2, gekauft ? MENU_COLORS.owned : MENU_COLORS.rowStroke, 1)
     // Der Klick auf das Panel darf NICHT durchschlagen und die Ansicht schliessen.
     panel.setInteractive().on('pointerdown', () => undefined)
-    const name = this.add.text(centerX, centerY - 185, WEAPON_LABELS[weapon], {
+    const name = this.add.text(centerX, centerY - panelHoehe / 2 + 30, WEAPON_LABELS[weapon], {
       fontFamily: 'system-ui', fontSize: '26px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
     }).setOrigin(0.5).setDepth(22)
     this.detailObjects.push(wall, panel, name)
@@ -549,9 +586,14 @@ export class MenuScene extends Phaser.Scene {
     const alle = (Object.keys(BALANCE.weapon) as WeaponKey[])
       .filter((k) => typeof (BALANCE.weapon[k] as { killsPerSec?: number }).killsPerSec === 'number')
       .map((k) => (BALANCE.weapon[k] as { killsPerSec: number }).killsPerSec)
-    const meine = (BALANCE.weapon[weapon] as { killsPerSec: number }).killsPerSec
-    const sterne = Math.max(1, Math.round((meine / Math.max(...alle)) * 5))
-    this.detailObjects.push(this.add.text(centerX, centerY - 52, `STÄRKE  ${'★'.repeat(sterne)}${'☆'.repeat(5 - sterne)}`, {
+    const stufen = getWeaponSteps(this.save, weapon)
+    const aufwertung = (1 + BALANCE.meta.weaponStepFirepowerBonus) ** stufen
+    // Die Sterne zeigen die AUFGERUESTETE Staerke - sonst bliebe die Anzeige stehen,
+    // waehrend die Waffe im Spiel staerker wird, und der Kauf saehe folgenlos aus.
+    const meine = (BALANCE.weapon[weapon] as { killsPerSec: number }).killsPerSec * aufwertung
+    const sterne = Math.min(5, Math.max(1, Math.round((meine / Math.max(...alle)) * 5)))
+    const zusatz = stufen > 0 ? `   +${Math.round((aufwertung - 1) * 100)} %` : ''
+    this.detailObjects.push(this.add.text(centerX, centerY - 52, `STÄRKE  ${'★'.repeat(sterne)}${'☆'.repeat(5 - sterne)}${zusatz}`, {
       fontFamily: 'system-ui', fontSize: '17px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.priceText),
     }).setOrigin(0.5).setDepth(22))
 
@@ -563,22 +605,54 @@ export class MenuScene extends Phaser.Scene {
     // WANN SIE KOMMT - der Punkt, den Thomas ausdruecklich verlangt hat. Beide Faelle
     // nennen eine Levelnummer, damit man nicht raten muss.
     const hinweis = gekauft
-      ? `Gekauft. Ab Level ${abLevel} kannst du damit starten\nund sie erscheint in den Wandtoren.`
-      : `Ohne Kauf erscheint sie ab Level ${minLevel} in den Wandtoren.\nGekauft schon ab Level ${abLevel} — und du kannst\ndamit ins Level starten.`
+      ? `Gekauft. Du kannst ab Level ${abLevel} damit starten\nund sie erscheint in jedem Level in den Wandtoren.`
+      : `Ohne Kauf erscheint sie erst ab Level ${minLevel} in den Wandtoren.\nGekauft gehört sie dir sofort: ab Level ${abLevel} startbar\nund in jedem Level im Wandtor.`
     this.detailObjects.push(this.add.text(centerX, centerY + 62, hinweis, {
       fontFamily: 'system-ui', fontSize: '13px', color: this.colorFor(gekauft ? MENU_COLORS.owned : MENU_COLORS.text),
       align: 'center', lineSpacing: 3,
     }).setOrigin(0.5, 0).setDepth(22))
 
+    // AUFRUESTEN (Thomas 2026-08-25: "die moeglichkeit die Waffen upzugraden - gegen
+    // Bezahlung 5 Stufen jeweils die feuerkraft erhoehen"). Es steht nur bei gekauften
+    // Waffen: Wer die Waffe nicht hat, kann sie auch nicht verbessern.
+    const stufenPreis = gekauft ? getWeaponStepPrice(weapon, stufen) : undefined
+    const stufeBezahlbar = stufenPreis !== undefined && this.save.coins >= stufenPreis
+    if (gekauft) {
+      const maximum = BALANCE.meta.weaponSteps
+      const punktBreite = 26
+      const start = centerX - ((maximum - 1) * punktBreite) / 2
+      for (let i = 0; i < maximum; i += 1) {
+        this.detailObjects.push(this.add.rectangle(
+          start + i * punktBreite, centerY + 118, 18, 18,
+          i < stufen ? MENU_COLORS.levelFilled : MENU_COLORS.levelEmpty, 1,
+        ).setOrigin(0.5).setDepth(22))
+      }
+      // JETZT UND NACHHER in einer Zeile: "+7 %" allein ist eine Zahl ohne Bezug.
+      const danach = Math.round(((1 + BALANCE.meta.weaponStepFirepowerBonus) ** (stufen + 1) - 1) * 100)
+      const zeile = stufenPreis === undefined
+        ? `STUFE ${stufen} VON ${maximum}  ·  voll ausgebaut, +${Math.round((aufwertung - 1) * 100)} %`
+        : `STUFE ${stufen} VON ${maximum}  ·  +${Math.round((aufwertung - 1) * 100)} % → +${danach} % Feuerkraft`
+      this.detailObjects.push(this.add.text(centerX, centerY + 142, zeile, {
+        fontFamily: 'system-ui', fontSize: '13px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.priceText),
+      }).setOrigin(0.5).setDepth(22))
+    }
+
     const beschriftung = gekauft
-      ? '✓ GEKAUFT'
+      ? stufenPreis === undefined
+        ? 'VOLL AUSGEBAUT'
+        : stufeBezahlbar ? `AUFRÜSTEN  ¢ ${stufenPreis}` : `NOCH ¢ ${stufenPreis - this.save.coins}`
       : bezahlbar ? `KAUFEN  ¢ ${preis}` : `NOCH ¢ ${preis - this.save.coins}`
+    const knopfAktiv = gekauft ? stufeBezahlbar : bezahlbar
     this.detailObjects.push(...this.addButton(
-      centerX, centerY + 148, panelWidth - 48, 44, beschriftung, bezahlbar,
-      () => { if (bezahlbar) this.kaufeWaffe(weapon, preis) }, undefined, !bezahlbar, 22,
+      centerX, centerY + (gekauft ? 178 : 148), panelWidth - 48, 44, beschriftung, knopfAktiv,
+      () => {
+        if (!knopfAktiv) return
+        if (gekauft) this.ruesteWaffeAuf(weapon)
+        else this.kaufeWaffe(weapon, preis)
+      }, undefined, !knopfAktiv, 22,
     ))
     this.detailObjects.push(...this.addButton(
-      centerX, centerY + 196, panelWidth - 48, 36, 'ZURÜCK', true,
+      centerX, centerY + (gekauft ? 222 : 196), panelWidth - 48, 36, 'ZURÜCK', true,
       () => { this.schliesseWaffenDetail() }, undefined, true, 22,
     ))
   }
@@ -696,6 +770,27 @@ export class MenuScene extends Phaser.Scene {
     this.closeShop()
     this.renderShop()
     this.openShop()
+  }
+
+  /**
+   * Eine Aufruestungsstufe kaufen. Danach dasselbe Aufraeumen wie beim Waffenkauf: Erst
+   * die Detailansicht weg, dann der Laden neu - sonst liegen ihre Objekte ueber dem
+   * frisch gezeichneten Regal.
+   *
+   * Die Ansicht geht danach WIEDER AUF, anders als beim Waffenkauf: Man kauft hier
+   * ueblicherweise mehrere Stufen hintereinander, und jedes Mal neu hineinzutippen waere
+   * eine Schikane.
+   */
+  private ruesteWaffeAuf(weapon: WeaponKey): void {
+    const aktualisiert = kaufeWaffenStufe(this.save, weapon)
+    if (aktualisiert === undefined) return
+    writeSave(aktualisiert)
+    this.save = aktualisiert
+    this.schliesseWaffenDetail()
+    this.closeShop()
+    this.renderShop()
+    this.openShop()
+    this.zeigeWaffenDetail(weapon)
   }
 
   private kaufeMetaStufe(line: 'firepower' | 'team', preis: number): void {

@@ -51,13 +51,17 @@ describe('additional weapons', () => {
 
   it('staffelt die Reichweiten nach der Realitaet, ohne die Kampfzone aufzuheben', () => {
     // Thomas 2026-08-22: "Schussreichweite an Waffen anpassen - Vergleich zur Realitaet".
-    // Reihenfolge kurz -> weit: Flamme, Schrot, Blitz, Gewehr, Laser, Minigun, Rakete.
+    // Reihenfolge kurz -> weit: Schrot, Flamme, Blitz, Gewehr, Laser, Minigun, Rakete.
+    //
+    // Die Flamme ist am 2026-08-25 von 0,28 auf 0,44 gestiegen und damit an der
+    // Schrotflinte vorbei (Thomas: "Flammenwerfer braucht groessere Reichweite"). Sie
+    // bleibt unter dem Mittelfeld - der Nahkampf-Charakter soll erhalten bleiben.
     //
     // Der Laser ist am 2026-08-23 von 0,85 auf 0,60 gefallen und liegt damit nicht mehr
     // an der Spitze (Thomas: "noch eines Laser ... es laeuft durch"). Gemessen starben
     // die Gegner mit 0,85 im Mittel auf y = 225, also praktisch in dem Moment, in dem
     // sie beschiessbar wurden - die Kampfzone war fuer diese Waffe aufgehoben.
-    const reihenfolge: readonly WeaponKey[] = ['flamethrower', 'shotgun', 'chainlightning', 'normal', 'laser', 'minigun', 'rocket']
+    const reihenfolge: readonly WeaponKey[] = ['shotgun', 'flamethrower', 'chainlightning', 'normal', 'laser', 'minigun', 'rocket']
     for (let index = 1; index < reihenfolge.length; index += 1) {
       expect(BALANCE.weapon[reihenfolge[index]].engageShare, reihenfolge[index])
         .toBeGreaterThan(BALANCE.weapon[reihenfolge[index - 1]].engageShare)

@@ -31,12 +31,12 @@ describe('Startwaffenwahl', () => {
     expect(nachher).toContain('rocket')
   })
 
-  it('gekaufte Waffen kommen ein Level frueher, aber nicht ab Level 1', () => {
+  it('eine gekaufte Waffe ist ab Level 1 waehlbar, eine ungekaufte nie', () => {
+    // Thomas 2026-08-25: "beim kauf der waffen, die waffen von Level 1 an verfuegbar
+    // machen". Der Kauf hebt die Levelsperre ganz auf, nicht um ein Level.
     const minLevel = (BALANCE.weapon.rocket as { minLevel: number }).minLevel
-    const bonus = BALANCE.weapon.ownedLevelBonus
-    expect(getStartWeaponChoices('pistol', minLevel - bonus, ['rocket'])).toContain('rocket')
-    expect(getStartWeaponChoices('pistol', minLevel - bonus - 1, ['rocket'])).not.toContain('rocket')
-    expect(getStartWeaponChoices('pistol', 1, ['rocket'])).not.toContain('rocket')
+    expect(getStartWeaponChoices('pistol', 1, ['rocket'])).toContain('rocket')
+    expect(getStartWeaponChoices('pistol', minLevel, [])).not.toContain('rocket')
   })
 
   it('wer nichts gekauft hat und die Pistole traegt, hat nichts zu waehlen', () => {
