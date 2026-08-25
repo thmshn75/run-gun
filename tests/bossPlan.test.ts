@@ -16,6 +16,7 @@ import {
   getPhaseTwoProfile,
   getTeamFirepower,
   getWeaponFirepower,
+  isEliteBossLevel,
 } from '../src/systems/bossPlan'
 
 // AUS DER BALANCE ABGELEITET statt hart kodiert (2026-08-24). Die alte Liste war
@@ -277,5 +278,73 @@ describe('boss plans', () => {
     expect(plan.phaseTwo).not.toHaveProperty('moveSpeed')
     expect(plan.hordeSize).toBe(getBossHordeSize(12))
     expect(plan.maxActiveCalled).toBe(BALANCE.boss.hordePressure.maxActiveCalled)
+  })
+})
+
+describe('Elite-Boss (E7, 2026-08-25)', () => {
+  it('erscheint alle fuenf Level, aber nie als erster Boss', () => {
+    // Thomas: "Zwischenboss ... alle fuenf Level". Auf Level 5 und 10 muss er schaffbar
+    // bleiben - dort hat man weder Meta-Ausbau noch die spaeten Waffen.
+    expect(isEliteBossLevel(5)).toBe(true)
+    expect(isEliteBossLevel(10)).toBe(true)
+    expect(isEliteBossLevel(30)).toBe(true)
+    for (const level of [1, 2, 4, 6, 9, 11, 14]) expect(isEliteBossLevel(level)).toBe(false)
+  })
+
+  it('baut den Elite ueber VERHALTEN, nicht ueber Lebenspunkte', () => {
+    // DER KERN DER ETAPPE. Gemessen haengt die Boss-Kampfdauer am Gegnerschild, nicht an
+    // seinen Lebenspunkten - dieselbe Konfiguration lieferte einmal 29 und einmal 109
+    // Sekunden. Ein zaeherer Boss wird also nur LAENGER. Wenn der Lebenspunkt-Aufschlag
+    // hier je ueber die Begleiter-Aufschlaege steigt, ist die Etappe falsch gebaut.
+    const normal = getBossPlan(9, 30, 'normal', 7, 8)
+    const elite = getBossPlan(10, 30, 'normal', 7, 8)
+    expect(elite.elite).toBe(true)
+    expect(normal.elite).toBe(false)
+
+    const hpAufschlag = BALANCE.boss.elite.maxHpFactor
+    expect(hpAufschlag).toBeLessThan(BALANCE.boss.elite.hordeSizeFactor)
+    expect(hpAufschlag).toBeLessThan(BALANCE.boss.elite.maxActiveFactor)
+    expect(hpAufschlag).toBeLessThan(BALANCE.boss.elite.advanceSpeedFactor)
+  })
+
+  it('gibt ihm mehr Begleiter und schnelleres Vorruecken', () => {
+    const elite = getBossPlan(10, 30, 'normal', 7, 8)
+    const normal = getBossPlan(9, 30, 'normal', 7, 8)
+    expect(elite.hordeSize).toBeGreaterThan(normal.hordeSize)
+    expect(elite.maxActiveCalled).toBeGreaterThan(normal.maxActiveCalled)
+    expect(elite.advanceSpeed).toBeGreaterThan(normal.advanceSpeed)
+  })
+
+  it('haelt das Pendeln im Korridor', () => {
+    // Die Amplitude ist ein ANTEIL der Strassenbreite, nicht eine feste Pixelzahl: Der
+    // Korridor verjuengt sich perspektivisch nach oben, eine feste Zahl truege den Boss
+    // beim Vorruecken aus der Strasse heraus. Ueber 0,5 waere er am Rand nicht mehr
+    // zuverlaessig zu treffen.
+    expect(BALANCE.boss.elite.swingAmplitudeShare).toBeGreaterThan(0)
+    expect(BALANCE.boss.elite.swingAmplitudeShare).toBeLessThanOrEqual(0.5)
+    // Eine volle Pendelbewegung muss laenger dauern als eine Salve braucht, sonst ist
+    // Nachfuehren unmoeglich statt fordernd.
+    expect(BALANCE.boss.elite.swingSeconds).toBeGreaterThan(2)
+  })
+})
+
+describe('Pendeln darf den Kampf nicht nur verlaengern (E7)', () => {
+  it('haelt die Amplitude klein genug, dass die Feuerlinie den Boss behaelt', () => {
+    // GEMESSEN: Die Truppe schiesst spurtreu. Bei Amplitude 0,45 stand der Boss die
+    // meiste Zeit neben der Feuerlinie und die Trefferrate halbierte sich (67 statt 120
+    // HP/s) - er wurde fast doppelt so lange beschossen, ohne gefaehrlicher zu sein.
+    // Bei 0,20 kostet es noch 11 %.
+    //
+    // Wer diesen Wert wieder anhebt, baut die Etappe genau in den Fehler zurueck, den
+    // ihre eigene Reissleine verbietet.
+    expect(BALANCE.boss.elite.swingAmplitudeShare).toBeLessThanOrEqual(0.25)
+  })
+
+  it('haelt den Lebenspunkt-Aufschlag klein - er ist nicht der Hebel', () => {
+    // Dauer = Lebenspunkte / Trefferrate. Beide Elite-Faktoren verlaengern den Kampf;
+    // zusammen muessen sie unter der Akzeptanzgrenze von +50 % bleiben.
+    const hpAufschlag = BALANCE.boss.elite.maxHpFactor
+    const trefferverlust = 1 / 0.89
+    expect(hpAufschlag * trefferverlust).toBeLessThan(1.5)
   })
 })

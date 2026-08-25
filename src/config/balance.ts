@@ -2199,6 +2199,74 @@ export const BALANCE = {
       // Wand aus Gegnern statt als Welle.
       minIntervalMs: 500,
     },
+    // ELITE-BOSS (E7, Thomas 2026-08-24: "ein neues Bild, groesser und boeser, und er
+    // darf sich hin und her bewegen").
+    //
+    // ER WIRD UEBER VERHALTEN GEBAUT, NICHT UEBER LEBENSPUNKTE - der wichtigste Satz
+    // hier. Am 2026-08-22 und erneut am 2026-08-23 wurde gemessen, dass die
+    // Boss-Kampfdauer nicht an seinen Lebenspunkten haengt, sondern am Gegnerschild
+    // davor: Dieselbe Konfiguration lieferte einmal 29 und einmal 109 Sekunden. Ein Boss
+    // mit mehr Lebenspunkten wird also nur LAENGER, nicht schwerer - man wartet dann
+    // bloss vor einer groesseren Zahl.
+    //
+    // ACHTUNG, der naheliegende Hebel ist TOTER CODE: level.plans[].companionLimit sieht
+    // aus wie die Stellschraube fuer Begleiter, wird aber nur durchgereicht und in einem
+    // Test abgefragt - im Spiel liest ihn niemand. Der tatsaechliche Begleiterdruck
+    // laeuft ueber hordePressure (oben) und phaseOne/phaseTwo.hordePressureShare.
+    // AKZEPTANZ GEMESSEN (je drei Laeufe, frische Szene, Trefferrate ueber 15 s):
+    //   normaler Boss (Level 9):  87 s     Elite (Level 10): 116 s
+    // Der Elite liegt 34 % darueber, erlaubt sind 50 %. Erfuellt.
+    //
+    // ⚠ DER GROESSERE BEFUND STECKT IN DEN ABSOLUTZAHLEN, und er betrifft NICHT nur den
+    // Elite: Ein Bosskampf dauert real ein bis zwei Minuten, geplant sind 20-40 s. Die
+    // Lebenspunkte werden aus einer GERECHNETEN Feuerkraft abgeleitet (referenceDps in
+    // bossPlan), die weit ueber der tatsaechlichen Trefferrate liegt - gemessen auf
+    // Level 9 mit voller Truppe:
+    //   Pistole      gerechnet 514 DPS -> 21 s   ·  gemessen  91 DPS -> 121 s
+    //   Sturmgewehr  gerechnet 721 DPS -> 20 s   ·  gemessen 195 DPS ->  74 s
+    //   Laser        gerechnet 464 DPS -> 22 s   ·  gemessen 229 DPS ->  44 s
+    // Der Faktor schwankt zwischen 2 und 6 je nach Waffe: Nicht jeder Schuss trifft den
+    // weit oben stehenden Boss, und langsame Geschosse verfehlen ihn haeufiger. Die
+    // Formel kennt diesen Verlust nicht.
+    //
+    // BEWUSST NICHT IN E7 REPARIERT: Das ist ein bestehender Zustand des Bosssystems,
+    // nicht Folge des Elite-Bosses, und er anzufassen hiesse, die Lebenspunktkurve aller
+    // zwoelf Bosslevel neu herzuleiten. Thomas vorgelegt statt still gedreht.
+    elite: {
+      // Alle fuenf Level, also 5, 10, 15, 20, ... Auf 5 und 10 muss er schaffbar
+      // bleiben: Dort hat man weder Meta-Ausbau noch die spaeten Waffen.
+      everyLevels: 5,
+      // MEHR BEGLEITER statt mehr Lebenspunkte. Beide Werte wirken zusammen: hordeSize
+      // bestimmt, wie viele auf einmal kommen, maxActive den gleichzeitigen Bestand.
+      hordeSizeFactor: 1.4,
+      maxActiveFactor: 1.35,
+      // SCHNELLERES VORRUECKEN. Er kommt der Truppe frueher nahe, der Spieler hat
+      // weniger Zeit - das ist Druck, der nicht in Wartezeit umschlaegt.
+      advanceSpeedFactor: 1.3,
+      // SEITLICHES PENDELN. Es wurde am 2026-08-23 beim normalen Boss bewusst entfernt;
+      // hier kommt es als EIGENSCHAFT DES ELITE-BOSSES zurueck. Beim normalen bleibt es
+      // entfernt. Amplitude als Anteil der halben Strassenbreite.
+      //
+      // 0,45 -> 0,20, GEMESSEN UND ZURUECKGENOMMEN: Die Truppe schiesst spurtreu
+      // (projectile.laneFollow). Ein Boss, der quer durch den Korridor pendelt, steht
+      // die meiste Zeit NEBEN der Feuerlinie - gemessen halbierte das die Trefferrate:
+      //   Amplitude 0,45 -> 67 HP/s   0,20 -> 107   0,12 -> 110   ohne -> 120
+      // Er wurde damit fast doppelt so lange beschossen, ohne im Geringsten
+      // gefaehrlicher zu sein. Genau das verbietet der V4-Plan fuer diese Etappe: "Bleibt
+      // der Elite-Boss trotz Verhaltensaenderung nur laenger" - und dieselbe Wirkungskette
+      // steht schon als Lesson im Projekt (2026-08-22, Zielsuche half dem Gegner).
+      //
+      // Bei 0,20 kostet das Pendeln noch 11 % Trefferrate. Der Ausschlag betraegt auf
+      // Kampfhoehe rund 60 px - sichtbar, man muss nachfuehren, aber die Feuerlinie
+      // verliert ihn nicht.
+      swingAmplitudeShare: 0.2,
+      swingSeconds: 3.4,
+      // Lebenspunkte NUR leicht darueber. Nicht null, damit er nicht schneller faellt
+      // als der gewoehnliche, aber klein genug, dass die Kampfdauer nicht davon getragen
+      // wird - die Akzeptanz erlaubt hoechstens 50 % ueber dem normalen Boss, und die
+      // sollen aus dem Verhalten kommen.
+      maxHpFactor: 1.15,
+    },
     // Der Boss RUECKT AB KAMPFBEGINN VOR (Thomas 2026-08-22: "der boss muss langsam auf
     // mich zukommen, langsamer als die mobs aber doch auf mich zu"). Vorher stand er
     // 36 s regungslos auf battleY und setzte sich erst dann in Bewegung - in den meisten

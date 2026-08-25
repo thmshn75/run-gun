@@ -28,6 +28,8 @@ export type BossPlan = {
   readonly maxActiveCalled: number
   readonly pressureDelayMs: number
   readonly advanceSpeed: number
+  /** Elite-Boss (E7): anderes Bild, pendelt seitlich, mehr Begleiter. */
+  readonly elite: boolean
   readonly advanceStopBeforeAnchorPx: number
   readonly advanceContactDamage: number
 }
@@ -142,6 +144,19 @@ export function getPhaseTwoProfile(level: number): BossPhaseTwoProfile {
   }
 }
 
+/**
+ * Ist dieses Level ein Elite-Boss-Level? (E7, 2026-08-25)
+ *
+ * Alle boss.elite.everyLevels Level, also 5, 10, 15, 20 ... Level 0 gibt es nicht, und
+ * Level unterhalb des Intervalls sind nie Elite - der erste Boss ueberhaupt soll der
+ * gewoehnliche sein.
+ */
+export function isEliteBossLevel(level: number): boolean {
+  const safeLevel = Math.max(1, Math.floor(level))
+  const alle = BALANCE.boss.elite.everyLevels
+  return alle > 0 && safeLevel >= alle && safeLevel % alle === 0
+}
+
 export function getBossPlan(
   level: number,
   teamSize: number,
@@ -166,20 +181,31 @@ export function getBossPlan(
     * (1 / getWeaponFirepower(weapon)) ** (1 - reference.weaponDampening)
     * statTerm
   const fightSec = Math.min(getMaxFightSec(safeLevel), Math.max(reference.minFightSec, unclampedFightSec))
-  const maxHp = Math.round(referenceDps * fightSec)
+  // Der Elite-Boss bekommt nur einen KLEINEN Lebenspunkt-Aufschlag. Mehr waere hier der
+  // falsche Hebel: Gemessen haengt die Kampfdauer am Gegnerschild, nicht an seinen
+  // Lebenspunkten - ein zaeherer Boss wird nur laenger (Herleitung bei BALANCE.boss.elite).
+  const elite = isEliteBossLevel(safeLevel)
+  const maxHp = Math.round(referenceDps * fightSec * (elite ? BALANCE.boss.elite.maxHpFactor : 1))
 
   return {
     level: safeLevel,
+    elite,
     maxHp,
     phaseThresholdHp: maxHp / 2,
     referenceDps,
     referenceFightSec: maxHp / referenceDps,
     phaseOne: getPhaseOneProfile(safeLevel),
     phaseTwo: getPhaseTwoProfile(safeLevel),
-    hordeSize: getBossHordeSize(safeLevel),
-    maxActiveCalled: BALANCE.boss.hordePressure.maxActiveCalled,
+    // DIE EIGENTLICHEN ELITE-HEBEL: mehr Begleiter und schnelleres Vorruecken. Beides
+    // erzeugt Druck, der nicht in Wartezeit umschlaegt.
+    hordeSize: elite
+      ? Math.round(getBossHordeSize(safeLevel) * BALANCE.boss.elite.hordeSizeFactor)
+      : getBossHordeSize(safeLevel),
+    maxActiveCalled: elite
+      ? Math.round(BALANCE.boss.hordePressure.maxActiveCalled * BALANCE.boss.elite.maxActiveFactor)
+      : BALANCE.boss.hordePressure.maxActiveCalled,
     pressureDelayMs: BALANCE.boss.pressureDelayMs,
-    advanceSpeed: BALANCE.boss.advanceSpeed,
+    advanceSpeed: BALANCE.boss.advanceSpeed * (elite ? BALANCE.boss.elite.advanceSpeedFactor : 1),
     advanceStopBeforeAnchorPx: BALANCE.boss.advanceStopBeforeAnchorPx,
     advanceContactDamage: BALANCE.boss.advanceContactDamage,
   }

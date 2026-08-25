@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { getBossPhase, getBossPlan, type BossPlan } from './bossPlan'
 import { getPerspectiveScale } from './road'
+import { getRoadHalfWidth } from './roadGeometry'
 import type { WeaponKey } from './weapons'
 
 export class Boss {
@@ -13,6 +14,9 @@ export class Boss {
   private readonly getAnchorY: () => number
   private plan: BossPlan | undefined
   private fightElapsedMs: number
+
+  /** Laufzeit fuer das seitliche Pendeln des Elite-Bosses. */
+  private swingElapsedMs = 0
   private hordeAccumulatorMs: number
   private approaching: boolean
   private phaseTwoStarted: boolean
@@ -51,16 +55,30 @@ export class Boss {
     return enemy === this.enemy
   }
 
+  /**
+   * Wie viele gerufene Begleiter gleichzeitig aktiv sein duerfen. Kommt aus dem Plan,
+   * weil der Elite-Boss ihn anhebt - ein fester Wert an der Aufrufstelle wuerde den
+   * Elite-Aufschlag still verschlucken.
+   */
+  public getMaxActiveCalled(): number {
+    return this.plan?.maxActiveCalled ?? BALANCE.boss.hordePressure.maxActiveCalled
+  }
+
   public activate(level: number, teamSize: number, weapon: WeaponKey, damage: number, rate: number): void {
     const y = BALANCE.road.horizonY
     this.plan = getBossPlan(level, teamSize, weapon, damage, rate)
     this.fightElapsedMs = 0
+    this.swingElapsedMs = 0
     // Die erste Horde soll nicht sofort im Anmarsch stehen: Der Kampf beginnt mit dem
     // Boss allein, der Zaehler startet bei null und laeuft erst ab dem Kampfbeginn.
     this.hordeAccumulatorMs = 0
     this.approaching = true
     this.phaseTwoStarted = false
     this.phaseFlashRemainingMs = 0
+    // Eigenes Bild fuer den Elite-Boss - er soll auf den ersten Blick als anderer
+    // Gegner lesbar sein, nicht als groesserer derselbe.
+    this.enemy.setTexture(this.plan.elite ? 'enemy-boss-elite' : 'enemy-boss')
+    this.swingElapsedMs = 0
     this.enemy.enableBody(true, this.scene.scale.width / 2, y, true, true)
     this.enemy.setActive(true).setVisible(true).setAlpha(0).clearTint()
     const body = this.enemy.body as Phaser.Physics.Arcade.Body
@@ -146,6 +164,29 @@ export class Boss {
     this.enemy.setData('contactDamage', plan.advanceContactDamage)
     const stopY = Math.max(BALANCE.boss.battleY, this.getAnchorY() - plan.advanceStopBeforeAnchorPx)
     this.enemy.y = Math.min(this.enemy.y + (plan.advanceSpeed * dt) / 1000, stopY)
+    this.swingSideways(dt, plan)
+  }
+
+  /**
+   * Seitliches Pendeln - nur beim Elite-Boss (E7, Thomas: "er darf sich hin und her
+   * bewegen").
+   *
+   * Beim gewoehnlichen Boss wurde das Pendeln am 2026-08-23 bewusst entfernt und bleibt
+   * es auch; hier ist es die Eigenschaft, die den Elite-Kampf anders spielen laesst: Man
+   * muss nachfuehren, statt draufzuhalten.
+   *
+   * Die Amplitude haengt an der STRASSENBREITE AUF SEINER HOEHE, nicht an einer festen
+   * Pixelzahl. Der Korridor verjuengt sich perspektivisch nach oben; eine feste Zahl
+   * truege ihn beim Vorruecken aus der Strasse heraus.
+   */
+  private swingSideways(dt: number, plan: BossPlan): void {
+    if (!plan.elite) return
+    this.swingElapsedMs += dt
+    const { swingAmplitudeShare, swingSeconds } = BALANCE.boss.elite
+    const halbeStrasse = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, this.enemy.y)
+    const amplitude = halbeStrasse * swingAmplitudeShare
+    const phase = (this.swingElapsedMs / 1000 / swingSeconds) * Math.PI * 2
+    this.enemy.x = this.scene.scale.width / 2 + Math.sin(phase) * amplitude
   }
 
   private updateVisuals(dt: number, plan: BossPlan): void {

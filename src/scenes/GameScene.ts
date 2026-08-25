@@ -296,7 +296,9 @@ export class GameScene extends Phaser.Scene {
     this.boss = new Boss(
       this,
       () => this.spawner.allocateSpawnId(),
-      (size) => this.spawner.requestBossHorde(size, BALANCE.boss.hordePressure.maxActiveCalled),
+      // Aus dem PLAN, nicht aus BALANCE: Der Elite-Boss hebt diesen Wert (E7). Wer hier
+      // den festen Wert liest, bekommt still den gewoehnlichen Begleiterdruck.
+      (size) => this.spawner.requestBossHorde(size, this.boss.getMaxActiveCalled()),
       () => this.crowd.getAnchorY(),
     )
     this.coins = new Coins(this, () => this.updateHud())
