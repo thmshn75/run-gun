@@ -171,9 +171,15 @@ export class MenuScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(12)
     this.confirmationObjects.push(wall, panel, question, explanation)
     this.confirmationObjects.push(...this.addButton(centerX, centerY + 36, panelWidth - 32, 42, 'JA, LÖSCHEN', true, () => {
-      this.save = resetSave()
+      resetSave()
       this.closeResetConfirmation()
-      this.renderShop()
+      // GANZE SZENE NEU statt nur den Kontostand (Fehler vom 2026-08-25, Thomas: "wenn
+      // ich auf zuruecksetzen gehe, steht dann darunter immer noch weiter in Level X").
+      // Der FORTSETZEN-Knopf entsteht in create() und blieb mit der alten Levelnummer
+      // stehen; geklickt startete er korrekt bei Level 1, die Beschriftung log also.
+      // Auch das LAYOUT haengt daran - computeMenuLayout rechnet mit einem Knopf weniger,
+      // wenn kein Run gesichert ist, also verschieben sich alle anderen mit.
+      this.scene.restart()
     }, undefined, false, 12))
     this.confirmationObjects.push(...this.addButton(centerX, centerY + 88, panelWidth - 32, 36, 'ABBRECHEN', true, () => {
       this.closeResetConfirmation()
