@@ -6,8 +6,10 @@
 
 ## Task
 
-`IDLE` — V4 ist vollstaendig gebaut und gemessen: E1 bis E7, Bosskampfdauer, Shop mit
-Waffenregal und Startwaffenwahl. Wartet auf Bennis iPhone-Test.
+`IDLE` — V4 ist vollstaendig gebaut und gemessen, dazu die sechs Aenderungen vom Abend
+des 2026-08-25 (Reichweiten von Flamme und Blitz, Weiterspielen nach dem Tod, guenstigere
+Preise plus Waffen-Aufruestung, Waffen ab Level 1, Testgelaende). Wartet auf Bennis
+iPhone-Test.
 
 ---
 

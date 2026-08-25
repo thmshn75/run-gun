@@ -94,6 +94,19 @@ export class MenuScene extends Phaser.Scene {
       true,
       () => { this.openShop() },
     )
+    // TESTGELAENDE (Benni ueber Thomas 2026-08-25: "ob es sowas wie ein testlevel geben
+    // kann, wo man alle waffen einzeln ausprobieren kann"). Es zaehlt fuer nichts: kein
+    // Spielstand, keine Bestenliste, kein Sterben.
+    this.addButton(
+      safeLeft + safeWidth / 2,
+      layout.testButton.top + layout.testButton.height / 2,
+      safeWidth - 2 * BALANCE.menu.sidePadding,
+      layout.testButton.height,
+      'TESTGELÄNDE — ALLE WAFFEN AUSPROBIEREN',
+      true,
+      () => { this.scene.start('GameScene', { einstieg: 'test' }) },
+      undefined, true,
+    )
     this.addButton(safeLeft + safeWidth / 2, layout.resetButton.top + layout.resetButton.height / 2, safeWidth - 2 * BALANCE.menu.sidePadding, layout.resetButton.height, 'ZURÜCKSETZEN', true, () => {
       this.openResetConfirmation()
     }, undefined, true)

@@ -18,6 +18,12 @@ export interface ShopZustand {
    * gerade getragene. Leer heisst: nichts zu waehlen, die Reihe bleibt unsichtbar.
    */
   readonly waffen: readonly { readonly key: string; readonly aktiv: boolean }[]
+  /**
+   * Im Testgelaende (2026-08-25) traegt dieselbe Pause andere Beschriftungen: Es ist
+   * kein Level geschafft, und es wird beim Beenden nichts gespeichert. Fehlt das Feld,
+   * bleibt alles wie im normalen Lauf.
+   */
+  readonly testgelaende?: boolean
 }
 
 interface Knopf {
@@ -185,7 +191,11 @@ export class ShopOverlay {
   }
 
   public aktualisieren(zustand: ShopZustand): void {
-    this.ueberschrift.setText(`LEVEL ${zustand.level} GESCHAFFT`)
+    this.ueberschrift.setText(zustand.testgelaende === true ? 'TESTGELÄNDE' : `LEVEL ${zustand.level} GESCHAFFT`)
+    // "SPEICHERN & BEENDEN" waere im Testgelaende eine Luege: Dort wird nichts
+    // gespeichert, mit Absicht.
+    this.beendenText.setText(zustand.testgelaende === true ? 'ZURÜCK INS MENÜ' : 'SPEICHERN & BEENDEN')
+    this.waffenTitel.setText(zustand.testgelaende === true ? 'WAFFE AUSPROBIEREN' : 'STARTWAFFE')
     this.konto.setText(`¢ ${zustand.konto}`)
     this.aktualisiereKnopf('firepower', zustand)
     this.aktualisiereKnopf('team', zustand)

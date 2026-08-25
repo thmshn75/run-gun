@@ -1037,6 +1037,25 @@ export const BALANCE = {
     weaponStepPriceShare: 0.3,
     weaponStepPriceGrowth: 1.45,
   },
+  // DAS TESTGELAENDE (Benni ueber Thomas 2026-08-25: "ob es sowas wie ein testlevel
+  // geben kann, wo man alle waffen einzeln ausprobieren kann").
+  //
+  // Es ist bewusst KEIN eigener Spielmodus mit eigener Schleife, sondern das normale
+  // Spiel mit drei Aenderungen: Die Truppe kann nicht sterben, es wird NICHTS
+  // gespeichert, und das Level endet nie. Alles andere - Gegner, Wandtore, Sammelbahn,
+  // Muenzen - laeuft wie immer. Eine zweite Spielschleife waere die teuerste Art, diesen
+  // Wunsch zu erfuellen, und die erste, die bei jeder Aenderung am Spiel veraltet.
+  //
+  // LEVEL 5 als Buehne: Level 1 ist zu leer, um einen Unterschied zwischen zwei Waffen
+  // zu sehen (dort ist der Gegnernachschub der Engpass, nicht die Feuerkraft - gemessen
+  // am 2026-08-25). Ab Level 8 kommt so viel, dass man das Ausprobieren nicht mehr in
+  // Ruhe beobachten kann.
+  testground: {
+    level: 5,
+    // Feste Truppengroesse. 30 ist der Punkt, an dem crowd.damageMultiplierCap ausgereizt
+    // ist: Ab hier haengt der Unterschied zwischen zwei Waffen NUR noch an der Waffe.
+    truppe: 30,
+  },
   continueRun: {
     // 250 x erreichtes Level: 750 auf Level 3, 2.000 auf Level 8, 3.000 auf Level 12.
     // Gegenprobe an der Einnahme: Ein voller Run bringt 10.454 und kostet 6.800 an Stufen,
@@ -1366,15 +1385,38 @@ export const BALANCE = {
       bulletsPerShot: 5,
       fanAngleDeg: 52,
       projectileSpeed: 620,
-      // 0,28 -> 0,44 (Thomas 2026-08-25: "Flammenwerfer braucht groessere Reichweite").
-      // Die Vorlage aus der Realitaet - ein Strahl, der nach wenigen Dutzend Metern
-      // zerfaellt - hat ihn zur kuerzesten der regulaeren Waffen gemacht, und im
-      // Hochformat heisst kurz: Die Gegner stehen fast in der Truppe, bevor ueberhaupt
-      // gefeuert wird. Er sitzt jetzt zwischen Schrotflinte (0,38) und Kettenblitz
-      // (0,45) und bleibt damit unter dem Mittelfeld - der Nahkampf-Charakter bleibt,
-      // das Verhungern hoert auf. Kuerzeste Waffe des Spiels ist weiter die
-      // Schockwelle (0,22).
-      engageShare: 0.44,
+      // 0,28 -> 0,58 (Thomas 2026-08-25: "Flammenwerfer braucht groessere Reichweite",
+      // und nachgeschoben: "ab level 8-10 werden die mobs so schnell bzw. die staerkeren
+      // so viele, dass Flammenwerfer oder blitz nicht mehr nachkommt sie wegzuraeumen,
+      // obwohl das eigentlich die staerkeren waffen sind").
+      //
+      // GEMESSEN, und der Befund ist eindeutig (Level 12, Truppe 12, Schaden 2, Rate 4,
+      // je 25 s, Anteil durchkommender Gegner):
+      //   Pistole 32,3 %  ·  Sturmgewehr 9,9 %  ·  MINIGUN 0,9 %
+      //   FLAMME 18,7 %   ·  Blitz 9,5 %        ·  Rakete 0,5 %
+      // Der Flammenwerfer liess also fast DOPPELT so viele Gegner durch wie das
+      // Sturmgewehr - drei Plaetze unter ihm in der Staffelung und teurer.
+      //
+      // DIE URSACHE IST NICHT DIE FEUERKRAFT, sondern die Reichweite: Die Kills je
+      // Sekunde lagen mit 7,64 dicht an Minigun (8,96) und Rakete (8,56). Was fehlte,
+      // war die STRECKE, auf der gefeuert werden darf - und je schneller die Gegner mit
+      // dem Level werden, desto weniger Zeit bleibt auf der kurzen Strecke. Genau das
+      // beschreibt Thomas' "kommt nicht mehr nach".
+      //
+      // KENNZAHL-FALLE, zum zweiten Mal in zwei Tagen: Staffelung UND Preis stehen auf
+      // killsPerSec - und diese Groesse misst die Reichweite nicht mit. Zwei Waffen mit
+      // gleichem killsPerSec koennen sich im Spiel um Faktor 20 im Durchkommensanteil
+      // unterscheiden (siehe docs/lessons.md, 2026-08-25).
+      //
+      // WARUM REICHWEITE UND NICHT SCHADEN: Der Rueckstand ueber Schaden auszugleichen
+      // haette Faktor 1,65 gebraucht - und im BOSSDUELL ist die Reichweitengrenze
+      // ausgesetzt (setEngageLimitEnabled). Dort waere die Waffe damit um zwei Drittel
+      // staerker geworden, ohne dass das Problem dort ueberhaupt existiert.
+      //
+      // 0,58 bleibt unter Laser (0,60), Minigun (0,62) und Rakete (0,72): Der
+      // Nahkampf-Charakter aus der Realitaetsvorlage wird aufgegeben, weil er die Waffe
+      // nicht ANDERS gemacht hat, sondern nur schlechter.
+      engageShare: 0.58,
       pierces: false,
       splashRadiusPx: 0,
       splashDamageFactor: 0,
@@ -1396,7 +1438,11 @@ export const BALANCE = {
       projectileSpeed: 780,
       // Kettenblitz: der Bogen selbst reicht nicht weit, seine Wirkung kommt aus dem
       // Ueberspringen auf Nachbarn.
-      engageShare: 0.45,
+      // 0,45 -> 0,56, aus derselben Messung wie beim Flammenwerfer: Der Kettenblitz lag
+      // beim Durchkommensanteil mit 9,5 % GLEICHAUF mit dem Sturmgewehr (9,9 %), obwohl
+      // er vier Plaetze hoeher steht und mehr als doppelt so teuer ist. Auch hier waren
+      // die Kills je Sekunde nicht das Problem (7,64), sondern die Strecke.
+      engageShare: 0.56,
       pierces: false,
       splashRadiusPx: 0,
       splashDamageFactor: 0,

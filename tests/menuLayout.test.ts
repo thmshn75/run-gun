@@ -5,7 +5,11 @@ import type { SafeAreaInsets } from '../src/systems/safeArea'
 const MENU_HEIGHT = 844
 
 function allBounds(layout: ReturnType<typeof computeMenuLayout>): VerticalBounds[] {
-  return [layout.title, layout.balance, layout.scoresTitle, ...layout.scoreLines, layout.resetButton, layout.playButton]
+  // SHOP, TESTGELAENDE und FORTSETZEN gehoeren mit hinein: Sie haengen wie ZURUECKSETZEN
+  // und SPIELEN am unteren Rand und laufen bei wachsender Safe Area aufeinander zu -
+  // genau die Falle, die dieser Test abfangen soll (Lektion 2026-08-25).
+  return [layout.title, layout.balance, layout.scoresTitle, ...layout.scoreLines,
+    layout.resetButton, layout.testButton, layout.shopButton, layout.playButton]
 }
 
 function expectSafeAndSeparate(insets: SafeAreaInsets): void {
@@ -26,6 +30,25 @@ function expectSafeAndSeparate(insets: SafeAreaInsets): void {
 }
 
 describe('menu layout', () => {
+  it('haelt auch mit offenem Run alle Knoepfe getrennt und im sicheren Bereich', () => {
+    // Mit FORTSETZEN steht ein Knopf mehr im Stapel - er schiebt alles darueber nach
+    // oben und ist der Fall, in dem der Platz am knappsten wird.
+    const insets = { top: 59, right: 0, bottom: 34, left: 0 }
+    const layout = computeMenuLayout(MENU_HEIGHT, insets, 5, true)
+    const bounds = [...allBounds(layout), layout.continueButton]
+    for (const item of bounds) {
+      expect(item.top).toBeGreaterThanOrEqual(insets.top)
+      expect(item.top + item.height).toBeLessThanOrEqual(MENU_HEIGHT - insets.bottom)
+    }
+    for (let index = 0; index < bounds.length; index += 1) {
+      for (let otherIndex = index + 1; otherIndex < bounds.length; otherIndex += 1) {
+        const first = bounds[index]
+        const second = bounds[otherIndex]
+        expect(first.top + first.height <= second.top || second.top + second.height <= first.top).toBe(true)
+      }
+    }
+  })
+
   it('keeps the full menu inside and separate without safe-area insets', () => {
     expectSafeAndSeparate({ top: 0, right: 0, bottom: 0, left: 0 })
   })

@@ -1,6 +1,7 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-25 (V4 gebaut: E1-E7 plus Bosskampfdauer; offen ist Bennis iPhone-Test)
+Stand: 2026-08-25 abends (V4 gebaut plus sechs Aenderungen aus Thomas' und Bennis
+Rueckmeldungen desselben Tages; offen ist Bennis iPhone-Test)
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat), gespielt von Benni (7).
@@ -52,10 +53,10 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   - **Preise aus der gemessenen Staerke** statt aus der Levelnummer: 2.100 (Schrotflinte)
     bis 20.000 (Streubombe), zusammen rund 100.000 = gut acht gute Runs.
   - **Startwaffe vor jedem Level waehlbar** (Levelpause, Reihe STARTWAFFE). Waehlbar sind
-    gekaufte Waffen ab einem Level VOR ihrem regulaeren Erscheinen (`ownedLevelBonus`).
-    Gemessene Begruendung: Mit der Streubombe ab Level 1 kommt auf Level 1, 5 und 12 KEIN
-    Gegner mehr durch (gegen 4,3 / 15,8 / 19,1 % mit der Pistole, Korridor 4-12 %). Der
-    Kauf gibt Sicherheit statt Vorsprung.
+    gekaufte Waffen. **Seit dem Abend des 2026-08-25 ab Level 1** (Thomas: "beim kauf
+    der waffen, die waffen von Level 1 an verfuegbar machen") - die Gegenmessung
+    (Streubombe ab Level 1 = kein Gegner kommt mehr durch) steht weiter und wird bewusst
+    ueberstimmt: Der Kauf soll sich sofort auszahlen, der Gegenhebel ist der Preis.
   - **Detailansicht** fuer jede Waffe UND fuer beide Aufwertungen: grosses Bild (Waffen
     zeigen ihr Wandtor-Bild), Staerke als Sterne aus dem gemessenen `killsPerSec`, ein
     Satz zur Wirkung und die LEVELANGABE in beiden Faellen ("Ohne Kauf ab Level 30 ...
@@ -187,6 +188,45 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   Geraet seine Bestenliste (die Falle ist in `save.ts` zweimal kommentiert).
 - **GameObject-Position der Truppenhuelle klebt bei −15** — ungeklaert, wird umgangen.
 
+## Am Abend des 2026-08-25 dazugekommen (fuenf Punkte von Thomas, einer von Benni)
+
+1. **Flammenwerfer und Kettenblitz reichen weiter** (Thomas: "Flammenwerfer braucht
+   groessere Reichweite" und "ab level 8-10 werden die mobs so schnell bzw. die
+   staerkeren so viele, dass Flammenwerfer oder blitz nicht mehr nachkommt").
+   **Gemessen und bestaetigt** (Level 12, Truppe 12, Schaden 2, Rate 4, je 25 s, Anteil
+   durchkommender Gegner): Flamme 18,7 % und Blitz 9,5 % gegen Sturmgewehr 9,9 %,
+   Minigun 0,9 %, Rakete 0,5 % - beide liessen mehr durch als Waffen drei bis vier
+   Plaetze unter ihnen. Die Kills je Sekunde lagen dabei dicht beieinander: Es fehlte
+   nicht Feuerkraft, sondern die Strecke, auf der gefeuert werden darf.
+   `engageShare` Flamme 0,28 -> 0,58, Blitz 0,45 -> 0,56. **Gegenprobe nach der
+   Aenderung** (eine Reihe, frischer Browser): Pistole 56,2 % · Sturmgewehr 13,7 % ·
+   Flamme 4,6 % · Blitz 0 % · Minigun 0,7 % - die Rangfolge folgt jetzt der Staffelung.
+2. **Der gescheiterte Run war im Menue eine Falle.** Nach dem Tod stand dort
+   "FORTSETZEN - LEVEL 7"; ein Druck darauf startete das Spiel mit der Truppengroesse aus
+   dem Todeszeitpunkt (null Figuren) und landete sofort wieder im Game Over. Jetzt traegt
+   der Run einen Todes-Marker, das Menue zeigt "WEITERSPIELEN - LEVEL 7 · ¢ 1750", und
+   beide Wege (Menue und Game-Over-Bildschirm) laufen ueber dieselbe Funktion. Der
+   Weiterspiel-Knopf verschwindet auch nicht mehr, wenn das Konto nicht reicht - er zeigt
+   "NOCH ¢ X".
+3. **Waffen 22 % billiger, Aufwertungen 25 % billiger, dafuer Waffen aufruestbar.**
+   Fuenf Stufen je Waffe, +7 % Feuerkraft je Stufe (+40 % voll), Preis 30 % des
+   Waffenpreises fuer die erste Stufe, dann x1,45. Die Aufruestung sitzt am `damageFactor`
+   der EINEN Waffe und faellt deshalb bewusst NICHT unter `meta.totalBoostCap`.
+4. **Testgelaende** (Benni: "ob es sowas wie ein testlevel geben kann, wo man alle waffen
+   einzeln ausprobieren kann"). Eigener Menueknopf. Es ist KEIN zweiter Spielmodus,
+   sondern das normale Spiel mit drei Aenderungen: Die Truppe kann nicht sterben, das
+   Level endet nie, und es wird NICHTS gespeichert. Der Knopf "WAFFE WECHSELN" oeffnet
+   die vorhandene Levelpause mit allen dreizehn Waffen; Stufen sind dort kostenlos und
+   ohne Deckel. **Alle sechs Schreibwege der GameScene laufen jetzt ueber `speichere()`,
+   und nur dort steht die Sperre** - ein Test liest den Quelltext und schlaegt an, wenn
+   jemand wieder direkt `writeSave` aufruft. Im Browser belegt: Spielstand vor und nach
+   dem Testgelaende byte-identisch, auch nach Stufenkauf, Waffenwechsel und Muenzen.
+5. **Gekaufte Waffen ab Level 1** statt ein Level vor dem regulaeren Erscheinen.
+
+**Was am Abend NICHT gemessen wurde:** die Wirkung der Aufruestungsstufen im Spiel (nur
+die Rechenkette ist per Test gesichert) und die neuen Preise gegen die Einnahmen eines
+echten Runs. Beides sollte nach Bennis Test nachgezogen werden.
+
 ## Wichtige Dateien und Befehle
 - Plan `docs/plan-v4.md` (enthaelt die Befunde beider Gegenpruefungen) ·
   Endlos-Regler: `BALANCE.level.endless`, `enemy.endlessHpGrowthPerLevel`,
@@ -200,4 +240,6 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
 ## Einstiegssatz
 "Lies `docs/UEBERGABE.md`, `docs/lessons.md` und `docs/plan-v4.md` und arbeite dort weiter.
 **Nichts neu aufsetzen** — V1/V2/V3 sind abgenommen und getaggt, V4 ist gebaut und
-gemessen. Naechster Schritt: Bennis iPhone-Test des ganzen V4."
+gemessen, dazu die sechs Aenderungen vom Abend des 2026-08-25. Naechster Schritt:
+Bennis iPhone-Test — besonders Testgelaende, Waffen-Aufruestung und die neuen
+Reichweiten von Flammenwerfer und Kettenblitz."

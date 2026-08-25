@@ -15,7 +15,7 @@ import { getRoadHalfWidth, Road } from '../systems/road'
 import { getEnemySpeed, getScrollSpeed, setCurrentScrollSpeed } from '../systems/speed'
 import { Scenery } from '../systems/scenery'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
-import { addScore, createRunId, getMetaSteps, getOwnedWeapons, getWeaponFirepowerFactor, loadSave, qualifiesForScores, writeSave } from '../systems/save'
+import { addScore, createRunId, getMetaSteps, getOwnedWeapons, getWeaponFirepowerFactor, loadSave, qualifiesForScores, writeSave, type SaveData } from '../systems/save'
 import { Spawner } from '../systems/spawner'
 import { getStartWeaponChoices, getWeaponRewardChoices } from '../systems/weaponChoices'
 import { RunStats, type ShopLine, getStatCap, getShopPrice, getContinuePrice } from '../systems/upgrades'
@@ -180,7 +180,7 @@ export class GameScene extends Phaser.Scene {
   private crowdPickupCollider: Phaser.Physics.Arcade.Collider | undefined
 
   /** Wie dieser Run begonnen hat - frisch, fortgesetzt oder freigekauft. */
-  private einstieg: 'neu' | 'fortsetzen' | 'weiterspielen' = 'neu'
+  private einstieg: 'neu' | 'fortsetzen' | 'weiterspielen' | 'test' = 'neu'
   private continuesUsed = 0
 
   /** Kennung des laufenden Runs - haelt seine Bestenlisten-Eintraege zusammen. */
@@ -202,11 +202,14 @@ export class GameScene extends Phaser.Scene {
    */
   private waffenAufwertung: ReadonlyMap<string, number> = new Map()
 
+  /** Knopf und Beschriftung des Testgelaendes. Leer in jedem normalen Lauf. */
+  private testKnopf: Array<Phaser.GameObjects.Rectangle | Phaser.GameObjects.Text> = []
+
   public constructor() {
     super('GameScene')
   }
 
-  public init(data: Readonly<{ einstieg?: 'neu' | 'fortsetzen' | 'weiterspielen' }>): void {
+  public init(data: Readonly<{ einstieg?: 'neu' | 'fortsetzen' | 'weiterspielen' | 'test' }>): void {
     this.einstieg = data.einstieg ?? 'neu'
   }
 
@@ -232,6 +235,7 @@ export class GameScene extends Phaser.Scene {
     // Boden fuer die roten Segmente: Was in dieser Runde gefunden wurde, kann man
     // wieder verlieren - was Thomas im Laden gekauft hat, nicht.
     this.statFloor = { damage: this.runStats.get('damage'), shotsPerSec: this.runStats.get('shotsPerSec') }
+    this.testKnopf = []
     this.elapsedMs = 0
     this.enemyContactIframeUntilMs = 0
     this.blinkUntilMs = 0
@@ -394,6 +398,7 @@ export class GameScene extends Phaser.Scene {
     this.crowd.setSize(this.runStats.get('hp'))
     this.lastCrowdSize = this.runStats.get('hp')
     this.updateHud()
+    if (this.istTestgelaende()) this.baueTestgelaendeKnopf()
     this.enableRelativeDrag()
     this.replaceProjectileColliders()
     this.physics.add.overlap(this.crowd.getHullBounds(), this.spawner.getEnemies(), (first, second) => {
@@ -534,6 +539,16 @@ export class GameScene extends Phaser.Scene {
    * Deckels, beim Fortsetzen mit dem Stand, den man beim Aufhoeren hatte.
    */
   private stelleEinstiegHer(): void {
+    if (this.istTestgelaende()) {
+      // Feste Buehne statt Level 1: Dort ist der Gegnernachschub der Engpass, nicht die
+      // Feuerkraft - zwei Waffen sehen dann gleich aus (gemessen 2026-08-25).
+      this.currentLevel = BALANCE.testground.level
+      this.runStats.setLevel(this.currentLevel)
+      this.runStats.set('hp', BALANCE.testground.truppe)
+      this.startLevel()
+      this.syncCrowdSize()
+      return
+    }
     if (this.einstieg === 'neu') {
       // Auch der frische Run wird sofort gesichert. Vorher lief sichereRun() nur in
       // startLevel(), und das wird beim ERSTEN Level gar nicht aufgerufen - wer Level 1
@@ -577,13 +592,65 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
+   * Der einzige zusaetzliche Knopf des Testgelaendes: Er oeffnet die vorhandene
+   * Levelpause, in der alle dreizehn Waffen als Kacheln stehen.
+   *
+   * WARUM KEINE EIGENE WAFFENLEISTE: Die Pause kann das bereits, samt gerechneter Lage
+   * an beiden Safe-Area-Raendern (shopWeaponRow.ts). Eine zweite Leiste waere eine
+   * zweite Stelle, an der dieselbe iPhone-Falle aufschlaegt (Lektion 2026-08-25).
+   *
+   * ER VERREISST DIE TRUPPE NICHT: Die Steuerung ist relativ - sie zieht die Truppe um
+   * die BEWEGUNG des Fingers, ein Tipp allein bewegt nichts.
+   */
+  private baueTestgelaendeKnopf(): void {
+    const y = this.insets.top + BALANCE.hud.padding + BALANCE.hud.panelHeight + 24
+    const mitte = this.scale.width / 2
+    const knopf = this.add.rectangle(mitte, y, 210, 38, HUD_COLORS.panel, 0.92)
+      .setStrokeStyle(2, HUD_COLORS.panelStroke)
+      .setDepth(BALANCE.hud.depthText + 1)
+      .setInteractive({ useHandCursor: true })
+    const text = this.add.text(mitte, y, 'WAFFE WECHSELN', {
+      fontFamily: 'system-ui', fontSize: '15px', fontStyle: 'bold', color: this.colorFor(HUD_COLORS.level),
+    }).setOrigin(0.5).setDepth(BALANCE.hud.depthText + 2)
+    knopf.on('pointerdown', () => {
+      if (this.levelPhase !== 'normal') return
+      this.oeffneShop()
+    })
+    this.testKnopf = [knopf, text]
+  }
+
+  /** Im Pause-Overlay hat der Knopf nichts zu suchen - dort stehen die Kacheln selbst. */
+  private zeigeTestgelaendeKnopf(sichtbar: boolean): void {
+    this.testKnopf.forEach((teil) => teil.setVisible(sichtbar))
+  }
+
+  /** Laeuft diese Szene als Testgelaende? Dann gilt nichts davon fuer den echten Stand. */
+  private istTestgelaende(): boolean {
+    return this.einstieg === 'test'
+  }
+
+  /**
+   * DER EINZIGE SCHREIBWEG DIESER SZENE IN DEN SPIELSTAND.
+   *
+   * Im Testgelaende schreibt sie NICHTS - kein Run, keine Muenzen, kein Hoechstlevel,
+   * kein Bestenlisten-Eintrag. Deshalb steht der Waechter an EINER Stelle statt an
+   * sechs: Wer spaeter ein writeSave dazuschreibt, muss an dieser Methode vorbei, und
+   * ein vergessener Pfad wuerde Bennis echten Lauf ueberschreiben, weil er ein bisschen
+   * ausprobiert hat.
+   */
+  private speichere(data: SaveData): void {
+    if (this.istTestgelaende()) return
+    writeSave(data)
+  }
+
+  /**
    * Den offenen Run an der LEVELGRENZE sichern. Nur hier, nicht mitten im Level: Dort
    * muessten Gegner im Anflug, Wandkette und Bossphase mitgeschrieben werden.
    */
   private sichereRun(): void {
     const saved = loadSave()
     const stufen = this.runStats.getSteps()
-    writeSave({
+    this.speichere({
       ...saved,
       run: {
         level: this.currentLevel,
@@ -854,7 +921,7 @@ export class GameScene extends Phaser.Scene {
    * rote Zahl ueber der Truppe.
    */
   private handleBreakthrough(contactDamage: number): void {
-    if (this.gameOverStarted) return
+    if (this.gameOverStarted || this.istTestgelaende()) return
     this.breakthroughAccumulator += contactDamage * BALANCE.enemy.breakthroughDamageFactor
     const figuren = Math.floor(this.breakthroughAccumulator)
     if (figuren < 1) return
@@ -877,6 +944,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handlePlayerDamage(damage: number): void {
+    // Im Testgelaende kostet nichts etwas: Wer eine Waffe ausprobiert, soll dabei nicht
+    // sterben - sonst probiert er die naechste gar nicht mehr aus.
+    if (this.istTestgelaende()) return
     this.runStats.set('hp', this.runStats.get('hp') - damage)
     this.syncCrowdSize()
     // Seit V2 gibt es nur noch eine Schadensquelle: Beruehrung. Der Boss schiesst nicht mehr.
@@ -912,7 +982,7 @@ export class GameScene extends Phaser.Scene {
     const stufen = this.runStats.getSteps()
     const weiterMoeglich = this.continuesUsed < BALANCE.continueRun.maxPerRun
     const preis = getContinuePrice(this.currentLevel, this.continuesUsed)
-    writeSave({
+    this.speichere({
       ...withScore,
       coins: konto,
       highestLevel: Math.max(withScore.highestLevel, this.currentLevel),
@@ -946,6 +1016,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateLevelPhase(dt: number): void {
+    // DAS TESTGELAENDE ENDET NIE: kein Boss, kein Levelwechsel, keine Pause von selbst.
+    // Gewechselt wird nur ueber den Knopf WAFFE WECHSELN.
+    if (this.istTestgelaende() && this.levelPhase === 'normal') return
     // Der Shop wartet auf WEITER, nicht auf einen Zeitgeber (Benni ist 7 - er soll in
     // Ruhe lesen und tippen koennen).
     if (this.levelPhase === 'boss' || this.levelPhase === 'shop') return
@@ -992,7 +1065,7 @@ export class GameScene extends Phaser.Scene {
     this.boss.deactivate()
     this.currentLevel += 1
     const saved = loadSave()
-    writeSave({ ...saved, highestLevel: Math.max(saved.highestLevel, this.currentLevel) })
+    this.speichere({ ...saved, highestLevel: Math.max(saved.highestLevel, this.currentLevel) })
     this.levelPhase = 'cleared'
     this.syncBossColliders()
     this.phaseRemainingMs = BALANCE.level.clearedMs
@@ -1011,12 +1084,13 @@ export class GameScene extends Phaser.Scene {
     this.gebuchteMuenzen = this.coins.getCount()
     const saved = loadSave()
     this.kontoStand = saved.coins + offen
-    writeSave({ ...saved, coins: this.kontoStand })
+    this.speichere({ ...saved, coins: this.kontoStand })
     return offen
   }
 
   private oeffneShop(): void {
     this.levelPhase = 'shop'
+    this.zeigeTestgelaendeKnopf(false)
     this.kaeufeInPause = { firepower: 0, team: 0 }
     this.waffenwahlAusgang = this.weapons.getWeapon()
     this.bucheMuenzenAufsKonto()
@@ -1032,6 +1106,7 @@ export class GameScene extends Phaser.Scene {
 
   private shopZustand() {
     return {
+      testgelaende: this.istTestgelaende(),
       level: this.currentLevel - 1,
       konto: this.kontoStand,
       waffen: this.waehlbareWaffen(),
@@ -1056,6 +1131,11 @@ export class GameScene extends Phaser.Scene {
    */
   private waehlbareWaffen(): { key: string; aktiv: boolean }[] {
     const getragen = this.weapons.getWeapon()
+    // Im Testgelaende sind ALLE Waffen waehlbar, gekauft oder nicht - genau dafuer ist
+    // es da (Benni: "wo man alle waffen einzeln ausprobieren kann").
+    if (this.istTestgelaende()) {
+      return WEAPON_KEYS.map((key) => ({ key, aktiv: key === getragen }))
+    }
     const behalten = this.waffenwahlAusgang === undefined ? [] : [this.waffenwahlAusgang]
     return getStartWeaponChoices(getragen, this.currentLevel, getOwnedWeapons(loadSave()), behalten)
       .map((key) => ({ key, aktiv: key === getragen }))
@@ -1077,6 +1157,18 @@ export class GameScene extends Phaser.Scene {
 
   private kaufeStufe(line: ShopLine): void {
     if (this.levelPhase !== 'shop') return
+    // IM TESTGELAENDE KOSTENLOS UND OHNE DECKEL: Man soll eine Waffe auch mit mehr
+    // Feuerkraft ausprobieren koennen. Wuerde hier echtes Geld abgezogen, saehe Benni
+    // sein Konto sinken - zurueckgeschrieben wird es zwar nie (der Waechter in
+    // speichere() laesst nichts durch), aber die Anzeige waere trotzdem eine Luege.
+    if (this.istTestgelaende()) {
+      if (!this.runStats.addStep(line)) return
+      this.audio.play('crowdUp')
+      this.shop.aktualisieren(this.shopZustand())
+      this.syncCrowdSize()
+      this.updateHud()
+      return
+    }
     if (this.kaeufeInPause[line] >= BALANCE.shop.maxStepsPerPause) return
     const preis = getShopPrice(this.runStats.getStepCount(line))
     if (preis === undefined) return
@@ -1084,7 +1176,7 @@ export class GameScene extends Phaser.Scene {
     if (saved.coins < preis) return
     if (!this.runStats.addStep(line)) return
     this.kontoStand = saved.coins - preis
-    writeSave({ ...saved, coins: this.kontoStand })
+    this.speichere({ ...saved, coins: this.kontoStand })
     this.kaeufeInPause[line] += 1
     this.audio.play('crowdUp')
     this.shop.aktualisieren(this.shopZustand())
@@ -1096,6 +1188,7 @@ export class GameScene extends Phaser.Scene {
     if (this.levelPhase !== 'shop') return
     this.waffenwahlAusgang = undefined
     this.shop.verstecken()
+    this.zeigeTestgelaendeKnopf(true)
     this.startLevel()
   }
 
@@ -1108,6 +1201,14 @@ export class GameScene extends Phaser.Scene {
    */
   private speichernUndBeenden(): void {
     if (this.levelPhase !== 'shop') return
+    // Im Testgelaende ist derselbe Knopf mit ZURUECK INS MENUE beschriftet und laesst
+    // den Spielstand unberuehrt - beide Aufrufe wuerden zwar am Waechter abprallen, aber
+    // ein Bestenlisten-Eintrag fuer ein Ausprobieren waere auch als Absicht falsch.
+    if (this.istTestgelaende()) {
+      this.shop.verstecken()
+      this.scene.start('MenuScene')
+      return
+    }
     this.sichereRun()
     this.trageZwischenstandEin()
     this.shop.verstecken()
@@ -1130,7 +1231,7 @@ export class GameScene extends Phaser.Scene {
   private trageZwischenstandEin(): void {
     const runCoins = this.coins.getCount()
     const saved = loadSave()
-    writeSave(addScore(saved, {
+    this.speichere(addScore(saved, {
       coins: runCoins,
       level: this.currentLevel,
       timeMs: this.elapsedMs,

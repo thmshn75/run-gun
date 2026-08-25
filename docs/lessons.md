@@ -674,3 +674,46 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   eine Einbahnstrasse. Die getragene Waffe stand in der Liste, weil sie getragen wurde -
   wer wechselte, verlor damit den Weg zurueck. Was zu Beginn einer Auswahl galt, muss bis
   zu ihrem Ende gelten (`behalten`-Argument in `getStartWeaponChoices`).
+
+### 2026-08-25 — Dieselbe Kennzahl, eine Ebene tiefer: Reichweite schlägt Feuerkraft
+- **Fehler:** Thomas meldete, ab Level 8-10 kämen Flammenwerfer und Kettenblitz „nicht
+  mehr nach, obwohl das eigentlich die stärkeren Waffen sind". Gemessen (Level 12, Truppe
+  12, Schaden 2, Rate 4, je 25 s, Anteil durchkommender Gegner): Flamme 18,7 %, Blitz
+  9,5 % — gegen Sturmgewehr 9,9 %, Minigun 0,9 %, Rakete 0,5 %. Die Flamme ließ also fast
+  doppelt so viele durch wie eine Waffe drei Plätze unter ihr. Die Kills je Sekunde lagen
+  dabei dicht beieinander (7,64 gegen 8,96 und 8,56): **Nicht die Feuerkraft fehlte,
+  sondern die Strecke, auf der gefeuert werden darf.** Je schneller die Gegner mit dem
+  Level werden, desto weniger Zeit bleibt auf der kurzen Strecke.
+- **Regel:** `killsPerSec` — die Größe, auf der Waffenstaffelung UND Preise stehen —
+  misst die Reichweite nicht mit. Zwei Waffen mit praktisch gleichem `killsPerSec` können
+  sich im Spiel um Faktor 20 im Durchkommensanteil unterscheiden. Wer eine Waffe nach
+  dieser Kennzahl einsortiert, muss `engageShare` daneben legen. Das ist derselbe Fehler
+  wie am Vortag (Staffelung nach `getWeaponFirepower`), nur eine Ebene tiefer — die
+  Kennzahl war diesmal die richtige für die Feuerkraft und trotzdem die falsche für die
+  Frage „kommt die Waffe nach?".
+- **Zweite Lehre (welcher Hebel):** Der Rückstand wäre über Schaden nur mit Faktor 1,65
+  aufzuholen gewesen — und im Bossduell ist die Reichweitengrenze ausgesetzt. Über
+  Schaden korrigiert hätte die Waffe dort zwei Drittel mehr geleistet, wo sie gar kein
+  Problem hat. Die Korrektur gehört an die Größe, die den Fehler verursacht.
+
+### 2026-08-25 — Die Sonde maß eine Szene, die gar nicht mehr lief
+- **Fehler:** Die erste Waffenmessung im Browser lieferte Unsinn und beim Waffenwechsel
+  einen Absturz (`disableBody` auf einem Projektil ohne Body). Die naheliegende Deutung
+  war ein schwerer Spielfehler: „Jeder Waffenwechsel stürzt ab" — Waffenwechsel ist
+  Kernmechanik. Tatsächlich war die Truppe (Startgröße 1, keine Steuerung) längst
+  gestorben, die GameScene gestoppt, und Phaser hatte beim Shutdown alle Physik-Körper
+  abgeräumt. Die Sonde maß ein totes Objekt und lieferte ein Ergebnis, das wie ein
+  Befund am lebenden aussah.
+- **Regel:** Jede Sonde prüft ZUERST, ob ihr Messobjekt lebt (`scene.isActive()`, ein
+  Zähler, der weiterläuft), und stellt die Lebensbedingungen her, BEVOR sie misst — hier:
+  die Truppe am Leben halten, ab dem `create`-Ereignis, nicht erst beim ersten
+  Messaufruf. Ein Fehler aus einer toten Szene ist kein Befund über das Spiel.
+- **Zweite Lehre (Messdrift):** Über eine Browser-Sitzung driften die Werte deutlich —
+  dieselbe unveränderte Kontrollwaffe lag bei 9,9 %, später bei 23,1 %, 38,2 % und
+  31,7 %. Vergleiche gelten deshalb nur zwischen BENACHBARTEN Messungen derselben Reihe,
+  und eine unveränderte Kontrollwaffe gehört in jede Reihe. Wer Werte aus zwei Reihen
+  gegeneinander stellt, vergleicht den Drift.
+- **Dritte Lehre (Hot Reload):** Eine Codeänderung während einer laufenden Messung lädt
+  die Seite über den Vite-Dev-Server neu und löscht die Messreihe **still** — sie war
+  nach drei von sechs Werten weg, ohne Fehlermeldung. Während einer Browser-Messung wird
+  keine Quelldatei angefasst.

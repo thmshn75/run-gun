@@ -51,17 +51,23 @@ describe('additional weapons', () => {
 
   it('staffelt die Reichweiten nach der Realitaet, ohne die Kampfzone aufzuheben', () => {
     // Thomas 2026-08-22: "Schussreichweite an Waffen anpassen - Vergleich zur Realitaet".
-    // Reihenfolge kurz -> weit: Schrot, Flamme, Blitz, Gewehr, Laser, Minigun, Rakete.
+    // Reihenfolge kurz -> weit: Schrot, Gewehr, Blitz, Flamme, Laser, Minigun, Rakete.
     //
-    // Die Flamme ist am 2026-08-25 von 0,28 auf 0,44 gestiegen und damit an der
-    // Schrotflinte vorbei (Thomas: "Flammenwerfer braucht groessere Reichweite"). Sie
-    // bleibt unter dem Mittelfeld - der Nahkampf-Charakter soll erhalten bleiben.
+    // NEU GEORDNET AM 2026-08-25, aus einer Messung statt aus der Realitaetsvorlage:
+    // Flamme (0,28) und Blitz (0,45) waren die kuerzesten der regulaeren Waffen und
+    // liessen deshalb MEHR Gegner durch als das Sturmgewehr, das drei bis vier Plaetze
+    // unter ihnen steht (18,7 % und 9,5 % gegen 9,9 %; Level 12, je 25 s). Beide sitzen
+    // jetzt oberhalb des Sturmgewehrs und unterhalb von Laser, Minigun und Rakete.
+    //
+    // DIE REICHWEITE IST DER STAERKSTE EINZELHEBEL im Waffenvergleich - staerker als
+    // killsPerSec, nach dem Staffelung und Preis gemacht sind. Wer hier etwas aendert,
+    // aendert die Rangfolge des Spiels, nicht nur eine Optik.
     //
     // Der Laser ist am 2026-08-23 von 0,85 auf 0,60 gefallen und liegt damit nicht mehr
     // an der Spitze (Thomas: "noch eines Laser ... es laeuft durch"). Gemessen starben
     // die Gegner mit 0,85 im Mittel auf y = 225, also praktisch in dem Moment, in dem
     // sie beschiessbar wurden - die Kampfzone war fuer diese Waffe aufgehoben.
-    const reihenfolge: readonly WeaponKey[] = ['shotgun', 'flamethrower', 'chainlightning', 'normal', 'laser', 'minigun', 'rocket']
+    const reihenfolge: readonly WeaponKey[] = ['shotgun', 'normal', 'chainlightning', 'flamethrower', 'laser', 'minigun', 'rocket']
     for (let index = 1; index < reihenfolge.length; index += 1) {
       expect(BALANCE.weapon[reihenfolge[index]].engageShare, reihenfolge[index])
         .toBeGreaterThan(BALANCE.weapon[reihenfolge[index - 1]].engageShare)
