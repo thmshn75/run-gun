@@ -6,6 +6,7 @@ import { getCombatFirepower } from '../src/systems/bossPlan'
 import { getFigureOverscanFactor, getPerspectiveScale, getPlayfieldHalfWidth, getRoadHalfWidth, getWallGeometry } from '../src/systems/roadGeometry'
 import { chooseSpawnLane } from '../src/systems/spawnLanes'
 import type { WeaponKey } from '../src/systems/weapons'
+import { RunStats, getGateGrowth } from '../src/systems/upgrades'
 
 const width = 390
 const height = 844
@@ -172,12 +173,40 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
     // Muenzen fallen bei JEDEM Bruch ab, sie sind Nebeneffekt statt Inhalt.
     expect(source).toContain('this.onBroken(wall.x, wall.y)')
     expect(source).not.toContain("content === 'coin'")
-    // Die Zugewinne sind aus dem Gegenstueck links hergeleitet: 3,3 % der Spanne.
-    const anteilLinks = BALANCE.walls.pickupTeamGain / BALANCE.crowd.max
-    const spanneSchaden = BALANCE.stats.damage.capAtLevelTwelve - BALANCE.stats.damage.base
-    const spanneRate = BALANCE.stats.shotsPerSec.capAtLevelTwelve - BALANCE.stats.shotsPerSec.base
-    expect(BALANCE.walls.damageGain).toBeCloseTo(anteilLinks * spanneSchaden, 0)
-    expect(BALANCE.walls.rateGain).toBeCloseTo(anteilLinks * spanneRate, 1)
+    // DER ZUGEWINN HAENGT AM LEVELSPRUNG, nicht an einer festen Zahl (2026-08-25,
+    // Thomas: "man erreicht zu schnell die hoechste Stufe im Level"). Ein Tor bringt den
+    // gatesPerLevelStep-ten Teil des Sprungs, den der Deckel je Level macht - damit
+    // kostet ein Level auf JEDEM Level gleich viele Tore. Vorher deckte ein einziges Tor
+    // ab Level 2 den ganzen Sprung ab, weil der Sprung absolut winzig ist (0,23 Punkte).
+    for (const stat of ['damage', 'shotsPerSec'] as const) {
+      const { capAtLevelOne, capAtLevelTwelve } = BALANCE.stats[stat]
+      const levelSprung = (capAtLevelTwelve / capAtLevelOne) ** (1 / (BALANCE.level.plans.length - 1))
+      expect(getGateGrowth(stat) ** BALANCE.walls.gatesPerLevelStep, stat).toBeCloseTo(levelSprung, 6)
+    }
+    // Und er muss GROSS GENUG FUER DIE ANZEIGE bleiben: Das HUD zeigt zwei
+    // Nachkommastellen, ein Tor darf also nicht unter 0,005 bewegen - sonst steht die
+    // Zahl unveraendert da und das Sammeln wirkt folgenlos (der Fehler, an dem im Juli
+    // der Ausbau des Run-Shops gescheitert ist).
+    const kleinsterSchritt = BALANCE.stats.damage.capAtLevelOne * (getGateGrowth('damage') - 1)
+    expect(kleinsterSchritt).toBeGreaterThan(0.005)
+  })
+
+  it('laesst den Zugewinn eines Tores tatsaechlich durch die Wertestufung', () => {
+    // DER FEHLER, den dieser Test faengt (2026-08-25): clampStat rundet Schaden und Rate
+    // auf eine feste Stufe. Solange die eine Nachkommastelle war, betrug die kleinste
+    // moegliche Aenderung 0,05 - ein Tor hebt aber um 0,0088 bis 0,06, und bei kleinen
+    // Werten verschwand der Zugewinn spurlos. Der Wert stand nach dem Einsammeln exakt
+    // da wie vorher. Ein Test auf den FAKTOR allein haette das nie gesehen; gepruerft
+    // gehoert der Weg durch die Stufung.
+    for (const stat of ['damage', 'shotsPerSec'] as const) {
+      const stats = new RunStats()
+      stats.setLevel(2)
+      // Auf dem Grundwert, dem kleinsten im Spiel - dort ist der Zugewinn am kleinsten.
+      stats.set(stat, BALANCE.stats[stat].base)
+      const vorher = stats.get(stat)
+      stats.set(stat, vorher * getGateGrowth(stat))
+      expect(stats.get(stat), stat).toBeGreaterThan(vorher)
+    }
   })
 
   it('beschriftet beide Seiten weiss', () => {

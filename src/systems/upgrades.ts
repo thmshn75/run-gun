@@ -83,6 +83,26 @@ export function getMetaBonus(stat: StatKey, meta: ShopSteps): number {
   return 1
 }
 
+/**
+ * Was ein Tor der rechten Wand am Schaden oder an der Feuerrate aendert - als FAKTOR,
+ * nicht als Betrag (Herleitung bei BALANCE.walls.gatesPerLevelStep).
+ *
+ * Der Deckel waechst je Level um einen festen Faktor; ein Tor bringt den
+ * gatesPerLevelStep-ten Teil dieses Sprungs. Damit ist das Verhaeltnis "wie viele Tore
+ * brauche ich fuer ein Level" auf jedem Level dasselbe - vorher deckte ein Tor mit
+ * festem Betrag ab Level 2 den ganzen Sprung ab.
+ */
+export function getGateGrowth(stat: 'damage' | 'shotsPerSec'): number {
+  const { capAtLevelOne, capAtLevelTwelve } = BALANCE.stats[stat]
+  const levelSprung = (capAtLevelTwelve / capAtLevelOne) ** (1 / (BALANCE.level.plans.length - 1))
+  return levelSprung ** (1 / BALANCE.walls.gatesPerLevelStep)
+}
+
+/** Gegenstueck fuer die roten Kacheln: der Verlust von badCostsGates guten Toren. */
+export function getGateLoss(stat: 'damage' | 'shotsPerSec'): number {
+  return getGateGrowth(stat) ** -BALANCE.walls.badCostsGates
+}
+
 export function getStatCap(
   stat: StatKey,
   level: number,
@@ -144,15 +164,25 @@ export function clampStat(
   steps: ShopSteps = KEINE_STUFEN,
   meta: ShopSteps = KEINE_STUFEN,
 ): number {
+  // ZWEI NACHKOMMASTELLEN statt einer (2026-08-25). Diese Rundung ist NICHT kosmetisch -
+  // sie ist die Stufung, in der Schaden und Feuerrate ueberhaupt existieren. Mit einer
+  // Stelle betrug die kleinste moegliche Aenderung 0,05, und alles darunter verschwand
+  // spurlos: Ein Tor der rechten Wand hebt um 0,0088 bis 0,06, also blieb der Wert bei
+  // jedem zweiten Fund exakt stehen. Der Verdacht lag lange auf der Anzeige - tatsaechlich
+  // kam der Zuwachs nie an. Derselbe Effekt hat im Juli den Ausbau des Run-Shops auf 22
+  // Stufen scheitern lassen; auch dort war es nicht die Anzeige.
+  //
+  // hp und speed bleiben ganzzahlig: Figuren gibt es nicht halb, und Gegnertempo in
+  // Pixeln je Sekunde braucht keine Nachkommastelle.
   const roundedValue = stat === 'hp' || stat === 'speed'
     ? Math.round(value)
-    : Math.round(value * 10) / 10
+    : Math.round(value * 100) / 100
   const { floor } = BALANCE.stats[stat]
-  // Der Deckel wird auf dieselbe Stufe gerundet wie der Wert selbst, sonst zeigt die
-  // Anzeige einen Wert, der eine Nachkommastelle unter der echten Grenze klebt.
+  // Der Deckel wird auf dieselbe Stufe gerundet wie der Wert selbst, sonst klebt der
+  // erreichbare Wert eine Stufe unter der echten Grenze.
   const cap = stat === 'hp' || stat === 'speed'
     ? Math.round(getStatCap(stat, level, steps, meta))
-    : Math.round(getStatCap(stat, level, steps, meta) * 10) / 10
+    : Math.round(getStatCap(stat, level, steps, meta) * 100) / 100
   return Math.min(cap, Math.max(floor, roundedValue))
 }
 

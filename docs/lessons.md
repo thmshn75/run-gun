@@ -614,3 +614,28 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   0,84 — die Hypothese war widerlegt, die vermeintliche Gruppenstruktur bestand aus der
   Streuung von zwei Waffen. Ohne vorab notierte Vorhersage waere aus denselben Zahlen eine
   Bestaetigung geworden.
+
+### 2026-08-25 — Nicht die Anzeige rundete, sondern der Wert selbst
+- **Fehler:** Thomas meldete, man erreiche die hoechste Stufe im Level zu schnell. Die
+  Ursache war zweiteilig, und der zweite Teil war seit Wochen falsch verstanden. Erstens
+  gab ein Tor der rechten Wand einen FESTEN Betrag (+0,5 Schaden), waehrend der Deckel
+  PROZENTUAL um 15,2 % je Level waechst — absolut sind das 0,23 Punkte bei Level 2, ein
+  einziges Tor deckte den Levelsprung also vollstaendig ab, obwohl je Level 22 bis 46
+  Tore erscheinen. Zweitens, und das war der eigentliche Fund: `clampStat` rundet Schaden
+  und Rate **intern** auf eine Nachkommastelle. Die kleinste moegliche Aenderung betrug
+  damit 0,05. Jeder Zugewinn darunter verschwand nicht nur aus der Anzeige, er kam nie
+  an — der Wert stand nach dem Einsammeln exakt da wie vorher.
+- **Regel:** Wenn ein Zugewinn "nicht sichtbar" ist, zuerst pruefen, ob er **existiert**.
+  Die Vermutung "die Anzeige rundet zu grob" stand seit Juli in der Uebergabe und war
+  falsch; sie hat den Ausbau des Run-Shops auf 22 Stufen scheitern lassen, ohne dass
+  jemand die Stufung dahinter angesehen hat. Eine Rundung im Datenmodell ist keine
+  Darstellungsfrage, sondern legt fest, welche Werte es ueberhaupt GIBT.
+- **Zweite Lehre (was der Test pruefen muss):** Ein Test auf den Zuwachs-FAKTOR haette
+  den Fehler nie gefunden — der Faktor war richtig. Gepruerft gehoert der Weg durch die
+  Stufung: Wert setzen, Zuwachs anwenden, und der Wert muss danach groesser sein. Genau
+  dieser Test steht jetzt in `walls.test.ts`.
+- **Dritte Lehre (Messsonden muessen ueberleben):** Die erste Messreihe zur Torfrequenz
+  ergab 2-3 Tore je Level, die zweite 22-46. Der Unterschied: In der ersten starb die
+  Truppe nach wenigen Sekunden, danach spawnen keine Wandstuecke mehr. Gemessen wurde die
+  Ueberlebenszeit. Jede Sonde, die das Spiel laufen laesst, muss die Truppe am Leben
+  halten — sonst misst sie etwas anderes als gedacht, und zwar plausibel aussehend.

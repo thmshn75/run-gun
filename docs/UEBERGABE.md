@@ -44,6 +44,12 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   Run-Shop auf der Feuerkraft. Waffenkauf noch offen.
 - **E2 Preise** — 37,5 % -> 200 % der Levelseinnahme je Stufe. Ein Run bis Level 12
   erlaubt 9 von 22 Stufen. Der Knopf zeigt "NOCH ¢ X" statt tot dazustehen.
+- **Tore der rechten Wand** (Thomas: "man erreicht zu schnell die hoechste Stufe im
+  Level"). Ein Tor gab einen festen Betrag gegen einen prozentual wachsenden Deckel und
+  deckte ab Level 2 den ganzen Levelsprung ab - bei 22 bis 46 Toren je Level. Jetzt
+  bringt ein Tor den 16. Teil des Levelsprungs (+0,88 % Schaden, +0,47 % Rate), rote
+  Kacheln kosten drei Tore statt eines festen Betrags. Der Deckel faellt damit etwa zur
+  Levelmitte statt nach zwei Prozent des Levels.
 - **E5 Gegner-Gestalten und E7 Elite-Boss** — 18 neue Gestalten in drei Figurstaerken,
   Elite-Boss alle fuenf Level (anderes Bild, pendelt leicht, mehr Begleiter, schneller
   vorrueckend). Bilder von Thomas abgenommen.
@@ -71,8 +77,8 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
      E1-Effekt auf: Level 30 waere damit LEICHTER als Level 12. Das Band endet deshalb
      beim heutigen Maximum (Rakete 1,45x).
    - **Stufenzahl im Run-Shop.** Bleibt bei elf, der Shop ist ab Level 13 also leer. Der
-     Versuch mit 22 Stufen scheiterte daran, dass ein Kauf dann die Anzeige nicht mehr
-     bewegt. Mehr Stufen gehen nur mit feinerer Anzeige oder hoeherer Endwirkung.
+     Versuch mit 22 Stufen scheiterte an der internen Wertestufung - die ist seit dem
+     2026-08-25 zehnmal feiner, ein neuer Anlauf haette also Aussicht auf Erfolg.
    - **Schwierigkeits-Korridor 4–12 %.** Laesst nur eine flache Steigerung zu
      (Level 12: 7,5 %, Level 30: 8,7 %).
 3. **Staerke von Prellschuss und Saegeblatt im Normalspiel** — bis zum 2026-08-25
@@ -98,9 +104,12 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
 - **Der Wandsegment-Zaehler laesst sich nicht ueber `spawn` messen** - eine Sonde darauf
   zeigte Faktor 7,5 zu wenig. Die Kachelhoehe direkt aus `walls.getSegmentHeight(side)`
   lesen; die Kette selbst laesst sich ueber `walls.pairs.filter(p => p.active)` pruefen.
-- **Die Anzeige rundet auf eine Nachkommastelle.** Ein Bonus unter rund 2 % je Stufe
-  bewegt sie nicht mehr - genau daran ist die Erweiterung des Run-Shops auf 22 Stufen
-  gescheitert. Wer die Stufenzahl erhoehen will, muss zuerst die Anzeige feiner machen.
+- **DIE ANZEIGE WAR NIE DAS PROBLEM (Korrektur vom 2026-08-25).** `clampStat` rundet
+  Schaden und Rate INTERN - bis zum 2026-08-25 auf eine Nachkommastelle, seither auf
+  zwei. Ein Zugewinn unter der halben Stufe verschwand nicht aus der Anzeige, er kam nie
+  an. Daran ist die Erweiterung des Run-Shops auf 22 Stufen gescheitert, und der Grund
+  stand hier zwei Monate lang falsch. **Der Run-Shop koennte damit jetzt erweiterbar
+  sein** - vor einem neuen Anlauf die Stufung pruefen, nicht die Anzeige.
 - **Feuerkraft-Deckel muessen auf das PRODUKT wirken**, nicht auf jeden Wert einzeln.
   Ein Deckel von 1,7 je auf Schaden und Rate laesst zusammen 1,9 zu.
 - **`getEnemyHp` rundet auf ganze Punkte.** Der leichte Gegner (2 Punkte) waechst mit

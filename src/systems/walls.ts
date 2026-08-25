@@ -7,6 +7,7 @@ import { advanceAlongRoad, getPlayfieldHalfWidth, getRoadScale, getRoadSegment, 
 import { isWallSlot } from './wallPattern'
 import type { WeaponKey } from './weapons'
 import { getCurrentScrollSpeed } from './speed'
+import { getGateGrowth, getGateLoss } from './upgrades'
 
 // Seit W2 traegt diese Klasse die Wandsegmente, seit W4 als DAUERWAND. Seit dem
 // Referenzvorbild-Abgleich (Thomas 2026-08-22) sind die beiden Seiten GRUNDSAETZLICH
@@ -74,7 +75,8 @@ export class Walls {
   private readonly rng: () => number
   private readonly onBroken: (x: number, y: number) => void
   private readonly applyReinforcement: (apply: (current: number) => number) => void
-  private readonly applyStat: (stat: 'damage' | 'rate', gain: number) => void
+  /** faktor > 1 hebt (blaues Tor), < 1 senkt (rote Kachel) - nie ein fester Betrag. */
+  private readonly applyStat: (stat: 'damage' | 'rate', faktor: number) => void
   private readonly pairs: WallPair[]
   private readonly paarZuWand: Map<Phaser.GameObjects.GameObject, WallPair>
   private readonly paarZuBelohnung: Map<Phaser.GameObjects.GameObject, WallPair>
@@ -102,7 +104,7 @@ export class Walls {
     rng: () => number,
     onBroken: (x: number, y: number) => void,
     applyReinforcement: (apply: (current: number) => number) => void,
-    applyStat: (stat: 'damage' | 'rate', gain: number) => void,
+    applyStat: (stat: 'damage' | 'rate', faktor: number) => void,
   ) {
     this.scene = scene
     this.chooseWeapon = chooseWeapon
@@ -234,7 +236,7 @@ export class Walls {
     if (!isBad(pair.content)) this.onBroken(wall.x, wall.y)
     if (pair.content === 'damage' || pair.content === 'rate') {
       // Sofortwirkung auf den JETZT aktuellen Stand - wie bei der Sammelbahn.
-      this.applyStat(pair.content, pair.content === 'damage' ? BALANCE.walls.damageGain : BALANCE.walls.rateGain)
+      this.applyStat(pair.content, getGateGrowth(pair.content === 'damage' ? 'damage' : 'shotsPerSec'))
       this.recycle(pair)
       return true
     }
@@ -243,7 +245,7 @@ export class Walls {
       // zerschiesst, hat sich die Schwaechung selbst geholt.
       this.applyStat(
         pair.content === 'weakenDamage' ? 'damage' : 'rate',
-        pair.content === 'weakenDamage' ? -BALANCE.walls.weakenDamage : -BALANCE.walls.weakenRate,
+        getGateLoss(pair.content === 'weakenDamage' ? 'damage' : 'shotsPerSec'),
       )
       this.recycle(pair)
       return true

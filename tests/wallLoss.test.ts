@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { getCrowdDamageMultiplier } from '../src/systems/crowdDamage'
 import { getLevelPlan, getMaxSquadSize } from '../src/systems/levelPlan'
+import { getGateGrowth, getGateLoss } from '../src/systems/upgrades'
 
 // Rote Kacheln (Thomas 2026-08-22: "man erreicht schnell das maximum ueberall und
 // verliert nie etwas"). Die Tests sichern die BEGRUENDUNG der Werte ab, nicht die
@@ -19,8 +20,14 @@ describe('rote Kacheln: der Verlust in beiden Bahnen', () => {
     expect(guteJeRote).toBeCloseTo(3, 2)
     // Rechts muss der Abzug den Zugewinn dieser drei genau aufwiegen: Wer nicht
     // auswaehlt, kommt nicht voran - genau das war der Befund vor dieser Aenderung.
-    expect(BALANCE.walls.weakenDamage).toBeCloseTo(guteJeRote * BALANCE.walls.damageGain, 2)
-    expect(BALANCE.walls.weakenRate).toBeCloseTo(guteJeRote * BALANCE.walls.rateGain, 2)
+    // SEIT 2026-08-25 MULTIPLIKATIV: Der Abzug ist der Kehrwert von badCostsGates guten
+    // Toren, die Regel gilt damit auf jedem Level gleich. Als fester Betrag kostete eine
+    // rote Kachel bei Level 2 fast den ganzen Schaden und bei Level 12 ein Fuenftel.
+    expect(BALANCE.walls.badCostsGates).toBeCloseTo(guteJeRote, 2)
+    for (const stat of ['damage', 'shotsPerSec'] as const) {
+      const gute = getGateGrowth(stat) ** BALANCE.walls.badCostsGates
+      expect(gute * getGateLoss(stat), stat).toBeCloseTo(1, 6)
+    }
   })
 
   it('laesst blindes Durchfahren links nicht vorankommen', () => {
@@ -68,7 +75,9 @@ describe('rote Kacheln: der Verlust in beiden Bahnen', () => {
   it('deckelt den Verlust am Run-Startwert, damit gekaufte Ausbauten sicher sind', () => {
     const scene = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
     expect(scene).toContain('this.statFloor = {')
-    expect(scene).toContain('Math.max(this.statFloor[key], before + gain)')
+    // Multiplikativ seit 2026-08-25 - der Boden bleibt derselbe, nur die Rechenart aendert
+    // sich (Herleitung bei BALANCE.walls.gatesPerLevelStep).
+    expect(scene).toContain('Math.max(this.statFloor[key], before * faktor)')
   })
 
   it('laesst die Truppen-Reserve mit dem Level wachsen, statt sie fest zu deckeln', () => {

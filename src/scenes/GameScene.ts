@@ -263,16 +263,21 @@ export class GameScene extends Phaser.Scene {
         }
         this.updateHud()
       },
-      (stat, gain) => {
+      (stat, faktor) => {
         // Feuerkraft aus der rechten Wand: Sofortwirkung mit Quittung, wie links.
-        // Seit den roten Segmenten kann gain auch negativ sein.
+        // FAKTOR STATT BETRAG seit 2026-08-25 (Herleitung bei BALANCE.walls.
+        // gatesPerLevelStep): Ein fester Betrag deckte ab Level 2 den ganzen Levelsprung
+        // ab, ein roter zog bei Level 2 fast alles ab und bei Level 12 ein Fuenftel.
+        // Bei roten Kacheln liegt der Faktor unter 1.
         const key = stat === 'damage' ? 'damage' : 'shotsPerSec'
         const before = this.runStats.get(key)
         // Nach unten bremst der Run-Startwert, nach oben der Balance-Deckel in RunStats.
-        this.runStats.set(key, Math.max(this.statFloor[key], before + gain))
+        this.runStats.set(key, Math.max(this.statFloor[key], before * faktor))
         const after = this.runStats.get(key)
         if (after !== before) {
-          const delta = Math.round((after - before) * 10) / 10
+          // Zwei Nachkommastellen: Ein Tor bewegt den Schaden um 0,015 bis 0,06, mit
+          // einer Stelle waere jeder zweite Fund als "+0" quittiert worden.
+          const delta = Math.round((after - before) * 100) / 100
           this.audio.play(delta > 0 ? 'crowdUp' : 'crowdDown')
           this.popups.spawn(
             this.crowd.getAnchorX(),
@@ -1101,8 +1106,11 @@ export class GameScene extends Phaser.Scene {
 
   private updateHud(): void {
     this.syncCrowdSize()
-    const damage = Math.round(this.runStats.get('damage') * 10) / 10
-    const shotsPerSec = Math.round(this.runStats.get('shotsPerSec') * 10) / 10
+    // ZWEI NACHKOMMASTELLEN seit 2026-08-25: Die Tore der rechten Wand heben um 0,88 %
+    // bzw. 0,47 % je Stueck (BALANCE.walls.gatesPerLevelStep) - bei einer Stelle stand
+    // die Zahl nach jedem zweiten Fund unveraendert da und das Sammeln wirkte folgenlos.
+    const damage = this.runStats.get('damage').toFixed(2)
+    const shotsPerSec = this.runStats.get('shotsPerSec').toFixed(2)
     this.hud.hp.setText(`TEAM ${this.runStats.get('hp')}`)
     this.hud.coins.setText(`¢ ${this.coins.getCount()}`)
     this.hud.level.setText(`LEVEL ${this.currentLevel}`)

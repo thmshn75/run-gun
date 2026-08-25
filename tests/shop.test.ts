@@ -106,9 +106,11 @@ describe('Shop', () => {
     stats.addStep('firepower')
     // Faktor auf den Istwert, nicht Sprung auf den Deckel.
     expect(stats.get('damage')).toBeLessThan(getStatCap('damage', 8, { firepower: 1, team: 0 }))
-    // Erwartet ist der Istwert mal Faktor, gerundet auf eine Nachkommastelle.
-    const erwartet = Math.round(2 * (1 + BALANCE.shop.damageBonusPerStep) * 10) / 10
-    expect(stats.get('damage')).toBe(erwartet)
+    // Erwartet ist der Istwert mal Faktor. Die Stufung, auf die clampStat rundet, gehoert
+    // NICHT in diesen Test - er wuerde sonst bei jeder Aenderung daran anschlagen, ohne
+    // dass die gepruefte Eigenschaft betroffen waere (2026-08-25 von einer Nachkommastelle
+    // auf zwei geaendert, weil kleine Zugewinne sonst spurlos verschwanden).
+    expect(stats.get('damage')).toBeCloseTo(2 * (1 + BALANCE.shop.damageBonusPerStep), 2)
   })
 
   it('mehr Stufen als die Preisliste lang ist gibt es nicht', () => {

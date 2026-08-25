@@ -545,8 +545,28 @@ export const BALANCE = {
     // 0,63 und 0,17 - gerundet auf gut merkbare Schritte.
     // Der Ausgleich zur muehelosen Sammelbahn steckt nicht im Wert, sondern im Preis:
     // Rechts kostet jedes Segment Feuerzeit, in der keine Gegner getroffen werden.
-    damageGain: 0.5,
-    rateGain: 0.2,
+    // WIE VIELE TORE EIN LEVELSPRUNG KOSTET (Thomas 2026-08-25: "bei den DMG und Rate
+    // Waenden rechts - ich finde man erreicht zu schnell die hoechste Stufe im Level").
+    //
+    // DER FEHLER, gemessen: Ein Tor gab einen FESTEN Betrag (+0,5 Schaden, +0,2 Rate),
+    // der Deckel waechst aber PROZENTUAL um 15,2 % je Level. In absoluten Zahlen ist ein
+    // Levelsprung winzig - 0,23 Punkte bei Level 2, 0,92 bei Level 12. Ein einziges Tor
+    // deckte ihn also ab Level 2 vollstaendig ab, waehrend je Level 22 bis 46
+    // Schadens-Tore erscheinen (gemessen ueber 70 s, alle Level). Der Spieler war nach
+    // rund zwei Prozent des Levels fertig und fuhr den Rest an wertlosen Toren vorbei.
+    //
+    // JETZT haengt der Zuwachs am Levelsprung selbst: Ein Tor bringt den 16. Teil davon,
+    // also +0,88 % Schaden und +0,47 % Feuerrate. Die 16 ist aus dem gemessenen Angebot
+    // abgeleitet, nicht gewaehlt:
+    //   Level 1  braucht 46 Schadens-Tore vom Grundwert bis zum Deckel - Angebot 46.
+    //            Fuer die Feuerrate 33 gegen 34. Level 1 ist damit genau ausgefuellt.
+    //   Level 2+ braucht 16 von rund 30 Toren, der Deckel faellt also etwa zur
+    //            Levelmitte. Das laesst Luft fuer verpasste und fuer rote Tore.
+    // WER DIESE ZAHL AENDERT, muss die Anzeige mitpruefen: Bei 16 bewegt ein Tor den
+    // Schadenswert um 0,015 bis 0,06 - deshalb zeigt das HUD seit derselben Aenderung
+    // zwei Nachkommastellen. Mit einer waere jeder zweite Fund unsichtbar geblieben, und
+    // genau daran ist im Juli schon der Ausbau des Run-Shops gescheitert.
+    gatesPerLevelStep: 16,
     // ROTE SEGMENTE (Thomas 2026-08-22, Entscheidung "rote Segmente in beiden Bahnen").
     // Bis hierher kannte das Spiel nur Zuwachs: Schaden und Feuerrate stiegen bis zum
     // Deckel und blieben dort. Ohne Abwaertsbewegung ist Dranbleiben immer richtig, und
@@ -596,8 +616,14 @@ export const BALANCE = {
     // je 23 Kacheln statt 19 - immer noch spuerbar negativ, wie im Entwurf gewollt, aber
     // kein Grund mehr, die linke Bahn ganz zu meiden.
     drainTeam: 3,
-    weakenDamage: 1.5,
-    weakenRate: 0.6,
+    // Was eine rote Kachel kostet, gemessen in guten Toren. Drei, weil auf drei gute
+    // eine rote kommt (badChance mit badMaxRun verduennt) - blindes Draufhalten bringt
+    // damit netto nichts, und genau das sichert wallLoss.test.ts ab.
+    //
+    // MUSSTE MIT PROZENTUAL WERDEN: Als fester Abzug von 1,5 kostete eine rote Kachel bei
+    // Level 2 (Wert 1,73) fast den ganzen Schaden, bei Level 12 (Wert 7) nur ein Fuenftel.
+    // Derselbe Fehler zeigte sich am selben Tag auf der Gewinnseite.
+    badCostsGates: 3,
     // Wie tief die Truppe sich an eine Wand druecken darf, in Figurenbreiten ueber die
     // Wandinnenkante hinaus. 0.5 = die innerste Figur steht zur Haelfte in der Zone,
     // ihr Schussursprung damit sicher drin. Ohne diesen Ueberstand trifft die
