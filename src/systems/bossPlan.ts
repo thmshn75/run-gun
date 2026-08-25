@@ -185,7 +185,13 @@ export function getBossPlan(
   // falsche Hebel: Gemessen haengt die Kampfdauer am Gegnerschild, nicht an seinen
   // Lebenspunkten - ein zaeherer Boss wird nur laenger (Herleitung bei BALANCE.boss.elite).
   const elite = isEliteBossLevel(safeLevel)
-  const maxHp = Math.round(referenceDps * fightSec * (elite ? BALANCE.boss.elite.maxHpFactor : 1))
+  // hitEfficiency rechnet den gemessenen Trefferverlust heraus: referenceDps ist die
+  // THEORETISCHE Feuerkraft der Truppe, beim Boss kommt davon nur ein Bruchteil an
+  // (Herleitung bei BALANCE.boss.referenceFirepower.hitEfficiency). Ohne diesen Faktor
+  // dauerte ein Kampf ein bis zwei Minuten statt der geplanten Sekundenzahl.
+  const maxHp = Math.round(
+    referenceDps * reference.hitEfficiency * fightSec * (elite ? BALANCE.boss.elite.maxHpFactor : 1),
+  )
 
   return {
     level: safeLevel,
@@ -193,7 +199,11 @@ export function getBossPlan(
     maxHp,
     phaseThresholdHp: maxHp / 2,
     referenceDps,
-    referenceFightSec: maxHp / referenceDps,
+    // ERWARTETE REALE Kampfdauer, nicht die gerechnete: Der Trefferwirkungsgrad gehoert
+    // in den Nenner, sonst meldet die Kennzahl eine Dauer, die der Spieler nie erlebt -
+    // vor der Kalibrierung war sie um Faktor 3 bis 6 zu optimistisch. Die Steuergroesse
+    // muss die Erlebnisgroesse sein (docs/lessons.md, 2026-08-23).
+    referenceFightSec: maxHp / (referenceDps * reference.hitEfficiency),
     phaseOne: getPhaseOneProfile(safeLevel),
     phaseTwo: getPhaseTwoProfile(safeLevel),
     // DIE EIGENTLICHEN ELITE-HEBEL: mehr Begleiter und schnelleres Vorruecken. Beides

@@ -152,10 +152,20 @@ describe('boss plans', () => {
                 const expectedDps = getCombatFirepower(teamSize, weapon, level) * damage * rate
                 const label = `L${level}, ${weapon}, team ${teamSize}, damage ${damage}, rate ${rate}`
                 expect(plan.referenceDps, label).toBeCloseTo(expectedDps)
-                const actualFightSec = plan.maxHp / plan.referenceDps
-                // Rounding maxHp by at most 0.5 HP at the minimum 1.12 DPS (laser, team 2, damage/rate 1) deviates by 0.446 s, so allow 0.5 s.
-                expect(actualFightSec, label).toBeGreaterThanOrEqual(BALANCE.boss.referenceFirepower.minFightSec - 0.5)
-                expect(actualFightSec, label).toBeLessThanOrEqual(getMaxFightSec(level) + 0.5)
+                // Die vom Plan gemeldete Dauer nehmen, NICHT selbst nachrechnen: Seit
+                // dem Trefferwirkungsgrad (2026-08-25) ist maxHp/referenceDps nicht mehr
+                // die erlebte Dauer. Eine Berechnung gegen ihre eigene, veraltete Formel
+                // zu testen sichert nichts (docs/lessons.md, 2026-08-22).
+                const actualFightSec = plan.referenceFightSec
+                // Rundungstoleranz: maxHp ist ganzzahlig, eine halbe Lebenspunkt-Abweichung
+                // schlaegt bei der schwaechsten Kombination (Laser, Truppe 2, Schaden und
+                // Rate 1) auf die Dauer durch. Sie betrug 0,446 s bei 1,12 DPS - seit dem
+                // Trefferwirkungsgrad (2026-08-25) zaehlt aber nur noch dessen Anteil,
+                // der Nenner ist also um Faktor 0,28 kleiner und die Abweichung
+                // entsprechend groesser: 0,446 / 0,28 = 1,6 s. Toleranz 1,8 s.
+                const rundungstoleranz = 0.5 / BALANCE.boss.referenceFirepower.hitEfficiency
+                expect(actualFightSec, label).toBeGreaterThanOrEqual(BALANCE.boss.referenceFirepower.minFightSec - rundungstoleranz)
+                expect(actualFightSec, label).toBeLessThanOrEqual(getMaxFightSec(level) + rundungstoleranz)
                 expect(plan.referenceFightSec, label).toBeCloseTo(actualFightSec, 1)
                 expect(plan.phaseThresholdHp, label).toBe(plan.maxHp / 2)
                 cases += 1
@@ -174,9 +184,13 @@ describe('boss plans', () => {
     // eigentlich absichern soll: Der schwaechste realistische Run darf nicht in einen
     // Bosskampf laufen, der laenger dauert als das Zeitfenster des Levels erlaubt.
     const plan = getBossPlan(1, 3, 'rocket', 1, 1)
-    const fightSec = plan.maxHp / plan.referenceDps
-    expect(fightSec).toBeGreaterThanOrEqual(BALANCE.boss.referenceFirepower.minFightSec - 0.5)
-    expect(fightSec).toBeLessThanOrEqual(getMaxFightSec(1) + 0.5)
+    const fightSec = plan.referenceFightSec
+    // Dieselbe Rundungstoleranz wie im Kreuzprodukt oben: maxHp ist ganzzahlig, und seit
+    // dem Trefferwirkungsgrad zaehlt nur dessen Anteil der Feuerkraft - eine halbe
+    // Lebenspunkt-Abweichung schlaegt deshalb um den Kehrwert staerker durch.
+    const rundungstoleranz = 0.5 / BALANCE.boss.referenceFirepower.hitEfficiency
+    expect(fightSec).toBeGreaterThanOrEqual(BALANCE.boss.referenceFirepower.minFightSec - rundungstoleranz)
+    expect(fightSec).toBeLessThanOrEqual(getMaxFightSec(1) + rundungstoleranz)
   })
 
   it('keeps the specified dampening values and lets the boss arrive at the end of the fight window', () => {
@@ -346,5 +360,28 @@ describe('Pendeln darf den Kampf nicht nur verlaengern (E7)', () => {
     const hpAufschlag = BALANCE.boss.elite.maxHpFactor
     const trefferverlust = 1 / 0.89
     expect(hpAufschlag * trefferverlust).toBeLessThan(1.5)
+  })
+})
+
+describe('Kampfdauer bleibt im Rahmen (Thomas 2026-08-25)', () => {
+  it('rechnet die Lebenspunkte gegen die TATSAECHLICHE Trefferrate', () => {
+    // "das ist zu lange, der Bosskampf darf maximal 40 Sekunden dauern". Die
+    // Lebenspunkte kamen aus der theoretischen Feuerkraft; was davon den weit oben
+    // stehenden Boss trifft, ist ein Bruchteil - gemessen zwischen 0,177 (Pistole) und
+    // 0,494 (Laser). Ohne diesen Faktor dauerte ein Kampf ein bis zwei Minuten.
+    const wirkungsgrad = BALANCE.boss.referenceFirepower.hitEfficiency
+    expect(wirkungsgrad).toBeGreaterThan(0)
+    expect(wirkungsgrad).toBeLessThan(1)
+    // Am schwaechsten gemessenen Wirkungsgrad ausgelegt, nicht am mittleren: Sonst
+    // reisst die schwaechste Waffe die Vorgabe, und das ist ausgerechnet die Startwaffe.
+    expect(wirkungsgrad).toBeLessThanOrEqual(0.22)
+  })
+
+  it('meldet als referenceFightSec die ERLEBTE Dauer, nicht die gerechnete', () => {
+    // Die Steuergroesse muss die Erlebnisgroesse sein (docs/lessons.md, 2026-08-23).
+    // Vor der Kalibrierung meldete der Plan 20 s, wo der Spieler 74 erlebte.
+    const plan = getBossPlan(9, 30, 'normal', 7, 8)
+    const rohDauer = plan.maxHp / plan.referenceDps
+    expect(plan.referenceFightSec).toBeGreaterThan(rohDauer)
   })
 })

@@ -2089,6 +2089,49 @@ export const BALANCE = {
   },
   boss: {
     referenceFirepower: {
+      // TREFFERWIRKUNGSGRAD (Thomas 2026-08-25: "das ist zu lange, der Bosskampf darf
+      // maximal 40 Sekunden dauern").
+      //
+      // DIE URSACHE, gemessen: Die Boss-Lebenspunkte werden aus referenceDps abgeleitet,
+      // also aus der Feuerkraft, die die Truppe THEORETISCH liefert. Was davon den Boss
+      // tatsaechlich trifft, ist ein Bruchteil - er steht weit oben, langsame Geschosse
+      // verfehlen ihn haeufiger, und die Formel kannte diesen Verlust nicht. Gemessen auf
+      // Level 9 mit voller Truppe (tatsaechliche Trefferrate gegen gerechnete):
+      //   Pistole      91 von 514 DPS = 0,177  ->  Kampf dauerte 121 s statt 21
+      //   Sturmgewehr 195 von 721 DPS = 0,270  ->              74 s statt 20
+      //   Laser       229 von 464 DPS = 0,494  ->              44 s statt 22
+      //
+      // 0,20 ist am SCHLECHTESTEN Fall ausgelegt, nicht am mittleren, und zwar an
+      // VOLLSTAENDIG ausgefochtenen Kaempfen. Ein erster Anlauf mit 0,28 stammte aus
+      // einer Hochrechnung der ersten Sekunden und war um 74 % zu pessimistisch: Der
+      // Boss rueckt waehrend des Kampfes vor, die Trefferrate steigt also im Verlauf.
+      // Voll gemessen mit 0,28:
+      //   Elite + Pistole  48,2 s und 54,6 s   ·  Pistole allein   32,2 s
+      //   Sturmgewehr      23,0 s              ·  Elite + Gewehr   31,8 s (Level 15)
+      //   Laser            12,6 s
+      // Der schlechteste Fall lag damit bei ueber 50 s. Mit 0,20 sinkt er auf rund 37 s
+      // und haelt Thomas' Vorgabe von 40 s auch mit Puffer - der noetig ist, weil
+      // derselbe Kampf zwischen 48 und 55 s streute.
+      //
+      // DIE SPANNWEITE BLEIBT GROSS: Ein Laser-Kampf dauert danach rund 9 s, einer mit
+      // der Pistole gegen den Elite-Boss rund 37. Das kommt aus den Waffen selbst -
+      // gemessen trifft der Laser mit 0,494 der gerechneten Feuerkraft, die Pistole nur
+      // mit 0,177. Ein waffenabhaengiger Wirkungsgrad wuerde das ausgleichen, braucht
+      // aber eine Messung je Waffe und waere eine eigene Etappe. Bis dahin gilt: Wer die
+      // bessere Waffe traegt, ist schneller durch.
+      //
+      // NACH DER SENKUNG VOLL GEMESSEN (Kampf bis zum Sieg):
+      //   Level  5 Elite, Shotgun     12,8 s
+      //   Level  9, Laser              9,0 s   ·  Level 9, Sturmgewehr   14,2 s
+      //   Level 10 Elite, Pistole     34,6 s und 37,6 s (der schlechteste Fall)
+      //   Level 20 Elite, Sturmgewehr 26,8 s
+      // Alle unter der Vorgabe. Dass hoehere Level laenger dauern (Level 20 mit 27 s
+      // gegen Level 9 mit 14 s), ergibt sich aus der Levelkurve von selbst und ist so
+      // gewollt (Thomas 2026-08-25: "es ist ok, wenn es in hoeheren Leveln etwas laenger
+      // dauert").
+      //
+      // WER DIESE ZAHL AENDERT, aendert die Kampfdauer ALLER Bosslevel proportional.
+      hitEfficiency: 0.2,
       // Fight duration at the maximum crowd size with the normal weapon. Smaller crowds take longer,
       // capped by the level-scaled maximum so a two-figure emergency team cannot stall a run.
       // Die frueher hier verlangte Sicherheitsmarge zur Druckschwelle ist entfallen: Der
