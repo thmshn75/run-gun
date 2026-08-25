@@ -44,6 +44,14 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   Run-Shop auf der Feuerkraft. Waffenkauf noch offen.
 - **E2 Preise** — 37,5 % -> 200 % der Levelseinnahme je Stufe. Ein Run bis Level 12
   erlaubt 9 von 22 Stufen. Der Knopf zeigt "NOCH ¢ X" statt tot dazustehen.
+- **Waffen-Staffelung nach gemessener Staerke neu sortiert** (Thomas: "flammenwerfer ist
+  schlechter als Laser, obwohl er spaeter kommt"). Er hatte recht: Gestaffelt wurde nach
+  `getWeaponFirepower`, und die zaehlt Durchschlag, Sprengwirkung und Kettenspruenge
+  ABSICHTLICH nicht mit - sie ist fuer den Bosskampf gedacht, wo es nur ein Ziel gibt. Im
+  Normalspiel entscheiden genau diese Eigenschaften. Nach der Kennzahl lagen alle Waffen
+  im Band 1,15-1,27; gemessen liegt zwischen der schwaechsten und der staerksten
+  **Faktor acht**. Groesster Ausreisser war der Laser: viertstaerkste Waffe des Spiels,
+  kam als dritte - jetzt von Level 7 auf 18. Elf der dreizehn Waffen sind verschoben.
 - **Bosskampf laenger** (Thomas nach dem Spielen bis Level 9: "die Bosse sind zu einfach
   (zu schnell) zu besiegen"). Gemessen dauerte ein Kampf mit seinem Ausbaustand 20 bis
   22 s - das System hielt genau seine Untergrenze, sie war nur zu niedrig. Fenster von

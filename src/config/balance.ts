@@ -1037,23 +1037,44 @@ export const BALANCE = {
   // WAFFEN-STAFFELUNG (Benni ueber Thomas 2026-08-23: "die besseren Waffen sollen auch
   // erst in den hoeheren Leveln kommen - also immer noch was Neues dazu").
   //
-  // EIN EHRLICHER PUNKT, der die Umsetzung bestimmt: "Bessere Waffen" gibt es hier nicht.
-  // Alle acht liegen bewusst im gemessenen Staerkeband 1,15-1,27x der Standardwaffe
-  // (Commit a98a920). Eine echte Steigerung wuerde dieses Band aufbrechen und das
-  // Endspiel leichter machen - derselbe Fehler wie ein zu grosser Kauf-Bonus, nur an
-  // anderer Stelle.
+  // NEU SORTIERT AM 2026-08-25, nachdem Thomas meldete: "flammenwerfer ist schlechter als
+  // Laser, obwohl er spaeter kommt". Er hatte recht, und die Ursache steckte in der
+  // Kennzahl, nach der frueher gestaffelt wurde.
   //
-  // Gestaffelt wird deshalb die FREISCHALTUNG, gesteigert die AUFFAELLIGKEIT: was eine
-  // Waffe tut, nicht wie viel sie tut.
-  //   1 NORMAL / SCHROT   schlicht bzw. Streuung
-  //   2 LASER             Durchschlag
-  //   3 RAKETE            Sprengwirkung
-  //   4 MINIGUN           Dauerfeuer
-  //   5 FLAMME            Faecher, Nahbereich
-  //   6 BLITZ             springt auf Nachbarn ueber
-  //   7 GRANATWERFER      groesster Sprengradius, fast die ganze Bildhoehe
+  // DER FEHLER: Gestaffelt wurde nach getWeaponFirepower. Diese Groesse zaehlt
+  // Durchschlag, Sprengwirkung und Kettenspruenge ABSICHTLICH nicht mit - sie ist fuer
+  // den Bosskampf gedacht, und dort gibt es nur ein Ziel. Im Normalspiel fliegen die
+  // Gegner in Reihen an, und genau diese Eigenschaften entscheiden. Nach der Kennzahl
+  // lagen alle Waffen im engen Band 1,15 bis 1,27; tatsaechlich gemessen liegen zwischen
+  // der schwaechsten und der staerksten FAKTOR ACHT.
   //
-  // Auf Level 1 bleibt damit EINE Alternative zur Startwaffe - das Tor zeigt dort immer
+  // GEMESSEN (Level 18, Ueberlast: Truppe 6, Schaden 2, Rate 3 - erst dort trennen sich
+  // die Waffen, sonst ist der Nachschub der Engpass und jede raeumt weg, was ankommt).
+  // Median aus zwei Laeufen, 30 s nach 8 s Einschwingen, Sonde: scratchpad/waffenkraft.mjs.
+  // Die Zahl in Klammern ist, was trotzdem durchkommt - die eigentliche Erlebnisgroesse.
+  //    1 PISTOLE        1,75 Toet./s (11,0 durch)   Startwaffe, schwaechste
+  //    2 STURMGEWEHR    3,40 (10,1)                 Bezugswaffe
+  //    3 SCHROTFLINTE   3,13  (9,7)                 Streuung
+  //    5 MINIGUN        3,97  (9,4)                 Dauerfeuer
+  //    7 FLAMME         4,83  (8,4)                 Faecher, Nahbereich
+  //    9 BLITZ          5,07  (9,7)                 springt auf Nachbarn ueber
+  //   11 RAKETE         7,47  (4,3)                 Sprengwirkung
+  //   13 PRELLSCHUSS    7,67  (6,6)                 Durchschlag
+  //   15 SAEGEBLATT     7,67  (5,4)                 Durchschlag, langsam
+  //   18 LASER          8,27  (6,6)                 Durchschlag, lange Reichweite
+  //   21 GRANATE       10,27  (2,9)                 grosser Sprengradius
+  //   25 SCHOCKWELLE   12,47  (0,9)                 wirkt rundum
+  //   30 STREUBOMBE    13,80  (0,0)                 mehrfache Sprengung
+  //
+  // Sturmgewehr (2) und Schrotflinte (3) stehen bewusst NICHT nach Messung: Ihr Abstand
+  // liegt mit 3,40 zu 3,13 innerhalb der Streuung, und das Sturmgewehr ist die
+  // Bezugswaffe fuer getWeaponFirepower. Ein Tausch waere Rauschen.
+  //
+  // DER LASER war der groesste Ausreisser: von Level 7 auf 18. Er ist die viertstaerkste
+  // Waffe des Spiels und kam als dritte - sein Durchschlag toetet mehrere Gegner
+  // hintereinander, was die alte Kennzahl komplett uebersah.
+  //
+  // Auf Level 1 bleibt EINE Alternative zur Startwaffe - das Tor zeigt dort immer
   // dasselbe. Fuer das Lernlevel vertretbar, ab Level 2 sind es zwei, ab Level 3 drei.
   // Ein Test haelt Staffelung und Mindestzahl an Toralternativen fest.
   weapon: {
@@ -1164,7 +1185,7 @@ export const BALANCE = {
       // MEISTEN Gegner durch (6,08/s gegen 5,96 der Startwaffe), obwohl er Durchschlag
       // hat: Seine Feuerlinie ist schmal, er trifft nur, was in der Spur steht. Nur
       // damageFactor angehoben, aus demselben Grund wie bei der Minigun.
-      minLevel: 7,
+      minLevel: 18,
       rateFactor: 1.4,
       damageFactor: 0.46,
       shootersPerSalvo: 8,
@@ -1191,7 +1212,7 @@ export const BALANCE = {
       chainDamageFactor: 0,
     },
     rocket: {
-      minLevel: 13,
+      minLevel: 11,
       rateFactor: 0.25,
       damageFactor: 2.5,
       // 3 -> 5 Schuetzen: Mit Splash lag die Rakete gegen Horden bei 0,76x und damit
@@ -1237,7 +1258,7 @@ export const BALANCE = {
       chainDamageFactor: 0,
     },
     flamethrower: {
-      minLevel: 9,
+      minLevel: 7,
       // 14.4 salvos/s x 3 shooters x 5 projectiles x 0.694s flight = 149.8; 200 leaves 33% reserve.
       rateFactor: 1.8,
       damageFactor: 0.34,
@@ -1256,7 +1277,7 @@ export const BALANCE = {
       chainDamageFactor: 0,
     },
     chainlightning: {
-      minLevel: 11,
+      minLevel: 9,
       rateFactor: 0.7,
       // 1,05 -> 0,9: Die Kette lag mit 1,46x am oberen Rand des Bandes, weil drei
       // Kettensprunge zu je 55 % ihren Wert fast verdreifachen. Jetzt 1,25x.
@@ -1305,7 +1326,7 @@ export const BALANCE = {
     // rateFactor 0,15 gerechnet und waere bei 0,26 auf null Reserve gelaufen.
     grenade: {
       // Letzte Waffe der V3-Staffelung; seit 2026-08-24 Stufe 15 von dreizehn Waffen.
-      minLevel: 15,
+      minLevel: 21,
       // Langsamste Waffe im Spiel (Rakete 0,25) - "schiesst weniger oft".
       rateFactor: 0.26,
       // Hoechster Schadensfaktor im Spiel (Rakete 2,5) - "viel Schaden".
@@ -1355,7 +1376,7 @@ export const BALANCE = {
     // die Naeherung mit vorhandenen Mitteln (Durchschlag statt Abprall). Als Befund
     // notiert, nicht stillschweigend ersetzt.
     ricochet: {
-      minLevel: 18,
+      minLevel: 13,
       rateFactor: 1.5,
       damageFactor: 0.44,
       shootersPerSalvo: 8,
@@ -1374,7 +1395,7 @@ export const BALANCE = {
     // statt Punkt, der Gegenentwurf zum Granatwerfer: kleinerer Radius, dafuer dreifach
     // und breiter gestreut.
     cluster: {
-      minLevel: 21,
+      minLevel: 30,
       rateFactor: 0.4,
       damageFactor: 0.54,
       shootersPerSalvo: 6,
@@ -1394,7 +1415,7 @@ export const BALANCE = {
     // und nimmt alles mit, was in seiner Spur steht. Voellig anderes Timing als alles
     // andere - man legt eine Schneise, statt auf Ziele zu schiessen.
     sawblade: {
-      minLevel: 25,
+      minLevel: 15,
       rateFactor: 0.42,
       damageFactor: 2.1,
       shootersPerSalvo: 5,
@@ -1415,7 +1436,7 @@ export const BALANCE = {
     // Durchbrueche - die einzige Waffe, die etwas gegen bereits herangekommene Gegner
     // ausrichtet.
     shockwave: {
-      minLevel: 30,
+      minLevel: 25,
       rateFactor: 0.5,
       damageFactor: 1.19,
       shootersPerSalvo: 6,

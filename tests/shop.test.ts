@@ -248,9 +248,21 @@ describe('Dauerhaft gekaufte Waffen (Benni 2026-08-25)', () => {
 
   it('macht die teuerste Waffe erst nach mehreren guten Runs erreichbar', () => {
     // Gegengerechnet an dem, was ein Run aufs Konto bringt (nach E2): bis Level 20 rund
-    // 12.600, bis Level 30 rund 32.600. Die Schockwelle darf nicht nach einem Run
+    // 12.600, bis Level 30 rund 32.600. Die teuerste Waffe darf nicht nach einem Run
     // dastehen - sonst waere Bennis "nicht sofort kaufen" verfehlt.
-    expect(getWeaponUnlockPrice('shockwave')!).toBeGreaterThan(32600)
+    //
+    // NICHT AUF EINEN NAMEN FESTSCHREIBEN (2026-08-25): Der Test stand auf 'shockwave',
+    // und als die Waffen nach gemessener Staerke neu gestaffelt wurden, war die teuerste
+    // eine andere. Gepruerft gehoert die Eigenschaft, nicht die Waffe, die sie gerade hat.
+    // Waffenliste aus BALANCE ableiten, nicht aus systems/weapons importieren: Das Modul
+    // zieht Phaser mit, und in der Testumgebung gibt es kein window.
+    // Auf Eintraege mit Freischaltlevel filtern: In BALANCE.weapon stehen neben den
+    // Waffen auch Einstellwerte (rewardNewnessBias).
+    const alle = (Object.keys(BALANCE.weapon) as (keyof typeof BALANCE.weapon)[])
+      .filter((k) => typeof (BALANCE.weapon[k] as { minLevel?: number }).minLevel === 'number')
+    const minLevelVon = (k: typeof alle[number]) => (BALANCE.weapon[k] as { minLevel: number }).minLevel
+    const teuerste = alle.reduce((a, b) => (minLevelVon(a) >= minLevelVon(b) ? a : b))
+    expect(getWeaponUnlockPrice(teuerste)!, teuerste).toBeGreaterThan(32600)
   })
 
   it('laesst eine gekaufte Waffe ab Level 1 im Tor erscheinen', () => {

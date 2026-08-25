@@ -639,3 +639,20 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   Truppe nach wenigen Sekunden, danach spawnen keine Wandstuecke mehr. Gemessen wurde die
   Ueberlebenszeit. Jede Sonde, die das Spiel laufen laesst, muss die Truppe am Leben
   halten — sonst misst sie etwas anderes als gedacht, und zwar plausibel aussehend.
+
+### 2026-08-25 — Nach der falschen Kennzahl gestaffelt
+- **Fehler:** Thomas meldete "Flammenwerfer ist schlechter als Laser, obwohl er spaeter
+  kommt". Die Reihenfolge, in der die dreizehn Waffen im Spiel erscheinen, war nach
+  `getWeaponFirepower` festgelegt. Diese Groesse zaehlt Durchschlag, Sprengwirkung und
+  Kettenspruenge **absichtlich nicht** mit - sie ist fuer den Bosskampf gedacht, und dort
+  gibt es nur ein Ziel. Im Normalspiel fliegen die Gegner in Reihen an, und genau diese
+  Eigenschaften entscheiden. Nach der Kennzahl lagen alle Waffen im engen Band 1,15 bis
+  1,27; im Spiel gemessen liegen zwischen der schwaechsten und der staerksten Faktor acht.
+  Der Laser ist die viertstaerkste Waffe und kam als dritte.
+- **Regel:** Eine Kennzahl gilt nur fuer den Zweck, fuer den sie gebaut wurde. Wer sie
+  fuer eine andere Entscheidung heranzieht, muss zuerst pruefen, was sie WEGLAESST - hier
+  stand die Einschraenkung sogar als Kommentar an der Funktion ("Splash and chaining
+  intentionally do not count: a boss is one target") und wurde trotzdem uebersehen.
+- **Zweite Lehre:** Zwei Tests standen auf Waffennamen statt auf Eigenschaften ("die
+  Schockwelle ist die teuerste Waffe"). Beim Umsortieren schlugen sie an, obwohl die
+  gepruefte Eigenschaft weiter galt - die teuerste Waffe war nur eine andere geworden.
