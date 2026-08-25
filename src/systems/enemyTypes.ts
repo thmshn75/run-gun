@@ -96,8 +96,11 @@ export function getUnlockedVariantCount(level: number): number {
  * Texturname fuer einen Gegner. Index 0 ist die Vorlage, danach -b, -c, -d.
  * Der Zufallswert kommt von aussen, damit der Aufrufer seine eigene Quelle behaelt.
  */
+/** Suffixe der Varianten ab Index 1. Index 0 ist die Vorlage ohne Suffix. */
+const VARIANT_SUFFIXES = 'bcdefghij'
+
 export function getEnemyTexture(basisTextur: string, level: number, zufall: number): string {
-  const anzahl = getUnlockedVariantCount(level)
+  const anzahl = Math.min(getUnlockedVariantCount(level), VARIANT_SUFFIXES.length + 1)
   const index = Math.min(anzahl - 1, Math.max(0, Math.floor(zufall * anzahl)))
-  return index === 0 ? basisTextur : `${basisTextur}-${'bcd'[index - 1]}`
+  return index === 0 ? basisTextur : `${basisTextur}-${VARIANT_SUFFIXES[index - 1]}`
 }

@@ -1502,11 +1502,23 @@ export const BALANCE = {
     // unten an den Vorlagen nachgemessen sind - eine abweichende Silhouette wuerde
     // Trefferflaechen und Formationsabstaende verschieben.
     //
-    // GESTAFFELT FREIGESCHALTET, damit ueber den ganzen Run etwas Neues dazukommt: Ab
-    // Level 1 die Vorlage, ab 3 die zweite, ab 6 die dritte, ab 9 die vierte. Die
-    // Waffenstaffelung (B6) reicht nur bis Level 7 - ab dort traegt diese Kette weiter.
+    // GESTAFFELT FREIGESCHALTET, damit ueber den ganzen Run etwas Neues dazukommt.
     // Rein optisch: Keine Balance-Groesse haengt daran.
-    variantUnlockLevels: [1, 3, 6, 9],
+    //
+    // 4 -> 10 STUFEN (E5, 2026-08-25). Bis dahin waren es vier reine FARBVARIANTEN
+    // derselben Figur; Thomas: "verschiedene Farben haben wir, und zusaetzliche andere
+    // Gestalten in allen drei Figurstaerken". Die sechs neuen (e bis j) sind echte
+    // Gestalten - andere Kapuze, Haltung, Kleidung -, keine Umfaerbungen.
+    //
+    // Die Koerpermasse aller sechs sind nachgemessen und weichen um NULL Pixel von der
+    // Vorlage ab (light 37x76, standard 50x84, heavy 82x98). Das ist die Bedingung, unter
+    // der die Gestalt abweichen darf: Trefferflaechen und Formationsabstaende haengen an
+    // diesen Massen, nicht am Bild.
+    //
+    // Die Stufen reichen bis Level 30 und laufen damit parallel zur Waffenstaffelung -
+    // bis Level 12 kommt etwa alle drei Level etwas Neues, danach alle vier bis fuenf.
+    // Im Endlosbereich ist das neben den Waffen die zweite Kette, die weiterlaeuft.
+    variantUnlockLevels: [1, 3, 6, 9, 12, 15, 18, 21, 25, 30],
     // Measured visible-figure dimensions per sprite; coinValue is the number of dropped coins. Remeasure both dimensions whenever the images change.
     // ALLE GEGNER LAUFEN GLEICH SCHNELL (Thomas 2026-08-22: "mache alle Mobs gleich
     // schnell, nur unterschiedlich stark, also mit verschiedenen Trefferpunkten").

@@ -3,6 +3,25 @@ import enemyHeavyUrl from '../assets/enemy-heavy.png'
 import enemyBossUrl from '../assets/enemy-boss.png'
 import enemyLightUrl from '../assets/enemy-light.png'
 import enemyStandardUrl from '../assets/enemy-standard.png'
+import enemyLightEUrl from '../assets/enemy-light-e.png'
+import enemyLightFUrl from '../assets/enemy-light-f.png'
+import enemyLightGUrl from '../assets/enemy-light-g.png'
+import enemyLightHUrl from '../assets/enemy-light-h.png'
+import enemyLightIUrl from '../assets/enemy-light-i.png'
+import enemyLightJUrl from '../assets/enemy-light-j.png'
+import enemyStandardEUrl from '../assets/enemy-standard-e.png'
+import enemyStandardFUrl from '../assets/enemy-standard-f.png'
+import enemyStandardGUrl from '../assets/enemy-standard-g.png'
+import enemyStandardHUrl from '../assets/enemy-standard-h.png'
+import enemyStandardIUrl from '../assets/enemy-standard-i.png'
+import enemyStandardJUrl from '../assets/enemy-standard-j.png'
+import enemyHeavyEUrl from '../assets/enemy-heavy-e.png'
+import enemyHeavyFUrl from '../assets/enemy-heavy-f.png'
+import enemyHeavyGUrl from '../assets/enemy-heavy-g.png'
+import enemyHeavyHUrl from '../assets/enemy-heavy-h.png'
+import enemyHeavyIUrl from '../assets/enemy-heavy-i.png'
+import enemyHeavyJUrl from '../assets/enemy-heavy-j.png'
+import enemyBossEliteUrl from '../assets/enemy-boss-elite.png'
 import enemyLightBUrl from '../assets/enemy-light-b.png'
 import enemyLightCUrl from '../assets/enemy-light-c.png'
 import enemyLightDUrl from '../assets/enemy-light-d.png'
@@ -63,6 +82,25 @@ export class BootScene extends Phaser.Scene {
     this.load.image('enemy-light', enemyLightUrl)
     this.load.image('enemy-standard', enemyStandardUrl)
     this.load.image('enemy-heavy', enemyHeavyUrl)
+    this.load.image('enemy-light-e', enemyLightEUrl)
+    this.load.image('enemy-light-f', enemyLightFUrl)
+    this.load.image('enemy-light-g', enemyLightGUrl)
+    this.load.image('enemy-light-h', enemyLightHUrl)
+    this.load.image('enemy-light-i', enemyLightIUrl)
+    this.load.image('enemy-light-j', enemyLightJUrl)
+    this.load.image('enemy-standard-e', enemyStandardEUrl)
+    this.load.image('enemy-standard-f', enemyStandardFUrl)
+    this.load.image('enemy-standard-g', enemyStandardGUrl)
+    this.load.image('enemy-standard-h', enemyStandardHUrl)
+    this.load.image('enemy-standard-i', enemyStandardIUrl)
+    this.load.image('enemy-standard-j', enemyStandardJUrl)
+    this.load.image('enemy-heavy-e', enemyHeavyEUrl)
+    this.load.image('enemy-heavy-f', enemyHeavyFUrl)
+    this.load.image('enemy-heavy-g', enemyHeavyGUrl)
+    this.load.image('enemy-heavy-h', enemyHeavyHUrl)
+    this.load.image('enemy-heavy-i', enemyHeavyIUrl)
+    this.load.image('enemy-heavy-j', enemyHeavyJUrl)
+    this.load.image('enemy-boss-elite', enemyBossEliteUrl)
     this.load.image('enemy-light-b', enemyLightBUrl)
     this.load.image('enemy-light-c', enemyLightCUrl)
     this.load.image('enemy-light-d', enemyLightDUrl)

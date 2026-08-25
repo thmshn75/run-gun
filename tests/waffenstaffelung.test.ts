@@ -83,23 +83,36 @@ describe('Waffen-Staffelung (B6)', () => {
 })
 
 describe('Zombie-Farbvarianten (B5)', () => {
-  it('die Freischaltung steigt mit dem Level und endet bei vier', () => {
+  it('schaltet ueber den ganzen Run immer wieder eine Gestalt frei', () => {
+    // 4 -> 10 Stufen am 2026-08-25 (E5). Bis dahin waren es vier reine Farbvarianten,
+    // die bei Level 9 endeten; Thomas wollte "zusaetzliche andere Gestalten in allen
+    // drei Figurstaerken". Der Test prueft die EIGENSCHAFT statt fester Stufenzahlen:
+    // Es faengt bei einer an, steigt monoton, und im Endlosbereich kommt noch etwas.
     expect(getUnlockedVariantCount(1)).toBe(1)
-    expect(getUnlockedVariantCount(2)).toBe(1)
-    expect(getUnlockedVariantCount(3)).toBe(2)
-    expect(getUnlockedVariantCount(6)).toBe(3)
-    expect(getUnlockedVariantCount(9)).toBe(4)
-    expect(getUnlockedVariantCount(12)).toBe(4)
+    for (let level = 2; level <= 40; level += 1) {
+      expect(getUnlockedVariantCount(level)).toBeGreaterThanOrEqual(getUnlockedVariantCount(level - 1))
+    }
+    expect(getUnlockedVariantCount(12)).toBeGreaterThan(getUnlockedVariantCount(3))
+    expect(getUnlockedVariantCount(30)).toBeGreaterThan(getUnlockedVariantCount(12))
+    // Nicht mehr Stufen als Bilddateien - sonst zeigt das Spiel eine fehlende Textur.
+    expect(getUnlockedVariantCount(999)).toBe(BALANCE.enemy.variantUnlockLevels.length)
   })
 
   it('die Kette reisst nach der letzten Waffe nicht ab', () => {
     // Bis 2026-08-24 endeten die Waffen bei Level 7 und die Farben trugen danach weiter.
-    // Seit der Endlos-Staffelung ist es umgekehrt: Die Farben sind bei Level 9 fertig,
-    // die Waffen laufen bis 30. Gesichert gehoert, dass ueberhaupt EINE der beiden
-    // Ketten weiterlaeuft - nach dem letzten Farbwechsel darf nicht Stillstand sein.
+    // Seit E5 laufen BEIDE Ketten bis Level 30 - Waffen und Gestalten wechseln sich ab,
+    // statt dass eine die andere ablöst. Gesichert gehoert, dass beide weit in den
+    // Endlosbereich reichen und nirgends eine Luecke von mehr als sechs Leveln bleibt.
     const letzteWaffe = Math.max(...WEAPON_KEYS.map((k) => BALANCE.weapon[k].minLevel))
     const letzteFarbe = Math.max(...BALANCE.enemy.variantUnlockLevels)
-    expect(Math.max(letzteWaffe, letzteFarbe)).toBeGreaterThan(Math.min(letzteWaffe, letzteFarbe))
-    expect(letzteWaffe).toBeGreaterThan(letzteFarbe)
+    expect(letzteWaffe).toBeGreaterThanOrEqual(25)
+    expect(letzteFarbe).toBeGreaterThanOrEqual(25)
+
+    // Keine Durststrecke: Zwischen zwei Neuerungen liegen hoechstens sechs Level.
+    const stufen = [...new Set([...WEAPON_KEYS.map((k) => BALANCE.weapon[k].minLevel),
+      ...BALANCE.enemy.variantUnlockLevels])].sort((a, b) => a - b)
+    for (let i = 1; i < stufen.length; i += 1) {
+      expect(stufen[i] - stufen[i - 1], `Luecke vor Level ${stufen[i]}`).toBeLessThanOrEqual(6)
+    }
   })
 })
