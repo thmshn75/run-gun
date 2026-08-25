@@ -67,9 +67,6 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
    nach seinem Test. Konkrete Fragen: Wird es ab Level 13 spuerbar schwerer? Reicht die
    Pistole auf Level 1? Sind die neuen Preise zu hart?
 2. **Vier Entscheidungen fuer Thomas** — alle dokumentiert, keine eigenmaechtig getroffen:
-   - **Waffenkauf im Menue-Shop.** Nicht gebaut. Seine Beschreibung ("im Startbildschirm
-     ... wo man dann auch Waffen kaufen kann" plus "gekaufte nur in den laufenden Runs")
-     laesst offen, fuer welchen Run ein im MENUE getaetigter Kauf gilt.
    - **Waffen-Staerkeband.** Der Plan wollte bis 1,85x. Alles ueber **1,25x** hebt den
      E1-Effekt auf: Level 30 waere damit LEICHTER als Level 12. Das Band endet deshalb
      beim heutigen Maximum (Rakete 1,45x).
