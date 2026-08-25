@@ -339,6 +339,31 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   und `git tag -l` zeigt, was bereits abgenommen ist. Ein Projektstand wird nie aus dem
   Gedaechtnis oder aus einer einzelnen Datei beantwortet.
 
+### 2026-08-25 — `git add src/` sammelte ein, was ein Codex-Lauf parallel schrieb
+- **Fehler:** Waehrend ein Codex-Bildauftrag im Terminal lief und 19 PNGs nach
+  `src/assets/` schrieb, wurden zwei Code-Commits mit `git add src/ tests/ docs/`
+  gemacht. Beide haben die gerade entstehenden Bilder eingesammelt: Ein Commit ueber die
+  Spawn-Schonfrist enthielt eine Gegnerdatei, der Commit ueber den Waffenkauf achtzehn
+  weitere **plus eine Loeschung** - Codex hatte die erste Datei zwischenzeitlich selbst
+  entfernt, weil sie ihm als "vom Nutzer geloescht" erschien. Beide Commits sind gepusht
+  und deployt worden, bevor auch nur ein Bild angesehen war. Aufgefallen ist es nur, weil
+  der Codex-Bericht "18 PNGs erzeugt" meldete und `git status` gleichzeitig ein sauberes
+  Arbeitsverzeichnis zeigte - ein Widerspruch, der ohne Nachrechnen als Erfolg
+  durchgegangen waere.
+- **Regel:** Solange ein Hintergrundlauf (Codex, Generator, Build) in ein Verzeichnis
+  schreibt, wird dort **nie mit Verzeichnis-Pfaden** committet. Entweder die betroffenen
+  Dateien einzeln nennen, oder den Lauf abwarten. Praktisch: Vor jedem `git add <ordner>`
+  pruefen, ob ein `.done`-Marker eines laufenden Auftrags noch fehlt.
+- **Zweite Lehre (der Widerspruch war der Beleg):** Ein Abschlussbericht, der Dateien
+  meldet, und ein sauberes `git status` schliessen einander aus. Wo Bericht und
+  Repository-Zustand sich widersprechen, gilt keiner von beiden als wahr, bis die Dateien
+  selbst nachgemessen sind - `ls`, Bildmasse, Inhalt. Der Bericht eines Subagenten ist
+  ein Rueckgabewert, kein Nachweis.
+- **Dritte Lehre (was gut ging):** Die Bilder selbst waren einwandfrei - alle 19 Masse
+  exakt, alle opaken Koerpermasse ohne jede Abweichung. Der Schaden lag nicht im
+  Ergebnis, sondern darin, dass es ungeprueft und unter falscher Ueberschrift ins Repo
+  und live ging. Genau dafuer ist die Trennung von Erzeugen und Abnehmen da.
+
 ### 2026-08-24 — Dreimal eine 14-Minuten-Messreihe gestartet, zweimal mass sie das Falsche
 - **Fehler:** Fuer die Waffenliste wurden nacheinander DREI volle Messreihen (je 24 Laeufe,
   rund 14 Minuten) gestartet. Die ersten beiden massen nicht die Waffenstaerke, sondern
