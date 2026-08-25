@@ -6,8 +6,8 @@
 
 ## Task
 
-`IDLE` — E1 (Endlos-Skalierung) gebaut und gemessen. Wartet auf Thomas'/Bennis
-iPhone-Test, danach E2.
+`IDLE` — V4 vollstaendig gebaut und gemessen (E1-E7, Bosskampfdauer, Waffenfehler
+behoben). Wartet auf Bennis iPhone-Test.
 
 ---
 
