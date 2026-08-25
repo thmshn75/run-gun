@@ -330,14 +330,47 @@ export class Spawner {
 
   private getSpawnIntervalMs(): number {
     // elapsedMs only ramps the interval within this level; enemy choice comes from levelPlan.
-    return Math.max(
+    const getaktet = Math.max(
       this.levelPlan.spawnIntervalMinMs,
       this.levelPlan.spawnIntervalMs - (this.elapsedMs / 1000) * BALANCE.enemy.spawnRampPerSec,
     )
+    return getaktet * this.getWarmupFactor()
+  }
+
+  /**
+   * Laengerer Takt in den ersten Sekunden der unteren Level (Herleitung bei
+   * BALANCE.enemy.warmup).
+   *
+   * Der Faktor wirkt NACH der Untergrenze spawnIntervalMinMs, nicht davor: Sonst wuerde
+   * die Grenze ihn wegschneiden, sobald der Takt dort anliegt - und genau dann, bei
+   * dichtem Nachschub, wird die Schonfrist gebraucht.
+   */
+  private getWarmupFactor(): number {
+    return this.warmupMix(BALANCE.enemy.warmup.intervalFactorAtStart)
+  }
+
+  /**
+   * Hordenanteil in der Schonfrist. Der eigentliche Hebel gegen "zu viele Gegner am
+   * Anfang": Rund zwei Drittel aller Spawns sind Horden, und wer mit EINER Figur einer
+   * Siebener-Horde gegenuebersteht, kann nur ausweichen.
+   *
+   * Der Taktfaktor allein reichte nicht - die Nachlaufpause nach jeder Horde
+   * ueberschreibt das Intervall (docs/lessons.md, 2026-08-22).
+   */
+  private getWarmupSquadChance(basis: number): number {
+    return basis * this.warmupMix(BALANCE.enemy.warmup.squadChanceFactorAtStart)
+  }
+
+  /** Blendet einen Startwert linear auf 1,0 aus - gemeinsam fuer beide Schonfrist-Groessen. */
+  private warmupMix(startwert: number): number {
+    const { untilLevel, seconds } = BALANCE.enemy.warmup
+    if (this.levelPlan.level > untilLevel) return 1
+    const anteil = Math.min(1, this.elapsedMs / (seconds * 1000))
+    return startwert + (1 - startwert) * anteil
   }
 
   private chooseSpawnRequest(): SpawnRequest {
-    if (this.levelPlan.squads.length > 0 && Phaser.Math.RND.frac() < this.levelPlan.squadChance) {
+    if (this.levelPlan.squads.length > 0 && Phaser.Math.RND.frac() < this.getWarmupSquadChance(this.levelPlan.squadChance)) {
       const totalWeight = this.levelPlan.squads.reduce((sum, squad) => sum + squad.weight, 0)
       let roll = Phaser.Math.RND.frac() * totalWeight
       for (const squad of this.levelPlan.squads) {

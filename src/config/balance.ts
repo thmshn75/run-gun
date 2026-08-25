@@ -1681,6 +1681,64 @@ export const BALANCE = {
     seekSpeedPxPerSec: 4,
     // Enemy composition belongs to the level plan, never to elapsed spawn time.
     spawnRampPerSec: 6,
+    // SCHONFRIST AM LEVELANFANG (Thomas 2026-08-25: "Level eins koennten etwas weniger
+    // Mobs sein, gerade am Anfang - wenn man mit einem Mann hinkommt, sind es zu viele
+    // Gegner und man muss zuerst mal nur einsammeln").
+    //
+    // Er beschreibt einen echten Konstruktionsfehler, keinen Geschmack: Ein Run startet
+    // mit EINER Figur (stats.hp.base), und die Feuerkraft haengt an der Schuetzenzahl.
+    // In den ersten Sekunden ist die Truppe also am schwaechsten, was sie im ganzen Run
+    // je sein wird - und der Spawn-Takt laeuft von Anfang an auf vollem Niveau. Das
+    // Spiel verlangt dort etwas, das der Spieler noch gar nicht leisten KANN; ihm bleibt
+    // nur Einsammeln und Ausweichen.
+    //
+    // Der vorhandene spawnRampPerSec macht genau das Gegenteil: Er verkuerzt den Takt im
+    // Lauf des Levels, also von "viel" zu "noch mehr". Eine Anlaufkurve gab es nicht.
+    //
+    // 12 Sekunden sind aus der Sammelrate hergeleitet, nicht gewaehlt: Die linke Bahn
+    // liefert 1,875 Plaettchen/s, davon rund vier Fuenftel gute. In 12 s sind das etwa
+    // 18 Figuren - genug, dass die Truppe mit mehreren Schuetzen dasteht, bevor der
+    // volle Takt einsetzt. Der Faktor 2,2 halbiert den Zufluss zu Beginn und laeuft
+    // linear auf 1,0 aus, damit der Uebergang nicht als Ruck auffaellt.
+    //
+    // NUR AUF DEN ERSTEN BEIDEN LEVELN: Ab Level 3 startet man mit gefuellter Truppe aus
+    // dem Vorlevel, dort gibt es das Problem nicht.
+    // GEMESSEN, erster Anlauf: Der Taktfaktor allein brachte nur 29 statt 36 Gegner in
+    // den ersten 12 s (-19 %), ausgelegt waren -38 %. Der Grund steht in
+    // docs/lessons.md: Nicht das Spawn-Intervall bestimmt den Druck, sondern die
+    // NACHLAUFPAUSE nach jeder Horde - sie ueberschreibt das Intervall, und der Faktor
+    // fasst sie nicht an.
+    //
+    // Deshalb kommt der Hordenanteil dazu, und der ist hier der eigentliche Hebel: Rund
+    // zwei Drittel aller Spawns sind Horden mit sieben bis zwoelf Mitgliedern. Wer mit
+    // EINER Figur einer Siebener-Horde gegenuebersteht, kann nichts tun ausser
+    // ausweichen - genau Thomas' Beobachtung. In der Schonfrist kommen deshalb
+    // ueberwiegend Einzelgegner.
+    warmup: {
+      untilLevel: 2,
+      seconds: 12,
+      intervalFactorAtStart: 2.2,
+      // Anteil der Hordenwahrscheinlichkeit zu Beginn. 0,3 heisst: aus 58 % Hordenanteil
+      // auf Level 1 werden 17 %, es kommen also fast nur Einzelgegner. Laeuft wie der
+      // Taktfaktor linear auf den vollen Wert aus.
+      //
+      // GEMESSEN in den ersten 12 s von Level 1 (drei Laeufe, Median), Schonfrist im
+      // Spiel zur Laufzeit an- und abgeschaltet:
+      //   nur Taktfaktor:            29 mit / 36 ohne  (-19 %)
+      //   Taktfaktor plus Horden:    18 mit / 26 ohne  (-31 %)
+      // Gegenueber dem Zustand ohne jede Schonfrist ist der Anfang damit etwa halbiert.
+      //
+      // ACHTUNG BEI KUENFTIGEN MESSUNGEN: Die Einzelwerte streuen stark (10 bis 33),
+      // weil eine einzelne Horde sieben bis zwoelf Gegner auf einmal bringt. Verglichen
+      // wird der Median aus mindestens drei Laeufen, und MIT gegen OHNE immer innerhalb
+      // derselben Messreihe - zwischen zwei Reihen sind die Absolutwerte nicht
+      // vergleichbar.
+      //
+      // Die Zusammensetzung wiegt hier schwerer als die Zahl: Statt einer Siebener-Horde
+      // kommen Einzelgegner. Mit einer Figur ist das der Unterschied zwischen
+      // "ausweichen" und "spielen".
+      squadChanceFactorAtStart: 0.3,
+    },
     spawnLaneSafetyGap: 5,
     // DURCHBRUCH: Ein Gegner, der die Truppenhoehe passiert, ohne getoetet worden zu
     // sein, kostet Figuren (Thomas 2026-08-23: "Ja Bau das").

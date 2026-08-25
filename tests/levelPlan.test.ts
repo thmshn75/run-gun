@@ -155,3 +155,54 @@ describe('level plans', () => {
   })
 
 })
+
+describe('Schonfrist am Levelanfang (Thomas 2026-08-25)', () => {
+  it('daempft den Nachschub nur auf den ersten Leveln und nur zu Beginn', () => {
+    // "wenn man mit einem Mann hinkommt, sind es zu viele Gegner". Ein Run startet mit
+    // EINER Figur, und die Feuerkraft haengt an der Schuetzenzahl - in den ersten
+    // Sekunden ist die Truppe also so schwach, wie sie im ganzen Run je sein wird.
+    const { untilLevel, seconds, intervalFactorAtStart } = BALANCE.enemy.warmup
+    expect(intervalFactorAtStart).toBeGreaterThan(1)
+    expect(seconds).toBeGreaterThan(0)
+    // Nur die unteren Level: Ab Level 3 startet man mit gefuellter Truppe aus dem
+    // Vorlevel, dort gibt es das Problem nicht.
+    expect(untilLevel).toBeLessThanOrEqual(2)
+  })
+
+  it('laeuft aus, statt als Ruck zu enden', () => {
+    // Der Faktor faellt linear auf 1,0. Ein harter Schnitt waere als ploetzlicher
+    // Gegneransturm spuerbar - genau die Stelle, an der ein Kind ueberrascht stirbt.
+    const { seconds, intervalFactorAtStart } = BALANCE.enemy.warmup
+    const faktorBei = (sekunden: number): number => {
+      const anteil = Math.min(1, sekunden / seconds)
+      return intervalFactorAtStart + (1 - intervalFactorAtStart) * anteil
+    }
+    expect(faktorBei(0)).toBeCloseTo(intervalFactorAtStart, 5)
+    expect(faktorBei(seconds / 2)).toBeLessThan(faktorBei(0))
+    expect(faktorBei(seconds)).toBeCloseTo(1, 5)
+    expect(faktorBei(seconds * 3)).toBeCloseTo(1, 5)
+  })
+
+  it('gibt der Truppe genug Zeit, aus einer Figur mehrere zu machen', () => {
+    // Die Dauer ist aus der Sammelrate hergeleitet: Die linke Bahn liefert 1,875
+    // Plaettchen/s, rund vier Fuenftel davon gut. Wer die Schonfrist verkuerzt, muss
+    // diese Rechnung neu machen - sonst steht der Spieler wieder mit einer Figur da.
+    const guteProSekunde = (135 / BALANCE.walls.segmentHeightPx) * 0.8
+    const gesammelt = guteProSekunde * BALANCE.enemy.warmup.seconds
+    expect(gesammelt).toBeGreaterThan(BALANCE.crowd.shootersPerSalvo)
+  })
+})
+
+describe('Schonfrist daempft auch den Hordenanteil (2026-08-25)', () => {
+  it('senkt die Hordenwahrscheinlichkeit zu Beginn deutlich', () => {
+    // Der Taktfaktor allein brachte gemessen nur -19 %: Nicht das Spawn-Intervall
+    // bestimmt den Druck, sondern die Nachlaufpause nach jeder Horde, und die fasst er
+    // nicht an (docs/lessons.md, 2026-08-22). Der Hordenanteil ist der wirksame Hebel.
+    const { squadChanceFactorAtStart } = BALANCE.enemy.warmup
+    expect(squadChanceFactorAtStart).toBeGreaterThan(0)
+    expect(squadChanceFactorAtStart).toBeLessThan(0.5)
+    // Auf Level 1 werden aus 58 % Hordenanteil damit unter 20 % - fast nur Einzelgegner.
+    const levelEins = BALANCE.level.plans[0].squadChance
+    expect(levelEins * squadChanceFactorAtStart).toBeLessThan(0.2)
+  })
+})
