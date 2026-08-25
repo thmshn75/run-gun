@@ -79,6 +79,7 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
     178 px Luft, auf dem iPhone 85. Die Position kommt jetzt aus `shopWeaponRow.ts`, die
     Kaufknoepfe sind von 132 auf 112 px gekuerzt, damit die Kacheln ihre volle Hoehe
     behalten. Test prueft vier Geraeteprofile. Siehe `docs/lessons.md`, 2026-08-25.
+  - **Am iPhone bestaetigt** (Thomas, 2026-08-25): Kacheln sitzen, Knoepfe stimmig.
 - **Waffen-Staffelung nach gemessener Staerke neu sortiert** (Thomas: "flammenwerfer ist
   schlechter als Laser, obwohl er spaeter kommt"). Er hatte recht: Gestaffelt wurde nach
   `getWeaponFirepower`, und die zaehlt Durchschlag, Sprengwirkung und Kettenspruenge
