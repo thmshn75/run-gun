@@ -255,7 +255,7 @@ export class GameScene extends Phaser.Scene {
     // Gegnertempo ist seit 2026-08-22 eine reine Levelgroesse, kein Ausbau mehr.
     this.runStats.set('speed', getEnemySpeed(this.currentLevel))
     this.levelPhase = 'normal'
-    this.phaseRemainingMs = getLevelPlan(this.currentLevel).normalPhaseSec * 1000
+    this.phaseRemainingMs = this.gegnerphaseMs()
     this.lastUnknownCombatOverlapWarningAtMs = -1000
     this.insets = readSafeAreaInsets(this.game.canvas)
     this.audio = getGameAudio(this)
@@ -424,6 +424,7 @@ export class GameScene extends Phaser.Scene {
     this.scenery.update(dt)
     this.crowd.update(dt)
     this.updateLevelPhase(dt)
+    this.aktualisiereTestgelaendeKnopf()
     if (this.weapons.update(dt) > 0) this.audio.play('shot')
     this.spawner.update(dt)
     this.walls.update(dt)
@@ -619,9 +620,31 @@ export class GameScene extends Phaser.Scene {
     this.testKnopf = [knopf, text]
   }
 
-  /** Im Pause-Overlay hat der Knopf nichts zu suchen - dort stehen die Kacheln selbst. */
-  private zeigeTestgelaendeKnopf(sichtbar: boolean): void {
-    this.testKnopf.forEach((teil) => teil.setVisible(sichtbar))
+  /**
+   * Der Knopf gehoert nur in die Gegnerphase: In der Pause stehen die Kacheln selbst da,
+   * und waehrend der Bosswarnung oder des Bosskampfs waere er ein sichtbares Tippziel,
+   * das nichts tut. An die PHASE gehaengt statt an einzelne Aufrufstellen - sonst fehlt
+   * beim naechsten neuen Phasenuebergang wieder einer.
+   */
+  private aktualisiereTestgelaendeKnopf(): void {
+    if (this.testKnopf.length === 0) return
+    const soll = this.levelPhase === 'normal'
+    if (this.testKnopf[0].visible === soll) return
+    this.testKnopf.forEach((teil) => teil.setVisible(soll))
+  }
+
+  /**
+   * Wie lange die Gegnerphase dauert, bevor die Bosswarnung kommt.
+   *
+   * Im Testgelaende ist sie fest und kurz (Thomas 2026-08-26: "es darf nicht so lange
+   * dauern wie ein normales Level, maximal die Haelfte"). Gerechnet wird der Wert in
+   * BALANCE.testground.normalPhaseSec - gekuerzt wird die GEGNERPHASE, nie der
+   * Bosskampf: Ein gekuerzter Bosskampf waere kein Bosstest mehr.
+   */
+  private gegnerphaseMs(): number {
+    return this.istTestgelaende()
+      ? BALANCE.testground.normalPhaseSec * 1000
+      : getLevelPlan(this.currentLevel).normalPhaseSec * 1000
   }
 
   /** Laeuft diese Szene als Testgelaende? Dann gilt nichts davon fuer den echten Stand. */
@@ -882,6 +905,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private dropCoins(x: number, y: number, value: number): void {
+    // Im Testgelaende faellt nichts (Thomas 2026-08-26: "im testgelaende verdient man
+    // keine Muenzen"). Aufs Konto kamen sie ohnehin nie - der Zaehler lief aber hoch und
+    // versprach damit einen Verdienst, den es nicht gab.
+    if (this.istTestgelaende()) return
     const coinOffsets = Array.from({ length: value }, (_value, index) => (index - (value - 1) / 2) * BALANCE.coins.dropSpacing)
     const firstCoinX = x + coinOffsets[0]
     const lastCoinX = x + coinOffsets[coinOffsets.length - 1]
@@ -1016,9 +1043,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateLevelPhase(dt: number): void {
-    // DAS TESTGELAENDE ENDET NIE: kein Boss, kein Levelwechsel, keine Pause von selbst.
-    // Gewechselt wird nur ueber den Knopf WAFFE WECHSELN.
-    if (this.istTestgelaende() && this.levelPhase === 'normal') return
     // Der Shop wartet auf WEITER, nicht auf einen Zeitgeber (Benni ist 7 - er soll in
     // Ruhe lesen und tippen koennen).
     if (this.levelPhase === 'boss' || this.levelPhase === 'shop') return
@@ -1063,14 +1087,17 @@ export class GameScene extends Phaser.Scene {
     this.walls.deactivateAll()
     this.popups.deactivateAll()
     this.boss.deactivate()
-    this.currentLevel += 1
+    // IM TESTGELAENDE BLEIBT DAS LEVEL STEHEN (2026-08-26): Es ist eine Buehne, kein
+    // Fortschritt. Sonst waere jede weitere Runde schwerer als die davor, und der
+    // Vergleich zweier Waffen liefe gegen unterschiedliche Gegner.
+    if (!this.istTestgelaende()) this.currentLevel += 1
     const saved = loadSave()
     this.speichere({ ...saved, highestLevel: Math.max(saved.highestLevel, this.currentLevel) })
     this.levelPhase = 'cleared'
     this.syncBossColliders()
     this.phaseRemainingMs = BALANCE.level.clearedMs
     this.levelOverlayBackground.setVisible(true)
-    this.levelOverlay.setText(`LEVEL ${this.currentLevel - 1} GESCHAFFT`).setVisible(true)
+    this.levelOverlay.setText(this.istTestgelaende() ? 'BOSS GESCHAFFT' : `LEVEL ${this.currentLevel - 1} GESCHAFFT`).setVisible(true)
   }
 
   /**
@@ -1090,7 +1117,6 @@ export class GameScene extends Phaser.Scene {
 
   private oeffneShop(): void {
     this.levelPhase = 'shop'
-    this.zeigeTestgelaendeKnopf(false)
     this.kaeufeInPause = { firepower: 0, team: 0 }
     this.waffenwahlAusgang = this.weapons.getWeapon()
     this.bucheMuenzenAufsKonto()
@@ -1188,7 +1214,6 @@ export class GameScene extends Phaser.Scene {
     if (this.levelPhase !== 'shop') return
     this.waffenwahlAusgang = undefined
     this.shop.verstecken()
-    this.zeigeTestgelaendeKnopf(true)
     this.startLevel()
   }
 
@@ -1251,7 +1276,7 @@ export class GameScene extends Phaser.Scene {
     this.levelPhase = 'normal'
     // Normalphase: Reichweite gilt wieder, sonst raeumt die Truppe bis zum Horizont ab.
     this.weapons.setEngageLimitEnabled(true)
-    this.phaseRemainingMs = getLevelPlan(this.currentLevel).normalPhaseSec * 1000
+    this.phaseRemainingMs = this.gegnerphaseMs()
     this.levelOverlayBackground.setVisible(false)
     this.levelOverlay.setVisible(false)
     this.spawner.resetForLevel(this.currentLevel)

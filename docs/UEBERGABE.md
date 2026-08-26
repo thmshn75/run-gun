@@ -214,13 +214,20 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
    der EINEN Waffe und faellt deshalb bewusst NICHT unter `meta.totalBoostCap`.
 4. **Testgelaende** (Benni: "ob es sowas wie ein testlevel geben kann, wo man alle waffen
    einzeln ausprobieren kann"). Eigener Menueknopf. Es ist KEIN zweiter Spielmodus,
-   sondern das normale Spiel mit drei Aenderungen: Die Truppe kann nicht sterben, das
-   Level endet nie, und es wird NICHTS gespeichert. Der Knopf "WAFFE WECHSELN" oeffnet
-   die vorhandene Levelpause mit allen dreizehn Waffen; Stufen sind dort kostenlos und
-   ohne Deckel. **Alle sechs Schreibwege der GameScene laufen jetzt ueber `speichere()`,
-   und nur dort steht die Sperre** - ein Test liest den Quelltext und schlaegt an, wenn
-   jemand wieder direkt `writeSave` aufruft. Im Browser belegt: Spielstand vor und nach
-   dem Testgelaende byte-identisch, auch nach Stufenkauf, Waffenwechsel und Muenzen.
+   sondern das normale Spiel mit vier Aenderungen: Die Truppe kann nicht sterben, es
+   faellt keine Muenze, die Gegnerphase dauert 20 statt 80 s, und es wird NICHTS
+   gespeichert. Der Knopf "WAFFE WECHSELN" oeffnet die vorhandene Levelpause mit allen
+   dreizehn Waffen; Stufen sind dort kostenlos und ohne Deckel.
+   **Mit Boss und Wiederholung** (Thomas 2026-08-26): Nach der Gegnerphase kommt der
+   normale Bosskampf, danach die Pause mit der Waffenwahl, dann dasselbe Level wieder -
+   das Level zaehlt NICHT hoch, sonst liefe der naechste Waffenvergleich gegen andere
+   Gegner. Gekuerzt wird nur die Gegnerphase, nie der Bosskampf.
+   **Gemessen im Browser:** 20 s Gegner, 1 s Warnung, 34 s Boss, dann Pause - 57 s gegen
+   117 s fuer ein normales Level 5, also 48,7 %. Muenzzaehler durchgehend 0, HUD konstant
+   beim Kontostand, Spielstand vor und nach dem Testgelaende byte-identisch.
+   **Alle sechs Schreibwege der GameScene laufen ueber `speichere()`, und nur dort steht
+   die Sperre** - ein Test liest den Quelltext und schlaegt an, wenn jemand wieder direkt
+   `writeSave` aufruft.
 5. **Gekaufte Waffen ab Level 1** statt ein Level vor dem regulaeren Erscheinen.
 
 **Was am Abend NICHT gemessen wurde:** die Wirkung der Aufruestungsstufen im Spiel (nur

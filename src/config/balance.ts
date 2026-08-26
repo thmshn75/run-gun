@@ -1052,9 +1052,24 @@ export const BALANCE = {
   // Ruhe beobachten kann.
   testground: {
     level: 5,
-    // Feste Truppengroesse. 30 ist der Punkt, an dem crowd.damageMultiplierCap ausgereizt
-    // ist: Ab hier haengt der Unterschied zwischen zwei Waffen NUR noch an der Waffe.
+    // Feste Truppengroesse. 30 ist der Punkt, an dem der Schadensbonus aus der
+    // Truppengroesse ausgereizt ist: Ab hier haengt der Unterschied zwischen zwei Waffen
+    // NUR noch an der Waffe.
     truppe: 30,
+    // WIE LANGE DIE GEGNERPHASE DAUERT, bevor der Boss kommt (Thomas 2026-08-26: "es
+    // darf nicht so lange dauern wie ein normales Level, maximal die Haelfte - und es
+    // muss einen Boss geben").
+    //
+    // GERECHNET, nicht gesetzt. Ein normales Level 5 besteht aus Gegnerphase 80 s +
+    // Warnung 1,5 s + Bosskampf + "geschafft" 1,8 s. Der Bosskampf ist die feste Groesse:
+    // Er darf NICHT gekuerzt werden, sonst waere der Bosstest wertlos - und er dauert auf
+    // Level 5 zwischen 30 s (boss.referenceFirepower.minFightSec) und 36,2 s (34 plus
+    // 4 x 0,545). Damit bleibt fuer die Gegnerphase:
+    //   20 s + 1,5 + 30,0 + 1,8 = 53,3 s von 113,3 s = 47,0 %   (kurzer Bosskampf)
+    //   20 s + 1,5 + 36,2 + 1,8 = 59,5 s von 119,5 s = 49,8 %   (langer Bosskampf)
+    // 22 s reissen die Haelfte beim langen Bosskampf (51,5 %), 20 s halten sie in beiden
+    // Faellen. Ein Test rechnet beide Grenzen nach.
+    normalPhaseSec: 20,
   },
   continueRun: {
     // 250 x erreichtes Level: 750 auf Level 3, 2.000 auf Level 8, 3.000 auf Level 12.
