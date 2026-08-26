@@ -64,7 +64,10 @@ class SplashFlashPool {
       const flash = this.flashes[index]
       if (flash.remainingMs > 0) continue
       flash.remainingMs = BALANCE.weapon.splashFlashMs
-      flash.image.setPosition(x, y).setScale((radiusPx * 2) / 32).setAlpha(1).setActive(true).setVisible(true)
+      // Gedeckelt, damit ein grosser Wirkradius nicht den ganzen Bildschirm weissblitzt
+      // (Herleitung bei BALANCE.weapon.splashFlashMaxRadiusPx).
+      const sichtbarerRadius = Math.min(radiusPx, BALANCE.weapon.splashFlashMaxRadiusPx)
+      flash.image.setPosition(x, y).setScale((sichtbarerRadius * 2) / 32).setAlpha(1).setActive(true).setVisible(true)
       return
     }
   }

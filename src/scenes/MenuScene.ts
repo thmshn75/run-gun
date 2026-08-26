@@ -5,7 +5,7 @@ import { HUD_COLORS, MENU_COLORS } from '../config/colors'
 import { getGameAudio } from '../systems/audio'
 import { computeMenuLayout } from '../systems/menuLayout'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
-import { getMetaPrice, getMetaSteps, getOwnedWeapons, getWeaponStepPrice, getWeaponSteps, getWeaponUnlockPrice, kaufeWaffenStufe, kaufeWeiterspielen, loadSave, resetSave, writeSave, type RunSnapshot, type SaveData, type ScoreEntry } from '../systems/save'
+import { getMetaPrice, getMetaSteps, getOwnedWeapons, getRestorableSave, getWeaponStepPrice, getWeaponSteps, getWeaponUnlockPrice, istUnberuehrt, kaufeWaffenStufe, kaufeWeiterspielen, loadSave, resetSave, restoreSave, writeSave, type RunSnapshot, type SaveData, type ScoreEntry } from '../systems/save'
 import { getContinuePrice } from '../systems/upgrades'
 import { getStartWeaponChoices } from '../systems/weaponChoices'
 import { getWeaponStarText } from '../systems/weaponStars'
@@ -22,6 +22,9 @@ export class MenuScene extends Phaser.Scene {
   /** Vorwahl im Fenster vor dem FORTSETZEN - erst LOS GEHT'S schreibt sie in den Stand. */
   private startwaffe: WeaponKey | undefined
 
+  /** Stand vor dem letzten Zuruecksetzen, falls einer da ist und noch nichts erspielt wurde. */
+  private zurueckholbar: SaveData | undefined
+
   public constructor() {
     super('MenuScene')
   }
@@ -29,6 +32,9 @@ export class MenuScene extends Phaser.Scene {
   public create(): void {
     enableSharpText(this)
     this.save = loadSave()
+    // Nur anbieten, solange nichts Neues erspielt ist - sonst holt ein Tipp den alten
+    // Stand zurueck UND wirft den neuen weg.
+    this.zurueckholbar = istUnberuehrt(this.save) ? getRestorableSave() : undefined
     this.insets = readSafeAreaInsets(this.game.canvas)
     this.input.setTopOnly(true)
     const width = this.scale.width
@@ -39,7 +45,7 @@ export class MenuScene extends Phaser.Scene {
 
     this.add.image(width / 2, height / 2, 'title').setDisplaySize(width, height)
     this.add.rectangle(width / 2, height / 2, width, height, 0x000000, BALANCE.menu.overlayAlpha)
-    this.add.text(width / 2, layout.title.top + layout.title.height / 2, 'RUN & GUN', {
+    const titel = this.add.text(width / 2, layout.title.top + layout.title.height / 2, 'RUN & GUN', {
       fontFamily: 'system-ui',
       fontSize: '38px',
       fontStyle: 'bold',
@@ -47,6 +53,7 @@ export class MenuScene extends Phaser.Scene {
       stroke: '#0b0f18',
       strokeThickness: 6,
     }).setOrigin(0.5)
+    this.macheTitelZumResetWeg(titel)
     this.balanceText = this.add.text(width / 2, layout.balance.top + layout.balance.height / 2, '', {
       fontFamily: 'system-ui',
       fontSize: '23px',
@@ -108,9 +115,20 @@ export class MenuScene extends Phaser.Scene {
       () => { this.scene.start('GameScene', { einstieg: 'test' }) },
       undefined, true,
     )
-    this.addButton(safeLeft + safeWidth / 2, layout.resetButton.top + layout.resetButton.height / 2, safeWidth - 2 * BALANCE.menu.sidePadding, layout.resetButton.height, 'ZURÜCKSETZEN', true, () => {
-      this.openResetConfirmation()
-    }, undefined, true)
+    // FORTSCHRITT ZURUECKHOLEN - steht nur da, wenn es etwas zurueckzuholen gibt
+    // (2026-08-26). Er sitzt an der Stelle, an der bis heute ZURUECKSETZEN stand.
+    if (this.zurueckholbar !== undefined) {
+      const stand = this.zurueckholbar
+      this.addButton(
+        safeLeft + safeWidth / 2,
+        layout.restoreButton.top + layout.restoreButton.height / 2,
+        safeWidth - 2 * BALANCE.menu.sidePadding,
+        layout.restoreButton.height,
+        `FORTSCHRITT ZURÜCKHOLEN — ¢ ${stand.coins}, LEVEL ${stand.highestLevel}`,
+        true,
+        () => { this.holeFortschrittZurueck() },
+      )
+    }
     this.renderAudioToggle(layout)
     this.renderShop()
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -318,6 +336,61 @@ export class MenuScene extends Phaser.Scene {
     }
     this.closeShop()
     this.scene.start('GameScene', { einstieg: gestorben ? 'weiterspielen' : 'fortsetzen' })
+  }
+
+  /**
+   * DER WEG ZUM ZURUECKSETZEN - versteckt hinter einem langen Druck auf den Titel
+   * (Thomas 2026-08-26: "den 'alles zurücksetzen' button, den müssen wir irgendwo
+   * verstecken, Benni ist gerade unabsichtlich angekommen und ist jetzt völlig
+   * verzweifelt, weil sein Fortschritt weg ist").
+   *
+   * WARUM NICHT EINFACH EINE ZWEITE SICHERHEITSFRAGE: Es gab schon eine ("Alles
+   * zurücksetzen? JA, LÖSCHEN"), und Benni hat sie mit durchgetippt. Ein Kind, das
+   * schnell tippt, tippt auch die zweite weg. Was hilft, ist keine weitere Frage,
+   * sondern eine Geste, die man nicht aus Versehen macht: drei Sekunden HALTEN. Wer den
+   * Finger hebt, bevor die Zeit um ist, hat nichts ausgeloest.
+   *
+   * Der Titel traegt sie, weil er nie ein Bedienelement war - dort tippt niemand hin,
+   * der etwas anderes will.
+   */
+  private macheTitelZumResetWeg(titel: Phaser.GameObjects.Text): void {
+    let halterId: number | undefined
+    // ZWEI STUFEN, und das ist kein Feinschliff: Beim Szenenwechsel laeuft der
+    // SHUTDOWN-Handler, NACHDEM Phaser die Textobjekte zerstoert hat. Wer dort noch die
+    // Farbe zuruecksetzt, greift auf eine abgeraeumte Textur zu - Phaser wirft dann
+    // "Cannot read properties of null (reading 'drawImage')", bei JEDEM Verlassen des
+    // Menues. Der Zeitgeber muss trotzdem sterben, sonst feuert er in die tote Szene.
+    const stoppeUhr = (): void => {
+      if (halterId !== undefined) window.clearTimeout(halterId)
+      halterId = undefined
+    }
+    const abbrechen = (): void => {
+      stoppeUhr()
+      titel.setColor(this.colorFor(MENU_COLORS.title))
+    }
+    titel.setInteractive({ useHandCursor: false })
+    titel.on('pointerdown', () => {
+      abbrechen()
+      // Sichtbare Rueckmeldung waehrend des Haltens: Ohne sie sieht es aus, als sei
+      // nichts passiert, und man haelt nicht lange genug.
+      titel.setColor(this.colorFor(MENU_COLORS.mutedText))
+      halterId = window.setTimeout(() => {
+        abbrechen()
+        this.openResetConfirmation()
+      }, BALANCE.menu.resetHoldMs)
+    })
+    titel.on('pointerup', abbrechen)
+    titel.on('pointerout', abbrechen)
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, stoppeUhr)
+  }
+
+  /** Den Stand vor dem letzten Zuruecksetzen wiederherstellen und das Menue neu zeichnen. */
+  private holeFortschrittZurueck(): void {
+    const stand = restoreSave()
+    if (stand === undefined) return
+    this.save = stand
+    this.zurueckholbar = undefined
+    this.scene.restart()
   }
 
   private openResetConfirmation(): void {
@@ -877,6 +950,7 @@ export class MenuScene extends Phaser.Scene {
       this.insets,
       Math.min(BALANCE.menu.scoresShown, Math.max(1, this.save.scores.length)),
       this.save.run !== undefined,
+      this.zurueckholbar !== undefined,
     )
   }
 

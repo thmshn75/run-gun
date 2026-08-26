@@ -245,6 +245,40 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
 die Rechenkette ist per Test gesichert) und die neuen Preise gegen die Einnahmen eines
 echten Runs. Beides sollte nach Bennis Test nachgezogen werden.
 
+## Am 2026-08-26 dazugekommen
+
+- **Testgelaende mit Boss, halber Dauer, ohne Muenzen** (siehe Punkt 4 oben).
+- **Grosse Waffenansicht im Testgelaende** und **Aufruestungsmarken auf den Kacheln**.
+- **Schockwelle raeumt jetzt den Bildschirm** (Thomas: "schockwelle muss fuer diesen preis
+  noch staerker werden, weiter nach vorne schiessen und den gesamten bildschirm, alle
+  gegner wegraeumen"). `engageShare` 0,22 -> 0,85, Splashradius 135 -> 480 px. Gerechnet:
+  Bei 0,85 schlaegt die Welle 479 px vor der Truppe ein, 480 px Radius reichen von dort
+  bis zur Truppe und ueber die volle Strassenbreite.
+  **Gemessen** (Level 12, Truppe 12, Schaden 2, Rate 4, je 20 s): 12,6 Kills/s bei
+  **0 % durchgekommen** - gegen Streubombe 8,1/s und Sturmgewehr 7,35/s bei 8,1 % durch.
+  Sie ist damit die staerkste Waffe des Spiels.
+  **Bosskampf gegengeprueft:** 29,3 und 29,2 s auf Level 25 (Zusage 30-45 s) - 0,8 s
+  unter der Untergrenze und praktisch unveraendert gegenueber vorher. Grund: Am Boss
+  bringt der RADIUS nichts, er ist ein einzelnes Ziel; im Bossduell ist die Reichweite
+  ohnehin ausgesetzt. Der Wirkungsgrad in `hitEfficiencyLevels` wurde deshalb NICHT
+  angefasst - eine Korrektur auf Basis einer anders aufgebauten Messung waere geraten.
+  **Nebenbefund:** Der Aufschlagblitz folgte dem Wirkradius und wurde 960 px breit, auf
+  einem 390-px-Bildschirm, mehrmals je Sekunde. Jetzt gedeckelt
+  (`weapon.splashFlashMaxRadiusPx` 120 = 240 px Blitz); die Wirkung bleibt bei 480 px.
+- **ZURUECKSETZEN ist aus dem Menue verschwunden** (Thomas: "Benni ist gerade
+  unabsichtlich angekommen und ist jetzt völlig verzweifelt, weil sein Fortschritt weg
+  ist"). Es liegt jetzt hinter einem DREI SEKUNDEN LANGEN DRUCK auf den Titel "RUN & GUN",
+  danach kommt die bisherige Sicherheitsfrage. Ein Tipp loest nichts aus, auch ein
+  schneller Doppeltipp nicht.
+  **Und es ist rueckholbar:** `resetSave` legt den alten Stand vorher in einen dritten
+  Slot (`rungun_save_v1_vorReset`), den `writeSave` NICHT anfasst - genau daran ist es
+  gescheitert, denn die vorhandene Sicherung wird bei jedem Speichern mitgeschrieben.
+  Danach steht im Menue "FORTSCHRITT ZURÜCKHOLEN — ¢ 24500, LEVEL 14", solange nichts
+  Neues erspielt wurde. Im Browser durchgespielt: Ein Tipp holt Muenzen, Hoechstlevel,
+  Bestenliste, gekaufte Waffen und alle Stufen zurueck.
+  **Fuer Bennis konkreten Verlust kommt das zu spaet** - sein Stand war beim Zuruecksetzen
+  aus beiden Kopien verschwunden.
+
 ## Wichtige Dateien und Befehle
 - Plan `docs/plan-v4.md` (enthaelt die Befunde beider Gegenpruefungen) ·
   Endlos-Regler: `BALANCE.level.endless`, `enemy.endlessHpGrowthPerLevel`,

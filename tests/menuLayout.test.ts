@@ -9,7 +9,7 @@ function allBounds(layout: ReturnType<typeof computeMenuLayout>): VerticalBounds
   // und SPIELEN am unteren Rand und laufen bei wachsender Safe Area aufeinander zu -
   // genau die Falle, die dieser Test abfangen soll (Lektion 2026-08-25).
   return [layout.title, layout.balance, layout.scoresTitle, ...layout.scoreLines,
-    layout.resetButton, layout.testButton, layout.shopButton, layout.playButton]
+    layout.testButton, layout.shopButton, layout.playButton]
 }
 
 function expectSafeAndSeparate(insets: SafeAreaInsets): void {
@@ -34,8 +34,9 @@ describe('menu layout', () => {
     // Mit FORTSETZEN steht ein Knopf mehr im Stapel - er schiebt alles darueber nach
     // oben und ist der Fall, in dem der Platz am knappsten wird.
     const insets = { top: 59, right: 0, bottom: 34, left: 0 }
-    const layout = computeMenuLayout(MENU_HEIGHT, insets, 5, true)
-    const bounds = [...allBounds(layout), layout.continueButton]
+    // Mit Rueckhol-Knopf UND offenem Run stehen die meisten Knoepfe im Stapel.
+    const layout = computeMenuLayout(MENU_HEIGHT, insets, 5, true, true)
+    const bounds = [...allBounds(layout), layout.continueButton, layout.restoreButton]
     for (const item of bounds) {
       expect(item.top).toBeGreaterThanOrEqual(insets.top)
       expect(item.top + item.height).toBeLessThanOrEqual(MENU_HEIGHT - insets.bottom)

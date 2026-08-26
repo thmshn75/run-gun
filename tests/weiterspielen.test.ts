@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { computeMenuLayout } from '../src/systems/menuLayout'
-import { defaultSave, kaufeWeiterspielen, parseSave, serializeSave, type SaveData } from '../src/systems/save'
+import { readFileSync } from 'node:fs'
+import { defaultSave, istUnberuehrt, kaufeWeiterspielen, parseSave, serializeSave, type SaveData } from '../src/systems/save'
 import { getContinuePrice } from '../src/systems/upgrades'
 
 const INSETS = { top: 47, bottom: 34, left: 0, right: 0 }
@@ -136,16 +137,19 @@ describe('Weiterspielen und Fortsetzen', () => {
     const mit = computeMenuLayout(844, INSETS, 5, true)
     // SPIELEN bleibt, wo es ist - eine Schaltflaeche, die wandert, ist schwerer zu treffen.
     expect(mit.playButton.top).toBe(ohne.playButton.top)
-    // Ohne offenen Run hat der Knopf keine Hoehe und ZURUECKSETZEN rueckt nach unten.
+    // Ohne offenen Run hat der Knopf keine Hoehe und alles darueber rueckt nach unten.
+    // Geprueft am SHOP-Knopf: ZURUECKSETZEN ist am 2026-08-26 aus dem Menue verschwunden
+    // (versteckt hinter langem Druck auf den Titel), seinen Platz nimmt jetzt der
+    // Rueckhol-Knopf ein, den es nur nach einem Zuruecksetzen gibt.
     expect(ohne.continueButton.height).toBe(0)
     expect(mit.continueButton.height).toBeGreaterThan(0)
-    expect(mit.resetButton.top).toBeLessThan(ohne.resetButton.top)
+    expect(mit.shopButton.top).toBeLessThan(ohne.shopButton.top)
   })
 
   it('kein Knopf ueberlappt einen anderen, mit und ohne offenen Run', () => {
     for (const hasRun of [false, true]) {
       const layout = computeMenuLayout(844, INSETS, 5, hasRun)
-      const stapel = [layout.resetButton, layout.continueButton, layout.playButton].filter((b) => b.height > 0)
+      const stapel = [layout.shopButton, layout.continueButton, layout.playButton].filter((b) => b.height > 0)
       for (let i = 1; i < stapel.length; i += 1) {
         expect(stapel[i].top, `Ueberlappung bei hasRun=${hasRun}`).toBeGreaterThanOrEqual(stapel[i - 1].top + stapel[i - 1].height)
       }
@@ -157,5 +161,36 @@ describe('Weiterspielen und Fortsetzen', () => {
     expect(BALANCE.continueRun.maxPerRun).toBe(2)
     expect(BALANCE.continueRun.teamShareOnContinue).toBeGreaterThan(0)
     expect(BALANCE.continueRun.teamShareOnContinue).toBeLessThan(1)
+  })
+})
+
+/**
+ * ZURUECKSETZEN UND ZURUECKHOLEN (2026-08-26).
+ *
+ * Benni ist im Menue unabsichtlich auf ZURUECKSETZEN gekommen, hat die Sicherheitsfrage
+ * mit durchgetippt und stand vor einem leeren Spielstand - ohne Weg zurueck, weil
+ * `resetSave` ueber BEIDE Kopien schrieb. Seither legt es den alten Stand vorher beiseite.
+ */
+describe('Zuruecksetzen', () => {
+  it('erkennt einen unberuehrten Stand - und einen bespielten nicht', () => {
+    // Daran haengt der Rueckhol-Knopf: Wer nach dem Zuruecksetzen schon wieder gespielt
+    // hat, wuerde beim Zurueckholen den NEUEN Fortschritt verlieren.
+    expect(istUnberuehrt(defaultSave())).toBe(true)
+    expect(istUnberuehrt({ ...defaultSave(), coins: 1 })).toBe(false)
+    expect(istUnberuehrt({ ...defaultSave(), highestLevel: 2 })).toBe(false)
+    expect(istUnberuehrt({ ...defaultSave(), ownedWeapons: ['rocket'] })).toBe(false)
+    expect(istUnberuehrt({ ...defaultSave(), metaFirepowerSteps: 1 })).toBe(false)
+    expect(istUnberuehrt(mitRun())).toBe(false)
+  })
+
+  it('legt den alten Stand in einen Slot, den das Speichern NICHT ueberschreibt', () => {
+    // Genau daran ist es gescheitert: Die vorhandene Sicherung wird bei JEDEM Speichern
+    // mitgeschrieben und war nach dem Zuruecksetzen ebenso leer wie die Hauptkopie.
+    const quelle = readFileSync(new URL('../src/systems/save.ts', import.meta.url), 'utf8')
+    const writeSaveBlock = quelle.slice(quelle.indexOf('export function writeSave'), quelle.indexOf('export function parseSave'))
+    expect(writeSaveBlock).not.toContain('PRE_RESET_KEY')
+    // Und resetSave muss VOR dem Loeschen sichern.
+    const resetBlock = quelle.slice(quelle.indexOf('export function resetSave'), quelle.indexOf('export function istUnberuehrt'))
+    expect(resetBlock.indexOf('PRE_RESET_KEY')).toBeLessThan(resetBlock.indexOf('writeSave(reset)'))
   })
 })

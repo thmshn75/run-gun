@@ -106,6 +106,18 @@ export interface SaveData {
 
 const SAVE_KEY = 'rungun_save_v1'
 const BACKUP_SAVE_KEY = 'rungun_save_v1_backup'
+/**
+ * Der Stand VOR dem letzten Zuruecksetzen (2026-08-26).
+ *
+ * ES GIBT IHN, WEIL DER FEHLER SCHON PASSIERT IST: Benni ist im Menue unabsichtlich auf
+ * ZURUECKSETZEN gekommen, hat die Sicherheitsfrage mit durchgetippt und stand vor einem
+ * leeren Spielstand. Wochen Fortschritt weg, und es gab keinen Weg zurueck - `resetSave`
+ * schrieb ueber BEIDE Kopien, die Hauptkopie und die Sicherung.
+ *
+ * DIESER SLOT WIRD VON writeSave NICHT ANGEFASST. Das ist der ganze Trick: Eine Sicherung,
+ * die bei jedem Speichern mitgeschrieben wird, ist gegen ein Zuruecksetzen wertlos.
+ */
+const PRE_RESET_KEY = 'rungun_save_v1_vorReset'
 const MAX_SCORES = 10
 
 export function defaultSave(): SaveData {
@@ -412,9 +424,70 @@ export function serializeSave(data: SaveData): string {
 }
 
 export function resetSave(): SaveData {
+  // ERST BEISEITELEGEN, DANN LOESCHEN. Ohne diese Reihenfolge ist der alte Stand nach
+  // dem writeSave aus beiden Kopien verschwunden.
+  try {
+    const alt = localStorage.getItem(SAVE_KEY) ?? localStorage.getItem(BACKUP_SAVE_KEY)
+    if (alt !== null) localStorage.setItem(PRE_RESET_KEY, alt)
+  } catch {
+    // Kein Speicherplatz oder kein localStorage: Das Zuruecksetzen selbst darf daran
+    // nicht scheitern.
+  }
   const reset = defaultSave()
   writeSave(reset)
   return reset
+}
+
+/**
+ * Ist der aktuelle Stand unberuehrt, so wie ihn ein Zuruecksetzen hinterlaesst?
+ *
+ * Das ist die Bedingung fuer den Rueckhol-Knopf: Wer nach dem Zuruecksetzen schon wieder
+ * gespielt hat, wuerde beim Zurueckholen den NEUEN Fortschritt verlieren. Dann ist der
+ * Knopf weg - und mit ihm die Gefahr, mit einem Tipp das Falsche wiederherzustellen.
+ */
+export function istUnberuehrt(data: SaveData): boolean {
+  return data.coins === 0
+    && data.highestLevel <= 1
+    && data.scores.length === 0
+    && data.run === undefined
+    && getOwnedWeapons(data).length === 0
+    && getMetaSteps(data, 'firepower') === 0
+    && getMetaSteps(data, 'team') === 0
+}
+
+/**
+ * Der Stand vor dem letzten Zuruecksetzen - oder undefined, wenn es keinen gibt oder er
+ * nicht mehr lesbar ist. Zeigt NICHTS an, wenn der aktuelle Stand schon wieder bespielt
+ * wurde.
+ */
+export function getRestorableSave(): SaveData | undefined {
+  try {
+    const text = localStorage.getItem(PRE_RESET_KEY)
+    if (text === null) return undefined
+    const gelesen = parseSave(text)
+    if (!gelesen.ok) return undefined
+    // Einen leeren Stand zurueckzuholen waere ein Knopf, der nichts tut.
+    return istUnberuehrt(gelesen.data) ? undefined : gelesen.data
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Den Stand vor dem Zuruecksetzen wiederherstellen. Der Rueckhol-Slot wird dabei geleert:
+ * Ein zweites Mal dasselbe zurueckzuholen ergaebe keinen Sinn, und der Knopf soll wieder
+ * verschwinden.
+ */
+export function restoreSave(): SaveData | undefined {
+  const stand = getRestorableSave()
+  if (stand === undefined) return undefined
+  writeSave(stand)
+  try {
+    localStorage.removeItem(PRE_RESET_KEY)
+  } catch {
+    // Bleibt der Slot liegen, steht der Knopf noch einmal da - harmlos.
+  }
+  return stand
 }
 
 /**

@@ -80,6 +80,40 @@ describe('additional weapons', () => {
     }
   })
 
+  it('laesst die Schockwelle vom Einschlag bis zur Truppe reichen', () => {
+    // Thomas 2026-08-26: "schockwelle muss fuer diesen preis noch staerker werden, weiter
+    // nach vorne schiessen und den gesamten bildschirm, alle gegner wegraeumen".
+    //
+    // Das ist die Bedingung dafuer, dass "der gesamte Bildschirm" stimmt: Der Wirkradius
+    // muss mindestens so gross sein wie die Strecke von der Einschlagstelle bis zur
+    // Truppe. Sonst bleibt ein Streifen davor uebrig, durch den Gegner laufen.
+    const einschlagAbstand = BALANCE.weapon.shockwave.engageShare * APPROACH_PX
+    expect(BALANCE.weapon.shockwave.splashRadiusPx).toBeGreaterThanOrEqual(einschlagAbstand)
+    // Und sie muss die staerkste Waffe des Spiels sein - sie ist die zweitteuerste.
+    // GEMESSEN am 2026-08-26 (Level 12, Truppe 12, Schaden 2, Rate 4, je 20 s):
+    // Schockwelle 12,6 Kills/s bei 0 % durchgekommen, gegen Streubombe 8,1 und
+    // Sturmgewehr 7,35 bei 8,1 % durch.
+    const alle = (Object.keys(BALANCE.weapon) as WeaponKey[])
+      .filter((k) => typeof (BALANCE.weapon[k] as { unlockPrice?: number }).unlockPrice === 'number')
+    const teurer = alle.filter((k) => (BALANCE.weapon[k] as { unlockPrice: number }).unlockPrice
+      > BALANCE.weapon.shockwave.unlockPrice)
+    expect(teurer.length, `teurer als die Schockwelle: ${teurer.join(', ')}`).toBeLessThanOrEqual(1)
+  })
+
+  it('laesst den Aufschlagblitz nicht ueber den Bildschirm hinauswachsen', () => {
+    // GEMESSEN, nicht geschaetzt: Mit dem Schockwellen-Radius von 480 px wurde das
+    // 32-px-Blitzbild auf 960 px gezogen - zweieinhalbmal die Bildschirmbreite (390 px),
+    // mehrmals je Sekunde fuer je 180 ms. Der Deckel trennt Darstellung von Wirkung.
+    const referenzBreite = 390
+    expect(BALANCE.weapon.splashFlashMaxRadiusPx * 2).toBeLessThanOrEqual(referenzBreite * 0.7)
+    // Er darf aber auch nicht kleiner sein als die kleinste Explosion des Spiels.
+    const radien = (Object.keys(BALANCE.weapon) as WeaponKey[])
+      .filter((k) => typeof (BALANCE.weapon[k] as { splashRadiusPx?: number }).splashRadiusPx === 'number')
+      .map((k) => (BALANCE.weapon[k] as { splashRadiusPx: number }).splashRadiusPx)
+      .filter((r) => r > 0)
+    expect(BALANCE.weapon.splashFlashMaxRadiusPx).toBeGreaterThanOrEqual(Math.min(...radien))
+  })
+
   it('nimmt die Reichweite im Bossduell heraus, statt den Boss unangreifbar zu machen', () => {
     // Der Boss steht auf battleY, also weiter oben als jede Waffenlinie. Ohne die
     // Ausnahme waere er fuer kurze Waffen den halben Kampf lang nicht zu treffen.

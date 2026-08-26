@@ -1094,6 +1094,13 @@ export const BALANCE = {
     overlayAlpha: 0.20,
     sidePadding: 18,
     scoresShown: 5,
+    // WIE LANGE MAN DEN TITEL HALTEN MUSS, um ans Zuruecksetzen zu kommen (2026-08-26).
+    //
+    // Der Knopf stand bis dahin offen im Menue, hinter einer Sicherheitsfrage - Benni ist
+    // trotzdem hineingeraten und hat sie mit durchgetippt. Drei Sekunden sind laenger als
+    // jeder versehentliche Druck und kurz genug, dass ein Erwachsener nicht denkt, es sei
+    // kaputt. Ein Tipp allein loest nichts aus, auch ein schneller Doppeltipp nicht.
+    resetHoldMs: 3000,
   },
   // WAFFENBALANCE 2026-08-23 (Thomas: "Minigun macht kaum Schaden").
   //
@@ -1622,15 +1629,48 @@ export const BALANCE = {
       bulletsPerShot: 1,
       fanAngleDeg: 0,
       projectileSpeed: 880,
-      engageShare: 0.22,
+      // 0,22 -> 0,85 UND Splashradius 135 -> 480 (Thomas 2026-08-26: "schockwelle muss
+      // fuer diesen preis noch staerker werden, weiter nach vorne schiessen und den
+      // gesamten bildschirm, alle gegner wegraeumen").
+      //
+      // SIE WAR DIE KUERZESTE WAFFE DES SPIELS und kostet 13.300 - die zweitteuerste.
+      // Beides zusammen ging nicht auf: Wer so lange spart, will den Bildschirm leer
+      // sehen, nicht einen Stoss dicht vor den eigenen Fuessen.
+      //
+      // GERECHNET, nicht gewaehlt: Die Anflugstrecke des Referenzgeraets (390 x 844)
+      // ist 564 px lang. Bei engageShare 0,85 schlaegt die Welle 479 px vor der Truppe
+      // ein; ein Radius von 480 px reicht damit von der Einschlagstelle bis zur Truppe
+      // und ueber die volle Strassenbreite. Das IST der ganze Bildschirm - genau die
+      // Vorgabe.
+      //
+      // 0,85 statt 0,95 (Granatwerfer): Ein Rest Anflugstrecke bleibt frei, sonst
+      // faellt die Kampfzonen-Regel fuer diese Waffe ganz weg und die Gegner erscheinen
+      // nur noch, um sofort zu verschwinden.
+      engageShare: 0.85,
       pierces: false,
-      splashRadiusPx: 135,
+      splashRadiusPx: 480,
       splashDamageFactor: 1.35,
       chainCount: 0,
       chainRadiusPx: 0,
       chainDamageFactor: 0,
     },
     splashFlashMs: 180,
+    // DER AUFSCHLAGBLITZ FOLGT DEM WIRKRADIUS NICHT MEHR UNBEGRENZT (2026-08-26).
+    //
+    // Gemessen im Browser: Mit dem neuen Schockwellen-Radius von 480 px wurde das
+    // 32-px-Blitzbild auf 960 px gezogen - zweieinhalbmal so breit wie der Bildschirm
+    // (390 px), und das mehrmals je Sekunde fuer je 180 ms. Ein Kind sieht dann nicht
+    // eine wuchtige Waffe, sondern ein flackerndes Bild.
+    //
+    // ANGESEHEN, NICHT GESCHAETZT: Mit 180 px Deckel (360 px Blitz) fuellte der Kreis im
+    // Screenshot immer noch die halbe Bildhoehe - bei einer Waffe, die mehrmals je
+    // Sekunde einschlaegt, ist das ein Dauerleuchten. 120 px (240 px Blitz) bleibt die
+    // groesste Explosion des Spiels - die Rakete kommt mit Radius 70 auf 140 px - und
+    // laesst das Spielfeld sichtbar.
+    //
+    // Die WIRKUNG bleibt davon unberuehrt: Gedeckelt wird nur die Darstellung, der
+    // Schaden trifft weiter im vollen Radius von 480 px.
+    splashFlashMaxRadiusPx: 120,
     chainFlashMs: 120,
   },
   crowd: {

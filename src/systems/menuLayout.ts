@@ -10,7 +10,14 @@ export interface MenuLayout {
   balance: VerticalBounds
   scoresTitle: VerticalBounds
   scoreLines: VerticalBounds[]
-  resetButton: VerticalBounds
+  /**
+   * FORTSCHRITT ZURUECKHOLEN nach einem versehentlichen Zuruecksetzen (2026-08-26).
+   * Nur belegt, wenn es etwas zurueckzuholen gibt - sonst Hoehe 0.
+   *
+   * Er steht an der Stelle, an der bis zum 2026-08-26 ZURUECKSETZEN stand. Der ist aus
+   * dem Menue verschwunden: Benni ist dort unabsichtlich hineingeraten.
+   */
+  restoreButton: VerticalBounds
   /** Fuehrt in die eigene Ansicht der dauerhaften Aufwertungen (E4). */
   shopButton: VerticalBounds
   /** Fuehrt ins Testgelaende, in dem jede Waffe ohne Risiko auszuprobieren ist. */
@@ -24,7 +31,7 @@ const TITLE_HEIGHT = 46
 const BALANCE_HEIGHT = 28
 const SCORE_TITLE_HEIGHT = 26
 const SCORE_LINE_HEIGHT = 21
-const RESET_BUTTON_HEIGHT = 36
+const RESTORE_BUTTON_HEIGHT = 44
 const TEST_BUTTON_HEIGHT = 36
 const SHOP_BUTTON_HEIGHT = 44
 const FOOTER_GAP = 12
@@ -38,6 +45,7 @@ export function computeMenuLayout(
   insets: SafeAreaInsets,
   scoreLines: number,
   hasOpenRun = false,
+  hasRestorableSave = false,
 ): MenuLayout {
   // Der Upgrade-Shop ist am 2026-08-23 entfallen (Thomas: "Den Shop kannst du
   // streichen"). Die Bestenliste rueckt an seine Stelle, damit das Menue nicht mit
@@ -73,7 +81,7 @@ export function computeMenuLayout(
     top: shopButton.top - FOOTER_GAP - TEST_BUTTON_HEIGHT,
     height: TEST_BUTTON_HEIGHT,
   }
-  const resetTop = testButton.top - FOOTER_GAP - RESET_BUTTON_HEIGHT
+  const restoreTop = testButton.top - FOOTER_GAP - RESTORE_BUTTON_HEIGHT
 
   return {
     title: { top: insets.top + 25, height: TITLE_HEIGHT },
@@ -83,7 +91,7 @@ export function computeMenuLayout(
       top: scoreLineStart + index * SCORE_LINE_HEIGHT,
       height: SCORE_LINE_HEIGHT,
     })),
-    resetButton: { top: resetTop, height: RESET_BUTTON_HEIGHT },
+    restoreButton: { top: restoreTop, height: hasRestorableSave ? RESTORE_BUTTON_HEIGHT : 0 },
     shopButton,
     testButton,
     playButton,
