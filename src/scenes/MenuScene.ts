@@ -64,7 +64,7 @@ export class MenuScene extends Phaser.Scene {
     }).setOrigin(0.5)
 
     this.addButton(safeLeft + safeWidth / 2, layout.playButton.top + layout.playButton.height / 2, safeWidth - 2 * BALANCE.menu.sidePadding, layout.playButton.height, 'SPIELEN', true, () => {
-      this.scene.start('GameScene', { einstieg: 'neu' })
+      this.starteNeuesSpiel()
     })
     // DERSELBE KNOPF FUER ZWEI FAELLE (2026-08-25). Ein offener Run ist entweder an der
     // Levelgrenze gesichert - dann geht es kostenlos weiter - oder er ist GESCHEITERT,
@@ -292,16 +292,22 @@ export class MenuScene extends Phaser.Scene {
     const kachel = this.add.rectangle(x, y, breite, hoehe, gewaehlt ? MENU_COLORS.ownedFill : MENU_COLORS.shelf, 1)
       .setStrokeStyle(gewaehlt ? 3 : 2, gewaehlt ? MENU_COLORS.owned : MENU_COLORS.buttonStroke, 1)
       .setOrigin(0.5).setDepth(12)
-    const name = this.add.text(x, y - 22, WEAPON_LABELS[weapon], {
+    const name = this.add.text(x, y - 24, WEAPON_LABELS[weapon], {
       fontFamily: 'system-ui', fontSize: '9px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.text),
     }).setOrigin(0.5).setDepth(13)
-    const bild = this.add.image(x, y - 4, `weapon-${weapon}-hud`).setDepth(13)
+    const bild = this.add.image(x, y - 8, `weapon-${weapon}-hud`).setDepth(13)
     bild.setScale(Math.min((breite - 16) / bild.width, 1.1)).setAlpha(gewaehlt ? 1 : 0.75)
-    const status = this.add.text(x, y + 20, gewaehlt ? '✓ START' : 'WÄHLEN', {
-      fontFamily: 'system-ui', fontSize: '11px', fontStyle: 'bold',
+    // Staerke als Sterne, Aufruestung eingerechnet - dieselbe Anzeige wie im Laden und in
+    // der Levelpause (Thomas 2026-08-26).
+    const sterne = this.add.text(x, y + 9, this.sterneFuer(weapon), {
+      fontFamily: 'system-ui', fontSize: '10px', fontStyle: 'bold',
+      color: this.colorFor(MENU_COLORS.priceText),
+    }).setOrigin(0.5).setDepth(13)
+    const status = this.add.text(x, y + 23, gewaehlt ? '✓ START' : 'WÄHLEN', {
+      fontFamily: 'system-ui', fontSize: '10px', fontStyle: 'bold',
       color: this.colorFor(gewaehlt ? MENU_COLORS.owned : MENU_COLORS.mutedText),
     }).setOrigin(0.5).setDepth(13)
-    this.confirmationObjects.push(kachel, name, bild, status)
+    this.confirmationObjects.push(kachel, name, bild, sterne, status)
 
     kachel.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
       this.startwaffe = weapon
@@ -384,6 +390,12 @@ export class MenuScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, stoppeUhr)
   }
 
+  /** Staerke einer Waffe als Sternreihe, mit ihrer dauerhaft gekauften Aufruestung. */
+  private sterneFuer(weapon: WeaponKey): string {
+    const stufen = getWeaponSteps(this.save, weapon)
+    return getWeaponStarText(weapon, (1 + BALANCE.meta.weaponStepFirepowerBonus) ** stufen)
+  }
+
   /** Den Stand vor dem letzten Zuruecksetzen wiederherstellen und das Menue neu zeichnen. */
   private holeFortschrittZurueck(): void {
     const stand = restoreSave()
@@ -391,6 +403,68 @@ export class MenuScene extends Phaser.Scene {
     this.save = stand
     this.zurueckholbar = undefined
     this.scene.restart()
+  }
+
+  /**
+   * SPIELEN startet einen NEUEN Lauf - und wirft damit den gesicherten weg (Thomas
+   * 2026-08-26: "wenn man auf spielen klickt bitte eine Sicherheitsfrage").
+   *
+   * DIESELBE FALLE WIE BEIM ZURUECKSETZEN, nur leiser: Wer FORTSETZEN treffen will und
+   * SPIELEN erwischt, verliert seinen Lauf beim ersten Sichern - ohne Warnung und ohne
+   * Weg zurueck. Muenzen, gekaufte Waffen und Aufwertungen bleiben; sie haengen nicht am
+   * Lauf, sondern am Konto.
+   *
+   * DIE FRAGE KOMMT NUR, WENN ES ETWAS ZU VERLIEREN GIBT. Ohne offenen Lauf startet
+   * SPIELEN sofort - eine Frage waere dort eine Huerde ohne Zweck, und wer sie bei jedem
+   * Start wegtippt, tippt sie irgendwann auch dann weg, wenn sie zaehlt.
+   */
+  private starteNeuesSpiel(): void {
+    const offenerRun = this.save.run
+    if (offenerRun === undefined) {
+      this.scene.start('GameScene', { einstieg: 'neu' })
+      return
+    }
+    this.zeigeFrage(
+      'Neues Spiel starten?',
+      `Dein Lauf in Level ${offenerRun.level} geht dabei verloren.\nMünzen und gekaufte Waffen bleiben dir.`,
+      'JA, NEU ANFANGEN',
+      () => {
+        this.closeResetConfirmation()
+        this.scene.start('GameScene', { einstieg: 'neu' })
+      },
+    )
+  }
+
+  /**
+   * Die Sicherheitsfrage, wie sie das Zuruecksetzen schon hatte - jetzt fuer beide Faelle
+   * dieselbe Funktion. Zwei Fragen mit zwei Aufbauten waeren zwei Stellen, an denen
+   * dieselbe Falle unterschiedlich aussieht.
+   */
+  private zeigeFrage(titel: string, erklaerung: string, jaText: string, onJa: () => void): void {
+    if (this.confirmationObjects.length > 0) return
+    const width = this.scale.width
+    const height = this.scale.height
+    const safeWidth = width - this.insets.left - this.insets.right
+    const centerX = this.insets.left + safeWidth / 2
+    const centerY = (height + this.insets.top - this.insets.bottom) / 2
+    const panelWidth = safeWidth - 2 * BALANCE.menu.sidePadding
+    const wall = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.65).setDepth(10).setInteractive()
+    wall.on('pointerdown', () => undefined)
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, 244, MENU_COLORS.row, 1).setDepth(11)
+      .setStrokeStyle(2, MENU_COLORS.rowStroke, 1)
+    const frage = this.add.text(centerX, centerY - 70, titel, {
+      fontFamily: 'system-ui', fontSize: '23px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
+    }).setOrigin(0.5).setDepth(12)
+    const text = this.add.text(centerX, centerY - 28, erklaerung, {
+      fontFamily: 'system-ui', fontSize: '15px', align: 'center', lineSpacing: 3,
+      color: this.colorFor(MENU_COLORS.text),
+    }).setOrigin(0.5).setDepth(12)
+    this.confirmationObjects.push(wall, panel, frage, text)
+    this.confirmationObjects.push(...this.addButton(centerX, centerY + 36, panelWidth - 32, 42, jaText, true,
+      onJa, undefined, false, 12))
+    this.confirmationObjects.push(...this.addButton(centerX, centerY + 88, panelWidth - 32, 36, 'ABBRECHEN', true, () => {
+      this.closeResetConfirmation()
+    }, undefined, true, 12))
   }
 
   private openResetConfirmation(): void {
@@ -600,24 +674,32 @@ export class MenuScene extends Phaser.Scene {
       .setStrokeStyle(2, rahmen, 1).setOrigin(0.5).setDepth(12)
     // Das HUD-Bild der Waffe, auf Kachelbreite eingepasst. Es ist 72 x 20 - dieselbe
     // Grafik, die im Spiel oben in der Ecke steht, damit die Wiedererkennung stimmt.
-    const name = this.add.text(x, y - 22, WEAPON_LABELS[weapon], {
+    const name = this.add.text(x, y - 24, WEAPON_LABELS[weapon], {
       fontFamily: 'system-ui', fontSize: '9px', fontStyle: 'bold',
       color: this.colorFor(gekauft || bezahlbar ? MENU_COLORS.text : MENU_COLORS.mutedText),
     }).setOrigin(0.5).setDepth(13)
-    const bild = this.add.image(x, y - 4, `weapon-${weapon}-hud`).setDepth(13)
+    const bild = this.add.image(x, y - 8, `weapon-${weapon}-hud`).setDepth(13)
     const skala = Math.min((breite - 16) / bild.width, 1.1)
     bild.setScale(skala).setAlpha(gekauft || bezahlbar ? 1 : 0.45)
-    // Die Kachel zeigt bei gekauften Waffen die Ausbaustufe: Ohne sie muesste man jede
-    // Waffe einzeln oeffnen, um zu sehen, wo noch etwas fehlt.
+
+    // STAERKE ALS STERNE, mit der gekauften Aufruestung (Thomas 2026-08-26: "die
+    // staerkeupgrades der gekauften waffen mittels der sterne ... im shop anzeigen").
+    // Sie steht bei JEDER Waffe: Im Regal ist die Frage "was bekomme ich fuer mein Geld",
+    // und die beantwortet ein Preis allein nicht.
     const stufen = getWeaponSteps(this.save, weapon)
+    const sterne = this.add.text(x, y + 9, this.sterneFuer(weapon), {
+      fontFamily: 'system-ui', fontSize: '10px', fontStyle: 'bold',
+      color: this.colorFor(gekauft || bezahlbar ? MENU_COLORS.priceText : MENU_COLORS.mutedText),
+    }).setOrigin(0.5).setDepth(13)
+
     const beschriftung = gekauft
       ? (stufen > 0 ? `✓ STUFE ${stufen}/${BALANCE.meta.weaponSteps}` : '✓ GEKAUFT')
       : `¢ ${preis}`
-    const text = this.add.text(x, y + 20, beschriftung, {
-      fontFamily: 'system-ui', fontSize: '11px', fontStyle: 'bold',
+    const text = this.add.text(x, y + 23, beschriftung, {
+      fontFamily: 'system-ui', fontSize: '10px', fontStyle: 'bold',
       color: this.colorFor(gekauft ? MENU_COLORS.owned : bezahlbar ? MENU_COLORS.priceText : MENU_COLORS.mutedText),
     }).setOrigin(0.5).setDepth(13)
-    this.confirmationObjects.push(kachel, name, bild, text)
+    this.confirmationObjects.push(kachel, name, bild, sterne, text)
 
     // JEDE Kachel ist antippbar, auch die zu teure (Thomas 2026-08-25: "auch wenn die
     // waffe noch nicht gekauft ist soll man sie klicken koennen"). Gekauft wird erst in

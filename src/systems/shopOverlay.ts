@@ -21,11 +21,17 @@ export interface ShopZustand {
     readonly key: string
     readonly aktiv: boolean
     /**
-     * Dauerhaft gekaufte Aufruestungsstufen dieser Waffe (Thomas 2026-08-26: "das
-     * Aufruesten bei gekauften waffen sichtbar machen, also vielleicht mit kleinen
-     * sternen in den Symbolen"). 0 heisst: keine Marke auf der Kachel.
+     * Staerke dieser Waffe in Sternen (1 bis 5), Aufruestung eingerechnet (Thomas
+     * 2026-08-26: "die staerkeupgrades der gekauften waffen mittels der sterne auch in
+     * den kleinen bildern (auswahl vor dem spiel) und im shop anzeigen").
+     *
+     * ALS ZAHL, NICHT ALS FERTIGER TEXT: Wie viele Sterne auf eine Kachel passen, weiss
+     * nur das Overlay - die Kachelbreite wird je Geraet gerechnet (shopWeaponRow.ts).
+     *
+     * Sie steht bei JEDER Waffe, nicht nur bei aufgeruesteten: Beim Waehlen ist die
+     * Frage "welche ist staerker", und die beantwortet eine Stufenzahl nicht.
      */
-    readonly stufen?: number
+    readonly sterne?: number
   }[]
   /**
    * Im Testgelaende (2026-08-25) traegt dieselbe Pause andere Beschriftungen: Es ist
@@ -70,8 +76,8 @@ export class ShopOverlay {
   private readonly waffenKacheln: Array<{
     rahmen: Phaser.GameObjects.Rectangle
     bild: Phaser.GameObjects.Image
-    /** Marke fuer die Aufruestung, z. B. "★2". Leer, solange nichts gekauft ist. */
-    stufen: Phaser.GameObjects.Text
+    /** Staerke als Sternreihe unter dem Bild. */
+    sterne: Phaser.GameObjects.Text
   }>
   private readonly onWaffenwahl: (weapon: string) => void
   /** Gerechnete Masse der Kachelreihe - sie haengen an beiden Safe-Area-Raendern. */
@@ -159,21 +165,21 @@ export class ShopOverlay {
       const rahmen = scene.add.rectangle(x, y, kb, kh, MENU_COLORS.shelf, 1)
         .setStrokeStyle(2, MENU_COLORS.rowStroke, 1).setDepth(BALANCE.shop.ui.depthPanel)
       const bild = scene.add.image(x, y, 'weapon-pistol-hud').setDepth(BALANCE.shop.ui.depthText)
-      // Die Stufenmarke sitzt in der unteren rechten Ecke der Kachel: Das Waffenbild ist
-      // quer und laesst dort Platz, und in der Reihe liest man alle Marken auf einer
-      // Linie. Sie steht UEBER dem Bild (depthText), sonst verschwindet sie darunter.
-      const stufen = scene.add.text(x + kb / 2 - 3, y + kh / 2 - 2, '', {
-        fontFamily: 'system-ui', fontSize: '10px', fontStyle: 'bold',
+      // Die Sternreihe sitzt am unteren Rand der Kachel, mittig: Das Waffenbild ist quer
+      // und laesst dort Platz, und in der Reihe liest man alle Sterne auf einer Linie.
+      // Sie steht UEBER dem Bild (depthText), sonst verschwindet sie darunter.
+      const sterne = scene.add.text(x, y + kh / 2 - 2, '', {
+        fontFamily: 'system-ui', fontSize: '9px', fontStyle: 'bold',
         color: `#${MENU_COLORS.priceText.toString(16).padStart(6, '0')}`,
-      }).setOrigin(1, 1).setDepth(BALANCE.shop.ui.depthText)
-      this.waffenKacheln.push({ rahmen, bild, stufen })
+      }).setOrigin(0.5, 1).setDepth(BALANCE.shop.ui.depthText)
+      this.waffenKacheln.push({ rahmen, bild, sterne })
     }
 
     this.alleObjekte = [
       this.hintergrund, this.ueberschrift, this.konto, this.weiter, this.weiterText,
       this.beenden, this.beendenText, this.waffenTitel,
       ...Object.values(this.knoepfe).flatMap((k) => [k.hintergrund, k.titel, k.wirkung, k.preis]),
-      ...this.waffenKacheln.flatMap((k) => [k.rahmen, k.bild, k.stufen]),
+      ...this.waffenKacheln.flatMap((k) => [k.rahmen, k.bild, k.sterne]),
     ]
     this.verstecken()
   }
@@ -239,20 +245,20 @@ export class ShopOverlay {
       kachel.bild.setVisible(sichtbar)
       kachel.rahmen.removeAllListeners('pointerdown')
       if (eintrag === undefined) {
-        kachel.stufen.setVisible(false)
+        kachel.sterne.setVisible(false)
         kachel.rahmen.disableInteractive()
         return
       }
-      // AUFRUESTUNG SICHTBAR MACHEN (Thomas 2026-08-26): Ohne die Marke sieht eine voll
-      // ausgebaute Waffe genauso aus wie eine frisch gekaufte - man weiss beim Waehlen
-      // nicht, in welche man sein Geld gesteckt hat.
-      const stufen = eintrag.stufen ?? 0
-      kachel.stufen.setText(stufen > 0 ? `★${stufen}` : '').setVisible(stufen > 0)
+      // STAERKE SICHTBAR MACHEN (Thomas 2026-08-26): Ohne sie sieht eine voll ausgebaute
+      // Waffe genauso aus wie eine frisch gekaufte, und zwei fremde Waffen sehen gleich
+      // stark aus. Die Aufruestung ist eingerechnet - der Kauf muss sich hier zeigen.
+      this.setzeSterne(kachel.sterne, eintrag.sterne)
       const textur = `weapon-${eintrag.key}-hud`
       if (this.scene.textures.exists(textur)) kachel.bild.setTexture(textur)
+      // Die Sternreihe braucht die unteren 10 px der Kachel - das Bild bekommt den Rest.
       const skala = Math.min(
         (this.reihenLayout.kachelBreite - 8) / kachel.bild.width,
-        (this.reihenLayout.kachelHoehe - 8) / kachel.bild.height,
+        (this.reihenLayout.kachelHoehe - 18) / kachel.bild.height,
         1,
       )
       kachel.bild.setScale(skala).setAlpha(eintrag.aktiv ? 1 : 0.7)
@@ -261,6 +267,25 @@ export class ShopOverlay {
       kachel.rahmen.setInteractive({ useHandCursor: true })
         .on('pointerdown', () => { if (this.sichtbar) this.onWaffenwahl(eintrag.key) })
     })
+  }
+
+  /**
+   * Die Sterne so schreiben, wie sie auf die Kachel passen.
+   *
+   * GEMESSEN, NICHT GESCHAETZT: Die volle Reihe "★★★☆☆" ist 48 px breit, die Kacheln in
+   * der Levelpause sind auf dem iPhone 40 px - die Reihen benachbarter Kacheln liefen
+   * ineinander. Passt sie nicht, steht dort die Kurzform "★4"; sie sagt dasselbe und
+   * bleibt lesbar. Welcher Fall gilt, haengt am Geraet, weil die Kachelbreite gerechnet
+   * wird (shopWeaponRow.ts) - deshalb wird gemessen statt einmal entschieden.
+   */
+  private setzeSterne(text: Phaser.GameObjects.Text, sterne: number | undefined): void {
+    if (sterne === undefined || sterne <= 0) {
+      text.setText('').setVisible(false)
+      return
+    }
+    const voll = `${'★'.repeat(sterne)}${'☆'.repeat(Math.max(0, 5 - sterne))}`
+    text.setText(voll).setVisible(true)
+    if (text.width > this.reihenLayout.kachelBreite - 4) text.setText(`★${sterne}`)
   }
 
   /**
@@ -285,8 +310,8 @@ export class ShopOverlay {
       const x = this.mitte - zeilenBreite / 2 + l.kachelBreite / 2 + spalte * (l.kachelBreite + l.luecke)
       const y = l.ersteReiheY + versatzY + reihe * (l.kachelHoehe + l.luecke)
       kachel.rahmen.setPosition(x, y)
-      kachel.bild.setPosition(x, y)
-      kachel.stufen.setPosition(x + l.kachelBreite / 2 - 3, y + l.kachelHoehe / 2 - 2)
+      kachel.bild.setPosition(x, y - 5)
+      kachel.sterne.setPosition(x, y + l.kachelHoehe / 2 - 2)
     })
   }
 

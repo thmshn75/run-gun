@@ -279,6 +279,18 @@ echten Runs. Beides sollte nach Bennis Test nachgezogen werden.
   **Fuer Bennis konkreten Verlust kommt das zu spaet** - sein Stand war beim Zuruecksetzen
   aus beiden Kopien verschwunden.
 
+- **Sicherheitsfrage vor SPIELEN** (Thomas 2026-08-26). SPIELEN startet einen NEUEN Lauf
+  und wirft den gesicherten weg - dieselbe Falle wie beim Zuruecksetzen, nur leiser. Die
+  Frage nennt das verlorene Level und stellt klar, dass Muenzen und gekaufte Waffen
+  bleiben. **Sie kommt nur bei offenem Lauf**: Ohne ihn gibt es nichts zu verlieren, und
+  eine Huerde ohne Zweck wird irgendwann blind weggetippt.
+- **Staerke als Sterne an allen drei Auswahlstellen** (Thomas 2026-08-26). Laden im
+  Menue, Startwaffenwahl vor dem FORTSETZEN und Waffenwahl in der Levelpause zeigen jetzt
+  die Staerke - mit eingerechneter Aufruestung, damit sich ein Kauf auch dort zeigt.
+  In der Levelpause sind die Kacheln auf dem iPhone nur 40 px breit und die volle Reihe
+  ist 48 px: Das Overlay MISST und schaltet dann auf die Kurzform "★4" um
+  (`shopOverlay.setzeSterne`). Die Rechnung steht einmal in `weaponStars.ts`.
+
 ## Wichtige Dateien und Befehle
 - Plan `docs/plan-v4.md` (enthaelt die Befunde beider Gegenpruefungen) ·
   Endlos-Regler: `BALANCE.level.endless`, `enemy.endlessHpGrowthPerLevel`,

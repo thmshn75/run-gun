@@ -171,6 +171,30 @@ describe('Weiterspielen und Fortsetzen', () => {
  * mit durchgetippt und stand vor einem leeren Spielstand - ohne Weg zurueck, weil
  * `resetSave` ueber BEIDE Kopien schrieb. Seither legt es den alten Stand vorher beiseite.
  */
+describe('Neues Spiel', () => {
+  it('startet einen neuen Lauf NIE ohne den Weg ueber die Rueckfrage', () => {
+    // Thomas 2026-08-26: "wenn man auf spielen klickt bitte eine Sicherheitsfrage".
+    // SPIELEN wirft den gesicherten Lauf weg - dieselbe Falle wie beim Zuruecksetzen,
+    // nur leiser. Die Frage kommt nur, wenn ein Lauf offen ist; ohne Lauf gibt es nichts
+    // zu verlieren, und eine Huerde ohne Zweck wird irgendwann blind weggetippt.
+    //
+    // Der Test liest den Quelltext, weil die Szene ohne Phaser nicht laeuft - und weil
+    // genau diese Regel sonst beim naechsten neuen Startknopf still gebrochen wird.
+    const quelle = readFileSync(new URL('../src/scenes/MenuScene.ts', import.meta.url), 'utf8')
+    const start = quelle.indexOf('private starteNeuesSpiel')
+    const ende = quelle.indexOf('private zeigeFrage')
+    expect(start, 'starteNeuesSpiel fehlt').toBeGreaterThan(0)
+    expect(ende, 'zeigeFrage fehlt').toBeGreaterThan(start)
+    const block = quelle.slice(start, ende)
+    // Beide Startwege liegen INNERHALB dieser Methode - keiner daneben.
+    const alleStarts = quelle.split('\n').filter((z) => z.includes("einstieg: 'neu'")).length
+    const startsImBlock = block.split('\n').filter((z) => z.includes("einstieg: 'neu'")).length
+    expect(startsImBlock).toBe(alleStarts)
+    // Und der Weg mit offenem Lauf geht ueber die Frage.
+    expect(block).toContain('zeigeFrage(')
+  })
+})
+
 describe('Zuruecksetzen', () => {
   it('erkennt einen unberuehrten Stand - und einen bespielten nicht', () => {
     // Daran haengt der Rueckhol-Knopf: Wer nach dem Zuruecksetzen schon wieder gespielt

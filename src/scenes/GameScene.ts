@@ -15,10 +15,11 @@ import { getRoadHalfWidth, Road } from '../systems/road'
 import { getEnemySpeed, getScrollSpeed, setCurrentScrollSpeed } from '../systems/speed'
 import { Scenery } from '../systems/scenery'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
-import { addScore, createRunId, getMetaSteps, getOwnedWeapons, getWeaponFirepowerFactor, getWeaponSteps, loadSave, qualifiesForScores, writeSave, type SaveData } from '../systems/save'
+import { addScore, createRunId, getMetaSteps, getOwnedWeapons, getWeaponFirepowerFactor, loadSave, qualifiesForScores, writeSave, type SaveData } from '../systems/save'
 import { Spawner } from '../systems/spawner'
 import { getStartWeaponChoices, getWeaponRewardChoices } from '../systems/weaponChoices'
 import { WeaponDetailPanel } from '../systems/weaponDetail'
+import { getWeaponStars } from '../systems/weaponStars'
 import { RunStats, type ShopLine, getStatCap, getShopPrice, getContinuePrice } from '../systems/upgrades'
 import { WEAPON_LABELS, Weapons, type WeaponKey, WEAPON_KEYS } from '../systems/weapons'
 import { enableSharpText } from '../systems/textSharpness'
@@ -1169,11 +1170,16 @@ export class GameScene extends Phaser.Scene {
     // es da (Benni: "wo man alle waffen einzeln ausprobieren kann").
     const stand = loadSave()
     if (this.istTestgelaende()) {
-      return WEAPON_KEYS.map((key) => ({ key, aktiv: key === getragen, stufen: getWeaponSteps(stand, key) }))
+      return WEAPON_KEYS.map((key) => ({ key, aktiv: key === getragen, sterne: this.sterneFuer(key, stand) }))
     }
     const behalten = this.waffenwahlAusgang === undefined ? [] : [this.waffenwahlAusgang]
     return getStartWeaponChoices(getragen, this.currentLevel, getOwnedWeapons(stand), behalten)
-      .map((key) => ({ key, aktiv: key === getragen, stufen: getWeaponSteps(stand, key) }))
+      .map((key) => ({ key, aktiv: key === getragen, sterne: this.sterneFuer(key, stand) }))
+  }
+
+  /** Staerke in Sternen (1-5), mit der dauerhaften Aufruestung dieser Waffe. */
+  private sterneFuer(weapon: WeaponKey, stand: SaveData): number {
+    return getWeaponStars(weapon, getWeaponFirepowerFactor(stand, weapon))
   }
 
   private waehleWaffe(weapon: string): void {
