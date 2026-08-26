@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
+import { getWeaponStars } from '../src/systems/weaponStars'
+import type { WeaponKey } from '../src/systems/weapons'
 import {
   defaultSave, getWeaponFirepowerFactor, getWeaponStepPrice, getWeaponSteps,
   getWeaponUnlockPrice, kaufeWaffenStufe, parseSave, serializeSave, type SaveData,
@@ -118,6 +121,48 @@ describe('Waffen-Aufruestung', () => {
     expect(getWeaponSteps(kaputt.data, 'rocket')).toBe(BALANCE.meta.weaponSteps)
     expect(getWeaponSteps(kaputt.data, 'laser')).toBe(0)
     expect(kaputt.data.weaponSteps?.gibtsnicht).toBeUndefined()
+  })
+})
+
+describe('Anzeige der Aufruestung', () => {
+  it('BEGRUENDET, warum die Stufe neben den Sternen stehen muss', () => {
+    // Thomas 2026-08-26: "wenn ich die waffe schon upgeradet habe, also z. B. auf stufe 4,
+    // dann soll die doch auch nicht nur die standardstaerke anzeigen sondern auch die
+    // upgradestufe".
+    //
+    // NACHGERECHNET: Die Sterne runden die gemessene Staerke auf fuenf Stufen. Ein Ausbau
+    // auf Stufe 4 (+31 %) veraendert dabei bei SECHS der dreizehn Waffen keinen einzigen
+    // Stern - Pistole, Schrot, Flamme, Blitz, Schockwelle und Streubombe; bei der Flamme
+    // ueber alle fuenf Stufen keinen. Wer nur die Sterne zeigt, zeigt einen Kauf ueber
+    // Zehntausende Muenzen bei fast der Haelfte der Waffen also gar nicht.
+    //
+    // Dieser Test faellt weg, sobald jemand die Sterne feiner macht - dann DARF die
+    // Stufenmarke verschwinden. Solange er anschlaegt, muss sie bleiben.
+    const waffen = (Object.keys(BALANCE.weapon) as WeaponKey[])
+      .filter((k) => typeof (BALANCE.weapon[k] as { killsPerSec?: number }).killsPerSec === 'number')
+    const ohneSichtbareWirkung = waffen.filter((weapon) => {
+      const ohne = getWeaponStars(weapon)
+      const mitVier = getWeaponStars(weapon, (1 + BALANCE.meta.weaponStepFirepowerBonus) ** 4)
+      return ohne === mitVier
+    })
+    expect(ohneSichtbareWirkung.length / waffen.length).toBeGreaterThan(0.3)
+    expect(ohneSichtbareWirkung).toContain('flamethrower')
+  })
+
+  it('zeigt die Stufe an JEDER Stelle, an der man eine Waffe waehlt', () => {
+    // Drei Auswahlen: Laden im Menue, Startwaffenwahl vor dem FORTSETZEN, Waffenwahl in
+    // der Levelpause. Fehlt sie an einer, sucht man dort vergeblich, was man gekauft hat.
+    const menue = readFileSync(new URL('../src/scenes/MenuScene.ts', import.meta.url), 'utf8')
+    const overlay = readFileSync(new URL('../src/systems/shopOverlay.ts', import.meta.url), 'utf8')
+    const ansicht = readFileSync(new URL('../src/systems/weaponDetail.ts', import.meta.url), 'utf8')
+    // Laden: Klartext unter der Kachel.
+    expect(menue).toContain('✓ STUFE ${stufen}/${BALANCE.meta.weaponSteps}')
+    // Startwaffenwahl im Menue: Marke in der Ecke.
+    expect(menue).toContain('ausbau > 0 ? `+${ausbau}` : \'\'')
+    // Levelpause: dieselbe Marke.
+    expect(overlay).toContain('stufen > 0 ? `+${stufen}` : \'\'')
+    // Grosse Ansicht im Testgelaende: Klartext.
+    expect(ansicht).toContain('AUSGEBAUT: STUFE ${stufen} VON ${maxStufen}')
   })
 })
 

@@ -290,6 +290,14 @@ echten Runs. Beides sollte nach Bennis Test nachgezogen werden.
   In der Levelpause sind die Kacheln auf dem iPhone nur 40 px breit und die volle Reihe
   ist 48 px: Das Overlay MISST und schaltet dann auf die Kurzform "★4" um
   (`shopOverlay.setzeSterne`). Die Rechnung steht einmal in `weaponStars.ts`.
+- **Die Aufruestungsstufe steht NEBEN den Sternen** (Thomas 2026-08-26: "wenn ich die
+  waffe schon upgeradet habe ... soll die auch die upgradestufe anzeigen"). Nachgerechnet
+  war das noetig: Die Sterne runden auf fuenf Stufen, und ein Ausbau auf Stufe 4
+  veraendert bei SECHS der dreizehn Waffen keinen einzigen Stern - bei der Flamme ueber
+  alle fuenf Stufen keinen. Jetzt traegt jede Kachel zusaetzlich eine gruene Marke "+4",
+  der Laden seinen Klartext "✓ STUFE 4/5" und die grosse Ansicht "AUSGEBAUT: STUFE 4 VON
+  5" plus den Prozentwert. Ein Test rechnet die Begruendung nach und faellt weg, sobald
+  die Sterne feiner werden - dann darf die Marke verschwinden.
 
 ## Wichtige Dateien und Befehle
 - Plan `docs/plan-v4.md` (enthaelt die Befunde beider Gegenpruefungen) ·

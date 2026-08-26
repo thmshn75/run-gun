@@ -15,7 +15,7 @@ import { getRoadHalfWidth, Road } from '../systems/road'
 import { getEnemySpeed, getScrollSpeed, setCurrentScrollSpeed } from '../systems/speed'
 import { Scenery } from '../systems/scenery'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
-import { addScore, createRunId, getMetaSteps, getOwnedWeapons, getWeaponFirepowerFactor, loadSave, qualifiesForScores, writeSave, type SaveData } from '../systems/save'
+import { addScore, createRunId, getMetaSteps, getOwnedWeapons, getWeaponFirepowerFactor, getWeaponSteps, loadSave, qualifiesForScores, writeSave, type SaveData } from '../systems/save'
 import { Spawner } from '../systems/spawner'
 import { getStartWeaponChoices, getWeaponRewardChoices } from '../systems/weaponChoices'
 import { WeaponDetailPanel } from '../systems/weaponDetail'
@@ -1170,11 +1170,15 @@ export class GameScene extends Phaser.Scene {
     // es da (Benni: "wo man alle waffen einzeln ausprobieren kann").
     const stand = loadSave()
     if (this.istTestgelaende()) {
-      return WEAPON_KEYS.map((key) => ({ key, aktiv: key === getragen, sterne: this.sterneFuer(key, stand) }))
+      return WEAPON_KEYS.map((key) => ({
+        key, aktiv: key === getragen, sterne: this.sterneFuer(key, stand), stufen: getWeaponSteps(stand, key),
+      }))
     }
     const behalten = this.waffenwahlAusgang === undefined ? [] : [this.waffenwahlAusgang]
     return getStartWeaponChoices(getragen, this.currentLevel, getOwnedWeapons(stand), behalten)
-      .map((key) => ({ key, aktiv: key === getragen, sterne: this.sterneFuer(key, stand) }))
+      .map((key) => ({
+        key, aktiv: key === getragen, sterne: this.sterneFuer(key, stand), stufen: getWeaponSteps(stand, key),
+      }))
   }
 
   /** Staerke in Sternen (1-5), mit der dauerhaften Aufruestung dieser Waffe. */
@@ -1203,6 +1207,8 @@ export class GameScene extends Phaser.Scene {
       weapon,
       this.insets,
       this.aufwertung(weapon),
+      getWeaponSteps(loadSave(), weapon),
+      BALANCE.meta.weaponSteps,
       () => {
         this.waffenAnsicht.verstecken()
         this.uebernehmeWaffe(weapon)

@@ -32,6 +32,15 @@ export interface ShopZustand {
      * Frage "welche ist staerker", und die beantwortet eine Stufenzahl nicht.
      */
     readonly sterne?: number
+    /**
+     * Gekaufte Aufruestungsstufen (0 = keine). SIE BRAUCHT EINE EIGENE MARKE, weil die
+     * Sterne oft nicht zeigen: Sie runden auf fuenf Stufen, und nachgerechnet veraendert
+     * ein Ausbau auf Stufe 4 bei sechs der dreizehn Waffen keinen einzigen Stern (bei der
+     * Flamme ueber alle fuenf Stufen keinen). Thomas 2026-08-26: "wenn ich
+     * die waffe schon upgeradet habe, also z. B. auf stufe 4, dann soll die doch auch
+     * nicht nur die standardstaerke anzeigen sondern auch die upgradestufe".
+     */
+    readonly stufen?: number
   }[]
   /**
    * Im Testgelaende (2026-08-25) traegt dieselbe Pause andere Beschriftungen: Es ist
@@ -78,6 +87,8 @@ export class ShopOverlay {
     bild: Phaser.GameObjects.Image
     /** Staerke als Sternreihe unter dem Bild. */
     sterne: Phaser.GameObjects.Text
+    /** Aufruestungsmarke "+4" in der oberen rechten Ecke. Leer ohne Ausbau. */
+    stufen: Phaser.GameObjects.Text
   }>
   private readonly onWaffenwahl: (weapon: string) => void
   /** Gerechnete Masse der Kachelreihe - sie haengen an beiden Safe-Area-Raendern. */
@@ -172,14 +183,20 @@ export class ShopOverlay {
         fontFamily: 'system-ui', fontSize: '9px', fontStyle: 'bold',
         color: `#${MENU_COLORS.priceText.toString(16).padStart(6, '0')}`,
       }).setOrigin(0.5, 1).setDepth(BALANCE.shop.ui.depthText)
-      this.waffenKacheln.push({ rahmen, bild, sterne })
+      // Die Stufenmarke sitzt oben rechts, in der Besitz-Farbe: Sie gehoert zu dem, was
+      // man gekauft hat, waehrend die Sterne unten sagen, wie stark die Waffe damit ist.
+      const stufen = scene.add.text(x + kb / 2 - 2, y - kh / 2 + 1, '', {
+        fontFamily: 'system-ui', fontSize: '9px', fontStyle: 'bold',
+        color: `#${MENU_COLORS.owned.toString(16).padStart(6, '0')}`,
+      }).setOrigin(1, 0).setDepth(BALANCE.shop.ui.depthText)
+      this.waffenKacheln.push({ rahmen, bild, sterne, stufen })
     }
 
     this.alleObjekte = [
       this.hintergrund, this.ueberschrift, this.konto, this.weiter, this.weiterText,
       this.beenden, this.beendenText, this.waffenTitel,
       ...Object.values(this.knoepfe).flatMap((k) => [k.hintergrund, k.titel, k.wirkung, k.preis]),
-      ...this.waffenKacheln.flatMap((k) => [k.rahmen, k.bild, k.sterne]),
+      ...this.waffenKacheln.flatMap((k) => [k.rahmen, k.bild, k.sterne, k.stufen]),
     ]
     this.verstecken()
   }
@@ -246,9 +263,12 @@ export class ShopOverlay {
       kachel.rahmen.removeAllListeners('pointerdown')
       if (eintrag === undefined) {
         kachel.sterne.setVisible(false)
+        kachel.stufen.setVisible(false)
         kachel.rahmen.disableInteractive()
         return
       }
+      const stufen = eintrag.stufen ?? 0
+      kachel.stufen.setText(stufen > 0 ? `+${stufen}` : '').setVisible(stufen > 0)
       // STAERKE SICHTBAR MACHEN (Thomas 2026-08-26): Ohne sie sieht eine voll ausgebaute
       // Waffe genauso aus wie eine frisch gekaufte, und zwei fremde Waffen sehen gleich
       // stark aus. Die Aufruestung ist eingerechnet - der Kauf muss sich hier zeigen.
@@ -312,6 +332,7 @@ export class ShopOverlay {
       kachel.rahmen.setPosition(x, y)
       kachel.bild.setPosition(x, y - 5)
       kachel.sterne.setPosition(x, y + l.kachelHoehe / 2 - 2)
+      kachel.stufen.setPosition(x + l.kachelBreite / 2 - 2, y - l.kachelHoehe / 2 + 1)
     })
   }
 

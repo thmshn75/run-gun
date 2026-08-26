@@ -303,11 +303,17 @@ export class MenuScene extends Phaser.Scene {
       fontFamily: 'system-ui', fontSize: '10px', fontStyle: 'bold',
       color: this.colorFor(MENU_COLORS.priceText),
     }).setOrigin(0.5).setDepth(13)
+    // Die Aufruestungsmarke braucht einen EIGENEN Platz: Die Sterne runden auf fuenf
+    // Stufen und zeigen einen Ausbau auf Stufe 4 bei sechs der dreizehn Waffen gar nicht.
+    const ausbau = getWeaponSteps(this.save, weapon)
+    const stufenMarke = this.add.text(x + breite / 2 - 3, y - hoehe / 2 + 2, ausbau > 0 ? `+${ausbau}` : '', {
+      fontFamily: 'system-ui', fontSize: '9px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.owned),
+    }).setOrigin(1, 0).setDepth(13)
     const status = this.add.text(x, y + 23, gewaehlt ? '✓ START' : 'WÄHLEN', {
       fontFamily: 'system-ui', fontSize: '10px', fontStyle: 'bold',
       color: this.colorFor(gewaehlt ? MENU_COLORS.owned : MENU_COLORS.mutedText),
     }).setOrigin(0.5).setDepth(13)
-    this.confirmationObjects.push(kachel, name, bild, sterne, status)
+    this.confirmationObjects.push(kachel, name, bild, sterne, stufenMarke, status)
 
     kachel.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
       this.startwaffe = weapon

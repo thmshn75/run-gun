@@ -48,6 +48,8 @@ export class WeaponDetailPanel {
     weapon: WeaponKey,
     insets: SafeAreaInsets,
     aufwertung: number,
+    stufen: number,
+    maxStufen: number,
     onWaehlen: () => void,
     onZurueck: () => void,
   ): void {
@@ -82,11 +84,19 @@ export class WeaponDetailPanel {
     bild.setScale(Math.min((panelBreite - 40) / bild.width, 3))
     this.objekte.push(bild)
 
-    this.objekte.push(this.scene.add.text(mitteX, mitteY - 40, `STÄRKE  ${getWeaponStarText(weapon, aufwertung)}`, {
+    // STAERKE UND AUSBAU GETRENNT: Die Sterne runden auf fuenf Stufen und zeigen einen
+    // Ausbau auf Stufe 4 bei sechs der dreizehn Waffen gar nicht (Thomas 2026-08-26).
+    const ausbauText = stufen > 0 ? `   +${Math.round((aufwertung - 1) * 100)} %` : ''
+    this.objekte.push(this.scene.add.text(mitteX, mitteY - 40, `STÄRKE  ${getWeaponStarText(weapon, aufwertung)}${ausbauText}`, {
       fontFamily: 'system-ui', fontSize: '17px', fontStyle: 'bold', color: this.farbe(MENU_COLORS.priceText),
     }).setOrigin(0.5).setDepth(132))
+    if (stufen > 0) {
+      this.objekte.push(this.scene.add.text(mitteX, mitteY - 20, `AUSGEBAUT: STUFE ${stufen} VON ${maxStufen}`, {
+        fontFamily: 'system-ui', fontSize: '12px', fontStyle: 'bold', color: this.farbe(MENU_COLORS.owned),
+      }).setOrigin(0.5).setDepth(132))
+    }
 
-    this.objekte.push(this.scene.add.text(mitteX, mitteY - 4, WEAPON_DESCRIPTIONS[weapon], {
+    this.objekte.push(this.scene.add.text(mitteX, mitteY + 4, WEAPON_DESCRIPTIONS[weapon], {
       fontFamily: 'system-ui', fontSize: '14px', color: this.farbe(MENU_COLORS.text),
       align: 'center', wordWrap: { width: panelBreite - 48 },
     }).setOrigin(0.5, 0).setDepth(132))
