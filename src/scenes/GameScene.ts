@@ -15,9 +15,10 @@ import { getRoadHalfWidth, Road } from '../systems/road'
 import { getEnemySpeed, getScrollSpeed, setCurrentScrollSpeed } from '../systems/speed'
 import { Scenery } from '../systems/scenery'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
-import { addScore, createRunId, getMetaSteps, getOwnedWeapons, getWeaponFirepowerFactor, loadSave, qualifiesForScores, writeSave, type SaveData } from '../systems/save'
+import { addScore, createRunId, getMetaSteps, getOwnedWeapons, getWeaponFirepowerFactor, getWeaponSteps, loadSave, qualifiesForScores, writeSave, type SaveData } from '../systems/save'
 import { Spawner } from '../systems/spawner'
 import { getStartWeaponChoices, getWeaponRewardChoices } from '../systems/weaponChoices'
+import { WeaponDetailPanel } from '../systems/weaponDetail'
 import { RunStats, type ShopLine, getStatCap, getShopPrice, getContinuePrice } from '../systems/upgrades'
 import { WEAPON_LABELS, Weapons, type WeaponKey, WEAPON_KEYS } from '../systems/weapons'
 import { enableSharpText } from '../systems/textSharpness'
@@ -205,6 +206,9 @@ export class GameScene extends Phaser.Scene {
   /** Knopf und Beschriftung des Testgelaendes. Leer in jedem normalen Lauf. */
   private testKnopf: Array<Phaser.GameObjects.Rectangle | Phaser.GameObjects.Text> = []
 
+  /** Die grosse Waffenansicht. Wird nur im Testgelaende geoeffnet. */
+  private waffenAnsicht!: WeaponDetailPanel
+
   public constructor() {
     super('GameScene')
   }
@@ -323,6 +327,7 @@ export class GameScene extends Phaser.Scene {
       },
     )
     this.popups = new Popups(this)
+    this.waffenAnsicht = new WeaponDetailPanel(this)
     this.shop = new ShopOverlay(
       this,
       this.insets,
@@ -1159,19 +1164,46 @@ export class GameScene extends Phaser.Scene {
     const getragen = this.weapons.getWeapon()
     // Im Testgelaende sind ALLE Waffen waehlbar, gekauft oder nicht - genau dafuer ist
     // es da (Benni: "wo man alle waffen einzeln ausprobieren kann").
+    const stand = loadSave()
     if (this.istTestgelaende()) {
-      return WEAPON_KEYS.map((key) => ({ key, aktiv: key === getragen }))
+      return WEAPON_KEYS.map((key) => ({ key, aktiv: key === getragen, stufen: getWeaponSteps(stand, key) }))
     }
     const behalten = this.waffenwahlAusgang === undefined ? [] : [this.waffenwahlAusgang]
-    return getStartWeaponChoices(getragen, this.currentLevel, getOwnedWeapons(loadSave()), behalten)
-      .map((key) => ({ key, aktiv: key === getragen }))
+    return getStartWeaponChoices(getragen, this.currentLevel, getOwnedWeapons(stand), behalten)
+      .map((key) => ({ key, aktiv: key === getragen, stufen: getWeaponSteps(stand, key) }))
   }
 
   private waehleWaffe(weapon: string): void {
     if (this.levelPhase !== 'shop') return
     if (!WEAPON_KEYS.includes(weapon as WeaponKey)) return
     if (!this.waehlbareWaffen().some((eintrag) => eintrag.key === weapon)) return
-    this.equipWeapon(weapon as WeaponKey)
+    // IM TESTGELAENDE ERST ANSEHEN, DANN WAEHLEN (Thomas 2026-08-26: "man weiss nicht
+    // wirklich welche waffe es ist ... damit man sich die waffen auch ansehen kann").
+    // Im echten Lauf bleibt der Sofortwechsel: Dort kennt man seine Waffen laengst, und
+    // ein Zwischenschritt vor jedem Level waere nur ein Tipp mehr.
+    if (this.istTestgelaende()) {
+      this.zeigeWaffenAnsicht(weapon as WeaponKey)
+      return
+    }
+    this.uebernehmeWaffe(weapon as WeaponKey)
+  }
+
+  /** Die grosse Ansicht einer Waffe - nur im Testgelaende. */
+  private zeigeWaffenAnsicht(weapon: WeaponKey): void {
+    this.waffenAnsicht.zeigen(
+      weapon,
+      this.insets,
+      this.aufwertung(weapon),
+      () => {
+        this.waffenAnsicht.verstecken()
+        this.uebernehmeWaffe(weapon)
+      },
+      () => { this.waffenAnsicht.verstecken() },
+    )
+  }
+
+  private uebernehmeWaffe(weapon: WeaponKey): void {
+    this.equipWeapon(weapon)
     // Sofort sichern: Der Spielstand wurde beim OEFFNEN der Pause geschrieben, also vor
     // der Wahl. Ohne das ginge sie verloren, wenn die App zwischen Wahl und WEITER
     // weggewischt wird.
@@ -1213,6 +1245,9 @@ export class GameScene extends Phaser.Scene {
   private verlasseShop(): void {
     if (this.levelPhase !== 'shop') return
     this.waffenwahlAusgang = undefined
+    // Sonst laege die Waffenansicht ueber dem laufenden Spiel: WEITER ist auch dann
+    // erreichbar, wenn sie offen ist - ihre Wand deckt nicht den ganzen Bildschirm ab.
+    this.waffenAnsicht.verstecken()
     this.shop.verstecken()
     this.startLevel()
   }
@@ -1230,6 +1265,7 @@ export class GameScene extends Phaser.Scene {
     // den Spielstand unberuehrt - beide Aufrufe wuerden zwar am Waechter abprallen, aber
     // ein Bestenlisten-Eintrag fuer ein Ausprobieren waere auch als Absicht falsch.
     if (this.istTestgelaende()) {
+      this.waffenAnsicht.verstecken()
       this.shop.verstecken()
       this.scene.start('MenuScene')
       return

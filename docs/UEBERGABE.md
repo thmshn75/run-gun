@@ -228,6 +228,17 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
    **Alle sechs Schreibwege der GameScene laufen ueber `speichere()`, und nur dort steht
    die Sperre** - ein Test liest den Quelltext und schlaegt an, wenn jemand wieder direkt
    `writeSave` aufruft.
+   **Grosse Waffenansicht im Testgelaende** (Thomas 2026-08-26: "man weiss nicht wirklich
+   welche waffe es ist"): Ein Tipp auf eine Kachel oeffnet Bild, Name, Sterne und die
+   Beschreibung aus dem Laden, mit den Knoepfen DAMIT SPIELEN und ZURUECK. Nur im
+   Testgelaende - im echten Lauf bleibt der Sofortwechsel, dort waere ein Zwischenschritt
+   vor jedem Level ein Tipp mehr. Die Sterne-Rechnung liegt in `weaponStars.ts` und wird
+   von beiden Ansichten benutzt (Phaser-frei, damit Tests sie aufrufen koennen).
+6. **Aufruestung auf den Kacheln sichtbar** (Thomas 2026-08-26): Eine aufgeruestete Waffe
+   traegt in der Waffenwahl unten rechts die Marke "★3". Ohne sie sieht eine voll
+   ausgebaute Waffe aus wie eine frisch gekaufte.
+   Dabei korrigiert: Die Beschreibungen von Flamme ("nur ganz nah vor der Truppe") und
+   Laser ("die weiteste Reichweite") stimmten nach der Reichweiten-Aenderung nicht mehr.
 5. **Gekaufte Waffen ab Level 1** statt ein Level vor dem regulaeren Erscheinen.
 
 **Was am Abend NICHT gemessen wurde:** die Wirkung der Aufruestungsstufen im Spiel (nur

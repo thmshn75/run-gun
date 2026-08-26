@@ -4,6 +4,8 @@ import { BALANCE } from '../src/config/balance'
 import { getCrowdDamageMultiplier } from '../src/systems/crowdDamage'
 import { getLevelPlan } from '../src/systems/levelPlan'
 import { getMaxFightSec } from '../src/systems/bossPlan'
+import { getWeaponStars } from '../src/systems/weaponStars'
+import type { WeaponKey } from '../src/systems/weapons'
 
 /**
  * DAS TESTGELAENDE (Benni ueber Thomas 2026-08-25: "ob es sowas wie ein testlevel geben
@@ -66,6 +68,33 @@ describe('Testgelaende', () => {
     }
     // Und lang genug, um eine Waffe ueberhaupt zu beurteilen.
     expect(BALANCE.testground.normalPhaseSec).toBeGreaterThanOrEqual(15)
+  })
+
+  it('zeigt im Testgelaende erst die grosse Ansicht, im echten Lauf nicht', () => {
+    // Thomas 2026-08-26: "man weiss nicht wirklich welche waffe es ist ... damit man sich
+    // die waffen auch ansehen kann". Im echten Lauf bleibt der Sofortwechsel - dort kennt
+    // man seine Waffen laengst, und ein Zwischenschritt vor jedem Level waere ein Tipp
+    // mehr vor jedem Level.
+    const quelle = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
+    expect(quelle).toMatch(/if \(this\.istTestgelaende\(\)\) \{\s*\n\s*this\.zeigeWaffenAnsicht\(weapon as WeaponKey\)/)
+  })
+
+  it('gibt jeder Waffe zwischen einem und fuenf Sternen, auch voll aufgeruestet', () => {
+    // Die Sterne stehen an zwei Stellen (Laden im Menue, Ansicht im Testgelaende) und
+    // kommen aus derselben Rechnung. Die staerkste Waffe des Spiels hat fuenf - eine
+    // aufgeruestete darf nicht darueber hinauslaufen und sechs Sterne zeichnen.
+    const voll = (1 + BALANCE.meta.weaponStepFirepowerBonus) ** BALANCE.meta.weaponSteps
+    const waffen = (Object.keys(BALANCE.weapon) as WeaponKey[])
+      .filter((key) => typeof (BALANCE.weapon[key] as { killsPerSec?: number }).killsPerSec === 'number')
+    for (const weapon of waffen) {
+      for (const faktor of [1, voll]) {
+        const sterne = getWeaponStars(weapon, faktor)
+        expect(sterne, `${weapon} x${faktor}`).toBeGreaterThanOrEqual(1)
+        expect(sterne, `${weapon} x${faktor}`).toBeLessThanOrEqual(5)
+      }
+    }
+    // Und die Aufruestung darf die Anzeige nicht SENKEN.
+    expect(getWeaponStars('normal', voll)).toBeGreaterThanOrEqual(getWeaponStars('normal'))
   })
 
   it('waehlt ein Level, auf dem sich zwei Waffen ueberhaupt unterscheiden', () => {

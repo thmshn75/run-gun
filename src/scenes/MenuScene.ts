@@ -8,6 +8,7 @@ import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { getMetaPrice, getMetaSteps, getOwnedWeapons, getWeaponStepPrice, getWeaponSteps, getWeaponUnlockPrice, kaufeWaffenStufe, kaufeWeiterspielen, loadSave, resetSave, writeSave, type RunSnapshot, type SaveData, type ScoreEntry } from '../systems/save'
 import { getContinuePrice } from '../systems/upgrades'
 import { getStartWeaponChoices } from '../systems/weaponChoices'
+import { getWeaponStarText } from '../systems/weaponStars'
 import { enableSharpText } from '../systems/textSharpness'
 
 export class MenuScene extends Phaser.Scene {
@@ -596,17 +597,12 @@ export class MenuScene extends Phaser.Scene {
     this.detailObjects.push(bild)
 
     // STAERKE als Sterne aus dem gemessenen Wert - fuenf Sterne hat die staerkste Waffe.
-    const alle = (Object.keys(BALANCE.weapon) as WeaponKey[])
-      .filter((k) => typeof (BALANCE.weapon[k] as { killsPerSec?: number }).killsPerSec === 'number')
-      .map((k) => (BALANCE.weapon[k] as { killsPerSec: number }).killsPerSec)
+    // Die Rechnung steht in weaponDetail.ts, weil die Ansicht im Testgelaende dieselbe
+    // Waffe zeigt: zwei Rechnungen waeren zwei Gelegenheiten fuer verschiedene Sterne.
     const stufen = getWeaponSteps(this.save, weapon)
     const aufwertung = (1 + BALANCE.meta.weaponStepFirepowerBonus) ** stufen
-    // Die Sterne zeigen die AUFGERUESTETE Staerke - sonst bliebe die Anzeige stehen,
-    // waehrend die Waffe im Spiel staerker wird, und der Kauf saehe folgenlos aus.
-    const meine = (BALANCE.weapon[weapon] as { killsPerSec: number }).killsPerSec * aufwertung
-    const sterne = Math.min(5, Math.max(1, Math.round((meine / Math.max(...alle)) * 5)))
     const zusatz = stufen > 0 ? `   +${Math.round((aufwertung - 1) * 100)} %` : ''
-    this.detailObjects.push(this.add.text(centerX, centerY - 52, `STÄRKE  ${'★'.repeat(sterne)}${'☆'.repeat(5 - sterne)}${zusatz}`, {
+    this.detailObjects.push(this.add.text(centerX, centerY - 52, `STÄRKE  ${getWeaponStarText(weapon, aufwertung)}${zusatz}`, {
       fontFamily: 'system-ui', fontSize: '17px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.priceText),
     }).setOrigin(0.5).setDepth(22))
 

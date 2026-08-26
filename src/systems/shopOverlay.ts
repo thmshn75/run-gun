@@ -17,7 +17,16 @@ export interface ShopZustand {
    * Enthaelt die gekauften Waffen, die fuer dieses Level freigeschaltet sind, plus die
    * gerade getragene. Leer heisst: nichts zu waehlen, die Reihe bleibt unsichtbar.
    */
-  readonly waffen: readonly { readonly key: string; readonly aktiv: boolean }[]
+  readonly waffen: readonly {
+    readonly key: string
+    readonly aktiv: boolean
+    /**
+     * Dauerhaft gekaufte Aufruestungsstufen dieser Waffe (Thomas 2026-08-26: "das
+     * Aufruesten bei gekauften waffen sichtbar machen, also vielleicht mit kleinen
+     * sternen in den Symbolen"). 0 heisst: keine Marke auf der Kachel.
+     */
+    readonly stufen?: number
+  }[]
   /**
    * Im Testgelaende (2026-08-25) traegt dieselbe Pause andere Beschriftungen: Es ist
    * kein Level geschafft, und es wird beim Beenden nichts gespeichert. Fehlt das Feld,
@@ -58,7 +67,12 @@ export class ShopOverlay {
   private readonly alleObjekte: Array<Phaser.GameObjects.Rectangle | Phaser.GameObjects.Text | Phaser.GameObjects.Image>
   private readonly waffenTitel: Phaser.GameObjects.Text
   /** Fester Vorrat an Kacheln - die Zahl der waehlbaren Waffen wechselt je Level. */
-  private readonly waffenKacheln: Array<{ rahmen: Phaser.GameObjects.Rectangle; bild: Phaser.GameObjects.Image }>
+  private readonly waffenKacheln: Array<{
+    rahmen: Phaser.GameObjects.Rectangle
+    bild: Phaser.GameObjects.Image
+    /** Marke fuer die Aufruestung, z. B. "★2". Leer, solange nichts gekauft ist. */
+    stufen: Phaser.GameObjects.Text
+  }>
   private readonly onWaffenwahl: (weapon: string) => void
   /** Gerechnete Masse der Kachelreihe - sie haengen an beiden Safe-Area-Raendern. */
   private readonly reihenLayout: WeaponRowLayout
@@ -145,14 +159,21 @@ export class ShopOverlay {
       const rahmen = scene.add.rectangle(x, y, kb, kh, MENU_COLORS.shelf, 1)
         .setStrokeStyle(2, MENU_COLORS.rowStroke, 1).setDepth(BALANCE.shop.ui.depthPanel)
       const bild = scene.add.image(x, y, 'weapon-pistol-hud').setDepth(BALANCE.shop.ui.depthText)
-      this.waffenKacheln.push({ rahmen, bild })
+      // Die Stufenmarke sitzt in der unteren rechten Ecke der Kachel: Das Waffenbild ist
+      // quer und laesst dort Platz, und in der Reihe liest man alle Marken auf einer
+      // Linie. Sie steht UEBER dem Bild (depthText), sonst verschwindet sie darunter.
+      const stufen = scene.add.text(x + kb / 2 - 3, y + kh / 2 - 2, '', {
+        fontFamily: 'system-ui', fontSize: '10px', fontStyle: 'bold',
+        color: `#${MENU_COLORS.priceText.toString(16).padStart(6, '0')}`,
+      }).setOrigin(1, 1).setDepth(BALANCE.shop.ui.depthText)
+      this.waffenKacheln.push({ rahmen, bild, stufen })
     }
 
     this.alleObjekte = [
       this.hintergrund, this.ueberschrift, this.konto, this.weiter, this.weiterText,
       this.beenden, this.beendenText, this.waffenTitel,
       ...Object.values(this.knoepfe).flatMap((k) => [k.hintergrund, k.titel, k.wirkung, k.preis]),
-      ...this.waffenKacheln.flatMap((k) => [k.rahmen, k.bild]),
+      ...this.waffenKacheln.flatMap((k) => [k.rahmen, k.bild, k.stufen]),
     ]
     this.verstecken()
   }
@@ -218,9 +239,15 @@ export class ShopOverlay {
       kachel.bild.setVisible(sichtbar)
       kachel.rahmen.removeAllListeners('pointerdown')
       if (eintrag === undefined) {
+        kachel.stufen.setVisible(false)
         kachel.rahmen.disableInteractive()
         return
       }
+      // AUFRUESTUNG SICHTBAR MACHEN (Thomas 2026-08-26): Ohne die Marke sieht eine voll
+      // ausgebaute Waffe genauso aus wie eine frisch gekaufte - man weiss beim Waehlen
+      // nicht, in welche man sein Geld gesteckt hat.
+      const stufen = eintrag.stufen ?? 0
+      kachel.stufen.setText(stufen > 0 ? `★${stufen}` : '').setVisible(stufen > 0)
       const textur = `weapon-${eintrag.key}-hud`
       if (this.scene.textures.exists(textur)) kachel.bild.setTexture(textur)
       const skala = Math.min(
@@ -259,6 +286,7 @@ export class ShopOverlay {
       const y = l.ersteReiheY + versatzY + reihe * (l.kachelHoehe + l.luecke)
       kachel.rahmen.setPosition(x, y)
       kachel.bild.setPosition(x, y)
+      kachel.stufen.setPosition(x + l.kachelBreite / 2 - 3, y + l.kachelHoehe / 2 - 2)
     })
   }
 
