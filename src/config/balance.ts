@@ -1034,6 +1034,18 @@ export const BALANCE = {
     // guenstigen Waffe sind nach einem Run drin, der Vollausbau einer teuren Waffe ist
     // ein Ziel ueber viele Abende. Genau dafuer sind die Waffen billiger geworden - der
     // Kauf ist der Einstieg, nicht mehr das Endziel.
+    // WORAUS DIE PISTOLENSTUFEN GERECHNET WERDEN (Thomas 2026-08-26: "pistole soll man
+    // auch aufruesten koennen, die muss man aber nicht extra kaufen, sondern die soll man
+    // einfach immer haben").
+    //
+    // Die Pistole hat keinen Kaufpreis - es gibt nichts freizuschalten, man hat sie ab
+    // dem ersten Start. Der Stufenpreis braucht aber eine Basis. HERGELEITET wie alle
+    // anderen Waffenpreise aus der gemessenen Staerke: Die guenstigste kaufbare Waffe ist
+    // die Schrotflinte mit 1.600 bei killsPerSec 3,13; die Pistole liegt bei 1,75, also
+    // 1.600 x 1,75/3,13 = 895 -> 900. Ihre fuenf Stufen kosten damit 300 / 400 / 600 /
+    // 900 / 1.300, zusammen 3.500 - der billigste Ausbau des Spiels, passend zur
+    // schwaechsten Waffe.
+    pistolStepBasePrice: 900,
     weaponStepPriceShare: 0.3,
     weaponStepPriceGrowth: 1.45,
   },
@@ -1756,6 +1768,36 @@ export const BALANCE = {
     // Starker Run: ein Segment kostet mindestens 0,12 s — die Wand schmilzt dann
     // sichtbar weg, bleibt aber ein Objekt und kein Nebel.
     minFocusSec: 0.12,
+    // WIE VIEL DER FEUERKRAFT AN EINER KACHEL ANKOMMT (2026-08-26, Thomas: "ab level 13,
+    // 14 usw. werden die waende rechts fast nicht mehr erwerbbar, weil die zahlen so hoch
+    // sind, dass man sie nicht wegschiessen kann").
+    //
+    // DER FEHLER, DEN DAS BEHEBT: maxFocusSec ist als ZUSAGE gedacht - eine Kachel kostet
+    // nie mehr als 0,6 s Dauerfeuer. Gerechnet wurde sie aber gegen die volle Feuerkraft
+    // der Truppe (getCombatFirepower), und die kommt an einer Kachel nie an: Die Figuren
+    // schiessen spurtreu nach oben, die Kachel ist schmal und steht am Bildrand.
+    //
+    // GEMESSEN (Level 13, Truppe 40, Schaden 5, Rate 6, Truppe an der Wand gehalten,
+    // je 20 s) - Schaden, der TATSAECHLICH an der Kachel ankommt, gegen den geplanten:
+    //   Sturmgewehr  960/s geplant ->  174/s echt  (18 %)
+    //   Schrotflinte 1210/s        ->  179/s       (15 %)
+    //   Minigun      1331/s        ->  164/s       (12 %)
+    //   Rakete        375/s        ->  172/s       (46 %)
+    // Bemerkenswert und der eigentliche Fund: Die ECHTE Wandwirkung ist bei allen vier
+    // fast gleich (164-179), waehrend die geplante um Faktor 3,5 auseinanderliegt. An
+    // einer Kachel entscheidet nicht die Feuerkraft, sondern wie viele Geschosse
+    // geometrisch ankommen.
+    //
+    // FOLGE OHNE KORREKTUR: Eine Kachel kostete auf Level 13 real 0,87 s statt 0,16 s,
+    // auf Level 20 3,2 s und ab Level 25 3,4 s. Ein Abschnitt sind DREI Kacheln, also
+    // 10 s - bei 6,0 s, die er ueberhaupt im Bild ist. Ab etwa Level 18 war die rechte
+    // Wand nicht mehr zu schaffen, auch wenn man nichts anderes tat.
+    //
+    // 0,18 ist der Wert der STANDARDWAFFE, nicht der Mittelwert: Sie ist die Referenz des
+    // Spiels, und wer eine Waffe mit hoeherem Anteil traegt, bekommt die Wand leichter -
+    // maxFocusSec ist eine Obergrenze, kein Ziel. Damit liegt eine Kachel ab Level 13
+    // konstant bei 0,61 s und ein Abschnitt bei 1,84 s von 6,0 s.
+    wallHitShare: 0.18,
   },
   enemy: {
     // KLEIDUNGSVARIANTEN (Benni ueber Thomas 2026-08-23: mehr Zombie-Aussehen; Thomas:

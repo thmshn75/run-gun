@@ -11,7 +11,11 @@ export type WallPlan = Readonly<{
 export function getWallPlan(level: number, teamSize: number, weapon: WeaponKey, damage: number, rate: number): WallPlan {
   const config = BALANCE.wallHardness
   const safeLevel = Math.max(1, Math.floor(level))
-  const dps = Math.max(0.0001, getCombatFirepower(teamSize, weapon, level) * damage * rate)
+  // NUR DER TEIL, DER AN EINER KACHEL ANKOMMT (wallHitShare). Die volle Feuerkraft der
+  // Truppe trifft die schmale Kachel am Bildrand nie - gemessen kamen je nach Waffe 12
+  // bis 46 % an. Ohne den Anteil rechnet der Deckel maxFocusSec mit einer Wirkung, die es
+  // an der Wand nicht gibt, und die Zusage "nie mehr als 0,6 s" bricht ab Level 13.
+  const dps = Math.max(0.0001, getCombatFirepower(teamSize, weapon, level) * damage * rate * config.wallHitShare)
 
   // Zielhaerte: Levelnummer treibt, die Truppengroesse zieht gedaempft mit. Die WAFFE
   // geht bewusst nicht ein — sie soll die Wand schneller fallen lassen, nicht haerter

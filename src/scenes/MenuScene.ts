@@ -5,11 +5,24 @@ import { HUD_COLORS, MENU_COLORS } from '../config/colors'
 import { getGameAudio } from '../systems/audio'
 import { computeMenuLayout } from '../systems/menuLayout'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
-import { getMetaPrice, getMetaSteps, getOwnedWeapons, getRestorableSave, getWeaponStepPrice, getWeaponSteps, getWeaponUnlockPrice, istUnberuehrt, kaufeWaffenStufe, kaufeWeiterspielen, loadSave, resetSave, restoreSave, writeSave, type RunSnapshot, type SaveData, type ScoreEntry } from '../systems/save'
+import { getMetaPrice, getMetaSteps, getOwnedWeapons, getRestorableSave, getWeaponStepPrice, getWeaponSteps, getWeaponUnlockPrice, istUnberuehrt, istWaffeVerfuegbar, kaufeWaffenStufe, kaufeWeiterspielen, loadSave, resetSave, restoreSave, writeSave, type RunSnapshot, type SaveData, type ScoreEntry } from '../systems/save'
 import { getContinuePrice } from '../systems/upgrades'
 import { getStartWeaponChoices } from '../systems/weaponChoices'
 import { getWeaponStarText } from '../systems/weaponStars'
 import { enableSharpText } from '../systems/textSharpness'
+
+/**
+ * Was das Waffenwahl-Fenster braucht. Es dient zwei Faellen - FORTSETZEN eines Laufs und
+ * SPIELEN eines neuen -, und die unterscheiden sich nur in der Levelnummer und darin, was
+ * am Ende passiert. Ohne diesen Zwischenschritt haette das Fenster einen RunSnapshot
+ * gebraucht, den es beim neuen Spiel gar nicht gibt.
+ */
+interface Waffenwahl {
+  readonly level: number
+  readonly wahl: readonly WeaponKey[]
+  /** Was LOS GEHT'S ausloest. */
+  readonly starten: () => void
+}
 
 export class MenuScene extends Phaser.Scene {
   private save!: SaveData
@@ -220,7 +233,7 @@ export class MenuScene extends Phaser.Scene {
       return
     }
     this.startwaffe = wahl.find((weapon) => weapon === run.weapon) ?? wahl[0]
-    this.zeigeStartwaffenwahl(run, wahl)
+    this.zeigeStartwaffenwahl({ level: run.level, wahl, starten: () => { this.starteMitStartwaffe(run) } })
   }
 
   /**
@@ -230,7 +243,8 @@ export class MenuScene extends Phaser.Scene {
    * Run, hier steht man davor - wer ZURUECK drueckt, soll seinen gesicherten Stand
    * unveraendert vorfinden.
    */
-  private zeigeStartwaffenwahl(run: RunSnapshot, wahl: readonly WeaponKey[]): void {
+  private zeigeStartwaffenwahl(kontext: Waffenwahl): void {
+    const { wahl } = kontext
     const width = this.scale.width
     const height = this.scale.height
     const safeWidth = width - this.insets.left - this.insets.right
@@ -254,7 +268,7 @@ export class MenuScene extends Phaser.Scene {
     const titel = this.add.text(centerX, oben + 26, 'STARTWAFFE', {
       fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
     }).setOrigin(0.5).setDepth(12)
-    const frage = this.add.text(centerX, oben + 54, `Womit gehst du in Level ${run.level}?`, {
+    const frage = this.add.text(centerX, oben + 54, `Womit gehst du in Level ${kontext.level}?`, {
       fontFamily: 'system-ui', fontSize: '14px', color: this.colorFor(MENU_COLORS.text),
     }).setOrigin(0.5).setDepth(12)
     this.confirmationObjects.push(wall, panel, titel, frage)
@@ -263,7 +277,7 @@ export class MenuScene extends Phaser.Scene {
       const spalte = index % spalten
       const reihe = Math.floor(index / spalten)
       this.addStartwaffenKachel(
-        weapon, run, wahl,
+        weapon, kontext,
         linkeKante + kachelBreite / 2 + spalte * (kachelBreite + abstand),
         oben + 76 + kachelHoehe / 2 + reihe * (kachelHoehe + abstand),
         kachelBreite, kachelHoehe,
@@ -272,7 +286,7 @@ export class MenuScene extends Phaser.Scene {
 
     this.confirmationObjects.push(...this.addButton(
       centerX, oben + panelHeight - 74, panelWidth - 32, 44, "LOS GEHT'S", true,
-      () => { this.starteMitStartwaffe(run) }, undefined, false, 12,
+      () => { kontext.starten() }, undefined, false, 12,
     ))
     this.confirmationObjects.push(...this.addButton(
       centerX, oben + panelHeight - 28, panelWidth - 32, 36, 'ZURÜCK', true,
@@ -285,7 +299,7 @@ export class MenuScene extends Phaser.Scene {
    * bezahlt. Der gruene Rahmen sagt, womit gestartet wird.
    */
   private addStartwaffenKachel(
-    weapon: WeaponKey, run: RunSnapshot, wahl: readonly WeaponKey[],
+    weapon: WeaponKey, kontext: Waffenwahl,
     x: number, y: number, breite: number, hoehe: number,
   ): void {
     const gewaehlt = weapon === this.startwaffe
@@ -320,7 +334,7 @@ export class MenuScene extends Phaser.Scene {
       // Neu zeichnen statt einzelne Kacheln umfaerben: Es haengen vier Objekte je Kachel
       // daran, und der Laden macht es beim Kauf genauso.
       this.closeShop()
-      this.zeigeStartwaffenwahl(run, wahl)
+      this.zeigeStartwaffenwahl(kontext)
     })
   }
 
@@ -427,7 +441,7 @@ export class MenuScene extends Phaser.Scene {
   private starteNeuesSpiel(): void {
     const offenerRun = this.save.run
     if (offenerRun === undefined) {
-      this.scene.start('GameScene', { einstieg: 'neu' })
+      this.waehleStartwaffeFuerNeu()
       return
     }
     this.zeigeFrage(
@@ -436,9 +450,38 @@ export class MenuScene extends Phaser.Scene {
       'JA, NEU ANFANGEN',
       () => {
         this.closeResetConfirmation()
-        this.scene.start('GameScene', { einstieg: 'neu' })
+        this.waehleStartwaffeFuerNeu()
       },
     )
+  }
+
+  /**
+   * AUCH EIN NEUER LAUF FAENGT MIT DER GEKAUFTEN WAFFE AN (Thomas 2026-08-26: "wenn man
+   * auf Spielen drueckt und ein neues Spiel beginnt, muss man auch die Waffe waehlen
+   * koennen, wenn man schon welche gekauft hat").
+   *
+   * Bis dahin startete jeder neue Lauf mit der Pistole - wer sich fuer 15.600 Muenzen die
+   * Streubombe gekauft hatte, musste bis zur ersten Levelpause mit ihr warten. Gekauft
+   * ist gekauft: Die Waffe steht ab Level 1 zur Verfuegung (weapon.ownedFromLevel), also
+   * auch im ersten Level.
+   *
+   * Ohne gekaufte Waffe gibt es nichts zu waehlen, dann startet das Spiel sofort.
+   */
+  private waehleStartwaffeFuerNeu(): void {
+    const wahl = getStartWeaponChoices('pistol', 1, getOwnedWeapons(this.save))
+    if (wahl.length < 2) {
+      this.scene.start('GameScene', { einstieg: 'neu' })
+      return
+    }
+    this.startwaffe = 'pistol'
+    this.zeigeStartwaffenwahl({
+      level: 1,
+      wahl,
+      starten: () => {
+        this.closeShop()
+        this.scene.start('GameScene', { einstieg: 'neu', startwaffe: this.startwaffe })
+      },
+    })
   }
 
   /**
@@ -640,8 +683,12 @@ export class MenuScene extends Phaser.Scene {
    */
   private addWeaponGrid(centerX: number, y: number, panelWidth: number): void {
     const gekauft = getOwnedWeapons(this.save)
+    // DIE PISTOLE STEHT MIT IM REGAL, obwohl sie keinen Kaufpreis hat (2026-08-26): Man
+    // hat sie immer, aber aufruesten kann man sie - und der einzige Weg dorthin fuehrt
+    // ueber dieses Regal. Sie steht vorn, weil sie die schwaechste Waffe ist und das
+    // Regal nach Preis sortiert.
     const waffen = (Object.keys(BALANCE.weapon) as WeaponKey[])
-      .filter((key) => getWeaponUnlockPrice(key) !== undefined)
+      .filter((key) => key === 'pistol' || getWeaponUnlockPrice(key) !== undefined)
       .sort((a, b) => (getWeaponUnlockPrice(a) ?? 0) - (getWeaponUnlockPrice(b) ?? 0))
 
     const spalten = 3
@@ -657,7 +704,7 @@ export class MenuScene extends Phaser.Scene {
         weapon,
         linkeKante + breite / 2 + spalte * (breite + abstand),
         y + hoehe / 2 + reihe * (hoehe + abstand),
-        breite, hoehe, gekauft.includes(weapon),
+        breite, hoehe, weapon === 'pistol' || gekauft.includes(weapon),
       )
     })
   }
@@ -699,7 +746,7 @@ export class MenuScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(13)
 
     const beschriftung = gekauft
-      ? (stufen > 0 ? `✓ STUFE ${stufen}/${BALANCE.meta.weaponSteps}` : '✓ GEKAUFT')
+      ? (stufen > 0 ? `✓ STUFE ${stufen}/${BALANCE.meta.weaponSteps}` : weapon === 'pistol' ? '✓ IMMER DABEI' : '✓ GEKAUFT')
       : `¢ ${preis}`
     const text = this.add.text(x, y + 23, beschriftung, {
       fontFamily: 'system-ui', fontSize: '10px', fontStyle: 'bold',
@@ -731,7 +778,7 @@ export class MenuScene extends Phaser.Scene {
     const centerY = (height + this.insets.top - this.insets.bottom) / 2
     const panelWidth = safeWidth - 8
     const preis = getWeaponUnlockPrice(weapon) ?? 0
-    const gekauft = getOwnedWeapons(this.save).includes(weapon)
+    const gekauft = istWaffeVerfuegbar(this.save, weapon)
     const bezahlbar = !gekauft && this.save.coins >= preis
     const minLevel = (BALANCE.weapon[weapon] as { minLevel: number }).minLevel
     const abLevel = BALANCE.weapon.ownedFromLevel
@@ -774,9 +821,11 @@ export class MenuScene extends Phaser.Scene {
 
     // WANN SIE KOMMT - der Punkt, den Thomas ausdruecklich verlangt hat. Beide Faelle
     // nennen eine Levelnummer, damit man nicht raten muss.
-    const hinweis = gekauft
-      ? `Gekauft. Du kannst ab Level ${abLevel} damit starten\nund sie erscheint in jedem Level in den Wandtoren.`
-      : `Ohne Kauf erscheint sie erst ab Level ${minLevel} in den Wandtoren.\nGekauft gehört sie dir sofort: ab Level ${abLevel} startbar\nund in jedem Level im Wandtor.`
+    const hinweis = weapon === 'pistol'
+      ? 'Deine Startwaffe — die hast du immer.\nAufrüsten kannst du sie trotzdem.'
+      : gekauft
+        ? `Gekauft. Du kannst ab Level ${abLevel} damit starten\nund sie erscheint in jedem Level in den Wandtoren.`
+        : `Ohne Kauf erscheint sie erst ab Level ${minLevel} in den Wandtoren.\nGekauft gehört sie dir sofort: ab Level ${abLevel} startbar\nund in jedem Level im Wandtor.`
     this.detailObjects.push(this.add.text(centerX, centerY + 62, hinweis, {
       fontFamily: 'system-ui', fontSize: '13px', color: this.colorFor(gekauft ? MENU_COLORS.owned : MENU_COLORS.text),
       align: 'center', lineSpacing: 3,

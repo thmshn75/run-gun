@@ -325,6 +325,15 @@ export function getWeaponUnlockPrice(weapon: string): number | undefined {
   return typeof preis === 'number' && preis > 0 ? preis : undefined
 }
 
+/**
+ * Hat der Spieler diese Waffe dauerhaft? Die PISTOLE immer (Thomas 2026-08-26: "die muss
+ * man aber nicht extra kaufen, sondern die soll man einfach immer haben") - sie ist die
+ * Startwaffe und steht in keinem Regal zum Verkauf. Aufruesten kann man sie trotzdem.
+ */
+export function istWaffeVerfuegbar(data: SaveData, weapon: string): boolean {
+  return weapon === 'pistol' || getOwnedWeapons(data).includes(weapon)
+}
+
 /** Gekaufte Aufruestungsstufen einer Waffe. Fehlend = 0. */
 export function getWeaponSteps(data: SaveData, weapon: string): number {
   const wert = data.weaponSteps?.[weapon]
@@ -342,7 +351,9 @@ export function getWeaponSteps(data: SaveData, weapon: string): number {
  * Stufenpreise still daneben stehen.
  */
 export function getWeaponStepPrice(weapon: string, steps: number): number | undefined {
-  const basis = getWeaponUnlockPrice(weapon)
+  // Die Pistole hat keinen Kaufpreis, aber Stufen (2026-08-26) - fuer sie steht die Basis
+  // in BALANCE.meta.pistolStepBasePrice.
+  const basis = weapon === 'pistol' ? BALANCE.meta.pistolStepBasePrice : getWeaponUnlockPrice(weapon)
   if (basis === undefined || steps >= BALANCE.meta.weaponSteps || steps < 0) return undefined
   const roh = basis * BALANCE.meta.weaponStepPriceShare * BALANCE.meta.weaponStepPriceGrowth ** steps
   return Math.round(roh / 100) * 100
@@ -363,7 +374,7 @@ export function getWeaponFirepowerFactor(data: SaveData, weapon: string): number
  * voll ausgebaut oder Konto zu klein.
  */
 export function kaufeWaffenStufe(data: SaveData, weapon: string): SaveData | undefined {
-  if (!getOwnedWeapons(data).includes(weapon)) return undefined
+  if (!istWaffeVerfuegbar(data, weapon)) return undefined
   const stufen = getWeaponSteps(data, weapon)
   const preis = getWeaponStepPrice(weapon, stufen)
   if (preis === undefined || data.coins < preis) return undefined

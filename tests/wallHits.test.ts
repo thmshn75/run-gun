@@ -109,7 +109,12 @@ describe('Waende treffen (W4-Korrektur)', () => {
       expect(hitting, `team ${team}`).toBe(ratios.length)
       const focusSec = plan.maxHp / plan.referenceDps
       expect(focusSec, `team ${team}`).toBeGreaterThanOrEqual(BALANCE.wallHardness.minFocusSec)
-      expect(focusSec, `team ${team}`).toBeLessThanOrEqual(BALANCE.wallHardness.maxFocusSec * 1.2)
+      // Aufschlag um eine GANZE HP: Die Kacheln sind seit 2026-08-26 kleiner (der Deckel
+      // rechnet gegen die Wandwirkung statt gegen die Truppenfeuerkraft), und die
+      // Untergrenze von 1 HP wiegt bei einer Figur schwerer als der Deckel.
+      expect(focusSec, `team ${team}`).toBeLessThanOrEqual(
+        BALANCE.wallHardness.maxFocusSec * 1.2 + 1 / plan.referenceDps,
+      )
     }
   })
 

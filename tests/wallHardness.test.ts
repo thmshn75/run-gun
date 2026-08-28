@@ -11,12 +11,17 @@ describe('Wandhaerte', () => {
   it('kostet nie mehr als den Fokus-Deckel — in keinem Level, mit keiner Waffe', () => {
     // Der Deckel ist das Versprechen an den Spieler. Rundung auf ganze HP darf ihn nur
     // minimal ueberschreiten, und nur dort, wo die HP-Zahl einstellig ist.
+    //
+    // TOLERANZ EINE GANZE HP statt einer halben (2026-08-26): maxHp hat eine Untergrenze
+    // von 1, und seit der Deckel gegen die WANDWIRKUNG statt gegen die Truppenfeuerkraft
+    // rechnet (wallHitShare), wiegt diese eine HP bei einer Figur mehr als der Deckel
+    // selbst. Kleiner als eine HP kann eine Kachel nicht werden.
     for (const level of [1, 2, 4, 6, 8, 10, 12]) {
       for (const team of [1, 2, 4, 8, 16, BALANCE.crowd.max]) {
         for (const weapon of WEAPONS) {
           const plan = getWallPlan(level, team, weapon as WeaponKey, 1, 3)
           // Rundung auf ganze HP verschiebt die Fokuszeit um bis zu einer halben HP.
-          const rundung = 0.5 / plan.referenceDps
+          const rundung = 1 / plan.referenceDps
           expect(plan.focusSec, `L${level} team${team} ${weapon}`)
             .toBeLessThanOrEqual(BALANCE.wallHardness.maxFocusSec + rundung + 1e-9)
         }
@@ -67,7 +72,7 @@ describe('Wandhaerte', () => {
   it('faengt einen schwachen Run in hohen Leveln ab', () => {
     // Startteam in Level 12 darf nicht in einer Sackgasse landen.
     const plan = getWallPlan(12, BALANCE.stats.hp.base, 'normal', 1, 3)
-    expect(plan.focusSec).toBeLessThanOrEqual(BALANCE.wallHardness.maxFocusSec + 0.5 / plan.referenceDps + 1e-9)
+    expect(plan.focusSec).toBeLessThanOrEqual(BALANCE.wallHardness.maxFocusSec + 1 / plan.referenceDps + 1e-9)
   })
 
   it('haelt einen 3er-Wandabschnitt innerhalb der Bildschirmzeit', () => {
@@ -76,5 +81,55 @@ describe('Wandhaerte', () => {
     const bildschirmSec = (844 - BALANCE.road.horizonY) / BALANCE.scrollSpeed
     const schlimmster = BALANCE.wallHardness.maxFocusSec * BALANCE.walls.wallRunLength
     expect(schlimmster).toBeLessThan(bildschirmSec)
+  })
+})
+
+/**
+ * WAS AN EINER KACHEL ANKOMMT (2026-08-26).
+ *
+ * Thomas: "ab level 13, 14 usw. werden die waende rechts fast nicht mehr erwerbbar, weil
+ * die zahlen so hoch sind, dass man sie nicht wegschiessen kann - es wird halt immer
+ * schlimmer je hoeher die level, richtig schlimm ab level 22 und aufwaerts".
+ */
+describe('Wandhaerte gegen die WIRKLICHE Feuerkraft', () => {
+  // Gemessen im Browser (Level 13, Truppe 40, Schaden 5, Rate 6, Truppe an der Wand
+  // gehalten): An einer Kachel kommen rund 170 Schaden je Sekunde an - bei vier Waffen,
+  // deren geplante Feuerkraft um Faktor 3,5 auseinanderliegt.
+  const GEMESSENE_WANDWIRKUNG = 170
+
+  it('haelt die Zusage "nie mehr als maxFocusSec" auch auf hohen Leveln', () => {
+    // DAS WAR DER FEHLER: maxFocusSec wurde gegen die volle Truppenfeuerkraft gerechnet,
+    // die an einer schmalen Kachel am Bildrand nie ankommt. Eine Kachel kostete real
+    // 0,87 s auf Level 13 und 3,4 s ab Level 25 - bei einem Abschnitt aus DREI Kacheln
+    // und 6,0 s, die er ueberhaupt im Bild ist.
+    for (const level of [13, 16, 20, 22, 25, 30]) {
+      const plan = getWallPlan(level, 40, 'normal', 5, 6)
+      const echteSekunden = plan.maxHp / GEMESSENE_WANDWIRKUNG
+      expect(echteSekunden, `Level ${level}: ${plan.maxHp} HP`)
+        .toBeLessThanOrEqual(BALANCE.wallHardness.maxFocusSec * 1.15)
+    }
+  })
+
+  it('laesst einen ganzen Abschnitt in der Zeit schaffen, in der er sichtbar ist', () => {
+    // Ein Abschnitt ist wallRunLength Kacheln lang. Sichtbar ist er, solange er durchs
+    // Bild laeuft: (Bildhoehe + Abschnittshoehe) / Scrolltempo. Beim Tempo-Deckel von
+    // 175 px/s sind das rund 6,0 s - und die gelten ab Level 12 fuer JEDES Level.
+    const sichtbarSek = (844 + BALANCE.walls.wallRunLength * BALANCE.walls.segmentHeightPx)
+      / BALANCE.levelSpeed.maxPxPerSec
+    for (const level of [13, 22, 30]) {
+      const plan = getWallPlan(level, 40, 'normal', 5, 6)
+      const abschnittSek = (BALANCE.walls.wallRunLength * plan.maxHp) / GEMESSENE_WANDWIRKUNG
+      // Die Haelfte der Sichtbarkeit ist die Grenze: Man muss nebenher noch Gegner
+      // abwehren, und wer die vollen 6 s nur auf die Wand haelt, verliert die Truppe.
+      expect(abschnittSek, `Level ${level}`).toBeLessThan(sichtbarSek * 0.6)
+    }
+  })
+
+  it('macht die Wand ab dem Levelmaximum nicht weiter haerter', () => {
+    // "Es wird immer schlimmer je hoeher die Level" - genau das darf nicht mehr sein.
+    // Ab dem Punkt, an dem der Deckel greift, ist die Kachel auf jedem Level gleich hart.
+    const bei22 = getWallPlan(22, 40, 'normal', 5, 6).maxHp
+    const bei30 = getWallPlan(30, 40, 'normal', 5, 6).maxHp
+    expect(bei30).toBe(bei22)
   })
 })

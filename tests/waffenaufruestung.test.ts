@@ -5,7 +5,7 @@ import { getWeaponStars } from '../src/systems/weaponStars'
 import type { WeaponKey } from '../src/systems/weapons'
 import {
   defaultSave, getWeaponFirepowerFactor, getWeaponStepPrice, getWeaponSteps,
-  getWeaponUnlockPrice, kaufeWaffenStufe, parseSave, serializeSave, type SaveData,
+  getWeaponUnlockPrice, istWaffeVerfuegbar, kaufeWaffenStufe, parseSave, serializeSave, type SaveData,
 } from '../src/systems/save'
 
 /**
@@ -23,11 +23,25 @@ function mitWaffe(weapon: string, coins: number, stufen = 0): SaveData {
 }
 
 describe('Waffen-Aufruestung', () => {
-  it('gibt es nur fuer gekaufte Waffen', () => {
+  it('gibt es nur fuer gekaufte Waffen - und fuer die Pistole immer', () => {
     // Wer die Waffe nicht hat, kann sie auch nicht verbessern - sonst waere die
     // Aufruestung ein Weg, die teure Waffe zu umgehen.
     expect(kaufeWaffenStufe({ ...defaultSave(), coins: 99999 }, 'rocket')).toBeUndefined()
     expect(kaufeWaffenStufe(mitWaffe('rocket', 99999), 'rocket')).toBeDefined()
+    // Die Pistole ist die Ausnahme (Thomas 2026-08-26: "die muss man aber nicht extra
+    // kaufen, sondern die soll man einfach immer haben"). Sie steht in keinem Regal zum
+    // Verkauf, hat also auch keinen Kaufpreis - ihre Stufen brauchen trotzdem einen.
+    expect(istWaffeVerfuegbar(defaultSave(), 'pistol')).toBe(true)
+    expect(getWeaponUnlockPrice('pistol'), 'die Pistole darf nicht kaufbar werden').toBeUndefined()
+    expect(getWeaponStepPrice('pistol', 0)).toBeGreaterThan(0)
+    const gekauft = kaufeWaffenStufe({ ...defaultSave(), coins: 99999 }, 'pistol')
+    expect(gekauft, 'die Pistole muss OHNE Kauf aufruestbar sein').toBeDefined()
+    expect(getWeaponSteps(gekauft!, 'pistol')).toBe(1)
+    // Und sie bleibt der billigste Ausbau des Spiels - sie ist die schwaechste Waffe.
+    const andere = Object.keys(BALANCE.weapon)
+      .filter((w) => getWeaponUnlockPrice(w) !== undefined)
+      .map((w) => getWeaponStepPrice(w, 0) ?? 0)
+    expect(getWeaponStepPrice('pistol', 0)!).toBeLessThan(Math.min(...andere))
   })
 
   it('haelt bei fuenf Stufen an und nimmt dann kein Geld mehr', () => {

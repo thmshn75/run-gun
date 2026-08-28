@@ -263,11 +263,20 @@ describe('walls (W2: Wandsegmente links/rechts)', () => {
             for (const damage of [1, 3, 10, 20]) {
               for (const rate of [1, 1.5, 3, 8]) {
                 const plan = getWallPlan(level, teamSize, weapon, damage, rate)
+                // BEZUG IST DIE WANDWIRKUNG, NICHT DIE TRUPPENFEUERKRAFT (2026-08-26):
+                // Auf eine schmale Kachel am Bildrand trifft nur ein Bruchteil der
+                // spurtreu nach oben fliegenden Geschosse - gemessen 12 bis 46 % je nach
+                // Waffe. Ohne den Anteil galt der Fokus-Deckel gegen eine Wirkung, die es
+                // an der Wand nie gab, und eine Kachel kostete ab Level 22 real ueber
+                // drei Sekunden statt 0,6.
                 const dps = getCombatFirepower(teamSize, weapon, level) * damage * rate
+                  * BALANCE.wallHardness.wallHitShare
                 const label = `L${level}, ${weapon}, Truppe ${teamSize}, Schaden ${damage}, Rate ${rate}`
                 expect(plan.referenceDps, label).toBeCloseTo(dps)
-                // Rundung auf ganze HP verschiebt die Fokuszeit um bis zu einer halben HP.
-                const rundung = 0.5 / dps
+                // Rundung auf GANZE HP: maxHp hat eine Untergrenze von 1, und seit die
+                // Kacheln kleiner sind, wiegt diese eine HP bei schwachen Truppen mehr
+                // als der halbe Deckel.
+                const rundung = 1 / dps
                 expect(plan.focusSec, label).toBeGreaterThanOrEqual(BALANCE.wallHardness.minFocusSec - rundung - 1e-9)
                 expect(plan.focusSec, label).toBeLessThanOrEqual(BALANCE.wallHardness.maxFocusSec + rundung + 1e-9)
                 cases += 1

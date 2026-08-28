@@ -213,12 +213,20 @@ export class GameScene extends Phaser.Scene {
   /** Die grosse Waffenansicht. Wird nur im Testgelaende geoeffnet. */
   private waffenAnsicht!: WeaponDetailPanel
 
+  /** Im Menue gewaehlte Startwaffe eines neuen Laufs. Undefiniert heisst: Pistole. */
+  private startwaffe: WeaponKey | undefined
+
   public constructor() {
     super('GameScene')
   }
 
-  public init(data: Readonly<{ einstieg?: 'neu' | 'fortsetzen' | 'weiterspielen' | 'test' }>): void {
+  public init(data: Readonly<{
+    einstieg?: 'neu' | 'fortsetzen' | 'weiterspielen' | 'test'
+    /** Gewaehlte Startwaffe fuer einen NEUEN Lauf; ohne sie beginnt er mit der Pistole. */
+    startwaffe?: WeaponKey
+  }>): void {
     this.einstieg = data.einstieg ?? 'neu'
+    this.startwaffe = data.startwaffe
   }
 
   public create(): void {
@@ -560,6 +568,11 @@ export class GameScene extends Phaser.Scene {
       return
     }
     if (this.einstieg === 'neu') {
+      // Mit der im Menue gewaehlten Waffe starten (2026-08-26). Sie ist dort auf die
+      // gekauften begrenzt worden - hier wird nur uebernommen, was ankam.
+      if (this.startwaffe !== undefined && this.gekaufteWaffen.includes(this.startwaffe)) {
+        this.equipWeapon(this.startwaffe)
+      }
       // Auch der frische Run wird sofort gesichert. Vorher lief sichereRun() nur in
       // startLevel(), und das wird beim ERSTEN Level gar nicht aufgerufen - wer Level 1
       // spielte und aufhoerte, hatte keinen Punkt zum Fortsetzen.

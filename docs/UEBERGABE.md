@@ -299,6 +299,32 @@ echten Runs. Beides sollte nach Bennis Test nachgezogen werden.
   5" plus den Prozentwert. Ein Test rechnet die Begruendung nach und faellt weg, sobald
   die Sterne feiner werden - dann darf die Marke verschwinden.
 
+- **Die rechte Wand war ab Level 13 nicht mehr zu schaffen** (Thomas 2026-08-26: "ab
+  level 13, 14 usw. werden die waende rechts fast nicht mehr erwerbbar ... richtig schlimm
+  ab level 22 und aufwaerts"). **Gemessen, und der Fund liegt tiefer als die Zahlen:**
+  `maxFocusSec` ist als Zusage gedacht (eine Kachel kostet nie mehr als 0,6 s Dauerfeuer),
+  wurde aber gegen die VOLLE Truppenfeuerkraft gerechnet. An einer schmalen Kachel am
+  Bildrand kommt die nie an - die Figuren schiessen spurtreu nach oben.
+  Gemessen (Level 13, Truppe 40, Schaden 5, Rate 6, Truppe an der Wand gehalten):
+  Sturmgewehr 960/s geplant gegen 174/s echt (18 %), Schrot 1210 -> 179 (15 %), Minigun
+  1331 -> 164 (12 %), Rakete 375 -> 172 (46 %). Die ECHTE Wandwirkung ist bei allen vier
+  fast gleich, die geplante liegt um Faktor 3,5 auseinander.
+  Folge ohne Korrektur: 0,87 s je Kachel auf Level 13, 3,2 s auf Level 20, 3,4 s ab
+  Level 25 - bei DREI Kacheln je Abschnitt und 6,0 s, die er im Bild ist.
+  Jetzt rechnet der Deckel gegen `wallHardness.wallHitShare` (0,18, der Wert der
+  Standardwaffe). **Gegenprobe:** Kachel-HP auf jedem Level 104 statt 151/261/542/576,
+  Abschnitt 1,6 bis 3,3 s von 6,0 s.
+- **Waffenwahl auch beim NEUEN Spiel** (Thomas 2026-08-26). Wer eine Waffe gekauft hat,
+  waehlt sie jetzt auch fuer Level 1 - vorher musste er bis zur ersten Levelpause warten.
+  Das Wahlfenster bedient beide Faelle ueber ein `Waffenwahl`-Objekt (Level plus
+  Startaktion), weil es beim neuen Spiel keinen RunSnapshot gibt.
+- **Die Pistole ist aufruestbar, ohne kaufbar zu sein** (Thomas 2026-08-26: "die muss man
+  aber nicht extra kaufen, sondern die soll man einfach immer haben"). Sie steht jetzt im
+  Regal (vorn, weil nach Preis sortiert) mit "✓ IMMER DABEI" statt einem Preis. Ihre
+  Stufenpreise brauchen eine Basis: 900, hergeleitet wie alle Waffenpreise aus der
+  gemessenen Staerke (guenstigste kaufbare Waffe 1.600 bei killsPerSec 3,13, Pistole
+  1,75 -> 895). Fuenf Stufen kosten zusammen 3.500 - der billigste Ausbau des Spiels.
+
 ## Wichtige Dateien und Befehle
 - Plan `docs/plan-v4.md` (enthaelt die Befunde beider Gegenpruefungen) ·
   Endlos-Regler: `BALANCE.level.endless`, `enemy.endlessHpGrowthPerLevel`,
