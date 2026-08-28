@@ -447,6 +447,32 @@ export const BALANCE = {
     labelOffsetPx: 18,
     // Belohnung beim Wegschiessen eines Muenz-Segments (coinValue wie schwerer Gegner).
     coinReward: 3,
+    // UEBERLAUF: was ein Feuerkraft-Tor ZUSAETZLICH auszahlt, wenn Schaden UND Feuerrate
+    // am Deckel stehen und auch die Umleitung (upgrades.applyGoodGate) nichts mehr
+    // findet. Ab Level 13 ist das der Normalfall, nicht die Ausnahme: Der Deckel der
+    // Feuerrate waechst dort gar nicht mehr, der des Schadens um 0,4 % je Level - also
+    // um weniger, als ein einziges Tor traegt.
+    //
+    // DIE 1 IST GEMESSEN, NICHT GEWAEHLT - und der erste Ansatz stand auf 3. Gerechnet
+    // war er plausibel: Das Tor hat zwei Inhalte, Feuerkraft und Muenzen (coinReward 3);
+    // faellt der eine weg, zaehlt der andere doppelt. Bei den dokumentierten 22 bis 46
+    // Toren je Level (lessons.md 2026-08-25) waeren das 66 bis 138 Muenzen extra gegen
+    // 1.362 Einnahme auf Level 12, also 5 bis 10 %.
+    //
+    // IM BROWSER GEMESSEN (2026-08-28, Level 13, 20 s, Truppe unsterblich und dauerhaft
+    // an der rechten Wand): 34 Ueberlaeufe, also 1,7 je Sekunde. Auf normalPhaseSec 82
+    // hochgerechnet sind das 139 je Level - dreimal so viele wie die Obergrenze der alten
+    // Messung, weil dort niemand die ganze Zeit an der Wand klebt. Mit Bonus 3 waeren das
+    // 418 Muenzen extra auf 1.362, also +31 %: Die Preise stehen auf 200 % der
+    // Levelseinnahme (shop.prices), und eine Stufe je Run waere geschenkt.
+    //
+    // Mit 1 bleibt auch dieser Extremfall bei +10 % und damit unter der vorab gesetzten
+    // Grenze von 15 %. Wenig ist das trotzdem nicht: Wer die Wand zerschiesst, bekommt
+    // ohnehin coinReward 3 - der Ueberlauf ist der Aufschlag darauf, und die eigentliche
+    // Wirkung ist die Sichtbarkeit (Kachel "MAX +1 ¢" statt "+DMG", Quittung an der
+    // Truppe) statt der Betrag.
+    // WER IHN ANHEBT, muss die Einnahme je Level neu messen, nicht die Preise nachziehen.
+    maxedCoinBonus: 1,
     // LINKS: Sammelbahn. Jede Kachel ist ein Plaettchen mit diesem Zuwachs, das man
     // durch Beruehrung einloest (Thomas 2026-08-22, nach dem Referenzvorbild).
     // Kadenz gerechnet: 135 px/s / 72 px Kachel = 1,875 Plaettchen/s, seit die Bahn

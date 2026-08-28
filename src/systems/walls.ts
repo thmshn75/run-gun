@@ -7,7 +7,7 @@ import { advanceAlongRoad, getPlayfieldHalfWidth, getRoadScale, getRoadSegment, 
 import { isWallSlot } from './wallPattern'
 import type { WeaponKey } from './weapons'
 import { getCurrentScrollSpeed } from './speed'
-import { getGateGrowth, getGateLoss } from './upgrades'
+import { getGateLoss } from './upgrades'
 
 // Seit W2 traegt diese Klasse die Wandsegmente, seit W4 als DAUERWAND. Seit dem
 // Referenzvorbild-Abgleich (Thomas 2026-08-22) sind die beiden Seiten GRUNDSAETZLICH
@@ -75,8 +75,17 @@ export class Walls {
   private readonly rng: () => number
   private readonly onBroken: (x: number, y: number) => void
   private readonly applyReinforcement: (apply: (current: number) => number) => void
-  /** faktor > 1 hebt (blaues Tor), < 1 senkt (rote Kachel) - nie ein fester Betrag. */
-  private readonly applyStat: (stat: 'damage' | 'rate', faktor: number) => void
+  /**
+   * BLAUES Tor einloesen. Die Wand sagt nur WELCHE Sorte und WO - wie viel daraus wird,
+   * entscheidet die Szene ueber upgrades.applyGoodGate: eigener Wert, sonst der andere,
+   * sonst Muenzen an dieser Stelle. Deshalb geht hier kein Faktor mehr mit; beim
+   * Umleiten muesste er ohnehin der des ZIELWERTS sein.
+   */
+  private readonly applyGate: (stat: 'damage' | 'rate', x: number, y: number) => void
+  /** ROTE Kachel: faktor < 1, und er bleibt am eigenen Wert - kein Umleiten. */
+  private readonly weakenStat: (stat: 'damage' | 'rate', faktor: number) => void
+  /** Stehen beide Feuerkraftwerte am Deckel? Nur dann zeigt die Kachel den Muenzinhalt. */
+  private readonly isFirepowerMaxed: () => boolean
   private readonly pairs: WallPair[]
   private readonly paarZuWand: Map<Phaser.GameObjects.GameObject, WallPair>
   private readonly paarZuBelohnung: Map<Phaser.GameObjects.GameObject, WallPair>
@@ -104,7 +113,9 @@ export class Walls {
     rng: () => number,
     onBroken: (x: number, y: number) => void,
     applyReinforcement: (apply: (current: number) => number) => void,
-    applyStat: (stat: 'damage' | 'rate', faktor: number) => void,
+    applyGate: (stat: 'damage' | 'rate', x: number, y: number) => void,
+    weakenStat: (stat: 'damage' | 'rate', faktor: number) => void,
+    isFirepowerMaxed: () => boolean,
   ) {
     this.scene = scene
     this.chooseWeapon = chooseWeapon
@@ -116,7 +127,9 @@ export class Walls {
     this.rng = rng
     this.onBroken = onBroken
     this.applyReinforcement = applyReinforcement
-    this.applyStat = applyStat
+    this.applyGate = applyGate
+    this.weakenStat = weakenStat
+    this.isFirepowerMaxed = isFirepowerMaxed
     this.pairs = []
     this.paarZuWand = new Map()
     this.paarZuBelohnung = new Map()
@@ -235,15 +248,16 @@ export class Walls {
     // einzustellen, waere keine mehr.
     if (!isBad(pair.content)) this.onBroken(wall.x, wall.y)
     if (pair.content === 'damage' || pair.content === 'rate') {
-      // Sofortwirkung auf den JETZT aktuellen Stand - wie bei der Sammelbahn.
-      this.applyStat(pair.content, getGateGrowth(pair.content === 'damage' ? 'damage' : 'shotsPerSec'))
+      // Sofortwirkung auf den JETZT aktuellen Stand - wie bei der Sammelbahn. Die
+      // Position geht mit, weil der Ueberlauf Muenzen an dieser Kachel abwirft.
+      this.applyGate(pair.content, wall.x, wall.y)
       this.recycle(pair)
       return true
     }
     if (pair.content === 'weakenDamage' || pair.content === 'weakenRate') {
       // Dasselbe Vorgehen mit umgekehrtem Vorzeichen: Wer ein rotes Segment
       // zerschiesst, hat sich die Schwaechung selbst geholt.
-      this.applyStat(
+      this.weakenStat(
         pair.content === 'weakenDamage' ? 'damage' : 'rate',
         getGateLoss(pair.content === 'weakenDamage' ? 'damage' : 'shotsPerSec'),
       )
@@ -431,9 +445,17 @@ export class Walls {
     // Objekt zum Einsammeln, nur eine Beschriftung, die sagt was drin steckt. Das
     // Vorzeichen steht vorne, weil es die Handlung bestimmt: Plus draufhalten, Minus
     // vorbeiziehen lassen.
-    const statText = content === 'damage' ? '+DMG'
-      : content === 'rate' ? '+RATE'
-        : content === 'weakenDamage' ? '-DMG' : '-RATE'
+    // STEHEN BEIDE WERTE AM DECKEL, sagt die Kachel das auch: Sie traegt dann keinen
+    // Statwert mehr, sondern Muenzen (walls.maxedCoinBonus). Ab Level 13 ist das der
+    // Regelfall - ohne diese Beschriftung stuende dort dauerhaft ein Versprechen, das
+    // die Kachel nicht mehr einloest.
+    // Gesetzt wird sie EINMAL beim Spawn. Faellt ein Wert waehrend des Herannahens unter
+    // den Deckel (rote Kachel, Levelwechsel), zeigt sie kurz das Falsche - die Folge ist
+    // harmlos, sie gibt dann Feuerkraft statt Muenzen. Jedes Bild neu zu pruefen waere
+    // 32 Deckelrechnungen je Frame fuer diesen einen Randfall.
+    const statText = content === 'damage' || content === 'rate'
+      ? (this.isFirepowerMaxed() ? `MAX +${BALANCE.walls.maxedCoinBonus} ¢` : content === 'damage' ? '+DMG' : '+RATE')
+      : content === 'weakenDamage' ? '-DMG' : '-RATE'
     pair.goodieText.setText(statText).setPosition(geometry.x, y).setActive(true).setVisible(true).setAlpha(0)
     pair.reward.setActive(false).setVisible(false)
   }

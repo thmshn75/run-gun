@@ -43,6 +43,18 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
 - **E4 Dauerhafte Aufwertungen** — eigener Menue-Knopf, eigene Ansicht, zwei Linien
   SCHLAGKRAFT und MANNSCHAFT a fuenf Stufen (6.000 x1,7). Gemeinsamer Deckel mit dem
   Run-Shop auf der Feuerkraft. Waffenkauf noch offen.
+- **Feuerkraft-Tore laufen nicht mehr ins Leere** (2026-08-28, Thomas: "gibt es bei den
+  dmg und rate waenden irgendwann ein maximum in den hoeheren leveln?"). Ja, ein hartes:
+  Der Deckel der Feuerrate waechst ab Level 13 gar nicht mehr, der des Schadens um 0,4 %
+  je Level. Ab dort war praktisch jedes der 22 bis 46 Tore je Level wirkungslos. Geaendert
+  ist NICHT der Deckel (gemessen, dicht am Kipppunkt), sondern was ein Tor tut, das nichts
+  mehr zu heben findet: erst Umleitung auf den anderen Wert (mit DESSEN Wachstumsfaktor),
+  dann Ueberlauf als Muenze. Die Kachel sagt es vorher an ("MAX +1 ¢" statt "+DMG").
+  Rote Kacheln werden NICHT umgeleitet. Browser-Beleg (Level 13, Truppe unsterblich an der
+  rechten Wand): 34 Ueberlaeufe je 20 s, "→ DMG +0.01" bei nur gedeckelter Rate.
+  Der Muenzbonus steht auf 1, nicht auf 3: Mit 3 haette derselbe Extremfall die
+  Levelseinnahme um 31 % gehoben, die Preise stehen aber auf 200 % davon.
+
 - **E2 Preise** — 37,5 % -> 200 % der Levelseinnahme je Stufe. Ein Run bis Level 12
   erlaubt 9 von 22 Stufen. Der Knopf zeigt "NOCH ¢ X" statt tot dazustehen.
 - **SHOP** (Thomas 2026-08-25: "es soll wie ein echter shop sein ... wie ein laden in dem

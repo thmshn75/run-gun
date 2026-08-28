@@ -20,7 +20,7 @@ import { Spawner } from '../systems/spawner'
 import { getStartWeaponChoices, getWeaponRewardChoices } from '../systems/weaponChoices'
 import { WeaponDetailPanel } from '../systems/weaponDetail'
 import { getWeaponStars } from '../systems/weaponStars'
-import { RunStats, type ShopLine, getStatCap, getShopPrice, getContinuePrice } from '../systems/upgrades'
+import { RunStats, type ShopLine, applyGoodGate, getStatCap, getShopPrice, getContinuePrice, isFirepowerMaxed } from '../systems/upgrades'
 import { WEAPON_LABELS, Weapons, type WeaponKey, WEAPON_KEYS } from '../systems/weapons'
 import { enableSharpText } from '../systems/textSharpness'
 
@@ -312,31 +312,60 @@ export class GameScene extends Phaser.Scene {
         }
         this.updateHud()
       },
-      (stat, faktor) => {
-        // Feuerkraft aus der rechten Wand: Sofortwirkung mit Quittung, wie links.
-        // FAKTOR STATT BETRAG seit 2026-08-25 (Herleitung bei BALANCE.walls.
-        // gatesPerLevelStep): Ein fester Betrag deckte ab Level 2 den ganzen Levelsprung
-        // ab, ein roter zog bei Level 2 fast alles ab und bei Level 12 ein Fuenftel.
-        // Bei roten Kacheln liegt der Faktor unter 1.
-        const key = stat === 'damage' ? 'damage' : 'shotsPerSec'
-        const before = this.runStats.get(key)
-        // Nach unten bremst der Run-Startwert, nach oben der Balance-Deckel in RunStats.
-        this.runStats.set(key, Math.max(this.statFloor[key], before * faktor))
-        const after = this.runStats.get(key)
-        if (after !== before) {
-          // Zwei Nachkommastellen: Ein Tor bewegt den Schaden um 0,015 bis 0,06, mit
-          // einer Stelle waere jeder zweite Fund als "+0" quittiert worden.
-          const delta = Math.round((after - before) * 100) / 100
-          this.audio.play(delta > 0 ? 'crowdUp' : 'crowdDown')
+      // BLAUES Tor: eigener Wert, sonst der andere, sonst Muenzen (2026-08-28).
+      // Der Deckel ist absichtlich nicht angehoben - er ist gemessen und liegt dicht am
+      // Kipppunkt (Herleitung bei BALANCE.enemy.endlessHpGrowthPerLevel). Geaendert ist
+      // nur, was mit einem Tor passiert, das nichts mehr zu heben findet: Ab Level 13
+      // waren das praktisch alle, und sie verpufften wortlos.
+      (stat, x, y) => {
+        const ergebnis = applyGoodGate(this.runStats, stat === 'damage' ? 'damage' : 'shotsPerSec')
+        if (ergebnis.stat === undefined) {
+          // UEBERLAUF. Muenzen fallen an der Kachel, nicht an der Truppe - sie sollen
+          // wie jeder andere Wandfund eingesammelt werden.
+          this.dropCoins(x, y, BALANCE.walls.maxedCoinBonus)
+          this.audio.play('crowdUp')
           this.popups.spawn(
             this.crowd.getAnchorX(),
             this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
-            `${stat === 'damage' ? 'DMG' : 'RATE'} ${delta > 0 ? '+' : ''}${delta}`,
-            delta > 0 ? '#ffd166' : '#ff6b6b',
+            `MAX +${BALANCE.walls.maxedCoinBonus} ¢`,
+            '#ffd166',
+          )
+        } else {
+          // Zwei Nachkommastellen: Ein Tor bewegt den Schaden um 0,015 bis 0,06, mit
+          // einer Stelle waere jeder zweite Fund als "+0" quittiert worden.
+          const delta = Math.round((ergebnis.after - ergebnis.before) * 100) / 100
+          this.audio.play('crowdUp')
+          this.popups.spawn(
+            this.crowd.getAnchorX(),
+            this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
+            // Der Pfeil sagt, dass das Tor umgeleitet wurde: Wer ein RATE-Tor
+            // zerschiesst und "DMG" gutgeschrieben bekommt, soll das nicht fuer einen
+            // Anzeigefehler halten.
+            `${ergebnis.redirected ? '\u2192 ' : ''}${ergebnis.stat === 'damage' ? 'DMG' : 'RATE'} +${delta}`,
+            '#ffd166',
           )
         }
         this.updateHud()
       },
+      // ROTE Kachel: Abzug am eigenen Wert, nach unten bremst der Run-Startwert.
+      (stat, faktor) => {
+        const key = stat === 'damage' ? 'damage' : 'shotsPerSec'
+        const before = this.runStats.get(key)
+        this.runStats.set(key, Math.max(this.statFloor[key], before * faktor))
+        const after = this.runStats.get(key)
+        if (after !== before) {
+          const delta = Math.round((after - before) * 100) / 100
+          this.audio.play('crowdDown')
+          this.popups.spawn(
+            this.crowd.getAnchorX(),
+            this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
+            `${stat === 'damage' ? 'DMG' : 'RATE'} ${delta}`,
+            '#ff6b6b',
+          )
+        }
+        this.updateHud()
+      },
+      () => isFirepowerMaxed(this.runStats),
     )
     this.popups = new Popups(this)
     this.waffenAnsicht = new WeaponDetailPanel(this)

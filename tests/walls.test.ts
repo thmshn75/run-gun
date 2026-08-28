@@ -6,7 +6,7 @@ import { getCombatFirepower } from '../src/systems/bossPlan'
 import { getFigureOverscanFactor, getPerspectiveScale, getPlayfieldHalfWidth, getRoadHalfWidth, getWallGeometry } from '../src/systems/roadGeometry'
 import { chooseSpawnLane } from '../src/systems/spawnLanes'
 import type { WeaponKey } from '../src/systems/weapons'
-import { RunStats, getGateGrowth } from '../src/systems/upgrades'
+import { RunStats, applyGoodGate, getGateGrowth, getStatCap, isFirepowerMaxed } from '../src/systems/upgrades'
 
 const width = 390
 const height = 844
@@ -327,5 +327,97 @@ describe('Linke Sammelbahn wird mit dem Level dichter (Thomas 2026-08-24)', () =
     // "und nur diese" - rechts stehen die Waffen- und Wertkacheln, die zerschossen
     // werden. Eine dichtere rechte Bahn waere eine Balance-Aenderung, keine Bequemlichkeit.
     expect(BALANCE.walls.segmentHeightPx).toBe(72)
+  })
+})
+
+describe('Feuerkraft-Tore am Deckel (2026-08-28): Umleitung und Ueberlauf', () => {
+  function amDeckel(stat: 'damage' | 'shotsPerSec', level: number): RunStats {
+    const stats = new RunStats()
+    stats.setLevel(level)
+    stats.set(stat, Number.MAX_SAFE_INTEGER)
+    return stats
+  }
+
+  it('leitet ein Tor auf den anderen Wert um, wenn der gewuerfelte am Deckel steht', () => {
+    // DER FALL, um den es geht: Ab Level 13 waechst der Deckel der Feuerrate gar nicht
+    // mehr. Ohne Umleitung stand der Wert nach dem Zerschiessen exakt da wie vorher.
+    const stats = amDeckel('shotsPerSec', 13)
+    const rateVorher = stats.get('shotsPerSec')
+    const damageVorher = stats.get('damage')
+    const ergebnis = applyGoodGate(stats, 'shotsPerSec')
+    expect(ergebnis.stat).toBe('damage')
+    expect(ergebnis.redirected).toBe(true)
+    expect(stats.get('damage')).toBeGreaterThan(damageVorher)
+    // Der Ausgangswert bleibt, wo er war - umgeleitet heisst nicht zusaetzlich.
+    expect(stats.get('shotsPerSec')).toBe(rateVorher)
+  })
+
+  it('dosiert die Umleitung mit dem Wachstumsfaktor des ZIELWERTS', () => {
+    // damage 1,5 -> 7 und rate 3,5 -> 8 sind verschiedene Kurven. Wer den Faktor des
+    // Ausgangswerts mitnimmt, gibt zu wenig oder zu viel.
+    const stats = amDeckel('shotsPerSec', 13)
+    const vorher = stats.get('damage')
+    applyGoodGate(stats, 'shotsPerSec')
+    expect(stats.get('damage')).toBeCloseTo(Math.round(vorher * getGateGrowth('damage') * 100) / 100, 5)
+  })
+
+  it('zahlt Ueberlauf aus, wenn beide Werte am Deckel stehen', () => {
+    const stats = amDeckel('damage', 13)
+    stats.set('shotsPerSec', Number.MAX_SAFE_INTEGER)
+    const damage = stats.get('damage')
+    const rate = stats.get('shotsPerSec')
+    for (const gewuerfelt of ['damage', 'shotsPerSec'] as const) {
+      const ergebnis = applyGoodGate(stats, gewuerfelt)
+      expect(ergebnis.stat).toBeUndefined()
+      expect(ergebnis.redirected).toBe(false)
+    }
+    // Kein Wert hat sich bewegt - der Ueberlauf ist Muenze, nicht Feuerkraft.
+    expect(stats.get('damage')).toBe(damage)
+    expect(stats.get('shotsPerSec')).toBe(rate)
+    expect(isFirepowerMaxed(stats)).toBe(true)
+    expect(BALANCE.walls.maxedCoinBonus).toBeGreaterThan(0)
+  })
+
+  it('hebt keinen der beiden Deckel an - auch nach beliebig vielen Toren nicht', () => {
+    // Die Regression, die zaehlt (lessons.md 2026-08-24: ein Zuwachs auf mehrere
+    // Faktoren eines Produkts wirkt kubisch). Umgeleitet wird UMVERTEILT, nicht addiert.
+    for (const level of [1, 12, 13, 30]) {
+      const stats = new RunStats()
+      stats.setLevel(level)
+      for (let index = 0; index < 500; index += 1) {
+        applyGoodGate(stats, index % 2 === 0 ? 'damage' : 'shotsPerSec')
+      }
+      expect(stats.get('damage')).toBeLessThanOrEqual(getStatCap('damage', level) + 0.005)
+      expect(stats.get('shotsPerSec')).toBeLessThanOrEqual(getStatCap('shotsPerSec', level) + 0.005)
+    }
+  })
+
+  it('meldet erst dann alles voll, wenn wirklich beide Werte oben sind', () => {
+    const stats = amDeckel('shotsPerSec', 13)
+    expect(isFirepowerMaxed(stats)).toBe(false)
+    stats.set('damage', Number.MAX_SAFE_INTEGER)
+    expect(isFirepowerMaxed(stats)).toBe(true)
+  })
+
+  it('erreicht beide Deckel im Endlosbereich nach wenigen Toren - sonst griffe der Ueberlauf nie', () => {
+    // Gegenprobe in die andere Richtung (lessons.md 2026-08-23: ein Grenzwert braucht
+    // beide Enden im Test).
+    //
+    // GESTARTET WIRD MIT DEM STAND AUS DEM VORLEVEL, nicht mit den Grundwerten. Ein
+    // erster Anlauf tat das und schlug fehl: Von damage 1 auf den Level-13-Deckel 7,03
+    // braucht es 220 Tore, nicht 46. Im Spiel gibt es diesen Weg nicht - RunStats laeuft
+    // ueber den Levelwechsel weiter, ein Tor deckt den SPRUNG ab (gatesPerLevelStep 16),
+    // nicht die ganze Kurve.
+    const stats = new RunStats()
+    stats.setLevel(12)
+    stats.set('damage', Number.MAX_SAFE_INTEGER)
+    stats.set('shotsPerSec', Number.MAX_SAFE_INTEGER)
+    stats.setLevel(13)
+    // Der Levelsprung ist hier winzig: Die Feuerrate waechst gar nicht mehr, der Schaden
+    // um 0,4 % - ein Tor traegt 0,89 %. Nach zwei Toren ist alles wieder oben, die
+    // restlichen 20 bis 44 des Levels sind Ueberlauf.
+    applyGoodGate(stats, 'damage')
+    applyGoodGate(stats, 'shotsPerSec')
+    expect(isFirepowerMaxed(stats)).toBe(true)
   })
 })

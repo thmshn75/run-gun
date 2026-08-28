@@ -299,3 +299,71 @@ export function getContinuePrice(level: number, bereitsGenutzt: number): number 
   const basis = BALANCE.continueRun.pricePerLevel * Math.max(1, Math.floor(level))
   return Math.round(basis * BALANCE.continueRun.priceDoubling ** Math.max(0, bereitsGenutzt))
 }
+
+/** Die beiden Groessen, die ein Tor der rechten Wand hebt. */
+export type FirepowerStat = 'damage' | 'shotsPerSec'
+
+export interface GateOutcome {
+  /** Wohin der Zuwachs ging. undefined = beide Werte stehen am Deckel (Ueberlauf). */
+  readonly stat: FirepowerStat | undefined
+  /** true, wenn nicht der gewuerfelte, sondern der andere Wert gewachsen ist. */
+  readonly redirected: boolean
+  readonly before: number
+  readonly after: number
+}
+
+/**
+ * Ein GUTES Tor der rechten Wand einloesen (2026-08-28, Thomas: "gibt es bei den dmg und
+ * rate waenden irgendwann ein maximum in den hoeheren leveln?").
+ *
+ * JA, UND ZWAR EIN HARTES: shotsPerSec waechst oberhalb von level.endless.fromLevel gar
+ * nicht mehr (getEndlessGrowth gibt nur fuer damage und hp einen Faktor > 1), damage nur
+ * um 0,4 % je Level. Ein Level-13-Spieler sammelt also 22 bis 46 Tore je Level ein, von
+ * denen praktisch keines mehr etwas bewirkt - der Wert stand nach dem Zerschiessen exakt
+ * da wie vorher. Das ist derselbe Effekt wie bei der Rundung (lessons.md 2026-08-25), nur
+ * eine Ebene hoeher: Der Zugewinn kam nicht an, und niemand sah es.
+ *
+ * ZWEI STUFEN STATT LEERLAUF:
+ *   1. UMLEITUNG. Steht der gewuerfelte Wert am Deckel, wirkt das Tor auf den anderen -
+ *      mit DESSEN Wachstumsfaktor, denn getGateGrowth leitet ihn aus dem Deckelsprung
+ *      des jeweiligen Werts ab (damage 1,5 -> 7, rate 3,5 -> 8, das sind verschiedene
+ *      Kurven). Wer den Faktor des Ausgangswerts mitnaehme, dosierte falsch.
+ *   2. UEBERLAUF. Stehen BEIDE am Deckel, gibt es keinen Statwert mehr - die Szene zahlt
+ *      stattdessen Muenzen aus (BALANCE.walls.maxedCoinBonus).
+ *
+ * WARUM DAS DIE GEMESSENE BALANCE NICHT VERSCHIEBT: Die Deckel selbst bleiben absolut
+ * unangetastet - der Endzustand eines Runs ist derselbe wie vorher. Auch die Zeit bis
+ * dorthin aendert sich kaum: Beide Werte brauchen je gatesPerLevelStep (16) Tore, sie
+ * teilen sich rund 30 je Level, und die Umleitung verschiebt nur, WELCHER Wert ein
+ * einzelnes Tor bekommt. Der Gesamtbedarf von rund 32 Toren bleibt; was wegfaellt, ist
+ * die Streuung, wenn der Wuerfel eine Seite bevorzugt. Ein Zuwachs auf mehrere Faktoren
+ * eines Produkts (lessons.md 2026-08-24) entsteht hier NICHT: Es wird nie mehr als ein
+ * Wert je Tor gehoben.
+ *
+ * ROTE KACHELN LAUFEN NICHT HIERUEBER. Ein Abzug bleibt am eigenen Wert; wuerde er
+ * umgeleitet, traefe er den Wert mit Luft nach unten und die Strafe waere haerter als
+ * die Belohnung.
+ */
+export function applyGoodGate(stats: RunStats, gewuerfelt: FirepowerStat): GateOutcome {
+  const anderer: FirepowerStat = gewuerfelt === 'damage' ? 'shotsPerSec' : 'damage'
+  for (const stat of [gewuerfelt, anderer]) {
+    const before = stats.get(stat)
+    stats.set(stat, before * getGateGrowth(stat))
+    const after = stats.get(stat)
+    // GEPRUEFT WIRD DER TATSAECHLICHE ZUWACHS, nicht "steht der Wert am Deckel". Damit
+    // faengt dieselbe Abfrage auch den Fall ab, in dem der Zuwachs an der Stufung von
+    // clampStat verschwindet - genau der Fehler vom 2026-08-25.
+    if (after > before) return { stat, redirected: stat !== gewuerfelt, before, after }
+  }
+  return { stat: undefined, redirected: false, before: stats.get(gewuerfelt), after: stats.get(gewuerfelt) }
+}
+
+/** Stehen beide Feuerkraftwerte am Deckel? Steuert die Beschriftung der Kachel. */
+export function isFirepowerMaxed(stats: RunStats): boolean {
+  const level = stats.getLevel()
+  const steps = stats.getSteps()
+  const meta = stats.getMeta()
+  return (['damage', 'shotsPerSec'] as const).every(
+    (stat) => stats.get(stat) >= clampStat(stat, Number.MAX_SAFE_INTEGER, level, steps, meta),
+  )
+}
