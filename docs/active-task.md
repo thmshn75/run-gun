@@ -6,10 +6,7 @@
 
 ## Task
 
-`IDLE` — V4 ist vollstaendig gebaut und gemessen, dazu die sechs Aenderungen vom Abend
-des 2026-08-25 (Reichweiten von Flamme und Blitz, Weiterspielen nach dem Tod, guenstigere
-Preise plus Waffen-Aufruestung, Waffen ab Level 1, Testgelaende) und die Umleitung plus
-Muenzueberlauf der Feuerkraft-Tore vom 2026-08-28. Wartet auf Bennis iPhone-Test.
+(kein Task aktiv — Stand und offene Punkte stehen in `docs/UEBERGABE.md`)
 
 ---
 

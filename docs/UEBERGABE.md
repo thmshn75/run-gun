@@ -1,7 +1,7 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-25 abends (V4 gebaut plus sechs Aenderungen aus Thomas' und Bennis
-Rueckmeldungen desselben Tages; offen ist Bennis iPhone-Test)
+Stand: 2026-08-29 (V4 gebaut inkl. aller Aenderungen vom 25.–28.08.; Bennis
+iPhone-Test am 2026-08-29 erledigt und ok — kein neuer Befund)
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat), gespielt von Benni (7).
@@ -134,9 +134,9 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   bestimmt) — das ist der einzige neue offene Punkt aus dieser Sitzung.
 
 ## Offen — naechster Schritt zuerst
-1. **Bennis iPhone-Test.** Alles Gebaute ist im Browser gemessen, Gamefeel gilt erst
-   nach seinem Test. Konkrete Fragen: Wird es ab Level 13 spuerbar schwerer? Reicht die
-   Pistole auf Level 1? Sind die neuen Preise zu hart?
+1. ~~Bennis iPhone-Test~~ — **erledigt am 2026-08-29, ok** (Thomas). Gamefeel damit
+   abgenommen. Noch nachzuziehen (siehe unten): Wirkung der Aufruestungsstufen im Spiel
+   und die neuen Preise gegen die Einnahmen eines echten Runs messen.
 2. **Vier Entscheidungen fuer Thomas** — alle dokumentiert, keine eigenmaechtig getroffen:
    - **Waffen-Staerkeband.** Der Plan wollte bis 1,85x. Alles ueber **1,25x** hebt den
      E1-Effekt auf: Level 30 waere damit LEICHTER als Level 12. Das Band endet deshalb
@@ -349,7 +349,7 @@ echten Runs. Beides sollte nach Bennis Test nachgezogen werden.
 
 ## Einstiegssatz
 "Lies `docs/UEBERGABE.md`, `docs/lessons.md` und `docs/plan-v4.md` und arbeite dort weiter.
-**Nichts neu aufsetzen** — V1/V2/V3 sind abgenommen und getaggt, V4 ist gebaut und
-gemessen, dazu die sechs Aenderungen vom Abend des 2026-08-25. Naechster Schritt:
-Bennis iPhone-Test — besonders Testgelaende, Waffen-Aufruestung und die neuen
-Reichweiten von Flammenwerfer und Kettenblitz."
+**Nichts neu aufsetzen** — V1/V2/V3 sind abgenommen und getaggt, V4 ist gebaut, gemessen
+und am 2026-08-29 per iPhone-Test abgenommen. Naechste Schritte: die zwei offenen
+Nachmessungen (Aufruestungsstufen im Spiel, Preise gegen echte Run-Einnahmen) und die
+Staerke von Prellschuss und Saegeblatt im Normalspiel."
