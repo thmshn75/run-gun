@@ -179,7 +179,7 @@ export class Weapons {
     this.engageLimitEnabled = enabled
   }
 
-  /** Rueckgabe: Zahl der in diesem Bild abgefeuerten Salven - die GameScene haengt den Schusston daran. */
+  /** Rueckgabe: Zahl der in diesem Bild abgefeuerten Salven. */
   public update(dt: number): number {
     this.elapsedMs += dt
     this.fireAccumulatorMs += dt

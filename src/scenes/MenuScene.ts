@@ -2,7 +2,6 @@ import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { WEAPON_DESCRIPTIONS, WEAPON_LABELS, type WeaponKey } from '../systems/weapons'
 import { HUD_COLORS, MENU_COLORS } from '../config/colors'
-import { getGameAudio } from '../systems/audio'
 import { computeMenuLayout } from '../systems/menuLayout'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { getMetaPrice, getMetaSteps, getOwnedWeapons, getRestorableSave, getWeaponStepPrice, getWeaponSteps, getWeaponUnlockPrice, istUnberuehrt, istWaffeVerfuegbar, kaufeWaffenStufe, kaufeWeiterspielen, loadSave, resetSave, restoreSave, writeSave, type RunSnapshot, type SaveData, type ScoreEntry } from '../systems/save'
@@ -142,42 +141,9 @@ export class MenuScene extends Phaser.Scene {
         () => { this.holeFortschrittZurueck() },
       )
     }
-    this.renderAudioToggle(layout)
     this.renderShop()
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.closeResetConfirmation()
-    })
-  }
-
-  /**
-   * Ton-Schalter rechts neben dem Kontostand. Bewusst im Menue und nicht im HUD: Die
-   * gesamte Spielflaeche ist Drag-Steuerung, ein Tippziel darin wuerde die Truppe
-   * verreissen. Zusaetzlich ist der erste Tipp hier die Nutzergeste, mit der iOS
-   * Web Audio ueberhaupt erst freigibt.
-   */
-  private renderAudioToggle(layout: ReturnType<MenuScene['layout']>): void {
-    const audio = getGameAudio(this)
-    const width = 78
-    const height = 30
-    const centerX = this.scale.width - this.insets.right - BALANCE.menu.sidePadding - width / 2
-    const centerY = layout.balance.top + layout.balance.height / 2
-    const box = this.add.rectangle(centerX, centerY, width, height, MENU_COLORS.button).setOrigin(0.5)
-    const label = this.add.text(centerX, centerY, '', {
-      fontFamily: 'system-ui', fontSize: '12px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
-    }).setOrigin(0.5)
-    const paint = (): void => {
-      const muted = audio.isMuted()
-      label.setText(muted ? 'TON AUS' : 'TON AN')
-      box.setFillStyle(muted ? MENU_COLORS.disabledButton : MENU_COLORS.button)
-      box.setStrokeStyle(2, muted ? MENU_COLORS.disabledStroke : MENU_COLORS.buttonStroke)
-      label.setColor(this.colorFor(muted ? MENU_COLORS.mutedText : MENU_COLORS.title))
-    }
-    paint()
-    box.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
-      audio.toggleMuted()
-      paint()
-      // Wer einschaltet, soll sofort hoeren, dass es geht.
-      audio.play('crowdUp')
     })
   }
 

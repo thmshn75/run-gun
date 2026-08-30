@@ -52,6 +52,11 @@ const game = new Phaser.Game({
   width: 390,
   height: 844,
   backgroundColor: '#10131d',
+  // KEIN Ton im Spiel (Thomas 2026-08-30: "nimm den ton, musik usw. komplett raus").
+  // noAudio haelt Phaser davon ab, ueberhaupt einen Sound-Manager mit AudioContext
+  // anzulegen - sonst faengt sich das Spiel auf iOS weiterhin die Freischaltung per
+  // Nutzergeste ein, obwohl nie ein Ton gespielt wird.
+  audio: { noAudio: true },
   // pixelArt schaltet die Glaettung beim Skalieren ab. Bis 2026-08-22 stand hier true:
   // Die 34x46-Figuren bekamen dadurch harte Treppenkanten und verloren die Plastik der
   // grossen Vorlagen (assets/probe, 136x184). Mit false sind die Gegner am Horizont als

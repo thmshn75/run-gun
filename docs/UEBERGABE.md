@@ -1,7 +1,8 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-29 (V4 gebaut inkl. aller Aenderungen vom 25.–28.08.; Bennis
-iPhone-Test am 2026-08-29 erledigt und ok — kein neuer Befund)
+Stand: 2026-08-30 (V4 gebaut inkl. aller Aenderungen vom 25.–28.08.; Bennis
+iPhone-Test am 2026-08-29 erledigt und ok — kein neuer Befund. Am 30.08. der Ton
+komplett entfernt.)
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat), gespielt von Benni (7).
@@ -28,8 +29,12 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
 - **V4-E1 Endlos-Skalierung** — Der Modulo-Ruecksprung ist weg (Level 13 war siebenmal
   leichter als Level 12), Spielstand-Migration mit Marker, Bestenliste bei „SPEICHERN &
   BEENDEN". Durchkommensanteil auf Level 12/16/20/25/30: 7,5 / 9,2 / 9,4 / 8,1 / 8,7 %.
-- **Ton** — alle sieben Klangeffekte aus, nur Musik (Schalter `audio.effectsEnabled`).
-  Musik: zwei Umbauversuche zurueckgebaut, geblieben ist 6 -> 4 s je Akkord.
+- **Ton komplett entfernt** (2026-08-30, Thomas: "nimm den ton, musik usw. komplett
+  raus"). Weg sind `src/systems/audio.ts`, `audioPlan.ts`, `tests/audioPlan.test.ts`,
+  der `BALANCE.audio`-Block und der Menue-Schalter TON AN/AUS. In `main.ts` steht
+  `audio: { noAudio: true }`, damit Phaser gar keinen AudioContext mehr anlegt. Die
+  Historie (Klangeffekte, zwei zurueckgebaute Musikversuche) steht in den Commits bis
+  `267d2d1`; wer den Ton je zurueckwill, holt ihn dort.
 - **Waffenstaffelung auf dreizehn Waffen** — Pistole 1, Sturmgewehr 2, Shotgun 3,
   Minigun 5, Laser 7, Flamme 9, Blitz 11, Rakete 13, Granate 15, dann 18/21/25/30.
   Der Haertegewinn steckt in der Umsortierung: Die Rakete ist die staerkste Waffe des

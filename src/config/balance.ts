@@ -217,107 +217,6 @@ export const BALANCE = {
     textureRings: 6,
     textureWidthPx: 64,
   },
-  audio: {
-    // Bis 2026-08-22 gab es im Projekt KEIN Audio (kein AudioContext, keine Datei).
-    // Der Ton wird synthetisch per Web Audio erzeugt: keine Audiodateien, nichts
-    // nachzuladen, offline identisch, keine Kosten. Der AudioContext kommt von Phasers
-    // Sound-Manager - der bringt die auf iOS zwingende Freischaltung per Nutzergeste
-    // schon mit; ein eigener zweiter Context muesste sie nachbauen.
-    // ACHTUNG iPhone: Steht der seitliche Stummschalter auf lautlos, spielt iOS auch
-    // Web Audio nicht ab. Das ist Systemverhalten, kein Fehler des Spiels.
-    masterVolume: 0.6,
-    // KLANGEFFEKTE AUS (Thomas 2026-08-24: "das klicken und schiess geeraeusche weg,
-    // nur die musik im hintergrund sonst nichts").
-    //
-    // Betrifft ALLE Quittungen - Schuss, Treffer am eigenen Trupp, sterbender Gegner,
-    // Wandbruch, Truppe rauf und runter, Waffenwechsel. Die Hintergrundmusik laeuft
-    // unveraendert weiter, sie haengt nicht an diesem Schalter.
-    //
-    // Bewusst ein Schalter statt geloeschtem Code: Der Ton war zwei Bauzyklen Arbeit
-    // (Drossel als Ratenbegrenzung statt Raster, Stimmen-Deckel, iOS-Freischaltung per
-    // Nutzergeste), und Thomas kann einzelne Quittungen zurueckwollen. Wer hier wieder
-    // true setzt, bekommt exakt den Stand von V3 zurueck. Bleibt es dauerhaft aus,
-    // gehoert der Effektzweig samt audioPlan.ts in einer Aufraeumrunde raus - ein
-    // Schalter, der nie wieder umgelegt wird, ist toter Code mit Deckmantel.
-    effectsEnabled: false,
-    // Stimmen-Deckel fuer die haeufigen Toene (Schuss, Sterben). Eine Splash-Explosion
-    // kann acht Gegner im selben Bild toeten; ohne Deckel wird daraus ein Knall statt
-    // acht Quittungen. 6 gleichzeitige Stimmen a 0,22 liegen summiert noch unter dem
-    // Master-Pegel, verzerren also nicht. Seltene, wichtige Toene (Wandbruch, Schaden,
-    // Aufsammeln, Waffenwechsel) unterliegen dem Deckel bewusst NICHT - sie duerfen
-    // nie im Schussgeraeusch untergehen.
-    maxCasualVoices: 6,
-    // HINTERGRUNDMUSIK (Thomas 2026-08-23). Wie der Rest des Tons synthetisch, ohne
-    // Audiodatei: eine ruhige Akkordfolge aus weichen Sinustoenen, tiefpassgefiltert.
-    //
-    // a-Moll - F - C/G - G: die verbreitetste ruhige Folge ueberhaupt, bewusst
-    // unauffaellig. Sie soll traegen, nicht auffallen.
-    //
-    // ZWEI VERSUCHE AM 2026-08-24 ZURUECKGEBAUT, und der Befund ist es wert, hier zu
-    // stehen: Thomas wollte "mehr Melodie" und einen duestereren Klang. Gebaut wurden
-    // nacheinander eine Melodiestimme, phrygische Harmonik, ein Drone, Tremolo, ein
-    // Reibungston und ein Puls. Sein Urteil: "die Melodie passt mir gar nicht und das
-    // Hintergrundrauschen war vorher besser". Beide Male war die Diagnose falsch - die
-    // Musik war nicht zu einfach, sondern nur zu LANGSAM. Genau das hatte er beim
-    // ersten Mal auch gesagt ("irgendwie zu langsam"), und genau das wurde ueberhoert,
-    // weil der Halbsatz "mehr Melodie" nach der groesseren Aufgabe klang.
-    //
-    // LEHRE, die eine Sitzung gekostet hat: Wenn eine Rueckmeldung zwei Teile hat, den
-    // KLEINEN zuerst umsetzen und vorlegen. Eine Flaeche, die nichts tut, ist hier das
-    // Ziel und nicht der Mangel - sie soll traegen, nicht unterhalten.
-    music: {
-      // Deutlich unter den Effekten: Musik ist Grundierung, keine Quittung.
-      volume: 0.075,
-      // 6 -> 4 Sekunden (Thomas 2026-08-24: "muesste nur schneller sein als am
-      // Anfang"). Vier Akkorde ergeben damit einen 16-Sekunden-Kreis statt eines
-      // 24-Sekunden-Kreises - immer noch lang genug, dass er nicht als Schleife
-      // auffaellt. Das ist die EINZIGE Aenderung gegenueber dem Stand, den er
-      // abgenommen hatte.
-      chordSeconds: 4,
-      // Weiche Kanten - ohne langen An- und Abstieg klingt ein Pad wie ein Signalton.
-      // Anstieg 2 -> 1,5 s, weil er sonst bei 4 Sekunden Akkorddauer die halbe Zeit
-      // beansprucht und die Folge trotz kuerzerer Akkorde wieder traege wirkt.
-      attackSeconds: 1.5,
-      releaseSeconds: 2.6,
-      // Tiefpass nimmt den Obertonanteil weg, der auf Handylautsprechern schrill wirkt.
-      filterHz: 850,
-      // Drei Toene je Akkord, enge Lage um 175-330 Hz.
-      chords: [
-        [220.0, 261.6, 329.6],
-        [174.6, 220.0, 261.6],
-        [196.0, 261.6, 329.6],
-        [196.0, 246.9, 293.7],
-      ],
-    },
-    events: {
-      // Ein Ton je Salve, nicht je Kugel: Die Schrotflinte feuert 7 Kugeln gleichzeitig.
-      // Drossel 125 ms = 1000 / shotsPerSec.cap (8/s): So hoert man die volle
-      // Ausbau-Spanne 3/s -> 8/s, die sich der Spieler erarbeiten kann. Minigun
-      // (17,6 Salven/s) und Flammenwerfer (14,4/s) laufen in den Deckel - dort ist ein
-      // Einzelschuss ohnehin nicht mehr trennbar, das Ohr hoert ab ~10/s einen Teppich.
-      // Leisester Ton im Spiel, weil mit Abstand der haeufigste.
-      // STUMM seit 2026-08-23 (Thomas: "diese Schiessgeraeusche nerven, ich moechte
-      // einfach eine angenehme Musikuntermalung"). Der Ton bleibt im Code stehen und
-      // ist ueber diese eine Zahl zurueckzuholen - 0,16 war der alte Wert.
-      shot: { volume: 0, durationMs: 60, minGapMs: 125, casual: true },
-      // 70 ms Abstand macht aus acht gleichzeitigen Toten eine hoerbare Kette.
-      // Ebenfalls stumm: Bei 6-13 Gegnern je Sekunde ist der Sterbeton Teil desselben
-      // Dauergeraeuschs wie der Schuss - "das Geballer" meint beides. Alter Wert 0,22.
-      enemyDown: { volume: 0, durationMs: 130, minGapMs: 70, casual: true },
-      // Wandbruch ist das Ereignis, auf das der Spieler hinarbeitet (0,12-0,50 s Fokus
-      // je nach Level) - entsprechend laut und mit Wucht unterlegt.
-      wallBreak: { volume: 0.45, durationMs: 220, minGapMs: 40, casual: false },
-      // Verstaerkung: Die Wandbelohnung kann die Truppe auch VERKLEINERN (Operator - / :),
-      // deshalb zwei Richtungen. Gleiche Lautstaerke, gegenlaeufige Tonfolge.
-      crowdUp: { volume: 0.4, durationMs: 220, minGapMs: 0, casual: false },
-      crowdDown: { volume: 0.4, durationMs: 220, minGapMs: 0, casual: false },
-      weaponSwap: { volume: 0.45, durationMs: 260, minGapMs: 0, casual: false },
-      // Eigener Schaden ist der lauteste Ton - er begleitet das Kamerawackeln.
-      // 120 ms Drossel als Sicherung, falls mehrere Gegner im selben Bild treffen
-      // (die Unverwundbarkeit nach einem Treffer liegt mit 700 ms darueber).
-      playerHit: { volume: 0.55, durationMs: 260, minGapMs: 120, casual: false },
-    },
-  },
   layers: {
     background: -1,
     scenery: -0.5,
@@ -2144,7 +2043,7 @@ export const BALANCE = {
     // Gerundet 0,12. Ein leichter Gegner kostet damit 0,12 Figuren, ein schwerer 0,24 -
     // es braucht also rund acht Durchbrueche fuer eine Figur. Die Bruchteile werden
     // aufsummiert und erst bei einer vollen Figur eingeloest, sonst gaebe es bei 6
-    // Durchbruechen je Sekunde sechsmal Ton und Kamerawackeln.
+    // Durchbruechen je Sekunde sechsmal Anzeige und Kamerawackeln.
     breakthroughDamageFactor: 0.12,
     // Level 1 bleibt frei - dieselbe Begruendung wie bei den roten Wandkacheln
     // (walls.badMinLevel). Dort lernt man, wofuer die beiden Bahnen da sind, und startet

@@ -6,7 +6,6 @@ import { Popups } from '../systems/popups'
 import { Coins } from '../systems/coins'
 import { ShopOverlay } from '../systems/shopOverlay'
 import { selectChainLightningTargets } from '../systems/chainLightning'
-import { getGameAudio, type GameAudio } from '../systems/audio'
 import { Boss } from '../systems/boss'
 import { Crowd } from '../systems/crowd'
 import { getCrowdDamageMultiplier } from '../systems/crowdDamage'
@@ -143,9 +142,8 @@ export class GameScene extends Phaser.Scene {
   private popups!: Popups
   // Durchbrueche kosten Bruchteile einer Figur (enemy.breakthroughDamageFactor). Sie
   // werden hier gesammelt und erst bei einer vollen Figur eingeloest - sonst gaebe es
-  // bei bis zu 6 Durchbruechen je Sekunde sechsmal Ton und Anzeige.
+  // bei bis zu 6 Durchbruechen je Sekunde sechsmal eine Anzeige.
   private breakthroughAccumulator = 0
-  private audio!: GameAudio
   private currentLevel!: number
   private levelPhase!: LevelPhase
   private phaseRemainingMs!: number
@@ -274,11 +272,6 @@ export class GameScene extends Phaser.Scene {
     this.phaseRemainingMs = this.gegnerphaseMs()
     this.lastUnknownCombatOverlapWarningAtMs = -1000
     this.insets = readSafeAreaInsets(this.game.canvas)
-    this.audio = getGameAudio(this)
-    this.audio.resetRun()
-    // Musik laeuft ueber den ganzen Run und endet mit der Szene (Thomas 2026-08-23).
-    this.audio.startMusic()
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.audio.stopMusic())
     this.cameras.main.setBackgroundColor(WORLD_COLORS.background)
     this.road = new Road(this)
     this.scenery = new Scenery(this, () => Phaser.Math.RND.frac())
@@ -299,10 +292,9 @@ export class GameScene extends Phaser.Scene {
         const before = this.runStats.get('hp')
         const after = apply(before)
         this.runStats.set('hp', after)
-        // Quittung auf die eigene Handlung: ohne sie wuchs die Truppe lautlos.
+        // Quittung auf die eigene Handlung: ohne sie wuchs die Truppe unbemerkt.
         const delta = Math.round(after - before)
         if (delta !== 0) {
-          this.audio.play(delta > 0 ? 'crowdUp' : 'crowdDown')
           this.popups.spawn(
             this.crowd.getAnchorX(),
             this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
@@ -323,7 +315,6 @@ export class GameScene extends Phaser.Scene {
           // UEBERLAUF. Muenzen fallen an der Kachel, nicht an der Truppe - sie sollen
           // wie jeder andere Wandfund eingesammelt werden.
           this.dropCoins(x, y, BALANCE.walls.maxedCoinBonus)
-          this.audio.play('crowdUp')
           this.popups.spawn(
             this.crowd.getAnchorX(),
             this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
@@ -334,7 +325,6 @@ export class GameScene extends Phaser.Scene {
           // Zwei Nachkommastellen: Ein Tor bewegt den Schaden um 0,015 bis 0,06, mit
           // einer Stelle waere jeder zweite Fund als "+0" quittiert worden.
           const delta = Math.round((ergebnis.after - ergebnis.before) * 100) / 100
-          this.audio.play('crowdUp')
           this.popups.spawn(
             this.crowd.getAnchorX(),
             this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
@@ -355,7 +345,6 @@ export class GameScene extends Phaser.Scene {
         const after = this.runStats.get(key)
         if (after !== before) {
           const delta = Math.round((after - before) * 100) / 100
-          this.audio.play('crowdDown')
           this.popups.spawn(
             this.crowd.getAnchorX(),
             this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
@@ -471,7 +460,7 @@ export class GameScene extends Phaser.Scene {
     this.crowd.update(dt)
     this.updateLevelPhase(dt)
     this.aktualisiereTestgelaendeKnopf()
-    if (this.weapons.update(dt) > 0) this.audio.play('shot')
+    this.weapons.update(dt)
     this.spawner.update(dt)
     this.walls.update(dt)
     this.popups.update(dt)
@@ -568,8 +557,6 @@ export class GameScene extends Phaser.Scene {
   private equipWeapon(weapon: WeaponKey): void {
     if (!this.weapons.setWeapon(weapon)) return
     this.replaceProjectileColliders()
-    // Quittung auf die eigene Handlung: der Waffenwechsel war bisher nur am HUD sichtbar.
-    this.audio.play('weaponSwap')
     this.popups.spawn(
       this.crowd.getAnchorX(),
       this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
@@ -793,12 +780,12 @@ export class GameScene extends Phaser.Scene {
       const spawnId = wall.getData('spawnId') as number
       if (hitSpawnIds.has(spawnId)) return
       hitSpawnIds.add(spawnId)
-      if (this.walls.damage(wall, damage)) this.audio.play('wallBreak')
+      this.walls.damage(wall, damage)
       return
     }
     const impactX = wall.x
     const impactY = wall.y
-    if (this.walls.damage(wall, damage)) this.audio.play('wallBreak')
+    this.walls.damage(wall, damage)
     if (config.splashRadiusPx > 0) {
       const radiusSquared = config.splashRadiusPx * config.splashRadiusPx
       const splashDamage = this.runStats.get('damage') * this.getCrowdDamageMultiplier() * config.splashDamageFactor * this.aufwertung(weapon)
@@ -806,7 +793,7 @@ export class GameScene extends Phaser.Scene {
         const candidate = child as Phaser.Physics.Arcade.Image
         const dx = candidate.x - impactX
         const dy = candidate.y - impactY
-        if (candidate.active && dx * dx + dy * dy <= radiusSquared && this.walls.damage(candidate, splashDamage)) this.audio.play('wallBreak')
+        if (candidate.active && dx * dx + dy * dy <= radiusSquared) this.walls.damage(candidate, splashDamage)
       }
       this.splashFlashes.spawn(impactX, impactY, config.splashRadiusPx)
     }
@@ -950,7 +937,6 @@ export class GameScene extends Phaser.Scene {
     const enemyY = enemy.y
     const coinValue = enemy.getData('coinValue') as number
     if (!this.spawner.damage(enemy, damage)) return
-    this.audio.play('enemyDown')
     this.dropCoins(enemyX, enemyY, coinValue)
     if (this.boss.isEnemy(enemy)) this.handleBossDefeated()
   }
@@ -995,8 +981,8 @@ export class GameScene extends Phaser.Scene {
    * keit schuetzt vor einer Trefferserie, nicht vor den Folgen des eigenen Verfehlens
    * (sie wuerde die Regel genau bei hohem Durchsatz aushebeln), und Wackeln bei sechs
    * Ereignissen je Sekunde macht das Bild unruhig statt wuchtig. Die Quittung ist
-   * dieselbe wie beim Verlust an einer roten Wandkachel: Ton `crowdDown` und eine
-   * rote Zahl ueber der Truppe.
+   * dieselbe wie beim Verlust an einer roten Wandkachel: eine rote Zahl ueber der
+   * Truppe.
    */
   private handleBreakthrough(contactDamage: number): void {
     if (this.gameOverStarted || this.istTestgelaende()) return
@@ -1009,7 +995,6 @@ export class GameScene extends Phaser.Scene {
     this.syncCrowdSize()
     const delta = Math.round(this.runStats.get('hp') - before)
     if (delta !== 0) {
-      this.audio.play('crowdDown')
       this.popups.spawn(
         this.crowd.getAnchorX(),
         this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
@@ -1032,8 +1017,6 @@ export class GameScene extends Phaser.Scene {
     this.enemyContactIframeUntilMs = this.elapsedMs + iframeMs
     this.blinkUntilMs = Math.max(this.blinkUntilMs, this.elapsedMs + iframeMs)
     this.nextBlinkAtMs = this.elapsedMs
-    // Treffer am eigenen Trupp muss man spueren, nicht nur am HUD ablesen.
-    this.audio.play('playerHit')
     this.cameras.main.shake(BALANCE.gamefeel.shakeDamageMs, BALANCE.gamefeel.shakeDamageIntensity)
     this.updateHud()
     if (this.runStats.get('hp') <= 0) this.triggerGameOver()
@@ -1265,7 +1248,6 @@ export class GameScene extends Phaser.Scene {
     // der Wahl. Ohne das ginge sie verloren, wenn die App zwischen Wahl und WEITER
     // weggewischt wird.
     this.sichereRun()
-    this.audio.play('crowdUp')
     this.shop.aktualisieren(this.shopZustand())
     this.updateHud()
   }
@@ -1278,7 +1260,6 @@ export class GameScene extends Phaser.Scene {
     // speichere() laesst nichts durch), aber die Anzeige waere trotzdem eine Luege.
     if (this.istTestgelaende()) {
       if (!this.runStats.addStep(line)) return
-      this.audio.play('crowdUp')
       this.shop.aktualisieren(this.shopZustand())
       this.syncCrowdSize()
       this.updateHud()
@@ -1293,7 +1274,6 @@ export class GameScene extends Phaser.Scene {
     this.kontoStand = saved.coins - preis
     this.speichere({ ...saved, coins: this.kontoStand })
     this.kaeufeInPause[line] += 1
-    this.audio.play('crowdUp')
     this.shop.aktualisieren(this.shopZustand())
     this.syncCrowdSize()
     this.updateHud()
