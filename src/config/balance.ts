@@ -1862,6 +1862,58 @@ export const BALANCE = {
     // ohnehin die Mischung, dieser Regler ist der Kanal fuer die sehr hohen Level. Wer
     // ihn anhebt, muss die Kurve neu messen - sie liegt dicht am Kipppunkt.
     endlessHpGrowthPerLevel: 1.003,
+    // STUFENHAERTE ALLE FUENF LEVEL (Thomas 2026-08-30: "die normalen gegener alle 5
+    // level um 20% schwerer machen (auch endgegener)").
+    //
+    // DER AUFSCHLAG FLACHT NACH OBEN AB, und das ist gemessen, nicht gewaehlt. Der erste
+    // Bau nahm den Auftrag woertlich: 20 % je Stufe, unbegrenzt. Gemessen (Median aus je
+    // drei Laeufen, voll ausgebauter Spieler, Anteil Gegner, die die Truppe erreichen):
+    //   Level 12 (Faktor 1,44)  0,0 % ->  1,1 %   gehalten
+    //   Level 20 (Faktor 1,73)  0,2 % -> 43,9 %   gekippt
+    //   Level 30 (Faktor 2,49)  0,2 % -> 62,4 %   gekippt
+    // Der Kipppunkt liegt also zwischen Faktor 1,44 und 1,73, und ab dort ist das Spiel
+    // auch voll ausgebaut nicht mehr zu halten (Thomas: "nach oben hin weniger schwer
+    // machen - so dass es auch in leveln hoeher als 30 noch spielbar ist").
+    //
+    // DIE KURVE: Die erste Stufe traegt die vollen 20 %, jede weitere 40 % des Aufschlags
+    // der vorigen. Der Gesamtaufschlag konvergiert gegen 1,321.
+    //   ab L6 x1,200 · ab L11 x1,296 · ab L16 x1,313 · ab L21 x1,318
+    //   ab L26 x1,320 · Grenzwert 1,321
+    // Dort, wo Benni spielt, kommt der Auftrag also voll an; oben laeuft er sich tot,
+    // statt das Spiel abzuschneiden.
+    //
+    // WARUM 40 % UND NICHT 50 %, gemessen: Mit halbierenden Stufen (Grenzwert 1,456) lag
+    // der Durchkommensanteil voll ausgebaut auf Level 30 bei 20,4 % und auf Level 40 bei
+    // 29,5 % - besser als die 62 % der ungedaempften Fassung, aber immer noch weit ueber
+    // dem Zielkorridor von 4 bis 12 %. Der Grenzwert musste also unter den Faktor, der
+    // nachweislich gehalten hat: 1,32 (Level 12 dieser Messreihe, 1,1 %).
+    //
+    // DIE GEBAUTE FASSUNG, gemessen (Median aus je drei Laeufen, voll ausgebaut):
+    //   Level 20  0,2 % ->  1,1 %      Level 30  0,2 % -> 18,8 %
+    //   Level 40  (ungemessen) -> 16,0 %
+    // Level 20 bleibt also praktisch, wie es war; oberhalb von 30 kostet es spuerbar
+    // Figuren, ohne dass die Truppe ueberrannt wird (die ungedaempfte Fassung stand dort
+    // bei 62 %). Der Anstieg zwischen Level 20 und 30 kommt NICHT aus dieser Treppe -
+    // ihr Faktor ist dort schon fast gleich (1,313 gegen 1,318) - sondern aus dem
+    // Endloszuwachs und der Gegnermischung, die ohnehin weiterlaufen. Die Treppe
+    // verschiebt das Ganze nur ueber den Kipppunkt.
+    //
+    // ZUR EINORDNUNG DER ABSOLUTEN ZAHLEN: Dieser Messaufbau ist NICHT derselbe wie der
+    // von E1 (dort 7,5 bis 9,4 % auf denselben Leveln, hier 0,0 bis 0,2 % vor der
+    // Aenderung). Er ist milder, weil die Truppe waehrend der Messung am Deckel gehalten
+    // wird. Belastbar ist deshalb der A/B-Vergleich mit identischem Aufbau, nicht der
+    // Abgleich der Absolutwerte gegen den Korridor aus plan-v4.md.
+    //
+    // WAS DAS BEIM BOSS TUT, steht NICHT hier, sondern in bossPlan.ts: Er wird nicht
+    // zaeher, sondern gefaehrlicher (Thomas' Entscheidung 2026-08-30) - mehr Begleiter
+    // und schnelleres Vorruecken bei gleicher Kampfdauer.
+    stufenHaerte: {
+      everyLevels: 5,
+      // Aufschlag der ERSTEN Stufe.
+      firstStep: 0.2,
+      // Anteil, den jede weitere Stufe vom Aufschlag der vorigen behaelt.
+      stepDecay: 0.4,
+    },
     // GEDAEMPFTE KOPPLUNG AN DIE SPIELERSTAERKE (Thomas' urspruenglicher Auftrag:
     // "sieh zu dass die Staerken der Gegner an die Waffen und die Menge meiner Leute
     // angepasst werden zu jeder Zeit").

@@ -60,6 +60,18 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   Der Muenzbonus steht auf 1, nicht auf 3: Mit 3 haette derselbe Extremfall die
   Levelseinnahme um 31 % gehoben, die Preise stehen aber auf 200 % davon.
 
+- **Gegner alle fuenf Level zaeher** (2026-08-30, Thomas: "die normalen gegener alle 5
+  level um 20% schwerer machen (auch endgegener)"). Treppe auf die Lebenspunkte: ab
+  Level 6 x1,2, dann jede weitere Stufe nur noch 40 % des vorigen Aufschlags, Grenzwert
+  1,321. **Der Aufschlag flacht ab, weil die woertliche Fassung das Spiel zerlegt hat:**
+  Mit 20 % je Stufe ohne Deckel stieg der Durchkommensanteil voll ausgebaut auf Level 20
+  von 0,2 auf 43,9 % und auf Level 30 auf 62,4 %. Gebaut ist jetzt Level 20 1,1 %,
+  Level 30 18,8 %, Level 40 16,0 %. **Der Endgegner wird nicht zaeher, sondern
+  gefaehrlicher** (Thomas' Wahl): mehr Begleiter, mehr gleichzeitig gerufene Gegner,
+  schnelleres Vorruecken - Kampfdauer im Browser gemessen 21,4 s (L12) und 23,5 s (L30),
+  also unveraendert. Achtung beim Nachmessen: Der hier benutzte Aufbau ist milder als der
+  von E1 (Baseline 0,0-0,2 % statt 7,5-9,4 %), nur der A/B-Vergleich zaehlt.
+
 - **E2 Preise** — 37,5 % -> 200 % der Levelseinnahme je Stufe. Ein Run bis Level 12
   erlaubt 9 von 22 Stufen. Der Knopf zeigt "NOCH ¢ X" statt tot dazustehen.
 - **SHOP** (Thomas 2026-08-25: "es soll wie ein echter shop sein ... wie ein laden in dem

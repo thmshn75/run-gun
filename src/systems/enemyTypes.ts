@@ -39,7 +39,29 @@ export function getFirepowerCoupling(playerPower: number): number {
 export function getEnemyHp(type: EnemyType, level: number, playerPower = 0): number {
   const safeLevel = Math.max(1, Math.floor(level))
   const base = type.hp * BALANCE.enemy.hpPerLevelGrowth ** (safeLevel - 1)
-  return Math.max(1, Math.round(base * getEndlessHpGrowth(safeLevel) * getFirepowerCoupling(playerPower)))
+  return Math.max(1, Math.round(
+    base * getEndlessHpGrowth(safeLevel) * getStufenHaerte(safeLevel) * getFirepowerCoupling(playerPower),
+  ))
+}
+
+/**
+ * Stufenweiser Zaehigkeitsaufschlag alle fuenf Level (Thomas 2026-08-30). Gilt fuer
+ * normale Gegner UND fuer den Boss - bossPlan.ts ruft dieselbe Funktion, damit beide
+ * dieselbe Treppe steigen und nicht zwei Regler auseinanderlaufen.
+ *
+ * Treppe statt Kurve, weil der Auftrag eine Stufe war ("alle 5 Level"): Der Sprung soll
+ * beim Levelwechsel spuerbar sein, nicht in einer glatten Kurve verschwinden.
+ *
+ * Die Stufen werden nach oben kleiner (jede halb so gross wie die vorige), damit das
+ * Spiel oberhalb von Level 30 spielbar bleibt - die Herleitung samt Messwerten steht bei
+ * BALANCE.enemy.stufenHaerte. Der Gesamtaufschlag konvergiert gegen 1,456.
+ */
+export function getStufenHaerte(level: number): number {
+  const { everyLevels, firstStep, stepDecay } = BALANCE.enemy.stufenHaerte
+  const stufen = Math.floor((Math.max(1, Math.floor(level)) - 1) / everyLevels)
+  let faktor = 1
+  for (let stufe = 0; stufe < stufen; stufe += 1) faktor *= 1 + firstStep * stepDecay ** stufe
+  return faktor
 }
 
 /**

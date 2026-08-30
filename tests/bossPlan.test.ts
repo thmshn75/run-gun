@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { getLevelPlan } from '../src/systems/levelPlan'
+import { getStufenHaerte } from '../src/systems/enemyTypes'
 import type { WeaponKey } from '../src/systems/weapons'
 import {
   canSpawnBossHorde,
@@ -221,6 +222,9 @@ describe('boss plans', () => {
     // Die Obergrenze waechst mit dem Level und bleibt im Fenster - auf jedem Level, auch
     // im Endlosbereich.
     expect(getMaxFightSec(12)).toBeGreaterThan(getMaxFightSec(1))
+    // DAS FENSTER TRAEGT DIE STUFENHAERTE NICHT (2026-08-30): Der Boss wird nicht zaeher,
+    // sondern gefaehrlicher - mehr Begleiter, schnelleres Vorruecken. Die Kampfdauer
+    // bleibt deshalb genau da, wo sie ausgemessen ist.
     for (let level = 1; level <= 40; level += 1) {
       expect(getMaxFightSec(level), `L${level}`).toBeGreaterThanOrEqual(reference.minFightSec)
       expect(getMaxFightSec(level), `L${level}`).toBeLessThanOrEqual(reference.maxFightSecCap)
@@ -284,8 +288,12 @@ describe('boss plans', () => {
     // eine Bewegungsgeschwindigkeit darf in keiner Phase mehr auftauchen.
     expect(plan.phaseOne).not.toHaveProperty('moveSpeed')
     expect(plan.phaseTwo).not.toHaveProperty('moveSpeed')
-    expect(plan.hordeSize).toBe(getBossHordeSize(12))
-    expect(plan.maxActiveCalled).toBe(BALANCE.boss.hordePressure.maxActiveCalled)
+    // Seit 2026-08-30 tragen beide Groessen die Stufenhaerte - der Boss wird ueber den
+    // Druck schwerer, nicht ueber die Lebenspunkte (Thomas: "Gefaehrlicher statt laenger").
+    expect(plan.hordeSize).toBe(Math.round(getBossHordeSize(12) * getStufenHaerte(12)))
+    expect(plan.maxActiveCalled).toBe(
+      Math.round(BALANCE.boss.hordePressure.maxActiveCalled * getStufenHaerte(12)),
+    )
   })
 })
 

@@ -1,5 +1,6 @@
 import { BALANCE } from '../config/balance'
 import { getCrowdDamageMultiplier } from './crowdDamage'
+import { getStufenHaerte } from './enemyTypes'
 import { getLevelPlan } from './levelPlan'
 import { getStatCap } from './upgrades'
 import type { WeaponKey } from './weapons'
@@ -232,6 +233,18 @@ export function getBossPlan(
   // ausgerechnet der Elite-Boss die Obergrenze, und der Boss erreicht die Truppe, bevor
   // der Kampf entschieden ist (advanceSpeed ist aus maxFightSecCap hergeleitet).
   const eliteFaktor = elite ? BALANCE.boss.elite.maxHpFactor : 1
+  // STUFENHAERTE ALLE FUENF LEVEL (Thomas 2026-08-30, "auch endgegener"). Sie geht beim
+  // Boss NICHT in die Lebenspunkte und nicht ins Zeitfenster, sondern in den DRUCK:
+  // mehr Begleiter, mehr gleichzeitig gerufene Gegner, schnelleres Vorruecken (unten bei
+  // hordeSize/maxActiveCalled/advanceSpeed). Die Kampfdauer bleibt damit, wo sie
+  // ausgemessen ist.
+  //
+  // ZUERST WAR ES ANDERSHERUM GEBAUT - Lebenspunkte und Zeitfenster je Stufe 20 % hoeher.
+  // Das haette auf Level 26 einen Bosskampf von ueber 100 Sekunden ergeben. Thomas'
+  // Entscheidung dazu: "Gefaehrlicher statt laenger". Das deckt sich mit dem, was am
+  // Elite-Boss schon gemessen ist (BALANCE.boss.elite): Ein zaeherer Boss wird nur
+  // laenger; der Druck kommt aus dem Gegnerschild und dem Vorruecken.
+  const stufe = getStufenHaerte(safeLevel)
   const fightSec = Math.min(
     getMaxFightSec(safeLevel),
     Math.max(reference.minFightSec, unclampedFightSec * trefferAufschlag * eliteFaktor),
@@ -254,14 +267,19 @@ export function getBossPlan(
     phaseTwo: getPhaseTwoProfile(safeLevel),
     // DIE EIGENTLICHEN ELITE-HEBEL: mehr Begleiter und schnelleres Vorruecken. Beides
     // erzeugt Druck, der nicht in Wartezeit umschlaegt.
-    hordeSize: elite
-      ? Math.round(getBossHordeSize(safeLevel) * BALANCE.boss.elite.hordeSizeFactor)
-      : getBossHordeSize(safeLevel),
-    maxActiveCalled: elite
-      ? Math.round(BALANCE.boss.hordePressure.maxActiveCalled * BALANCE.boss.elite.maxActiveFactor)
-      : BALANCE.boss.hordePressure.maxActiveCalled,
+    // DIE DREI STUFENHAERTE-HEBEL beim Boss. Sie greifen an derselben Stelle wie die
+    // Elite-Hebel, weil dort gemessen ist, dass sie wirken - und nicht an den
+    // Lebenspunkten, wo der Kampf nur laenger wuerde.
+    hordeSize: Math.round(getBossHordeSize(safeLevel) * (elite ? BALANCE.boss.elite.hordeSizeFactor : 1) * stufe),
+    maxActiveCalled: Math.round(
+      BALANCE.boss.hordePressure.maxActiveCalled * (elite ? BALANCE.boss.elite.maxActiveFactor : 1) * stufe,
+    ),
     pressureDelayMs: BALANCE.boss.pressureDelayMs,
-    advanceSpeed: BALANCE.boss.advanceSpeed * (elite ? BALANCE.boss.elite.advanceSpeedFactor : 1),
+    // MAL DER STUFE: advanceSpeed ist so gerechnet, dass der Boss genau am Ende des
+    // Zeitfensters an der Truppe ankommt (334 px / maxFightSecCap). Mit der Stufe kommt
+    // er FRUEHER an - auf der obersten Stufe nach rund 31 statt 45 Sekunden - und steht
+    // den Rest des Kampfes in der Truppe. Genau das ist "gefaehrlicher statt laenger".
+    advanceSpeed: BALANCE.boss.advanceSpeed * (elite ? BALANCE.boss.elite.advanceSpeedFactor : 1) * stufe,
     advanceStopBeforeAnchorPx: BALANCE.boss.advanceStopBeforeAnchorPx,
     advanceContactDamage: BALANCE.boss.advanceContactDamage,
   }

@@ -82,8 +82,13 @@ describe('level plans', () => {
       expect(plan.enemyWeights).toEqual(BALANCE.level.plans[level - 1].enemyWeights)
       expect(getStatCap('damage', level)).toBeCloseTo(getStatCap('damage', Math.min(12, level)), 10)
     }
-    // Der Endlosbereich beginnt AB Level 12, greift dort selbst aber noch nicht.
-    expect(getEnemyHp(BALANCE.enemy.types[0], 12)).toBe(getEnemyHp(BALANCE.enemy.types[0], 1))
+    // Der Endlosbereich beginnt AB Level 12, greift dort selbst aber noch nicht. Seit
+    // 2026-08-30 traegt Level 12 die Stufenhaerte (Thomas: "die normalen gegener alle 5
+    // level um 20% schwerer"), der Vergleich gegen Level 1 geht deshalb nicht mehr - er
+    // wuerde jetzt die Stufe messen statt den Endloszuwachs. Geprueft wird darum
+    // INNERHALB derselben Stufe (11 bis 15): Dort darf sich bis 12 nichts bewegen.
+    expect(getEnemyHp(BALANCE.enemy.types[0], 12)).toBe(getEnemyHp(BALANCE.enemy.types[0], 11))
+    expect(getEnemyHp(BALANCE.enemy.types[2], 12)).toBe(getEnemyHp(BALANCE.enemy.types[2], 11))
   })
 
   it('grows hardness, horde size and enemy toughness beyond level twelve', () => {
