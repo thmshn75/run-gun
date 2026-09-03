@@ -172,6 +172,27 @@ export class BootScene extends Phaser.Scene {
     graphics.fillStyle(WORLD_COLORS.ground)
     graphics.fillRect(0, 0, width, this.scale.height - horizonY)
     graphics.generateTexture('ground', width, this.scale.height - horizonY)
+
+    // Wasser fuer das Weltthema "bruecke": dunkel im Vordergrund, zum Horizont heller.
+    // Gestapelte Streifen statt Verlauf - fillGradientStyle wirkt nur im WebGL-Pfad und
+    // wird von generateTexture stillschweigend auf die erste Farbe reduziert
+    // (Lesson 2026-08-20).
+    graphics.clear()
+    const wasserHoehe = this.scale.height - horizonY
+    for (let y = 0; y < wasserHoehe; y += 1) {
+      const progress = y / Math.max(1, wasserHoehe - 1)
+      graphics.fillStyle(mix(WORLD_COLORS.waterFar, WORLD_COLORS.waterNear, progress))
+      graphics.fillRect(0, y, width, 1)
+    }
+    graphics.generateTexture('ground-water', width, wasserHoehe)
+
+    // Ein Wellenkamm. Bewusst ein flaches Rechteck: Die Sprites sind auf Kampfhoehe
+    // 34 x 3 px gross und weiter oben ein Bruchteil davon - jede Rundung waere dort
+    // ein einzelnes Pixel und nur Rechenzeit.
+    graphics.clear()
+    graphics.fillStyle(WORLD_COLORS.waveCrest)
+    graphics.fillRect(0, 0, 32, 4)
+    graphics.generateTexture('water-wave', 32, 4)
     graphics.destroy()
   }
 

@@ -33,6 +33,21 @@ export const WORLD_COLORS = {
   skyTop: 0x2f7fd1,
   skyHorizon: 0xdfeef8,
   ground: 0x3f5a3a,
+  // --- Bruecke ueber Wasser (2026-09-03, zweites Weltthema). Dieselbe Fahrbahn, aber
+  // Wasser statt Gruenflaeche und Betongelaender statt Haeuserzeilen.
+  // Wasser dunkel im Vordergrund, zum Horizont heller: So liest sich die Flaeche als
+  // liegende Ebene und nicht als senkrechte Wand. Der Horizontton bleibt knapp unter
+  // skyHorizon, damit die Wasserlinie sichtbar bleibt statt zu verschmelzen.
+  waterNear: 0x14435f,
+  waterFar: 0x7fb4cd,
+  // Wellenkaemme: heller als das Wasser darunter, aber nicht weiss - sonst wirken sie
+  // wie Schaum statt wie Kraeuselung.
+  waveCrest: 0xa8d4e8,
+  // Beton der Bruecke. Der Fahrbahnrand liegt im Licht, das Gelaender steht dagegen
+  // etwas dunkler - sonst verschwindet es vor dem hellen Wasser am Horizont.
+  bridgeDeck: 0x9aa3ab,
+  bridgeRail: 0x6f7880,
+  bridgePost: 0x565e66,
   road: 0x4a4f57,
   roadEdge: 0xe8ecf2,
   roadCenterLine: 0xd8e0ef,

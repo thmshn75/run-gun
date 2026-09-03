@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { getRoadHalfWidth, getScrollProgressDelta, getScrollY } from './roadGeometry'
+import type { WeltThema } from './weltThema'
 
 export { advanceAlongRoad, getEngageLineY, getFigureOverscanFactor, getRoadScale, getRoadSegment, getPerspectiveScale, getPlayfieldHalfWidth, getRoadHalfWidth, getWallGeometry } from './roadGeometry'
 
@@ -12,12 +13,15 @@ type CenterLineSegment = {
 export class Road {
   private readonly scene: Phaser.Scene
   private readonly centerLines: CenterLineSegment[]
+  // Der Boden traegt das Weltthema: Gruenflaeche in der Stadt, Wasser auf der Bruecke.
+  // Die Fahrbahn darueber ist in beiden Themen dieselbe.
+  private readonly ground: Phaser.GameObjects.Image
 
   public constructor(scene: Phaser.Scene) {
     this.scene = scene
     this.centerLines = []
     scene.add.image(0, 0, 'sky').setOrigin(0).setDepth(BALANCE.layers.background)
-    scene.add.image(0, BALANCE.road.horizonY, 'ground').setOrigin(0).setDepth(BALANCE.layers.background)
+    this.ground = scene.add.image(0, BALANCE.road.horizonY, 'ground').setOrigin(0).setDepth(BALANCE.layers.background)
     scene.add.image(0, 0, 'road').setOrigin(0).setDepth(BALANCE.layers.road)
     for (let index = 0; index < BALANCE.road.centerLine.segments; index += 1) {
       this.centerLines.push({
@@ -26,6 +30,10 @@ export class Road {
       })
     }
     this.updateCenterLines()
+  }
+
+  public setThema(thema: WeltThema): void {
+    this.ground.setTexture(thema === 'bruecke' ? 'ground-water' : 'ground')
   }
 
   public update(dt: number): void {

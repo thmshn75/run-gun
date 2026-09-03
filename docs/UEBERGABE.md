@@ -175,6 +175,34 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   - **Noch offen: Bennis iPhone-Urteil.** Reicht die gerechnete Bewegung nicht, ist der
     naechste Schritt der teure - rund 130 Einzelbilder von Codex.
 
+- **Zweites Weltthema: Bruecke ueber Wasser** (2026-09-03, Thomas nach demselben Video:
+  "die Bruecke ueber Wasser als zusaetzliches Level bauen - wir entscheiden dann ob wir
+  switchen von Level zu Level oder ob wir komplett umstellen auf diese Optik").
+  - **Beide Entscheidungen haengen an einem Wort:** `BALANCE.welt.thema` kennt `'stadt'`,
+    `'bruecke'` und `'wechsel'`. Steht derzeit auf `'wechsel'`, damit Thomas beide Optiken
+    im selben Run sieht: Level 1 Stadt, Level 2 Bruecke, danach immer abwechselnd.
+  - **Reine Kulisse, kein Gameplay.** Fahrbahn, Waende, Sammelbahn, Gegner und Boss sind
+    in beiden Themen identisch. Ein Test verbietet, dass `getWeltThema` oder die neuen
+    Balance-Bloecke in Gegner-, Waffen-, Wand- oder Bossdateien auftauchen - die Wahl
+    soll keine Balance-Frage werden.
+  - Neu: Wasser statt Gruenflaeche (`ground-water`, gestapelte Streifen), Betonkante und
+    durchgehendes Gelaender an beiden Fahrbahnraendern, scrollende Pfosten und ein Pool
+    aus 40 Wellen, die langsamer laufen als die Bruecke (Wasser faehrt nicht mit).
+  - **Das Gelaender wird gezeichnet, nicht aus Segmenten gebaut.** Beim Stadtbild musste
+    der Spawn-Takt so gewaehlt werden, dass sich Haeuser ueberlappen, und die
+    Lueckenfreiheit war eine Messfrage. Ein gezeichneter Zug ist lueckenlos, weil er
+    einer ist.
+  - **Browser-Befund und Korrektur:** Zuerst endete das Gelaender am Horizont als
+    abrupte schraege Strebe im Himmel. Ursache: Die Strasse laeuft hier nicht auf einen
+    Punkt zu (am Horizont noch 52 % breit), das Gelaender wird dort also nie klein genug,
+    um von selbst zu verschwinden. Es waechst jetzt ueber `road.entryFadePx` aus der
+    Horizontlinie heraus - dieselbe Strecke, mit der Gegner und Boss erscheinen, nur auf
+    die Hoehe statt auf die Deckkraft angewandt (ein Deckkraft-Verlauf haette 288
+    Einzelfuellungen je Bild gekostet statt sechs).
+  - **Bildrate gemessen** (Desktop, Truppe 60, je 7 s): Stadt 60,5 im Mittel / 60,3
+    Minimum, Bruecke 60,4 / 60,2. Kein Unterschied. **Das iPhone-Urteil steht aus.**
+  - **Noch offen: Thomas' Entscheidung** zwischen Wechsel und kompletter Umstellung.
+
 ## Offen — naechster Schritt zuerst
 1. ~~Bennis iPhone-Test~~ — **erledigt am 2026-08-29, ok** (Thomas). Gamefeel damit
    abgenommen. Noch nachzuziehen (siehe unten): Wirkung der Aufruestungsstufen im Spiel

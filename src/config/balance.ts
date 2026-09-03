@@ -581,6 +581,58 @@ export const BALANCE = {
     // Wandkontakt kostet weiterhin nichts; die Strassenkante bleibt harte Grenze.
     driveIntoWallFigures: 0.5,
   },
+  // --- Weltthema (Thomas 2026-09-03, nach einem Genre-Video: "die Bruecke ueber
+  // Wasser als zusaetzliches Level bauen - wir entscheiden dann ob wir switchen von
+  // Level zu Level oder ob wir komplett umstellen auf diese Optik").
+  //
+  // Beide Entscheidungen haengen an EINEM Wort hier:
+  //   'wechsel'  Stadt und Bruecke loesen einander ab (Default zum Beurteilen)
+  //   'bruecke'  jedes Level spielt auf der Bruecke
+  //   'stadt'    jedes Level spielt in der Stadt (Stand bis 2026-09-03)
+  // Am Spielablauf aendert das Thema NICHTS: Fahrbahn, Waende, Sammelbahn, Gegner und
+  // Boss sind identisch. Es ist reine Kulisse, damit die Wahl keine Balance-Frage ist.
+  welt: {
+    thema: 'wechsel' as 'stadt' | 'bruecke' | 'wechsel',
+    // Bei 'wechsel': Laenge eines Abschnitts in Leveln. 1 = jedes Level wechselt.
+    // Bewusst 1, weil Thomas genau diesen Wechsel beurteilen soll - er sieht damit in
+    // den ersten zwei Leveln beide Optiken.
+    wechselAlleLevel: 1,
+    // Bei 'wechsel': Level 1 ist Stadt, Level 2 Bruecke. Der abgenommene Stand bleibt
+    // damit der erste Eindruck.
+    ersteBruecke: 2,
+  },
+  bruecke: {
+    // Gelaenderhoehe auf Kampfhoehe, in Bildschirm-px. Ein Bruecken-Gelaender ist rund
+    // 1,1 m hoch, eine Figur 1,75 m: 1,1/1,75 = 0,63 der Figurenhoehe. Bei 46 px
+    // Figurenhoehe sind das 29 px. Es reicht der Truppe also bis knapp ueber die
+    // Huefte - hoch genug, um als Gelaender lesbar zu sein, niedrig genug, um die
+    // Fahrbahn nicht zu verdecken.
+    railHeightPx: 29,
+    // Dicke des Handlaufs oben, als Anteil der Gelaenderhoehe. Darunter ist der
+    // Zwischenraum offen: Ohne ihn waere es eine Mauer, keine Bruecke.
+    railTopShare: 0.22,
+    // Pfosten: Breite auf Kampfhoehe und Abstand in Scroll-Anteilen. 16 Pfosten ueber
+    // die sichtbare Strecke ergeben unten rund einen Pfosten je Figurenbreite - dicht
+    // genug fuer die Tiefenwirkung, weit genug, dass daraus keine Wand wird.
+    posts: 16,
+    postWidthPx: 5,
+    // Betonkante der Fahrbahn: Sie sitzt AUSSERHALB der Strassenkante und traegt das
+    // Gelaender. Ohne sie schwebt die Strasse ueber dem Wasser.
+    deckOverhangPx: 9,
+    deckHeightPx: 7,
+    // Wellen: Pool und Form. Die Zahl ist keine Dichte-, sondern eine Ruhefrage - bei
+    // mehr als 40 kraeuselt die ganze Flaeche und das Bild wird unruhig statt weit.
+    waves: 40,
+    waveWidthPx: 34,
+    waveHeightPx: 3,
+    // Seitlicher Bereich, in dem Wellen liegen duerfen: ab der Bruecke nach aussen bis
+    // zum Bildrand. Als Anteil der halben Bildbreite.
+    waveSpreadShare: 1,
+    waveAlpha: 0.5,
+    // Die Wellen laufen langsamer als die Bruecke an einem vorbeizieht: Wasser bewegt
+    // sich nicht mit dem Fahrzeug mit. Anteil der Scrollgeschwindigkeit.
+    waveScrollShare: 0.35,
+  },
   scenery: {
     marginPx: 4,
     spreadPx: 6,

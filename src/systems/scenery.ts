@@ -23,6 +23,10 @@ export class Scenery {
   // Referenz auf das zuletzt gespawnte Gebaeude je Seite: Der Planner misst Querstrassen
   // an dessen Oberkante — Gruenzeug in der Luecke zaehlt bewusst nicht als Fassade.
   private readonly lastBuilding: Record<ScenerySide, SceneryObject | null> = { left: null, right: null }
+  // Seit dem zweiten Weltthema (2026-09-03) ist die Stadt abschaltbar: Auf der Bruecke
+  // stehen keine Haeuser. Der Pool bleibt bestehen und wird nur geraeumt - ein Neubau
+  // beim Themenwechsel waere create/destroy im laufenden Spiel.
+  private aktiv: boolean = true
 
   public constructor(scene: Phaser.Scene, rng: () => number) {
     this.scene = scene
@@ -31,7 +35,18 @@ export class Scenery {
     for (let index = 0; index < BALANCE.pools.scenery; index += 1) this.objects.push(this.createObject())
   }
 
+  public setAktiv(aktiv: boolean): void {
+    if (this.aktiv === aktiv) return
+    this.aktiv = aktiv
+    if (!aktiv) {
+      for (const object of this.objects) if (object.active) this.recycle(object)
+      this.lastBuilding.left = null
+      this.lastBuilding.right = null
+    }
+  }
+
   public update(dt: number): void {
+    if (!this.aktiv) return
     const commands = this.planner.step(dt, {
       left: this.lastBuildingTopY('left'),
       right: this.lastBuildingTopY('right'),

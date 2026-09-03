@@ -13,6 +13,8 @@ import { getLevelPlan } from '../systems/levelPlan'
 import { getRoadHalfWidth, Road } from '../systems/road'
 import { getEnemySpeed, getScrollSpeed, setCurrentScrollSpeed } from '../systems/speed'
 import { Scenery } from '../systems/scenery'
+import { Bruecke } from '../systems/bruecke'
+import { getWeltThema } from '../systems/weltThema'
 import { readSafeAreaInsets, type SafeAreaInsets } from '../systems/safeArea'
 import { addScore, createRunId, getMetaSteps, getOwnedWeapons, getWeaponFirepowerFactor, getWeaponSteps, loadSave, qualifiesForScores, writeSave, type SaveData } from '../systems/save'
 import { Spawner } from '../systems/spawner'
@@ -120,6 +122,7 @@ class ChainFlashPool {
 export class GameScene extends Phaser.Scene {
   private road!: Road
   private scenery!: Scenery
+  private bruecke!: Bruecke
   private crowd!: Crowd
   private weapons!: Weapons
   private spawner!: Spawner
@@ -275,6 +278,7 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(WORLD_COLORS.background)
     this.road = new Road(this)
     this.scenery = new Scenery(this, () => Phaser.Math.RND.frac())
+    this.bruecke = new Bruecke(this, () => Phaser.Math.RND.frac())
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
     this.spawner = new Spawner(this, this.runStats, () => this.crowd.getAnchorX(), (contactDamage) => this.handleBreakthrough(contactDamage))
@@ -445,6 +449,11 @@ export class GameScene extends Phaser.Scene {
     // Zustand. Das muss nach dem gesamten Aufbau stehen - equipWeapon, Kollisionen und
     // Truppengroesse muessen existieren, bevor der Spielstand darauf angewendet wird.
     this.stelleEinstiegHer()
+    // Kulisse zum Schluss, wenn die Levelnummer endgueltig feststeht. Sie MUSS auch hier
+    // stehen und nicht nur in startLevel: Beim Einstieg 'neu' wird startLevel bewusst
+    // nicht aufgerufen (siehe stelleEinstiegHer), Level 1 bekaeme sonst gar kein Thema
+    // gesetzt und saehe nur deshalb richtig aus, weil die Stadt der Ausgangszustand ist.
+    this.setzeWeltThema()
     this.updateHud()
     if (BALANCE.debug) {
       this.drawSafeAreaDebug()
@@ -457,6 +466,7 @@ export class GameScene extends Phaser.Scene {
     this.elapsedMs += dt
     this.road.update(dt)
     this.scenery.update(dt)
+    this.bruecke.update(dt)
     this.crowd.update(dt)
     this.updateLevelPhase(dt)
     this.aktualisiereTestgelaendeKnopf()
@@ -1337,6 +1347,18 @@ export class GameScene extends Phaser.Scene {
     }))
   }
 
+  /**
+   * Kulisse des laufenden Levels (2026-09-03). Steht in startLevel, nicht in create:
+   * Bei 'wechsel' aendert sich das Thema mit der Levelnummer, und create laeuft nur
+   * einmal je Run. Der Spielablauf bleibt unberuehrt - es wechselt nur, was man sieht.
+   */
+  private setzeWeltThema(): void {
+    const thema = getWeltThema(this.currentLevel)
+    this.road.setThema(thema)
+    this.scenery.setAktiv(thema === 'stadt')
+    this.bruecke.setAktiv(thema === 'bruecke')
+  }
+
   private startLevel(): void {
     // Die Spielerwert-Deckel haengen seit 2026-08-23 am Level und muessen VOR allem
     // anderen stehen - sonst klemmt der erste set()-Aufruf noch gegen den alten Deckel.
@@ -1354,6 +1376,7 @@ export class GameScene extends Phaser.Scene {
     this.levelOverlay.setVisible(false)
     this.spawner.resetForLevel(this.currentLevel)
     this.walls.resetForLevel(this.currentLevel)
+    this.setzeWeltThema()
 
     // Levelgrenze: Hier wird der offene Run gesichert (B3). Wer die App schliesst,
     // findet ihn im Menue wieder.
