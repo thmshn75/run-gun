@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { getBossPhase, getBossPlan, type BossPlan } from './bossPlan'
+import { getStepCycleHz, getStepSquash, getStepSwayRadians } from './gamefeel'
 import { getPerspectiveScale } from './road'
 import { getRoadHalfWidth } from './roadGeometry'
 import type { WeaponKey } from './weapons'
@@ -14,6 +15,9 @@ export class Boss {
   private readonly getAnchorY: () => number
   private plan: BossPlan | undefined
   private fightElapsedMs: number
+
+  /** Laufzeit fuer die Laufbewegung — laeuft auch beim Anmarsch, nicht erst im Kampf. */
+  private gaitElapsedMs = 0
 
   /** Laufzeit fuer das seitliche Pendeln des Elite-Bosses. */
   private swingElapsedMs = 0
@@ -143,6 +147,32 @@ export class Boss {
     this.shadow.setAlpha(BALANCE.shadow.alpha * this.enemy.alpha)
     this.updateVisuals(dt, plan)
     ;(this.enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
+    this.applyGait(dt)
+  }
+
+  /**
+   * Laufbewegung des Bosses (2026-09-03): Wiegen und Federn wie bei den normalen
+   * Gegnern. Ohne sie stuende ausgerechnet die auffaelligste Figur des Spiels still,
+   * waehrend alles um sie herum laeuft.
+   *
+   * Der Takt kommt aus der KAMPFHOEHE des Bosses, nicht aus seiner Bildschirmhoehe:
+   * getStepCycleHz leitet die Schrittfrequenz aus der Figurenhoehe ab, eine grosse
+   * Figur macht laengere und damit seltenere Schritte. Ueber die Bildschirmhoehe wuerde
+   * der Boss beim Vorruecken immer langsamer gehen, obwohl er naeher kommt.
+   *
+   * Amplituden sind bewusst die der normalen Gegner statt eigener Werte: Der Boss ist
+   * ein Gegner, und eine eigene Zahl waere geraten statt hergeleitet.
+   *
+   * Zuletzt im Bild, aus demselben Grund wie beim Spawner: erst Trefferflaeche und
+   * Schatten, dann die Optik. applyPerspectiveScale setzt die Skalierung im naechsten
+   * Bild wieder absolut, die Faktoren summieren sich also nicht auf.
+   */
+  private applyGait(dt: number): void {
+    this.gaitElapsedMs += dt
+    const cycleHz = getStepCycleHz(BALANCE.boss.bodyHeight)
+    const squash = getStepSquash(this.gaitElapsedMs, cycleHz, 0, BALANCE.gamefeel.enemyStepSquashShare)
+    this.enemy.setScale(this.enemy.scaleX * squash.scaleX, this.enemy.scaleY * squash.scaleY)
+    this.enemy.setRotation(getStepSwayRadians(this.gaitElapsedMs, cycleHz, 0, BALANCE.gamefeel.enemyStepSwayMaxDeg))
   }
 
   private updatePhase(plan: BossPlan): void {

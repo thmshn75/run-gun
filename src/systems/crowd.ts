@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { computeFormation } from './formation'
-import { approachAngle, getBobOffsetPx, getLeanRadians, getPhaseOffset, getStepCycleHz } from './gamefeel'
+import { approachAngle, getBobOffsetPx, getLeanRadians, getPhaseOffset, getStepCycleHz, getStepSquash, getStepSwayRadians } from './gamefeel'
 import { getDriveLimitHalfWidth } from './roadGeometry'
 import { overlapsVisibleFigure, type RectangleBounds } from './rectangles'
 
@@ -220,7 +220,19 @@ export class Crowd {
       const x = this.anchorX + member.offsetX
       const groundY = this.anchorY + member.offsetY
       member.sprite.setPosition(x, groundY + bob)
-      member.sprite.setRotation(this.leanRadians)
+      // Wiegen im Schritttakt kommt zur Neigung beim Lenken dazu: Das Lenken ist die
+      // Reaktion auf den Finger, das Wiegen laeuft immer. Beide sind Drehungen um
+      // dieselbe Achse und addieren sich.
+      const sway = getStepSwayRadians(this.elapsedMs, cycleHz, getPhaseOffset(index), BALANCE.gamefeel.stepSwayMaxDeg)
+      member.sprite.setRotation(this.leanRadians + sway)
+      // Federn beim Aufsetzen. Die Truppe traegt ihre Kollision in einer eigenen Huelle
+      // (this.hull), die Sprites haben keine — hier darf die Skalierung deshalb ohne
+      // Umweg auf die Figur.
+      const squash = getStepSquash(this.elapsedMs, cycleHz, getPhaseOffset(index), BALANCE.gamefeel.stepSquashShare)
+      member.sprite.setScale(
+        BALANCE.render.figureTextureScale * squash.scaleX,
+        BALANCE.render.figureTextureScale * squash.scaleY,
+      )
       // Der Schatten bleibt am Boden, waehrend die Figur wippt, und schrumpft mit der
       // Hebung. Erst dadurch liest man das Wippen als Schritt statt als Zittern.
       // bob ist negativ (nach oben), deshalb der Betrag.

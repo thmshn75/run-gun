@@ -17,13 +17,45 @@ export function getStepCycleHz(figureHeightPx: number): number {
   return stepsPerSec / 2
 }
 
+// Stelle im Laufzyklus als Winkel. Ein voller Zyklus ist ein Doppelschritt; alle drei
+// Bewegungen unten sitzen auf derselben Phase, damit Wippen, Wiegen und Federn
+// zusammengehoeren statt gegeneinander zu laufen.
+function getStepPhase(elapsedMs: number, cycleHz: number, phaseOffset: number): number {
+  return (elapsedMs / 1000) * cycleHz * Math.PI * 2 + phaseOffset * Math.PI * 2
+}
+
 // Versatz einer Figur gegenueber ihrer Ruheposition. phaseOffset streut den Takt ueber
 // die Formation, damit die Truppe nicht als Block huepft.
 export function getBobOffsetPx(elapsedMs: number, cycleHz: number, phaseOffset: number, amplitudePx: number): number {
-  const phase = (elapsedMs / 1000) * cycleHz * Math.PI * 2 + phaseOffset * Math.PI * 2
   // Betrag statt Sinus: Ein Laeufer faellt nach unten und stoesst sich ab, er schwingt
   // nicht symmetrisch. Der Scheitel liegt oben, der Kontakt unten — deshalb negativ.
-  return -Math.abs(Math.sin(phase)) * amplitudePx
+  return -Math.abs(Math.sin(getStepPhase(elapsedMs, cycleHz, phaseOffset))) * amplitudePx
+}
+
+// Seitliches Wiegen des Oberkoerpers im Laufrhythmus (2026-09-03). Zusammen mit dem
+// Federn unten ersetzt es die gezeichnete Bein- und Armarbeit, die 130 neue Bilder
+// gekostet haette (Herleitung bei BALANCE.gamefeel.stepSwayMaxDeg).
+//
+// Voller Sinus, nicht Betrag: Die Figur wiegt je Doppelschritt EINMAL nach links und
+// einmal nach rechts, waehrend sie in derselben Zeit ZWEIMAL federt — genau dieser
+// Frequenzunterschied zwischen Hub und Wiegen liest sich als Gang.
+export function getStepSwayRadians(elapsedMs: number, cycleHz: number, phaseOffset: number, maxDeg: number): number {
+  return (Math.sin(getStepPhase(elapsedMs, cycleHz, phaseOffset)) * maxDeg * Math.PI) / 180
+}
+
+// Federn beim Aufsetzen: Am tiefsten Punkt des Schritts wird die Figur flacher und
+// breiter, am Scheitel gestreckt und schmaler. Rueckgabe sind FAKTOREN auf die
+// vorhandene Skalierung, damit Perspektive und Texturaufloesung unberuehrt bleiben.
+//
+// Wichtig fuer den Aufrufer: Diese Faktoren duerfen erst NACH dem Nachfuehren der
+// Kollisionshuelle aufs Sprite, sonst atmet die Trefferflaeche im Schritttakt mit und
+// Schaden haengt am Zufall des Laufzyklus (dieselbe Regel wie bei der Truppenhuelle).
+export function getStepSquash(elapsedMs: number, cycleHz: number, phaseOffset: number, share: number): { scaleX: number, scaleY: number } {
+  // 0 = Fuss am Boden, 1 = Scheitel des Schritts. Derselbe Betrag wie beim Hub, damit
+  // die Figur genau dann federt, wenn sie unten ankommt.
+  const hoehe = Math.abs(Math.sin(getStepPhase(elapsedMs, cycleHz, phaseOffset)))
+  const dehnung = (hoehe - 0.5) * 2 * share
+  return { scaleX: 1 - dehnung, scaleY: 1 + dehnung }
 }
 
 // Jede Figur bekommt einen festen Platz im Takt, abgeleitet aus ihrem Formationsindex.

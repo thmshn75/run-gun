@@ -150,6 +150,31 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   im Normalspiel ist damit ungemessen** (der Durchkommensanteil wurde nie mit ihnen
   bestimmt) — das ist der einzige neue offene Punkt aus dieser Sitzung.
 
+- **Laufbewegung fuer alle Figuren** (2026-09-03, Thomas nach einem Genre-Video: "die
+  Zombies bewegen sich (bein und armarbeit)"). **Gerechnet statt gezeichnet:** Es gibt
+  30 einzelne Gegner-Gestalten; echte Laufbilder waeren rund 130 neue Dateien gewesen,
+  und nur einen Teil zu animieren haette geheissen, dass drei von dreissig laufen und
+  der Rest steht. Neu sind zwei Bewegungen in `gamefeel.ts` auf derselben Phase wie das
+  bestehende Wippen: **Wiegen** des Oberkoerpers (voller Sinus, einmal je Doppelschritt)
+  und **Federn** beim Aufsetzen (Betrag, zweimal je Doppelschritt, volumenerhaltend).
+  Genau dieser Frequenzunterschied liest sich als Gang; laufen beide gleich schnell,
+  sieht es aus wie Zittern.
+  - Werte hergeleitet, nicht gesetzt: Wiegen 4,6 Grad aus der seitlichen Kopfauslenkung
+    beim Gehen (4 % der Koerperhoehe, Drehachse in Sprite-Mitte), Federn 3 % aus der
+    Koerperverformung beim Aufsetzen. Gegner und Boss tragen 2/3 davon, dasselbe
+    Verhaeltnis wie beim Hub (2 von 3 px).
+  - **Reihenfolge ist die Pointe:** Wiegen und Federn kommen ZULETZT im Bild, nach dem
+    Nachfuehren der Trefferflaeche und nach dem Schatten. Lagen sie davor, atmete die
+    Trefferflaeche im Schritttakt mit und Schaden haenge am Zufall des Laufzyklus. Ein
+    Test prueft die Reihenfolge im Quelltext, damit sie nicht still zurueckrutscht.
+  - **Browser-Beleg** (Level 1, ein Gegner ueber 342 Bilder verfolgt): Rotation
+    -3,09 bis +3,10 Grad (hergeleitet: +-3,1), Sprite-Verhaeltnis Hoehe zu Breite
+    0,961 bis 1,041 (hergeleitet: 0,961 bis 1,041). Die Trefferflaeche zeigte bei
+    35 Wiege-Vorzeichenwechseln genau EINE Richtungsumkehr - dieselbe wie die Position.
+    Sie folgt also der Perspektive, nicht dem Schritt.
+  - **Noch offen: Bennis iPhone-Urteil.** Reicht die gerechnete Bewegung nicht, ist der
+    naechste Schritt der teure - rund 130 Einzelbilder von Codex.
+
 ## Offen — naechster Schritt zuerst
 1. ~~Bennis iPhone-Test~~ — **erledigt am 2026-08-29, ok** (Thomas). Gamefeel damit
    abgenommen. Noch nachzuziehen (siehe unten): Wirkung der Aufruestungsstufen im Spiel

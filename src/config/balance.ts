@@ -165,6 +165,30 @@ export const BALANCE = {
     // Gegner wippen flacher: Sie sind Kulisse fuer den Blick auf die eigene Truppe,
     // und bei bis zu 104 gleichzeitig wuerde voller Hub das Bild unruhig machen.
     enemyBobAmplitudePx: 2,
+    // --- Laufbewegung (Thomas 2026-09-03, nach einem Genre-Video: "die Zombies
+    // bewegen sich (bein und armarbeit)"). Befund: Unsere Figuren hoben und senkten
+    // sich nur um 2-3 px, Arme und Beine standen still.
+    //
+    // Gezeichnet wird die Bewegung NICHT: Es gibt 30 einzelne Gegner-Gestalten
+    // (enemy-{light,standard,heavy}[-b..j].png) plus Spielerfigur und zwei Bosse.
+    // Echte Laufbilder waeren rund 130 neue Dateien; nur einen Teil zu animieren
+    // hiesse, dass drei von dreissig laufen und der Rest steht. Stattdessen wird die
+    // Bewegung gerechnet und wirkt damit fuer jede Gestalt gleichzeitig.
+    //
+    // Wiegen des Oberkoerpers: Beim Gehen wandert der Rumpf ueber das jeweilige
+    // Standbein, die seitliche Kopfauslenkung betraegt rund 4 % der Koerperhoehe. Das
+    // Sprite dreht um seinen Mittelpunkt, der Kopf sitzt also figureHeight/2 = 23 px
+    // ueber der Drehachse: asin(0,04 x 46 / 23) = asin(1,84/23) = 4,6 Grad.
+    stepSwayMaxDeg: 4.6,
+    // Gegner wiegen flacher, im selben Verhaeltnis wie beim Hub (2 von 3 px): 4,6 x 2/3.
+    enemyStepSwayMaxDeg: 3.1,
+    // Federn beim Aufsetzen: Das Standbein beugt sich, die Koerperhoehe sinkt beim
+    // Gehen um rund 3 % (Schwerpunkt-Vertikalauslenkung ~5 cm auf 175 cm). Der Hub
+    // oben bildet die Hebung des Schwerpunkts ab, dieser Wert die Verformung des
+    // Koerpers dabei. Die Breite geht gegenlaeufig mit (Volumen bleibt erhalten).
+    stepSquashShare: 0.03,
+    // Gegner federn flacher, gleiches Verhaeltnis wie beim Hub: 0,03 x 2/3.
+    enemyStepSquashShare: 0.02,
     // Neigung beim Lenken: voller Ausschlag ab dieser Drag-Geschwindigkeit.
     // Der Fahrbereich ist rund 300 px breit, ein zuegiger Wisch quert ihn in ~0,4 s
     // — das sind die 750 px/s, ab denen die Truppe maximal lehnt.

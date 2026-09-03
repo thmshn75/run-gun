@@ -4,7 +4,7 @@ import { canSpawnBossHorde } from './bossPlan'
 import { chooseEnemyType, getEnemyHp, getFigureHeight, getFigureWidth, getPlayerPower, type EnemyType, getEnemyTexture } from './enemyTypes'
 import { getEnemySpawnCenterY, getSquadSpawnBaseY, isRevealedAtHorizon } from './horizonReveal'
 import { getLevelPlan, getMaxSquadSize, type LevelPlan } from './levelPlan'
-import { getBobOffsetPx, getPhaseOffset, getStepCycleHz } from './gamefeel'
+import { getBobOffsetPx, getPhaseOffset, getStepCycleHz, getStepSquash, getStepSwayRadians } from './gamefeel'
 import { getFigureOverscanFactor, getPerspectiveScale, getPlayfieldHalfWidth } from './road'
 import { chooseSpawnLane, type SpawnLaneEnemy } from './spawnLanes'
 import { computeHordeOffsets, getSquadWidth } from './squads'
@@ -311,6 +311,16 @@ export class Spawner {
       this.applyHorizonReveal(enemy)
       this.updateShadow(poolIndex, enemy, logicalY, bob)
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
+      // Laufbewegung ZULETZT, nach dem Nachfuehren der Trefferflaeche und nach dem
+      // Schatten: Wiegen und Federn sind reine Optik. Laegen sie davor, atmete die
+      // Trefferflaeche im Schritttakt mit (+-2 %) und der Schatten pulsierte —
+      // dieselbe Regel, aus der bei der Truppe die ruhige Kollisionshuelle stammt.
+      // applyPerspectiveScale setzt die Skalierung im naechsten Bild wieder absolut,
+      // die Faktoren summieren sich also nicht auf.
+      const phase = getPhaseOffset(poolIndex)
+      const squash = getStepSquash(this.elapsedMs, bobCycleHz, phase, BALANCE.gamefeel.enemyStepSquashShare)
+      enemy.setScale(enemy.scaleX * squash.scaleX, enemy.scaleY * squash.scaleY)
+      enemy.setRotation(getStepSwayRadians(this.elapsedMs, bobCycleHz, phase, BALANCE.gamefeel.enemyStepSwayMaxDeg))
       this.meldeDurchbruch(enemy)
       if (enemy.y - enemy.displayHeight / 2 > this.scene.scale.height) this.recycle(enemy)
     }
