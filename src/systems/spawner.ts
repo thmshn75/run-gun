@@ -354,7 +354,14 @@ export class Spawner {
         // Eigener Takt, nicht der Schrittakt: Ein Zombie wankt langsamer, als er
         // Schritte macht. Der Versatz je Poolplatz bleibt, damit nicht die ganze Horde
         // im Gleichschritt taumelt.
-        const zyklus = ((this.elapsedMs / 1000) * BALANCE.enemy.bilder.zyklenProSekunde + phase) % 1
+        //
+        // Der Takt haengt an der GANGART, nicht an der Staerke: Ein Renner wechselt die
+        // Bilder mehr als doppelt so schnell wie ein Schreiter. Ohne eigenen Eintrag
+        // gilt der Grundwert.
+        const gestalt = enemy.getData('gestalt') as string
+        const takt = BALANCE.enemy.bilder.zyklenProSekundeJeGangart[gestalt]
+          ?? BALANCE.enemy.bilder.zyklenProSekunde
+        const zyklus = ((this.elapsedMs / 1000) * takt + phase) % 1
         const bild = bilder[Math.min(bilder.length - 1, Math.floor(zyklus * bilder.length))]
         enemy.setTexture(bild)
         enemy.setRotation(0)

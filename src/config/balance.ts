@@ -1971,7 +1971,48 @@ export const BALANCE = {
     // gerechneten Bewegung (rund 1,6 Hz) - ein Zombie wankt schwerfaellig. Zusammen mit
     // zwoelf Bildern ergibt das 76 ms Standzeit je Bild und damit eine fluessige
     // Bewegung (Schwelle rund 100 ms).
+    //
+    // GRUNDWERT fuer jeden Satz OHNE eigenen Eintrag in zyklenProSekundeJeGangart.
     zyklenProSekunde: 1.1,
+    // Eigener Takt je Gangart (Thomas 2026-09-04: "jede gangart seine eigene
+    // geschwindigkeit und demnach auch im bild dann die einen schneller und die anderen
+    // langsamer"). Vorher liefen alle zehn Gangarten mit demselben Wert 1,1 - ein
+    // Schleicher so hastig wie ein Renner.
+    //
+    // RECHENWEG. Ein Satz hat zwoelf Bilder und stellt einen DOPPELSCHRITT dar (links
+    // und rechts), ein Zyklus sind also zwei Schritte. Aus der Schrittzahl je Sekunde,
+    // die zur Gangart gehoert, folgt der Wert direkt:
+    //     zyklenProSekunde = Schritte je Sekunde / 2
+    // Die Schrittzahlen sind die Kadenzen der jeweiligen Gangart - eine
+    // Gestaltungsgroesse, die das Spiel nicht messen kann, anders als etwa eine
+    // Trefferflaeche. Der Grundwert 1,1 entspricht 2,2 Schritten je Sekunde und liegt
+    // damit bei zuegigem Gehen; genau das war bei Schleichen und Schreiten zu schnell.
+    //
+    //   Gangart        Schritte/s   Zyklen/s
+    //   Rennen              2,8       1,40
+    //   Zucken              2,6       1,30   (ruckartig, kein echter Schritt)
+    //   Marschieren         2,0       1,00
+    //   Stampfen            1,6       0,80
+    //   Kriechen            1,6       0,80   (vier Gliedmassen, kurzer Takt)
+    //   Schlurfen           1,4       0,70
+    //   Humpeln             1,4       0,70
+    //   Watscheln           1,2       0,60
+    //   Schleichen          1,2       0,60
+    //   Schreiten           1,0       0,50
+    //
+    // GRENZE NACH UNTEN: Bei zwoelf Bildern und 0,5 Zyklen/s steht ein Bild 167 ms -
+    // ueber der Flimmerschwelle von rund 100 ms, aber noch fluessig. Wer weiter
+    // heruntergeht, sieht Einzelbilder statt einer Bewegung.
+    zyklenProSekundeJeGangart: {
+      'enemy-light-e': 1.4,      // RENNEN
+      'enemy-light-g': 1.3,      // ZUCKEN
+      'enemy-standard-e': 1.0,   // MARSCHIEREN
+      'enemy-light-f': 0.8,      // KRIECHEN
+      'enemy-standard-g': 0.7,   // SCHLURFEN
+      'enemy-light-i': 0.7,      // HUMPELN
+      'enemy-heavy-e': 0.6,      // WATSCHELN
+      'enemy-standard-i': 0.6,   // SCHLEICHEN
+    } as Readonly<Record<string, number>>,
     // Ab hier liegt die Standflaeche, daran misst bildVersatz.ts den seitlichen
     // Ausgleich. Zwei Drittel: darunter sind Beine und Fuesse, keine Arme.
     standflaecheAbAnteil: 0.667,
