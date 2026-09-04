@@ -118,11 +118,31 @@ export function getUnlockedVariantCount(level: number): number {
  * Texturname fuer einen Gegner. Index 0 ist die Vorlage, danach -b, -c, -d.
  * Der Zufallswert kommt von aussen, damit der Aufrufer seine eigene Quelle behaelt.
  */
-/** Suffixe der Varianten ab Index 1. Index 0 ist die Vorlage ohne Suffix. */
-const VARIANT_SUFFIXES = 'bcdefghij'
+/**
+ * Suffixe der Gestalten ab Index 1. Index 0 ist die Grundgestalt ohne Suffix.
+ *
+ * NUR ECHTE FORMEN (Thomas 2026-09-04: "keine einfaerbungen mehr, nur mehr wirklich
+ * verschiedene figuren"). Von den urspruenglich neun Varianten je Staerke sind sechs
+ * reine Umfaerbungen - gemessen am Silhouettenunterschied zu ihrer Vorlage:
+ *   b, c, d  formgleich mit der Grundgestalt (0 bis 9 %)
+ *   f, h, j  pixelgleich mit e, g bzw. i (exakt 0,0 %)
+ * Uebrig bleiben e, g und i: drei eigene Formen je Staerke. Mit den drei Grundgestalten
+ * sind das zwoelf Figuren; dazu kommt light-f, das als einziges Paar wirklich
+ * verschieden ist (47,2 % gegen light-e) - macht dreizehn.
+ *
+ * Die ausgemusterten Bilddateien bleiben im Ordner: Sie sind die Vorlagen fuer die
+ * Bewegungssaetze, die noch entstehen.
+ */
+const VARIANT_SUFFIXES = 'egi'
+
+/** Zusaetzliche Gestalt je Staerke, wo ein Paar doch verschiedene Formen hat. */
+const EXTRA_SUFFIXES: Readonly<Record<string, readonly string[]>> = {
+  'enemy-light': ['f'],
+}
 
 export function getEnemyTexture(basisTextur: string, level: number, zufall: number): string {
-  const anzahl = Math.min(getUnlockedVariantCount(level), VARIANT_SUFFIXES.length + 1)
+  const suffixe = [...VARIANT_SUFFIXES, ...(EXTRA_SUFFIXES[basisTextur] ?? [])]
+  const anzahl = Math.min(getUnlockedVariantCount(level), suffixe.length + 1)
   const index = Math.min(anzahl - 1, Math.max(0, Math.floor(zufall * anzahl)))
-  return index === 0 ? basisTextur : `${basisTextur}-${VARIANT_SUFFIXES[index - 1]}`
+  return index === 0 ? basisTextur : `${basisTextur}-${suffixe[index - 1]}`
 }

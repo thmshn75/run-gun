@@ -117,10 +117,11 @@ export class Spawner {
     const { aktiv, saetze } = BALANCE.enemy.bilder
     if (!aktiv) return {}
     const brauchbar: Record<string, readonly string[]> = {}
-    for (const [staerke, satz] of Object.entries(saetze)) {
-      // Je Staerke einzeln pruefen: Fehlt ein Satz, faellt nur diese Staerke auf die
-      // gerechnete Bewegung zurueck statt alle.
-      if (satz.every((name) => this.scene.textures.exists(name))) brauchbar[staerke] = satz
+    for (const [gestalt, satz] of Object.entries(saetze)) {
+      // Je Gestalt einzeln pruefen: Fehlt ein Satz, faellt nur diese Gestalt auf die
+      // gerechnete Bewegung zurueck statt alle. So koennen die offenen Gestalten nach
+      // und nach dazukommen.
+      if (satz.every((name) => this.scene.textures.exists(name))) brauchbar[gestalt] = satz
     }
     return brauchbar
   }
@@ -348,7 +349,7 @@ export class Spawner {
       // applyPerspectiveScale setzt die Skalierung im naechsten Bild wieder absolut,
       // die Faktoren summieren sich also nicht auf.
       const phase = getPhaseOffset(poolIndex)
-      const bilder = istBildsatz ? this.gegnerBilder[enemy.getData('staerke') as string] : undefined
+      const bilder = istBildsatz ? this.gegnerBilder[enemy.getData('gestalt') as string] : undefined
       if (bilder !== undefined) {
         // Eigener Takt, nicht der Schrittakt: Ein Zombie wankt langsamer, als er
         // Schritte macht. Der Versatz je Poolplatz bleibt, damit nicht die ganze Horde
@@ -599,12 +600,9 @@ export class Spawner {
 
   private activateEnemy(enemy: Phaser.Physics.Arcade.Image, type: EnemyType, lane: number, y: number, bossCompanion: boolean): void {
     const x = this.scene.scale.width / 2 + lane * getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
-    // Farbvarianten werden nur noch fuer Staerken ohne Bewegungssatz gezogen (Thomas
-    // 2026-09-04: "keine einfaerbungen mehr, nur mehr wirklich verschiedene figuren").
-    // Wo Bilder da sind, ersetzen sie die Gestalt ohnehin im naechsten Schritt.
-    enemy.setTexture(this.gegnerBilder[type.key] !== undefined
-      ? type.texture
-      : getEnemyTexture(type.texture, this.levelPlan.level, Phaser.Math.RND.frac()))
+    // Gestalt wie bisher levelabhaengig ziehen - sie bestimmt jetzt AUCH, welcher
+    // Bewegungssatz gilt (Thomas 2026-09-04: "jede figur eine andere Bewegung").
+    enemy.setTexture(getEnemyTexture(type.texture, this.levelPlan.level, Phaser.Math.RND.frac()))
     enemy.enableBody(true, x, y, true, true)
     const body = enemy.body as Phaser.Physics.Arcade.Body
     // Body in TEXTURPIXELN setzen: Arcade skaliert ihn mit der Sprite-Skalierung mit,
@@ -615,12 +613,12 @@ export class Spawner {
     // sprite each frame, making the visible enemy jump sideways.
     body.moves = false
     body.updateFromGameObject()
-    // Bewegungssatz dieser Staerke, falls vorhanden. Die zuvor gewaehlte Gestalt bleibt
-    // als FARBE erhalten: farbvarianten.ts rechnet ihre Farbverschiebung auf die
-    // Bewegungsbilder, weil es fuer jede Gestalt eigene Bilder nicht gibt.
-    const satz = this.gegnerBilder[type.key]
+    // Der Bewegungssatz haengt an der GEZOGENEN GESTALT, nicht an der Staerke: Jede
+    // Figur hat ihre eigene Gangart. Gestalten ohne Satz behalten die gerechnete Bewegung.
+    const gestalt = enemy.texture.key
+    const satz = this.gegnerBilder[gestalt]
     enemy.setData('bildsatz', satz !== undefined)
-    enemy.setData('staerke', type.key)
+    enemy.setData('gestalt', gestalt)
     if (satz !== undefined) enemy.setTexture(satz[0])
     enemy.setActive(true).setVisible(true).clearTint()
     this.applyPerspectiveScale(enemy, y)

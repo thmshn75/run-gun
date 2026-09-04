@@ -235,26 +235,39 @@ describe('Testgelaende als Pruefplatz', () => {
     expect(BALANCE.enemy.bilder.aktiv).toBe(true)
   })
 
-  it('gibt jeder Gegnerstaerke einen eigenen Bewegungssatz', () => {
-    // Thomas 2026-09-04: "jetzt aber die bewegung fuer alle figuren umsetzen".
+  it('gibt jeder GESTALT einen eigenen Bewegungssatz', () => {
+    // Thomas 2026-09-04: "jede figur eine andere Bewegung". Der Schluessel ist der
+    // Texturname der Standgestalt, nicht die Staerke - so bekommt jede Figur ihre
+    // eigene Gangart, und offene Gestalten koennen nach und nach dazukommen.
     const { saetze } = BALANCE.enemy.bilder
-    const staerken = BALANCE.enemy.types.map((t) => t.key)
-    for (const staerke of staerken) {
-      const satz = saetze[staerke]
-      expect(satz, `Bewegungssatz fuer ${staerke}`).toBeDefined()
-      expect(satz.length).toBeGreaterThanOrEqual(12)
+    // Die drei Grundgestalten muessen da sein, sonst laeuft gar keine Bewegung.
+    for (const grund of BALANCE.enemy.types.map((t) => t.texture)) {
+      expect(saetze[grund], `Bewegungssatz fuer ${grund}`).toBeDefined()
+    }
+    for (const [gestalt, satz] of Object.entries(saetze)) {
+      expect(satz.length, `Satzlaenge ${gestalt}`).toBeGreaterThanOrEqual(12)
       expect(new Set(satz).size).toBe(satz.length)
     }
-    // Kein Satz doppelt: Die drei Staerken sollen verschiedene Gegner bleiben.
-    const alle = staerken.flatMap((k) => saetze[k])
+    // Kein Bild in zwei Saetzen: Jede Figur hat ihre eigene Bewegung.
+    const alle = Object.values(saetze).flat()
     expect(new Set(alle).size).toBe(alle.length)
   })
 
-  it('faellt je Staerke einzeln auf die gerechnete Bewegung zurueck', () => {
-    // Fehlt ein Satz, soll NUR diese Staerke ohne Bilder laufen - nicht alle.
+  it('waehlt den Bewegungssatz ueber die gezogene Gestalt', () => {
+    const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
+    // Erst die Gestalt levelabhaengig ziehen, dann ihren Satz nachschlagen.
+    expect(source).toContain('getEnemyTexture(type.texture, this.levelPlan.level')
+    expect(source).toContain('const gestalt = enemy.texture.key')
+    expect(source).toContain('this.gegnerBilder[gestalt]')
+  })
+
+  it('faellt je Gestalt einzeln auf die gerechnete Bewegung zurueck', () => {
+    // Fehlt ein Satz, soll NUR diese Gestalt ohne Bilder laufen - nicht alle. Nur so
+    // koennen die offenen Gestalten nach und nach dazukommen, ohne dass zwischendurch
+    // etwas kaputt ist.
     const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
     const waehle = source.slice(source.indexOf('private waehleGegnerBilder('), source.indexOf('public resetForLevel('))
-    expect(waehle).toContain('for (const [staerke, satz] of Object.entries(saetze))')
+    expect(waehle).toContain('for (const [gestalt, satz] of Object.entries(saetze))')
     expect(waehle).toContain('textures.exists')
   })
 
@@ -263,10 +276,11 @@ describe('Testgelaende als Pruefplatz', () => {
     // figuren". Gemessen war der Grund: Von den 27 Farbvarianten sind neun formgleich
     // mit ihrer Grundgestalt (reine Umfaerbungen), nur 18 haben eigene Koerper.
     const spawner = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
+    // Die Farbrechnung ist ausgebaut; die Datei existiert nicht mehr.
     expect(spawner).not.toContain('getFarbvarianteTextur')
-    expect(spawner).not.toContain("setData('gestalt'")
-    // Und wo ein Bewegungssatz existiert, wird gar keine Variante mehr gezogen.
-    expect(spawner).toContain('this.gegnerBilder[type.key] !== undefined')
+    expect(spawner).not.toContain('farbvarianten')
+    // Die gezogene Gestalt wird nicht mehr eingefaerbt, sondern bestimmt den Bildsatz.
+    expect(spawner).toContain('const satz = this.gegnerBilder[gestalt]')
   })
 
   it('misst den Bildversatz am angezeigten Bild', () => {

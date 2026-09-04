@@ -40,6 +40,42 @@ import enemyHeavyLurch9Url from '../assets/enemy-heavy-lurch-9.png'
 import enemyHeavyLurch10Url from '../assets/enemy-heavy-lurch-10.png'
 import enemyHeavyLurch11Url from '../assets/enemy-heavy-lurch-11.png'
 import enemyHeavyLurch12Url from '../assets/enemy-heavy-lurch-12.png'
+import enemyStdEMove1Url from '../assets/enemy-standard-e-move-1.png'
+import enemyStdEMove2Url from '../assets/enemy-standard-e-move-2.png'
+import enemyStdEMove3Url from '../assets/enemy-standard-e-move-3.png'
+import enemyStdEMove4Url from '../assets/enemy-standard-e-move-4.png'
+import enemyStdEMove5Url from '../assets/enemy-standard-e-move-5.png'
+import enemyStdEMove6Url from '../assets/enemy-standard-e-move-6.png'
+import enemyStdEMove7Url from '../assets/enemy-standard-e-move-7.png'
+import enemyStdEMove8Url from '../assets/enemy-standard-e-move-8.png'
+import enemyStdEMove9Url from '../assets/enemy-standard-e-move-9.png'
+import enemyStdEMove10Url from '../assets/enemy-standard-e-move-10.png'
+import enemyStdEMove11Url from '../assets/enemy-standard-e-move-11.png'
+import enemyStdEMove12Url from '../assets/enemy-standard-e-move-12.png'
+import enemyStdGMove1Url from '../assets/enemy-standard-g-move-1.png'
+import enemyStdGMove2Url from '../assets/enemy-standard-g-move-2.png'
+import enemyStdGMove3Url from '../assets/enemy-standard-g-move-3.png'
+import enemyStdGMove4Url from '../assets/enemy-standard-g-move-4.png'
+import enemyStdGMove5Url from '../assets/enemy-standard-g-move-5.png'
+import enemyStdGMove6Url from '../assets/enemy-standard-g-move-6.png'
+import enemyStdGMove7Url from '../assets/enemy-standard-g-move-7.png'
+import enemyStdGMove8Url from '../assets/enemy-standard-g-move-8.png'
+import enemyStdGMove9Url from '../assets/enemy-standard-g-move-9.png'
+import enemyStdGMove10Url from '../assets/enemy-standard-g-move-10.png'
+import enemyStdGMove11Url from '../assets/enemy-standard-g-move-11.png'
+import enemyStdGMove12Url from '../assets/enemy-standard-g-move-12.png'
+import enemyStdIMove1Url from '../assets/enemy-standard-i-move-1.png'
+import enemyStdIMove2Url from '../assets/enemy-standard-i-move-2.png'
+import enemyStdIMove3Url from '../assets/enemy-standard-i-move-3.png'
+import enemyStdIMove4Url from '../assets/enemy-standard-i-move-4.png'
+import enemyStdIMove5Url from '../assets/enemy-standard-i-move-5.png'
+import enemyStdIMove6Url from '../assets/enemy-standard-i-move-6.png'
+import enemyStdIMove7Url from '../assets/enemy-standard-i-move-7.png'
+import enemyStdIMove8Url from '../assets/enemy-standard-i-move-8.png'
+import enemyStdIMove9Url from '../assets/enemy-standard-i-move-9.png'
+import enemyStdIMove10Url from '../assets/enemy-standard-i-move-10.png'
+import enemyStdIMove11Url from '../assets/enemy-standard-i-move-11.png'
+import enemyStdIMove12Url from '../assets/enemy-standard-i-move-12.png'
 // Bewegungsbilder der Bosse (2026-09-04). Zwei Saetze, weil Elite und gewoehnlicher Boss
 // bewusst verschieden aussehen.
 import bossEliteMove1Url from '../assets/boss-elite-move-1.png'
@@ -180,6 +216,42 @@ export class BootScene extends Phaser.Scene {
     this.load.image('enemy-heavy-lurch-10', enemyHeavyLurch10Url)
     this.load.image('enemy-heavy-lurch-11', enemyHeavyLurch11Url)
     this.load.image('enemy-heavy-lurch-12', enemyHeavyLurch12Url)
+    this.load.image('enemy-standard-e-move-1', enemyStdEMove1Url)
+    this.load.image('enemy-standard-e-move-2', enemyStdEMove2Url)
+    this.load.image('enemy-standard-e-move-3', enemyStdEMove3Url)
+    this.load.image('enemy-standard-e-move-4', enemyStdEMove4Url)
+    this.load.image('enemy-standard-e-move-5', enemyStdEMove5Url)
+    this.load.image('enemy-standard-e-move-6', enemyStdEMove6Url)
+    this.load.image('enemy-standard-e-move-7', enemyStdEMove7Url)
+    this.load.image('enemy-standard-e-move-8', enemyStdEMove8Url)
+    this.load.image('enemy-standard-e-move-9', enemyStdEMove9Url)
+    this.load.image('enemy-standard-e-move-10', enemyStdEMove10Url)
+    this.load.image('enemy-standard-e-move-11', enemyStdEMove11Url)
+    this.load.image('enemy-standard-e-move-12', enemyStdEMove12Url)
+    this.load.image('enemy-standard-g-move-1', enemyStdGMove1Url)
+    this.load.image('enemy-standard-g-move-2', enemyStdGMove2Url)
+    this.load.image('enemy-standard-g-move-3', enemyStdGMove3Url)
+    this.load.image('enemy-standard-g-move-4', enemyStdGMove4Url)
+    this.load.image('enemy-standard-g-move-5', enemyStdGMove5Url)
+    this.load.image('enemy-standard-g-move-6', enemyStdGMove6Url)
+    this.load.image('enemy-standard-g-move-7', enemyStdGMove7Url)
+    this.load.image('enemy-standard-g-move-8', enemyStdGMove8Url)
+    this.load.image('enemy-standard-g-move-9', enemyStdGMove9Url)
+    this.load.image('enemy-standard-g-move-10', enemyStdGMove10Url)
+    this.load.image('enemy-standard-g-move-11', enemyStdGMove11Url)
+    this.load.image('enemy-standard-g-move-12', enemyStdGMove12Url)
+    this.load.image('enemy-standard-i-move-1', enemyStdIMove1Url)
+    this.load.image('enemy-standard-i-move-2', enemyStdIMove2Url)
+    this.load.image('enemy-standard-i-move-3', enemyStdIMove3Url)
+    this.load.image('enemy-standard-i-move-4', enemyStdIMove4Url)
+    this.load.image('enemy-standard-i-move-5', enemyStdIMove5Url)
+    this.load.image('enemy-standard-i-move-6', enemyStdIMove6Url)
+    this.load.image('enemy-standard-i-move-7', enemyStdIMove7Url)
+    this.load.image('enemy-standard-i-move-8', enemyStdIMove8Url)
+    this.load.image('enemy-standard-i-move-9', enemyStdIMove9Url)
+    this.load.image('enemy-standard-i-move-10', enemyStdIMove10Url)
+    this.load.image('enemy-standard-i-move-11', enemyStdIMove11Url)
+    this.load.image('enemy-standard-i-move-12', enemyStdIMove12Url)
     this.load.image('boss-elite-move-1', bossEliteMove1Url)
     this.load.image('boss-elite-move-2', bossEliteMove2Url)
     this.load.image('boss-elite-move-3', bossEliteMove3Url)

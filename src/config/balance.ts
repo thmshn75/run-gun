@@ -1899,23 +1899,47 @@ export const BALANCE = {
   // acht Stunden Maschinenzeit.
   bilder: {
     aktiv: true,
-    // Ein Satz je Staerke. Fehlt einer, faellt NUR diese Staerke auf die gerechnete
-    // Bewegung zurueck - die anderen laufen weiter.
+    // Ein Satz je GESTALT, nicht je Staerke (Thomas 2026-09-04: "jede figur eine andere
+    // Bewegung"). Der Schluessel ist der Texturname der Standgestalt - so waehlt der
+    // Spawner erst die Gestalt wie bisher levelabhaengig und findet dann ihre Bilder.
+    //
+    // Fehlt ein Satz, faellt NUR diese Gestalt auf die gerechnete Bewegung zurueck.
+    // Dadurch koennen die zehn offenen Gestalten nach und nach dazukommen, ohne dass
+    // zwischendurch etwas kaputt ist.
     saetze: {
-      light: [
+      'enemy-light': [
         'enemy-light-lurch-1', 'enemy-light-lurch-2', 'enemy-light-lurch-3', 'enemy-light-lurch-4',
         'enemy-light-lurch-5', 'enemy-light-lurch-6', 'enemy-light-lurch-7', 'enemy-light-lurch-8',
         'enemy-light-lurch-9', 'enemy-light-lurch-10', 'enemy-light-lurch-11', 'enemy-light-lurch-12',
       ],
-      standard: [
+      'enemy-standard': [
         'enemy-lurch-1', 'enemy-lurch-2', 'enemy-lurch-3', 'enemy-lurch-4',
         'enemy-lurch-5', 'enemy-lurch-6', 'enemy-lurch-7', 'enemy-lurch-8',
         'enemy-lurch-9', 'enemy-lurch-10', 'enemy-lurch-11', 'enemy-lurch-12',
       ],
-      heavy: [
+      'enemy-heavy': [
         'enemy-heavy-lurch-1', 'enemy-heavy-lurch-2', 'enemy-heavy-lurch-3', 'enemy-heavy-lurch-4',
         'enemy-heavy-lurch-5', 'enemy-heavy-lurch-6', 'enemy-heavy-lurch-7', 'enemy-heavy-lurch-8',
         'enemy-heavy-lurch-9', 'enemy-heavy-lurch-10', 'enemy-heavy-lurch-11', 'enemy-heavy-lurch-12',
+      ],
+      // --- Sondergestalten mit EIGENER Gangart (Thomas 2026-09-04: "jede figur eine
+      // andere Bewegung"). Sie ersetzen die verlorene Formenvielfalt durch
+      // Bewegungsvielfalt: Wo frueher zehn Koerper standen, laufen jetzt verschiedene
+      // Gangarten.
+      'enemy-standard-e': [   // Soldat mit Stahlhelm: MARSCHIEREN, steif und aufrecht
+        'enemy-standard-e-move-1', 'enemy-standard-e-move-2', 'enemy-standard-e-move-3', 'enemy-standard-e-move-4',
+        'enemy-standard-e-move-5', 'enemy-standard-e-move-6', 'enemy-standard-e-move-7', 'enemy-standard-e-move-8',
+        'enemy-standard-e-move-9', 'enemy-standard-e-move-10', 'enemy-standard-e-move-11', 'enemy-standard-e-move-12',
+      ],
+      'enemy-standard-g': [   // Latzhose: SCHLURFEN, kraftlos und gebeugt
+        'enemy-standard-g-move-1', 'enemy-standard-g-move-2', 'enemy-standard-g-move-3', 'enemy-standard-g-move-4',
+        'enemy-standard-g-move-5', 'enemy-standard-g-move-6', 'enemy-standard-g-move-7', 'enemy-standard-g-move-8',
+        'enemy-standard-g-move-9', 'enemy-standard-g-move-10', 'enemy-standard-g-move-11', 'enemy-standard-g-move-12',
+      ],
+      'enemy-standard-i': [   // Hut und Mantel: SCHLEICHEN, geduckt und lauernd
+        'enemy-standard-i-move-1', 'enemy-standard-i-move-2', 'enemy-standard-i-move-3', 'enemy-standard-i-move-4',
+        'enemy-standard-i-move-5', 'enemy-standard-i-move-6', 'enemy-standard-i-move-7', 'enemy-standard-i-move-8',
+        'enemy-standard-i-move-9', 'enemy-standard-i-move-10', 'enemy-standard-i-move-11', 'enemy-standard-i-move-12',
       ],
     } as Readonly<Record<string, readonly string[]>>,
     // Volle Taumelbewegung je Sekunde. Bewusst langsamer als der Schrittakt der
