@@ -265,6 +265,25 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   als Muster lesen. Gemessen: 90 sichtbare Wellen, 51 Kaemme zu 39 Taelern, 81
   verschiedene Breiten.
 
+- **Boss stapft und legt sich in die Kurve** (2026-09-04, Thomas: "die beine sollen sich
+  auch bewegen, so dass es aussieht, als ob er auf mich zugeht und auch seitlich").
+  - **Beinarbeit:** In Bild 1 ist der rechte Fuss 12 px angehoben, in Bild 3 der linke
+    14 px, in den Zwischenbildern stehen beide am Boden. Man sieht die Fusssohle - genau
+    das liest sich als Zugehen. Der Silhouettenunterschied Bild 1 zu 3 stieg von 56 auf
+    **69 %**, im Beinbereich von 32 auf **73 %**, ohne dass die Armbewegung schwaecher
+    wurde. Drei Codex-Anlaeufe; die ersten zwei scheiterten an zu geringer Bein-Differenz.
+  - **Seitliche Neigung:** Der Elite-Boss (alle fuenf Level) legt sich beim Pendeln in
+    seine Bewegungsrichtung, 7,1 Grad aus der Schwerpunktverlagerung hergeleitet.
+    **Sie folgt der GESCHWINDIGKEIT, nicht dem Ort** - Kosinus statt Sinus: am
+    Umkehrpunkt steht er aufrecht, in der Bahnmitte liegt er am staerksten. Mit dem
+    Sinus waere es genau andersherum, und ein Test haelt die Richtung fest. Browser-
+    Beleg: 6,98 Grad bei hoechstem seitlichen Tempo, 0 Grad am Umkehrpunkt.
+  - Das ist die **einzige gerechnete Bewegung, die zur Bildvariante dazukommt** - sie ist
+    kein zweiter Schritt, sondern die Reaktion auf eine Ortsveraenderung, dieselbe Rolle
+    wie die Neigung der Truppe beim Lenken.
+  - Weiterhin nur im Testgelaende: derselbe Elite-Boss traegt im normalen Run auf
+    Level 5 ueber 1.101 Proben sein altes Bild mit gerechnetem Wiegen.
+
 ## Offen — naechster Schritt zuerst
 1. ~~Bennis iPhone-Test~~ — **erledigt am 2026-08-29, ok** (Thomas). Gamefeel damit
    abgenommen. Noch nachzuziehen (siehe unten): Wirkung der Aufruestungsstufen im Spiel

@@ -8,6 +8,27 @@ Jede Nutzerkorrektur wird hier als Regel eingetragen. Zu Sitzungsbeginn lesen.
 
 ---
 
+### 2026-09-04 — Die Pose-Vorgabe braucht ein Merkmal, keinen Prozentsatz
+- **Befund:** Fuer die Beinarbeit des Bosses stand zuerst nur ein Prozentwert in der Spec
+  ("mindestens 45 % Silhouettenunterschied im Beinbereich"). Erreicht wurden am Ende
+  73 % - aber erst, nachdem zusaetzlich ein **anschauliches Merkmal** gefordert war:
+  "In Bild 1 beruehrt nur der linke Fuss die Standlinie, der rechte liegt mindestens
+  12 px hoeher." Zwei Codex-Anlaeufe scheiterten vorher an der reinen Prozentvorgabe.
+- **Regel:** Ein Prozentsatz ist die Pruefung, nicht die Anweisung. In die Spec gehoert
+  BEIDES: was zu sehen sein soll (ein Fuss in der Luft) und woran man es misst (12 px
+  Hoehenunterschied). Der Prozentsatz allein laesst offen, WORIN der Unterschied besteht -
+  und wird dann durch Kleidungsfalten erfuellt.
+
+### 2026-09-04 — Neigung folgt der Geschwindigkeit, nicht dem Ort
+- **Fallstrick:** Der Elite-Boss pendelt seitlich per Sinus. Wer ihn "in die Kurve legen"
+  will und dafuer denselben Sinus nimmt, neigt ihn genau falsch: am weitesten aussen am
+  staerksten, in der Bahnmitte gar nicht - er wuerde am Umkehrpunkt umkippen und beim
+  schnellsten Lauf aufrecht stehen. Richtig ist die Ableitung, also der Kosinus.
+- **Regel:** Bei jeder Neigung, jedem Lehnen, jedem Nachfuehren zuerst fragen: haengt es
+  am ORT oder an der GESCHWINDIGKEIT? Und die Antwort mit einer Gegenprobe belegen, die
+  beide Faelle unterscheidet (hier: Neigung bei hoechstem Tempo gegen Neigung am
+  Umkehrpunkt gemessen - 6,98 gegen 0 Grad).
+
 ### 2026-09-04 — Bildgenerierung KANN kontrollierte Posen, wenn zwei Dinge stimmen
 - **Vorgeschichte:** Der Zombie-Laufversuch scheiterte an zu aehnlichen Haltungen (15 %
   Silhouettenunterschied zwischen Bild 1 und 3, im Spiel als Flackern sichtbar). Der
