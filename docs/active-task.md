@@ -1,108 +1,141 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
 
-**Bewegungssätze für die vier leichten Sondergestalten — jede mit EIGENER Bewegung.**
+**Vierter Anlauf: `light-f` und `light-g` — saubere Kante UND dieselbe Figur.**
 
-Thomas am 2026-09-04: „die restlichen bewegen, wie bei den anderen, aber jede figur eine
-andere Bewegung".
+Drei Anläufe sind gescheitert, jeder an etwas anderem. **Das Muster ist immer dasselbe:
+Das jeweils genannte Kriterium wurde erfüllt und das nicht Gemessene ging kaputt.**
+Deshalb misst das Prüfskript diesmal alle drei Dinge zusammen. Es gibt keinen Weg mehr,
+eines davon gegen ein anderes einzutauschen.
 
-Das ist **Block 2 von drei**. Block 1 (drei mittlere Gestalten: Marschieren, Schlurfen,
-Schleichen) ist abgenommen und **darf nicht angefasst werden**. Hier kommen die vier
-leichten Gestalten, danach folgen die drei schweren.
+| Anlauf | Was erfüllt war | Was kaputtging |
+|---|---|---|
+| 1 | Bewegung, Pixelmaße | heller Freisteller-Saum |
+| 2 | „höchstens 1 % Randpixel über 200" — formal bestanden | Saum blieb sichtbar, Silhouette zerfranst |
+| 3 | Kante sauber, Skript bestanden | **die Figur wurde ausgetauscht**, dazu Magenta-Flecken |
 
-Dies ist ein **reiner Bild-Auftrag**. **Kein Code ändern.**
+Im dritten Anlauf kam statt der hageren orangeroten Gestalt mit Kapuze eine massige
+braune Gestalt heraus, und statt des dünnen Kerls mit Hut und offener Weste ein
+kräftiger Mann in geschlossener blauer Uniformjacke. Farbabstand zur Vorlage 92 und 61,
+wo die abgenommenen Sätze bei 13 und 20 liegen.
 
 ## Was zu liefern ist
 
-Vier Sätze zu je zwölf Bildern, alle **56 × 76 px**:
+Zwei Sätze zu je zwölf Bildern, alle **56 × 76 px**, die die bestehenden Dateien
+ersetzen:
 
-| Dateien | Vorlage | Die Figur | Ihre Bewegung |
-|---|---|---|---|
-| `enemy-light-e-move-1..12.png` | `src/assets/enemy-light-e.png` | hagere Gestalt, zerlumpt | **RENNEN** |
-| `enemy-light-f-move-1..12.png` | `src/assets/enemy-light-f.png` | Gestalt mit Kapuze | **KRIECHEND VORGEBEUGT** |
-| `enemy-light-g-move-1..12.png` | `src/assets/enemy-light-g.png` | Gestalt in Arbeitskleidung | **ZUCKEN** |
-| `enemy-light-i-move-1..12.png` | `src/assets/enemy-light-i.png` | bandagierte Gestalt | **HUMPELN** |
+| Dateien | Vorlage | Ihre Bewegung |
+|---|---|---|
+| `enemy-light-f-move-1..12.png` | `src/assets/enemy-light-f.png` | **KRIECHEND VORGEBEUGT** |
+| `enemy-light-g-move-1..12.png` | `src/assets/enemy-light-g.png` | **ZUCKEN** |
 
-Jeder Satz aus **einem gemeinsamen Bogen** (3 Reihen à 4 Haltungen).
+**Die Vorlage ist verbindlich, nicht ihre Beschreibung.** Zuerst
+`src/assets/enemy-light-f.png` und `src/assets/enemy-light-g.png` ansehen und die
+Figur von dort übernehmen: Statur, Kleidung, Hautton, Farben, Kopfbedeckung, Schuhwerk
+oder Barfüßigkeit. **Die Vorlage als Referenzbild in die Bilderzeugung geben, nicht nur
+in Worten beschreiben** — die Textbeschreibung allein hat im dritten Anlauf zu einer
+anderen Figur geführt.
 
-## Die vier Bewegungen — sie müssen deutlich verschieden aussehen
+**KRIECHEND VORGEBEUGT (`light-f`):** Extrem tief gebeugt, fast auf allen vieren.
+Oberkörper weit nach vorn gekippt, Arme hängen bis fast zum Boden und greifen abwechselnd
+nach vorn, Beine schieben nach. Wirkt tierisch, nicht menschlich.
 
-**RENNEN (`light-e`):** Schnell und ausgreifend. Weite Schritte, Knie hoch, Oberkörper
-leicht nach vorn geneigt, Arme kräftig gegengleich schwingend. Die einzige Gestalt, die
-wirklich läuft — sie wirkt hetzend.
+**ZUCKEN (`light-g`):** Ruckartig und krampfhaft, **am Platz**. Der Körper bewegt sich
+kaum von der Stelle, dafür zucken Kopf, Schultern und Arme in harten, unregelmäßigen
+Stößen. Die Beine machen nur kleine, unsichere Schritte. **Keine ausladenden
+Ganzkörperposen** — im dritten Anlauf war ein Bild mit senkrecht ausgestrecktem Arm
+dabei, das ist kein Zucken.
 
-**KRIECHEND VORGEBEUGT (`light-f`):** Extrem tief gebeugt, fast auf allen vieren. Der
-Oberkörper ist weit nach vorn gekippt, die Arme hängen bis fast zum Boden und greifen
-abwechselnd nach vorn, die Beine schieben nach. Wirkt tierisch, nicht menschlich.
+## Der Weg, der alle drei Anforderungen zugleich erfüllt
 
-**ZUCKEN (`light-g`):** Ruckartig und krampfhaft. Der Körper bewegt sich kaum von der
-Stelle, dafür zucken Kopf, Schultern und Arme in harten, unregelmäßigen Stößen — mal
-kippt der Kopf zur Seite, mal fährt eine Schulter hoch, mal verkrampft ein Arm. Die Beine
-machen nur kleine, unsichere Schritte.
+1. **Vorlage als Referenzbild** in die Bilderzeugung geben. Groß erzeugen, nie
+   hochskalieren, **auf transparentem Grund**.
+2. Auf 56 × 76 herunterrechnen.
+3. **Alpha hart schwellen:** ≥ 128 wird 255, alles darunter 0. Keine halbtransparenten
+   Pixel übrig lassen.
+4. **Randpixel-Farbe aus dem nächstinneren Pixel nachziehen**, statt die vom Skalierer
+   mit dem Hintergrund gemischte Farbe stehen zu lassen. Das behebt den hellen Saum —
+   im dritten Anlauf hat genau das funktioniert.
+5. **Die Farben auf die Palette der Vorlage abbilden.** Jede Farbe des fertigen Bildes
+   auf die nächstliegende Farbe der Vorlagendatei ziehen. Das hält die Figur farblich
+   an der Vorlage und entfernt zugleich die pinken und magentafarbenen Ausreißer, die im
+   dritten Anlauf an Händen und Füßen saßen — Pink kommt in keiner der Vorlagen vor.
+6. Erst danach messen.
 
-**HUMPELN (`light-i`):** Ein Bein ist steif und wird nachgezogen, das andere trägt. Bei
-jedem Schritt auf das steife Bein sackt die Figur seitlich weg und richtet sich wieder
-auf. Deutlich asymmetrisch — anders als alle anderen Bewegungen kippt sie nur zu **einer**
-Seite.
+**Achtung, das ist keine Einladung zum Umfärben:** Die Figur muss erkennbar dieselbe
+sein, nicht nur farblich passend eingestellt. Die Bilder werden zusätzlich vergrößert
+neben die Vorlage gelegt und angesehen. Ein Satz, der das Skript besteht und daneben
+sichtbar eine andere Gestalt zeigt, wird wieder abgelehnt.
 
-## Harte Anforderungen (Abnahmekriterien)
+## Abnahme: das Prüfskript entscheidet
 
-An den vier Vorlagen nachgemessen.
+```
+python3 /private/tmp/claude-501/-Users-mcbooktehn-1-Projekte-Run-Gun/a01e2688-06ab-436b-af35-c43521826646/scratchpad/abnahme-check.py f g
+```
 
-| Kriterium | `light-e` | `light-f` | `light-g` | `light-i` |
-|---|---|---|---|---|
-| oberste opake Zeile | **1 ± 4** | **0 ± 4** | **0 ± 4** | **0 ± 4** |
-| unterste opake Zeile | **74 ± 2** | **75 ± 1** | **75 ± 1** | **75 ± 1** |
-| opake Pixel je Bild | **1260–1810** | **1460–2110** | **1430–2060** | **1170–1680** |
+Es muss **`ALLES BESTANDEN`** ausgeben (Exit 0).
 
-Für **alle vier** Sätze zusätzlich:
+**Alle Grenzwerte sind an den abgenommenen Sätzen `light-e` und `light-i` kalibriert.**
+Zum Nachvollziehen: `python3 /private/tmp/claude-501/-Users-mcbooktehn-1-Projekte-Run-Gun/a01e2688-06ab-436b-af35-c43521826646/scratchpad/abnahme-check.py e i` läuft durch — die Grenzen sind
+also erreichbar, sie sind an echten, freigegebenen Bildern derselben Reihe gemessen.
 
-1. **Exakt 56 × 76 px**, transparenter Hintergrund.
-2. **Deckkraft: mindestens 60 % der opaken Pixel volldeckend** (Alpha ≥ 250). Die
-   Vorlagen liegen bei 66–78 %.
-3. **Genau ein zusammenhängendes Teil** über 10 px je Bild.
-4. **Kein Freisteller-Saum am Rand.** Prüfbar an den Randpixeln (opak mit transparentem
-   Nachbarn): Anteil sehr dunkler (R+G+B < 90) höchstens **75 %**, Anteil magentafarbener
-   (R und B über 90, G mindestens 30 darunter) höchstens **2 %**. Beim Soldaten in
-   Block 1 lag der Magenta-Anteil bei 12,6–18,8 % und musste nachträglich abgetragen
-   werden.
-5. **Silhouettenunterschied Bild 1 zu Bild 7: mindestens 35 %.** Beim Zucken darf es an
-   der Untergrenze liegen, beim Rennen deutlich darüber.
-6. **Zwischen je zwei benachbarten Bildern, auch 12 zu 1: mindestens 4 %.**
-7. **Die vier Bewegungen müssen sich untereinander unterscheiden.** Legt man Bild 1 der
-   vier Sätze nebeneinander und ebenso Bild 7, muss auf den ersten Blick erkennbar sein,
-   dass hier vier verschiedene Gangarten laufen. **Und sie müssen sich auch von Block 1
-   unterscheiden** (Marschieren, Schlurfen, Schleichen) — insgesamt sollen zehn
-   verschiedene Gangarten entstehen.
-8. Dieselbe Figur über alle zwölf Bilder eines Satzes: gleiche Kleidung, Farben,
-   Bandagen bzw. Kapuze, Schuhwerk, Beleuchtung von oben.
-9. **Groß erzeugen, dann auf 56 × 76 herunterrechnen** (nie hochskalieren).
+Geprüft wird je Bild: Größe, opake Pixelzahl, oberste und unterste Zeile, ein
+zusammenhängendes Teil, Volldeckung, ausgefranste Einzelpunkte, heller Saum,
+**Pink/Magenta im Körper**, Magenta am Rand, **Farbabstand zur Vorlage** und
+**Farbverteilung gegen die Vorlage**. Je Satz zusätzlich: **Größenspanne zwischen den
+zwölf Bildern**, **Einheitlichkeit der zwölf Bilder untereinander**,
+Silhouettenunterschied 1 zu 7 und kleinster Nachbarabstand.
+
+Dies ist ein **reiner Bild-Auftrag**. **Kein Code ändern. Das Prüfskript nicht ändern.**
 
 ## Was ausdrücklich KEIN zulässiger Ersatz ist
 
-- **Viermal dieselbe Bewegung** mit anderer Figur — das ist der Kern des Auftrags.
-- **Eine Bewegung aus Block 1 wiederholen.**
+- **`enemy-light-e-move-*` oder `enemy-light-i-move-*` anfassen** — abgenommen, per
+  Prüfsumme kontrolliert.
+- **Eine andere Gestalt liefern als die der Vorlage.** Das war der Fehler des dritten
+  Anlaufs.
+- **Den vorhandenen Bildern Pixel abtragen.** Das war der Fehler des zweiten Anlaufs.
+- **An einem Zahlenwert arbeiten statt an der Sache.**
 - **Vorhandene Sätze anfassen** (`enemy-lurch-*`, `enemy-light-lurch-*`,
   `enemy-heavy-lurch-*`, `enemy-standard-*-move-*`).
-- **Programmatisch zeichnen. Code ändern.**
+- **Programmatisch zeichnen. Code ändern. Das Prüfskript ändern.**
 
 ## Reihenfolge und Reißleine
 
-Der Reihe nach: `light-e`, `light-f`, `light-g`, `light-i`. Je Satz **drei Anläufe**, dann
-diesen Satz überspringen und mit dem nächsten weitermachen.
+Erst `light-g`, dann `light-f`. Je Satz **drei Anläufe**. Besteht ein Satz danach
+nicht, **die alten Dateien unverändert stehen lassen** und im Abschlussbericht sagen,
+welches Kriterium hartnäckig gescheitert ist und was dabei versucht wurde — keine
+Notlösung, kein Kompromiss zulasten eines anderen Kriteriums.
 
 ## Abschlussbericht
 
-Status auf `IMPL_DONE` setzen und je Satz angeben: gelieferte Bilder; je Bild Anteil
-volldeckender Pixel, opake Pixelzahl, oberste/unterste Zeile, zusammenhängende Teile,
-Anteil dunkler und magentafarbener Randpixel; Silhouettenunterschied 1 zu 7; kleinster
-Nachbarabstand; in einem Satz, wie sich die vier Bewegungen unterscheiden; Zahl der
-Anläufe.
+Status auf `IMPL_DONE` setzen. Anzugeben: die **vollständige Ausgabe des Prüfskripts**,
+je Satz die Zahl der Anläufe, ob die Vorlage als Referenzbild verwendet wurde, welcher
+der sechs Schritte oben den Ausschlag gab, und die Bestätigung per SHA-256, dass
+`light-e` und `light-i` unverändert sind.
+
+## Implementation Summary
+
+Vierter Anlauf, angenommen. `light-f` (Kriechen) und `light-g` (Zucken) sind neu erzeugt,
+diesmal mit der Vorlage als Referenzbild und Abbildung auf deren Farbpalette. Damit sind
+alle drei Fehler der Vorlaeufer zugleich behoben: kein heller Freisteller-Saum, keine
+pinken Ausreisser, und die Figuren entsprechen wieder ihren Vorlagen.
+
+Geprueft mit `abnahme-check.py` (Grenzwerte an den abgenommenen Saetzen `light-e`/`light-i`
+kalibriert, in beide Richtungen gegengeprueft): beide Saetze ALLES BESTANDEN. Zusaetzlich
+vergroessert neben die Vorlage gelegt und angesehen. `light-e` und `light-i` per SHA-256
+unveraendert. `npm run check` fehlerfrei, 33 Testdateien mit 346 Tests bestanden.
+
+Einschraenkung: Der Codex-Lauf lief am Ende in sein Nutzungslimit und lieferte keinen
+Abschlussbericht. Die Freigabe stuetzt sich auf die eigene Messung und den Augenschein.
+
+Damit ist Block 2 komplett: `light-e` rennt, `light-f` kriecht, `light-g` zuckt,
+`light-i` humpelt. Offen bleibt Block 3 (drei schwere Gestalten).
 
 ---
 
