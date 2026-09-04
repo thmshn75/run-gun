@@ -1941,6 +1941,26 @@ export const BALANCE = {
         'enemy-standard-i-move-5', 'enemy-standard-i-move-6', 'enemy-standard-i-move-7', 'enemy-standard-i-move-8',
         'enemy-standard-i-move-9', 'enemy-standard-i-move-10', 'enemy-standard-i-move-11', 'enemy-standard-i-move-12',
       ],
+      'enemy-light-e': [   // hagere Gestalt, zerlumpt: RENNEN, hetzend und ausgreifend
+        'enemy-light-e-move-1', 'enemy-light-e-move-2', 'enemy-light-e-move-3', 'enemy-light-e-move-4',
+        'enemy-light-e-move-5', 'enemy-light-e-move-6', 'enemy-light-e-move-7', 'enemy-light-e-move-8',
+        'enemy-light-e-move-9', 'enemy-light-e-move-10', 'enemy-light-e-move-11', 'enemy-light-e-move-12',
+      ],
+      'enemy-light-f': [   // Kapuzengestalt: KRIECHEN, tief vorgebeugt, fast auf allen vieren
+        'enemy-light-f-move-1', 'enemy-light-f-move-2', 'enemy-light-f-move-3', 'enemy-light-f-move-4',
+        'enemy-light-f-move-5', 'enemy-light-f-move-6', 'enemy-light-f-move-7', 'enemy-light-f-move-8',
+        'enemy-light-f-move-9', 'enemy-light-f-move-10', 'enemy-light-f-move-11', 'enemy-light-f-move-12',
+      ],
+      'enemy-light-g': [   // Arbeitskleidung: ZUCKEN, ruckartig und krampfhaft am Platz
+        'enemy-light-g-move-1', 'enemy-light-g-move-2', 'enemy-light-g-move-3', 'enemy-light-g-move-4',
+        'enemy-light-g-move-5', 'enemy-light-g-move-6', 'enemy-light-g-move-7', 'enemy-light-g-move-8',
+        'enemy-light-g-move-9', 'enemy-light-g-move-10', 'enemy-light-g-move-11', 'enemy-light-g-move-12',
+      ],
+      'enemy-light-i': [   // bandagierte Gestalt: HUMPELN, ein Bein steif nachgezogen
+        'enemy-light-i-move-1', 'enemy-light-i-move-2', 'enemy-light-i-move-3', 'enemy-light-i-move-4',
+        'enemy-light-i-move-5', 'enemy-light-i-move-6', 'enemy-light-i-move-7', 'enemy-light-i-move-8',
+        'enemy-light-i-move-9', 'enemy-light-i-move-10', 'enemy-light-i-move-11', 'enemy-light-i-move-12',
+      ],
     } as Readonly<Record<string, readonly string[]>>,
     // Volle Taumelbewegung je Sekunde. Bewusst langsamer als der Schrittakt der
     // gerechneten Bewegung (rund 1,6 Hz) - ein Zombie wankt schwerfaellig. Zusammen mit

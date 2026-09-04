@@ -76,6 +76,54 @@ import enemyStdIMove9Url from '../assets/enemy-standard-i-move-9.png'
 import enemyStdIMove10Url from '../assets/enemy-standard-i-move-10.png'
 import enemyStdIMove11Url from '../assets/enemy-standard-i-move-11.png'
 import enemyStdIMove12Url from '../assets/enemy-standard-i-move-12.png'
+import enemyLightEMove1Url from '../assets/enemy-light-e-move-1.png'
+import enemyLightEMove2Url from '../assets/enemy-light-e-move-2.png'
+import enemyLightEMove3Url from '../assets/enemy-light-e-move-3.png'
+import enemyLightEMove4Url from '../assets/enemy-light-e-move-4.png'
+import enemyLightEMove5Url from '../assets/enemy-light-e-move-5.png'
+import enemyLightEMove6Url from '../assets/enemy-light-e-move-6.png'
+import enemyLightEMove7Url from '../assets/enemy-light-e-move-7.png'
+import enemyLightEMove8Url from '../assets/enemy-light-e-move-8.png'
+import enemyLightEMove9Url from '../assets/enemy-light-e-move-9.png'
+import enemyLightEMove10Url from '../assets/enemy-light-e-move-10.png'
+import enemyLightEMove11Url from '../assets/enemy-light-e-move-11.png'
+import enemyLightEMove12Url from '../assets/enemy-light-e-move-12.png'
+import enemyLightFMove1Url from '../assets/enemy-light-f-move-1.png'
+import enemyLightFMove2Url from '../assets/enemy-light-f-move-2.png'
+import enemyLightFMove3Url from '../assets/enemy-light-f-move-3.png'
+import enemyLightFMove4Url from '../assets/enemy-light-f-move-4.png'
+import enemyLightFMove5Url from '../assets/enemy-light-f-move-5.png'
+import enemyLightFMove6Url from '../assets/enemy-light-f-move-6.png'
+import enemyLightFMove7Url from '../assets/enemy-light-f-move-7.png'
+import enemyLightFMove8Url from '../assets/enemy-light-f-move-8.png'
+import enemyLightFMove9Url from '../assets/enemy-light-f-move-9.png'
+import enemyLightFMove10Url from '../assets/enemy-light-f-move-10.png'
+import enemyLightFMove11Url from '../assets/enemy-light-f-move-11.png'
+import enemyLightFMove12Url from '../assets/enemy-light-f-move-12.png'
+import enemyLightGMove1Url from '../assets/enemy-light-g-move-1.png'
+import enemyLightGMove2Url from '../assets/enemy-light-g-move-2.png'
+import enemyLightGMove3Url from '../assets/enemy-light-g-move-3.png'
+import enemyLightGMove4Url from '../assets/enemy-light-g-move-4.png'
+import enemyLightGMove5Url from '../assets/enemy-light-g-move-5.png'
+import enemyLightGMove6Url from '../assets/enemy-light-g-move-6.png'
+import enemyLightGMove7Url from '../assets/enemy-light-g-move-7.png'
+import enemyLightGMove8Url from '../assets/enemy-light-g-move-8.png'
+import enemyLightGMove9Url from '../assets/enemy-light-g-move-9.png'
+import enemyLightGMove10Url from '../assets/enemy-light-g-move-10.png'
+import enemyLightGMove11Url from '../assets/enemy-light-g-move-11.png'
+import enemyLightGMove12Url from '../assets/enemy-light-g-move-12.png'
+import enemyLightIMove1Url from '../assets/enemy-light-i-move-1.png'
+import enemyLightIMove2Url from '../assets/enemy-light-i-move-2.png'
+import enemyLightIMove3Url from '../assets/enemy-light-i-move-3.png'
+import enemyLightIMove4Url from '../assets/enemy-light-i-move-4.png'
+import enemyLightIMove5Url from '../assets/enemy-light-i-move-5.png'
+import enemyLightIMove6Url from '../assets/enemy-light-i-move-6.png'
+import enemyLightIMove7Url from '../assets/enemy-light-i-move-7.png'
+import enemyLightIMove8Url from '../assets/enemy-light-i-move-8.png'
+import enemyLightIMove9Url from '../assets/enemy-light-i-move-9.png'
+import enemyLightIMove10Url from '../assets/enemy-light-i-move-10.png'
+import enemyLightIMove11Url from '../assets/enemy-light-i-move-11.png'
+import enemyLightIMove12Url from '../assets/enemy-light-i-move-12.png'
 // Bewegungsbilder der Bosse (2026-09-04). Zwei Saetze, weil Elite und gewoehnlicher Boss
 // bewusst verschieden aussehen.
 import bossEliteMove1Url from '../assets/boss-elite-move-1.png'
@@ -252,6 +300,54 @@ export class BootScene extends Phaser.Scene {
     this.load.image('enemy-standard-i-move-10', enemyStdIMove10Url)
     this.load.image('enemy-standard-i-move-11', enemyStdIMove11Url)
     this.load.image('enemy-standard-i-move-12', enemyStdIMove12Url)
+    this.load.image('enemy-light-e-move-1', enemyLightEMove1Url)
+    this.load.image('enemy-light-e-move-2', enemyLightEMove2Url)
+    this.load.image('enemy-light-e-move-3', enemyLightEMove3Url)
+    this.load.image('enemy-light-e-move-4', enemyLightEMove4Url)
+    this.load.image('enemy-light-e-move-5', enemyLightEMove5Url)
+    this.load.image('enemy-light-e-move-6', enemyLightEMove6Url)
+    this.load.image('enemy-light-e-move-7', enemyLightEMove7Url)
+    this.load.image('enemy-light-e-move-8', enemyLightEMove8Url)
+    this.load.image('enemy-light-e-move-9', enemyLightEMove9Url)
+    this.load.image('enemy-light-e-move-10', enemyLightEMove10Url)
+    this.load.image('enemy-light-e-move-11', enemyLightEMove11Url)
+    this.load.image('enemy-light-e-move-12', enemyLightEMove12Url)
+    this.load.image('enemy-light-f-move-1', enemyLightFMove1Url)
+    this.load.image('enemy-light-f-move-2', enemyLightFMove2Url)
+    this.load.image('enemy-light-f-move-3', enemyLightFMove3Url)
+    this.load.image('enemy-light-f-move-4', enemyLightFMove4Url)
+    this.load.image('enemy-light-f-move-5', enemyLightFMove5Url)
+    this.load.image('enemy-light-f-move-6', enemyLightFMove6Url)
+    this.load.image('enemy-light-f-move-7', enemyLightFMove7Url)
+    this.load.image('enemy-light-f-move-8', enemyLightFMove8Url)
+    this.load.image('enemy-light-f-move-9', enemyLightFMove9Url)
+    this.load.image('enemy-light-f-move-10', enemyLightFMove10Url)
+    this.load.image('enemy-light-f-move-11', enemyLightFMove11Url)
+    this.load.image('enemy-light-f-move-12', enemyLightFMove12Url)
+    this.load.image('enemy-light-g-move-1', enemyLightGMove1Url)
+    this.load.image('enemy-light-g-move-2', enemyLightGMove2Url)
+    this.load.image('enemy-light-g-move-3', enemyLightGMove3Url)
+    this.load.image('enemy-light-g-move-4', enemyLightGMove4Url)
+    this.load.image('enemy-light-g-move-5', enemyLightGMove5Url)
+    this.load.image('enemy-light-g-move-6', enemyLightGMove6Url)
+    this.load.image('enemy-light-g-move-7', enemyLightGMove7Url)
+    this.load.image('enemy-light-g-move-8', enemyLightGMove8Url)
+    this.load.image('enemy-light-g-move-9', enemyLightGMove9Url)
+    this.load.image('enemy-light-g-move-10', enemyLightGMove10Url)
+    this.load.image('enemy-light-g-move-11', enemyLightGMove11Url)
+    this.load.image('enemy-light-g-move-12', enemyLightGMove12Url)
+    this.load.image('enemy-light-i-move-1', enemyLightIMove1Url)
+    this.load.image('enemy-light-i-move-2', enemyLightIMove2Url)
+    this.load.image('enemy-light-i-move-3', enemyLightIMove3Url)
+    this.load.image('enemy-light-i-move-4', enemyLightIMove4Url)
+    this.load.image('enemy-light-i-move-5', enemyLightIMove5Url)
+    this.load.image('enemy-light-i-move-6', enemyLightIMove6Url)
+    this.load.image('enemy-light-i-move-7', enemyLightIMove7Url)
+    this.load.image('enemy-light-i-move-8', enemyLightIMove8Url)
+    this.load.image('enemy-light-i-move-9', enemyLightIMove9Url)
+    this.load.image('enemy-light-i-move-10', enemyLightIMove10Url)
+    this.load.image('enemy-light-i-move-11', enemyLightIMove11Url)
+    this.load.image('enemy-light-i-move-12', enemyLightIMove12Url)
     this.load.image('boss-elite-move-1', bossEliteMove1Url)
     this.load.image('boss-elite-move-2', bossEliteMove2Url)
     this.load.image('boss-elite-move-3', bossEliteMove3Url)
