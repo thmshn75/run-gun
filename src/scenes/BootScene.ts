@@ -3,13 +3,12 @@ import enemyHeavyUrl from '../assets/enemy-heavy.png'
 import enemyBossUrl from '../assets/enemy-boss.png'
 import enemyLightUrl from '../assets/enemy-light.png'
 import enemyStandardUrl from '../assets/enemy-standard.png'
-// Versuch mit gezeichneten Laufbildern (2026-09-04). Wird nur im Testgelaende benutzt,
-// aber wie alles andere fest importiert - damit Vite sie hasht und der Offline-Vorrat
-// sie mitnimmt.
-import enemyWalk1Url from '../assets/enemy-walk-1.png'
-import enemyWalk2Url from '../assets/enemy-walk-2.png'
-import enemyWalk3Url from '../assets/enemy-walk-3.png'
-import enemyWalk4Url from '../assets/enemy-walk-4.png'
+// Bildvariante des Bosses (2026-09-04). Wird nur im Testgelaende benutzt, aber wie alles
+// andere fest importiert - damit Vite sie hasht und der Offline-Vorrat sie mitnimmt.
+import bossMove1Url from '../assets/boss-move-1.png'
+import bossMove2Url from '../assets/boss-move-2.png'
+import bossMove3Url from '../assets/boss-move-3.png'
+import bossMove4Url from '../assets/boss-move-4.png'
 import enemyLightEUrl from '../assets/enemy-light-e.png'
 import enemyLightFUrl from '../assets/enemy-light-f.png'
 import enemyLightGUrl from '../assets/enemy-light-g.png'
@@ -88,10 +87,10 @@ export class BootScene extends Phaser.Scene {
     this.load.image('title', titleUrl)
     this.load.image('enemy-light', enemyLightUrl)
     this.load.image('enemy-standard', enemyStandardUrl)
-    this.load.image('enemy-walk-1', enemyWalk1Url)
-    this.load.image('enemy-walk-2', enemyWalk2Url)
-    this.load.image('enemy-walk-3', enemyWalk3Url)
-    this.load.image('enemy-walk-4', enemyWalk4Url)
+    this.load.image('boss-move-1', bossMove1Url)
+    this.load.image('boss-move-2', bossMove2Url)
+    this.load.image('boss-move-3', bossMove3Url)
+    this.load.image('boss-move-4', bossMove4Url)
     this.load.image('enemy-heavy', enemyHeavyUrl)
     this.load.image('enemy-light-e', enemyLightEUrl)
     this.load.image('enemy-light-f', enemyLightFUrl)
@@ -197,13 +196,32 @@ export class BootScene extends Phaser.Scene {
     }
     graphics.generateTexture('ground-water', width, wasserHoehe)
 
-    // Ein Wellenkamm. Bewusst ein flaches Rechteck: Die Sprites sind auf Kampfhoehe
-    // 34 x 3 px gross und weiter oben ein Bruchteil davon - jede Rundung waere dort
-    // ein einzelnes Pixel und nur Rechenzeit.
-    graphics.clear()
-    graphics.fillStyle(WORLD_COLORS.waveCrest)
-    graphics.fillRect(0, 0, 32, 4)
-    graphics.generateTexture('water-wave', 32, 4)
+    // Wellenkamm und Wellental. Beide laufen zu den Enden hin WEICH aus - das ist der
+    // groesste Unterschied zwischen "Wasser" und "Striche auf blauem Grund": Ein hartes
+    // Rechteck liest sich als Kratzer, eine an den Enden verschwindende Linie als
+    // Kraeuselung (2026-09-04, Thomas: "sieh zu ob du das wasser noch realistischer
+    // hinbekommst").
+    //
+    // Der Verlauf entsteht aus gestapelten Rechtecken mit fallender Deckkraft, nicht aus
+    // fillGradientStyle - das wirkt nur im WebGL-Pfad und wird von generateTexture
+    // stillschweigend auf die erste Farbe reduziert (Lesson 2026-08-20). Dieselbe
+    // Bauweise wie bei der Schattentextur.
+    const welle = (key: string, farbe: number, maxAlpha: number): void => {
+      graphics.clear()
+      const breite = 32
+      const hoehe = 4
+      const stufen = 8
+      for (let stufe = 0; stufe < stufen; stufe += 1) {
+        // Von aussen nach innen: jede Stufe ist schmaler und deckender.
+        const anteil = (stufe + 1) / stufen
+        const x = (breite / 2) * (1 - anteil)
+        graphics.fillStyle(farbe, (maxAlpha * anteil) / stufen * 2)
+        graphics.fillRect(x, 0, breite * anteil, hoehe)
+      }
+      graphics.generateTexture(key, breite, hoehe)
+    }
+    welle('water-wave', WORLD_COLORS.waveCrest, 1)
+    welle('water-trough', WORLD_COLORS.waveTrough, 1)
     graphics.destroy()
   }
 

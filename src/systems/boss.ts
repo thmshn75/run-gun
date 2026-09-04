@@ -19,6 +19,13 @@ export class Boss {
   /** Laufzeit fuer die Laufbewegung — laeuft auch beim Anmarsch, nicht erst im Kampf. */
   private gaitElapsedMs = 0
 
+  /**
+   * Bildvariante statt gerechneter Bewegung - NUR im Testgelaende (Thomas 2026-09-04).
+   * Ist eines der vier Bilder nicht geladen, bleibt sie aus und der Boss behaelt das
+   * Wiegen; ein Boss mit fehlender Textur waere schlimmer als gar kein Versuch.
+   */
+  private bossBilderAktiv = false
+
   /** Laufzeit fuer das seitliche Pendeln des Elite-Bosses. */
   private swingElapsedMs = 0
   private hordeAccumulatorMs: number
@@ -51,6 +58,11 @@ export class Boss {
     this.phaseFlashRemainingMs = 0
   }
 
+  public setBossBilder(aktiv: boolean): void {
+    this.bossBilderAktiv = aktiv && BALANCE.testground.bossBilder.texturen
+      .every((name: string) => this.scene.textures.exists(name))
+  }
+
   public getEnemy(): Phaser.Physics.Arcade.Image {
     return this.enemy
   }
@@ -81,7 +93,10 @@ export class Boss {
     this.phaseFlashRemainingMs = 0
     // Eigenes Bild fuer den Elite-Boss - er soll auf den ersten Blick als anderer
     // Gegner lesbar sein, nicht als groesserer derselbe.
-    this.enemy.setTexture(this.plan.elite ? 'enemy-boss-elite' : 'enemy-boss')
+    // Die Bildvariante ersetzt die Standtextur; sie ist aus dem Elite-Boss erzeugt.
+    this.enemy.setTexture(this.bossBilderAktiv
+      ? BALANCE.testground.bossBilder.texturen[0]
+      : (this.plan.elite ? 'enemy-boss-elite' : 'enemy-boss'))
     this.swingElapsedMs = 0
     this.enemy.enableBody(true, this.scene.scale.width / 2, y, true, true)
     this.enemy.setActive(true).setVisible(true).setAlpha(0).clearTint()
@@ -169,6 +184,16 @@ export class Boss {
    */
   private applyGait(dt: number): void {
     this.gaitElapsedMs += dt
+    if (this.bossBilderAktiv) {
+      // Bildvariante: Die Bewegung steckt in den vier Bildern, deshalb KEIN Wiegen und
+      // kein Federn dazu - sonst laufen zwei Bewegungen uebereinander und man sieht
+      // nicht mehr, welche wirkt.
+      const { texturen, zyklenProSekunde } = BALANCE.testground.bossBilder
+      const zyklus = ((this.gaitElapsedMs / 1000) * zyklenProSekunde) % 1
+      this.enemy.setTexture(texturen[Math.min(texturen.length - 1, Math.floor(zyklus * texturen.length))])
+      this.enemy.setRotation(0)
+      return
+    }
     const cycleHz = getStepCycleHz(BALANCE.boss.bodyHeight)
     const squash = getStepSquash(this.gaitElapsedMs, cycleHz, 0, BALANCE.gamefeel.enemyStepSquashShare)
     this.enemy.setScale(this.enemy.scaleX * squash.scaleX, this.enemy.scaleY * squash.scaleY)

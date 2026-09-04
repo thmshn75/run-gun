@@ -647,6 +647,14 @@ export const BALANCE = {
     // zum Bildrand. Als Anteil der halben Bildbreite.
     waveSpreadShare: 1,
     waveAlpha: 0.5,
+    // Anteil dunkler Wellentaeler am Pool. Wasser zeigt Kaemme und Senken etwa gleich
+    // haeufig; etwas weniger Senken, weil die dunkle Farbe vor dem dunklen Vordergrund
+    // ohnehin staerker traegt als die helle.
+    troughShare: 0.45,
+    // Jede Welle bekommt eine eigene Laenge zwischen diesen Faktoren. Gleich lange
+    // Wellen lesen sich als Muster statt als Wasser.
+    waveLengthMin: 0.55,
+    waveLengthMax: 1.5,
     // Die Wellen laufen langsamer als die Bruecke an einem vorbeizieht: Wasser bewegt
     // sich nicht mit dem Fahrzeug mit. Anteil der Scrollgeschwindigkeit.
     waveScrollShare: 0.35,
@@ -1107,19 +1115,26 @@ export const BALANCE = {
     // Testgelaende spielt auf Level 5, und welches Thema dort nach der Wechselregel
     // faellig waere, ist Zufall - hier soll immer die Bruecke stehen.
     thema: 'bruecke' as const,
-    // Versuch mit echten Laufbildern (Thomas 2026-09-04: "ein Versuch einer bewegten
-    // Figur mittels Bildgenerierung mit nur einer Figur"). Gilt AUSSCHLIESSLICH im
-    // Testgelaende und nur fuer die eine Gestalt unten - alle anderen Gegner behalten
-    // die gerechnete Bewegung, damit im selben Bild beides nebeneinander steht und sich
-    // vergleichen laesst.
-    laufbilder: {
-      // Die Bildfolge. Reihenfolge ist der Gangzyklus: Kontakt links, Schwung, Kontakt
-      // rechts, Schwung. Vier Bilder sind das Minimum, das als Gang gelesen wird.
-      texturen: ['enemy-walk-1', 'enemy-walk-2', 'enemy-walk-3', 'enemy-walk-4'] as const,
-      // Ersetzt wird die Gestalt dieser Staerke. 'standard' ist die mittlere - sie kommt
-      // haeufig genug, um sie oft zu sehen, und selten genug, dass daneben noch
-      // unanimierte Gegner laufen.
-      staerke: 'standard' as const,
+    // Bildvariante NUR FUER DEN BOSS (Thomas 2026-09-04, nach dem ersten Versuch:
+    // "die bewegten figuren flackern, also bei den normalen figuren sollte die
+    // gerechnete bewegung besser funktionieren, aber bei den Bossen die Bildvariante
+    // einbauen - alles nur fuer den testlauf").
+    //
+    // Der Zombie-Versuch ist damit ausgewertet und zurueckgebaut: Alle normalen Gegner
+    // tragen wieder die gerechnete Bewegung. Warum er scheiterte, steht in
+    // docs/lessons.md (2026-09-04) - die Bildgenerierung hielt die Figur konstant, aber
+    // nicht die Haltungen auseinander, und vier fast gleiche Bilder lesen sich als
+    // Flackern. Die vier Zombie-Bilder liegen im Commit 1c113a7.
+    //
+    // Beim Boss ist die Ausgangslage anders: EINE grosse Figur, die langsam vorrueckt
+    // statt zu laufen, und eine Bewegung mit weit auseinanderliegenden Haltungen
+    // (Arme heben und sinken statt vier Schritten). Genau der Unterschied, der fehlte.
+    bossBilder: {
+      // Reihenfolge ist der Bewegungsablauf: Ruhe, Ausholen, Hoehepunkt, Zuruecksinken.
+      texturen: ['boss-move-1', 'boss-move-2', 'boss-move-3', 'boss-move-4'] as const,
+      // Volle Auf-und-ab-Bewegung je Sekunde. Ein schwerer Koerper baeumt sich langsam
+      // auf - schneller als das waere ein Zappeln, langsamer als das steht er still.
+      zyklenProSekunde: 0.55,
     },
   },
   continueRun: {

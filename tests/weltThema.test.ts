@@ -110,44 +110,49 @@ describe('Testgelaende als Pruefplatz', () => {
     expect(getWeltThema(BALANCE.testground.level)).toBe(getWeltThema(BALANCE.testground.level, false))
   })
 
-  it('schaltet die Laufbilder nur im Testgelaende ein', () => {
+  it('schaltet die Bildvariante des Bosses nur im Testgelaende ein', () => {
     const source = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
-    expect(source).toContain('this.spawner.setLaufbilder(this.istTestgelaende())')
-    // Kein zweiter Aufruf mit etwas anderem als dem Testgelaende-Kennzeichen. Geprueft
-    // wird zeilenweise, nicht per Klammer-Regex: Das Argument enthaelt selbst Klammern.
-    const zeilen = source.split('\n').filter((zeile) => zeile.includes('setLaufbilder('))
+    // Zeilenweise statt per Klammer-Regex: Das Argument enthaelt selbst Klammern
+    // (Lesson 2026-09-04).
+    const zeilen = source.split('\n').filter((zeile) => zeile.includes('setBossBilder('))
     expect(zeilen).toHaveLength(1)
     for (const zeile of zeilen) expect(zeile).toContain('istTestgelaende()')
   })
 
-  it('bleibt aus, solange ein Laufbild fehlt', () => {
-    // Sonst erschiene die Versuchsfigur mit fehlender Textur statt mit der gerechneten
-    // Bewegung - ein Fehlerbild statt eines Vergleichs.
-    const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
-    const setter = source.slice(source.indexOf('public setLaufbilder('), source.indexOf('public resetForLevel('))
+  it('bleibt aus, solange ein Bossbild fehlt', () => {
+    // Sonst erschiene der Boss mit fehlender Textur statt mit der gerechneten Bewegung.
+    const source = readFileSync(new URL('../src/systems/boss.ts', import.meta.url), 'utf8')
+    const setter = source.slice(source.indexOf('public setBossBilder('), source.indexOf('public getEnemy('))
     expect(setter).toContain('textures.exists')
     expect(setter).toContain('every(')
   })
 
-  it('gibt der Versuchsfigur keine zweite, gerechnete Bewegung', () => {
-    // Die Bewegung steckt in den Bildern. Liefe das Wiegen zusaetzlich, verglichen wir
-    // zwei Bewegungen gegen eine statt gezeichnet gegen gerechnet.
-    const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
-    expect(source).toContain("const istLaufbild = enemy.getData('laufbild') === true")
-    // Der Hub wird fuer die Versuchsfigur uebersprungen ...
-    expect(source).toContain('istLaufbild\n        ? 0')
-    // ... und Wiegen und Federn liegen im anderen Zweig.
-    const zweig = source.slice(source.indexOf('if (istLaufbild) {'))
-    const sonst = zweig.slice(zweig.indexOf('} else {'))
-    expect(sonst).toContain('getStepSquash')
-    expect(sonst).toContain('getStepSwayRadians')
+  it('gibt dem Boss mit Bildvariante keine zweite, gerechnete Bewegung', () => {
+    // Die Bewegung steckt in den Bildern. Liefe das Wiegen zusaetzlich, laegen zwei
+    // Bewegungen uebereinander und man saehe nicht, welche wirkt.
+    const source = readFileSync(new URL('../src/systems/boss.ts', import.meta.url), 'utf8')
+    const gait = source.slice(source.indexOf('private applyGait('))
+    const bildzweig = gait.slice(gait.indexOf('if (this.bossBilderAktiv) {'), gait.indexOf('    const cycleHz'))
+    expect(bildzweig).toContain('setRotation(0)')
+    expect(bildzweig).toContain('return')
+    expect(bildzweig).not.toContain('getStepSquash')
+    expect(bildzweig).not.toContain('getStepSwayRadians')
   })
 
-  it('nutzt genau vier Bilder auf einen Doppelschritt', () => {
-    // Vier ist das Minimum, das als Gang gelesen wird: zwei Kontakte, zwei Schwuenge.
-    expect(BALANCE.testground.laufbilder.texturen).toHaveLength(4)
-    expect(new Set(BALANCE.testground.laufbilder.texturen).size).toBe(4)
-    // Und die ersetzte Staerke gibt es wirklich.
-    expect(BALANCE.enemy.types.map((t) => t.key)).toContain(BALANCE.testground.laufbilder.staerke)
+  it('nutzt genau vier Bossbilder', () => {
+    expect(BALANCE.testground.bossBilder.texturen).toHaveLength(4)
+    expect(new Set(BALANCE.testground.bossBilder.texturen).size).toBe(4)
+    expect(BALANCE.testground.bossBilder.zyklenProSekunde).toBeGreaterThan(0)
+  })
+
+  it('laesst die normalen Gegner bei der gerechneten Bewegung', () => {
+    // Der Zombie-Versuch ist zurueckgebaut (Thomas 2026-09-04: "bei den normalen figuren
+    // sollte die gerechnete bewegung besser funktionieren"). Im Spawner darf nichts mehr
+    // davon stehen, sonst laeuft ein halber Versuch weiter.
+    const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
+    expect(source).not.toContain('laufbild')
+    expect(source).not.toContain('setLaufbilder')
+    // Und die gerechnete Bewegung liegt wieder ohne Sonderfall im Update.
+    expect(source).toContain('getStepSwayRadians(this.elapsedMs, bobCycleHz, phase')
   })
 })

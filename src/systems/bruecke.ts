@@ -9,6 +9,8 @@ type Welle = {
   progress: number
   seite: -1 | 1
   abstand: number
+  // Eigene Laenge je Welle - gleich lange Wellen lesen sich als Muster statt als Wasser.
+  laenge: number
   // Fester Platz im Kraeuseltakt. Ohne ihn schwingt und flackert die ganze Flaeche im
   // Gleichschritt - das liest sich als ein Objekt, nicht als Wasser.
   takt: number
@@ -57,7 +59,7 @@ export class Bruecke {
         .setDepth(BALANCE.layers.background)
         .setAlpha(BALANCE.bruecke.waveAlpha)
         .setVisible(false)
-      const welle: Welle = { image, progress: index / BALANCE.bruecke.waves, seite: 1, abstand: 0, takt: getPhaseOffset(index) }
+      const welle: Welle = { image, progress: index / BALANCE.bruecke.waves, seite: 1, abstand: 0, laenge: 1, takt: getPhaseOffset(index) }
       this.wuerfleWelle(welle)
       // Der Startfortschritt bleibt gleichmaessig verteilt, damit beim ersten Bild
       // nicht die halbe Flaeche leer ist; gewuerfelt wird nur die Lage zur Seite.
@@ -106,14 +108,19 @@ export class Bruecke {
       const staerke = 1 - BALANCE.bruecke.waveShimmerDepth * (1 - Math.abs(schwung))
       welle.image
         .setPosition(kante + (aussen - kante) * welle.abstand + versatz, y)
-        .setDisplaySize(BALANCE.bruecke.waveWidthPx * skala, BALANCE.bruecke.waveHeightPx * skala)
+        .setDisplaySize(BALANCE.bruecke.waveWidthPx * welle.laenge * skala, BALANCE.bruecke.waveHeightPx * skala)
         .setAlpha(BALANCE.bruecke.waveAlpha * staerke)
     }
   }
 
   private wuerfleWelle(welle: Welle): void {
+    const { troughShare, waveLengthMin, waveLengthMax } = BALANCE.bruecke
     welle.seite = this.rng() < 0.5 ? -1 : 1
     welle.abstand = this.rng()
+    welle.laenge = waveLengthMin + this.rng() * (waveLengthMax - waveLengthMin)
+    // Kamm oder Senke. Beides zusammen macht aus einer glatten Flaeche mit Strichen
+    // darauf eine bewegte Oberflaeche.
+    welle.image.setTexture(this.rng() < troughShare ? 'water-trough' : 'water-wave')
   }
 
   /**

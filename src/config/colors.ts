@@ -48,6 +48,10 @@ export const WORLD_COLORS = {
   // Wellenkaemme: heller als das Wasser darunter, aber nicht weiss - sonst wirken sie
   // wie Schaum statt wie Kraeuselung.
   waveCrest: 0xbfe2f5,
+  // Wellentaeler: Echtes Wasser zeigt nicht nur helle Kaemme, sondern ebenso viele
+  // dunkle Senken dazwischen. Ohne sie liest sich die Flaeche als glatte Ebene mit
+  // Kratzern darauf (2026-09-04).
+  waveTrough: 0x082c58,
   // Beton der Bruecke. Der Fahrbahnrand liegt im Licht, das Gelaender steht dagegen
   // etwas dunkler - sonst verschwindet es vor dem hellen Wasser am Horizont.
   bridgeDeck: 0x9aa3ab,

@@ -30,10 +30,6 @@ export class Spawner {
   private spawnAccumulatorMs: number
   private elapsedMs: number
   private lastPoolWarningAtMs: number
-  // Versuch mit echten Laufbildern - NUR im Testgelaende (2026-09-04). Der Schalter
-  // kommt von aussen, damit der Spawner nichts ueber den Einstieg wissen muss.
-  private laufbilderAktiv: boolean = false
-
   private deferredSpawn: SpawnRequest | undefined
   private deferredAgeMs: number
   private intervalSpawnCount: number
@@ -103,16 +99,6 @@ export class Spawner {
       this.deferredSpawn = undefined
       this.deferredAgeMs = 0
     }
-  }
-
-  /**
-   * Schaltet den Laufbild-Versuch ein (Testgelaende). Ist eines der vier Bilder nicht
-   * geladen, bleibt es aus - dann laeuft alles wie gehabt mit der gerechneten Bewegung,
-   * statt dass eine Figur mit fehlender Textur erscheint.
-   */
-  public setLaufbilder(aktiv: boolean): void {
-    this.laufbilderAktiv = aktiv && BALANCE.testground.laufbilder.texturen
-      .every((name) => this.scene.textures.exists(name))
   }
 
   public resetForLevel(level: number): void {
@@ -307,14 +293,7 @@ export class Spawner {
       this.applyPerspectiveScale(enemy, logicalY)
       // Auch der Hub schrumpft mit der Entfernung - ein ferner Gegner, der so weit
       // huepft wie ein naher, zerstoert die Tiefenwirkung wieder.
-      //
-      // Die Versuchsfigur mit gezeichneten Laufbildern bekommt KEINE gerechnete Bewegung:
-      // Hub, Wiegen und Federn stecken bereits in den Bildern. Beides zugleich waere
-      // doppelte Bewegung und wuerde den Vergleich wertlos machen, um den es geht.
-      const istLaufbild = enemy.getData('laufbild') === true
-      const bob = istLaufbild
-        ? 0
-        : getBobOffsetPx(this.elapsedMs, bobCycleHz, getPhaseOffset(poolIndex), BALANCE.gamefeel.enemyBobAmplitudePx) * enemy.scaleY
+      const bob = getBobOffsetPx(this.elapsedMs, bobCycleHz, getPhaseOffset(poolIndex), BALANCE.gamefeel.enemyBobAmplitudePx) * enemy.scaleY
       enemy.setData('bobPx', bob)
       enemy.y = logicalY + bob
       // Zielsuche: Die Spur wandert langsam zur Truppe, statt starr zu bleiben. Die
@@ -339,18 +318,9 @@ export class Spawner {
       // applyPerspectiveScale setzt die Skalierung im naechsten Bild wieder absolut,
       // die Faktoren summieren sich also nicht auf.
       const phase = getPhaseOffset(poolIndex)
-      if (istLaufbild) {
-        // Vier Bilder auf einen Doppelschritt, im selben Takt wie die gerechnete
-        // Bewegung: Der Vergleich soll an der Darstellung haengen, nicht am Tempo.
-        const texturen = BALANCE.testground.laufbilder.texturen
-        const zyklus = ((this.elapsedMs / 1000) * bobCycleHz + phase) % 1
-        enemy.setTexture(texturen[Math.min(texturen.length - 1, Math.floor(zyklus * texturen.length))])
-        enemy.setRotation(0)
-      } else {
-        const squash = getStepSquash(this.elapsedMs, bobCycleHz, phase, BALANCE.gamefeel.enemyStepSquashShare)
-        enemy.setScale(enemy.scaleX * squash.scaleX, enemy.scaleY * squash.scaleY)
-        enemy.setRotation(getStepSwayRadians(this.elapsedMs, bobCycleHz, phase, BALANCE.gamefeel.enemyStepSwayMaxDeg))
-      }
+      const squash = getStepSquash(this.elapsedMs, bobCycleHz, phase, BALANCE.gamefeel.enemyStepSquashShare)
+      enemy.setScale(enemy.scaleX * squash.scaleX, enemy.scaleY * squash.scaleY)
+      enemy.setRotation(getStepSwayRadians(this.elapsedMs, bobCycleHz, phase, BALANCE.gamefeel.enemyStepSwayMaxDeg))
       this.meldeDurchbruch(enemy)
       if (enemy.y - enemy.displayHeight / 2 > this.scene.scale.height) this.recycle(enemy)
     }
@@ -595,12 +565,6 @@ export class Spawner {
     // sprite each frame, making the visible enemy jump sideways.
     body.moves = false
     body.updateFromGameObject()
-    // Versuchsfigur des Testgelaendes: nur diese eine Staerke bekommt die gezeichneten
-    // Laufbilder. Alle anderen behalten die gerechnete Bewegung, damit im selben Bild
-    // beides nebeneinander laeuft und sich vergleichen laesst.
-    const laufbild = this.laufbilderAktiv && type.key === BALANCE.testground.laufbilder.staerke
-    enemy.setData('laufbild', laufbild)
-    if (laufbild) enemy.setTexture(BALANCE.testground.laufbilder.texturen[0])
     enemy.setActive(true).setVisible(true).clearTint()
     this.applyPerspectiveScale(enemy, y)
     this.applyHorizonReveal(enemy)
