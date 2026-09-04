@@ -284,6 +284,28 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   - Weiterhin nur im Testgelaende: derselbe Elite-Boss traegt im normalen Run auf
     Level 5 ueber 1.101 Proben sein altes Bild mit gerechnetem Wiegen.
 
+- **FREIGEGEBEN fuer die normalen Runs** (2026-09-04, Thomas: "bewegungen so uebernehmen
+  fuer die normalen runs - figuren berechnet und bosse mit bildbewegung ... und wasser
+  und stadt level abwechselnd"). Damit ist der Stand entschieden, nicht mehr im Versuch:
+  1. **Normale Gegner und Truppe:** gerechnete Bewegung (Wiegen + Federn).
+  2. **Bosse:** gezeichnete Bildbewegung, in jedem Run.
+  3. **Kulisse:** Stadt und Bruecke wechseln von Level zu Level.
+  - **Zwei Bildsaetze, weil es zwei Bosse gibt.** Auf Thomas' eigene Frage ("muessen die
+    normalen Bosse fuer level 1-4 usw. noch gemacht werden?"): ja. Die ersten vier Bilder
+    stammen aus `enemy-boss-elite.png`; der gewoehnliche Boss hat mit `enemy-boss.png`
+    ein eigenes Aussehen, das er seit E7 bewusst hat. Ein gemeinsamer Satz haette den
+    Unterschied wieder eingeebnet. Die alten Dateien heissen jetzt
+    `boss-elite-move-1..4`, dazu kamen `boss-basic-move-1..4` (drei Codex-Anlaeufe).
+  - Gemessen am neuen Satz: Standlinie 234, Rumpfmitte 118-121,5, ein Fuss je Schrittbild
+    13 bzw. 17 px angehoben, Silhouettenunterschied 65 % gesamt und 59 % in den Beinen.
+  - Browser-Belege im normalen Run: Level 3 nutzt den basic-Satz und pendelt nicht
+    (Entscheidung 2026-08-23), Level 5 den elite-Satz mit 57,5 px Pendelweite, 7,09 Grad
+    Neigung bei hoechstem Tempo und 0 Grad am Umkehrpunkt.
+  - **Ein Verdacht hat sich nicht bestaetigt:** Der blaeuliche Saum, der im Kontaktbogen
+    auffiel, ist schwaecher als im abgenommenen Original (Randpixel-Blaustich +20 gegen
+    +56 bei `enemy-boss.png`). Es war der dunkle Hintergrund des Bogens.
+  - **Noch offen: das iPhone-Urteil ueber den Gesamtstand.**
+
 ## Offen — naechster Schritt zuerst
 1. ~~Bennis iPhone-Test~~ — **erledigt am 2026-08-29, ok** (Thomas). Gamefeel damit
    abgenommen. Noch nachzuziehen (siehe unten): Wirkung der Aufruestungsstufen im Spiel

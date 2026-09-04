@@ -8,6 +8,17 @@ Jede Nutzerkorrektur wird hier als Regel eingetragen. Zu Sitzungsbeginn lesen.
 
 ---
 
+### 2026-09-04 — Ein auffaelliges Bilddetail zuerst gegen die Vorlage messen
+- **Beinahe-Fehler:** Im Kontaktbogen der neuen Boss-Sprites fiel ein blaeulicher Saum um
+  die Figuren auf; er sah nach einem Generierungsfehler aus und waere fast ein vierter
+  Codex-Lauf geworden. Nachgemessen (mittlere Randpixelfarbe, Blau minus Mittel aus Rot
+  und Gruen) hatte die ABGENOMMENE Vorlage einen Blaustich von +56, die neuen Bilder nur
+  +20. Der Saum war schwaecher als im Original - sichtbar wurde er nur vor dem dunklen
+  Hintergrund meines eigenen Vergleichsbogens.
+- **Regel:** Faellt an einem neuen Bild ein Detail auf, dieselbe Groesse zuerst am
+  bestehenden, abgenommenen Bild messen. Ein Kontaktbogen mit eigenem Hintergrund ist ein
+  Messgeraet mit Eigenanteil - was darauf auffaellt, muss im Spiel nicht auffallen.
+
 ### 2026-09-04 — Die Pose-Vorgabe braucht ein Merkmal, keinen Prozentsatz
 - **Befund:** Fuer die Beinarbeit des Bosses stand zuerst nur ein Prozentwert in der Spec
   ("mindestens 45 % Silhouettenunterschied im Beinbereich"). Erreicht wurden am Ende
