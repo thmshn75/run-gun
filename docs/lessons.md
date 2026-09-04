@@ -8,6 +8,20 @@ Jede Nutzerkorrektur wird hier als Regel eingetragen. Zu Sitzungsbeginn lesen.
 
 ---
 
+### 2026-09-04 — "Abgehakt" ist eine Standzeit, keine Geschmacksfrage
+- **Befund:** Auf "wirkt abgehakt" gibt es eine Zahl statt einer Meinung: die Standzeit je
+  Einzelbild. Vier Bilder bei 1,1 Zyklen je Sekunde ergeben 227 ms - das Auge liest
+  Standbilder. Als fluessig gelten Sprite-Animationen ab rund 10-12 Bildern je Sekunde,
+  also unter 100 ms. Zwoelf Bilder bei unveraendertem Tempo ergaben gemessene 76 ms.
+- **Regel:** Bei jeder Ruckel-Meldung zuerst Bildzahl x Zyklen je Sekunde ausrechnen und
+  gegen die 100-ms-Schwelle halten. Erst dann entscheiden, ob mehr Bilder, ein anderes
+  Tempo oder etwas ganz anderes noetig ist - und die Schwelle als Test festschreiben,
+  sonst faellt sie beim naechsten Feinschliff still wieder darunter.
+- **Ueberblenden ist kein Ersatz fuer Zwischenbilder**, wenn die Haltungen weit
+  auseinanderliegen: Zwei halbtransparente Bilder mit 54 % Silhouettenunterschied geben
+  einen Doppelgaenger, keine Bewegung. Je besser die Posen, desto schlechter der
+  Weichzeichner - Ueberblenden taugt nur bei ohnehin aehnlichen Bildern.
+
 ### 2026-09-04 — Nicht die Figur entscheidet, sondern die Wahl der Bewegung
 - **Bestaetigt an drei Bildsaetzen desselben Tages:** Zombie mit Gangzyklus 15 %
   Haltungsunterschied (gescheitert), Boss mit Aufbaeumen 69 % (gelungen), Zombie mit

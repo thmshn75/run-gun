@@ -318,11 +318,29 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
     Run ist unberuehrt.
   - Browser-Beleg: alle vier Bilder, 4,29 Bildwechsel je Sekunde (1,07 Taumelzyklen),
     Rotation konstant 0, groesster Positionssprung beim Bildwechsel 0,06 px.
-  - **OFFENER BEFUND, den Thomas beurteilen muss:** Die Rumpfmitte wandert zwischen den
-    vier Bildern um 4 von 64 px, auf dem Bildschirm rund 2,2 px bei 35,8 px
-    Figurenbreite. Beim Boss-Satz sind es 0,9 px - der Zombie wackelt relativ siebenmal
-    staerker. Das kann als Taumeln gewollt wirken oder als Zucken stoeren. Faellt das
-    Urteil negativ aus, ist die Nachbesserung benannt: Rumpfmitte 32 +-1 statt +-2.
+  - ~~Offener Befund Rumpfmitte~~ - **mit dem Zwoelfer-Satz erledigt** (siehe unten).
+
+- **Taumel-Zyklus auf zwoelf Bilder erweitert** (2026-09-04, Thomas: "kann man machen
+  dass es nicht so abgehakt wirkt sondern eine fluessigere bewegung ist").
+  - **Die Ursache war gerechnet, nicht geraten:** Vier Bilder bei 1,1 Zyklen/s ergeben
+    4,4 Bilder/s - jedes Bild stand **227 ms** und war als Standbild zu sehen. Fluessig
+    gelten Sprite-Animationen ab rund 10-12 Bildern/s, also unter 100 ms. Im Spiel
+    gemessen sind es jetzt **76 ms** je Bild und 13,2 Wechsel je Sekunde, bei
+    unveraendertem Tempo.
+  - **Ueberblenden waere billiger gewesen und schied aus:** Bei 54 % Haltungsunterschied
+    gaeben zwei halbtransparente Bilder einen Doppelgaenger statt einer Bewegung. Je
+    groesser der Posenunterschied, desto weniger taugt Ueberblenden - deshalb echte
+    Zwischenbilder.
+  - Silhouettenunterschied Bild 1 zu 7: 54 %; kleinster Nachbarabstand 13,4 % - kein Bild
+    ist ein verschenkter Zwischenschritt. Ein Anlauf genuegte.
+  - **Beide offenen Befunde des Vierer-Satzes sind damit erledigt:** Rumpfmitte haelt
+    32 +-1 statt +-2 (kein Beinwandern mehr), Schuhwerk in allen zwoelf Bildern gleich.
+  - Ein Test haelt die 100-ms-Schranke fest, falls jemand spaeter Bilder herausnimmt oder
+    das Tempo senkt.
+  - **Fuer den iPhone-Blick:** Die Abstaende zwischen benachbarten Bildern sind
+    ungleichmaessig (13 % bis 60 %). Am weitesten Sprung - zwischen Bild 6 und 7, wo die
+    Arme ganz nach oben gehen - kann es weiter etwas haken. Falls es stoert, waere die
+    Nachbesserung ein Zwischenbild genau dort, kein neuer Satz.
 
 - **Als Naechstes besprochen, noch nicht begonnen:** der Grundaufbau mit den Waenden.
   Thomas 2026-09-04: "ich finde zwei reihen, statt dreien fast besser, aber das
