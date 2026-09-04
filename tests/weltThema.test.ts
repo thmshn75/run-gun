@@ -222,12 +222,22 @@ describe('Testgelaende als Pruefplatz', () => {
     // Eigener Takt, bewusst langsamer als der Schritt: Der Schrittzyklus liegt bei rund
     // 1,6 Hz. Waere das Wanken schneller, wirkte es hektisch statt schwerfaellig.
     const { zyklenProSekunde, texturen, staerke } = BALANCE.testground.gegnerBilder
-    expect(texturen).toHaveLength(4)
-    expect(new Set(texturen).size).toBe(4)
+    expect(new Set(texturen).size).toBe(texturen.length)
     expect(zyklenProSekunde).toBeGreaterThan(0)
     expect(zyklenProSekunde).toBeLessThan(getStepCycleHz(46))
     // Und die ersetzte Staerke gibt es wirklich.
     expect(BALANCE.enemy.types.map((t) => t.key)).toContain(staerke)
+  })
+
+  it('zeigt jedes Bild kurz genug, dass die Bewegung fluessig wirkt', () => {
+    // Der Grund fuer zwoelf statt vier Bildern (Thomas 2026-09-04: "nicht so abgehakt").
+    // Sprite-Animationen gelten ab rund 10-12 Bildern je Sekunde als fluessig, also
+    // unter 100 ms Standzeit. Mit vier Bildern waren es 227 ms - deutlich sichtbare
+    // Standbilder. Diese Schranke haelt den Wert fest, falls jemand spaeter Bilder
+    // herausnimmt oder das Tempo senkt.
+    const { texturen, zyklenProSekunde } = BALANCE.testground.gegnerBilder
+    const msJeBild = 1000 / (texturen.length * zyklenProSekunde)
+    expect(msJeBild).toBeLessThan(100)
   })
 
   it('laesst die normalen Gegner bei der gerechneten Bewegung', () => {

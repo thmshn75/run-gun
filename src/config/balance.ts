@@ -1126,7 +1126,22 @@ export const BALANCE = {
     // Haltungen weit unterscheiden. Genau dieser Wechsel hat den Boss-Satz gerettet
     // (69 % statt 15 %); die Herleitung steht in docs/lessons.md.
     gegnerBilder: {
-      texturen: ['enemy-lurch-1', 'enemy-lurch-2', 'enemy-lurch-3', 'enemy-lurch-4'] as const,
+      // ZWOELF Bilder, nicht vier (Thomas 2026-09-04: "kann man machen dass es nicht so
+      // abgehakt wirkt sondern eine fluessigere bewegung ist").
+      //
+      // GERECHNET: Vier Bilder bei 1,1 Zyklen/s ergeben 4,4 Bilder/s - jedes Bild steht
+      // 227 ms und ist als Standbild zu sehen. Fluessig gelten Sprite-Animationen ab
+      // rund 10-12 Bildern/s, also unter 100 ms je Bild. Zwoelf Bilder bei unveraendertem
+      // Tempo ergeben 76 ms.
+      //
+      // Ueberblenden waere billiger gewesen und scheidet trotzdem aus: Die Haltungen
+      // unterscheiden sich um 54 %, zwei davon halbtransparent uebereinander gaeben
+      // einen Doppelgaenger statt einer Bewegung.
+      texturen: [
+        'enemy-lurch-1', 'enemy-lurch-2', 'enemy-lurch-3', 'enemy-lurch-4',
+        'enemy-lurch-5', 'enemy-lurch-6', 'enemy-lurch-7', 'enemy-lurch-8',
+        'enemy-lurch-9', 'enemy-lurch-10', 'enemy-lurch-11', 'enemy-lurch-12',
+      ] as const,
       // Ersetzt wird die Gestalt dieser Staerke. 'standard' ist die mittlere - haeufig
       // genug, um sie oft zu sehen, selten genug, dass daneben unanimierte Gegner mit
       // der gerechneten Bewegung laufen und sich beides vergleichen laesst.
