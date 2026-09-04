@@ -20,11 +20,14 @@ export class Boss {
   private gaitElapsedMs = 0
 
   /**
-   * Bildvariante statt gerechneter Bewegung - NUR im Testgelaende (Thomas 2026-09-04).
-   * Ist eines der vier Bilder nicht geladen, bleibt sie aus und der Boss behaelt das
-   * Wiegen; ein Boss mit fehlender Textur waere schlimmer als gar kein Versuch.
+   * Bildsatz des laufenden Kampfes, oder undefined fuer die gerechnete Bewegung. Wird
+   * bei activate() aus dem Bosstyp gewaehlt: Elite und gewoehnlicher Boss haben eigene
+   * Bilder, damit der Elite weiter als anderer Gegner lesbar bleibt.
+   *
+   * Fehlt eines der vier Bilder, bleibt der Wert undefined und der Boss wiegt sich wie
+   * zuvor - eine Figur mit fehlender Textur waere schlimmer als die aeltere Bewegung.
    */
-  private bossBilderAktiv = false
+  private bewegungsBilder: readonly string[] | undefined
 
   /** Laufzeit fuer das seitliche Pendeln des Elite-Bosses. */
   private swingElapsedMs = 0
@@ -64,11 +67,6 @@ export class Boss {
     this.phaseFlashRemainingMs = 0
   }
 
-  public setBossBilder(aktiv: boolean): void {
-    this.bossBilderAktiv = aktiv && BALANCE.testground.bossBilder.texturen
-      .every((name: string) => this.scene.textures.exists(name))
-  }
-
   public getEnemy(): Phaser.Physics.Arcade.Image {
     return this.enemy
   }
@@ -100,9 +98,12 @@ export class Boss {
     this.phaseFlashRemainingMs = 0
     // Eigenes Bild fuer den Elite-Boss - er soll auf den ersten Blick als anderer
     // Gegner lesbar sein, nicht als groesserer derselbe.
-    // Die Bildvariante ersetzt die Standtextur; sie ist aus dem Elite-Boss erzeugt.
-    this.enemy.setTexture(this.bossBilderAktiv
-      ? BALANCE.testground.bossBilder.texturen[0]
+    // Bildsatz nach Bosstyp. Die Bewegungsbilder ersetzen die Standtextur vollstaendig;
+    // sie sind je aus dem passenden Standbild erzeugt.
+    const satz = this.plan.elite ? BALANCE.boss.bilder.elite : BALANCE.boss.bilder.basic
+    this.bewegungsBilder = satz.every((name: string) => this.scene.textures.exists(name)) ? satz : undefined
+    this.enemy.setTexture(this.bewegungsBilder !== undefined
+      ? this.bewegungsBilder[0]
       : (this.plan.elite ? 'enemy-boss-elite' : 'enemy-boss'))
     this.swingElapsedMs = 0
     this.enemy.enableBody(true, this.scene.scale.width / 2, y, true, true)
@@ -191,12 +192,12 @@ export class Boss {
    */
   private applyGait(dt: number): void {
     this.gaitElapsedMs += dt
-    if (this.bossBilderAktiv) {
-      // Bildvariante: Die Bewegung steckt in den vier Bildern, deshalb KEIN Wiegen und
-      // kein Federn dazu - sonst laufen zwei Bewegungen uebereinander und man sieht
-      // nicht mehr, welche wirkt.
-      const { texturen, zyklenProSekunde } = BALANCE.testground.bossBilder
-      const zyklus = ((this.gaitElapsedMs / 1000) * zyklenProSekunde) % 1
+    const texturen = this.bewegungsBilder
+    if (texturen !== undefined) {
+      // Bildbewegung: Der Gang steckt in den vier Bildern, deshalb KEIN Wiegen und kein
+      // Federn dazu - sonst laufen zwei Gangbewegungen uebereinander und man sieht nicht
+      // mehr, welche wirkt.
+      const zyklus = ((this.gaitElapsedMs / 1000) * BALANCE.boss.bilder.zyklenProSekunde) % 1
       this.enemy.setTexture(texturen[Math.min(texturen.length - 1, Math.floor(zyklus * texturen.length))])
       // Einzige gerechnete Bewegung, die zur Bildvariante DAZUKOMMT: die Neigung beim
       // seitlichen Pendeln. Sie ist keine zweite Gangbewegung, sondern die Reaktion auf

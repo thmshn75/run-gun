@@ -3,12 +3,16 @@ import enemyHeavyUrl from '../assets/enemy-heavy.png'
 import enemyBossUrl from '../assets/enemy-boss.png'
 import enemyLightUrl from '../assets/enemy-light.png'
 import enemyStandardUrl from '../assets/enemy-standard.png'
-// Bildvariante des Bosses (2026-09-04). Wird nur im Testgelaende benutzt, aber wie alles
-// andere fest importiert - damit Vite sie hasht und der Offline-Vorrat sie mitnimmt.
-import bossMove1Url from '../assets/boss-move-1.png'
-import bossMove2Url from '../assets/boss-move-2.png'
-import bossMove3Url from '../assets/boss-move-3.png'
-import bossMove4Url from '../assets/boss-move-4.png'
+// Bewegungsbilder der Bosse (2026-09-04). Zwei Saetze, weil Elite und gewoehnlicher Boss
+// bewusst verschieden aussehen.
+import bossEliteMove1Url from '../assets/boss-elite-move-1.png'
+import bossEliteMove2Url from '../assets/boss-elite-move-2.png'
+import bossEliteMove3Url from '../assets/boss-elite-move-3.png'
+import bossEliteMove4Url from '../assets/boss-elite-move-4.png'
+import bossBasicMove1Url from '../assets/boss-basic-move-1.png'
+import bossBasicMove2Url from '../assets/boss-basic-move-2.png'
+import bossBasicMove3Url from '../assets/boss-basic-move-3.png'
+import bossBasicMove4Url from '../assets/boss-basic-move-4.png'
 import enemyLightEUrl from '../assets/enemy-light-e.png'
 import enemyLightFUrl from '../assets/enemy-light-f.png'
 import enemyLightGUrl from '../assets/enemy-light-g.png'
@@ -87,10 +91,14 @@ export class BootScene extends Phaser.Scene {
     this.load.image('title', titleUrl)
     this.load.image('enemy-light', enemyLightUrl)
     this.load.image('enemy-standard', enemyStandardUrl)
-    this.load.image('boss-move-1', bossMove1Url)
-    this.load.image('boss-move-2', bossMove2Url)
-    this.load.image('boss-move-3', bossMove3Url)
-    this.load.image('boss-move-4', bossMove4Url)
+    this.load.image('boss-elite-move-1', bossEliteMove1Url)
+    this.load.image('boss-elite-move-2', bossEliteMove2Url)
+    this.load.image('boss-elite-move-3', bossEliteMove3Url)
+    this.load.image('boss-elite-move-4', bossEliteMove4Url)
+    this.load.image('boss-basic-move-1', bossBasicMove1Url)
+    this.load.image('boss-basic-move-2', bossBasicMove2Url)
+    this.load.image('boss-basic-move-3', bossBasicMove3Url)
+    this.load.image('boss-basic-move-4', bossBasicMove4Url)
     this.load.image('enemy-heavy', enemyHeavyUrl)
     this.load.image('enemy-light-e', enemyLightEUrl)
     this.load.image('enemy-light-f', enemyLightFUrl)

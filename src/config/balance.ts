@@ -592,10 +592,11 @@ export const BALANCE = {
   // Am Spielablauf aendert das Thema NICHTS: Fahrbahn, Waende, Sammelbahn, Gegner und
   // Boss sind identisch. Es ist reine Kulisse, damit die Wahl keine Balance-Frage ist.
   welt: {
+    // ENTSCHIEDEN am 2026-09-04 (Thomas: "wasser und stadt level abwechselnd"). Der
+    // Wechsel war bis dahin nur zum Beurteilen eingestellt; jetzt ist er die Wahl.
     thema: 'wechsel' as 'stadt' | 'bruecke' | 'wechsel',
-    // Bei 'wechsel': Laenge eines Abschnitts in Leveln. 1 = jedes Level wechselt.
-    // Bewusst 1, weil Thomas genau diesen Wechsel beurteilen soll - er sieht damit in
-    // den ersten zwei Leveln beide Optiken.
+    // Bei 'wechsel': Laenge eines Abschnitts in Leveln. 1 = jedes Level wechselt, also
+    // Stadt, Bruecke, Stadt, Bruecke - so wie entschieden.
     wechselAlleLevel: 1,
     // Bei 'wechsel': Level 1 ist Stadt, Level 2 Bruecke. Der abgenommene Stand bleibt
     // damit der erste Eindruck.
@@ -1115,27 +1116,6 @@ export const BALANCE = {
     // Testgelaende spielt auf Level 5, und welches Thema dort nach der Wechselregel
     // faellig waere, ist Zufall - hier soll immer die Bruecke stehen.
     thema: 'bruecke' as const,
-    // Bildvariante NUR FUER DEN BOSS (Thomas 2026-09-04, nach dem ersten Versuch:
-    // "die bewegten figuren flackern, also bei den normalen figuren sollte die
-    // gerechnete bewegung besser funktionieren, aber bei den Bossen die Bildvariante
-    // einbauen - alles nur fuer den testlauf").
-    //
-    // Der Zombie-Versuch ist damit ausgewertet und zurueckgebaut: Alle normalen Gegner
-    // tragen wieder die gerechnete Bewegung. Warum er scheiterte, steht in
-    // docs/lessons.md (2026-09-04) - die Bildgenerierung hielt die Figur konstant, aber
-    // nicht die Haltungen auseinander, und vier fast gleiche Bilder lesen sich als
-    // Flackern. Die vier Zombie-Bilder liegen im Commit 1c113a7.
-    //
-    // Beim Boss ist die Ausgangslage anders: EINE grosse Figur, die langsam vorrueckt
-    // statt zu laufen, und eine Bewegung mit weit auseinanderliegenden Haltungen
-    // (Arme heben und sinken statt vier Schritten). Genau der Unterschied, der fehlte.
-    bossBilder: {
-      // Reihenfolge ist der Bewegungsablauf: Ruhe, Ausholen, Hoehepunkt, Zuruecksinken.
-      texturen: ['boss-move-1', 'boss-move-2', 'boss-move-3', 'boss-move-4'] as const,
-      // Volle Auf-und-ab-Bewegung je Sekunde. Ein schwerer Koerper baeumt sich langsam
-      // auf - schneller als das waere ein Zappeln, langsamer als das steht er still.
-      zyklenProSekunde: 0.55,
-    },
   },
   continueRun: {
     // 250 x erreichtes Level: 750 auf Level 3, 2.000 auf Level 8, 3.000 auf Level 12.
@@ -2770,6 +2750,26 @@ export const BALANCE = {
     // BEWUSST NICHT IN E7 REPARIERT: Das ist ein bestehender Zustand des Bosssystems,
     // nicht Folge des Elite-Bosses, und er anzufassen hiesse, die Lebenspunktkurve aller
     // zwoelf Bosslevel neu herzuleiten. Thomas vorgelegt statt still gedreht.
+    // Gezeichnete Bewegungsbilder statt gerechneter Bewegung (Thomas 2026-09-04, nach
+    // dem Testlauf: "bewegungen so uebernehmen fuer die normalen runs - figuren
+    // berechnet und bosse mit bildbewegung").
+    //
+    // Warum ausgerechnet beim Boss und nicht bei den Gegnern: Der Zombie-Versuch am
+    // selben Tag scheiterte, weil vier fast gleiche Laufhaltungen als Flackern gelesen
+    // werden (15 % Silhouettenunterschied). Der Boss ist EINE grosse Figur mit einer
+    // Bewegung, deren Haltungen weit auseinanderliegen - Stampfen und Aufbaeumen,
+    // gemessen 69 % Unterschied. Die Herleitung steht in docs/lessons.md.
+    //
+    // ZWEI SAETZE, weil es zwei Bosse gibt: Der Elite-Boss hat seit E7 bewusst ein
+    // eigenes Bild, damit er auf den ersten Blick als anderer Gegner lesbar ist. Ein
+    // gemeinsamer Bildsatz haette diesen Unterschied wieder eingeebnet.
+    bilder: {
+      elite: ['boss-elite-move-1', 'boss-elite-move-2', 'boss-elite-move-3', 'boss-elite-move-4'] as const,
+      basic: ['boss-basic-move-1', 'boss-basic-move-2', 'boss-basic-move-3', 'boss-basic-move-4'] as const,
+      // Volle Auf-und-ab-Bewegung je Sekunde. Ein schwerer Koerper baeumt sich langsam
+      // auf - schneller waere ein Zappeln, langsamer stuende er still.
+      zyklenProSekunde: 0.55,
+    },
     elite: {
       // Alle fuenf Level, also 5, 10, 15, 20, ... Auf 5 und 10 muss er schaffbar
       // bleiben: Dort hat man weder Meta-Ausbau noch die spaeten Waffen.

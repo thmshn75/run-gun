@@ -1354,9 +1354,6 @@ export class GameScene extends Phaser.Scene {
    */
   private setzeWeltThema(): void {
     const thema = getWeltThema(this.currentLevel, this.istTestgelaende())
-    // Die Bildvariante des Bosses laeuft ausschliesslich im Testgelaende - der
-    // eigentliche Run bleibt unberuehrt (Thomas 2026-09-04).
-    this.boss.setBossBilder(this.istTestgelaende())
     this.road.setThema(thema)
     this.scenery.setAktiv(thema === 'stadt')
     this.bruecke.setAktiv(thema === 'bruecke')

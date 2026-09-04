@@ -110,35 +110,48 @@ describe('Testgelaende als Pruefplatz', () => {
     expect(getWeltThema(BALANCE.testground.level)).toBe(getWeltThema(BALANCE.testground.level, false))
   })
 
-  it('schaltet die Bildvariante des Bosses nur im Testgelaende ein', () => {
-    const source = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
-    // Zeilenweise statt per Klammer-Regex: Das Argument enthaelt selbst Klammern
-    // (Lesson 2026-09-04).
-    const zeilen = source.split('\n').filter((zeile) => zeile.includes('setBossBilder('))
-    expect(zeilen).toHaveLength(1)
-    for (const zeile of zeilen) expect(zeile).toContain('istTestgelaende()')
-  })
-
-  it('bleibt aus, solange ein Bossbild fehlt', () => {
-    // Sonst erschiene der Boss mit fehlender Textur statt mit der gerechneten Bewegung.
+  it('gibt jedem Bosstyp seinen eigenen Bildsatz', () => {
+    // Der Elite-Boss hat seit E7 bewusst ein eigenes Bild, damit er auf den ersten Blick
+    // als anderer Gegner lesbar ist. Ein gemeinsamer Bewegungssatz haette das wieder
+    // eingeebnet.
+    const { elite, basic } = BALANCE.boss.bilder
+    expect(elite).toHaveLength(4)
+    expect(basic).toHaveLength(4)
+    expect(new Set([...elite, ...basic]).size).toBe(8)
     const source = readFileSync(new URL('../src/systems/boss.ts', import.meta.url), 'utf8')
-    const setter = source.slice(source.indexOf('public setBossBilder('), source.indexOf('public getEnemy('))
-    expect(setter).toContain('textures.exists')
-    expect(setter).toContain('every(')
+    expect(source).toContain('this.plan.elite ? BALANCE.boss.bilder.elite : BALANCE.boss.bilder.basic')
   })
 
-  it('gibt dem Boss mit Bildvariante keine zweite GANG-Bewegung', () => {
+  it('faellt auf die gerechnete Bewegung zurueck, wenn ein Bossbild fehlt', () => {
+    // Sonst erschiene der Boss mit fehlender Textur - schlimmer als die aeltere Bewegung.
+    const source = readFileSync(new URL('../src/systems/boss.ts', import.meta.url), 'utf8')
+    const activate = source.slice(source.indexOf('public activate('), source.indexOf('public deactivate('))
+    expect(activate).toContain('textures.exists')
+    expect(activate).toContain('every(')
+    expect(activate).toContain(': undefined')
+  })
+
+  it('gibt dem Boss mit Bildbewegung keine zweite GANG-Bewegung', () => {
     // Der Gang steckt in den Bildern. Liefe das Wiegen zusaetzlich, laegen zwei
-    // Gangbewegungen uebereinander und man saehe nicht, welche wirkt. Die Neigung beim
-    // Pendeln ist etwas anderes: Sie ist die Reaktion auf eine Ortsveraenderung, nicht
-    // ein zweiter Schritt - sie darf und soll dazukommen.
+    // Gangbewegungen uebereinander. Die Neigung beim Pendeln ist etwas anderes: Sie ist
+    // die Reaktion auf eine Ortsveraenderung und darf dazukommen.
     const source = readFileSync(new URL('../src/systems/boss.ts', import.meta.url), 'utf8')
     const gait = source.slice(source.indexOf('private applyGait('))
-    const bildzweig = gait.slice(gait.indexOf('if (this.bossBilderAktiv) {'), gait.indexOf('    const cycleHz'))
+    const bildzweig = gait.slice(gait.indexOf('if (texturen !== undefined) {'), gait.indexOf('    const cycleHz'))
     expect(bildzweig).toContain('setRotation(this.swingLeanRadians)')
     expect(bildzweig).toContain('return')
     expect(bildzweig).not.toContain('getStepSquash')
     expect(bildzweig).not.toContain('getStepSwayRadians')
+  })
+
+  it('laesst die Bildbewegung in JEDEM Run laufen, nicht nur im Testgelaende', () => {
+    // Thomas 2026-09-04: "bewegungen so uebernehmen fuer die normalen runs". Der alte
+    // Testgelaende-Schalter muss weg sein, sonst laeuft die Freigabe ins Leere.
+    const boss = readFileSync(new URL('../src/systems/boss.ts', import.meta.url), 'utf8')
+    const scene = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
+    expect(boss).not.toContain('setBossBilder')
+    expect(scene).not.toContain('setBossBilder')
+    expect(boss).not.toContain('BALANCE.testground.bossBilder')
   })
 
   it('neigt nur den pendelnden Elite-Boss, und nur solange er pendelt', () => {
@@ -167,10 +180,12 @@ describe('Testgelaende als Pruefplatz', () => {
     expect(Math.sign(neigung(0))).toBe(-Math.sign(neigung(Math.PI)))
   })
 
-  it('nutzt genau vier Bossbilder', () => {
-    expect(BALANCE.testground.bossBilder.texturen).toHaveLength(4)
-    expect(new Set(BALANCE.testground.bossBilder.texturen).size).toBe(4)
-    expect(BALANCE.testground.bossBilder.zyklenProSekunde).toBeGreaterThan(0)
+  it('nutzt genau vier Bilder je Bosstyp', () => {
+    expect(BALANCE.boss.bilder.zyklenProSekunde).toBeGreaterThan(0)
+    for (const satz of [BALANCE.boss.bilder.elite, BALANCE.boss.bilder.basic]) {
+      expect(satz).toHaveLength(4)
+      expect(new Set(satz).size).toBe(4)
+    }
   })
 
   it('laesst die normalen Gegner bei der gerechneten Bewegung', () => {
