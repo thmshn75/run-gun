@@ -234,6 +234,37 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
     30 Gestalten) wuerde 30 konsistente Figuren liefern, die alle nur leicht wackeln.
     Das ist vor Bennis Urteil zu wissen wichtiger als die Stundenzahl.
 
+- **Laufbild-Versuch zurueckgebaut, Bildvariante beim Boss** (2026-09-04, Thomas: "die
+  bewegten figuren flackern, also bei den normalen figuren sollte die gerechnete bewegung
+  besser funktionieren, aber bei den Bossen die Bildvariante einbauen - alles nur fuer
+  den testlauf").
+  - Alle normalen Gegner tragen wieder die gerechnete Bewegung; die vier Zombie-Bilder
+    sind aus dem Bundle entfernt (sie liegen im Commit `1c113a7`, falls sie je
+    gebraucht werden).
+  - Der **Elite-Boss im Testgelaende** traegt vier gezeichnete Haltungen: Ruhe,
+    Ausholen, Hoehepunkt, Zuruecksinken. Kein Laufzyklus - eine schwere Drohbewegung, bei
+    der Arme, Schultern und Kopf arbeiten, waehrend die Beine stehen bleiben.
+  - **DIE ENTSCHEIDENDE ZAHL:** Der Silhouettenunterschied zwischen Bild 1 und Bild 3
+    liegt bei **56 %**. Beim gescheiterten Zombie-Versuch waren es **15 %** - genau daran
+    lag das Flackern. Die Lehre steht in `docs/lessons.md`: Bildgenerierung kann
+    kontrollierte Posen, wenn die Haltungen weit genug auseinanderliegen UND das
+    Pruefkriterium in Pixeln in der Spec steht. Zwei Codex-Laeufe, der zweite behob
+    freistehende Bildteile und einen 20-px-Seitenversatz des Rumpfes.
+  - Belegt: 2,21 Bildwechsel je Sekunde, Rotation ueber 1.412 Proben konstant 0 (keine
+    doppelte Bewegung); im normalen Run ueber 1.100 Proben null Bildvariante.
+  - **Noch offen: das iPhone-Urteil.** Traegt die Bildvariante beim Boss, ist der Weg
+    fuer die 30 Gegner-Gestalten neu zu bewerten - dort muessten die Posen aber ebenso
+    weit auseinanderliegen, und ein Gangzyklus gibt das schwerer her als ein Aufbaeumen.
+
+- **Wasser realistischer** (2026-09-04, Thomas: "sieh zu ob du das wasser noch
+  realistischer hinbekommst"). Drei Aenderungen: Wellenkaemme laufen zu den Enden hin
+  **weich aus** statt als hartes Rechteck zu enden (ein Strich liest sich als Kratzer,
+  eine verschwindende Linie als Kraeuselung); dazu kommen **dunkle Wellentaeler**
+  (45 % des Pools), weil echtes Wasser Senken ebenso zeigt wie Kaemme; und jede Welle
+  bekommt eine **eigene Laenge** (Faktor 0,55 bis 1,5), weil gleich lange Wellen sich
+  als Muster lesen. Gemessen: 90 sichtbare Wellen, 51 Kaemme zu 39 Taelern, 81
+  verschiedene Breiten.
+
 ## Offen — naechster Schritt zuerst
 1. ~~Bennis iPhone-Test~~ — **erledigt am 2026-08-29, ok** (Thomas). Gamefeel damit
    abgenommen. Noch nachzuziehen (siehe unten): Wirkung der Aufruestungsstufen im Spiel

@@ -8,6 +8,33 @@ Jede Nutzerkorrektur wird hier als Regel eingetragen. Zu Sitzungsbeginn lesen.
 
 ---
 
+### 2026-09-04 — Bildgenerierung KANN kontrollierte Posen, wenn zwei Dinge stimmen
+- **Vorgeschichte:** Der Zombie-Laufversuch scheiterte an zu aehnlichen Haltungen (15 %
+  Silhouettenunterschied zwischen Bild 1 und 3, im Spiel als Flackern sichtbar). Der
+  Schluss "Bildgenerierung liefert keine kontrollierten Posen" war voreilig.
+- **Was beim Boss anders lief und funktionierte (56 % Unterschied):**
+  1. **Die Bewegung passte zur Figur.** Ein Gangzyklus braucht vier aehnliche Haltungen,
+     ein Aufbaeumen (Arme heben und sinken) vier sehr verschiedene. Wer eine Animation
+     bestellt, waehlt die Bewegung nach dem, was sich stark unterscheidet - nicht nach
+     dem, was die Figur "eigentlich" tut.
+  2. **Das Pruefkriterium stand als PIXELZAHL in der Spec** ("mindestens 15 % der opaken
+     Pixel muessen sich unterscheiden, gemessen und im Bericht angegeben"). Ohne Zahl
+     liefert die Bildgenerierung vier brave Varianten derselben Pose.
+- **Regel:** Bei Sprite-Animationen immer (a) die Bewegung mit den groessten
+  Haltungsunterschieden waehlen und (b) den geforderten Unterschied als messbare Zahl in
+  die Spec schreiben. Und selbst nachmessen: Codex meldete die Bounding-Box-Mitte als
+  eingehalten - die Rumpfmitte lag in einem Bild trotzdem 20 px daneben, weil ein
+  ausgestreckter Arm die Box verschob. Zusammenhangsanalyse deckt freistehende
+  Bildfehler auf, die im Bericht nicht auftauchen.
+
+### 2026-09-04 — Der Screenshot kam nach dem Spielende
+- **Fehler:** Fuer eine Sichtpruefung wurde die Truppengroesse per `crowd.setSize` gehalten
+  - das setzt nur die ANZEIGE. Die Lebenspunkte liefen weiter herunter, der Run endete,
+  und der Screenshot zeigte den Game-Over-Bildschirm statt der Spielszene.
+- **Regel:** Zum Offenhalten einer Szene `runStats.set('hp', ...)` setzen, nicht
+  `crowd.setSize`. Und Aufbau und Screenshot nie ueber zwei Tool-Aufrufe trennen, wenn die
+  Szene von selbst enden kann.
+
 ### 2026-09-04 — Zwei Selbsttests scheiterten an Zeichenketten statt an der Sache
 - **Fehler:** Ein Test sollte belegen, dass ein Bauteil ohne ein bestimmtes Verfahren
   auskommt, und verbot dafuer dessen Wort im Quelltext. Er schlug an - das Wort stand im
