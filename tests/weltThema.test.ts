@@ -127,16 +127,44 @@ describe('Testgelaende als Pruefplatz', () => {
     expect(setter).toContain('every(')
   })
 
-  it('gibt dem Boss mit Bildvariante keine zweite, gerechnete Bewegung', () => {
-    // Die Bewegung steckt in den Bildern. Liefe das Wiegen zusaetzlich, laegen zwei
-    // Bewegungen uebereinander und man saehe nicht, welche wirkt.
+  it('gibt dem Boss mit Bildvariante keine zweite GANG-Bewegung', () => {
+    // Der Gang steckt in den Bildern. Liefe das Wiegen zusaetzlich, laegen zwei
+    // Gangbewegungen uebereinander und man saehe nicht, welche wirkt. Die Neigung beim
+    // Pendeln ist etwas anderes: Sie ist die Reaktion auf eine Ortsveraenderung, nicht
+    // ein zweiter Schritt - sie darf und soll dazukommen.
     const source = readFileSync(new URL('../src/systems/boss.ts', import.meta.url), 'utf8')
     const gait = source.slice(source.indexOf('private applyGait('))
     const bildzweig = gait.slice(gait.indexOf('if (this.bossBilderAktiv) {'), gait.indexOf('    const cycleHz'))
-    expect(bildzweig).toContain('setRotation(0)')
+    expect(bildzweig).toContain('setRotation(this.swingLeanRadians)')
     expect(bildzweig).toContain('return')
     expect(bildzweig).not.toContain('getStepSquash')
     expect(bildzweig).not.toContain('getStepSwayRadians')
+  })
+
+  it('neigt nur den pendelnden Elite-Boss, und nur solange er pendelt', () => {
+    const source = readFileSync(new URL('../src/systems/boss.ts', import.meta.url), 'utf8')
+    // Die Neigung entsteht ausschliesslich in swingSideways - und das steigt beim
+    // gewoehnlichen Boss sofort aus (`if (!plan.elite) return`).
+    const zeilen = source.split('\n').filter((zeile) => zeile.includes('this.swingLeanRadians ='))
+    expect(zeilen).toHaveLength(2) // einmal setzen im Pendeln, einmal zuruecksetzen
+    const swing = source.slice(source.indexOf('private swingSideways('), source.indexOf('private updateVisuals('))
+    expect(swing).toContain('if (!plan.elite) return')
+    expect(swing).toContain('this.swingLeanRadians =')
+    // Kosinus, nicht Sinus: die Neigung folgt der GESCHWINDIGKEIT, nicht dem Ort.
+    expect(swing).toContain('Math.cos(phase)')
+  })
+
+  it('steht am Umkehrpunkt aufrecht und liegt in der Bahnmitte am staerksten', () => {
+    // Gegenprobe zur Verwechslung Ort/Geschwindigkeit: Wer den Sinus nimmt, neigt den
+    // Boss genau falsch herum - am weitesten aussen am staerksten, in der Mitte gar nicht.
+    const maxRad = (BALANCE.boss.elite.swingLeanMaxDeg * Math.PI) / 180
+    const neigung = (phase: number): number => Math.cos(phase) * maxRad
+    // Bahnmitte (phase 0, Sinus 0): volle Neigung, weil dort das Tempo am hoechsten ist.
+    expect(Math.abs(neigung(0))).toBeCloseTo(maxRad)
+    // Umkehrpunkt (phase PI/2, Sinus 1 = ganz aussen): aufrecht.
+    expect(Math.abs(neigung(Math.PI / 2))).toBeCloseTo(0)
+    // Und die Richtung dreht mit der Bewegung.
+    expect(Math.sign(neigung(0))).toBe(-Math.sign(neigung(Math.PI)))
   })
 
   it('nutzt genau vier Bossbilder', () => {

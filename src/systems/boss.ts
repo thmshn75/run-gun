@@ -28,6 +28,12 @@ export class Boss {
 
   /** Laufzeit fuer das seitliche Pendeln des Elite-Bosses. */
   private swingElapsedMs = 0
+
+  /**
+   * Neigung aus dem seitlichen Pendeln. Nur der Elite-Boss pendelt, also nur er neigt
+   * sich; beim gewoehnlichen Boss bleibt der Wert 0.
+   */
+  private swingLeanRadians = 0
   private hordeAccumulatorMs: number
   private approaching: boolean
   private phaseTwoStarted: boolean
@@ -85,6 +91,7 @@ export class Boss {
     this.plan = getBossPlan(level, teamSize, weapon, damage, rate)
     this.fightElapsedMs = 0
     this.swingElapsedMs = 0
+    this.swingLeanRadians = 0
     // Die erste Horde soll nicht sofort im Anmarsch stehen: Der Kampf beginnt mit dem
     // Boss allein, der Zaehler startet bei null und laeuft erst ab dem Kampfbeginn.
     this.hordeAccumulatorMs = 0
@@ -191,7 +198,11 @@ export class Boss {
       const { texturen, zyklenProSekunde } = BALANCE.testground.bossBilder
       const zyklus = ((this.gaitElapsedMs / 1000) * zyklenProSekunde) % 1
       this.enemy.setTexture(texturen[Math.min(texturen.length - 1, Math.floor(zyklus * texturen.length))])
-      this.enemy.setRotation(0)
+      // Einzige gerechnete Bewegung, die zur Bildvariante DAZUKOMMT: die Neigung beim
+      // seitlichen Pendeln. Sie ist keine zweite Gangbewegung, sondern die Reaktion auf
+      // eine Ortsveraenderung - dieselbe Rolle wie die Neigung der Truppe beim Lenken.
+      // Der gewoehnliche Boss pendelt nicht, bei ihm bleibt der Wert 0.
+      this.enemy.setRotation(this.swingLeanRadians)
       return
     }
     const cycleHz = getStepCycleHz(BALANCE.boss.bodyHeight)
@@ -242,6 +253,13 @@ export class Boss {
     const amplitude = halbeStrasse * swingAmplitudeShare
     const phase = (this.swingElapsedMs / 1000 / swingSeconds) * Math.PI * 2
     this.enemy.x = this.scene.scale.width / 2 + Math.sin(phase) * amplitude
+    // Neigung in die Bewegungsrichtung. Die Position folgt einem Sinus, die
+    // GESCHWINDIGKEIT also einem Kosinus - der ist bereits auf -1..1 normiert und
+    // braucht deshalb keinen Bezugswert wie das Lenken der Truppe, wo die
+    // Fingergeschwindigkeit beliebig sein kann. Am Umkehrpunkt steht der Boss aufrecht,
+    // in der Mitte der Bahn liegt er am staerksten in der Kurve - genau wie ein
+    // Laeufer, der die Richtung wechselt.
+    this.swingLeanRadians = (Math.cos(phase) * BALANCE.boss.elite.swingLeanMaxDeg * Math.PI) / 180
   }
 
   private updateVisuals(dt: number, plan: BossPlan): void {

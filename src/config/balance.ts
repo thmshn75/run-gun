@@ -2798,6 +2798,16 @@ export const BALANCE = {
       // Kampfhoehe rund 60 px - sichtbar, man muss nachfuehren, aber die Feuerlinie
       // verliert ihn nicht.
       swingAmplitudeShare: 0.2,
+      // Neigung beim Pendeln (Thomas 2026-09-04: "und auch seitlich (wenn das bei jedem
+      // 5. level der fall ist)"). Der Elite-Boss soll nicht seitlich GLEITEN, sondern
+      // sich in seine Bewegungsrichtung legen - dieselbe Idee wie bei der Truppe, die
+      // sich beim Lenken in die Kurve neigt.
+      //
+      // GERECHNET, nicht gesetzt: Beim seitlichen Gehen wandert der Schwerpunkt ueber
+      // das fuehrende Bein. Ein breit aufsetzender Koloss verlagert ihn um rund ein
+      // Achtel seiner Koerperhoehe, das sind atan(0,125) = 7,1 Grad. Die Truppe steht
+      // mit 9 Grad hoeher - sie ist leichter und wirft sich staerker herum.
+      swingLeanMaxDeg: 7.1,
       swingSeconds: 3.4,
       // Lebenspunkte NUR leicht darueber. Nicht null, damit er nicht schneller faellt
       // als der gewoehnliche, aber klein genug, dass die Kampfdauer nicht davon getragen
