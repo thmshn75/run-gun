@@ -1354,6 +1354,9 @@ export class GameScene extends Phaser.Scene {
    */
   private setzeWeltThema(): void {
     const thema = getWeltThema(this.currentLevel, this.istTestgelaende())
+    // Der Bildversuch fuer die Gegner laeuft ausschliesslich im Testgelaende - der
+    // eigentliche Run bleibt bei der gerechneten Bewegung (Thomas 2026-09-04).
+    this.spawner.setGegnerBilder(this.istTestgelaende())
     this.road.setThema(thema)
     this.scenery.setAktiv(thema === 'stadt')
     this.bruecke.setAktiv(thema === 'bruecke')

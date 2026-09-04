@@ -1116,6 +1116,26 @@ export const BALANCE = {
     // Testgelaende spielt auf Level 5, und welches Thema dort nach der Wechselregel
     // faellig waere, ist Zufall - hier soll immer die Bruecke stehen.
     thema: 'bruecke' as const,
+    // Zweiter Anlauf mit gezeichneten Gegner-Bildern (Thomas 2026-09-04: "versuche
+    // punkt 5 im testlevel"). NUR hier, der normale Run bleibt bei der gerechneten
+    // Bewegung.
+    //
+    // Der erste Anlauf (Commit 1c113a7) scheiterte an einem Gangzyklus: vier aehnliche
+    // Haltungen, 15 % Silhouettenunterschied, im Spiel ein Flackern. Diesmal ist eine
+    // andere BEWEGUNG bestellt - Taumeln und Greifen statt Gehen -, weil sich deren
+    // Haltungen weit unterscheiden. Genau dieser Wechsel hat den Boss-Satz gerettet
+    // (69 % statt 15 %); die Herleitung steht in docs/lessons.md.
+    gegnerBilder: {
+      texturen: ['enemy-lurch-1', 'enemy-lurch-2', 'enemy-lurch-3', 'enemy-lurch-4'] as const,
+      // Ersetzt wird die Gestalt dieser Staerke. 'standard' ist die mittlere - haeufig
+      // genug, um sie oft zu sehen, selten genug, dass daneben unanimierte Gegner mit
+      // der gerechneten Bewegung laufen und sich beides vergleichen laesst.
+      staerke: 'standard' as const,
+      // Volle Taumelbewegung je Sekunde. Ein Zombie wankt langsamer, als er Schritte
+      // macht: Der Schrittakt der gerechneten Bewegung liegt bei rund 1,6 Hz, das
+      // Wanken bewusst darunter, sonst wirkt es hektisch statt schwerfaellig.
+      zyklenProSekunde: 1.1,
+    },
   },
   continueRun: {
     // 250 x erreichtes Level: 750 auf Level 3, 2.000 auf Level 8, 3.000 auf Level 12.

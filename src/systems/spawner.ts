@@ -30,6 +30,11 @@ export class Spawner {
   private spawnAccumulatorMs: number
   private elapsedMs: number
   private lastPoolWarningAtMs: number
+  /**
+   * Bildsatz fuer die Versuchsgestalt, oder undefined fuer die gerechnete Bewegung.
+   * Wird von aussen gesetzt und gilt nur im Testgelaende (2026-09-04, zweiter Anlauf).
+   */
+  private gegnerBilder: readonly string[] | undefined
   private deferredSpawn: SpawnRequest | undefined
   private deferredAgeMs: number
   private intervalSpawnCount: number
@@ -99,6 +104,18 @@ export class Spawner {
       this.deferredSpawn = undefined
       this.deferredAgeMs = 0
     }
+  }
+
+  /**
+   * Schaltet den Bildversuch fuer die Versuchsgestalt ein (nur Testgelaende). Fehlt eines
+   * der vier Bilder, bleibt es aus und alle Gegner behalten die gerechnete Bewegung -
+   * eine Figur mit fehlender Textur waere schlimmer als gar kein Versuch.
+   */
+  public setGegnerBilder(aktiv: boolean): void {
+    const satz = BALANCE.testground.gegnerBilder.texturen
+    this.gegnerBilder = aktiv && satz.every((name: string) => this.scene.textures.exists(name))
+      ? satz
+      : undefined
   }
 
   public resetForLevel(level: number): void {
@@ -293,7 +310,13 @@ export class Spawner {
       this.applyPerspectiveScale(enemy, logicalY)
       // Auch der Hub schrumpft mit der Entfernung - ein ferner Gegner, der so weit
       // huepft wie ein naher, zerstoert die Tiefenwirkung wieder.
-      const bob = getBobOffsetPx(this.elapsedMs, bobCycleHz, getPhaseOffset(poolIndex), BALANCE.gamefeel.enemyBobAmplitudePx) * enemy.scaleY
+      // Die Versuchsgestalt bekommt KEINE gerechnete Bewegung: Hub, Wiegen und Federn
+      // stecken in den Bildern. Beides zugleich waere doppelte Bewegung und wuerde den
+      // Vergleich wertlos machen, um den es geht.
+      const istBildsatz = enemy.getData('bildsatz') === true
+      const bob = istBildsatz
+        ? 0
+        : getBobOffsetPx(this.elapsedMs, bobCycleHz, getPhaseOffset(poolIndex), BALANCE.gamefeel.enemyBobAmplitudePx) * enemy.scaleY
       enemy.setData('bobPx', bob)
       enemy.y = logicalY + bob
       // Zielsuche: Die Spur wandert langsam zur Truppe, statt starr zu bleiben. Die
@@ -318,9 +341,19 @@ export class Spawner {
       // applyPerspectiveScale setzt die Skalierung im naechsten Bild wieder absolut,
       // die Faktoren summieren sich also nicht auf.
       const phase = getPhaseOffset(poolIndex)
-      const squash = getStepSquash(this.elapsedMs, bobCycleHz, phase, BALANCE.gamefeel.enemyStepSquashShare)
-      enemy.setScale(enemy.scaleX * squash.scaleX, enemy.scaleY * squash.scaleY)
-      enemy.setRotation(getStepSwayRadians(this.elapsedMs, bobCycleHz, phase, BALANCE.gamefeel.enemyStepSwayMaxDeg))
+      const bilder = this.gegnerBilder
+      if (istBildsatz && bilder !== undefined) {
+        // Eigener Takt, nicht der Schrittakt: Ein Zombie wankt langsamer, als er
+        // Schritte macht. Der Versatz je Poolplatz bleibt, damit nicht die ganze Horde
+        // im Gleichschritt taumelt.
+        const zyklus = ((this.elapsedMs / 1000) * BALANCE.testground.gegnerBilder.zyklenProSekunde + phase) % 1
+        enemy.setTexture(bilder[Math.min(bilder.length - 1, Math.floor(zyklus * bilder.length))])
+        enemy.setRotation(0)
+      } else {
+        const squash = getStepSquash(this.elapsedMs, bobCycleHz, phase, BALANCE.gamefeel.enemyStepSquashShare)
+        enemy.setScale(enemy.scaleX * squash.scaleX, enemy.scaleY * squash.scaleY)
+        enemy.setRotation(getStepSwayRadians(this.elapsedMs, bobCycleHz, phase, BALANCE.gamefeel.enemyStepSwayMaxDeg))
+      }
       this.meldeDurchbruch(enemy)
       if (enemy.y - enemy.displayHeight / 2 > this.scene.scale.height) this.recycle(enemy)
     }
@@ -565,6 +598,12 @@ export class Spawner {
     // sprite each frame, making the visible enemy jump sideways.
     body.moves = false
     body.updateFromGameObject()
+    // Versuchsgestalt des Testgelaendes: nur diese eine Staerke bekommt die gezeichneten
+    // Bilder. Alle anderen behalten die gerechnete Bewegung, damit im selben Bild beides
+    // nebeneinander laeuft und sich vergleichen laesst.
+    const bildsatz = this.gegnerBilder !== undefined && type.key === BALANCE.testground.gegnerBilder.staerke
+    enemy.setData('bildsatz', bildsatz)
+    if (bildsatz && this.gegnerBilder !== undefined) enemy.setTexture(this.gegnerBilder[0])
     enemy.setActive(true).setVisible(true).clearTint()
     this.applyPerspectiveScale(enemy, y)
     this.applyHorizonReveal(enemy)

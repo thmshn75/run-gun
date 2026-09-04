@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { getWeltThema } from '../src/systems/weltThema'
+import { getStepCycleHz } from '../src/systems/gamefeel'
 
 describe('Weltthema Stadt und Bruecke', () => {
   it('haelt Level 1 bei der abgenommenen Stadt', () => {
@@ -188,6 +189,47 @@ describe('Testgelaende als Pruefplatz', () => {
     }
   })
 
+  it('gibt der Versuchsgestalt Bilder, aber nur im Testgelaende', () => {
+    // Zweiter Anlauf (Thomas 2026-09-04). Der normale Run bleibt bei der gerechneten
+    // Bewegung; zeilenweise geprueft, weil das Argument Klammern enthaelt.
+    const scene = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
+    const zeilen = scene.split('\n').filter((zeile) => zeile.includes('setGegnerBilder('))
+    expect(zeilen).toHaveLength(1)
+    for (const zeile of zeilen) expect(zeile).toContain('istTestgelaende()')
+  })
+
+  it('bleibt aus, solange ein Gegnerbild fehlt', () => {
+    const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
+    const setter = source.slice(source.indexOf('public setGegnerBilder('), source.indexOf('public resetForLevel('))
+    expect(setter).toContain('textures.exists')
+    expect(setter).toContain('every(')
+    expect(setter).toContain(': undefined')
+  })
+
+  it('gibt der Versuchsgestalt keine zweite, gerechnete Bewegung', () => {
+    // Die Bewegung steckt in den Bildern. Liefe das Wiegen zusaetzlich, verglichen wir
+    // zwei Bewegungen gegen eine statt gezeichnet gegen gerechnet.
+    const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
+    expect(source).toContain("const istBildsatz = enemy.getData('bildsatz') === true")
+    expect(source).toContain('istBildsatz\n        ? 0')
+    const zweig = source.slice(source.indexOf('if (istBildsatz && bilder !== undefined) {'))
+    const sonst = zweig.slice(zweig.indexOf('} else {'))
+    expect(sonst).toContain('getStepSquash')
+    expect(sonst).toContain('getStepSwayRadians')
+  })
+
+  it('laesst die Zombies taumeln, nicht im Schrittakt zappeln', () => {
+    // Eigener Takt, bewusst langsamer als der Schritt: Der Schrittzyklus liegt bei rund
+    // 1,6 Hz. Waere das Wanken schneller, wirkte es hektisch statt schwerfaellig.
+    const { zyklenProSekunde, texturen, staerke } = BALANCE.testground.gegnerBilder
+    expect(texturen).toHaveLength(4)
+    expect(new Set(texturen).size).toBe(4)
+    expect(zyklenProSekunde).toBeGreaterThan(0)
+    expect(zyklenProSekunde).toBeLessThan(getStepCycleHz(46))
+    // Und die ersetzte Staerke gibt es wirklich.
+    expect(BALANCE.enemy.types.map((t) => t.key)).toContain(staerke)
+  })
+
   it('laesst die normalen Gegner bei der gerechneten Bewegung', () => {
     // Der Zombie-Versuch ist zurueckgebaut (Thomas 2026-09-04: "bei den normalen figuren
     // sollte die gerechnete bewegung besser funktionieren"). Im Spawner darf nichts mehr
@@ -195,6 +237,8 @@ describe('Testgelaende als Pruefplatz', () => {
     const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
     expect(source).not.toContain('laufbild')
     expect(source).not.toContain('setLaufbilder')
+    // Der Bildsatz greift nur ueber das Testgelaende-Kennzeichen, nie unbedingt.
+    expect(source).not.toContain('this.gegnerBilder = satz')
     // Und die gerechnete Bewegung liegt wieder ohne Sonderfall im Update.
     expect(source).toContain('getStepSwayRadians(this.elapsedMs, bobCycleHz, phase')
   })

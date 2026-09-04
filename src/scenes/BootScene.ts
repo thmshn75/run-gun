@@ -3,6 +3,11 @@ import enemyHeavyUrl from '../assets/enemy-heavy.png'
 import enemyBossUrl from '../assets/enemy-boss.png'
 import enemyLightUrl from '../assets/enemy-light.png'
 import enemyStandardUrl from '../assets/enemy-standard.png'
+// Zweiter Bildversuch fuer die Gegner (2026-09-04), nur im Testgelaende benutzt.
+import enemyLurch1Url from '../assets/enemy-lurch-1.png'
+import enemyLurch2Url from '../assets/enemy-lurch-2.png'
+import enemyLurch3Url from '../assets/enemy-lurch-3.png'
+import enemyLurch4Url from '../assets/enemy-lurch-4.png'
 // Bewegungsbilder der Bosse (2026-09-04). Zwei Saetze, weil Elite und gewoehnlicher Boss
 // bewusst verschieden aussehen.
 import bossEliteMove1Url from '../assets/boss-elite-move-1.png'
@@ -91,6 +96,10 @@ export class BootScene extends Phaser.Scene {
     this.load.image('title', titleUrl)
     this.load.image('enemy-light', enemyLightUrl)
     this.load.image('enemy-standard', enemyStandardUrl)
+    this.load.image('enemy-lurch-1', enemyLurch1Url)
+    this.load.image('enemy-lurch-2', enemyLurch2Url)
+    this.load.image('enemy-lurch-3', enemyLurch3Url)
+    this.load.image('enemy-lurch-4', enemyLurch4Url)
     this.load.image('boss-elite-move-1', bossEliteMove1Url)
     this.load.image('boss-elite-move-2', bossEliteMove2Url)
     this.load.image('boss-elite-move-3', bossEliteMove3Url)
