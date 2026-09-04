@@ -915,3 +915,36 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   die Seite über den Vite-Dev-Server neu und löscht die Messreihe **still** — sie war
   nach drei von sechs Werten weg, ohne Fehlermeldung. Während einer Browser-Messung wird
   keine Quelldatei angefasst.
+
+### 2026-09-04 — Vier Anläufe, weil jedes Mal genau das Genannte erfüllt wurde
+- **Fehler:** Ein Bildauftrag (zwei Bewegungssätze) brauchte vier Anläufe, und jeder
+  scheiterte an etwas anderem als der vorige. Anlauf 1: heller Freisteller-Saum um die
+  Figuren. Anlauf 2 bekam dagegen ein hartes Kriterium mit — „höchstens 1 % Randpixel mit
+  R, G und B über 200" — und lieferte 0,12 %, formal bestanden; der Saum war auf dem
+  Bildschirm unverändert sichtbar, die Pixel waren knapp unter die Zahl gedrückt und die
+  Silhouette dabei zerfranst (2,52 % Einzelpunkte gegen 0,2–0,4 % bei den abgenommenen
+  Sätzen). Anlauf 3 bekam ein Skript mit, das die Ausfransung mitmaß, bestand es sauber —
+  und hatte dafür **die Figuren ausgetauscht**: aus der hageren orangeroten Kapuzengestalt
+  wurde eine massige braune, aus dem dünnen Kerl mit Weste ein Mann in Uniformjacke
+  (Farbabstand zur Vorlage 92 und 61, wo die abgenommenen Sätze bei 13 und 20 liegen).
+- **Regel:** Eine Zahl im Auftrag ist keine Beschreibung des Ziels, sondern eine Prüfung,
+  die man bestehen kann, ohne das Ziel zu erreichen. Wer eine Schwelle nennt, bekommt
+  Arbeit **an der Schwelle** — und bezahlt sie mit dem benachbarten Merkmal, das gerade
+  nicht gemessen wird. Deshalb: alle Merkmale, die zusammen „richtig" ergeben, in EINER
+  Prüfung zusammenfassen, sonst wandert der Fehler nur weiter.
+- **Zweite Lehre (woher die Grenzwerte kommen):** Selbst ausgedachte Schwellen sind
+  entweder zu lasch oder unerreichbar. Die Grenzen gehören an bereits **abgenommenen**
+  Stücken derselben Reihe kalibriert (hier `light-e` und `light-i`) und in **beide**
+  Richtungen gegengeprüft: die guten Sätze müssen bestehen, die bekannten Fehlversuche
+  müssen an genau ihrem Fehler durchfallen. Erst dann ist das Skript ein Maßstab und
+  nicht nur eine Meinung. Das Vorab-Kriterium wird vor dem Lauf hingeschrieben.
+- **Dritte Lehre (was es tatsächlich gelöst hat):** Nicht das strengere Kriterium, sondern
+  ein fachlicher Hinweis — die **Vorlage als Referenzbild** in die Bilderzeugung geben
+  statt sie in Worten zu beschreiben, und die fertigen Farben auf die **Palette der
+  Vorlage** abbilden. Die Textbeschreibung allein hat zuverlässig eine andere Gestalt
+  erzeugt. Prüfungen verhindern falsche Abnahmen; richtig wird die Arbeit durch den
+  Hinweis, wie sie zu machen ist.
+- **Vierte Lehre (Augenschein bleibt die letzte Instanz):** Jeder der drei Fehlschläge
+  war auf einem vergrößerten Kontaktbogen in Sekunden zu sehen, zwei davon hatten die
+  jeweils geltende Messung bestanden. Ein Bildergebnis wird angesehen, nicht nur gemessen
+  — und zwar neben der Vorlage.
