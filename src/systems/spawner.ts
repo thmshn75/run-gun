@@ -312,7 +312,13 @@ export class Spawner {
       const enemy = child as Phaser.Physics.Arcade.Image
       if (!enemy.active) continue
       const previousBob = (enemy.getData('bobPx') as number | undefined) ?? 0
-      const logicalY = enemy.y - previousBob + (enemySpeed * (enemy.getData('speedFactor') as number) * dt) / 1000
+      // Zwei Faktoren, zwei Zustaendigkeiten: speedFactor kommt von der STAERKE
+      // (light/standard/heavy) und traegt die Balance, gangartTempo von der GANGART und
+      // traegt die Optik. Je Staerke ist das Mittel der Gangarten 1,0, die Balance
+      // bleibt also unberuehrt - ein Test haelt das fest.
+      const gangartTempo = enemy.getData('gangartTempo') as number
+      const logicalY = enemy.y - previousBob
+        + (enemySpeed * (enemy.getData('speedFactor') as number) * gangartTempo * dt) / 1000
       // Die Groesse gehoert zur Laufhoehe, nicht zur gewippten: Sonst pulsiert der
       // Gegner im Schritttakt.
       this.applyPerspectiveScale(enemy, logicalY)
@@ -359,7 +365,7 @@ export class Spawner {
         // Bilder mehr als doppelt so schnell wie ein Schreiter. Ohne eigenen Eintrag
         // gilt der Grundwert.
         const gestalt = enemy.getData('gestalt') as string
-        const takt = BALANCE.enemy.bilder.zyklenProSekundeJeGangart[gestalt]
+        const takt = BALANCE.enemy.bilder.gangarten[gestalt]?.takt
           ?? BALANCE.enemy.bilder.zyklenProSekunde
         const zyklus = ((this.elapsedMs / 1000) * takt + phase) % 1
         const bild = bilder[Math.min(bilder.length - 1, Math.floor(zyklus * bilder.length))]
@@ -632,6 +638,9 @@ export class Spawner {
     this.applyHorizonReveal(enemy)
     enemy.setData('hp', getEnemyHp(type, this.levelPlan.level, this.getPlayerPower()))
     enemy.setData('speedFactor', type.speedFactor)
+    // Tempo aus der GEZOGENEN GESTALT - dieselbe Quelle wie der Bildtakt, damit die
+    // Fuesse nicht ueber die Strasse rutschen. Grundgestalten ohne Eintrag: 1,0.
+    enemy.setData('gangartTempo', BALANCE.enemy.bilder.gangarten[gestalt]?.tempo ?? 1)
     enemy.setData('contactDamage', type.contactDamage)
     enemy.setData('coinValue', type.coinValue)
     // Kampfhoehen-Masse, nicht Sprite-Masse: Spurwahl, Schatten und Formationsbreite

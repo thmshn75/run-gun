@@ -1982,49 +1982,62 @@ export const BALANCE = {
     // zwoelf Bildern ergibt das 76 ms Standzeit je Bild und damit eine fluessige
     // Bewegung (Schwelle rund 100 ms).
     //
-    // GRUNDWERT fuer jeden Satz OHNE eigenen Eintrag in zyklenProSekundeJeGangart.
+    // GRUNDWERT fuer jede Gestalt OHNE eigenen Eintrag in gangarten (die drei
+    // Grundgestalten, die taumeln): Takt 1,1 und Tempo 1,0.
     zyklenProSekunde: 1.1,
-    // Eigener Takt je Gangart (Thomas 2026-09-04: "jede gangart seine eigene
+    // Takt UND Tempo je Gangart (Thomas 2026-09-04: "jede gangart seine eigene
     // geschwindigkeit und demnach auch im bild dann die einen schneller und die anderen
-    // langsamer"). Vorher liefen alle zehn Gangarten mit demselben Wert 1,1 - ein
-    // Schleicher so hastig wie ein Renner.
+    // langsamer"; 2026-09-05: "ja sie sollen sich unterschiedlich schnell fortbewegen,
+    // je nach gangart in der realitaet"). Vorher liefen alle zehn Gangarten mit
+    // demselben Takt 1,1 und demselben Tempo - ein Schleicher so hastig wie ein Renner.
     //
-    // RECHENWEG. Ein Satz hat zwoelf Bilder und stellt einen DOPPELSCHRITT dar (links
-    // und rechts), ein Zyklus sind also zwei Schritte. Aus der Schrittzahl je Sekunde,
-    // die zur Gangart gehoert, folgt der Wert direkt:
-    //     zyklenProSekunde = Schritte je Sekunde / 2
-    // Die Schrittzahlen sind die Kadenzen der jeweiligen Gangart - eine
-    // Gestaltungsgroesse, die das Spiel nicht messen kann, anders als etwa eine
-    // Trefferflaeche. Der Grundwert 1,1 entspricht 2,2 Schritten je Sekunde und liegt
-    // damit bei zuegigem Gehen; genau das war bei Schleichen und Schreiten zu schnell.
+    // BEIDE WERTE STEHEN HIER ZUSAMMEN, WEIL SIE ZUSAMMENGEHOEREN. Laufen Bildtakt und
+    // Fortbewegung auseinander, rutschen die Fuesse ueber die Strasse. Wer einen Wert
+    // aendert, rechnet den anderen mit.
     //
-    //   Gangart        Schritte/s   Zyklen/s
-    //   Rennen              2,8       1,40
-    //   Zucken              2,6       1,30   (ruckartig, kein echter Schritt)
-    //   Marschieren         2,0       1,00
-    //   Stampfen            1,6       0,80
-    //   Kriechen            1,6       0,80   (vier Gliedmassen, kurzer Takt)
-    //   Schlurfen           1,4       0,70
-    //   Humpeln             1,4       0,70
-    //   Watscheln           1,2       0,60
-    //   Schleichen          1,2       0,60
-    //   Schreiten           1,0       0,50
+    // HERKUNFT. Je Gangart zwei reale Kennwerte: die Kadenz (Schritte je Sekunde) und
+    // die Schrittlaenge als Anteil der Koerperhoehe. Referenz ist normales Gehen mit
+    // 2,0 Schritten je Sekunde und 0,42 Koerperhoehe je Schritt.
+    //     takt  = Schritte je Sekunde / 2      (zwoelf Bilder sind ein Doppelschritt)
+    //     tempo ~ Schritte je Sekunde x Schrittlaenge
     //
-    // GRENZE NACH UNTEN: Bei zwoelf Bildern und 0,5 Zyklen/s steht ein Bild 167 ms -
-    // ueber der Flimmerschwelle von rund 100 ms, aber noch fluessig. Wer weiter
-    // heruntergeht, sieht Einzelbilder statt einer Bewegung.
-    zyklenProSekundeJeGangart: {
-      'enemy-light-e': 1.4,      // RENNEN
-      'enemy-light-g': 1.3,      // ZUCKEN
-      'enemy-standard-e': 1.0,   // MARSCHIEREN
-      'enemy-light-f': 0.8,      // KRIECHEN
-      'enemy-standard-g': 0.7,   // SCHLURFEN
-      'enemy-light-i': 0.7,      // HUMPELN
-      'enemy-heavy-e': 0.6,      // WATSCHELN
-      'enemy-heavy-g': 0.8,      // STAMPFEN
-      'enemy-standard-i': 0.6,   // SCHLEICHEN
-      'enemy-heavy-i': 0.5,      // SCHREITEN
-    } as Readonly<Record<string, number>>,
+    // DAEMPFUNG 0,35 auf den Tempo-Anteil. Unveraendert stuende der Renner zum Zucker
+    // im Verhaeltnis 8,4 : 1 - der Renner waere dreimal so schnell wie heute jeder
+    // Gegner. Das ist nicht tragbar, weil der Durchkommensanteil bistabil ist und sein
+    // Kipppunkt bei 10-12 % liegt (siehe docs/UEBERGABE.md). Gedaempft bleibt ein
+    // sichtbarer Unterschied von 2,0 : 1.
+    //
+    // MITTELWERT JE STAERKE IST 1,0 - nachgerechnet ueber alle Gestalten einer Staerke
+    // einschliesslich der Grundgestalt, die mit Tempo 1,0 taumelt. Die Staerke-Balance
+    // bleibt dadurch unangetastet, es kommt nur die Streuung dazu. Ein Test haelt das
+    // fest.
+    //
+    //   Gangart        Schritte/s  Schrittlaenge   Takt   Tempo
+    //   Rennen             2,8         0,62        1,40    1,54
+    //   Marschieren        2,0         0,42        1,00    1,24
+    //   Stampfen           1,6         0,40        0,80    1,13
+    //   Schreiten          1,0         0,50        0,50    1,02
+    //   Schleichen         1,2         0,28        0,60    0,89
+    //   Schlurfen          1,4         0,22        0,70    0,87
+    //   Kriechen           1,6         0,26        0,80    0,86
+    //   Watscheln          1,2         0,22        0,60    0,85
+    //   Humpeln            1,4         0,26        0,70    0,84
+    //   Zucken             2,6         0,08        1,30    0,76
+    //
+    // GRENZE NACH UNTEN beim Takt: Bei zwoelf Bildern und 0,5 Zyklen/s steht ein Bild
+    // 167 ms - ueber der Flimmerschwelle von rund 100 ms, aber noch fluessig.
+    gangarten: {
+      'enemy-light-e':    { takt: 1.4, tempo: 1.54 },   // RENNEN
+      'enemy-light-f':    { takt: 0.8, tempo: 0.86 },   // KRIECHEN
+      'enemy-light-g':    { takt: 1.3, tempo: 0.76 },   // ZUCKEN
+      'enemy-light-i':    { takt: 0.7, tempo: 0.84 },   // HUMPELN
+      'enemy-standard-e': { takt: 1.0, tempo: 1.24 },   // MARSCHIEREN
+      'enemy-standard-g': { takt: 0.7, tempo: 0.87 },   // SCHLURFEN
+      'enemy-standard-i': { takt: 0.6, tempo: 0.89 },   // SCHLEICHEN
+      'enemy-heavy-e':    { takt: 0.6, tempo: 0.85 },   // WATSCHELN
+      'enemy-heavy-g':    { takt: 0.8, tempo: 1.13 },   // STAMPFEN
+      'enemy-heavy-i':    { takt: 0.5, tempo: 1.02 },   // SCHREITEN
+    } as Readonly<Record<string, { readonly takt: number; readonly tempo: number }>>,
     // Ab hier liegt die Standflaeche, daran misst bildVersatz.ts den seitlichen
     // Ausgleich. Zwei Drittel: darunter sind Beine und Fuesse, keine Arme.
     standflaecheAbAnteil: 0.667,
