@@ -1961,6 +1961,11 @@ export const BALANCE = {
         'enemy-light-i-move-5', 'enemy-light-i-move-6', 'enemy-light-i-move-7', 'enemy-light-i-move-8',
         'enemy-light-i-move-9', 'enemy-light-i-move-10', 'enemy-light-i-move-11', 'enemy-light-i-move-12',
       ],
+      'enemy-heavy-e': [   // Koloss mit Eimerhelm: WATSCHELN, breitbeinig und schwerfaellig
+        'enemy-heavy-e-move-1', 'enemy-heavy-e-move-2', 'enemy-heavy-e-move-3', 'enemy-heavy-e-move-4',
+        'enemy-heavy-e-move-5', 'enemy-heavy-e-move-6', 'enemy-heavy-e-move-7', 'enemy-heavy-e-move-8',
+        'enemy-heavy-e-move-9', 'enemy-heavy-e-move-10', 'enemy-heavy-e-move-11', 'enemy-heavy-e-move-12',
+      ],
     } as Readonly<Record<string, readonly string[]>>,
     // Volle Taumelbewegung je Sekunde. Bewusst langsamer als der Schrittakt der
     // gerechneten Bewegung (rund 1,6 Hz) - ein Zombie wankt schwerfaellig. Zusammen mit

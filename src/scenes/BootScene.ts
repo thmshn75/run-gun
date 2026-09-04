@@ -124,6 +124,18 @@ import enemyLightIMove9Url from '../assets/enemy-light-i-move-9.png'
 import enemyLightIMove10Url from '../assets/enemy-light-i-move-10.png'
 import enemyLightIMove11Url from '../assets/enemy-light-i-move-11.png'
 import enemyLightIMove12Url from '../assets/enemy-light-i-move-12.png'
+import enemyHeavyEMove1Url from '../assets/enemy-heavy-e-move-1.png'
+import enemyHeavyEMove2Url from '../assets/enemy-heavy-e-move-2.png'
+import enemyHeavyEMove3Url from '../assets/enemy-heavy-e-move-3.png'
+import enemyHeavyEMove4Url from '../assets/enemy-heavy-e-move-4.png'
+import enemyHeavyEMove5Url from '../assets/enemy-heavy-e-move-5.png'
+import enemyHeavyEMove6Url from '../assets/enemy-heavy-e-move-6.png'
+import enemyHeavyEMove7Url from '../assets/enemy-heavy-e-move-7.png'
+import enemyHeavyEMove8Url from '../assets/enemy-heavy-e-move-8.png'
+import enemyHeavyEMove9Url from '../assets/enemy-heavy-e-move-9.png'
+import enemyHeavyEMove10Url from '../assets/enemy-heavy-e-move-10.png'
+import enemyHeavyEMove11Url from '../assets/enemy-heavy-e-move-11.png'
+import enemyHeavyEMove12Url from '../assets/enemy-heavy-e-move-12.png'
 // Bewegungsbilder der Bosse (2026-09-04). Zwei Saetze, weil Elite und gewoehnlicher Boss
 // bewusst verschieden aussehen.
 import bossEliteMove1Url from '../assets/boss-elite-move-1.png'
@@ -348,6 +360,18 @@ export class BootScene extends Phaser.Scene {
     this.load.image('enemy-light-i-move-10', enemyLightIMove10Url)
     this.load.image('enemy-light-i-move-11', enemyLightIMove11Url)
     this.load.image('enemy-light-i-move-12', enemyLightIMove12Url)
+    this.load.image('enemy-heavy-e-move-1', enemyHeavyEMove1Url)
+    this.load.image('enemy-heavy-e-move-2', enemyHeavyEMove2Url)
+    this.load.image('enemy-heavy-e-move-3', enemyHeavyEMove3Url)
+    this.load.image('enemy-heavy-e-move-4', enemyHeavyEMove4Url)
+    this.load.image('enemy-heavy-e-move-5', enemyHeavyEMove5Url)
+    this.load.image('enemy-heavy-e-move-6', enemyHeavyEMove6Url)
+    this.load.image('enemy-heavy-e-move-7', enemyHeavyEMove7Url)
+    this.load.image('enemy-heavy-e-move-8', enemyHeavyEMove8Url)
+    this.load.image('enemy-heavy-e-move-9', enemyHeavyEMove9Url)
+    this.load.image('enemy-heavy-e-move-10', enemyHeavyEMove10Url)
+    this.load.image('enemy-heavy-e-move-11', enemyHeavyEMove11Url)
+    this.load.image('enemy-heavy-e-move-12', enemyHeavyEMove12Url)
     this.load.image('boss-elite-move-1', bossEliteMove1Url)
     this.load.image('boss-elite-move-2', bossEliteMove2Url)
     this.load.image('boss-elite-move-3', bossEliteMove3Url)
