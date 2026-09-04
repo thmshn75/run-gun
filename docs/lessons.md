@@ -8,6 +8,17 @@ Jede Nutzerkorrektur wird hier als Regel eingetragen. Zu Sitzungsbeginn lesen.
 
 ---
 
+### 2026-09-04 — Erst zaehlen, was wirklich verschieden ist
+- **Fehler:** Der Aufwand fuer bewegte Gegner wurde dreimal genannt und war zweimal zu
+  hoch: erst "360 Bilder, 12-15 Stunden" (alle 30 Gestalten), dann "18 Saetze, 8 Stunden"
+  (ohne die neun reinen Umfaerbungen), schliesslich gemessen **10 Saetze, 4,5 Stunden**.
+  Der Rest waren Farbvarianten derselben Figur - acht Paare sogar PIXELGLEICH.
+- **Regel:** Bevor eine Menge gleichartiger Dinge hochgerechnet wird, messen, wie viele
+  davon wirklich verschieden sind. Bei Bildern geht das in zwei Zeilen ueber den
+  Silhouettenvergleich (Alpha-Maske, symmetrische Differenz). Eine Aufwandszahl ohne diese
+  Pruefung ist eine Vermutung, keine Schaetzung - und sie kann um den Faktor drei
+  danebenliegen.
+
 ### 2026-09-04 — Derselbe Messfehler zweimal am selben Tag
 - **Fehler:** Eine Randanalyse der neuen Sprites schlug bei ALLEN 36 Bildern an - auch bei
   dem Satz, den Thomas abgenommen hatte. Die Schwelle war absolut gesetzt ("dunkle

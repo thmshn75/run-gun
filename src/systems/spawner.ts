@@ -5,7 +5,6 @@ import { chooseEnemyType, getEnemyHp, getFigureHeight, getFigureWidth, getPlayer
 import { getEnemySpawnCenterY, getSquadSpawnBaseY, isRevealedAtHorizon } from './horizonReveal'
 import { getLevelPlan, getMaxSquadSize, type LevelPlan } from './levelPlan'
 import { getBildVersatzPx } from './bildVersatz'
-import { getFarbvarianteTextur } from './farbvarianten'
 import { getBobOffsetPx, getPhaseOffset, getStepCycleHz, getStepSquash, getStepSwayRadians } from './gamefeel'
 import { getFigureOverscanFactor, getPerspectiveScale, getPlayfieldHalfWidth } from './road'
 import { chooseSpawnLane, type SpawnLaneEnemy } from './spawnLanes'
@@ -356,14 +355,7 @@ export class Spawner {
         // im Gleichschritt taumelt.
         const zyklus = ((this.elapsedMs / 1000) * BALANCE.enemy.bilder.zyklenProSekunde + phase) % 1
         const bild = bilder[Math.min(bilder.length - 1, Math.floor(zyklus * bilder.length))]
-        // Farbe der urspruenglich gezogenen Gestalt beibehalten (Thomas: "die farben
-        // wieder wie gehabt"). Die eingefaerbte Textur wird beim ersten Gebrauch erzeugt.
-        enemy.setTexture(getFarbvarianteTextur(
-          this.scene,
-          bild,
-          enemy.getData('grundGestalt') as string,
-          enemy.getData('gestalt') as string,
-        ))
+        enemy.setTexture(bild)
         enemy.setRotation(0)
         // Seitlichen Versatz des Einzelbildes ausgleichen - dieselbe Regel wie beim Boss.
         // Gemessen wird am UNGEFAERBTEN Bild: Die Farbe aendert die Form nicht, und so
@@ -607,7 +599,12 @@ export class Spawner {
 
   private activateEnemy(enemy: Phaser.Physics.Arcade.Image, type: EnemyType, lane: number, y: number, bossCompanion: boolean): void {
     const x = this.scene.scale.width / 2 + lane * getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
-    enemy.setTexture(getEnemyTexture(type.texture, this.levelPlan.level, Phaser.Math.RND.frac()))
+    // Farbvarianten werden nur noch fuer Staerken ohne Bewegungssatz gezogen (Thomas
+    // 2026-09-04: "keine einfaerbungen mehr, nur mehr wirklich verschiedene figuren").
+    // Wo Bilder da sind, ersetzen sie die Gestalt ohnehin im naechsten Schritt.
+    enemy.setTexture(this.gegnerBilder[type.key] !== undefined
+      ? type.texture
+      : getEnemyTexture(type.texture, this.levelPlan.level, Phaser.Math.RND.frac()))
     enemy.enableBody(true, x, y, true, true)
     const body = enemy.body as Phaser.Physics.Arcade.Body
     // Body in TEXTURPIXELN setzen: Arcade skaliert ihn mit der Sprite-Skalierung mit,
@@ -624,13 +621,7 @@ export class Spawner {
     const satz = this.gegnerBilder[type.key]
     enemy.setData('bildsatz', satz !== undefined)
     enemy.setData('staerke', type.key)
-    if (satz !== undefined) {
-      // Vor dem Ueberschreiben merken: welche Gestalt gezogen wurde (traegt die Farbe)
-      // und welche ihre Grundgestalt ist (der Bezug, gegen den gemessen wird).
-      enemy.setData('gestalt', enemy.texture.key)
-      enemy.setData('grundGestalt', type.texture)
-      enemy.setTexture(satz[0])
-    }
+    if (satz !== undefined) enemy.setTexture(satz[0])
     enemy.setActive(true).setVisible(true).clearTint()
     this.applyPerspectiveScale(enemy, y)
     this.applyHorizonReveal(enemy)

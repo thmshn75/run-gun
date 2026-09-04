@@ -258,38 +258,19 @@ describe('Testgelaende als Pruefplatz', () => {
     expect(waehle).toContain('textures.exists')
   })
 
-  it('behaelt die Farben der gezogenen Gestalt', () => {
-    // Thomas 2026-09-04: "natuerlich die farben wieder wie gehabt". Die Gestalt wird wie
-    // bisher gezogen (levelabhaengig freigeschaltet), traegt aber nur noch die FARBE -
-    // die Form kommt aus dem Bewegungssatz.
-    const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
-    expect(source).toContain("enemy.setData('gestalt', enemy.texture.key)")
-    expect(source).toContain("enemy.setData('grundGestalt', type.texture)")
-    expect(source).toContain('getFarbvarianteTextur(')
+  it('faerbt nichts mehr ein - nur echte Gestalten', () => {
+    // Thomas 2026-09-04: "keine einfaerbungen mehr, nur mehr wirklich verschiedene
+    // figuren". Gemessen war der Grund: Von den 27 Farbvarianten sind neun formgleich
+    // mit ihrer Grundgestalt (reine Umfaerbungen), nur 18 haben eigene Koerper.
+    const spawner = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
+    expect(spawner).not.toContain('getFarbvarianteTextur')
+    expect(spawner).not.toContain("setData('gestalt'")
+    // Und wo ein Bewegungssatz existiert, wird gar keine Variante mehr gezogen.
+    expect(spawner).toContain('this.gegnerBilder[type.key] !== undefined')
   })
 
-  it('faerbt gerechnet statt per Tint, weil Tint nur abdunkeln kann', () => {
-    // Gemessen: sieben bis neun der zehn Originalvarianten je Staerke sind in mindestens
-    // einem Kanal HELLER als ihre Grundvariante. Ein multiplikativer Tint waere dort auf
-    // Weiss geklemmt und wirkungslos - reines Einfaerben deckt nicht einmal die Haelfte
-    // der Varianten ab.
-    const source = readFileSync(new URL('../src/systems/farbvarianten.ts', import.meta.url), 'utf8')
-    // Geprueft wird die SACHE, nicht das Wort: Es entsteht eine eigene Textur, und die
-    // Kanalwerte werden hochgerechnet (was ein Tint nicht koennte). Ein Verbot des
-    // Wortes 'setTint' waere an der Begruendung im Kommentar gescheitert - genau dieser
-    // Fehler steht als Lesson vom 2026-09-04 in docs/lessons.md.
-    expect(source).toContain('addCanvas')
-    const code = source.split('\n').filter((zeile) => !zeile.trim().startsWith('*') && !zeile.trim().startsWith('//')).join('\n')
-    expect(code).not.toContain('setTint(')
-    // Die Verschiebung wird aus den Originalen gemessen, nicht als Liste gepflegt.
-    expect(source).toContain('getMittelfarbe')
-    // Und einmal erzeugte Texturen werden behalten, nicht in jedem Bild neu gerechnet.
-    expect(source).toContain('erzeugte')
-  })
-
-  it('misst den Bildversatz am ungefaerbten Bild', () => {
-    // Die Farbe aendert die Form nicht. Am gefaerbten Namen gemessen, waere der
-    // Zwischenspeicher zehnmal so gross, ohne dass ein Wert anders herauskaeme.
+  it('misst den Bildversatz am angezeigten Bild', () => {
+    // Der Versatz gehoert zum Einzelbild des Bewegungssatzes.
     const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
     const zweig = source.slice(source.indexOf('if (bilder !== undefined) {'))
     const versatz = zweig.indexOf('getBildVersatzPx(')

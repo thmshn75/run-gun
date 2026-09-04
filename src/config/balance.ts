@@ -1883,12 +1883,20 @@ export const BALANCE = {
   // Flackern). Erst der Wechsel der BEWEGUNG - taumeln und greifen statt gehen - brachte
   // 61 %, und zwoelf statt vier Bilder brachten die Standzeit je Bild von 227 auf 76 ms.
   //
-  // DIE FARBEN: Bis hierher hatte jede Staerke zehn gezeichnete Gestalten (E5) - eigene
-  // Koerper UND eigene Farben. Mit der Bewegung tritt EIN Satz je Staerke an ihre Stelle.
-  // Die Farbvielfalt kommt ueber farbvarianten.ts zurueck: Es misst die Farbverschiebung
-  // der Originalgestalten und rechnet sie auf die Bewegungsbilder. Was NICHT
-  // zurueckkommt, sind die unterschiedlichen KOERPERFORMEN - dafuer waeren 360 gezeichnete
-  // Bilder noetig (30 Gestalten x 12), rund 12 bis 15 Stunden Maschinenzeit.
+  // KEINE EINFAERBUNGEN (Thomas 2026-09-04: "dann keine einfaerbungen mehr, nur mehr
+  // wirklich verschiedene figuren"). Ein kurzlebiger Zwischenstand rechnete die Farben
+  // der Originalgestalten auf die Bewegungsbilder; das ist wieder ausgebaut.
+  //
+  // Der Grund fuer die Entscheidung steckt in einer Messung: Von den 27 Farbvarianten
+  // (9 je Staerke) sind **neun formgleich** mit ihrer Grundgestalt - reine Umfaerbungen
+  // (jeweils b, c, d). Die restlichen **18 haben eigene Koerper**: Soldat mit Stahlhelm,
+  // Gestalt mit Hut und Mantel, Latzhosen-Typ, geharnischte schwere Figuren. Eine
+  // Farbrechnung holt nur die neun Umfaerbungen zurueck - und genau die will Thomas nicht.
+  //
+  // Solange die 18 eigenen Gestalten keine Bewegungsbilder haben, laufen im Spiel drei
+  // Gestalten (eine je Staerke). Der Ausbau steht in docs/UEBERGABE.md: 18 Saetze zu je
+  // zwoelf Bildern, nach den gemessenen Laufzeiten von rund 27 Minuten je Satz etwa
+  // acht Stunden Maschinenzeit.
   bilder: {
     aktiv: true,
     // Ein Satz je Staerke. Fehlt einer, faellt NUR diese Staerke auf die gerechnete

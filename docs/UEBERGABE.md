@@ -423,6 +423,27 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
     um 26,6 px - seit dem Bildversatz-Ausgleich vom selben Tag ist das kein Anzeigefehler
     mehr. Die Anforderung war ueberholt, als sie geschrieben wurde.
 
+- **Keine Einfaerbungen mehr - nur echte Gestalten** (2026-09-04, Thomas: "dann keine
+  einfaerbungen mehr, nur mehr wirklich verschiedene figuren"). Die Farbrechnung ist
+  wieder ausgebaut, `farbvarianten.ts` geloescht. Wo ein Bewegungssatz existiert, wird
+  gar keine Farbvariante mehr gezogen.
+  - **ZWISCHENSTAND, den man wissen muss:** Solange die offenen Gestalten keine Bilder
+    haben, laufen im Spiel **drei** Gegnergestalten (eine je Staerke) plus zwei Bosse.
+    Das ist weniger Vielfalt als vorher - bewusst so entschieden.
+
+- **DER MASSGEBLICHE BEFUND ZUM AUFWAND** (gemessen, nicht geschaetzt): Von den 27
+  Farbvarianten sind **nur 10 wirklich eigene Formen**. Alles andere sind Umfaerbungen:
+  - `b`, `c`, `d` je Staerke (9 Stueck) sind formgleich mit ihrer Grundgestalt.
+  - Von den restlichen 18 sind **acht der neun Paare pixelgleich** (0,0 %
+    Silhouettenunterschied): `e`/`f`, `g`/`h`, `i`/`j` je Staerke - dieselbe Figur in
+    zwei Farben. Einzige Ausnahme: `light-e` gegen `light-f` mit 47,2 %.
+  - **Offen sind damit 10 Saetze zu je zwoelf Bildern**, nicht 30. Nach den heute
+    gemessenen Laufzeiten (20 min bei einem Anlauf, 40 min bei dreien, im Mittel rund
+    27 min je Satz) sind das **rund 4,5 Stunden** Maschinenzeit - nicht die zuerst
+    genannten 12 bis 15.
+  - Die zehn offenen Formen: `light-e`, `light-f`, `light-g`, `light-i`, `standard-e`,
+    `standard-g`, `standard-i`, `heavy-e`, `heavy-g`, `heavy-i`.
+
 ## Offen — naechster Schritt zuerst
 1. ~~Bennis iPhone-Test~~ — **erledigt am 2026-08-29, ok** (Thomas). Gamefeel damit
    abgenommen. Noch nachzuziehen (siehe unten): Wirkung der Aufruestungsstufen im Spiel
