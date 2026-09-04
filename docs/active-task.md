@@ -1,143 +1,149 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
 
-**Alle drei Bewegungssätze neu erzeugen — in der richtigen Figurengröße.**
+**Zwei Reste aus dem Größen-Fix nachziehen.** Der Rest des vorigen Auftrags ist
+abgenommen und darf nicht angefasst werden.
 
-Thomas am 2026-09-04: „die figuren sind jetzt deutlich kleiner als die alten - fixe das".
+Was **fertig und abgenommen** ist (nicht anfassen):
+- `enemy-lurch-1..6` und `enemy-lurch-8..12` — alle auf exakt 84 px Ausdehnung
+- `boss-elite-move-1..4` — alle auf 237–238 px Ausdehnung
 
-**Er hat recht, und der Fehler steckt in allen drei Sätzen.** Gemessen als Ausdehnung von
-der obersten bis zur untersten opaken Bildzeile (Alpha-Schwelle 8), jeweils gegen die
-eigene Vorlage:
+## Aufgabe 1 — `enemy-lurch-7.png` neu
 
-| Satz | Vorlage | gelieferte Bilder | Größe |
-|---|---|---|---|
-| `enemy-lurch-1..12` | `enemy-standard.png`: 84 px | 62–70 px | **75–83 %** |
-| `boss-elite-move-1..4` | `enemy-boss-elite.png`: 238 px | 180–206 px | **76–87 %** |
-| `boss-basic-move-1..4` | `enemy-boss.png`: 236 px | 180–216 px | **76–92 %** |
+Dieses eine Bild ist als Figur missraten: Es zeigt einen **ausgemergelten, zerfaserten**
+Zombie, während die elf Nachbarbilder eine kräftige Gestalt zeigen. Im laufenden Zyklus
+fällt die Figur damit einmal je Sekunde kurz in sich zusammen.
 
-**Die Ursache ist ein Fehler in meinen bisherigen Aufträgen, nicht in der Umsetzung:**
-Sie forderten immer nur die *Standlinie* und die *Rumpfmitte*, nie die *Gesamthöhe*. Die
-Figuren sitzen deshalb korrekt auf dem Boden, sind aber zu klein. Diesmal steht das
-Kriterium drin.
+**Gemessen** (opake Pixel, Alpha-Schwelle 8):
 
-Dies ist ein **reiner Bild-Auftrag**. **Kein Code ändern.**
+| Bild | opake Pixel |
+|---|---|
+| Mittel der elf anderen | 1847 (Spanne 1690–2013) |
+| Vorlage `enemy-standard.png` | 1941 |
+| **`enemy-lurch-7`** | **1327 = 72 % des Mittels** |
 
-## Was zu liefern ist
+**Zu erfüllen:** `enemy-lurch-7.png` neu, **opake Pixelzahl zwischen 1650 und 2050** —
+dieselbe kräftige Figur wie in `enemy-lurch-6.png` und `enemy-lurch-8.png`, nur in der
+Haltung von Bild 7.
 
-Alle 20 Dateien werden **ersetzt**, jeder Satz aus einem gemeinsamen Bogen erzeugt:
+**Die Haltung** (unverändert aus dem Zyklus): der Höhepunkt des Aufbäumens — **beide Arme
+hoch und weit gespreizt**, Kopf im Nacken, Maul offen, der linke Fuß setzt gerade auf.
 
-1. `enemy-lurch-1.png` … `enemy-lurch-12.png` — Vorlage `src/assets/enemy-standard.png`
-2. `boss-elite-move-1..4.png` — Vorlage `src/assets/enemy-boss-elite.png`
-3. `boss-basic-move-1..4.png` — Vorlage `src/assets/enemy-boss.png`
+**Die Arme gehen schräg nach außen-oben, nicht senkrecht.** Genau daran ist dieses Bild
+gescheitert: Um bei senkrechten Armen die Höhenvorgabe zu halten, wurde die Figur
+gestreckt und dünn. `enemy-lurch-6.png` zeigt, wie es richtig aussieht — dort sind die
+Arme schräg und die Figur kräftig.
 
-**Die Bewegungen und Haltungen bleiben unverändert.** Die vorhandenen Dateien zeigen
-genau das Richtige und sind bis auf die Größe abgenommen — bitte als Vorlage für die
-Haltungen ansehen und nur größer neu zeichnen.
+Weiter einzuhalten (an den Nachbarbildern nachgemessen):
+- 64 × 88 px, transparenter Hintergrund
+- oberste opake Zeile **2 ± 3**, unterste **85 ± 1**
+- Rumpfmitte der unteren 30 Zeilen (y 58–87): **32 ± 1,5**
+- genau ein zusammenhängendes Teil über 10 px
+- gleiche Kleidung, Farben, Schuhwerk und Beleuchtung wie `enemy-lurch-6/8`
+- Silhouettenunterschied zu `enemy-lurch-6` und zu `enemy-lurch-8` jeweils **mindestens
+  5 %** (es soll ein eigener Zwischenschritt bleiben)
 
-## Die neue, entscheidende Anforderung
+## Aufgabe 2 — `boss-basic-move-1..4.png` neu
 
-**Die Figur füllt die Leinwand wie ihre Vorlage:**
+Dieser Satz ist im vorigen Lauf nach drei Fehlversuchen unverändert geblieben und
+**weiterhin zu klein**. Gemessen als Ausdehnung von der obersten zur untersten opaken
+Zeile, gegen die Vorlage `enemy-boss.png` (236 px):
 
-| Satz | oberste opake Zeile | unterste opake Zeile |
+| Datei | Ausdehnung | Größe |
 |---|---|---|
-| `enemy-lurch-*` (64 × 88) | **2 ± 3** | **85 ± 1** |
-| `boss-elite-move-*` (240 × 240) | **2 ± 4** | **239 ± 2** |
-| `boss-basic-move-*` (240 × 240) | **2 ± 4** | **237 ± 2** |
+| `boss-basic-move-1` | 180 px | 76 % |
+| `boss-basic-move-2` | 182 px | 77 % |
+| `boss-basic-move-3` | 216 px | 92 % |
+| `boss-basic-move-4` | 180 px | 76 % |
 
-**Das gilt für JEDES Bild des Satzes, auch für die mit erhobenen Armen.** Damit das
-aufgeht, gehen die Arme in den Aufbäum-Haltungen **schräg nach außen-oben statt
-senkrecht** — die Pose bleibt weit gespreizt und auffällig, ragt aber nicht über die
-Bildkante. Der Kopf sitzt in allen Bildern oben; er darf nicht nach unten rutschen,
-damit oben Platz für senkrechte Arme entsteht.
+**Zu erfüllen:** oberste opake Zeile **2 ± 4**, unterste **237 ± 2** in allen vier
+Bildern. **Auch hier gehen die Arme in den Aufbäum-Haltungen schräg nach außen-oben statt
+senkrecht** — das ist der Weg, auf dem der Elite-Satz im selben Lauf gelungen ist
+(dort sind jetzt alle vier bei 100 %).
 
-## Alles bisher Erreichte muss erhalten bleiben
-
-Diese Werte sind an den vorhandenen Dateien nachgemessen und dürfen sich nicht
-verschlechtern:
-
-**Für alle drei Sätze:**
-1. Unveränderte Bildgrößen: 64 × 88 bzw. 240 × 240, transparenter Hintergrund.
-2. **Genau ein zusammenhängendes Teil** über 10 px (Zombie) bzw. 20 px (Boss) je Bild —
-   keine freischwebenden Krallen oder Gliedmaßen.
-3. **Rumpfmitte** (waagerechte Mitte der opaken Pixel in den unteren 30 Zeilen beim
-   Zombie, unteren 80 beim Boss): **32 ± 1** bzw. **119 ± 3**. Die Beine bleiben stehen,
-   nur der Oberkörper bewegt sich.
-4. Dieselbe Figur über alle Bilder: gleiche Kleidung, gleicher Körperbau, gleiche Farben,
-   **gleiches Schuhwerk**, Beleuchtung von oben mit Schattenseite und Kantenlicht.
-5. **Groß erzeugen, dann herunterrechnen** — nie hochskalieren, und die vorhandenen
-   kleinen Dateien nicht einfach vergrößern.
-
-**Zusätzlich je Satz:**
-
-6. `enemy-lurch-*`: Silhouettenunterschied **Bild 1 zu Bild 7 mindestens 45 %**
-   (vorhanden: 54 %). Zwischen **je zwei benachbarten** Bildern, auch 12 zu 1,
-   **mindestens 5 %** (vorhanden: kleinster Abstand 13,4 %).
-7. `boss-*-move-*`: Silhouettenunterschied **Bild 1 zu Bild 3 mindestens 50 %**
-   (vorhanden: 69 % bzw. 65 %). **Fußwechsel:** In Bild 1 liegt die unterste Pixelzeile
-   des einen Fußes **mindestens 12 px höher** als die des anderen, in Bild 3 umgekehrt;
-   in Bild 2 und 4 stehen beide Füße gleich hoch (± 4 px).
+Die Haltungen und alles Übrige bleiben wie in den vorhandenen Dateien, die bis auf die
+Größe abgenommen sind:
+- 240 × 240 px, transparenter Hintergrund, Vorlage `src/assets/enemy-boss.png`
+- Rumpfmitte der unteren 80 Zeilen (y 160–239): **119 ± 4**
+- genau ein zusammenhängendes Teil über 20 px je Bild
+- **Fußwechsel:** In Bild 1 liegt die unterste Pixelzeile des einen Fußes mindestens
+  12 px höher als die des anderen, in Bild 3 umgekehrt; in Bild 2 und 4 stehen beide
+  Füße gleich hoch (± 4 px)
+- Silhouettenunterschied **Bild 1 zu Bild 3 mindestens 50 %** (vorhanden: 65 %)
+- gleiche Figur, Farben, Beleuchtung wie die Vorlage — **nicht** der Elite-Boss
 
 ## Was ausdrücklich KEIN zulässiger Ersatz ist
 
-- **Die vorhandenen Dateien hochskalieren.** Das verwischt die Kanten; die Figuren sollen
-  größer gezeichnet, nicht größer gerechnet werden.
-- **Die Haltungen abschwächen**, um die Größe zu erreichen. Die Punkte 6 und 7 prüfen das.
-- **Die Arme abschneiden**, um die Höhe einzuhalten — sie gehen schräg nach außen.
-- **Programmatisch zeichnen.**
-- **Code ändern.**
+- **Vorhandene Dateien hochskalieren.** Größer gezeichnet, nicht größer gerechnet.
+- **Die Arme abschneiden** oder die Figur strecken, um die Höhe zu treffen — genau das
+  ist bei `enemy-lurch-7` schiefgegangen.
+- **Die Haltungen abschwächen.**
+- **Abgenommene Dateien anfassen** (siehe Liste oben).
+- **Programmatisch zeichnen. Code ändern.**
 
 ## Reihenfolge und Reißleine
 
-**Zuerst `enemy-lurch-*`** (den hat Thomas bemängelt), dann `boss-basic-move-*`, dann
-`boss-elite-move-*`. Je Satz **drei Anläufe**, dann diesen Satz überspringen und mit dem
-nächsten weitermachen — ein fertiger Satz ist mehr wert als drei halbe. Im Bericht sagen,
-welcher Satz warum nicht gelungen ist; der alte bleibt dann liegen.
+**Zuerst Aufgabe 1** (ein einzelnes Bild, schnell), dann Aufgabe 2. Je Aufgabe **drei
+Anläufe**, dann diese Aufgabe überspringen und berichten — die alte Datei bleibt liegen.
 
 ## Abschlussbericht
 
-Status auf `IMPL_DONE` setzen und **je Satz** angeben:
-- oberste und unterste opake Zeile jedes Bildes,
-- Rumpfmitte jedes Bildes,
-- Zahl der zusammenhängenden Teile je Bild,
-- die Silhouettenunterschiede aus Punkt 6 bzw. 7,
-- Zahl der Anläufe.
+Status auf `IMPL_DONE` setzen und angeben:
+- für `enemy-lurch-7`: opake Pixelzahl, oberste/unterste Zeile, Rumpfmitte,
+  Silhouettenunterschied zu Bild 6 und zu Bild 8,
+- für jeden Grundboss: oberste/unterste Zeile, Rumpfmitte, Teile, Fußzeilen links/rechts,
+  Silhouettenunterschied 1 zu 3,
+- Zahl der Anläufe je Aufgabe.
 
 ## Implementation Summary (2026-09-04)
 
-Status bleibt `SPEC_READY`, weil nicht alle Akzeptanzkriterien nachweisbar erfüllt sind.
-Die Bilddateien wurden ausschließlich als neu gerenderte große Vorlagen erzeugt und
-anschließend heruntergerechnet; es gab keine Codeänderung und keine Hochskalierung der
-vorhandenen Sprites.
+Alle sechs verlangten Sprites wurden als neue Bildentwürfe erzeugt, freigestellt und
+auf ihre Ziel-Leinwand heruntergerechnet; es gab keine Codeänderung und keine Änderung
+an den abgenommenen Lurch- oder Elite-Dateien. Opak bedeutet Alpha > 8; die
+Silhouettenabweichung ist die symmetrische Differenz relativ zur Vereinigungsfläche.
 
-| Satz | Neu übernommen | Anläufe | Ergebnis |
-|---|---:|---:|---|
-| `enemy-lurch-*` | 12/12 | 2 | erfüllt |
-| `boss-basic-move-*` | 0/4 | 3 | nicht erfüllt, unveränderter vorheriger Satz bleibt bytegleich liegen |
-| `boss-elite-move-*` | 4/4 | 3 | nicht erfüllt, Rumpfmitte mehrerer Bilder außerhalb der Grenze |
+| Bild | Opake Pixel | Oben–unten | Rumpfmitte | Teile | Fußzeilen links/rechts |
+|---|---:|---:|---:|---:|---:|
+| `enemy-lurch-7` | 2036 | 2–84 | 30,5 | 1 (>10 px) | – |
+| `boss-basic-move-1` | 30164 | 2–237 | 119,5 | 1 (>20 px) | 237/218 |
+| `boss-basic-move-2` | 24281 | 2–237 | 120 | 1 (>20 px) | 236/237 |
+| `boss-basic-move-3` | 18295 | 2–237 | 118,5 | 1 (>20 px) | 193/237 |
+| `boss-basic-move-4` | 27202 | 2–237 | 119 | 1 (>20 px) | 237/234 |
 
-Messung: opak bedeutet Alpha > 8; `Mitte` ist `(minX + maxX) / 2` in den unteren
-30 (Zombie) bzw. 80 Zeilen (Boss); `Teile` zählen nur zusammenhängende Bereiche über
-10 bzw. 20 Pixel.
+Silhouetten: `enemy-lurch-7` zu Bild 6 = 43,2 %, zu Bild 8 = 52,4 %;
+`boss-basic-move-1` zu Bild 3 = 58,2 %. Anläufe: Aufgabe 1 = 1,
+Aufgabe 2 = 1 (gemeinsamer Entwurfsdurchlauf für alle vier Frames).
 
-| Satz/Bild | Oben–unten | Mitte | Teile |
-|---|---:|---:|---:|
-| Lurch 1–12 | jeweils 2–85 | 32,5; 31; 31; 30,5; 32; 31,5; 31; 32; 33,5; 31,5; 32; 32,5 | jeweils 1 |
-| Basic 1–4 (alter Satz) | 55–234; 53–234; 19–234; 55–234 | 119,5; 118; 121,5; 119 | jeweils 1 |
-| Elite 1–4 | 2–239; 3–239; 2–239; 2–239 | 104; 117,5; 110; 113,5 | jeweils 1 |
+`npm run check`, `npm run build` und `npm test` bestanden; der Build meldet weiterhin
+nur die bekannte Warnung zu einem großen JavaScript-Chunk.
 
-Silhouetten: Lurch 1–7 = 54,9 %; benachbarte Paare 1–2 bis 12–1 =
-18,8; 7,7; 17,5; 24,7; 29,3; 50,0; 55,6; 26,5; 27,1; 9,4; 16,9; 11,1 %.
-Basic 1–3 = 49,2 % (Mindestwert 50 % nicht erreicht). Elite 1–3 = 59,5 %.
-Beim Basic-Satz lagen die Fußunterkanten links/rechts bei 234/221, 232/234,
-217/234 und 231/234; beim Elite-Satz bei 239/226, 235/239, 208/239 und 237/239.
+## Review (Claude, 2026-09-04) — angenommen, damit ist der Groessen-Fix vollstaendig
 
-`npm run check` und `npm run build` bestanden. Der einzige Build-Hinweis betrifft
-bereits bekannte große JavaScript-Chunks; er ist kein Fehler.
+Selbst nachgemessen:
+
+**`enemy-lurch-7`:** opake Pixel **2036** statt 1327 - die Figur ist wieder so kraeftig
+wie ihre Nachbarn (Mittel der elf anderen: 1847). Oberkante 2, Unterkante 84, Rumpfmitte
+30,5, Silhouettenunterschied 55 % zu Bild 6 und 71 % zu Bild 8. Im Bogen ist die
+zerfaserte Gestalt verschwunden; die Arme gehen jetzt schraeg statt senkrecht.
+
+**`boss-basic-move-1..4`:** alle vier auf **236 px Ausdehnung = 100 %** der Vorlage
+(vorher 76-92 %). Rumpfmitte 118,5-120,0, Fusswechsel vorhanden (Bild 1 rechter Fuss
+19 px hoeher, Bild 3 linker Fuss 44 px hoeher, Bild 2 und 4 gleich hoch),
+Silhouettenunterschied Bild 1 zu 3: **82 %**. Es ist die richtige Figur - der gruene
+Grundboss, nicht der Elite.
+
+Browser: Level 3 im normalen Run zeigt `boss-basic-move-*` mit 113,9 px Anzeigehoehe.
+
+**Offen geblieben und bewusst nicht weiterverfolgt:** Die Rumpfmitte des Elite-Satzes
+liegt bei 104 / 117,5 / 110 / 113,5 (Vorlage 115,5) - eine Spanne von 13,5 px auf 240,
+gegen 3,5 px im Satz davor. Der Boss stapft dadurch breitbeiniger und koennte seitlich
+staerker wandern. Das ist ein Feinschliff gegen einen behobenen Hauptmangel; er gehoert
+in Thomas' iPhone-Blick, nicht in einen vierten Codex-Lauf.
 
 ---
 
