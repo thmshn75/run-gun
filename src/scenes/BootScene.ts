@@ -136,6 +136,30 @@ import enemyHeavyEMove9Url from '../assets/enemy-heavy-e-move-9.png'
 import enemyHeavyEMove10Url from '../assets/enemy-heavy-e-move-10.png'
 import enemyHeavyEMove11Url from '../assets/enemy-heavy-e-move-11.png'
 import enemyHeavyEMove12Url from '../assets/enemy-heavy-e-move-12.png'
+import enemyHeavyGMove1Url from '../assets/enemy-heavy-g-move-1.png'
+import enemyHeavyGMove2Url from '../assets/enemy-heavy-g-move-2.png'
+import enemyHeavyGMove3Url from '../assets/enemy-heavy-g-move-3.png'
+import enemyHeavyGMove4Url from '../assets/enemy-heavy-g-move-4.png'
+import enemyHeavyGMove5Url from '../assets/enemy-heavy-g-move-5.png'
+import enemyHeavyGMove6Url from '../assets/enemy-heavy-g-move-6.png'
+import enemyHeavyGMove7Url from '../assets/enemy-heavy-g-move-7.png'
+import enemyHeavyGMove8Url from '../assets/enemy-heavy-g-move-8.png'
+import enemyHeavyGMove9Url from '../assets/enemy-heavy-g-move-9.png'
+import enemyHeavyGMove10Url from '../assets/enemy-heavy-g-move-10.png'
+import enemyHeavyGMove11Url from '../assets/enemy-heavy-g-move-11.png'
+import enemyHeavyGMove12Url from '../assets/enemy-heavy-g-move-12.png'
+import enemyHeavyIMove1Url from '../assets/enemy-heavy-i-move-1.png'
+import enemyHeavyIMove2Url from '../assets/enemy-heavy-i-move-2.png'
+import enemyHeavyIMove3Url from '../assets/enemy-heavy-i-move-3.png'
+import enemyHeavyIMove4Url from '../assets/enemy-heavy-i-move-4.png'
+import enemyHeavyIMove5Url from '../assets/enemy-heavy-i-move-5.png'
+import enemyHeavyIMove6Url from '../assets/enemy-heavy-i-move-6.png'
+import enemyHeavyIMove7Url from '../assets/enemy-heavy-i-move-7.png'
+import enemyHeavyIMove8Url from '../assets/enemy-heavy-i-move-8.png'
+import enemyHeavyIMove9Url from '../assets/enemy-heavy-i-move-9.png'
+import enemyHeavyIMove10Url from '../assets/enemy-heavy-i-move-10.png'
+import enemyHeavyIMove11Url from '../assets/enemy-heavy-i-move-11.png'
+import enemyHeavyIMove12Url from '../assets/enemy-heavy-i-move-12.png'
 // Bewegungsbilder der Bosse (2026-09-04). Zwei Saetze, weil Elite und gewoehnlicher Boss
 // bewusst verschieden aussehen.
 import bossEliteMove1Url from '../assets/boss-elite-move-1.png'
@@ -372,6 +396,30 @@ export class BootScene extends Phaser.Scene {
     this.load.image('enemy-heavy-e-move-10', enemyHeavyEMove10Url)
     this.load.image('enemy-heavy-e-move-11', enemyHeavyEMove11Url)
     this.load.image('enemy-heavy-e-move-12', enemyHeavyEMove12Url)
+    this.load.image('enemy-heavy-g-move-1', enemyHeavyGMove1Url)
+    this.load.image('enemy-heavy-g-move-2', enemyHeavyGMove2Url)
+    this.load.image('enemy-heavy-g-move-3', enemyHeavyGMove3Url)
+    this.load.image('enemy-heavy-g-move-4', enemyHeavyGMove4Url)
+    this.load.image('enemy-heavy-g-move-5', enemyHeavyGMove5Url)
+    this.load.image('enemy-heavy-g-move-6', enemyHeavyGMove6Url)
+    this.load.image('enemy-heavy-g-move-7', enemyHeavyGMove7Url)
+    this.load.image('enemy-heavy-g-move-8', enemyHeavyGMove8Url)
+    this.load.image('enemy-heavy-g-move-9', enemyHeavyGMove9Url)
+    this.load.image('enemy-heavy-g-move-10', enemyHeavyGMove10Url)
+    this.load.image('enemy-heavy-g-move-11', enemyHeavyGMove11Url)
+    this.load.image('enemy-heavy-g-move-12', enemyHeavyGMove12Url)
+    this.load.image('enemy-heavy-i-move-1', enemyHeavyIMove1Url)
+    this.load.image('enemy-heavy-i-move-2', enemyHeavyIMove2Url)
+    this.load.image('enemy-heavy-i-move-3', enemyHeavyIMove3Url)
+    this.load.image('enemy-heavy-i-move-4', enemyHeavyIMove4Url)
+    this.load.image('enemy-heavy-i-move-5', enemyHeavyIMove5Url)
+    this.load.image('enemy-heavy-i-move-6', enemyHeavyIMove6Url)
+    this.load.image('enemy-heavy-i-move-7', enemyHeavyIMove7Url)
+    this.load.image('enemy-heavy-i-move-8', enemyHeavyIMove8Url)
+    this.load.image('enemy-heavy-i-move-9', enemyHeavyIMove9Url)
+    this.load.image('enemy-heavy-i-move-10', enemyHeavyIMove10Url)
+    this.load.image('enemy-heavy-i-move-11', enemyHeavyIMove11Url)
+    this.load.image('enemy-heavy-i-move-12', enemyHeavyIMove12Url)
     this.load.image('boss-elite-move-1', bossEliteMove1Url)
     this.load.image('boss-elite-move-2', bossEliteMove2Url)
     this.load.image('boss-elite-move-3', bossEliteMove3Url)

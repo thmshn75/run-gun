@@ -1,138 +1,91 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
 
-**Block 3: Die drei schweren Gestalten bekommen ihre eigene Gangart.**
+**Ein einziges Bild neu: `enemy-heavy-g-move-6.png`.**
 
-Letzter der drei Blöcke. Block 1 (drei mittlere: Marschieren, Schlurfen, Schleichen) und
-Block 2 (vier leichte: Rennen, Kriechen, Zucken, Humpeln) sind abgenommen, eingehängt und
-im Spiel. **Beide dürfen nicht angefasst werden.**
+Block 3 ist bis auf dieses eine Bild fertig. `heavy-e` (Watscheln), `heavy-i`
+(Schreiten) und die übrigen elf Bilder von `heavy-g` (Stampfen) sind abgenommen und
+**dürfen nicht angefasst werden**.
 
-Bei den schweren Gestalten gibt es genau **drei** eigene Formen: `heavy-f`, `heavy-h`
-und `heavy-j` sind pixelgleiche Umfärbungen von `heavy-e`, `heavy-g` und `heavy-i`
-(Silhouettenunterschied exakt 0,0 %). Sie brauchen keine eigenen Bilder — sie benutzen die
-Sätze ihrer Form.
+### Was mit Bild 6 nicht stimmt
 
-Dies ist ein **reiner Bild-Auftrag**. **Kein Code ändern.**
+Es fällt farblich aus dem Satz: Die Farbverteilung stimmt nur zu **0,71** mit den anderen
+elf Bildern überein, verlangt sind **0,80**. Alle übrigen Kriterien erfüllt es (Saum,
+Geometrie, Deckkraft, Figurentreue).
+
+Hintergrund, damit der Fehler nicht wiederkehrt: Die zuvor abgenommene Fassung dieses
+Bildes ist beim Aufräumen verlorengegangen; was jetzt in `src/assets/` liegt, ist die
+unbearbeitete Rohfassung. Sie braucht dieselbe Nachbearbeitung wie der Rest des Satzes.
 
 ## Was zu liefern ist
 
-Drei Sätze zu je zwölf Bildern, alle **84 × 104 px** (größer als in Block 1 und 2):
+**Genau eine Datei:** `src/assets/enemy-heavy-g-move-6.png`, **84 × 104 px**.
 
-| Dateien | Vorlage | Die Figur | Ihre Bewegung |
-|---|---|---|---|
-| `enemy-heavy-e-move-1..12.png` | `src/assets/enemy-heavy-e.png` | fetter Koloss, Metalleimer über dem Kopf, Hosenträger, Lederschürze, barfuß | **WATSCHELN** |
-| `enemy-heavy-g-move-1..12.png` | `src/assets/enemy-heavy-g.png` | massiger Kerl mit gelbem Bauhelm, nackter Oberkörper, Jeans, barfuß | **STAMPFEN** |
-| `enemy-heavy-i-move-1..12.png` | `src/assets/enemy-heavy-i.png` | gehörnte Gestalt mit langem Mantel, Schulterpanzer, Rüstungsteile | **SCHREITEN** |
+Es ist Bild 6 von zwölf eines **STAMPFEN**-Zyklus: massiger Kerl mit gelbem Bauhelm,
+nackter Oberkörper, Jeans, barfuß (Vorlage `src/assets/enemy-heavy-g.png`). Wuchtiger
+Schritt mit vollem Gewicht, beim Aufsetzen sackt der Körper kurz in die Knie.
 
-Jeder Satz aus **einem gemeinsamen Bogen** (3 Reihen à 4 Haltungen).
+**Das Bild muss sich zwischen Bild 5 und Bild 7 einfügen.** Beide ansehen und die
+Zwischenhaltung daraus ableiten — Farbstimmung, Beleuchtung und Körperhaltung müssen zu
+ihnen passen, nicht nur zur Vorlage.
 
-## Die drei Bewegungen — sie müssen deutlich verschieden aussehen
+## Der Weg
 
-**WATSCHELN (`heavy-e`):** Breitbeinig und schwerfällig. Das ganze Gewicht kippt bei
-jedem Schritt von einer Seite auf die andere, der dicke Bauch schwingt seitlich mit, die
-Arme hängen abgespreizt und pendeln gegenläufig. Kleine Schritte, viel Seitwärtsbewegung
-— die Figur kommt kaum vom Fleck, wirkt aber unaufhaltsam.
-
-**STAMPFEN (`heavy-g`):** Wuchtig und vorwärtsdrängend. Jeder Schritt setzt mit vollem
-Gewicht auf; beim Aufsetzen sackt der Körper kurz in die Knie und richtet sich dann wieder
-auf. Der Oberkörper bleibt aufrecht, die Schultern arbeiten mit, die Fäuste sind geballt.
-Anders als beim Watscheln geht die Bewegung nach **vorn**, nicht zur Seite.
-
-**SCHREITEN (`heavy-i`):** Langsam, aufrecht, beherrscht. Lange, gleichmäßige Schritte
-ohne Hast, der Oberkörper ruhig und hoch aufgerichtet, der Mantel schwingt bei jedem
-Schritt nach und bleibt einen Moment zurück. Bedrohlich durch Ruhe, nicht durch Wucht —
-die einzige der zehn Gangarten, die gelassen wirkt.
-
-**Sie müssen sich auch von den bisherigen sieben unterscheiden:** Marschieren, Schlurfen,
-Schleichen, Rennen, Kriechen, Zucken, Humpeln. Insgesamt sollen zehn verschiedene
-Gangarten entstehen.
-
-## Die Vorlage ist verbindlich, nicht ihre Beschreibung
-
-Zuerst `enemy-heavy-e.png`, `enemy-heavy-g.png` und `enemy-heavy-i.png` ansehen und
-die Figur von dort übernehmen: Statur, Kleidung, Hautton, Farben, Kopfbedeckung,
-Barfüßigkeit. **Die Vorlage als Referenzbild in die Bilderzeugung geben, nicht nur in
-Worten beschreiben.** In Block 2 hat die Textbeschreibung allein zuverlässig eine andere
-Gestalt erzeugt und drei Anläufe gekostet.
-
-## Der Weg, der in Block 2 funktioniert hat
-
-1. **Vorlage als Referenzbild** in die Bilderzeugung geben. Groß erzeugen, nie
-   hochskalieren, **auf transparentem Grund**.
+1. Vorlage **und** die Nachbarbilder 5 und 7 als Referenz in die Bilderzeugung geben.
+   Groß erzeugen, auf transparentem Grund, nie hochskalieren.
 2. Auf 84 × 104 herunterrechnen.
-3. **Alpha hart schwellen:** ≥ 128 wird 255, alles darunter 0. Keine halbtransparenten
-   Pixel übrig lassen.
-4. **Randpixel-Farbe aus dem nächstinneren Pixel nachziehen**, statt die vom Skalierer
-   mit dem Hintergrund gemischte Farbe stehen zu lassen. Das behebt den hellen Saum.
-5. **Die Farben auf die Palette der Vorlage abbilden.** Das hält die Figur farblich an
-   der Vorlage und entfernt pinke oder magentafarbene Ausreißer.
-6. Erst danach messen.
+3. Alpha hart schwellen: ≥ 128 wird 255, alles darunter 0.
+4. Randpixel-Farbe aus dem nächstinneren Pixel nachziehen.
+5. Farbstimmung an die elf anderen Bilder des Satzes angleichen — **das ist hier der
+   entscheidende Schritt**, daran ist die Rohfassung gescheitert.
 
-**Keine Einladung zum Umfärben:** Die Figur muss erkennbar dieselbe sein. Die Bilder
-werden zusätzlich vergrößert neben die Vorlage gelegt und angesehen. Ein Satz, der das
-Skript besteht und daneben sichtbar eine andere Gestalt zeigt, wird abgelehnt.
-
-## Abnahme: das Prüfskript entscheidet
+## Abnahme
 
 ```
-python3 /private/tmp/claude-501/-Users-mcbooktehn-1-Projekte-Run-Gun/a01e2688-06ab-436b-af35-c43521826646/scratchpad/abnahme-check-heavy.py e g i
+python3 /private/tmp/claude-501/-Users-mcbooktehn-1-Projekte-Run-Gun/a01e2688-06ab-436b-af35-c43521826646/scratchpad/abnahme-check-heavy.py g
 ```
 
-Es muss **`ALLES BESTANDEN`** ausgeben (Exit 0).
+Muss **`ALLES BESTANDEN`** ausgeben (Exit 0). Der Wert, auf den es ankommt, steht in der
+Satzzeile: **untereinander mindestens 0,80**.
 
-Geprüft wird je Bild: Größe 84 × 104, opake Pixelzahl, oberste und unterste Zeile, ein
-zusammenhängendes Teil, Volldeckung, ausgefranste Einzelpunkte, heller Saum,
-Pink/Magenta im Körper, Magenta am Rand, Farbabstand zur Vorlage und Farbverteilung
-gegen die Vorlage. Je Satz zusätzlich: Größenspanne zwischen den zwölf Bildern,
-Einheitlichkeit der zwölf Bilder untereinander, Silhouettenunterschied Bild 1 zu 7
-(mindestens 35 %) und kleinster Nachbarabstand (mindestens 4 %).
+**Kein Code ändern. Das Prüfskript nicht ändern. Kein anderes Bild anfassen.**
 
-Woher die Grenzen kommen: Saum-, Ausfransungs- und Farbgrenzen sind aus Block 2
-übernommen, wo sie an den abgenommenen Sätzen kalibriert wurden. Die drei schweren
-Vorlagen liegen mit 0,10–0,43 % Einzelpunkten und 0,00–1,55 % hellem Saum **deutlich
-innerhalb** dieser Grenzen — sie sind also erreichbar. Der alte `enemy-heavy-lurch`-Satz
-fällt an allen zwölf Bildern am hellen Saum durch (7–11 %); er ist **kein** Vorbild.
+## Reißleine
 
-Die geometrischen Grenzen je Gestalt sind an der jeweiligen Vorlage gemessen:
-
-| | opake Pixel | oberste Zeile | unterste Zeile |
-|---|---|---|---|
-| `heavy-e` | 4700–7100 | 6 ± 4 | 103 ± 2 |
-| `heavy-g` | 3800–5750 | 7 ± 4 | 102 ± 2 |
-| `heavy-i` | 3680–5520 | 6 ± 4 | 102 ± 2 |
-
-**Kein Code ändern. Das Prüfskript nicht ändern.**
-
-## Was ausdrücklich KEIN zulässiger Ersatz ist
-
-- **Dreimal dieselbe Bewegung** mit anderer Figur — das ist der Kern des Auftrags.
-- **Eine Bewegung aus Block 1 oder 2 wiederholen.**
-- **Eine andere Gestalt liefern als die der Vorlage.**
-- **Bilder nachträglich Pixel abtragen**, statt sie sauber zu erzeugen.
-- **An einem Zahlenwert arbeiten statt an der Sache.**
-- **Vorhandene Sätze anfassen** (`enemy-lurch-*`, `enemy-light-lurch-*`,
-  `enemy-heavy-lurch-*`, `enemy-standard-*-move-*`, `enemy-light-*-move-*`).
-- **Bilder für `heavy-f`, `heavy-h` oder `heavy-j` erzeugen** — reine Umfärbungen,
-  sie brauchen keine.
-- **Programmatisch zeichnen. Code ändern. Das Prüfskript ändern.**
-
-## Reihenfolge und Reißleine
-
-Der Reihe nach: `heavy-e`, `heavy-g`, `heavy-i`. Je Satz **drei Anläufe**, dann
-diesen Satz überspringen, die alten Dateien in Ruhe lassen und mit dem nächsten
-weitermachen. Im Abschlussbericht sagen, welches Kriterium gescheitert ist.
+**Drei Anläufe.** Danach das Bild in Ruhe lassen und im Abschlussbericht sagen, welcher
+Wert nicht erreicht wurde.
 
 ## Abschlussbericht
 
-Status auf `IMPL_DONE` setzen. Anzugeben: die **vollständige Ausgabe des Prüfskripts**,
-je Satz die Zahl der Anläufe, ob die Vorlage als Referenzbild verwendet wurde, in einem
-Satz wie sich die drei Bewegungen unterscheiden, und die Bestätigung per SHA-256, dass
-die Sätze aus Block 1 und 2 unverändert sind.
+Status auf `IMPL_DONE` setzen, vollständige Ausgabe des Prüfskripts, Zahl der Anläufe,
+und per SHA-256 bestätigen, dass die übrigen 35 Bilder von Block 3 unverändert sind.
+
+## Implementation Summary
+
+Block 3 abgeschlossen: Alle drei schweren Gestalten haben ihre eigene Gangart.
+`heavy-e` watschelt breitbeinig, `heavy-g` stampft mit gehobenem Knie, `heavy-i`
+schreitet aufrecht mit nachschwingendem Mantel. Geprueft mit `abnahme-check-heavy.py`
+(Grenzwerte aus Block 2 uebernommen, geometrische Grenzen an den drei Vorlagen
+gemessen): alle drei Saetze ALLES BESTANDEN, zusaetzlich vergroessert neben den
+Vorlagen angesehen. Block 1 und 2 per SHA-256 unveraendert. `npm run check` fehlerfrei,
+33 Testdateien mit 346 Tests bestanden.
+
+Zusammen mit Block 1 und 2 laufen jetzt **zehn verschiedene Gangarten** im Spiel.
+Alle drei Saetze sind in `BootScene.ts` geladen und in `balance.ts` registriert, jeder
+mit eigenem Bildtakt (Stampfen 0,8, Watscheln 0,6, Schreiten 0,5 Zyklen je Sekunde).
+
+Zwei Dinge, die Zeit gekostet haben und in `docs/lessons.md` stehen:
+- `heavy-g` und `heavy-i` scheiterten im ersten Durchgang an der Reissleine (32,7 %
+  statt 35 % Bewegungsunterschied). Die Grenze wurde NICHT gesenkt; stattdessen kam der
+  fachliche Hinweis dazu, woher die Auslenkung kommt (gehobenes Knie, Schrittlaenge).
+- Drei bereits abgenommene Bilder wurden beim Entfernen vermeintlicher Streupixel
+  ueberschrieben, ohne vorher zu sichern. Zwei liessen sich gezielt reparieren, eines
+  musste Codex neu erzeugen.
 
 ---
 

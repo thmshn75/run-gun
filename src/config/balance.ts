@@ -1966,6 +1966,16 @@ export const BALANCE = {
         'enemy-heavy-e-move-5', 'enemy-heavy-e-move-6', 'enemy-heavy-e-move-7', 'enemy-heavy-e-move-8',
         'enemy-heavy-e-move-9', 'enemy-heavy-e-move-10', 'enemy-heavy-e-move-11', 'enemy-heavy-e-move-12',
       ],
+      'enemy-heavy-g': [   // Kerl mit Bauhelm: STAMPFEN, wuchtig und vorwaertsdraengend
+        'enemy-heavy-g-move-1', 'enemy-heavy-g-move-2', 'enemy-heavy-g-move-3', 'enemy-heavy-g-move-4',
+        'enemy-heavy-g-move-5', 'enemy-heavy-g-move-6', 'enemy-heavy-g-move-7', 'enemy-heavy-g-move-8',
+        'enemy-heavy-g-move-9', 'enemy-heavy-g-move-10', 'enemy-heavy-g-move-11', 'enemy-heavy-g-move-12',
+      ],
+      'enemy-heavy-i': [   // Gehoernte Gestalt im Mantel: SCHREITEN, langsam und aufrecht
+        'enemy-heavy-i-move-1', 'enemy-heavy-i-move-2', 'enemy-heavy-i-move-3', 'enemy-heavy-i-move-4',
+        'enemy-heavy-i-move-5', 'enemy-heavy-i-move-6', 'enemy-heavy-i-move-7', 'enemy-heavy-i-move-8',
+        'enemy-heavy-i-move-9', 'enemy-heavy-i-move-10', 'enemy-heavy-i-move-11', 'enemy-heavy-i-move-12',
+      ],
     } as Readonly<Record<string, readonly string[]>>,
     // Volle Taumelbewegung je Sekunde. Bewusst langsamer als der Schrittakt der
     // gerechneten Bewegung (rund 1,6 Hz) - ein Zombie wankt schwerfaellig. Zusammen mit
@@ -2011,7 +2021,9 @@ export const BALANCE = {
       'enemy-standard-g': 0.7,   // SCHLURFEN
       'enemy-light-i': 0.7,      // HUMPELN
       'enemy-heavy-e': 0.6,      // WATSCHELN
+      'enemy-heavy-g': 0.8,      // STAMPFEN
       'enemy-standard-i': 0.6,   // SCHLEICHEN
+      'enemy-heavy-i': 0.5,      // SCHREITEN
     } as Readonly<Record<string, number>>,
     // Ab hier liegt die Standflaeche, daran misst bildVersatz.ts den seitlichen
     // Ausgleich. Zwei Drittel: darunter sind Beine und Fuesse, keine Arme.
