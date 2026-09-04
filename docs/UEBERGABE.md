@@ -306,6 +306,30 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
     +56 bei `enemy-boss.png`). Es war der dunkle Hintergrund des Bogens.
   - **Noch offen: das iPhone-Urteil ueber den Gesamtstand.**
 
+- **Zweiter Bildversuch fuer die Zombies - im Testlevel, offen fuer Thomas' Urteil**
+  (2026-09-04, Thomas: "versuche punkt 5 im testlevel"). Vier gezeichnete Bilder eines
+  Zombies: greifen, fangen, aufbaeumen, fangen.
+  - **Der Bewegungswechsel hat getragen:** Silhouettenunterschied Bild 1 zu 3 bei
+    **60,9 %** gegen 15 % beim ersten Anlauf mit einem Gangzyklus. Ein Anlauf genuegte.
+    Damit ist bestaetigt, was der Boss-Satz nahelegte: **Nicht die Figurenart entscheidet,
+    sondern ob die bestellte Bewegung weit auseinanderliegende Haltungen hat.**
+  - Nur im Testgelaende und nur fuer die Staerke `standard`; daneben laufen Gegner mit
+    der gerechneten Bewegung, sodass beides im selben Bild vergleichbar ist. Der normale
+    Run ist unberuehrt.
+  - Browser-Beleg: alle vier Bilder, 4,29 Bildwechsel je Sekunde (1,07 Taumelzyklen),
+    Rotation konstant 0, groesster Positionssprung beim Bildwechsel 0,06 px.
+  - **OFFENER BEFUND, den Thomas beurteilen muss:** Die Rumpfmitte wandert zwischen den
+    vier Bildern um 4 von 64 px, auf dem Bildschirm rund 2,2 px bei 35,8 px
+    Figurenbreite. Beim Boss-Satz sind es 0,9 px - der Zombie wackelt relativ siebenmal
+    staerker. Das kann als Taumeln gewollt wirken oder als Zucken stoeren. Faellt das
+    Urteil negativ aus, ist die Nachbesserung benannt: Rumpfmitte 32 +-1 statt +-2.
+
+- **Als Naechstes besprochen, noch nicht begonnen:** der Grundaufbau mit den Waenden.
+  Thomas 2026-09-04: "ich finde zwei reihen, statt dreien fast besser, aber das
+  diskutieren wir dann". Gemeint ist das Vorbild aus dem Last-Z-Video, in dem Gegner und
+  Team-Waende in DERSELBEN Bahn liegen statt in drei getrennten Bereichen. Das wuerde das
+  in W3/W4 abgenommene Layout aufreissen - erst besprechen, dann planen.
+
 ## Offen — naechster Schritt zuerst
 1. ~~Bennis iPhone-Test~~ — **erledigt am 2026-08-29, ok** (Thomas). Gamefeel damit
    abgenommen. Noch nachzuziehen (siehe unten): Wirkung der Aufruestungsstufen im Spiel

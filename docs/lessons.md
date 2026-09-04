@@ -8,6 +8,27 @@ Jede Nutzerkorrektur wird hier als Regel eingetragen. Zu Sitzungsbeginn lesen.
 
 ---
 
+### 2026-09-04 — Nicht die Figur entscheidet, sondern die Wahl der Bewegung
+- **Bestaetigt an drei Bildsaetzen desselben Tages:** Zombie mit Gangzyklus 15 %
+  Haltungsunterschied (gescheitert), Boss mit Aufbaeumen 69 % (gelungen), Zombie mit
+  Taumeln und Greifen 60,9 % (gelungen, ein Anlauf). Der Schluss nach dem ersten
+  Fehlschlag - "Bildgenerierung liefert keine kontrollierten Posen" - war falsch, und der
+  zweite Schluss - "beim Boss geht es, weil er gross und einzeln ist" - ebenfalls.
+- **Regel:** Wer eine Sprite-Animation bestellt, waehlt zuerst die BEWEGUNG danach aus,
+  wie weit ihre Haltungen auseinanderliegen, nicht danach, was die Figur "eigentlich"
+  tut. Ein Gangzyklus ist die schwerste Wahl, weil vier Schritte einander aehneln. Fast
+  jede Figur hat eine Alternative: taumeln, greifen, aufbaeumen, ausholen.
+
+### 2026-09-04 — Die Bildhaelfte ist keine Koerperhaelfte
+- **Fehler:** Um zu pruefen, ob ein Fuss angehoben ist, wurde die unterste opake Zeile je
+  BILDHAELFTE (x unter/ueber der Bildmitte) gemessen. In einem Bild standen der tragende
+  und der angehobene Fuss beide rechts der Mitte - die Messung fand in beiden Haelften die
+  Standlinie und meldete faelschlich "kein Fuss angehoben". Der Blick aufs Bild zeigte den
+  Beinwechsel eindeutig; die Messung von Codex war richtig, meine zu grob.
+- **Regel:** Koerperteile nicht ueber feste Bildkoordinaten trennen, sondern ueber
+  zusammenhaengende Gruppen. Und bei einem Messergebnis, das dem Augenschein
+  widerspricht, zuerst die Messung pruefen - nicht das Ergebnis melden.
+
 ### 2026-09-04 — Ein auffaelliges Bilddetail zuerst gegen die Vorlage messen
 - **Beinahe-Fehler:** Im Kontaktbogen der neuen Boss-Sprites fiel ein blaeulicher Saum um
   die Figuren auf; er sah nach einem Generierungsfehler aus und waere fast ein vierter
