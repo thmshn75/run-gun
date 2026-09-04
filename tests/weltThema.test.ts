@@ -91,3 +91,63 @@ describe('Weltthema Stadt und Bruecke', () => {
     expect(update).not.toContain('destroy')
   })
 })
+
+describe('Testgelaende als Pruefplatz', () => {
+  it('spielt immer auf der Bruecke, unabhaengig von seiner Levelnummer', () => {
+    // Das Testgelaende laeuft auf Level 5. Welches Thema die Wechselregel dort traefe,
+    // ist Zufall - hier soll fest die Bruecke stehen.
+    expect(getWeltThema(BALANCE.testground.level, true)).toBe('bruecke')
+    for (const level of [1, 2, 5, 12, 30]) {
+      expect(getWeltThema(level, true)).toBe(BALANCE.testground.thema)
+    }
+  })
+
+  it('aendert am normalen Run nichts', () => {
+    // Ohne das Kennzeichen gilt weiter die Wechselregel - der eigentliche Run wird vom
+    // Pruefplatz nicht angefasst (Thomas 2026-09-04).
+    expect(getWeltThema(1, false)).toBe('stadt')
+    expect(getWeltThema(2, false)).toBe('bruecke')
+    expect(getWeltThema(BALANCE.testground.level)).toBe(getWeltThema(BALANCE.testground.level, false))
+  })
+
+  it('schaltet die Laufbilder nur im Testgelaende ein', () => {
+    const source = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
+    expect(source).toContain('this.spawner.setLaufbilder(this.istTestgelaende())')
+    // Kein zweiter Aufruf mit etwas anderem als dem Testgelaende-Kennzeichen. Geprueft
+    // wird zeilenweise, nicht per Klammer-Regex: Das Argument enthaelt selbst Klammern.
+    const zeilen = source.split('\n').filter((zeile) => zeile.includes('setLaufbilder('))
+    expect(zeilen).toHaveLength(1)
+    for (const zeile of zeilen) expect(zeile).toContain('istTestgelaende()')
+  })
+
+  it('bleibt aus, solange ein Laufbild fehlt', () => {
+    // Sonst erschiene die Versuchsfigur mit fehlender Textur statt mit der gerechneten
+    // Bewegung - ein Fehlerbild statt eines Vergleichs.
+    const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
+    const setter = source.slice(source.indexOf('public setLaufbilder('), source.indexOf('public resetForLevel('))
+    expect(setter).toContain('textures.exists')
+    expect(setter).toContain('every(')
+  })
+
+  it('gibt der Versuchsfigur keine zweite, gerechnete Bewegung', () => {
+    // Die Bewegung steckt in den Bildern. Liefe das Wiegen zusaetzlich, verglichen wir
+    // zwei Bewegungen gegen eine statt gezeichnet gegen gerechnet.
+    const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
+    expect(source).toContain("const istLaufbild = enemy.getData('laufbild') === true")
+    // Der Hub wird fuer die Versuchsfigur uebersprungen ...
+    expect(source).toContain('istLaufbild\n        ? 0')
+    // ... und Wiegen und Federn liegen im anderen Zweig.
+    const zweig = source.slice(source.indexOf('if (istLaufbild) {'))
+    const sonst = zweig.slice(zweig.indexOf('} else {'))
+    expect(sonst).toContain('getStepSquash')
+    expect(sonst).toContain('getStepSwayRadians')
+  })
+
+  it('nutzt genau vier Bilder auf einen Doppelschritt', () => {
+    // Vier ist das Minimum, das als Gang gelesen wird: zwei Kontakte, zwei Schwuenge.
+    expect(BALANCE.testground.laufbilder.texturen).toHaveLength(4)
+    expect(new Set(BALANCE.testground.laufbilder.texturen).size).toBe(4)
+    // Und die ersetzte Staerke gibt es wirklich.
+    expect(BALANCE.enemy.types.map((t) => t.key)).toContain(BALANCE.testground.laufbilder.staerke)
+  })
+})
