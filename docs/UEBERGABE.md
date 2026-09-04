@@ -21,6 +21,26 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   Deploy per `gh run watch` verifizieren.
 
 ## Fertig
+- **Gangart-Tempo gemessen und belegt (2026-09-05)** — jede Gangart bewegt sich auch
+  unterschiedlich schnell fort, nicht nur im Bild (Thomas: "ja sie sollen sich
+  unterschiedlich schnell fortbewegen, je nach gangart in der realitaet").
+  Takt und Tempo stehen zusammen in `BALANCE.enemy.bilder.gangarten` — getrennt gepflegt
+  wuerden die Fuesse ueber die Strasse rutschen. Herkunft: reale Kadenz mal Schrittlaenge,
+  gedaempft auf 0,35, je Staerke auf Mittel 1,0 normiert (Test `tests/gangarten.test.ts`
+  haelt das fest, damit keine Staerke durch die Hintertuer schneller wird).
+  **Im laufenden Spiel gemessen** (Testgelaende, Level 16 und 24, ueber 14.000 Proben),
+  Median der Fallgeschwindigkeit gegen die taumelnde Grundgestalt mit 124,0 px/s:
+    Rennen 191,0 (1,54) · Marschieren 153,8 (1,24) · Schleichen 110,4 (0,89) ·
+    Schlurfen 107,9 (0,87) · Kriechen 106,7 (0,86) · Watscheln 105,5 (0,85) ·
+    Humpeln 104,2 (0,84) · Zucken 94,2 (0,76).
+  Acht der zehn Gangarten sind so direkt belegt und treffen ihren Sollwert auf zwei
+  Stellen. **Stampfen und Schreiten wurden nicht beobachtet** — schwere Gestalten sind
+  selten, in 48 s kam nur `heavy-e` vor. Sie laufen ueber denselben Codepfad, sind aber
+  nicht gemessen.
+  **Der Durchkommensanteil wurde NICHT neu gemessen.** Er ist bistabil und streut bei
+  unveraenderter Einstellung um 2 Prozentpunkte; der erwartete Effekt liegt darunter,
+  weil das mittlere Tempo je Staerke konstruktiv 1,0 bleibt. Wer die Streuungswirkung
+  belegen will, braucht mehrere Laeufe je Variante.
 - **Zehn eigene Gangarten (2026-09-04)** — jede Sondergestalt bewegt sich anders, und
   jede in ihrem eigenen Takt. Block 1: `standard-e` marschiert, `standard-g` schlurft,
   `standard-i` schleicht. Block 2: `light-e` rennt, `light-f` kriecht, `light-g` zuckt,

@@ -974,3 +974,21 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   echten Muell als auch abgetrennte Koerperteile verschwiegen. Wer eine Toleranz setzt,
   sollte den Bereich UNTERHALB davon wenigstens einmal ausgeben lassen, statt ihn gar
   nicht erst zu sehen.
+
+### 2026-09-05 — Dieselbe Falle wie am 25.08.: die Sonde mass eine tote Szene
+- **Fehler:** Eine Messung im Testgelaende lieferte in 56 Sekunden null Spawns und null
+  Durchbrueche. Das sah nach einem Ergebnis aus ("die Aenderung macht nichts") und war
+  keines: `spawningEnabled` stand auf `false`, das Testgelaende war laengst durchgelaufen
+  (es dauert nur ein halbes Level). Gemessen wurde eine Szene, in der nichts mehr
+  passierte.
+- **Das Bittere daran:** Genau diese Lehre steht seit dem 2026-08-25 in dieser Datei —
+  "Jede Sonde prueft ZUERST, ob ihr Messobjekt lebt". Sie zu kennen reicht nicht.
+- **Regel, damit sie diesmal greift:** Die Lebendpruefung ist die **erste Zeile der
+  Sonde**, nicht eine Nachkontrolle: Der Messaufruf gibt `spawningEnabled`, die Zahl
+  aktiver Gegner und die verstrichene Zeit ZUSAMMEN mit den Messwerten zurueck, in
+  derselben Antwort. Wer sie erst hinterher abfragt, hat die Nullmessung schon geglaubt.
+  **Eine Null ist nie ein Ergebnis, solange nicht belegt ist, dass ueberhaupt etwas lief.**
+- **Zweite Lehre (Stichprobe deckt nicht alles ab):** In derselben Reihe fehlten die
+  schweren Gestalten komplett, weil sie selten spawnen — acht von zehn Gangarten wurden
+  belegt, zwei nicht. Zu einer Messung gehoert die Frage, **was NICHT in der Stichprobe
+  war**; sonst haelt man Teilabdeckung fuer Vollstaendigkeit.
