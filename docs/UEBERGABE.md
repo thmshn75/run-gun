@@ -203,6 +203,37 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
     Minimum, Bruecke 60,4 / 60,2. Kein Unterschied. **Das iPhone-Urteil steht aus.**
   - **Noch offen: Thomas' Entscheidung** zwischen Wechsel und kompletter Umstellung.
 
+- **Wasser blauer und bewegter** (2026-09-04, Thomas: "das wasser noch blauer und noch
+  bewegter"). Farbton am Himmel ausgerichtet statt am Hafenbecken; Wellen 40 -> 90 und
+  neu mit **Kraeuseln**: seitliches Schwingen um ein Viertel der Wellenbreite plus
+  Kaemme, die im selben Takt auftauchen und vergehen. Die alte Begruendung "mehr als 40
+  wird unruhig" ist bewusst ueberstimmt und im Kommentar so vermerkt.
+
+- **Testgelaende ist der Pruefplatz** (2026-09-04, Thomas: "ein zusaetzliches Testlevel
+  mit der Bruecke, sodass wir in diesem Testlevel alles Neue pruefen koennen ohne den
+  eigentlichen Run angreifen zu muessen"). Es hat jetzt ein FESTES Thema (Bruecke) statt
+  eines, das seine Levelnummer zufaellig traefe. Erreichbar wie bisher ueber den
+  Menue-Knopf.
+
+- **Laufbild-Versuch (E-Versuch, abgeschlossen mit Befund).** Vier gezeichnete Laufbilder
+  eines Zombies von Codex laufen im Testgelaende - nur dort und nur fuer die Staerke
+  `standard`. Alle anderen Gegner behalten die gerechnete Bewegung, sodass im selben Bild
+  **gezeichnet gegen gerechnet** steht.
+  - Die Versuchsfigur bekommt KEINE gerechnete Bewegung dazu (Hub, Wiegen, Federn stecken
+    in den Bildern). Belegt: Rotation ueber 2.175 Proben konstant 0, genau ein
+    Seitenverhaeltnis, 6,6 Bildwechsel je Sekunde; daneben wiegen die normalen Gegner
+    -3,1 bis +3,1 Grad. Im normalen Run null Versuchsfiguren ueber 8 s.
+  - **DER BEFUND, auf den es ankommt:** Die Bildgenerierung haelt eine Figur ueber vier
+    Bilder konstant - gleiche Kleidung, gleicher Koerperbau, gleiche Farben. Das war das
+    schwierigste Kriterium und es ist gelungen (Codex erzeugt einen gemeinsamen Bogen und
+    zerschneidet ihn). Was sie NICHT liefert, sind kontrollierte Posen: Der in Runde 2
+    ausdruecklich geforderte Kniewechsel kam nicht, Bild 1 und Bild 3 unterscheiden sich
+    in der Silhouette um 285 von rund 1.900 opaken Pixeln. Die Beine oeffnen und
+    schliessen sich leicht, ein angehobenes Knie gibt es in keinem Bild.
+  - **Konsequenz fuer die Kostenfrage:** Der teure Weg (rund 130 Bilder fuer alle
+    30 Gestalten) wuerde 30 konsistente Figuren liefern, die alle nur leicht wackeln.
+    Das ist vor Bennis Urteil zu wissen wichtiger als die Stundenzahl.
+
 ## Offen — naechster Schritt zuerst
 1. ~~Bennis iPhone-Test~~ — **erledigt am 2026-08-29, ok** (Thomas). Gamefeel damit
    abgenommen. Noch nachzuziehen (siehe unten): Wirkung der Aufruestungsstufen im Spiel

@@ -8,6 +8,37 @@ Jede Nutzerkorrektur wird hier als Regel eingetragen. Zu Sitzungsbeginn lesen.
 
 ---
 
+### 2026-09-04 — Zwei Selbsttests scheiterten an Zeichenketten statt an der Sache
+- **Fehler:** Ein Test sollte belegen, dass ein Bauteil ohne ein bestimmtes Verfahren
+  auskommt, und verbot dafuer dessen Wort im Quelltext. Er schlug an - das Wort stand im
+  eigenen Erklaerkommentar direkt darueber, der begruendete, warum das Verfahren gerade
+  NICHT benutzt wird. Ein zweiter Test las ein Aufrufargument per Klammer-Regex
+  (`\(([^)]*)\)`) und brach an der inneren Klammer von `istTestgelaende()` ab.
+- **Regel:** Quelltext-Tests pruefen SACHVERHALTE, nicht Woerter. Statt ein Wort zu
+  verbieten, das Gegenteil positiv nachweisen (kein `CityPlanner`-Import, kein
+  `pickSceneryKind`-Aufruf). Argumente zeilenweise pruefen statt mit Klammer-Regex.
+  Schlaegt ein selbst geschriebener Test an, zuerst pruefen, ob der TEST falsch ist -
+  an diesem Tag war er es dreimal in Folge, der Code kein einziges Mal.
+
+### 2026-09-04 — Gruene Tests, falsches Bild
+- **Fehler:** 327 Tests liefen gruen, das Bruecken-Gelaender war rechnerisch korrekt - im
+  Bild ragte es am Horizont als schraege Strebe in den Himmel. Gefunden erst beim Ansehen
+  eines Bildschirmabzugs.
+- **Regel:** Fuer alles Sichtbare gilt gruen = geprueft, nicht = richtig. Nach jeder
+  Aenderung an der Darstellung ein Bild ansehen, und zwar vergroessert am kritischen Ort
+  (hier der Horizont), nicht nur die Gesamtansicht.
+
+### 2026-09-04 — Was Bildgenerierung kann und was nicht
+- **Befund (kein Fehler):** Vier Laufbilder eines Zombies, zwei Codex-Laeufe. Die
+  KONSISTENZ gelang vollstaendig - dieselbe Figur, Kleidung, Farben, Koerperbau ueber
+  alle vier Bilder (Verfahren: einen gemeinsamen Bogen erzeugen und zerschneiden). Die
+  KONTROLLIERTEN POSEN gelangen nicht, auch nicht nach ausdruecklicher Nachforderung mit
+  Tabelle je Bild: Bild 1 und 3 unterschieden sich um 285 von 1.900 opaken Pixeln.
+- **Regel:** Bei Sprite-Auftraegen ist die Figurenkonsistenz das leichtere Problem, die
+  Pose das schwerere. Wer eine Animation plant, prueft die Pose an EINER Figur, bevor er
+  sie fuer dreissig beauftragt - und misst den Posenunterschied in Pixeln, statt ihn zu
+  beurteilen.
+
 ### 2026-08-19 — Nutzeränderung als Fehler diagnostiziert
 - **Fehler:** Eine von Thomas manuell gekürzte Todo-Zeile wurde ungefragt als „Speicherfehler" bewertet.
 - **Regel:** Änderungen an Dateien, die Thomas selbst editiert, als bewusste Entscheidung annehmen. Nur nachfragen, wenn die Änderung eine laufende Aufgabe konkret blockiert — keine Ferndiagnose.
