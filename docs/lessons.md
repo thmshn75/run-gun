@@ -8,6 +8,27 @@ Jede Nutzerkorrektur wird hier als Regel eingetragen. Zu Sitzungsbeginn lesen.
 
 ---
 
+### 2026-09-04 — Was kein Kriterium misst, faellt niemandem auf ausser dem Nutzer
+- **Fehler:** Fuenf Bild-Auftraege in Folge forderten Standlinie, Rumpfmitte,
+  Silhouettenunterschied und Fusswechsel - aber nie die GESAMTHOEHE der Figur. Alle
+  gelieferten Saetze bestanden jede Pruefung und massen dabei nur 76-92 % ihrer Vorlage.
+  Aufgefallen ist es erst Thomas beim Ansehen: "die figuren sind deutlich kleiner".
+- **Regel:** Bei einem Auftrag, der etwas ERSETZT, gehoert in die Spec eine Zeile, die den
+  Ersatz insgesamt an das Original bindet - hier die Ausdehnung von der obersten zur
+  untersten opaken Zeile. Kriterien, die nur Einzelheiten pruefen (sitzt sie richtig,
+  bewegt sie sich genug), lassen die Gesamtwirkung frei. Nuetzliche Gegenfrage vor jedem
+  Ersatz-Auftrag: "Woran wuerde man merken, dass das Neue nicht mehr zum Alten passt?"
+
+### 2026-09-04 — Senkrechte Arme strecken die Figur duenn
+- **Befund:** Ein Bild des Zombie-Zyklus kam mit 72 % der Koerperfuelle seiner Nachbarn -
+  eine ausgemergelte, zerfaserte Gestalt. Ursache war die Kombination aus zwei Vorgaben:
+  "Arme weit oben" plus "Figur fuellt die Leinwand". Um beides zu erfuellen, wurde die
+  Figur in die Hoehe gezogen.
+- **Regel:** Bei Posen mit erhobenen Gliedmassen die Richtung mitspezifizieren - **schraeg
+  nach aussen-oben statt senkrecht**. Und die Koerperfuelle (Zahl der opaken Pixel) als
+  eigenes Kriterium mitgeben, sonst wird an der Figur gespart, um die Geometrie zu
+  treffen.
+
 ### 2026-09-04 — "Abgehakt" ist eine Standzeit, keine Geschmacksfrage
 - **Befund:** Auf "wirkt abgehakt" gibt es eine Zahl statt einer Meinung: die Standzeit je
   Einzelbild. Vier Bilder bei 1,1 Zyklen je Sekunde ergeben 227 ms - das Auge liest

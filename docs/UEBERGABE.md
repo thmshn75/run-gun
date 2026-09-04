@@ -348,6 +348,26 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   Team-Waende in DERSELBEN Bahn liegen statt in drei getrennten Bereichen. Das wuerde das
   in W3/W4 abgenommene Layout aufreissen - erst besprechen, dann planen.
 
+- **Figurengroesse gefixt - der Fehler steckte in ALLEN drei Bildsaetzen** (2026-09-04,
+  Thomas: "die figuren sind jetzt deutlich kleiner als die alten - fixe das").
+  - **Ursache war ein Fehler in meinen Bild-Auftraegen, nicht in der Umsetzung:** Sie
+    forderten immer nur *Standlinie* und *Rumpfmitte*, nie die *Gesamthoehe*. Die Figuren
+    sassen korrekt auf dem Boden und massen dabei nur 76-92 % der Vorlage. Aufgefallen
+    ist es Thomas, nicht der Pruefung - **kein Kriterium hat es gemessen.**
+  - Neu in der Spec und jetzt erfuellt: oberste und unterste opake Zeile muessen denen der
+    Vorlage entsprechen. Alle 20 Bilder liegen bei 100 %.
+  - **Zwei Nacharbeiten waren noetig:** `enemy-lurch-7` kam mit nur 1327 opaken Pixeln
+    gegen 1847 im Mittel der Nachbarn - eine ausgemergelte Gestalt mitten im Zyklus. Der
+    Grund war lehrreich: **Bei senkrecht erhobenen Armen und voller Hoehenvorgabe streckt
+    sich die Figur duenn.** Die Loesung stand danach in jeder Spec: Arme schraeg nach
+    aussen-oben statt senkrecht. Der Grundboss-Satz blieb im ersten Lauf nach drei
+    Fehlversuchen liegen (Reissleine korrekt gezogen) und kam im zweiten auf 100 %.
+  - **Offen und bewusst nicht weiterverfolgt:** Die Rumpfmitte des Elite-Satzes liegt bei
+    104 / 117,5 / 110 / 113,5 (Vorlage 115,5) - Spanne 13,5 px auf 240 gegen 3,5 px im
+    Satz davor. Der Boss stapft breitbeiniger und koennte seitlich staerker wandern. Das
+    ist ein Feinschliff gegen einen behobenen Hauptmangel und gehoert in den
+    iPhone-Blick, nicht in einen weiteren Codex-Lauf.
+
 ## Offen — naechster Schritt zuerst
 1. ~~Bennis iPhone-Test~~ — **erledigt am 2026-08-29, ok** (Thomas). Gamefeel damit
    abgenommen. Noch nachzuziehen (siehe unten): Wirkung der Aufruestungsstufen im Spiel
