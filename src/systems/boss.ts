@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { getBossPhase, getBossPlan, type BossPlan } from './bossPlan'
+import { getBildVersatzPx } from './bildVersatz'
 import { getStepCycleHz, getStepSquash, getStepSwayRadians } from './gamefeel'
 import { getPerspectiveScale } from './road'
 import { getRoadHalfWidth } from './roadGeometry'
@@ -37,6 +38,13 @@ export class Boss {
    * sich; beim gewoehnlichen Boss bleibt der Wert 0.
    */
   private swingLeanRadians = 0
+
+  /**
+   * Die Position, an der der Boss LOGISCH steht. Das Sprite wird davon je Bild um den
+   * gemessenen Bildversatz weggerueckt; ohne diesen getrennten Wert wuerde sich der
+   * Ausgleich von Bild zu Bild aufaddieren.
+   */
+  private logischeX = 0
   private hordeAccumulatorMs: number
   private approaching: boolean
   private phaseTwoStarted: boolean
@@ -106,7 +114,12 @@ export class Boss {
       ? this.bewegungsBilder[0]
       : (this.plan.elite ? 'enemy-boss-elite' : 'enemy-boss'))
     this.swingElapsedMs = 0
-    this.enemy.enableBody(true, this.scene.scale.width / 2, y, true, true)
+    // Die logische Position wird getrennt gefuehrt: Der Bildversatz in applyGait rueckt
+    // das Sprite davon weg, und wuerde man sie danach aus enemy.x zurueckholen, addierte
+    // sich der Ausgleich Bild fuer Bild auf. Beim gewoehnlichen Boss faellt das auf,
+    // weil er seine x-Position sonst nie neu setzt.
+    this.logischeX = this.scene.scale.width / 2
+    this.enemy.enableBody(true, this.logischeX, y, true, true)
     this.enemy.setActive(true).setVisible(true).setAlpha(0).clearTint()
     const body = this.enemy.body as Phaser.Physics.Arcade.Body
     // Texturpixel: Arcade zieht den Koerper mit der perspektivischen Skalierung mit.
@@ -198,7 +211,14 @@ export class Boss {
       // Federn dazu - sonst laufen zwei Gangbewegungen uebereinander und man sieht nicht
       // mehr, welche wirkt.
       const zyklus = ((this.gaitElapsedMs / 1000) * BALANCE.boss.bilder.zyklenProSekunde) % 1
-      this.enemy.setTexture(texturen[Math.min(texturen.length - 1, Math.floor(zyklus * texturen.length))])
+      const bild = texturen[Math.min(texturen.length - 1, Math.floor(zyklus * texturen.length))]
+      this.enemy.setTexture(bild)
+      // Seitlichen Versatz des Einzelbildes ausgleichen: In einem gezeichneten Satz steht
+      // die Figur nicht in jedem Bild an derselben Stelle der Leinwand (gemessen bis zu
+      // 30 von 240 px), sonst rutscht der Boss beim Stapfen hin und her. Der Ausgleich
+      // wirkt NUR auf die Anzeige - die Trefferflaeche ist oben schon nachgefuehrt und
+      // bleibt an der logischen Position stehen.
+      this.enemy.x = this.logischeX - getBildVersatzPx(this.scene, bild, BALANCE.boss.bilder.standflaecheAbAnteil) * this.enemy.scaleX
       // Einzige gerechnete Bewegung, die zur Bildvariante DAZUKOMMT: die Neigung beim
       // seitlichen Pendeln. Sie ist keine zweite Gangbewegung, sondern die Reaktion auf
       // eine Ortsveraenderung - dieselbe Rolle wie die Neigung der Truppe beim Lenken.
@@ -253,7 +273,8 @@ export class Boss {
     const halbeStrasse = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, this.enemy.y)
     const amplitude = halbeStrasse * swingAmplitudeShare
     const phase = (this.swingElapsedMs / 1000 / swingSeconds) * Math.PI * 2
-    this.enemy.x = this.scene.scale.width / 2 + Math.sin(phase) * amplitude
+    this.logischeX = this.scene.scale.width / 2 + Math.sin(phase) * amplitude
+    this.enemy.x = this.logischeX
     // Neigung in die Bewegungsrichtung. Die Position folgt einem Sinus, die
     // GESCHWINDIGKEIT also einem Kosinus - der ist bereits auf -1..1 normiert und
     // braucht deshalb keinen Bezugswert wie das Lenken der Truppe, wo die

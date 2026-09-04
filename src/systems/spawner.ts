@@ -4,6 +4,7 @@ import { canSpawnBossHorde } from './bossPlan'
 import { chooseEnemyType, getEnemyHp, getFigureHeight, getFigureWidth, getPlayerPower, type EnemyType, getEnemyTexture } from './enemyTypes'
 import { getEnemySpawnCenterY, getSquadSpawnBaseY, isRevealedAtHorizon } from './horizonReveal'
 import { getLevelPlan, getMaxSquadSize, type LevelPlan } from './levelPlan'
+import { getBildVersatzPx } from './bildVersatz'
 import { getBobOffsetPx, getPhaseOffset, getStepCycleHz, getStepSquash, getStepSwayRadians } from './gamefeel'
 import { getFigureOverscanFactor, getPerspectiveScale, getPlayfieldHalfWidth } from './road'
 import { chooseSpawnLane, type SpawnLaneEnemy } from './spawnLanes'
@@ -31,10 +32,10 @@ export class Spawner {
   private elapsedMs: number
   private lastPoolWarningAtMs: number
   /**
-   * Bildsatz fuer die Versuchsgestalt, oder undefined fuer die gerechnete Bewegung.
-   * Wird von aussen gesetzt und gilt nur im Testgelaende (2026-09-04, zweiter Anlauf).
+   * Bildsatz der Taumelbewegung, oder undefined fuer die gerechnete Bewegung. Gilt seit
+   * dem 2026-09-04 in jedem Run.
    */
-  private gegnerBilder: readonly string[] | undefined
+  private readonly gegnerBilder: readonly string[] | undefined
   private deferredSpawn: SpawnRequest | undefined
   private deferredAgeMs: number
   private intervalSpawnCount: number
@@ -68,6 +69,7 @@ export class Spawner {
     this.nextSpawnId = 1
     this.spawningEnabled = true
     this.levelPlan = getLevelPlan(1)
+    this.gegnerBilder = this.waehleGegnerBilder()
     this.shadows = []
     for (let index = 0; index < BALANCE.pools.enemies; index += 1) {
       const enemy = scene.physics.add.image(0, 0, BALANCE.enemy.types[0].texture).setDepth(BALANCE.layers.gameplay)
@@ -107,14 +109,14 @@ export class Spawner {
   }
 
   /**
-   * Schaltet den Bildversuch fuer die Versuchsgestalt ein (nur Testgelaende). Fehlt eines
-   * der vier Bilder, bleibt es aus und alle Gegner behalten die gerechnete Bewegung -
-   * eine Figur mit fehlender Textur waere schlimmer als gar kein Versuch.
+   * Bestimmt den Bildsatz der Taumelbewegung. Fehlt eines der Bilder, bleibt er
+   * undefined und alle Gegner behalten die gerechnete Bewegung - eine Figur mit
+   * fehlender Textur waere schlimmer als die aeltere Bewegung.
    */
-  public setGegnerBilder(aktiv: boolean): void {
-    const satz = BALANCE.testground.gegnerBilder.texturen
-    this.gegnerBilder = aktiv && satz.every((name: string) => this.scene.textures.exists(name))
-      ? satz
+  private waehleGegnerBilder(): readonly string[] | undefined {
+    const { aktiv, texturen } = BALANCE.enemy.bilder
+    return aktiv && texturen.every((name: string) => this.scene.textures.exists(name))
+      ? texturen
       : undefined
   }
 
@@ -346,9 +348,14 @@ export class Spawner {
         // Eigener Takt, nicht der Schrittakt: Ein Zombie wankt langsamer, als er
         // Schritte macht. Der Versatz je Poolplatz bleibt, damit nicht die ganze Horde
         // im Gleichschritt taumelt.
-        const zyklus = ((this.elapsedMs / 1000) * BALANCE.testground.gegnerBilder.zyklenProSekunde + phase) % 1
-        enemy.setTexture(bilder[Math.min(bilder.length - 1, Math.floor(zyklus * bilder.length))])
+        const zyklus = ((this.elapsedMs / 1000) * BALANCE.enemy.bilder.zyklenProSekunde + phase) % 1
+        const bild = bilder[Math.min(bilder.length - 1, Math.floor(zyklus * bilder.length))]
+        enemy.setTexture(bild)
         enemy.setRotation(0)
+        // Seitlichen Versatz des Einzelbildes ausgleichen - dieselbe Regel wie beim Boss.
+        // enemy.x wurde oben aus der Spur frisch berechnet, hier wird nur die Anzeige
+        // gerueckt; die Trefferflaeche ist bereits nachgefuehrt und bleibt stehen.
+        enemy.x -= getBildVersatzPx(this.scene, bild, BALANCE.enemy.bilder.standflaecheAbAnteil) * enemy.scaleX
       } else {
         const squash = getStepSquash(this.elapsedMs, bobCycleHz, phase, BALANCE.gamefeel.enemyStepSquashShare)
         enemy.setScale(enemy.scaleX * squash.scaleX, enemy.scaleY * squash.scaleY)
@@ -601,7 +608,7 @@ export class Spawner {
     // Versuchsgestalt des Testgelaendes: nur diese eine Staerke bekommt die gezeichneten
     // Bilder. Alle anderen behalten die gerechnete Bewegung, damit im selben Bild beides
     // nebeneinander laeuft und sich vergleichen laesst.
-    const bildsatz = this.gegnerBilder !== undefined && type.key === BALANCE.testground.gegnerBilder.staerke
+    const bildsatz = this.gegnerBilder !== undefined && type.key === BALANCE.enemy.bilder.staerke
     enemy.setData('bildsatz', bildsatz)
     if (bildsatz && this.gegnerBilder !== undefined) enemy.setTexture(this.gegnerBilder[0])
     enemy.setActive(true).setVisible(true).clearTint()

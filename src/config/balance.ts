@@ -1116,41 +1116,6 @@ export const BALANCE = {
     // Testgelaende spielt auf Level 5, und welches Thema dort nach der Wechselregel
     // faellig waere, ist Zufall - hier soll immer die Bruecke stehen.
     thema: 'bruecke' as const,
-    // Zweiter Anlauf mit gezeichneten Gegner-Bildern (Thomas 2026-09-04: "versuche
-    // punkt 5 im testlevel"). NUR hier, der normale Run bleibt bei der gerechneten
-    // Bewegung.
-    //
-    // Der erste Anlauf (Commit 1c113a7) scheiterte an einem Gangzyklus: vier aehnliche
-    // Haltungen, 15 % Silhouettenunterschied, im Spiel ein Flackern. Diesmal ist eine
-    // andere BEWEGUNG bestellt - Taumeln und Greifen statt Gehen -, weil sich deren
-    // Haltungen weit unterscheiden. Genau dieser Wechsel hat den Boss-Satz gerettet
-    // (69 % statt 15 %); die Herleitung steht in docs/lessons.md.
-    gegnerBilder: {
-      // ZWOELF Bilder, nicht vier (Thomas 2026-09-04: "kann man machen dass es nicht so
-      // abgehakt wirkt sondern eine fluessigere bewegung ist").
-      //
-      // GERECHNET: Vier Bilder bei 1,1 Zyklen/s ergeben 4,4 Bilder/s - jedes Bild steht
-      // 227 ms und ist als Standbild zu sehen. Fluessig gelten Sprite-Animationen ab
-      // rund 10-12 Bildern/s, also unter 100 ms je Bild. Zwoelf Bilder bei unveraendertem
-      // Tempo ergeben 76 ms.
-      //
-      // Ueberblenden waere billiger gewesen und scheidet trotzdem aus: Die Haltungen
-      // unterscheiden sich um 54 %, zwei davon halbtransparent uebereinander gaeben
-      // einen Doppelgaenger statt einer Bewegung.
-      texturen: [
-        'enemy-lurch-1', 'enemy-lurch-2', 'enemy-lurch-3', 'enemy-lurch-4',
-        'enemy-lurch-5', 'enemy-lurch-6', 'enemy-lurch-7', 'enemy-lurch-8',
-        'enemy-lurch-9', 'enemy-lurch-10', 'enemy-lurch-11', 'enemy-lurch-12',
-      ] as const,
-      // Ersetzt wird die Gestalt dieser Staerke. 'standard' ist die mittlere - haeufig
-      // genug, um sie oft zu sehen, selten genug, dass daneben unanimierte Gegner mit
-      // der gerechneten Bewegung laufen und sich beides vergleichen laesst.
-      staerke: 'standard' as const,
-      // Volle Taumelbewegung je Sekunde. Ein Zombie wankt langsamer, als er Schritte
-      // macht: Der Schrittakt der gerechneten Bewegung liegt bei rund 1,6 Hz, das
-      // Wanken bewusst darunter, sonst wirkt es hektisch statt schwerfaellig.
-      zyklenProSekunde: 1.1,
-    },
   },
   continueRun: {
     // 250 x erreichtes Level: 750 auf Level 3, 2.000 auf Level 8, 3.000 auf Level 12.
@@ -1909,6 +1874,38 @@ export const BALANCE = {
     //
     // hp gespreizt statt 1/3/9, damit die Typen ohne Tempo-Unterschied noch klar
     // auseinandergehen: Der Schwere haelt jetzt das Zwoelffache des Leichten aus.
+  // Gezeichnete Taumelbewegung der Gegner (Thomas 2026-09-04: "bewegung der kleinen
+  // figuren ok, bitte auf alle anwenden"). Gilt seither in JEDEM Run, nicht mehr nur im
+  // Testgelaende.
+  //
+  // Der Weg dahin steht in docs/lessons.md: Ein erster Anlauf mit einem GANGZYKLUS
+  // scheiterte (vier aehnliche Haltungen, 15 % Silhouettenunterschied, im Spiel ein
+  // Flackern). Erst der Wechsel der BEWEGUNG - taumeln und greifen statt gehen - brachte
+  // 61 %, und zwoelf statt vier Bilder brachten die Standzeit je Bild von 227 auf 76 ms.
+  //
+  // ERSETZT WIRD NUR DIE MITTLERE STAERKE. Das ist eine bewusste Einschraenkung: Fuer
+  // 'light' und 'heavy' gibt es keine Laufbilder, und die zehn Farbvarianten je Staerke
+  // (E5) fallen fuer 'standard' damit weg - eine animierte Gestalt statt zehn stehender.
+  // Der Tausch ist Thomas' Entscheidung; wer ihn rueckgaengig machen will, setzt
+  // aktiv: false.
+  bilder: {
+    aktiv: true,
+    texturen: [
+      'enemy-lurch-1', 'enemy-lurch-2', 'enemy-lurch-3', 'enemy-lurch-4',
+      'enemy-lurch-5', 'enemy-lurch-6', 'enemy-lurch-7', 'enemy-lurch-8',
+      'enemy-lurch-9', 'enemy-lurch-10', 'enemy-lurch-11', 'enemy-lurch-12',
+    ] as const,
+    staerke: 'standard' as const,
+    // Volle Taumelbewegung je Sekunde. Bewusst langsamer als der Schrittakt der
+    // gerechneten Bewegung (rund 1,6 Hz) - ein Zombie wankt schwerfaellig. Zusammen mit
+    // zwoelf Bildern ergibt das 76 ms Standzeit je Bild und damit eine fluessige
+    // Bewegung (Schwelle rund 100 ms).
+    zyklenProSekunde: 1.1,
+    // Wie beim Boss: ab hier liegt die Standflaeche, daran misst bildVersatz.ts den
+    // seitlichen Ausgleich. Beim Zombie sind es nur 3 von 64 px - klein, aber mit
+    // demselben Mittel behoben statt als Sonderfall stehengelassen.
+    standflaecheAbAnteil: 0.667,
+  },
     types: [
       // bodyWidth/bodyHeight sind die gemessenen OPAKEN Masse der Textur, seit W7 also
       // in der doppelten Aufloesung (2026-08-23 mit einem Alpha-Schwellwert von 8 an den
@@ -2799,11 +2796,27 @@ export const BALANCE = {
     // eigenes Bild, damit er auf den ersten Blick als anderer Gegner lesbar ist. Ein
     // gemeinsamer Bildsatz haette diesen Unterschied wieder eingeebnet.
     bilder: {
-      elite: ['boss-elite-move-1', 'boss-elite-move-2', 'boss-elite-move-3', 'boss-elite-move-4'] as const,
-      basic: ['boss-basic-move-1', 'boss-basic-move-2', 'boss-basic-move-3', 'boss-basic-move-4'] as const,
-      // Volle Auf-und-ab-Bewegung je Sekunde. Ein schwerer Koerper baeumt sich langsam
-      // auf - schneller waere ein Zappeln, langsamer stuende er still.
-      zyklenProSekunde: 0.55,
+      elite: [
+        'boss-elite-move-1', 'boss-elite-move-2', 'boss-elite-move-3', 'boss-elite-move-4',
+        'boss-elite-move-5', 'boss-elite-move-6', 'boss-elite-move-7', 'boss-elite-move-8',
+        'boss-elite-move-9', 'boss-elite-move-10', 'boss-elite-move-11', 'boss-elite-move-12',
+      ] as const,
+      basic: [
+        'boss-basic-move-1', 'boss-basic-move-2', 'boss-basic-move-3', 'boss-basic-move-4',
+        'boss-basic-move-5', 'boss-basic-move-6', 'boss-basic-move-7', 'boss-basic-move-8',
+        'boss-basic-move-9', 'boss-basic-move-10', 'boss-basic-move-11', 'boss-basic-move-12',
+      ] as const,
+      // Volle Auf-und-ab-Bewegung je Sekunde. 0,55 -> 0,8 (Thomas 2026-09-04: "abgehakt
+      // ... fluessiger gestalten"). GERECHNET: Mit vier Bildern stand jedes 455 ms und
+      // war als Standbild zu sehen. Zwoelf Bilder bei 0,8 Zyklen ergeben 104 ms - knapp
+      // an der Schwelle von rund 100 ms, ab der Sprite-Bewegung fluessig gelesen wird.
+      // Der Boss baeumt sich damit in 1,25 s statt 1,8 s auf und bleibt schwerfaellig.
+      zyklenProSekunde: 0.8,
+      // Ab welchem Anteil der Bildhoehe die Standflaeche beginnt. Daraus misst
+      // bildVersatz.ts, wie weit die Figur je Bild seitlich von der Bildmitte abweicht -
+      // beim Grundboss sind das bis zu 30 von 240 px, die sonst als Rutschen zu sehen
+      // waeren. Zwei Drittel: unterhalb davon sind Beine und Fuesse, keine Arme.
+      standflaecheAbAnteil: 0.667,
     },
     elite: {
       // Alle fuenf Level, also 5, 10, 15, 20, ... Auf 5 und 10 muss er schaffbar

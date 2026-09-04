@@ -22,10 +22,26 @@ import bossEliteMove1Url from '../assets/boss-elite-move-1.png'
 import bossEliteMove2Url from '../assets/boss-elite-move-2.png'
 import bossEliteMove3Url from '../assets/boss-elite-move-3.png'
 import bossEliteMove4Url from '../assets/boss-elite-move-4.png'
+import bossEliteMove5Url from '../assets/boss-elite-move-5.png'
+import bossEliteMove6Url from '../assets/boss-elite-move-6.png'
+import bossEliteMove7Url from '../assets/boss-elite-move-7.png'
+import bossEliteMove8Url from '../assets/boss-elite-move-8.png'
+import bossEliteMove9Url from '../assets/boss-elite-move-9.png'
+import bossEliteMove10Url from '../assets/boss-elite-move-10.png'
+import bossEliteMove11Url from '../assets/boss-elite-move-11.png'
+import bossEliteMove12Url from '../assets/boss-elite-move-12.png'
 import bossBasicMove1Url from '../assets/boss-basic-move-1.png'
 import bossBasicMove2Url from '../assets/boss-basic-move-2.png'
 import bossBasicMove3Url from '../assets/boss-basic-move-3.png'
 import bossBasicMove4Url from '../assets/boss-basic-move-4.png'
+import bossBasicMove5Url from '../assets/boss-basic-move-5.png'
+import bossBasicMove6Url from '../assets/boss-basic-move-6.png'
+import bossBasicMove7Url from '../assets/boss-basic-move-7.png'
+import bossBasicMove8Url from '../assets/boss-basic-move-8.png'
+import bossBasicMove9Url from '../assets/boss-basic-move-9.png'
+import bossBasicMove10Url from '../assets/boss-basic-move-10.png'
+import bossBasicMove11Url from '../assets/boss-basic-move-11.png'
+import bossBasicMove12Url from '../assets/boss-basic-move-12.png'
 import enemyLightEUrl from '../assets/enemy-light-e.png'
 import enemyLightFUrl from '../assets/enemy-light-f.png'
 import enemyLightGUrl from '../assets/enemy-light-g.png'
@@ -120,10 +136,26 @@ export class BootScene extends Phaser.Scene {
     this.load.image('boss-elite-move-2', bossEliteMove2Url)
     this.load.image('boss-elite-move-3', bossEliteMove3Url)
     this.load.image('boss-elite-move-4', bossEliteMove4Url)
+    this.load.image('boss-elite-move-5', bossEliteMove5Url)
+    this.load.image('boss-elite-move-6', bossEliteMove6Url)
+    this.load.image('boss-elite-move-7', bossEliteMove7Url)
+    this.load.image('boss-elite-move-8', bossEliteMove8Url)
+    this.load.image('boss-elite-move-9', bossEliteMove9Url)
+    this.load.image('boss-elite-move-10', bossEliteMove10Url)
+    this.load.image('boss-elite-move-11', bossEliteMove11Url)
+    this.load.image('boss-elite-move-12', bossEliteMove12Url)
     this.load.image('boss-basic-move-1', bossBasicMove1Url)
     this.load.image('boss-basic-move-2', bossBasicMove2Url)
     this.load.image('boss-basic-move-3', bossBasicMove3Url)
     this.load.image('boss-basic-move-4', bossBasicMove4Url)
+    this.load.image('boss-basic-move-5', bossBasicMove5Url)
+    this.load.image('boss-basic-move-6', bossBasicMove6Url)
+    this.load.image('boss-basic-move-7', bossBasicMove7Url)
+    this.load.image('boss-basic-move-8', bossBasicMove8Url)
+    this.load.image('boss-basic-move-9', bossBasicMove9Url)
+    this.load.image('boss-basic-move-10', bossBasicMove10Url)
+    this.load.image('boss-basic-move-11', bossBasicMove11Url)
+    this.load.image('boss-basic-move-12', bossBasicMove12Url)
     this.load.image('enemy-heavy', enemyHeavyUrl)
     this.load.image('enemy-light-e', enemyLightEUrl)
     this.load.image('enemy-light-f', enemyLightFUrl)

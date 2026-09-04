@@ -111,14 +111,46 @@ describe('Testgelaende als Pruefplatz', () => {
     expect(getWeltThema(BALANCE.testground.level)).toBe(getWeltThema(BALANCE.testground.level, false))
   })
 
+  it('gleicht den seitlichen Versatz der Einzelbilder aus', () => {
+    // In einem gezeichneten Bewegungssatz steht die Figur nicht in jedem Bild an
+    // derselben Stelle der Leinwand. Ohne Ausgleich rutscht sie beim Abspielen seitlich.
+    const boss = readFileSync(new URL('../src/systems/boss.ts', import.meta.url), 'utf8')
+    const spawner = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
+    expect(boss).toContain('getBildVersatzPx')
+    expect(spawner).toContain('getBildVersatzPx')
+    // Der Ausgleich kommt NACH dem Nachfuehren der Trefferflaeche - er ist reine Optik,
+    // dieselbe Regel wie bei Wiegen und Federn.
+    expect(boss.indexOf('getBildVersatzPx(')).toBeGreaterThan(boss.indexOf('updateFromGameObject()'))
+  })
+
+  it('fuehrt die logische Position des Bosses getrennt vom Sprite', () => {
+    // Sonst addiert sich der Ausgleich Bild fuer Bild auf: Der gewoehnliche Boss setzt
+    // seine x-Position nie neu, ein Rueckholen aus enemy.x wuerde ihn davonwandern lassen.
+    const source = readFileSync(new URL('../src/systems/boss.ts', import.meta.url), 'utf8')
+    expect(source).toContain('this.logischeX =')
+    expect(source).not.toContain('this.logischeX = this.enemy.x')
+    // Und die Anzeige rechnet vom logischen Wert aus, nicht von sich selbst.
+    expect(source).toContain('this.enemy.x = this.logischeX - getBildVersatzPx(')
+  })
+
+  it('misst den Versatz aus der Textur statt ihn als Liste zu pflegen', () => {
+    // Eine Zahlenliste in balance.ts waere beim naechsten Bildsatz stillschweigend
+    // falsch. Genau solche stillen Fehler haben am 2026-09-04 zweimal Zeit gekostet.
+    const source = readFileSync(new URL('../src/systems/bildVersatz.ts', import.meta.url), 'utf8')
+    expect(source).toContain('getSourceImage')
+    expect(source).toContain('getImageData')
+    // Einmal je Textur, danach aus dem Zwischenspeicher - nicht in jedem Bild neu.
+    expect(source).toContain('zwischenspeicher')
+  })
+
   it('gibt jedem Bosstyp seinen eigenen Bildsatz', () => {
     // Der Elite-Boss hat seit E7 bewusst ein eigenes Bild, damit er auf den ersten Blick
     // als anderer Gegner lesbar ist. Ein gemeinsamer Bewegungssatz haette das wieder
     // eingeebnet.
     const { elite, basic } = BALANCE.boss.bilder
-    expect(elite).toHaveLength(4)
-    expect(basic).toHaveLength(4)
-    expect(new Set([...elite, ...basic]).size).toBe(8)
+    expect(elite).toHaveLength(12)
+    expect(basic).toHaveLength(12)
+    expect(new Set([...elite, ...basic]).size).toBe(24)
     const source = readFileSync(new URL('../src/systems/boss.ts', import.meta.url), 'utf8')
     expect(source).toContain('this.plan.elite ? BALANCE.boss.bilder.elite : BALANCE.boss.bilder.basic')
   })
@@ -181,34 +213,46 @@ describe('Testgelaende als Pruefplatz', () => {
     expect(Math.sign(neigung(0))).toBe(-Math.sign(neigung(Math.PI)))
   })
 
-  it('nutzt genau vier Bilder je Bosstyp', () => {
-    expect(BALANCE.boss.bilder.zyklenProSekunde).toBeGreaterThan(0)
-    for (const satz of [BALANCE.boss.bilder.elite, BALANCE.boss.bilder.basic]) {
-      expect(satz).toHaveLength(4)
-      expect(new Set(satz).size).toBe(4)
+  it('nutzt gleich viele, verschiedene Bilder je Bosstyp', () => {
+    const { elite, basic, zyklenProSekunde } = BALANCE.boss.bilder
+    expect(zyklenProSekunde).toBeGreaterThan(0)
+    // Gleich lang, damit beide Bosstypen im selben Takt laufen.
+    expect(elite).toHaveLength(basic.length)
+    for (const satz of [elite, basic]) {
+      expect(satz.length).toBeGreaterThanOrEqual(12)
+      expect(new Set(satz).size).toBe(satz.length)
     }
   })
 
-  it('gibt der Versuchsgestalt Bilder, aber nur im Testgelaende', () => {
-    // Zweiter Anlauf (Thomas 2026-09-04). Der normale Run bleibt bei der gerechneten
-    // Bewegung; zeilenweise geprueft, weil das Argument Klammern enthaelt.
+  it('laesst die Taumelbewegung in JEDEM Run laufen', () => {
+    // Thomas 2026-09-04: "bewegung der kleinen figuren ok, bitte auf alle anwenden".
+    // Der Testgelaende-Schalter muss weg sein, sonst laeuft die Freigabe ins Leere.
+    const spawner = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
     const scene = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
-    const zeilen = scene.split('\n').filter((zeile) => zeile.includes('setGegnerBilder('))
-    expect(zeilen).toHaveLength(1)
-    for (const zeile of zeilen) expect(zeile).toContain('istTestgelaende()')
+    expect(spawner).not.toContain('setGegnerBilder')
+    expect(scene).not.toContain('setGegnerBilder')
+    expect(spawner).not.toContain('BALANCE.testground.gegnerBilder')
+    expect(BALANCE.enemy.bilder.aktiv).toBe(true)
   })
 
-  it('bleibt aus, solange ein Gegnerbild fehlt', () => {
+  it('faellt auf die gerechnete Bewegung zurueck, wenn ein Gegnerbild fehlt', () => {
     const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
-    const setter = source.slice(source.indexOf('public setGegnerBilder('), source.indexOf('public resetForLevel('))
-    expect(setter).toContain('textures.exists')
-    expect(setter).toContain('every(')
-    expect(setter).toContain(': undefined')
+    const waehle = source.slice(source.indexOf('private waehleGegnerBilder('), source.indexOf('public resetForLevel('))
+    expect(waehle).toContain('textures.exists')
+    expect(waehle).toContain('every(')
+    expect(waehle).toContain(': undefined')
   })
 
-  it('gibt der Versuchsgestalt keine zweite, gerechnete Bewegung', () => {
-    // Die Bewegung steckt in den Bildern. Liefe das Wiegen zusaetzlich, verglichen wir
-    // zwei Bewegungen gegen eine statt gezeichnet gegen gerechnet.
+  it('ersetzt nur die mittlere Staerke, nicht alle Gegner', () => {
+    // Bewusste Einschraenkung: Fuer 'light' und 'heavy' gibt es keine Bilder. Wuerde der
+    // Satz auf alle Staerken gelegt, saehen alle Gegner gleich aus und die drei
+    // Figurstaerken waeren optisch nicht mehr zu unterscheiden.
+    const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
+    expect(source).toContain('type.key === BALANCE.enemy.bilder.staerke')
+    expect(BALANCE.enemy.types.map((t) => t.key)).toContain(BALANCE.enemy.bilder.staerke)
+  })
+
+  it('gibt der Taumelgestalt keine zweite, gerechnete Bewegung', () => {
     const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
     expect(source).toContain("const istBildsatz = enemy.getData('bildsatz') === true")
     expect(source).toContain('istBildsatz\n        ? 0')
@@ -219,25 +263,24 @@ describe('Testgelaende als Pruefplatz', () => {
   })
 
   it('laesst die Zombies taumeln, nicht im Schrittakt zappeln', () => {
-    // Eigener Takt, bewusst langsamer als der Schritt: Der Schrittzyklus liegt bei rund
-    // 1,6 Hz. Waere das Wanken schneller, wirkte es hektisch statt schwerfaellig.
-    const { zyklenProSekunde, texturen, staerke } = BALANCE.testground.gegnerBilder
+    const { zyklenProSekunde, texturen, staerke } = BALANCE.enemy.bilder
     expect(new Set(texturen).size).toBe(texturen.length)
     expect(zyklenProSekunde).toBeGreaterThan(0)
     expect(zyklenProSekunde).toBeLessThan(getStepCycleHz(46))
-    // Und die ersetzte Staerke gibt es wirklich.
     expect(BALANCE.enemy.types.map((t) => t.key)).toContain(staerke)
   })
 
   it('zeigt jedes Bild kurz genug, dass die Bewegung fluessig wirkt', () => {
-    // Der Grund fuer zwoelf statt vier Bildern (Thomas 2026-09-04: "nicht so abgehakt").
-    // Sprite-Animationen gelten ab rund 10-12 Bildern je Sekunde als fluessig, also
-    // unter 100 ms Standzeit. Mit vier Bildern waren es 227 ms - deutlich sichtbare
-    // Standbilder. Diese Schranke haelt den Wert fest, falls jemand spaeter Bilder
-    // herausnimmt oder das Tempo senkt.
-    const { texturen, zyklenProSekunde } = BALANCE.testground.gegnerBilder
-    const msJeBild = 1000 / (texturen.length * zyklenProSekunde)
-    expect(msJeBild).toBeLessThan(100)
+    // Sprite-Animationen gelten ab rund 10-12 Bildern je Sekunde als fluessig, also unter
+    // 100 ms Standzeit. Mit vier Bildern waren es 227 ms - sichtbare Standbilder. Die
+    // Schranke gilt fuer Gegner UND Bosse, damit sie beim naechsten Feinschliff nicht
+    // still wieder unterschritten wird.
+    const gegner = BALANCE.enemy.bilder
+    expect(1000 / (gegner.texturen.length * gegner.zyklenProSekunde)).toBeLessThan(100)
+    const boss = BALANCE.boss.bilder
+    for (const satz of [boss.elite, boss.basic]) {
+      expect(1000 / (satz.length * boss.zyklenProSekunde)).toBeLessThan(120)
+    }
   })
 
   it('laesst die normalen Gegner bei der gerechneten Bewegung', () => {

@@ -5,3 +5,7 @@ dist/
 .playwright-mcp/
 assets/probe/
 .oscar/
+
+# Arbeitsordner der Bilderzeugung (Codex legt hier Zwischenstufen ab).
+# Nur die fertigen PNGs unter src/assets/ gehoeren ins Repo.
+tmp/
