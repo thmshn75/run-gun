@@ -21,6 +21,26 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   Deploy per `gh run watch` verifizieren.
 
 ## Fertig
+- **Zehn eigene Gangarten (2026-09-04)** — jede Sondergestalt bewegt sich anders, und
+  jede in ihrem eigenen Takt. Block 1: `standard-e` marschiert, `standard-g` schlurft,
+  `standard-i` schleicht. Block 2: `light-e` rennt, `light-f` kriecht, `light-g` zuckt,
+  `light-i` humpelt. Block 3: `heavy-e` watschelt, `heavy-g` stampft, `heavy-i`
+  schreitet. Alle 120 Bilder sind in `BootScene.ts` geladen und in `balance.ts` unter
+  `bilder.saetze` registriert — **wer einen Satz nur ins Asset-Verzeichnis legt, sieht
+  im Spiel nichts**: Ohne Eintrag faellt die Gestalt auf die gerechnete Bewegung
+  zurueck (Thomas am 2026-09-04: "sie wackeln nur, keine bewegung sonst").
+  Der Bildtakt haengt seither an der Gangart, nicht mehr an einem Wert fuer alle
+  (`zyklenProSekundeJeGangart`): Rennen 1,4 bis Schreiten 0,5 Zyklen je Sekunde,
+  hergeleitet aus der Schrittzahl der jeweiligen Gangart. Rechenweg in `balance.ts`.
+  Bei den schweren Gestalten gibt es nur drei eigene Formen — `heavy-f`, `-h` und `-j`
+  sind pixelgleiche Umfaerbungen von `-e`, `-g` und `-i` und brauchen keine Bilder.
+  **Offen:** Ob die Gangarten sich auch unterschiedlich schnell FORTBEWEGEN sollen
+  (Thomas' Wunsch, noch nicht entschieden) — das aendert die Schwierigkeit und braucht
+  eine Messreihe, keine geratene Zahl. Und Bennis iPhone-Test steht aus.
+  Die Pruefskripte (`abnahme-check.py`, `abnahme-check-heavy.py`) liegen im
+  Session-Scratchpad; ihr Aufbau und die Kalibrierung stehen in `docs/lessons.md`
+  unter dem 2026-09-04.
+
 - **V1 (`v1.0`), V2 (`v2.0`), V3 (`v3.0`)** — alle abgenommen, alle drei Tags sind
   Rueckschrittspunkte. Letzter Commit `6bd5994`, Arbeitsverzeichnis sauber, alles gepusht.
 - V3 brachte: Sammelbahn-Fix, Startruckeln behoben (Kollisions-Suchbaum fraß 48 % der

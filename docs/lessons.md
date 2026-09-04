@@ -948,3 +948,29 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   war auf einem vergrößerten Kontaktbogen in Sekunden zu sehen, zwei davon hatten die
   jeweils geltende Messung bestanden. Ein Bildergebnis wird angesehen, nicht nur gemessen
   — und zwar neben der Vorlage.
+
+### 2026-09-04 — Zwei Pixel ueber einem Kopf waren die Hornspitzen
+- **Fehler:** Beim Durchsehen der fertigen Block-3-Bilder fielen einzelne abgesetzte
+  Pixel auf (1 bis 6 px), die das Pruefskript wegen seiner 10-px-Schwelle durchgelassen
+  hatte. Sie sahen nach Streupixeln aus und wurden per Skript entfernt — **ohne die
+  Dateien vorher zu sichern**, obwohl sie noch nicht committet waren. Danach fiel ein
+  Bild durch: Die zwei Punkte ueber dem Kopf der gehoernten Gestalt waren nicht Muell,
+  sondern die abgetrennten Hornspitzen und zugleich die oberste Bildzeile. Beim
+  Wiederherstellen aus dem Zwischenordner kamen unbearbeitete Rohfassungen zurueck; drei
+  abgenommene Bilder waren weg. Zwei liessen sich gezielt reparieren, eines musste neu
+  erzeugt werden.
+- **Regel:** Vor jeder Aenderung an Dateien, die noch nicht committet sind, eine Kopie
+  ins Scratchpad — ein Commit oder eine Sicherung ist die Voraussetzung dafuer, etwas
+  zu veraendern, nicht die Belohnung dafuer. Das kostet Sekunden und haette hier einen
+  ganzen Codex-Lauf gespart.
+- **Zweite Lehre (erst verstehen, dann entfernen):** Was wie ein Fehler aussieht, wird
+  zuerst analysiert — wo liegt es, wie gross ist es, gehoert es zur Figur? Die
+  Zusammenhangsanalyse haette in einem Durchlauf gezeigt, dass das eine Teil oben am
+  Kopf sitzt (Hoerner, gehoeren dazu) und das andere als 57-px-Streifen rechts am
+  Bildrand klebt (echter Muell). Pauschal "alles ausser dem groessten Teil weg" ist
+  keine Analyse, sondern eine Wette.
+- **Dritte Lehre (die Messschwelle als Blindstelle):** Die 10-px-Schwelle im Pruefskript
+  war als Toleranz gegen Rauschen gedacht und wurde zur Blindstelle: Sie hat sowohl
+  echten Muell als auch abgetrennte Koerperteile verschwiegen. Wer eine Toleranz setzt,
+  sollte den Bereich UNTERHALB davon wenigstens einmal ausgeben lassen, statt ihn gar
+  nicht erst zu sehen.
