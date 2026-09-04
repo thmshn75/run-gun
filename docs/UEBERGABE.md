@@ -368,6 +368,35 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
     ist ein Feinschliff gegen einen behobenen Hauptmangel und gehoert in den
     iPhone-Blick, nicht in einen weiteren Codex-Lauf.
 
+- **Bewegung ueberall freigegeben, Bosse fluessig und deckend** (2026-09-04, Thomas:
+  "bewegung der kleinen figuren ok, bitte auf alle anwenden, der Elite boss wird aber
+  zwischendurch durchsichtig und abgehakt, genauso wie der normale boss").
+  1. **Taumelbewegung in jedem Run**, nicht mehr nur im Testgelaende. Sie ersetzt
+     weiterhin **nur die mittlere Staerke** - fuer `light` und `heavy` gibt es keine
+     Bilder, und ein gemeinsamer Satz haette die drei Figurstaerken optisch
+     eingeebnet. **Nebenwirkung, die zu wissen ist:** Die zehn Farbvarianten der
+     Staerke `standard` (E5) entfallen damit - eine animierte Gestalt statt zehn
+     stehender. Rueckgaengig ueber `BALANCE.enemy.bilder.aktiv`.
+  2. **Durchsichtig war EIN defektes Bild:** `boss-elite-move-2.png` hatte nur 5,2 %
+     volldeckende Pixel (alle anderen 92-94 %) und machte den Boss einmal je Zyklus
+     durchsichtig. Beide Saetze neu erzeugt; Deckkraft im Kampf jetzt ueber 1.159 Proben
+     konstant 1,0. **Ein Deckkraft-Kriterium steht ab sofort in jeder Bild-Spec.**
+  3. **Abgehakt war dieselbe Rechnung wie beim Zombie:** Vier Bilder bei 0,55 Zyklen
+     standen 455 ms je Bild. Jetzt zwoelf Bilder bei 0,8 Zyklen - gemessene **104 ms**.
+  - **DAZU EIN NEUES WERKZEUG, das kuenftig jeden Bildsatz rettet:** Die Figur steht in
+    gezeichneten Bildern nicht an derselben Stelle der Leinwand - beim Grundboss wandert
+    die Standflaeche um 30 von 240 px, beim Elite um 20,5. Ohne Gegenmassnahme waere der
+    Boss beim Stapfen seitlich gerutscht, ein neuer Fehler anstelle des behobenen.
+    `src/systems/bildVersatz.ts` misst den Versatz **aus der Textur** und rueckt das
+    Sprite gegen; die Trefferflaeche bleibt an der logischen Position.
+    - Warum gemessen und nicht als Zahlenliste gepflegt: Eine Liste waere beim naechsten
+      Bildsatz stillschweigend falsch geworden.
+    - Beleg: Das Sprite wandert im Kampf 14,49 px - genau der Bildversatz (30 px) mal der
+      Anzeigeskalierung (114/240) = 14,25 px erwartet. Die sichtbare Figur steht still.
+    - **Falle beim Einbau:** Der gewoehnliche Boss setzt seine x-Position nie neu. Wer
+      die logische Position aus `enemy.x` zurueckliest, addiert den Ausgleich Bild fuer
+      Bild auf und schickt den Boss aus dem Bild. Sie wird deshalb getrennt gefuehrt.
+
 ## Offen — naechster Schritt zuerst
 1. ~~Bennis iPhone-Test~~ — **erledigt am 2026-08-29, ok** (Thomas). Gamefeel damit
    abgenommen. Noch nachzuziehen (siehe unten): Wirkung der Aufruestungsstufen im Spiel

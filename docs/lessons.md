@@ -8,6 +8,27 @@ Jede Nutzerkorrektur wird hier als Regel eingetragen. Zu Sitzungsbeginn lesen.
 
 ---
 
+### 2026-09-04 — Ein durchsichtiges Sprite ist messbar, bevor es auffaellt
+- **Fehler:** Ein Bild eines Bewegungssatzes kam fast vollstaendig halbtransparent zurueck
+  (5,2 % volldeckende Pixel gegen 92-94 % bei allen anderen) - ein Rest der
+  Hintergrundentfernung. Im Spiel wurde der Boss dadurch einmal je Zyklus durchsichtig.
+  Keines meiner Bildkriterien hat Deckkraft geprueft; gemeldet hat es Thomas.
+- **Regel:** In jede Bild-Spec gehoert ein Deckkraft-Kriterium: mindestens 85 % der opaken
+  Pixel (Alpha > 8) muessen volldeckend sein (Alpha >= 250). Die Messung ist zwei Zeilen
+  und faengt eine ganze Fehlerklasse ab, die aus Chroma-Key-Verfahren stammt.
+
+### 2026-09-04 — Gezeichnete Bilder haben keinen gemeinsamen Ankerpunkt
+- **Befund:** In einem Satz gezeichneter Bewegungsbilder steht die Figur nicht in jedem
+  Bild an derselben Stelle der Leinwand - gemessen bis zu 30 von 240 px. Beim Abspielen
+  rutscht sie dadurch seitlich, obwohl ihre Position im Spiel unveraendert bleibt. Das ist
+  kein Fehler der Bilderzeugung, sondern eine Eigenschaft jedes gezeichneten Satzes.
+- **Regel:** Bei Sprite-Animationen den Versatz je Bild AUS DER TEXTUR messen und die
+  Anzeige gegenruecken (`src/systems/bildVersatz.ts`), statt ihn den Bildern abzuverlangen.
+  Einmal gebaut, traegt es jeden kuenftigen Satz.
+- **Falle dabei:** Wer die logische Position aus der Sprite-Position zurueckliest, addiert
+  den Ausgleich Bild fuer Bild auf. Sie muss getrennt gefuehrt werden - besonders bei
+  Objekten, die ihre Position sonst nie neu setzen.
+
 ### 2026-09-04 — Was kein Kriterium misst, faellt niemandem auf ausser dem Nutzer
 - **Fehler:** Fuenf Bild-Auftraege in Folge forderten Standlinie, Rumpfmitte,
   Silhouettenunterschied und Fusswechsel - aber nie die GESAMTHOEHE der Figur. Alle
