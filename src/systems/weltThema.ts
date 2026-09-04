@@ -12,7 +12,10 @@ export type WeltThema = 'stadt' | 'bruecke'
  * Zufall - ein Level muss bei jedem Anlauf gleich aussehen, sonst laesst sich nicht
  * beurteilen, ob der Wechsel gefaellt.
  */
-export function getWeltThema(level: number): WeltThema {
+export function getWeltThema(level: number, istTestgelaende: boolean = false): WeltThema {
+  // Das Testgelaende hat ein festes Thema: Dort werden neue Sachen geprueft, und welches
+  // Thema seine Levelnummer nach der Wechselregel traefe, waere Zufall.
+  if (istTestgelaende) return BALANCE.testground.thema
   const { thema, wechselAlleLevel, ersteBruecke } = BALANCE.welt
   if (thema === 'stadt' || thema === 'bruecke') return thema
   const sicheresLevel = Math.max(1, Math.floor(level))

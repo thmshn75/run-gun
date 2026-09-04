@@ -1353,7 +1353,7 @@ export class GameScene extends Phaser.Scene {
    * einmal je Run. Der Spielablauf bleibt unberuehrt - es wechselt nur, was man sieht.
    */
   private setzeWeltThema(): void {
-    const thema = getWeltThema(this.currentLevel)
+    const thema = getWeltThema(this.currentLevel, this.istTestgelaende())
     this.road.setThema(thema)
     this.scenery.setAktiv(thema === 'stadt')
     this.bruecke.setAktiv(thema === 'bruecke')

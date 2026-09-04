@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { WORLD_COLORS } from '../config/colors'
+import { getPhaseOffset } from './gamefeel'
 import { getRoadHalfWidth, getScrollProgressDelta, getScrollY } from './roadGeometry'
 
 type Welle = {
@@ -8,6 +9,9 @@ type Welle = {
   progress: number
   seite: -1 | 1
   abstand: number
+  // Fester Platz im Kraeuseltakt. Ohne ihn schwingt und flackert die ganze Flaeche im
+  // Gleichschritt - das liest sich als ein Objekt, nicht als Wasser.
+  takt: number
 }
 
 /**
@@ -35,12 +39,16 @@ export class Bruecke {
   // Pfosten und Wellen scrollen; der Zaehler laeuft weiter, auch wenn das Thema gerade
   // nicht sichtbar ist, damit ein Wechsel nicht als Sprung erscheint.
   private pfostenProgress: number
+  // Laufzeit fuer das Kraeuseln. Getrennt vom Scroll-Fortschritt, weil das Wasser sich
+  // auch bewegt, wenn es still an einem vorbeizieht.
+  private kraeuselMs: number
 
   public constructor(scene: Phaser.Scene, rng: () => number) {
     this.scene = scene
     this.rng = rng
     this.aktiv = false
     this.pfostenProgress = 0
+    this.kraeuselMs = 0
     this.gelaender = scene.add.graphics().setDepth(BALANCE.layers.scenery).setVisible(false)
     this.wellen = []
     for (let index = 0; index < BALANCE.bruecke.waves; index += 1) {
@@ -49,7 +57,7 @@ export class Bruecke {
         .setDepth(BALANCE.layers.background)
         .setAlpha(BALANCE.bruecke.waveAlpha)
         .setVisible(false)
-      const welle: Welle = { image, progress: index / BALANCE.bruecke.waves, seite: 1, abstand: 0 }
+      const welle: Welle = { image, progress: index / BALANCE.bruecke.waves, seite: 1, abstand: 0, takt: getPhaseOffset(index) }
       this.wuerfleWelle(welle)
       // Der Startfortschritt bleibt gleichmaessig verteilt, damit beim ersten Bild
       // nicht die halbe Flaeche leer ist; gewuerfelt wird nur die Lage zur Seite.
@@ -73,6 +81,7 @@ export class Bruecke {
     const progressDelta = getScrollProgressDelta(height, dt)
 
     this.pfostenProgress = (this.pfostenProgress + progressDelta) % 1
+    this.kraeuselMs += dt
     this.zeichneGelaender(width, height)
 
     // Wasser zieht langsamer vorbei als die Bruecke: Die Wellen gehoeren nicht zum
@@ -88,9 +97,17 @@ export class Bruecke {
       const skala = this.bauSkala(width, height, y)
       const kante = width / 2 + welle.seite * getRoadHalfWidth(width, height, y)
       const aussen = width / 2 + welle.seite * (width / 2) * BALANCE.bruecke.waveSpreadShare
+      // Kraeuseln: Der Kamm schwingt seitlich und taucht dabei auf und vergeht. Beides
+      // haengt am selben Takt, damit eine Welle ihren Scheitel im Schwung erreicht und
+      // nicht in der Umkehr - sonst sieht man zwei Bewegungen statt einer.
+      const phase = (this.kraeuselMs / 1000) * BALANCE.bruecke.waveShimmerHz * Math.PI * 2 + welle.takt * Math.PI * 2
+      const schwung = Math.sin(phase)
+      const versatz = schwung * BALANCE.bruecke.waveWidthPx * BALANCE.bruecke.waveSwayShare * skala
+      const staerke = 1 - BALANCE.bruecke.waveShimmerDepth * (1 - Math.abs(schwung))
       welle.image
-        .setPosition(kante + (aussen - kante) * welle.abstand, y)
+        .setPosition(kante + (aussen - kante) * welle.abstand + versatz, y)
         .setDisplaySize(BALANCE.bruecke.waveWidthPx * skala, BALANCE.bruecke.waveHeightPx * skala)
+        .setAlpha(BALANCE.bruecke.waveAlpha * staerke)
     }
   }
 

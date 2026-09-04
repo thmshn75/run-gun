@@ -38,11 +38,16 @@ export const WORLD_COLORS = {
   // Wasser dunkel im Vordergrund, zum Horizont heller: So liest sich die Flaeche als
   // liegende Ebene und nicht als senkrechte Wand. Der Horizontton bleibt knapp unter
   // skyHorizon, damit die Wasserlinie sichtbar bleibt statt zu verschmelzen.
-  waterNear: 0x14435f,
-  waterFar: 0x7fb4cd,
+  // Blauer nachgezogen (Thomas 2026-09-04: "das wasser noch blauer"). Die ersten Toene
+  // hatten viel Gruen und Grau darin und lasen sich als Hafenbecken. Bezug ist jetzt der
+  // Himmel: waterFar liegt dicht an skyTop (0x2f7fd1), weil Wasser am Horizont den
+  // Himmel spiegelt; waterNear ist derselbe Farbton, nur dunkel und satt - so bleibt die
+  // Tiefe erhalten, ohne dass ein zweiter Farbton ins Bild kommt.
+  waterNear: 0x0d3f7a,
+  waterFar: 0x3d8fd6,
   // Wellenkaemme: heller als das Wasser darunter, aber nicht weiss - sonst wirken sie
   // wie Schaum statt wie Kraeuselung.
-  waveCrest: 0xa8d4e8,
+  waveCrest: 0xbfe2f5,
   // Beton der Bruecke. Der Fahrbahnrand liegt im Licht, das Gelaender steht dagegen
   // etwas dunkler - sonst verschwindet es vor dem hellen Wasser am Horizont.
   bridgeDeck: 0x9aa3ab,

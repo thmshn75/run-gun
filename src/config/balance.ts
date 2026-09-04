@@ -620,11 +620,29 @@ export const BALANCE = {
     // Gelaender. Ohne sie schwebt die Strasse ueber dem Wasser.
     deckOverhangPx: 9,
     deckHeightPx: 7,
-    // Wellen: Pool und Form. Die Zahl ist keine Dichte-, sondern eine Ruhefrage - bei
-    // mehr als 40 kraeuselt die ganze Flaeche und das Bild wird unruhig statt weit.
-    waves: 40,
+    // Wellen: Pool und Form. 40 -> 90 (Thomas 2026-09-04: das Wasser soll "noch
+    // bewegter" sein). Die alte Zahl stand unter der Annahme, mehr wuerde das Bild
+    // unruhig machen - diese Vorsicht ist damit ausdruecklich ueberstimmt. Sie war
+    // ohnehin zu vorsichtig gerechnet: Die Sammelbahn links und die Wandkacheln rechts
+    // verdecken den groessten Teil der Wasserflaeche, sichtbar ist nur ein schmaler
+    // Streifen je Seite.
+    waves: 90,
     waveWidthPx: 34,
     waveHeightPx: 3,
+    // --- Kraeuseln (2026-09-04). Vorher zogen die Wellen als starre Striche vorbei;
+    // Wasser bewegt sich aber AN SICH, nicht nur relativ zum Betrachter.
+    //
+    // Seitliches Schwingen: ein Viertel der Wellenbreite (34 / 4 = 8,5 px auf
+    // Kampfhoehe). Darunter ist es nicht zu sehen, darueber wandert die Welle sichtbar,
+    // statt zu schwingen.
+    waveSwayShare: 0.25,
+    // Kaemme tauchen auf und vergehen, statt dauerhaft dazustehen. 0,8 Hz entspricht
+    // etwa der Periode einer Kraeuselung auf ruhigem Wasser.
+    waveShimmerHz: 0.8,
+    // Wie weit die Deckkraft dabei einbricht, als Anteil von waveAlpha. Bei 1 blinkt es,
+    // bei 0 steht es still - 0,7 laesst den Kamm verschwinden und wiederkommen, ohne
+    // dass ein hartes Blinken entsteht.
+    waveShimmerDepth: 0.7,
     // Seitlicher Bereich, in dem Wellen liegen duerfen: ab der Bruecke nach aussen bis
     // zum Bildrand. Als Anteil der halben Bildbreite.
     waveSpreadShare: 1,
@@ -1083,6 +1101,26 @@ export const BALANCE = {
     // 22 s reissen die Haelfte beim langen Bosskampf (51,5 %), 20 s halten sie in beiden
     // Faellen. Ein Test rechnet beide Grenzen nach.
     normalPhaseSec: 20,
+    // Kulisse des Testgelaendes (Thomas 2026-09-04: "ein zusaetzliches Testlevel mit der
+    // Bruecke, sodass wir in diesem Testlevel alles Neue pruefen koennen ohne den
+    // eigentlichen Run angreifen zu muessen"). Fest, nicht ueber die Levelnummer: Das
+    // Testgelaende spielt auf Level 5, und welches Thema dort nach der Wechselregel
+    // faellig waere, ist Zufall - hier soll immer die Bruecke stehen.
+    thema: 'bruecke' as const,
+    // Versuch mit echten Laufbildern (Thomas 2026-09-04: "ein Versuch einer bewegten
+    // Figur mittels Bildgenerierung mit nur einer Figur"). Gilt AUSSCHLIESSLICH im
+    // Testgelaende und nur fuer die eine Gestalt unten - alle anderen Gegner behalten
+    // die gerechnete Bewegung, damit im selben Bild beides nebeneinander steht und sich
+    // vergleichen laesst.
+    laufbilder: {
+      // Die Bildfolge. Reihenfolge ist der Gangzyklus: Kontakt links, Schwung, Kontakt
+      // rechts, Schwung. Vier Bilder sind das Minimum, das als Gang gelesen wird.
+      texturen: ['enemy-walk-1', 'enemy-walk-2', 'enemy-walk-3', 'enemy-walk-4'] as const,
+      // Ersetzt wird die Gestalt dieser Staerke. 'standard' ist die mittlere - sie kommt
+      // haeufig genug, um sie oft zu sehen, und selten genug, dass daneben noch
+      // unanimierte Gegner laufen.
+      staerke: 'standard' as const,
+    },
   },
   continueRun: {
     // 250 x erreichtes Level: 750 auf Level 3, 2.000 auf Level 8, 3.000 auf Level 12.
