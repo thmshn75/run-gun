@@ -397,6 +397,32 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
       die logische Position aus `enemy.x` zurueckliest, addiert den Ausgleich Bild fuer
       Bild auf und schickt den Boss aus dem Bild. Sie wird deshalb getrennt gefuehrt.
 
+- **Bewegung fuer ALLE Gegnerstaerken, Farbvielfalt zurueck** (2026-09-04, Thomas: "jetzt
+  aber die bewegung fuer alle figuren umsetzen und natuerlich die farben wieder wie
+  gehabt").
+  - **Zwoelf Bilder je Staerke.** `light` und `heavy` neu von Codex, `standard` war schon
+    da. Bewegungsspanne Bild 1 zu 7: 90 % (light), 67 % (heavy), 54 % (standard). Faellt
+    ein Satz aus, laeuft nur diese Staerke wieder mit der gerechneten Bewegung.
+  - **Die Farben kommen gerechnet zurueck, nicht per Tint.** `farbvarianten.ts` misst die
+    Farbverschiebung der zehn Originalgestalten je Staerke und rechnet sie auf die
+    Bewegungsbilder. **Warum nicht setTint:** Sieben bis neun der zehn Varianten je
+    Staerke sind in mindestens einem Kanal HELLER als ihre Grundvariante - ein
+    multiplikativer Tint waere dort auf Weiss geklemmt und wirkungslos. Die Texturen
+    entstehen beim ersten Gebrauch, kosten also nichts im Offline-Paket.
+  - **WAS NICHT ZURUECKKOMMT und was Thomas wissen muss:** Die zehn Gestalten je Staerke
+    hatten eigene KOERPERFORMEN, nicht nur Farben. Zurueck sind die Farben; die
+    Formenvielfalt bleibt auf drei Grundgestalten beschraenkt. Fuer echte Formenvielfalt
+    waeren **360 gezeichnete Bilder** noetig (30 Gestalten x 12), rund **12 bis 15 Stunden
+    Maschinenzeit**. Das ist die offene Entscheidung.
+  - **Browser-Beleg (Level 20):** alle drei Staerken bewegt, 216 eingefaerbte Varianten und
+    18 Farbgestalten gleichzeitig in Gebrauch, 60,3 fps im Mittel bei 499 Texturen.
+  - **Bildreinigung selbst gemacht statt vierten Codex-Lauf:** schwarzer Freisteller-Saum
+    an drei `heavy`-Bildern (89-91 % dunkle Randpixel gegen 60-72 % im Satz), zwei
+    freistehende Fragmente, bunte Randartefakte in allen drei Saetzen.
+  - **Die enge Rumpfmitte wurde bewusst nicht nachbeauftragt:** Sie schwankt bei `heavy`
+    um 26,6 px - seit dem Bildversatz-Ausgleich vom selben Tag ist das kein Anzeigefehler
+    mehr. Die Anforderung war ueberholt, als sie geschrieben wurde.
+
 ## Offen — naechster Schritt zuerst
 1. ~~Bennis iPhone-Test~~ — **erledigt am 2026-08-29, ok** (Thomas). Gamefeel damit
    abgenommen. Noch nachzuziehen (siehe unten): Wirkung der Aufruestungsstufen im Spiel

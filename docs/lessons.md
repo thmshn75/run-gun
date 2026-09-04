@@ -8,6 +8,26 @@ Jede Nutzerkorrektur wird hier als Regel eingetragen. Zu Sitzungsbeginn lesen.
 
 ---
 
+### 2026-09-04 — Derselbe Messfehler zweimal am selben Tag
+- **Fehler:** Eine Randanalyse der neuen Sprites schlug bei ALLEN 36 Bildern an - auch bei
+  dem Satz, den Thomas abgenommen hatte. Die Schwelle war absolut gesetzt ("dunkle
+  Randpixel unter 90") statt gegen den vorhandenen Satz. Erst der Vergleich innerhalb des
+  Satzes zeigte die drei echten Ausreisser (89-91 % gegen 60-72 % normal). Dieselbe Lehre
+  stand seit dem Vormittag desselben Tages schon in dieser Datei (Blaustich-Eintrag).
+- **Regel:** Jede Qualitaetsschwelle fuer erzeugte Bilder wird am BESTEHENDEN, abgenommenen
+  Material geeicht, bevor sie angewendet wird. Und: Eine Lesson zu schreiben schuetzt
+  nicht davor, denselben Fehler zu wiederholen - beim naechsten Messwert zuerst fragen,
+  ob es dafuer schon eine Regel gibt.
+
+### 2026-09-04 — Eine Anforderung kann durch die eigene Loesung ueberholt werden
+- **Befund:** Die Bild-Spec forderte eine enge Rumpfmitte (Figur an derselben Stelle der
+  Leinwand), Codex verfehlte sie, und drei Anlaeufe gingen dafuer drauf. Kurz zuvor war im
+  Code aber `bildVersatz.ts` entstanden, das genau diesen Versatz misst und ausgleicht -
+  die Anforderung war zum Zeitpunkt ihres Scheiterns bereits gegenstandslos.
+- **Regel:** Vor jedem Nachlauf pruefen, ob das verfehlte Kriterium noch gebraucht wird.
+  Wer eine Fehlerklasse im Code loest, muss die zugehoerige Anforderung aus der Spec
+  nehmen - sonst kostet sie weiter Anlaeufe fuer nichts.
+
 ### 2026-09-04 — Ein durchsichtiges Sprite ist messbar, bevor es auffaellt
 - **Fehler:** Ein Bild eines Bewegungssatzes kam fast vollstaendig halbtransparent zurueck
   (5,2 % volldeckende Pixel gegen 92-94 % bei allen anderen) - ein Rest der
