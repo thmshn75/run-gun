@@ -5,6 +5,7 @@ import { chooseEnemyType, getEnemyHp, getFigureHeight, getFigureWidth, getPlayer
 import { getEnemySpawnCenterY, getSquadSpawnBaseY, isRevealedAtHorizon } from './horizonReveal'
 import { getLevelPlan, getMaxSquadSize, type LevelPlan } from './levelPlan'
 import { getBildVersatzPx } from './bildVersatz'
+import { getFarbvarianteTextur } from './farbvarianten'
 import { getBobOffsetPx, getPhaseOffset, getStepCycleHz, getStepSquash, getStepSwayRadians } from './gamefeel'
 import { getFigureOverscanFactor, getPerspectiveScale, getPlayfieldHalfWidth } from './road'
 import { chooseSpawnLane, type SpawnLaneEnemy } from './spawnLanes'
@@ -35,7 +36,7 @@ export class Spawner {
    * Bildsatz der Taumelbewegung, oder undefined fuer die gerechnete Bewegung. Gilt seit
    * dem 2026-09-04 in jedem Run.
    */
-  private readonly gegnerBilder: readonly string[] | undefined
+  private readonly gegnerBilder: Readonly<Record<string, readonly string[]>>
   private deferredSpawn: SpawnRequest | undefined
   private deferredAgeMs: number
   private intervalSpawnCount: number
@@ -113,11 +114,16 @@ export class Spawner {
    * undefined und alle Gegner behalten die gerechnete Bewegung - eine Figur mit
    * fehlender Textur waere schlimmer als die aeltere Bewegung.
    */
-  private waehleGegnerBilder(): readonly string[] | undefined {
-    const { aktiv, texturen } = BALANCE.enemy.bilder
-    return aktiv && texturen.every((name: string) => this.scene.textures.exists(name))
-      ? texturen
-      : undefined
+  private waehleGegnerBilder(): Readonly<Record<string, readonly string[]>> {
+    const { aktiv, saetze } = BALANCE.enemy.bilder
+    if (!aktiv) return {}
+    const brauchbar: Record<string, readonly string[]> = {}
+    for (const [staerke, satz] of Object.entries(saetze)) {
+      // Je Staerke einzeln pruefen: Fehlt ein Satz, faellt nur diese Staerke auf die
+      // gerechnete Bewegung zurueck statt alle.
+      if (satz.every((name) => this.scene.textures.exists(name))) brauchbar[staerke] = satz
+    }
+    return brauchbar
   }
 
   public resetForLevel(level: number): void {
@@ -343,18 +349,25 @@ export class Spawner {
       // applyPerspectiveScale setzt die Skalierung im naechsten Bild wieder absolut,
       // die Faktoren summieren sich also nicht auf.
       const phase = getPhaseOffset(poolIndex)
-      const bilder = this.gegnerBilder
-      if (istBildsatz && bilder !== undefined) {
+      const bilder = istBildsatz ? this.gegnerBilder[enemy.getData('staerke') as string] : undefined
+      if (bilder !== undefined) {
         // Eigener Takt, nicht der Schrittakt: Ein Zombie wankt langsamer, als er
         // Schritte macht. Der Versatz je Poolplatz bleibt, damit nicht die ganze Horde
         // im Gleichschritt taumelt.
         const zyklus = ((this.elapsedMs / 1000) * BALANCE.enemy.bilder.zyklenProSekunde + phase) % 1
         const bild = bilder[Math.min(bilder.length - 1, Math.floor(zyklus * bilder.length))]
-        enemy.setTexture(bild)
+        // Farbe der urspruenglich gezogenen Gestalt beibehalten (Thomas: "die farben
+        // wieder wie gehabt"). Die eingefaerbte Textur wird beim ersten Gebrauch erzeugt.
+        enemy.setTexture(getFarbvarianteTextur(
+          this.scene,
+          bild,
+          enemy.getData('grundGestalt') as string,
+          enemy.getData('gestalt') as string,
+        ))
         enemy.setRotation(0)
         // Seitlichen Versatz des Einzelbildes ausgleichen - dieselbe Regel wie beim Boss.
-        // enemy.x wurde oben aus der Spur frisch berechnet, hier wird nur die Anzeige
-        // gerueckt; die Trefferflaeche ist bereits nachgefuehrt und bleibt stehen.
+        // Gemessen wird am UNGEFAERBTEN Bild: Die Farbe aendert die Form nicht, und so
+        // bleibt der Zwischenspeicher klein.
         enemy.x -= getBildVersatzPx(this.scene, bild, BALANCE.enemy.bilder.standflaecheAbAnteil) * enemy.scaleX
       } else {
         const squash = getStepSquash(this.elapsedMs, bobCycleHz, phase, BALANCE.gamefeel.enemyStepSquashShare)
@@ -605,12 +618,19 @@ export class Spawner {
     // sprite each frame, making the visible enemy jump sideways.
     body.moves = false
     body.updateFromGameObject()
-    // Versuchsgestalt des Testgelaendes: nur diese eine Staerke bekommt die gezeichneten
-    // Bilder. Alle anderen behalten die gerechnete Bewegung, damit im selben Bild beides
-    // nebeneinander laeuft und sich vergleichen laesst.
-    const bildsatz = this.gegnerBilder !== undefined && type.key === BALANCE.enemy.bilder.staerke
-    enemy.setData('bildsatz', bildsatz)
-    if (bildsatz && this.gegnerBilder !== undefined) enemy.setTexture(this.gegnerBilder[0])
+    // Bewegungssatz dieser Staerke, falls vorhanden. Die zuvor gewaehlte Gestalt bleibt
+    // als FARBE erhalten: farbvarianten.ts rechnet ihre Farbverschiebung auf die
+    // Bewegungsbilder, weil es fuer jede Gestalt eigene Bilder nicht gibt.
+    const satz = this.gegnerBilder[type.key]
+    enemy.setData('bildsatz', satz !== undefined)
+    enemy.setData('staerke', type.key)
+    if (satz !== undefined) {
+      // Vor dem Ueberschreiben merken: welche Gestalt gezogen wurde (traegt die Farbe)
+      // und welche ihre Grundgestalt ist (der Bezug, gegen den gemessen wird).
+      enemy.setData('gestalt', enemy.texture.key)
+      enemy.setData('grundGestalt', type.texture)
+      enemy.setTexture(satz[0])
+    }
     enemy.setActive(true).setVisible(true).clearTint()
     this.applyPerspectiveScale(enemy, y)
     this.applyHorizonReveal(enemy)

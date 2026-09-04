@@ -1875,35 +1875,48 @@ export const BALANCE = {
     // hp gespreizt statt 1/3/9, damit die Typen ohne Tempo-Unterschied noch klar
     // auseinandergehen: Der Schwere haelt jetzt das Zwoelffache des Leichten aus.
   // Gezeichnete Taumelbewegung der Gegner (Thomas 2026-09-04: "bewegung der kleinen
-  // figuren ok, bitte auf alle anwenden"). Gilt seither in JEDEM Run, nicht mehr nur im
-  // Testgelaende.
+  // figuren ok, bitte auf alle anwenden" und "jetzt aber die bewegung fuer alle figuren
+  // umsetzen und natuerlich die farben wieder wie gehabt").
   //
   // Der Weg dahin steht in docs/lessons.md: Ein erster Anlauf mit einem GANGZYKLUS
   // scheiterte (vier aehnliche Haltungen, 15 % Silhouettenunterschied, im Spiel ein
   // Flackern). Erst der Wechsel der BEWEGUNG - taumeln und greifen statt gehen - brachte
   // 61 %, und zwoelf statt vier Bilder brachten die Standzeit je Bild von 227 auf 76 ms.
   //
-  // ERSETZT WIRD NUR DIE MITTLERE STAERKE. Das ist eine bewusste Einschraenkung: Fuer
-  // 'light' und 'heavy' gibt es keine Laufbilder, und die zehn Farbvarianten je Staerke
-  // (E5) fallen fuer 'standard' damit weg - eine animierte Gestalt statt zehn stehender.
-  // Der Tausch ist Thomas' Entscheidung; wer ihn rueckgaengig machen will, setzt
-  // aktiv: false.
+  // DIE FARBEN: Bis hierher hatte jede Staerke zehn gezeichnete Gestalten (E5) - eigene
+  // Koerper UND eigene Farben. Mit der Bewegung tritt EIN Satz je Staerke an ihre Stelle.
+  // Die Farbvielfalt kommt ueber farbvarianten.ts zurueck: Es misst die Farbverschiebung
+  // der Originalgestalten und rechnet sie auf die Bewegungsbilder. Was NICHT
+  // zurueckkommt, sind die unterschiedlichen KOERPERFORMEN - dafuer waeren 360 gezeichnete
+  // Bilder noetig (30 Gestalten x 12), rund 12 bis 15 Stunden Maschinenzeit.
   bilder: {
     aktiv: true,
-    texturen: [
-      'enemy-lurch-1', 'enemy-lurch-2', 'enemy-lurch-3', 'enemy-lurch-4',
-      'enemy-lurch-5', 'enemy-lurch-6', 'enemy-lurch-7', 'enemy-lurch-8',
-      'enemy-lurch-9', 'enemy-lurch-10', 'enemy-lurch-11', 'enemy-lurch-12',
-    ] as const,
-    staerke: 'standard' as const,
+    // Ein Satz je Staerke. Fehlt einer, faellt NUR diese Staerke auf die gerechnete
+    // Bewegung zurueck - die anderen laufen weiter.
+    saetze: {
+      light: [
+        'enemy-light-lurch-1', 'enemy-light-lurch-2', 'enemy-light-lurch-3', 'enemy-light-lurch-4',
+        'enemy-light-lurch-5', 'enemy-light-lurch-6', 'enemy-light-lurch-7', 'enemy-light-lurch-8',
+        'enemy-light-lurch-9', 'enemy-light-lurch-10', 'enemy-light-lurch-11', 'enemy-light-lurch-12',
+      ],
+      standard: [
+        'enemy-lurch-1', 'enemy-lurch-2', 'enemy-lurch-3', 'enemy-lurch-4',
+        'enemy-lurch-5', 'enemy-lurch-6', 'enemy-lurch-7', 'enemy-lurch-8',
+        'enemy-lurch-9', 'enemy-lurch-10', 'enemy-lurch-11', 'enemy-lurch-12',
+      ],
+      heavy: [
+        'enemy-heavy-lurch-1', 'enemy-heavy-lurch-2', 'enemy-heavy-lurch-3', 'enemy-heavy-lurch-4',
+        'enemy-heavy-lurch-5', 'enemy-heavy-lurch-6', 'enemy-heavy-lurch-7', 'enemy-heavy-lurch-8',
+        'enemy-heavy-lurch-9', 'enemy-heavy-lurch-10', 'enemy-heavy-lurch-11', 'enemy-heavy-lurch-12',
+      ],
+    } as Readonly<Record<string, readonly string[]>>,
     // Volle Taumelbewegung je Sekunde. Bewusst langsamer als der Schrittakt der
     // gerechneten Bewegung (rund 1,6 Hz) - ein Zombie wankt schwerfaellig. Zusammen mit
     // zwoelf Bildern ergibt das 76 ms Standzeit je Bild und damit eine fluessige
     // Bewegung (Schwelle rund 100 ms).
     zyklenProSekunde: 1.1,
-    // Wie beim Boss: ab hier liegt die Standflaeche, daran misst bildVersatz.ts den
-    // seitlichen Ausgleich. Beim Zombie sind es nur 3 von 64 px - klein, aber mit
-    // demselben Mittel behoben statt als Sonderfall stehengelassen.
+    // Ab hier liegt die Standflaeche, daran misst bildVersatz.ts den seitlichen
+    // Ausgleich. Zwei Drittel: darunter sind Beine und Fuesse, keine Arme.
     standflaecheAbAnteil: 0.667,
   },
     types: [

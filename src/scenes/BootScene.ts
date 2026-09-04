@@ -3,7 +3,7 @@ import enemyHeavyUrl from '../assets/enemy-heavy.png'
 import enemyBossUrl from '../assets/enemy-boss.png'
 import enemyLightUrl from '../assets/enemy-light.png'
 import enemyStandardUrl from '../assets/enemy-standard.png'
-// Taumel-Zyklus der Gegner (2026-09-04), nur im Testgelaende benutzt.
+// Taumel-Zyklen der Gegner (2026-09-04), ein Satz je Staerke.
 import enemyLurch1Url from '../assets/enemy-lurch-1.png'
 import enemyLurch2Url from '../assets/enemy-lurch-2.png'
 import enemyLurch3Url from '../assets/enemy-lurch-3.png'
@@ -16,6 +16,30 @@ import enemyLurch9Url from '../assets/enemy-lurch-9.png'
 import enemyLurch10Url from '../assets/enemy-lurch-10.png'
 import enemyLurch11Url from '../assets/enemy-lurch-11.png'
 import enemyLurch12Url from '../assets/enemy-lurch-12.png'
+import enemyLightLurch1Url from '../assets/enemy-light-lurch-1.png'
+import enemyLightLurch2Url from '../assets/enemy-light-lurch-2.png'
+import enemyLightLurch3Url from '../assets/enemy-light-lurch-3.png'
+import enemyLightLurch4Url from '../assets/enemy-light-lurch-4.png'
+import enemyLightLurch5Url from '../assets/enemy-light-lurch-5.png'
+import enemyLightLurch6Url from '../assets/enemy-light-lurch-6.png'
+import enemyLightLurch7Url from '../assets/enemy-light-lurch-7.png'
+import enemyLightLurch8Url from '../assets/enemy-light-lurch-8.png'
+import enemyLightLurch9Url from '../assets/enemy-light-lurch-9.png'
+import enemyLightLurch10Url from '../assets/enemy-light-lurch-10.png'
+import enemyLightLurch11Url from '../assets/enemy-light-lurch-11.png'
+import enemyLightLurch12Url from '../assets/enemy-light-lurch-12.png'
+import enemyHeavyLurch1Url from '../assets/enemy-heavy-lurch-1.png'
+import enemyHeavyLurch2Url from '../assets/enemy-heavy-lurch-2.png'
+import enemyHeavyLurch3Url from '../assets/enemy-heavy-lurch-3.png'
+import enemyHeavyLurch4Url from '../assets/enemy-heavy-lurch-4.png'
+import enemyHeavyLurch5Url from '../assets/enemy-heavy-lurch-5.png'
+import enemyHeavyLurch6Url from '../assets/enemy-heavy-lurch-6.png'
+import enemyHeavyLurch7Url from '../assets/enemy-heavy-lurch-7.png'
+import enemyHeavyLurch8Url from '../assets/enemy-heavy-lurch-8.png'
+import enemyHeavyLurch9Url from '../assets/enemy-heavy-lurch-9.png'
+import enemyHeavyLurch10Url from '../assets/enemy-heavy-lurch-10.png'
+import enemyHeavyLurch11Url from '../assets/enemy-heavy-lurch-11.png'
+import enemyHeavyLurch12Url from '../assets/enemy-heavy-lurch-12.png'
 // Bewegungsbilder der Bosse (2026-09-04). Zwei Saetze, weil Elite und gewoehnlicher Boss
 // bewusst verschieden aussehen.
 import bossEliteMove1Url from '../assets/boss-elite-move-1.png'
@@ -132,6 +156,30 @@ export class BootScene extends Phaser.Scene {
     this.load.image('enemy-lurch-10', enemyLurch10Url)
     this.load.image('enemy-lurch-11', enemyLurch11Url)
     this.load.image('enemy-lurch-12', enemyLurch12Url)
+    this.load.image('enemy-light-lurch-1', enemyLightLurch1Url)
+    this.load.image('enemy-light-lurch-2', enemyLightLurch2Url)
+    this.load.image('enemy-light-lurch-3', enemyLightLurch3Url)
+    this.load.image('enemy-light-lurch-4', enemyLightLurch4Url)
+    this.load.image('enemy-light-lurch-5', enemyLightLurch5Url)
+    this.load.image('enemy-light-lurch-6', enemyLightLurch6Url)
+    this.load.image('enemy-light-lurch-7', enemyLightLurch7Url)
+    this.load.image('enemy-light-lurch-8', enemyLightLurch8Url)
+    this.load.image('enemy-light-lurch-9', enemyLightLurch9Url)
+    this.load.image('enemy-light-lurch-10', enemyLightLurch10Url)
+    this.load.image('enemy-light-lurch-11', enemyLightLurch11Url)
+    this.load.image('enemy-light-lurch-12', enemyLightLurch12Url)
+    this.load.image('enemy-heavy-lurch-1', enemyHeavyLurch1Url)
+    this.load.image('enemy-heavy-lurch-2', enemyHeavyLurch2Url)
+    this.load.image('enemy-heavy-lurch-3', enemyHeavyLurch3Url)
+    this.load.image('enemy-heavy-lurch-4', enemyHeavyLurch4Url)
+    this.load.image('enemy-heavy-lurch-5', enemyHeavyLurch5Url)
+    this.load.image('enemy-heavy-lurch-6', enemyHeavyLurch6Url)
+    this.load.image('enemy-heavy-lurch-7', enemyHeavyLurch7Url)
+    this.load.image('enemy-heavy-lurch-8', enemyHeavyLurch8Url)
+    this.load.image('enemy-heavy-lurch-9', enemyHeavyLurch9Url)
+    this.load.image('enemy-heavy-lurch-10', enemyHeavyLurch10Url)
+    this.load.image('enemy-heavy-lurch-11', enemyHeavyLurch11Url)
+    this.load.image('enemy-heavy-lurch-12', enemyHeavyLurch12Url)
     this.load.image('boss-elite-move-1', bossEliteMove1Url)
     this.load.image('boss-elite-move-2', bossEliteMove2Url)
     this.load.image('boss-elite-move-3', bossEliteMove3Url)

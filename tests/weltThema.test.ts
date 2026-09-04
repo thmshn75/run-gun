@@ -235,52 +235,66 @@ describe('Testgelaende als Pruefplatz', () => {
     expect(BALANCE.enemy.bilder.aktiv).toBe(true)
   })
 
-  it('faellt auf die gerechnete Bewegung zurueck, wenn ein Gegnerbild fehlt', () => {
+  it('gibt jeder Gegnerstaerke einen eigenen Bewegungssatz', () => {
+    // Thomas 2026-09-04: "jetzt aber die bewegung fuer alle figuren umsetzen".
+    const { saetze } = BALANCE.enemy.bilder
+    const staerken = BALANCE.enemy.types.map((t) => t.key)
+    for (const staerke of staerken) {
+      const satz = saetze[staerke]
+      expect(satz, `Bewegungssatz fuer ${staerke}`).toBeDefined()
+      expect(satz.length).toBeGreaterThanOrEqual(12)
+      expect(new Set(satz).size).toBe(satz.length)
+    }
+    // Kein Satz doppelt: Die drei Staerken sollen verschiedene Gegner bleiben.
+    const alle = staerken.flatMap((k) => saetze[k])
+    expect(new Set(alle).size).toBe(alle.length)
+  })
+
+  it('faellt je Staerke einzeln auf die gerechnete Bewegung zurueck', () => {
+    // Fehlt ein Satz, soll NUR diese Staerke ohne Bilder laufen - nicht alle.
     const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
     const waehle = source.slice(source.indexOf('private waehleGegnerBilder('), source.indexOf('public resetForLevel('))
+    expect(waehle).toContain('for (const [staerke, satz] of Object.entries(saetze))')
     expect(waehle).toContain('textures.exists')
-    expect(waehle).toContain('every(')
-    expect(waehle).toContain(': undefined')
   })
 
-  it('ersetzt nur die mittlere Staerke, nicht alle Gegner', () => {
-    // Bewusste Einschraenkung: Fuer 'light' und 'heavy' gibt es keine Bilder. Wuerde der
-    // Satz auf alle Staerken gelegt, saehen alle Gegner gleich aus und die drei
-    // Figurstaerken waeren optisch nicht mehr zu unterscheiden.
+  it('behaelt die Farben der gezogenen Gestalt', () => {
+    // Thomas 2026-09-04: "natuerlich die farben wieder wie gehabt". Die Gestalt wird wie
+    // bisher gezogen (levelabhaengig freigeschaltet), traegt aber nur noch die FARBE -
+    // die Form kommt aus dem Bewegungssatz.
     const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
-    expect(source).toContain('type.key === BALANCE.enemy.bilder.staerke')
-    expect(BALANCE.enemy.types.map((t) => t.key)).toContain(BALANCE.enemy.bilder.staerke)
+    expect(source).toContain("enemy.setData('gestalt', enemy.texture.key)")
+    expect(source).toContain("enemy.setData('grundGestalt', type.texture)")
+    expect(source).toContain('getFarbvarianteTextur(')
   })
 
-  it('gibt der Taumelgestalt keine zweite, gerechnete Bewegung', () => {
+  it('faerbt gerechnet statt per Tint, weil Tint nur abdunkeln kann', () => {
+    // Gemessen: sieben bis neun der zehn Originalvarianten je Staerke sind in mindestens
+    // einem Kanal HELLER als ihre Grundvariante. Ein multiplikativer Tint waere dort auf
+    // Weiss geklemmt und wirkungslos - reines Einfaerben deckt nicht einmal die Haelfte
+    // der Varianten ab.
+    const source = readFileSync(new URL('../src/systems/farbvarianten.ts', import.meta.url), 'utf8')
+    // Geprueft wird die SACHE, nicht das Wort: Es entsteht eine eigene Textur, und die
+    // Kanalwerte werden hochgerechnet (was ein Tint nicht koennte). Ein Verbot des
+    // Wortes 'setTint' waere an der Begruendung im Kommentar gescheitert - genau dieser
+    // Fehler steht als Lesson vom 2026-09-04 in docs/lessons.md.
+    expect(source).toContain('addCanvas')
+    const code = source.split('\n').filter((zeile) => !zeile.trim().startsWith('*') && !zeile.trim().startsWith('//')).join('\n')
+    expect(code).not.toContain('setTint(')
+    // Die Verschiebung wird aus den Originalen gemessen, nicht als Liste gepflegt.
+    expect(source).toContain('getMittelfarbe')
+    // Und einmal erzeugte Texturen werden behalten, nicht in jedem Bild neu gerechnet.
+    expect(source).toContain('erzeugte')
+  })
+
+  it('misst den Bildversatz am ungefaerbten Bild', () => {
+    // Die Farbe aendert die Form nicht. Am gefaerbten Namen gemessen, waere der
+    // Zwischenspeicher zehnmal so gross, ohne dass ein Wert anders herauskaeme.
     const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
-    expect(source).toContain("const istBildsatz = enemy.getData('bildsatz') === true")
-    expect(source).toContain('istBildsatz\n        ? 0')
-    const zweig = source.slice(source.indexOf('if (istBildsatz && bilder !== undefined) {'))
-    const sonst = zweig.slice(zweig.indexOf('} else {'))
-    expect(sonst).toContain('getStepSquash')
-    expect(sonst).toContain('getStepSwayRadians')
-  })
-
-  it('laesst die Zombies taumeln, nicht im Schrittakt zappeln', () => {
-    const { zyklenProSekunde, texturen, staerke } = BALANCE.enemy.bilder
-    expect(new Set(texturen).size).toBe(texturen.length)
-    expect(zyklenProSekunde).toBeGreaterThan(0)
-    expect(zyklenProSekunde).toBeLessThan(getStepCycleHz(46))
-    expect(BALANCE.enemy.types.map((t) => t.key)).toContain(staerke)
-  })
-
-  it('zeigt jedes Bild kurz genug, dass die Bewegung fluessig wirkt', () => {
-    // Sprite-Animationen gelten ab rund 10-12 Bildern je Sekunde als fluessig, also unter
-    // 100 ms Standzeit. Mit vier Bildern waren es 227 ms - sichtbare Standbilder. Die
-    // Schranke gilt fuer Gegner UND Bosse, damit sie beim naechsten Feinschliff nicht
-    // still wieder unterschritten wird.
-    const gegner = BALANCE.enemy.bilder
-    expect(1000 / (gegner.texturen.length * gegner.zyklenProSekunde)).toBeLessThan(100)
-    const boss = BALANCE.boss.bilder
-    for (const satz of [boss.elite, boss.basic]) {
-      expect(1000 / (satz.length * boss.zyklenProSekunde)).toBeLessThan(120)
-    }
+    const zweig = source.slice(source.indexOf('if (bilder !== undefined) {'))
+    const versatz = zweig.indexOf('getBildVersatzPx(')
+    expect(versatz).toBeGreaterThan(-1)
+    expect(zweig.slice(versatz, versatz + 120)).toContain('bild,')
   })
 
   it('laesst die normalen Gegner bei der gerechneten Bewegung', () => {
