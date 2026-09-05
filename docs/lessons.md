@@ -1,5 +1,42 @@
 # Lessons: Run & Gun
 
+### 2026-09-05 — Drei Kennzahlen fuer "Staerke", zwei davon falsch
+
+Der Auftrag lautete, die Waffen der Fassreihe "in einer logischen Reihenfolge nach
+Staerke" auszugeben. Drei Groessen kamen nacheinander in Frage:
+
+1. **`minLevel` (Freischaltlevel)** — die naheliegende, weil `WEAPON_KEYS` bereits danach
+   sortiert ist. Falsch: Das ist die Reihenfolge, in der eine Waffe VERFUEGBAR wird, nicht
+   ihre Staerke. Gemessen fiel die Reihe hinter der Minigun von 23,8 auf 6,0.
+2. **Schaden mal Feuerrate (`getCombatFirepower`)** — die scheinbar objektive Rechnung.
+   Auch falsch: Sie sieht nur EIN Ziel und stellte ausgerechnet die vier Flaechenwaffen
+   ganz nach vorn, weil eine Granate mehrere Gegner auf einmal nimmt.
+3. **`killsPerSec`** — der MESSWERT aus der Waffen-Vergleichsreihe des Projekts, aus dem
+   auch die Staerke-Sterne im Laden und die Kaufpreise stammen. Richtig, und mit dem
+   Nebeneffekt, dass Fassreihe und Laden dieselbe Rangfolge zeigen.
+
+**Regel:** Bevor man eine Rangfolge rechnet, erst nachsehen, ob das Projekt die Groesse
+schon MISST. Eine hergeleitete Kennzahl ist bequemer zu haben, aber sie bildet nur ab, was
+in ihrer Formel steht — hier fehlte die Flaeche. Und: Wenn zwei Stellen im selben Spiel
+dieselben Dinge sortieren, muessen sie dieselbe Zahl benutzen, sonst widerspricht sich das
+Spiel selbst.
+
+**Die bekannte Grenze auch der richtigen Zahl** steht schon im Eintrag vom 2026-08-25:
+`killsPerSec` misst die REICHWEITE nicht mit; zwei Waffen mit gleichem Wert koennen sich
+im Durchkommensanteil um Faktor 20 unterscheiden.
+
+### 2026-09-05 — Eine Messsonde muss ihr Messobjekt ueberleben
+
+Ein Browser-Messlauf wartete auf ein Promise, das eine Szene aufloesen sollte, die
+inzwischen beendet war. Der Aufruf haengte **30 Minuten**, bis das Werkzeug ihn abbrach —
+ohne Fehlermeldung, weil der Fehler im `setInterval`-Rueckruf steckte und das Promise
+einfach nie erfuellt wurde.
+
+**Regel:** Jede Sonde in einer laufenden Anwendung bekommt drei Dinge: `try/catch` um den
+Rueckruf, eine Pruefung, ob das Messobjekt noch existiert (`scene.isActive()`), und eine
+harte Obergrenze an Durchlaeufen. Ohne die dritte haengt die Sonde still, und Stille sieht
+aus wie Arbeit.
+
 ### 2026-09-05 — Versuche gehoeren ins Testgelaende, nicht in den Run
 
 **Regel von Thomas:** "Wenn wir etwas versuchen, dann NUR im Testgelaende, dort testen
