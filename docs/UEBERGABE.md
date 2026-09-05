@@ -4,7 +4,9 @@ Stand: 2026-09-05 (Versuch "Zwei Bahnen" fertig und von Benni abgenommen - er BL
 vorerst im Testgelaende, der echte Run ist unveraendert. Davor: zehn Gangarten mit Tempo
 und Bildtakt, V4, Bennis iPhone-Test am 2026-08-29 ok, am 30.08. der Ton entfernt.)
 
-**Das Naechste liegt in `## Offen — naechster Schritt zuerst
+**Das Naechste liegt in `## Offen`.**
+
+## Offen — naechster Schritt zuerst
 
 **Es laeuft gerade nichts.** Der Bahnversuch ist abgeschlossen und bleibt im
 Testgelaende. Was liegen bleibt, in der Reihenfolge, in der es beim naechsten Mal
