@@ -130,7 +130,12 @@ export const VERSUCH_WAFFENREIHE: readonly WeaponKey[] = ((Object.keys(BALANCE.w
   .filter((key) => {
     const eintrag = (BALANCE.weapon as Record<string, unknown>)[key]
     return typeof eintrag === 'object' && eintrag !== null && 'minLevel' in eintrag
-  }) as WeaponKey[])
+  })
+  // DIE STARTWAFFE FAELLT AUS DER REIHE (Thomas 2026-09-05: "die erste waffe die man
+  // bekommen kann soll nicht pistole sein, weil mit dieser startet man ja"). Erkannt wird
+  // sie an minLevel 1 - das ist die Waffe, die von Anfang an da ist; ein Fass mit ihr
+  // waere ein leeres Versprechen.
+  .filter((key) => (BALANCE.weapon[key as WeaponKey] as { minLevel: number }).minLevel > 1) as WeaponKey[])
   // NACH DER GEMESSENEN STAERKE SORTIERT, NICHT NACH FREISCHALTLEVEL.
   //
   // Zuerst stand hier minLevel - das ist die Reihenfolge, in der eine Waffe im Run

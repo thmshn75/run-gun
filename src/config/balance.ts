@@ -1280,6 +1280,10 @@ export const BALANCE = {
       trefferJeFigurUndSchuss: 0.037,
       // Untergrenze, damit ein Fass nie mit einer einzigen Kugel faellt.
       trefferMindest: 5,
+      // Wie gross die freigeschossene Waffe im Verhaeltnis zum Fass liegt. In voller
+      // Fassgroesse (106 px) lag sie quer ueber der halben Fahrbahn und sah aus wie ein
+      // Hindernis statt wie ein Fund.
+      fundGroesseAnteil: 0.7,
       // DAS FASS STEHT AM LINKEN STRASSENRAND (Thomas 2026-09-05: "noch weiter links, am
       // linken rand, nur ein kleiner spalt"). Es wird deshalb nicht mehr ueber einen
       // Anteil gesetzt, sondern vom Rand her: Aussenkante gleich Strassenrand minus

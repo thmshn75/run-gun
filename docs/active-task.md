@@ -451,6 +451,32 @@ Faesser, dazu Tore), und von 58 gerufenen Gegnern fiel **kein einziger** ins Tor
 
 ---
 
+## Nachtrag: Waffenfunde (Thomas 2026-09-05)
+
+**"Die erste Waffe soll nicht die Pistole sein, weil man mit dieser startet."** Die
+Fassreihe laesst die Startwaffe jetzt weg - erkannt an `minLevel === 1`, also der Waffe,
+die von Anfang an da ist. Die Reihe beginnt damit bei der Schrotflinte.
+
+**"Waffen erscheinen immer noch doppelt."** Im aktuellen Stand nicht reproduzierbar: Ueber
+35 s mit der Truppe direkt an der Fassbahn stand **nie mehr als ein Waffenobjekt**
+gleichzeitig im Bild (Rewards und waffentragende Faesser zusammen gezaehlt). Zwei
+Massnahmen trotzdem:
+
+1. **Harte Garantie statt Hoffnung:** Rechnerisch KANN es vorkommen - der Zyklus gibt
+   jedes dritte Fass als Waffe aus, und es sind bis zu drei gleichzeitig unterwegs, ein
+   zerschossener Fund eingeschlossen, der noch ausrollt. Ist eine Waffe unterwegs, wird
+   aus dem naechsten Waffenfass ein Schadensfass, **und der Zaehler bleibt stehen** - die
+   Waffe ist damit nicht verloren, sie kommt beim naechsten freien Fass.
+2. **Der Fund ist kleiner** (70 % der Fassgroesse): In voller Groesse lag eine Schrotflinte
+   quer ueber der halben Fahrbahn und las sich als Hindernis statt als Fund. Das kann die
+   Beobachtung "doppelt" miterklaeren.
+
+**Wenn es am Geraet weiter auftritt**, ist der naechste Verdacht der Zwischenspeicher der
+App: Die Seite ist eine PWA mit Offline-Speicher, ein alter Stand haelt sich dort, bis
+die Seite hart neu geladen wird.
+
+---
+
 ## Wo die Historie steht
 
 Diese Datei traegt nur den LAUFENDEN Task. Der Stand des Projekts und alle

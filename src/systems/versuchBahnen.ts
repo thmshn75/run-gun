@@ -406,13 +406,24 @@ export class VersuchBahnen implements BahnSystem {
   private spawneFass(): void {
     const fass = this.faesser.find((kandidat) => !kandidat.aktiv)
     if (fass === undefined) return
-    const inhalt = getFassInhalt(this.fassIndex)
+    // NIE ZWEI WAFFEN GLEICHZEITIG IM BILD (Thomas 2026-09-05: "waffen erscheinen immer
+    // noch doppelt"). Der Zyklus gibt jedes dritte Fass als Waffe aus, und es sind bis zu
+    // drei gleichzeitig unterwegs - rechnerisch koennen also zwei Waffen zusammen im Bild
+    // stehen, ein zerschossener Fund eingeschlossen, der noch ausrollt.
+    //
+    // Ist eine unterwegs, wird daraus ein Schadensfass UND DER ZAEHLER BLEIBT STEHEN:
+    // Die Waffe ist damit nicht verloren, sie kommt beim naechsten freien Fass. Wuerde
+    // der Zaehler weiterlaufen, faehrt man an einer Waffe der Reihe vorbei, ohne sie je
+    // gesehen zu haben.
+    const waffeUnterwegs = this.faesser.some((f) => f.aktiv && (f.inhalt === 'weapon' || f.reward.active))
+    const geplant = getFassInhalt(this.fassIndex)
+    const inhalt: FassInhalt = geplant === 'weapon' && waffeUnterwegs ? 'damage' : geplant
     const hp = getFassTreffer(this.getTeamSize(), this.getShotsPerSec())
     // DER ZAEHLER STELLT BEIM SPAWN WEITER, nicht beim Einloesen. Seit die Faesser
     // durchrollen, wird nicht mehr jedes zerschossen - haette der Zaehler am Einloesen
     // gehangen, bliebe die Reihe stehen, sobald man eines durchlaesst, und dieselbe
     // Waffe kaeme wieder und wieder.
-    this.fassIndex += 1
+    if (inhalt === geplant) this.fassIndex += 1
     fass.aktiv = true
     fass.zerschossen = false
     fass.inhalt = inhalt
@@ -454,7 +465,10 @@ export class VersuchBahnen implements BahnSystem {
       fass.reward.enableBody(true, fass.bild.x, fass.bild.y, true, true)
       fass.reward.setActive(true).setVisible(true).setAlpha(1)
       const quelle = fass.reward.texture.getSourceImage() as { width: number; height: number }
-      const breite = Math.min(quelle.width, BALANCE.versuch.fass.groessePx)
+      // Kleiner als das Fass, aus dem er faellt: In voller Fassgroesse liegt eine
+      // Schrotflinte quer ueber der halben Fahrbahn und liest sich nicht mehr als Fund,
+      // sondern als Hindernis.
+      const breite = Math.min(quelle.width, BALANCE.versuch.fass.groessePx * BALANCE.versuch.fass.fundGroesseAnteil)
       fass.reward.setDisplaySize(breite, breite * quelle.height / quelle.width)
       ;(fass.reward.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       return true

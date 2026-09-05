@@ -259,6 +259,12 @@ describe('Versuch Zwei Bahnen', () => {
       expect(new Set(waffen).size).toBe(waffen.length)
       const staerken = waffen.map(getWaffenStaerke)
       for (let i = 1; i < staerken.length; i += 1) expect(staerken[i]).toBeGreaterThanOrEqual(staerken[i - 1])
+      // DIE STARTWAFFE STEHT NICHT DRIN (Thomas 2026-09-05: "die erste waffe die man
+      // bekommen kann soll nicht pistole sein, weil mit dieser startet man ja").
+      expect(VERSUCH_WAFFENREIHE).not.toContain('pistol')
+      for (const waffe of VERSUCH_WAFFENREIHE) {
+        expect((BALANCE.weapon[waffe] as { minLevel: number }).minLevel).toBeGreaterThan(1)
+      }
       // UND SIE BLEIBT OBEN STEHEN, statt zur Pistole zurueckzurotieren: Ein Fass darf
       // nie eine Verschlechterung ausgeben.
       const letzte = VERSUCH_WAFFENREIHE[VERSUCH_WAFFENREIHE.length - 1]
@@ -298,6 +304,18 @@ describe('Versuch Zwei Bahnen', () => {
       // Die Ertraege werden dabei kleiner, nicht groesser: das ist der Sinn der
       // Restwegrechnung.
       expect(ertraege[0]).toBeGreaterThan(ertraege[20])
+    })
+
+    it('laesst nie zwei Waffen gleichzeitig im Bild - und verliert dabei keine', () => {
+      // Thomas 2026-09-05: "waffen erscheinen immer noch doppelt". Der Zyklus gibt jedes
+      // dritte Fass als Waffe aus, und es sind bis zu drei gleichzeitig unterwegs.
+      // Geprueft wird der Quelltext, weil die Bedingung am Zustand der laufenden Bahn
+      // haengt und ohne Phaser nicht nachstellbar ist.
+      const quelle = readFileSync(new URL('../src/systems/versuchBahnen.ts', import.meta.url), 'utf8')
+      expect(quelle).toMatch(/const waffeUnterwegs = this\.faesser\.some\(\(f\) => f\.aktiv && \(f\.inhalt === 'weapon' \|\| f\.reward\.active\)\)/)
+      // Und der Zaehler bleibt stehen, wenn die Waffe verschoben wurde - sonst faehrt man
+      // an einer Waffe der Reihe vorbei, ohne sie je gesehen zu haben.
+      expect(quelle).toMatch(/if \(inhalt === geplant\) this\.fassIndex \+= 1/)
     })
 
     it('kommt oefter als die Tore, ohne ein Fliessband zu sein', () => {
