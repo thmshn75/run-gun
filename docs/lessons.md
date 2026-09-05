@@ -992,3 +992,25 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   schweren Gestalten komplett, weil sie selten spawnen — acht von zehn Gangarten wurden
   belegt, zwei nicht. Zu einer Messung gehoert die Frage, **was NICHT in der Stichprobe
   war**; sonst haelt man Teilabdeckung fuer Vollstaendigkeit.
+
+### 2026-09-05 — Aus der Plandatei geantwortet statt aus dem Gespraech
+- **Fehler:** Auf die Frage "hatten wir nicht noch das Thema zwei oder drei Spuren und
+  wie die Waende wirken sollen?" kam eine ausfuehrliche, sichere Antwort aus `plan.md`
+  und `balance.ts`: Dreispur-Tore seien rechnerisch erledigt, die Wandlogik fertig
+  abgenommen, "offen ist an dem Themenkomplex nichts mehr". Gemeint war etwas ganz
+  anderes - das Genre-Vorbild **Last Z: Survival Shooter**, aus dem Laufbewegung und
+  Bruecke/Wasser schon uebernommen sind und dessen **Wandlogik noch offen** ist.
+- **Warum es passieren konnte:** In den Projektdateien steht der Spielname NIRGENDS. Es
+  heisst nur "nach einem Genre-Video" und "nach demselben Video". Die Suche nach dem
+  Thema fand deshalb den falschen Treffer - und der klang plausibel genug, um nicht zu
+  stutzen.
+- **Regel:** Fragt Thomas "hatten wir nicht noch...", ist das eine Frage nach dem
+  GESPRAECH, nicht nach der Aktenlage. Findet die Dateisuche etwas, das nur ungefaehr
+  passt, gehoert die Unsicherheit in die Antwort ("dazu finde ich X - meinst du das?")
+  statt einer souveraenen Auskunft ueber das Falsche. Eine gut belegte Antwort auf die
+  falsche Frage ist schlechter als ein Rueckfragesatz.
+- **Zweite Lehre (die eigentliche Ursache abstellen):** Ein Bezug, der nur muendlich
+  existiert, faellt beim naechsten Fensterwechsel aus der Welt. **Eigennamen von
+  Vorbildern, Quellen und Videos gehoeren beim ersten Erwaehnen in die UEBERGABE** -
+  sonst zeigt die Datei auf "dasselbe Video", das niemand mehr identifizieren kann. Ist
+  jetzt nachgetragen.

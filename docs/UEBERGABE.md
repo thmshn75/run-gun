@@ -221,6 +221,10 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
     naechste Schritt der teure - rund 130 Einzelbilder von Codex.
 
 - **Zweites Weltthema: Bruecke ueber Wasser** (2026-09-03, Thomas nach demselben Video:
+  Das Video zeigt **"Last Z: Survival Shooter"** - die Vorlage, an der wir uns fuer
+  dieses Genre orientieren. Uebernommen sind bisher die Laufbewegung der Gegner und
+  Bruecke/Wasser. **Offen und ausdruecklich noch zu besprechen: die Wandlogik**
+  (Thomas 2026-09-05). Wer "das Video" liest, meint dieses Spiel.
   "die Bruecke ueber Wasser als zusaetzliches Level bauen - wir entscheiden dann ob wir
   switchen von Level zu Level oder ob wir komplett umstellen auf diese Optik").
   - **Beide Entscheidungen haengen an einem Wort:** `BALANCE.welt.thema` kennt `'stadt'`,
