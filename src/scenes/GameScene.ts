@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
 import { Walls } from '../systems/walls'
+import { VersuchBahnen, type BahnSystem } from '../systems/versuchBahnen'
 import { Popups } from '../systems/popups'
 import { Coins } from '../systems/coins'
 import { ShopOverlay } from '../systems/shopOverlay'
@@ -141,7 +142,9 @@ export class GameScene extends Phaser.Scene {
   private splashFlashes!: SplashFlashPool
   private chainFlashes!: ChainFlashPool
   private boss!: Boss
-  private walls!: Walls
+  // Typ ist das INTERFACE, nicht die Klasse: Im Testgelaende kann hier der Bahnversuch
+  // stehen (VersuchBahnen), im echten Run immer Walls. Siehe baueBahnen().
+  private walls!: BahnSystem
   private popups!: Popups
   // Durchbrueche kosten Bruchteile einer Figur (enemy.breakthroughDamageFactor). Sie
   // werden hier gesammelt und erst bei einer vollen Figur eingeloest - sonst gaebe es
@@ -282,84 +285,94 @@ export class GameScene extends Phaser.Scene {
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
     this.spawner = new Spawner(this, this.runStats, () => this.crowd.getAnchorX(), (contactDamage) => this.handleBreakthrough(contactDamage))
-    this.walls = new Walls(
-      this,
-      (currentWeapon) => this.spawner.chooseWallWeapon(currentWeapon, this.gekaufteWaffen),
-      () => this.weapons.getWeapon(),
-      () => getWeaponRewardChoices(this.weapons.getWeapon(), this.currentLevel, this.gekaufteWaffen).length > 0,
-      () => this.runStats.get('hp'),
-      () => this.runStats.get('damage'),
-      () => this.runStats.get('shotsPerSec'),
-      () => Phaser.Math.RND.frac(),
-      (x, y) => this.dropCoins(x, y, BALANCE.walls.coinReward),
-      (apply) => {
-        const before = this.runStats.get('hp')
-        const after = apply(before)
-        this.runStats.set('hp', after)
-        // Quittung auf die eigene Handlung: ohne sie wuchs die Truppe unbemerkt.
-        const delta = Math.round(after - before)
-        if (delta !== 0) {
-          this.popups.spawn(
-            this.crowd.getAnchorX(),
-            this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
-            `${delta > 0 ? '+' : ''}${delta}`,
-            delta > 0 ? '#3ddc84' : '#ff6b6b',
-          )
-        }
-        this.updateHud()
-      },
-      // BLAUES Tor: eigener Wert, sonst der andere, sonst Muenzen (2026-08-28).
-      // Der Deckel ist absichtlich nicht angehoben - er ist gemessen und liegt dicht am
-      // Kipppunkt (Herleitung bei BALANCE.enemy.endlessHpGrowthPerLevel). Geaendert ist
-      // nur, was mit einem Tor passiert, das nichts mehr zu heben findet: Ab Level 13
-      // waren das praktisch alle, und sie verpufften wortlos.
-      (stat, x, y) => {
-        const ergebnis = applyGoodGate(this.runStats, stat === 'damage' ? 'damage' : 'shotsPerSec')
-        if (ergebnis.stat === undefined) {
-          // UEBERLAUF. Muenzen fallen an der Kachel, nicht an der Truppe - sie sollen
-          // wie jeder andere Wandfund eingesammelt werden.
-          this.dropCoins(x, y, BALANCE.walls.maxedCoinBonus)
-          this.popups.spawn(
-            this.crowd.getAnchorX(),
-            this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
-            `MAX +${BALANCE.walls.maxedCoinBonus} ¢`,
-            '#ffd166',
-          )
-        } else {
-          // Zwei Nachkommastellen: Ein Tor bewegt den Schaden um 0,015 bis 0,06, mit
-          // einer Stelle waere jeder zweite Fund als "+0" quittiert worden.
-          const delta = Math.round((ergebnis.after - ergebnis.before) * 100) / 100
-          this.popups.spawn(
-            this.crowd.getAnchorX(),
-            this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
-            // Der Pfeil sagt, dass das Tor umgeleitet wurde: Wer ein RATE-Tor
-            // zerschiesst und "DMG" gutgeschrieben bekommt, soll das nicht fuer einen
-            // Anzeigefehler halten.
-            `${ergebnis.redirected ? '\u2192 ' : ''}${ergebnis.stat === 'damage' ? 'DMG' : 'RATE'} +${delta}`,
-            '#ffd166',
-          )
-        }
-        this.updateHud()
-      },
-      // ROTE Kachel: Abzug am eigenen Wert, nach unten bremst der Run-Startwert.
-      (stat, faktor) => {
-        const key = stat === 'damage' ? 'damage' : 'shotsPerSec'
-        const before = this.runStats.get(key)
-        this.runStats.set(key, Math.max(this.statFloor[key], before * faktor))
-        const after = this.runStats.get(key)
-        if (after !== before) {
-          const delta = Math.round((after - before) * 100) / 100
-          this.popups.spawn(
-            this.crowd.getAnchorX(),
-            this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
-            `${stat === 'damage' ? 'DMG' : 'RATE'} ${delta}`,
-            '#ff6b6b',
-          )
-        }
-        this.updateHud()
-      },
-      () => isFirepowerMaxed(this.runStats),
-    )
+    // Im Versuch kommen die Gegner von rechts - siehe Spawner.setVersuchsBahnen.
+    this.spawner.setVersuchsBahnen(this.istTestgelaende())
+    // DIE EINZIGE WEICHE DES VERSUCHS "ZWEI BAHNEN" (Thomas 2026-09-05: "wenn wir etwas
+    // versuchen, dann NUR im Testgelaende, dort testen wir bis ich mein Go gebe").
+    // Ausserhalb des Testgelaendes wird VersuchBahnen nie gebaut, und der echte Run
+    // laeuft Zeile fuer Zeile wie zuvor.
+    if (this.istTestgelaende()) {
+      this.walls = this.baueVersuchsBahnen()
+    } else {
+      this.walls = new Walls(
+        this,
+        (currentWeapon) => this.spawner.chooseWallWeapon(currentWeapon, this.gekaufteWaffen),
+        () => this.weapons.getWeapon(),
+        () => getWeaponRewardChoices(this.weapons.getWeapon(), this.currentLevel, this.gekaufteWaffen).length > 0,
+        () => this.runStats.get('hp'),
+        () => this.runStats.get('damage'),
+        () => this.runStats.get('shotsPerSec'),
+        () => Phaser.Math.RND.frac(),
+        (x, y) => this.dropCoins(x, y, BALANCE.walls.coinReward),
+        (apply) => {
+          const before = this.runStats.get('hp')
+          const after = apply(before)
+          this.runStats.set('hp', after)
+          // Quittung auf die eigene Handlung: ohne sie wuchs die Truppe unbemerkt.
+          const delta = Math.round(after - before)
+          if (delta !== 0) {
+            this.popups.spawn(
+              this.crowd.getAnchorX(),
+              this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
+              `${delta > 0 ? '+' : ''}${delta}`,
+              delta > 0 ? '#3ddc84' : '#ff6b6b',
+            )
+          }
+          this.updateHud()
+        },
+        // BLAUES Tor: eigener Wert, sonst der andere, sonst Muenzen (2026-08-28).
+        // Der Deckel ist absichtlich nicht angehoben - er ist gemessen und liegt dicht am
+        // Kipppunkt (Herleitung bei BALANCE.enemy.endlessHpGrowthPerLevel). Geaendert ist
+        // nur, was mit einem Tor passiert, das nichts mehr zu heben findet: Ab Level 13
+        // waren das praktisch alle, und sie verpufften wortlos.
+        (stat, x, y) => {
+          const ergebnis = applyGoodGate(this.runStats, stat === 'damage' ? 'damage' : 'shotsPerSec')
+          if (ergebnis.stat === undefined) {
+            // UEBERLAUF. Muenzen fallen an der Kachel, nicht an der Truppe - sie sollen
+            // wie jeder andere Wandfund eingesammelt werden.
+            this.dropCoins(x, y, BALANCE.walls.maxedCoinBonus)
+            this.popups.spawn(
+              this.crowd.getAnchorX(),
+              this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
+              `MAX +${BALANCE.walls.maxedCoinBonus} ¢`,
+              '#ffd166',
+            )
+          } else {
+            // Zwei Nachkommastellen: Ein Tor bewegt den Schaden um 0,015 bis 0,06, mit
+            // einer Stelle waere jeder zweite Fund als "+0" quittiert worden.
+            const delta = Math.round((ergebnis.after - ergebnis.before) * 100) / 100
+            this.popups.spawn(
+              this.crowd.getAnchorX(),
+              this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
+              // Der Pfeil sagt, dass das Tor umgeleitet wurde: Wer ein RATE-Tor
+              // zerschiesst und "DMG" gutgeschrieben bekommt, soll das nicht fuer einen
+              // Anzeigefehler halten.
+              `${ergebnis.redirected ? '\u2192 ' : ''}${ergebnis.stat === 'damage' ? 'DMG' : 'RATE'} +${delta}`,
+              '#ffd166',
+            )
+          }
+          this.updateHud()
+        },
+        // ROTE Kachel: Abzug am eigenen Wert, nach unten bremst der Run-Startwert.
+        (stat, faktor) => {
+          const key = stat === 'damage' ? 'damage' : 'shotsPerSec'
+          const before = this.runStats.get(key)
+          this.runStats.set(key, Math.max(this.statFloor[key], before * faktor))
+          const after = this.runStats.get(key)
+          if (after !== before) {
+            const delta = Math.round((after - before) * 100) / 100
+            this.popups.spawn(
+              this.crowd.getAnchorX(),
+              this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
+              `${stat === 'damage' ? 'DMG' : 'RATE'} ${delta}`,
+              '#ff6b6b',
+            )
+          }
+          this.updateHud()
+        },
+        () => isFirepowerMaxed(this.runStats),
+      )
+    }
     this.popups = new Popups(this)
     this.waffenAnsicht = new WeaponDetailPanel(this)
     this.shop = new ShopOverlay(
@@ -690,14 +703,81 @@ export class GameScene extends Phaser.Scene {
    * Bosskampf: Ein gekuerzter Bosskampf waere kein Bosstest mehr.
    */
   private gegnerphaseMs(): number {
+    // Waehrend der Versuch "Zwei Bahnen" laeuft, gilt seine eigene, laengere Dauer:
+    // 20 s sind auf den Waffenvergleich gerechnet und tragen kein Bahnurteil (rund
+    // fuenf Tore und vier Faesser). BALANCE.testground.normalPhaseSec bleibt dabei
+    // unangetastet - endet der Versuch, gilt die abgenommene halbe Laenge sofort wieder.
     return this.istTestgelaende()
-      ? BALANCE.testground.normalPhaseSec * 1000
+      ? BALANCE.versuch.gegnerphaseSec * 1000
       : getLevelPlan(this.currentLevel).normalPhaseSec * 1000
   }
 
   /** Laeuft diese Szene als Testgelaende? Dann gilt nichts davon fuer den echten Stand. */
   private istTestgelaende(): boolean {
     return this.einstieg === 'test'
+  }
+
+  /**
+   * Der Bahnversuch. Wird NUR aus der einen Weiche in create() heraus gebaut - im echten
+   * Run existiert diese Klasse zur Laufzeit nicht.
+   *
+   * Die beiden Rueckmeldungen an den Spieler sind bewusst dieselben wie bei den Waenden:
+   * Truppenaenderung und Aufruestung erscheinen als Quittung ueber der Truppe, sonst
+   * waere im Versuch nicht zu sehen, was ein Tor oder ein Fass gebracht hat.
+   */
+  private baueVersuchsBahnen(): BahnSystem {
+    return new VersuchBahnen(
+      this,
+      () => this.runStats.get('hp'),
+      () => this.runStats.get('damage'),
+      () => this.runStats.get('shotsPerSec'),
+      () => this.weapons.getWeapon(),
+      () => Phaser.Math.RND.frac(),
+      (apply) => {
+        const before = this.runStats.get('hp')
+        const after = apply(before)
+        this.runStats.set('hp', after)
+        const delta = Math.round(after - before)
+        if (delta !== 0) {
+          this.popups.spawn(
+            this.crowd.getAnchorX(),
+            this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
+            `${delta > 0 ? '+' : ''}${delta}`,
+            delta > 0 ? '#3ddc84' : '#ff6b6b',
+          )
+        }
+        this.syncCrowdSize()
+        this.updateHud()
+      },
+      // Ein Fass ist mehrere Tore wert (BALANCE.versuch.fass.torSchritte). Umgesetzt als
+      // wiederholter Torschritt statt als eigener Faktor: So gilt im Versuch dieselbe
+      // Deckel- und Umleitungslogik wie im echten Run, und ein ausgereiztes Fass wirft
+      // wie ein ausgereiztes Tor Muenzen ab.
+      (stat, schritte, x, y) => {
+        let summe = 0
+        let umgeleitet = false
+        let ziel: 'damage' | 'shotsPerSec' | undefined
+        for (let i = 0; i < schritte; i += 1) {
+          const ergebnis = applyGoodGate(this.runStats, stat === 'damage' ? 'damage' : 'shotsPerSec')
+          if (ergebnis.stat === undefined) {
+            this.dropCoins(x, y, BALANCE.walls.maxedCoinBonus)
+            continue
+          }
+          summe += ergebnis.after - ergebnis.before
+          umgeleitet = umgeleitet || ergebnis.redirected
+          ziel = ergebnis.stat
+        }
+        if (ziel === undefined) return this.updateHud()
+        const delta = Math.round(summe * 100) / 100
+        this.popups.spawn(
+          this.crowd.getAnchorX(),
+          this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
+          `${umgeleitet ? '\u2192 ' : ''}${ziel === 'damage' ? 'DMG' : 'RATE'} +${delta}`,
+          '#ffd166',
+        )
+        this.updateHud()
+      },
+    )
   }
 
   /**

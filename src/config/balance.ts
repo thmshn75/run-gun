@@ -1117,6 +1117,108 @@ export const BALANCE = {
     // faellig waere, ist Zufall - hier soll immer die Bruecke stehen.
     thema: 'bruecke' as const,
   },
+
+  // ===========================================================================
+  // VERSUCH "ZWEI BAHNEN" - GILT AUSSCHLIESSLICH IM TESTGELAENDE.
+  //
+  // Thomas 2026-09-05, nach der Genre-Recherche zu Last Z: Survival Shooter:
+  //   rechts  Gegner UND Tore, die im MINUS starten und ins Plus gehen, wenn man
+  //           draufschiesst; der Stand beim Durchfahren ist die Aenderung der Truppe.
+  //   links   STEHENDE Faesser, die freigeschossen werden muessen und nicht
+  //           weiterlaufen; sie tragen Aufruestungen und Waffen.
+  //
+  // Kein einziger dieser Werte wirkt im normalen Run - die Weiche steht in GameScene
+  // an der Instanziierung (Walls oder VersuchBahnen) und sonst nirgends.
+  // ===========================================================================
+  versuch: {
+    // WIE LANGE DIE GEGNERPHASE IM VERSUCH DAUERT. testground.normalPhaseSec (20 s) ist
+    // auf den Waffenvergleich gerechnet und bleibt unangetastet - fuer einen Bahnversuch
+    // ist sie zu kurz: In 20 s kommen bei 560 px Torabstand und Testgelaende-Tempo rund
+    // fuenf Tore und vier Faesser, das traegt kein Urteil. 90 s ergeben rund 22 Tore und
+    // 20 Faesser, also mehrere volle Zyklen beider Bahnen.
+    gegnerphaseSec: 90,
+    tor: {
+      // DIE ENTSCHEIDENDE GROESSE. Der Zaehler auf dem Tor ist eine FIGURENZAHL, keine
+      // Lebenspunkte - er ist beim Durchfahren wortwoertlich die Aenderung der Truppe.
+      // Treffer duerfen ihn deshalb nicht 1:1 hochzaehlen: Bei der Testgelaende-Truppe
+      // (30 Figuren) und rund 5 Schuss/s kommen je nach Waffe 40-50 Treffer je Sekunde
+      // an der Kachel an (walls.wallHitShare, gemessen 12-46 %), ein "-12" waere in
+      // einer Viertelsekunde weg und die Frage "schaffe ich die Null noch?" nie eine.
+      //
+      // GERECHNET: schadenProPunkt = dpsAnDerKachel / punkteProSek. Bei 6 Punkten je
+      // Sekunde braucht ein Tor mit -12 rund 2,0 s konzentriertes Feuer bis zur Null -
+      // lang genug fuer eine echte Entscheidung, kurz genug, dass es zwischen zwei
+      // Horden passt. Der Wert skaliert automatisch mit Waffe, Truppe und Level, weil
+      // dpsAnDerKachel aus wallPlan stammt.
+      punkteProSek: 6,
+      // Startwert (als Betrag; das Tor zeigt ihn negativ). 8-18 sind 27-60 % der
+      // Testgelaende-Truppe: spuerbar, aber nie toedlich - und die Spanne sorgt dafuer,
+      // dass nicht jedes Tor dieselbe Antwort hat.
+      startMin: 8,
+      startMax: 18,
+      // Ueber Null laeuft der Zaehler weiter, aber nicht endlos: Ohne Deckel waere
+      // Draufhalten bis zum Anflug immer richtig und die Entscheidung wieder weg.
+      plusMax: 10,
+      // Abstand zweier Tore in Weltpixeln. Bei Testgelaende-Tempo (Level 5, rund
+      // 145 px/s) sind das 3,9 s - dazwischen ist die rechte Bahn frei fuer Gegner
+      // ("die Waende kommen zwischen den Gegnern - nicht laufend", Thomas).
+      abstandPx: 560,
+      // Anteil der RECHTEN Fahrbahnhaelfte, den das Tor einnimmt. 0,62 ist breit genug,
+      // dass Durchfahren eine Entscheidung ist, und laesst rechts wie links genug Platz
+      // zum Vorbeisteuern.
+      breiteShare: 0.62,
+      // Hoehe in Weltpixeln, etwas hoeher als eine heutige Wandkachel (72), damit die
+      // grosse Zahl darauf auch am Horizont noch lesbar ist.
+      hoehePx: 84,
+    },
+    fass: {
+      // Wo das Fass anhaelt, als Anteil der Bildschirmhoehe. 0,58 liegt deutlich vor der
+      // Truppe (die sitzt bei rund 0,85) und damit im Feuerbereich, aber weit genug weg,
+      // dass man es kommen sieht und sich entscheiden kann.
+      haltYShare: 0.58,
+      // Zielzeit konzentrierten Feuers bis das Fass faellt. Deutlich laenger als eine
+      // heutige Wandkachel (0,3-0,6 s): Das Fass ist das EINZIGE Ziel der linken Bahn,
+      // es steht nicht in einer Kette, und es soll die Zeit kosten, die man dann nicht
+      // auf der rechten Bahn hat.
+      fokusSec: 2.5,
+      // Wie viele heutige Tore ein Fass wert ist (walls.gatesPerLevelStep = 16 Tore je
+      // Levelsprung). Zwoelf heisst: drei Viertel eines Levelsprungs je Fass.
+      //
+      // ZUERST STANDEN HIER VIER - am Durchsatz gerechnet (Fassbahn rund ein Fass je 4 s
+      // gegen zwei Wandkacheln je Sekunde). IM BROWSER GEMESSEN war beides daneben:
+      // Es kamen 19 Faesser in 30 s (ein Fass je 1,6 s, nicht je 4 s), und die sechs
+      // DMG-Faesser darunter hoben den Schaden von 1,00 auf 1,04 - vier Prozent in einer
+      // halben Minute. Thomas' Vorgabe war "die upgrades muessen entsprechend gut sein";
+      // vier Prozent sind das nicht, sie sind unter der Wahrnehmungsschwelle.
+      //
+      // ZWOELF ergibt rund zwei Prozent je Fass und damit ueber eine Gegnerphase (90 s)
+      // rund ein Fuenftel mehr Feuerkraft - spuerbar, ohne den gemessenen Deckel
+      // (meta.totalBoostCap) sofort zu erreichen, der ohnehin greift.
+      torSchritte: 12,
+      // Durchmesser des Fasses in Weltpixeln.
+      groessePx: 96,
+      // Umfang = pi x Durchmesser = 3,1416 x 96 = 301,6. GEBRAUCHT WIRD ER FUER DIE
+      // DREHUNG: Das Fass steht still, weil es gegen die Strasse anrollt (Thomas
+      // 2026-09-05: "Faesser die sich gegengleich zur Strasse drehen, dann bleiben sie
+      // logischerweise am Platz stehen"). Ein voller Umlauf je Umfang gefahrener
+      // Strecke ist die einzige Rate, bei der das Muster nicht sichtbar rutscht.
+      umfangPx: 302,
+      // Bilder je Umlauf in der Rollbildfolge (barrel-roll-1..8).
+      bilder: 8,
+      // Ueber wie viele gefahrene Pixel ein neues Fass einblendet. 60 px sind bei
+      // Testgelaende-Tempo rund 0,4 s - lang genug, dass es nicht aufploppt, kurz genug,
+      // dass man es nicht als Trick bemerkt.
+      einblendPx: 60,
+    },
+    // WO DIE GEGNER HERKOMMEN. Anteile der halben Spielfeldbreite, Schwerpunkt und
+    // halbe Bandbreite. 0,42 +/- 0,24 heisst: der Schwerpunkt liegt zwischen 0,18 und
+    // 0,66 rechts der Mitte. 0,66 ist dieselbe Aussengrenze wie im normalen Run
+    // (enemy.spawnBands.singleLaneShare) - dort beginnt die Wandzone. Nach innen bleibt
+    // bei 0,18 ein schmaler Streifen um die Mitte frei, damit die linke Fahrbahnhaelfte
+    // den Faessern gehoert und der Wechsel zwischen den Bahnen eine echte Fahrt ist.
+    gegnerBandMitte: 0.42,
+    gegnerBandBreite: 0.24,
+  },
   continueRun: {
     // 250 x erreichtes Level: 750 auf Level 3, 2.000 auf Level 8, 3.000 auf Level 12.
     // Gegenprobe an der Einnahme: Ein voller Run bringt 10.454 und kostet 6.800 an Stufen,

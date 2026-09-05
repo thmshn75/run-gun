@@ -40,6 +40,14 @@ import enemyHeavyLurch9Url from '../assets/enemy-heavy-lurch-9.png'
 import enemyHeavyLurch10Url from '../assets/enemy-heavy-lurch-10.png'
 import enemyHeavyLurch11Url from '../assets/enemy-heavy-lurch-11.png'
 import enemyHeavyLurch12Url from '../assets/enemy-heavy-lurch-12.png'
+import barrelRoll1Url from '../assets/barrel-roll-1.png'
+import barrelRoll2Url from '../assets/barrel-roll-2.png'
+import barrelRoll3Url from '../assets/barrel-roll-3.png'
+import barrelRoll4Url from '../assets/barrel-roll-4.png'
+import barrelRoll5Url from '../assets/barrel-roll-5.png'
+import barrelRoll6Url from '../assets/barrel-roll-6.png'
+import barrelRoll7Url from '../assets/barrel-roll-7.png'
+import barrelRoll8Url from '../assets/barrel-roll-8.png'
 import enemyStdEMove1Url from '../assets/enemy-standard-e-move-1.png'
 import enemyStdEMove2Url from '../assets/enemy-standard-e-move-2.png'
 import enemyStdEMove3Url from '../assets/enemy-standard-e-move-3.png'
@@ -261,6 +269,18 @@ export class BootScene extends Phaser.Scene {
 
   public preload(): void {
     this.load.image('player', playerUrl)
+    // Rollbildfolge des Fasses (Versuch "Zwei Bahnen", nur Testgelaende). Sie wird immer
+    // geladen: Die Weiche steht in der GameScene, und eine bedingt geladene Textur waere
+    // im Offline-Precache nicht enthalten - dann fehlte sie ausgerechnet dort, wo der
+    // Versuch gefahren wird.
+    this.load.image('barrel-roll-1', barrelRoll1Url)
+    this.load.image('barrel-roll-2', barrelRoll2Url)
+    this.load.image('barrel-roll-3', barrelRoll3Url)
+    this.load.image('barrel-roll-4', barrelRoll4Url)
+    this.load.image('barrel-roll-5', barrelRoll5Url)
+    this.load.image('barrel-roll-6', barrelRoll6Url)
+    this.load.image('barrel-roll-7', barrelRoll7Url)
+    this.load.image('barrel-roll-8', barrelRoll8Url)
     this.load.image('title', titleUrl)
     this.load.image('enemy-light', enemyLightUrl)
     this.load.image('enemy-standard', enemyStandardUrl)

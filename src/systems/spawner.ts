@@ -46,6 +46,9 @@ export class Spawner {
   private spawningEnabled: boolean
   private levelPlan: LevelPlan
 
+  /** Nur im Testgelaende gesetzt - siehe setVersuchsBahnen. */
+  private versuchsBahnen = false
+
   public constructor(
     scene: Phaser.Scene,
     runStats: RunStats,
@@ -475,14 +478,14 @@ export class Spawner {
       ),
       () => Phaser.Math.RND.frac(),
       BALANCE.enemy.spawnLaneSafetyGap,
-      BALANCE.enemy.spawnBands.singleLaneShare,
+      this.bandGrenze(BALANCE.enemy.spawnBands.singleLaneShare),
       // Randabstand mit Perspektiv-Aufschlag: Weiter oben ist die Figur breiter, als
       // ihr Platz im Kampfhoehen-System hergibt (getFigureOverscanFactor). Ohne den
       // Aufschlag steht sie am Horizont mit der Schulter im Wandsegment.
       getFigureWidth(type) * getFigureOverscanFactor(this.scene.scale.width, this.scene.scale.height),
     )
     if (lane === undefined) return 'no-lane'
-    this.activateEnemy(enemy, type, lane, y, bossCompanion)
+    this.activateEnemy(enemy, type, this.ausBand(lane), y, bossCompanion)
     this.intervalSpawnCount += 1
     return 'spawned'
   }
@@ -537,7 +540,7 @@ export class Spawner {
       anchorHalfWidth,
       () => Phaser.Math.RND.frac(),
       BALANCE.enemy.spawnLaneSafetyGap,
-      BALANCE.enemy.spawnBands.hordeLaneShare,
+      this.bandGrenze(BALANCE.enemy.spawnBands.hordeLaneShare),
       // Perspektiv-Aufschlag NUR auf die Figurenbreite, nicht auf die ganze Formation
       // (Korrektur 2026-08-23, gemessen - vorher fand ab Level 6 praktisch keine Horde
       // mehr eine Spur, bei Level 12 gar keine):
@@ -569,7 +572,7 @@ export class Spawner {
       // Offsets sind Kampfhoehen-Pixel: durch die dortige Halbbreite teilen, nicht durch
       // die auf Mitgliedshoehe. Sonst waere die Horde am Horizont so breit angelegt wie
       // unten und liefe beim Naeherkommen auseinander.
-      const memberLane = lane + offset.laneOffset / anchorHalfWidth
+      const memberLane = this.ausBand(lane) + offset.laneOffset / anchorHalfWidth
       this.activateEnemy(available[index], types[index], memberLane, memberY, bossCompanion)
     })
     if (!bossCompanion) {
@@ -682,12 +685,42 @@ export class Spawner {
     enemy.setAlpha(isRevealedAtHorizon(enemy.y + enemy.displayHeight / 2) ? 1 : 0)
   }
 
+  /**
+   * VERSUCH "ZWEI BAHNEN" (nur Testgelaende): Gegner kommen auf der RECHTEN
+   * Fahrbahnhaelfte statt mittig.
+   *
+   * Umgesetzt als Verschiebung des BEZUGSSYSTEMS, nicht als Korrektur am Ergebnis: Vor
+   * der Spurwahl werden die Spuren aller bestehenden Gegner um die Bandmitte nach links
+   * zurueckgerechnet, danach wird die gewaehlte Spur wieder nach rechts geschoben.
+   * Damit rechnet chooseSpawnLane durchgehend in einem System - eine nachtraegliche
+   * Verschiebung des Ergebnisses haette die Abstandspruefung gegen die (unverschobenen)
+   * Bestandsgegner still entwertet.
+   */
+  public setVersuchsBahnen(aktiv: boolean): void {
+    this.versuchsBahnen = aktiv
+  }
+
+  /** Wie weit der Schwerpunkt um die Bandmitte streuen darf. */
+  private bandGrenze(standard: number): number {
+    return this.versuchsBahnen ? BALANCE.versuch.gegnerBandBreite : standard
+  }
+
+  /** Aus dem verschobenen System zurueck in Spielfeldspuren. */
+  private ausBand(lane: number): number {
+    return this.versuchsBahnen ? lane + BALANCE.versuch.gegnerBandMitte : lane
+  }
+
+  /** Aus Spielfeldspuren in das verschobene System. */
+  private insBand(lane: number): number {
+    return this.versuchsBahnen ? lane - BALANCE.versuch.gegnerBandMitte : lane
+  }
+
   private getActiveLaneEnemies(): SpawnLaneEnemy[] {
     return this.enemies.getChildren().flatMap((child) => {
       const enemy = child as Phaser.Physics.Arcade.Image
       if (!enemy.active) return []
       return [{
-        lane: enemy.getData('lane') as number,
+        lane: this.insBand(enemy.getData('lane') as number),
         y: enemy.y,
         speedFactor: enemy.getData('speedFactor') as number,
         // ROHBREITE, nicht die skalierte: Spuren sind Anteile der Strassenbreite und

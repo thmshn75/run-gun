@@ -1,5 +1,45 @@
 # Lessons: Run & Gun
 
+### 2026-09-05 — Versuche gehoeren ins Testgelaende, nicht in den Run
+
+**Regel von Thomas:** "Wenn wir etwas versuchen, dann NUR im Testgelaende, dort testen
+wir bis ich mein Go gebe."
+
+**Warum das eine Regel ist und keine Vorliebe:** Der normale Run ist abgenommener Stand,
+den Benni spielt. Ein Versuch, der dort landet, verdirbt einen funktionierenden
+Spielstand UND macht die Abnahme unklar - man weiss hinterher nicht mehr, worauf sich
+ein Urteil bezog.
+
+**Wie das umzusetzen ist:** Genau EINE Weiche, an der Stelle, an der das System gebaut
+wird (`GameScene.create`, `istTestgelaende()`), und ein Test, der genau diese eine
+Weiche festhaelt. Kein Versuchsschalter mitten in einer abgenommenen Klasse - das ist
+der Weg, auf dem der Versuch doch in den Run gelangt. Erfuellt der Versuch dasselbe
+Interface wie das Original (`BahnSystem` in `versuchBahnen.ts`), bleibt die ganze
+Anbindung ringsum unveraendert.
+
+### 2026-09-05 — Drei Anlaeufe an der linken Fassbahn, alle drei nur im Browser sichtbar
+
+Die Mechanik war typgeprueft, testgruen und trotzdem dreimal kaputt. Jeder Fehler war
+erst in der laufenden Schleife zu sehen:
+
+1. **Das Fass flog vom Horizont heran und war zerschossen, bevor es ankam.** Fuenf
+   Sekunden Anflug bei durchgehend feuernder Truppe - man bekam nie ein stehendes Fass
+   zu sehen, nur die Waffe, die davon uebrig blieb. Behoben, indem es an seinem Platz
+   erscheint statt heranzufliegen.
+2. **Die Halteregel hielt auch den Rest fest.** Die freigeschossene Waffe startet
+   unterhalb der Halteschwelle, also griff die Regel sofort wieder: Die Waffe blieb fuer
+   immer liegen, und weil erst ihr Abgang Platz macht, kam nie wieder ein Fass. Gemessen:
+   EIN Fass in 20 Sekunden, danach Stillstand der ganzen Bahn.
+3. **Die Aufruestung war unter der Wahrnehmungsschwelle.** Am Durchsatz gerechnet
+   (ein Fass je 4 s), im Spiel gemessen ein Fass je 1,6 s - und sechs DMG-Faesser hoben
+   den Schaden um vier Prozent in einer halben Minute.
+
+**Regel:** Eine neue Mechanik gilt erst als gebaut, wenn sie in der echten Spielschleife
+gemessen wurde - Sichtbarkeitsanteil, Standzeit, Wirkung. Gruene Tests belegen die
+Rechnung, nicht das Verhalten. Und die Messsonde immer gegen eine tote Szene absichern:
+Ein Messlauf ohne `try/catch` und ohne `scene.isActive()`-Pruefung hat hier 30 Minuten
+verbrannt, weil er auf eine Szene wartete, die nicht mehr lief.
+
 Jede Nutzerkorrektur wird hier als Regel eingetragen. Zu Sitzungsbeginn lesen.
 
 ## Format
