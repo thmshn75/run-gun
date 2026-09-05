@@ -499,9 +499,26 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
 
 ## Offen — naechster Schritt zuerst
 
-**Neu am 2026-09-05, zuerst dran:**
+**Zuerst dran (2026-09-05, Abend): Thomas' Urteil zum Versuch "Zwei Bahnen".**
+Er laeuft live im **Testgelaende** (Menue -> Testgelaende), nur dort; der normale Run ist
+unveraendert. Rechts kommen Gegner und Tore, die im Minus starten und beim Beschuss ins
+Plus laufen - der Stand beim Durchfahren ist die Aenderung der Truppe. Links stehen
+Faesser, die freigeschossen werden muessen und nicht weiterlaufen; sie tragen DMG, RATE
+und die Waffen in aufsteigender Staerke. Drei Punkte brauchen sein Auge, nicht mehr
+Maschinenzeit: ob die Drehung des Fasses als Rollen liest, ob das Startband der Tore
+(-8 bis -18) passt, und ob die Gegner weit genug rechts laufen (gemessener Schwerpunkt
+0,18 statt der geplanten 0,42 - die Spurvergabe draengt sie zur Mitte). Messwerte und
+die drei behobenen Fehler stehen in `docs/active-task.md`.
 
-0a. **Wandlogik aus dem Genre-Vorbild besprechen** — Vorbild ist **Last Z: Survival
+**Regel, die dabei entstanden ist:** Versuche laufen ab jetzt ausschliesslich im
+Testgelaende, bis Thomas sein Go gibt (`docs/lessons.md`, 2026-09-05).
+
+**Aelteres, weiter offen:**
+
+0a. ~~Wandlogik aus dem Genre-Vorbild besprechen~~ — **beantwortet am 2026-09-05**:
+    Thomas hat sich fuer die Vorbild-Variante entschieden (Minus wird beim Durchfahren
+    abgezogen) und die Bahnaufteilung dazu vorgegeben. Umgesetzt als Versuch im
+    Testgelaende, siehe oben. Der urspruengliche Stand der Besprechung: — Vorbild ist **Last Z: Survival
     Shooter** (dasselbe Spiel, aus dem Laufbewegung und Bruecke/Wasser stammen).
     Uebernommen ist beides bereits; die Wandlogik steht noch aus. **Der Stand der
     Besprechung:** Recherchiert ist, dass dort Tore und Faesser sichtbare ZAHLEN tragen,
