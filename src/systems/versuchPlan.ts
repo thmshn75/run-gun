@@ -32,6 +32,22 @@ export function getTorStartwert(zufall: number, truppe: number): number {
 }
 
 /**
+ * Liegt der Torabstands-Zaehler in dem Fenster, in dem KEIN Gegner erscheinen darf?
+ *
+ * Thomas 2026-09-05: "wenn Waende kommen, kann ich nicht auf die Gegner schiessen und
+ * dann sind sie so nah, dass ich sie nicht wegbekomme - wenn Waende kommen, dass
+ * dahinter nicht gleich Gegner kommen."
+ *
+ * Das Fenster liegt um den SPAWN-Zeitpunkt des Tores, nicht um seine aktuelle Position:
+ * Ein Gegner, der gleichzeitig mit dem Tor am Horizont erscheint, laeuft die ganze
+ * Strecke in seinem Schatten - genau die Lage, die gemeint ist. `zaehler` laeuft von 0
+ * (gerade gespawnt) bis `abstandPx` (naechster Spawn).
+ */
+export function istImTorFenster(zaehler: number, abstandPx: number, vorPx: number, nachPx: number): boolean {
+  return zaehler < nachPx || zaehler > abstandPx - vorPx
+}
+
+/**
  * Wie weit ein Tor ins Plus laufen kann - als Anteil des RESTWEGS BIS ZUM TRUPPENDECKEL.
  *
  * Ein Anteil der Truppe selbst waere ein Zinseszins und liefe nach zwei Toren in den

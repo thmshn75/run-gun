@@ -1212,6 +1212,24 @@ export const BALANCE = {
       // ihn sitzt das Tor auf der Randmarkierung und sieht aus, als gehoere es zur
       // Kulisse statt zur Fahrbahn.
       randSpaltPx: 4,
+      // GEGNERSPERRE UM DAS TOR HERUM (Thomas 2026-09-05: "wenn Waende kommen, kann ich
+      // nicht auf die Gegner schiessen und dann sind sie so nah, dass ich sie nicht
+      // wegbekomme - wenn Waende kommen, dass dahinter nicht gleich Gegner kommen").
+      //
+      // DAS PROBLEM DAHINTER: Das Tor deckt seit dem Verbreitern die rechte Fahrbahn von
+      // 0,15 bis zum Rand - genau den Streifen, in dem auch die Gegner kommen. Wer auf
+      // die Zahl haelt, trifft die Gegner dahinter nicht, und mit der neuen Kontaktregel
+      // kostet jeder Durchkommer eine Figur.
+      //
+      // Gesperrt wird in gefahrenen Weltpixeln um den Tor-Spawn herum: 150 px davor
+      // (rund 1,0 s bei Testgelaende-Tempo, damit kein Gegner unmittelbar vor dem Tor
+      // erscheint und von ihm eingeholt wird) und 380 px danach (rund 2,6 s, die Luecke
+      // hinter dem Tor). Zusammen sind das 530 von 1100 px Torabstand, also knapp die
+      // Haelfte der Zeit - der Nachschub halbiert sich damit ungefaehr. Das ist hier kein
+      // Nebenschaden, sondern erwuenscht: Gemessen rieb die Kontaktregel die Truppe in
+      // 22 s von 30 auf 1 auf.
+      gegnerSperreVorPx: 150,
+      gegnerSperreNachPx: 380,
       // Hoehe in Weltpixeln, etwas hoeher als eine heutige Wandkachel (72), damit die
       // grosse Zahl darauf auch am Horizont noch lesbar ist.
       hoehePx: 84,

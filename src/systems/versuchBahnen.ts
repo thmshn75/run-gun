@@ -13,6 +13,7 @@ import {
   getTorStand,
   getTorStartwert,
   getTruppeNachTor,
+  istImTorFenster,
   type FassInhalt,
 } from './versuchPlan'
 import type { WeaponKey } from './weapons'
@@ -177,6 +178,19 @@ export class VersuchBahnen implements BahnSystem {
   public deactivateAll(): void {
     for (const tor of this.tore) this.recycleTor(tor)
     for (const fass of this.faesser) this.recycleFass(fass)
+  }
+
+  /**
+   * Liegt gerade ein Tor im Anflug, hinter dem kein Gegner erscheinen darf?
+   *
+   * Das Fenster liegt um den SPAWN-Zeitpunkt, nicht um die aktuelle Position des Tores:
+   * Ein Gegner, der jetzt am Horizont erscheint, laeuft die ganze Strecke gemeinsam mit
+   * einem Tor, das jetzt ebenfalls dort steht - genau die Lage, die Thomas beschrieben
+   * hat ("dann sind sie so nah, dass ich sie nicht wegbekomme").
+   */
+  public istTorFenster(): boolean {
+    const { abstandPx, gegnerSperreVorPx, gegnerSperreNachPx } = BALANCE.versuch.tor
+    return istImTorFenster(this.torAbstandPx, abstandPx, gegnerSperreVorPx, gegnerSperreNachPx)
   }
 
   public isWall(candidate: Phaser.GameObjects.GameObject): candidate is Phaser.Physics.Arcade.Image {

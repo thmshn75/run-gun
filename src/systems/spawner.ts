@@ -44,6 +44,8 @@ export class Spawner {
   private lastSpawnMetricsAtMs: number
   private nextSpawnId: number
   private spawningEnabled: boolean
+  /** Nur im Versuch gesetzt - siehe setSpawnSperre. */
+  private spawnSperre = false
   private levelPlan: LevelPlan
 
   /** Nur im Testgelaende gesetzt - siehe setVersuchsBahnen. */
@@ -101,6 +103,17 @@ export class Spawner {
     const spawnId = this.nextSpawnId
     this.nextSpawnId += 1
     return spawnId
+  }
+
+  /**
+   * Zeitweilige Sperre, UNABHAENGIG von setSpawningEnabled.
+   *
+   * Zwei getrennte Schalter mit Absicht: setSpawningEnabled gehoert der Levelphase (im
+   * Bosskampf spawnt der Normalspawner nicht), diese Sperre dem Versuch. Ein gemeinsames
+   * Flag haette der Versuch jedes Bild neu gesetzt und damit die Bossphase ueberschrieben.
+   */
+  public setSpawnSperre(gesperrt: boolean): void {
+    this.spawnSperre = gesperrt
   }
 
   public setSpawningEnabled(enabled: boolean): void {
@@ -265,8 +278,8 @@ export class Spawner {
 
   public update(dt: number): void {
     this.elapsedMs += dt
-    if (this.spawningEnabled) this.spawnAccumulatorMs += dt
-    if (this.spawningEnabled && this.deferredSpawn !== undefined) {
+    if (this.spawningEnabled && !this.spawnSperre) this.spawnAccumulatorMs += dt
+    if (this.spawningEnabled && !this.spawnSperre && this.deferredSpawn !== undefined) {
       if (this.spawn(this.deferredSpawn) === 'spawned') {
         this.deferredSpawn = undefined
         this.deferredAgeMs = 0
@@ -289,7 +302,7 @@ export class Spawner {
       }
     }
     const spawnIntervalMs = this.getSpawnIntervalMs()
-    while (this.spawningEnabled && this.spawnAccumulatorMs >= spawnIntervalMs) {
+    while (this.spawningEnabled && !this.spawnSperre && this.spawnAccumulatorMs >= spawnIntervalMs) {
       this.spawnAccumulatorMs -= spawnIntervalMs
       this.intervalPlannedCount += 1
       if (this.deferredSpawn !== undefined) continue

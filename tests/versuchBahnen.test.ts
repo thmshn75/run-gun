@@ -15,6 +15,7 @@ import {
   getTorStartwert,
   getTruppeNachTor,
   getWaffenStaerke,
+  istImTorFenster,
   haeltJetzt,
 } from '../src/systems/versuchPlan'
 
@@ -148,6 +149,22 @@ describe('Versuch Zwei Bahnen', () => {
       expect(truppe).toBeGreaterThan(90)
       // Steht die Truppe schon am Deckel, bleibt nur noch die Mindestgabe.
       expect(getTorPlusDeckel(deckel, deckel)).toBe(BALANCE.versuch.tor.plusMindest)
+    })
+
+    it('haelt die Gegner aus dem Fenster um das Tor heraus', () => {
+      // Thomas 2026-09-05: "wenn waende kommen, dass dahinter nicht gleich gegner
+      // kommen". Das Tor deckt die rechte Fahrbahn fast ganz ab; wer auf die Zahl haelt,
+      // trifft die Gegner dahinter nicht - und jeder Durchkommer kostet seit derselben
+      // Runde eine Figur.
+      const { abstandPx, gegnerSperreVorPx: vor, gegnerSperreNachPx: nach } = BALANCE.versuch.tor
+      expect(istImTorFenster(0, abstandPx, vor, nach)).toBe(true)
+      expect(istImTorFenster(nach - 1, abstandPx, vor, nach)).toBe(true)
+      expect(istImTorFenster(abstandPx - 1, abstandPx, vor, nach)).toBe(true)
+      // Dazwischen offen - sonst kaeme gar kein Gegner mehr.
+      expect(istImTorFenster(abstandPx / 2, abstandPx, vor, nach)).toBe(false)
+      // Und das Fenster darf den Nachschub nicht ganz abwuergen: hoechstens die Haelfte
+      // der Strecke zwischen zwei Toren.
+      expect(vor + nach).toBeLessThanOrEqual(abstandPx / 2)
     })
 
     it('kommt selten genug, dass dazwischen Zeit fuer die andere Bahn bleibt', () => {

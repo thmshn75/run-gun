@@ -395,6 +395,37 @@ Formationstiefe pruefen (bei 8 Spalten braeuchten 120 Figuren 15 Reihen, das sin
 210 px nach hinten). **Nicht umgesetzt** - die Truppendarstellung gehoert dem echten Run,
 und das waere ein Eingriff dort.
 
+
+## Umsetzung 2026-09-05, sechste Runde
+
+**Luecke hinter der Wand** (Thomas: "wenn Waende kommen, kann ich nicht auf die Gegner
+schiessen und dann sind sie so nah, dass ich sie nicht wegbekomme"). Ursache: Das Tor
+deckt seit dem Verbreitern die rechte Fahrbahn von 0,15 bis zum Rand - genau den
+Streifen, in dem auch die Gegner laufen. Wer auf die Zahl haelt, trifft dahinter nichts,
+und seit der neuen Kontaktregel kostet jeder Durchkommer eine Figur.
+
+Umgesetzt als **Spawnsperre in einem Fenster um den Tor-Spawn**: 150 px davor, 380 px
+danach (von 1100 px Torabstand). Das Fenster haengt am Spawn-Zeitpunkt, nicht an der
+Torposition - ein Gegner, der gleichzeitig mit dem Tor am Horizont erscheint, laeuft die
+ganze Strecke in dessen Schatten. Der Spawner bekam dafuer einen ZWEITEN Schalter
+(`setSpawnSperre`), getrennt von `setSpawningEnabled`: Das gehoert der Levelphase, und
+ein gemeinsames Flag haette der Versuch jedes Bild neu gesetzt und damit die Bossphase
+ueberschrieben.
+
+**Gemessen (29 s Testgelaende):** Das Fenster deckt 47 % der Zeit, aber nur 15 von 175
+Gegner-Spawns fielen hinein (8,6 %) - der Rest ist Randschaerfe der Sonde, die alle
+100 ms abtastet. Die Truppe stand nach 29 s bei **14 Figuren statt bei 1** wie im Lauf
+davor. Bewusste Nebenwirkung: Der Gegnernachschub halbiert sich ungefaehr. Das ist hier
+erwuenscht - die Kontaktregel rieb die Truppe zuvor in 22 s von 30 auf 1 auf.
+
+**Zu den doppelten Waffen** ("wenn ich Faesser wegschiesse erscheinen immer 2 Waffen
+gleiche"): Die Ursache lag im alten Zaehler - `waffenIndex` wurde beim EINLOESEN
+weitergestellt. Wurde ein Waffenfass nicht eingeloest, sondern lief aus dem Bild, blieb
+der Zaehler stehen und das naechste Waffenfass zeigte dieselbe Waffe. Mit dem Umbau auf
+durchrollende Faesser stellt der Zaehler beim SPAWN weiter; im Browser nachgemessen:
+Waffenfolge pistol -> shotgun -> normal ueber 29 s, keine einzige Wiederholung, und nie
+mehr als ein Waffen-Fund gleichzeitig im Bild.
+
 ---
 
 ## Wo die Historie steht
