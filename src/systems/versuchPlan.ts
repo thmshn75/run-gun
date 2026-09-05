@@ -15,19 +15,6 @@ export type FassInhalt = 'weapon' | 'damage' | 'rate'
 // REINE RECHENLOGIK - ohne Phaser, damit sie ohne Renderer pruefbar ist.
 // ---------------------------------------------------------------------------
 
-/**
- * Was ein Punkt auf dem Torzaehler an Schaden kostet.
- *
- * Der Zaehler ist eine FIGURENZAHL, keine Lebenspunkte. Wuerde jeder Treffer ihn um 1
- * heben, waere ein "-12" bei 40-50 Treffern je Sekunde in einer Viertelsekunde weg.
- * Stattdessen kostet ein Punkt den Schaden, den die Truppe in 1/punkteProSek Sekunden
- * an der Kachel anrichtet - die Zeit bis zur Null ist damit gerechnet statt geraten und
- * skaliert von selbst mit Waffe, Truppe und Level.
- */
-export function getSchadenProPunkt(dpsAnDerKachel: number): number {
-  return Math.max(0.0001, dpsAnDerKachel) / BALANCE.versuch.tor.punkteProSek
-}
-
 /** Startwert eines Tores. Immer negativ; `zufall` ist eine Zahl in [0, 1). */
 export function getTorStartwert(zufall: number): number {
   const { startMin, startMax } = BALANCE.versuch.tor
@@ -36,16 +23,16 @@ export function getTorStartwert(zufall: number): number {
 }
 
 /**
- * Der Stand eines Tores nach `schadenssumme` angerichtetem Schaden.
+ * Der Stand eines Tores nach `treffer` Treffern - EIN TREFFER IST EIN PUNKT
+ * (Thomas 2026-09-05: "jeder treffer eine punkt +").
  *
  * Zwei Grenzen, die beide gebraucht werden: Nach unten faellt er nie unter den
  * Startwert (ein unbeschossenes Tor kostet genau das, was draufsteht), nach oben endet
  * er bei plusMax - ohne diesen Deckel waere Draufhalten bis zum Anflug immer richtig
  * und die Entscheidung wieder weg.
  */
-export function getTorStand(startwert: number, schadenssumme: number, schadenProPunkt: number): number {
-  const punkte = Math.floor(Math.max(0, schadenssumme) / schadenProPunkt)
-  return Math.min(BALANCE.versuch.tor.plusMax, startwert + punkte)
+export function getTorStand(startwert: number, treffer: number): number {
+  return Math.min(BALANCE.versuch.tor.plusMax, startwert + Math.max(0, Math.floor(treffer)))
 }
 
 /**
@@ -69,9 +56,13 @@ export function haeltJetzt(centerY: number, halteY: number, haeltSchon: boolean)
   return haeltSchon || centerY >= halteY
 }
 
-/** Lebenspunkte eines Fasses: so viele, wie `fokusSec` konzentriertes Feuer anrichtet. */
-export function getFassLebenspunkte(dpsAnDerKachel: number): number {
-  return Math.max(1, Math.round(Math.max(0.0001, dpsAnDerKachel) * BALANCE.versuch.fass.fokusSec))
+/**
+ * Wie viele TREFFER ein Fass aushaelt - auch hier zaehlt die Kugel, nicht der Schaden
+ * (Thomas 2026-09-05: "zerschiessen jeder treffer ein punkt"). Eine feste Zahl also,
+ * keine aus der Feuerkraft abgeleitete: Genau darin besteht die Aenderung.
+ */
+export function getFassTreffer(): number {
+  return Math.max(1, Math.round(BALANCE.versuch.fass.treffer))
 }
 
 /**
@@ -122,9 +113,19 @@ export function getFassWaffe(waffenIndex: number): WeaponKey {
  * das Fass - und genau der Eindruck soll ja verschwinden (Thomas 2026-09-05: "wenn die
  * Strasse darunter scrollt sieht es bloed aus").
  */
-export function getRollBild(streckePx: number): number {
-  const { umfangPx, bilder } = BALANCE.versuch.fass
-  const phase = Math.floor((streckePx / umfangPx) * bilder)
+export function getRollBild(streckePx: number, umfangPx: number = BALANCE.versuch.fass.umfangPx): number {
+  const { bilder } = BALANCE.versuch.fass
+  const phase = Math.floor((streckePx / Math.max(1, umfangPx)) * bilder)
   return (bilder - 1) - (((phase % bilder) + bilder) % bilder)
+}
+
+/**
+ * Der Umfang, mit dem das Fass abrollen muss, damit es nicht rutscht: Kreisumfang seiner
+ * TATSAECHLICHEN Anzeigegroesse. Fest gesetzt war er vorher an der Nenngroesse - sobald
+ * das Fass perspektivisch kleiner gezeichnet wird, dreht es sich dann zu langsam, und
+ * genau das liest sich als Rutschen statt als Rollen.
+ */
+export function getRollUmfang(durchmesserPx: number): number {
+  return Math.max(1, Math.PI * durchmesserPx)
 }
 

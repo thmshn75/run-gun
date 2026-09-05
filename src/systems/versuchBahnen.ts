@@ -3,14 +3,13 @@ import { BALANCE } from '../config/balance'
 import { HUD_COLORS } from '../config/colors'
 import { advanceAlongRoad, getPlayfieldHalfWidth, getRoadScale, getRoadSegment } from './road'
 import { getCurrentScrollSpeed } from './speed'
-import { getWallPlan } from './wallPlan'
 import {
   VERSUCH_WAFFENREIHE,
   getFassInhalt,
-  getFassLebenspunkte,
+  getFassTreffer,
   getFassWaffe,
   getRollBild,
-  getSchadenProPunkt,
+  getRollUmfang,
   getTorStand,
   getTorStartwert,
   getTruppeNachTor,
@@ -72,8 +71,7 @@ type TorZustand = {
   anchorY: number
   aktiv: boolean
   startwert: number
-  schadenssumme: number
-  schadenProPunkt: number
+  treffer: number
 }
 
 type FassZustand = {
@@ -91,10 +89,6 @@ type FassZustand = {
 
 export class VersuchBahnen implements BahnSystem {
   private readonly scene: Phaser.Scene
-  private readonly getTeamSize: () => number
-  private readonly getDamage: () => number
-  private readonly getShotsPerSec: () => number
-  private readonly getCurrentWeapon: () => WeaponKey
   private readonly rng: () => number
   private readonly applyReinforcement: (apply: (current: number) => number) => void
   private readonly applyFassGate: (stat: 'damage' | 'rate', schritte: number, x: number, y: number) => void
@@ -104,7 +98,6 @@ export class VersuchBahnen implements BahnSystem {
   private readonly torZuObjekt: Map<Phaser.GameObjects.GameObject, TorZustand>
   private readonly fass: FassZustand
   private readonly fassZuObjekt: Map<Phaser.GameObjects.GameObject, FassZustand>
-  private currentLevel: number
   private torAbstandPx: number
   private fassIndex: number
   private waffenIndex: number
@@ -115,25 +108,16 @@ export class VersuchBahnen implements BahnSystem {
 
   public constructor(
     scene: Phaser.Scene,
-    getTeamSize: () => number,
-    getDamage: () => number,
-    getShotsPerSec: () => number,
-    getCurrentWeapon: () => WeaponKey,
     rng: () => number,
     applyReinforcement: (apply: (current: number) => number) => void,
     applyFassGate: (stat: 'damage' | 'rate', schritte: number, x: number, y: number) => void,
   ) {
     this.scene = scene
-    this.getTeamSize = getTeamSize
-    this.getDamage = getDamage
-    this.getShotsPerSec = getShotsPerSec
-    this.getCurrentWeapon = getCurrentWeapon
     this.rng = rng
     this.applyReinforcement = applyReinforcement
     this.applyFassGate = applyFassGate
     this.wallGroup = scene.physics.add.group()
     this.rewardGroup = scene.physics.add.group()
-    this.currentLevel = 1
     // Erstes Tor sofort: der erste update() setzt es an den Horizont.
     this.torAbstandPx = BALANCE.versuch.tor.abstandPx
     this.fassIndex = 0
@@ -165,8 +149,12 @@ export class VersuchBahnen implements BahnSystem {
 
   public hasActivePair(): boolean { return this.tore.some((tor) => tor.aktiv) || this.fass.aktiv }
 
-  public resetForLevel(level: number): void {
-    this.currentLevel = Math.max(1, Math.floor(level))
+  /**
+   * Die Levelnummer geht in den Versuch NICHT ein: Tor- und Fasshaerte zaehlen Treffer,
+   * nicht Schaden, und die Trefferzahl soll auf jedem Level dieselbe sein - sonst
+   * beurteilt Thomas beim Testen zwei Dinge auf einmal.
+   */
+  public resetForLevel(): void {
     this.deactivateAll()
     this.torAbstandPx = BALANCE.versuch.tor.abstandPx
   }
@@ -209,7 +197,7 @@ export class VersuchBahnen implements BahnSystem {
   public collectPickup(wall: Phaser.Physics.Arcade.Image): number {
     const tor = this.torZuObjekt.get(wall)
     if (tor === undefined || !tor.aktiv) return 0
-    const stand = getTorStand(tor.startwert, tor.schadenssumme, tor.schadenProPunkt)
+    const stand = getTorStand(tor.startwert, tor.treffer)
     this.applyReinforcement((current) => getTruppeNachTor(current, stand))
     this.recycleTor(tor)
     return stand
@@ -226,19 +214,25 @@ export class VersuchBahnen implements BahnSystem {
     return waffe
   }
 
-  public damage(wall: Phaser.Physics.Arcade.Image, damage: number): boolean {
+  /**
+   * EIN TREFFER IST EIN PUNKT - auf beiden Bahnen. Der uebergebene Schadenswert wird
+   * bewusst nicht gelesen (Thomas 2026-09-05: "zerschiessen jeder treffer ein punkt,
+   * genauso die waende - jeder treffer eine punkt +"). Die Signatur bleibt, weil sie
+   * zum gemeinsamen Interface mit Walls gehoert.
+   */
+  public damage(wall: Phaser.Physics.Arcade.Image): boolean {
     const tor = this.torZuObjekt.get(wall)
     if (tor !== undefined) {
       if (!tor.aktiv) return false
-      tor.schadenssumme += damage
+      tor.treffer += 1
       this.beschrifteTor(tor)
       return false
     }
     const fass = this.fassZuObjekt.get(wall)
     if (fass === undefined || !fass.aktiv || fass.zerschossen) return false
-    const rest = (wall.getData('hp') as number) - damage
+    const rest = (wall.getData('hp') as number) - 1
     wall.setData('hp', rest)
-    fass.label.setText(rest <= 0 ? '' : `${Math.max(0, Math.ceil(rest))}`)
+    fass.label.setText(rest <= 0 ? '' : `${rest}`)
     if (rest > 0) return false
     return this.loeseFassEin(fass)
   }
@@ -283,12 +277,10 @@ export class VersuchBahnen implements BahnSystem {
   private spawneTor(): void {
     const tor = this.tore.find((kandidat) => !kandidat.aktiv)
     if (tor === undefined) return
-    const plan = getWallPlan(this.currentLevel, this.getTeamSize(), this.getCurrentWeapon(), this.getDamage(), this.getShotsPerSec())
     tor.aktiv = true
     tor.anchorY = BALANCE.road.horizonY
     tor.startwert = getTorStartwert(this.rng())
-    tor.schadenssumme = 0
-    tor.schadenProPunkt = getSchadenProPunkt(plan.referenceDps)
+    tor.treffer = 0
     const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, tor.anchorY, BALANCE.versuch.tor.hoehePx)
     const geometrie = this.bahnGeometrie('right', segment.centerY, BALANCE.versuch.tor.breiteShare)
     tor.bild.enableBody(true, geometrie.x, segment.centerY, true, true)
@@ -307,7 +299,7 @@ export class VersuchBahnen implements BahnSystem {
    * gedreht ist, muss man das sehen, sonst faehrt man an der eigenen Arbeit vorbei.
    */
   private beschrifteTor(tor: TorZustand): void {
-    const stand = getTorStand(tor.startwert, tor.schadenssumme, tor.schadenProPunkt)
+    const stand = getTorStand(tor.startwert, tor.treffer)
     tor.label.setText(stand > 0 ? `+${stand}` : `${stand}`)
     tor.label.setColor(stand > 0 ? '#3ddc84' : '#ff6b6b')
     tor.bild.setTexture(stand > 0 ? 'wall-segment-right' : 'wall-segment-bad')
@@ -330,7 +322,7 @@ export class VersuchBahnen implements BahnSystem {
     const label = this.scene.add.text(0, 0, '', {
       fontFamily: 'system-ui', fontSize: '30px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 4, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false)
-    return { bild, label, anchorY: BALANCE.road.horizonY, aktiv: false, startwert: -1, schadenssumme: 0, schadenProPunkt: 1 }
+    return { bild, label, anchorY: BALANCE.road.horizonY, aktiv: false, startwert: -1, treffer: 0 }
   }
 
   // -------------------------------------------------------------------------
@@ -367,7 +359,7 @@ export class VersuchBahnen implements BahnSystem {
     const massstab = getRoadScale(this.scene.scale.width, this.scene.scale.height, segment.centerY)
     if (this.fass.bild.active) {
       this.fass.bild.setPosition(geometrie.x, segment.centerY).setDisplaySize(groesse, groesse).setAlpha(alpha)
-      if (this.hatRollbilder) this.fass.bild.setTexture(`barrel-roll-${getRollBild(this.rollStreckePx) + 1}`)
+      if (this.hatRollbilder) this.fass.bild.setTexture(`barrel-roll-${getRollBild(this.rollStreckePx, getRollUmfang(groesse)) + 1}`)
       ;(this.fass.bild.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       this.fass.label.setPosition(geometrie.x, segment.centerY + groesse / 2 + 10 * massstab).setAlpha(alpha).setScale(massstab)
       this.fass.inhaltText.setPosition(geometrie.x, segment.centerY).setAlpha(alpha).setScale(massstab)
@@ -383,8 +375,7 @@ export class VersuchBahnen implements BahnSystem {
 
   private spawneFass(): void {
     const inhalt = getFassInhalt(this.fassIndex)
-    const plan = getWallPlan(this.currentLevel, this.getTeamSize(), this.getCurrentWeapon(), this.getDamage(), this.getShotsPerSec())
-    const hp = getFassLebenspunkte(plan.referenceDps)
+    const hp = getFassTreffer()
     this.fass.aktiv = true
     this.fass.haelt = false
     this.fass.zerschossen = false
@@ -490,9 +481,9 @@ export class VersuchBahnen implements BahnSystem {
    */
   private bahnGeometrie(seite: 'left' | 'right', y: number, breiteShare: number): { x: number; breite: number } {
     const spielfeldHalb = getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
-    const vorzeichen = seite === 'left' ? -1 : 1
+    const anteil = seite === 'left' ? -BALANCE.versuch.fass.bahnAnteil : BALANCE.versuch.tor.bahnAnteil
     return {
-      x: this.scene.scale.width / 2 + vorzeichen * spielfeldHalb / 2,
+      x: this.scene.scale.width / 2 + anteil * spielfeldHalb,
       breite: spielfeldHalb * breiteShare,
     }
   }

@@ -199,6 +199,34 @@ Strassenmitte, Schwerpunkt 0,18; Tore durchgehend sichtbar.
 ob das Startband der Tore (-8 bis -18) passt und ob die Gegner weit genug rechts laufen
 (Schwerpunkt 0,18 statt der geplanten 0,42 - die Spurvergabe draengt sie zur Mitte).
 
+
+## Nachtrag 2026-09-05, zweite Runde (Thomas' Korrekturen)
+
+Vier Aenderungen auf Zuruf, alle im Browser nachgemessen:
+
+1. **Faesser weiter nach links** (`versuch.fass.bahnAnteil` 0,68 statt 0,50) - sie stehen
+   jetzt am linken Fahrbahnrand statt auf halber Strecke zur Mitte.
+2. **Tore weiter nach rechts und breiter** (`bahnAnteil` 0,58, `breiteShare` 0,80 statt
+   0,62). Die Aussenkante endet bei 0,98 der halben Spielfeldbreite, also knapp
+   INNERHALB der Strasse - ein Tor, das ueberragt, koennte man nicht mehr umfahren.
+3. **Ein Treffer ist ein Punkt** - auf beiden Bahnen. Die Umrechnung ueber den Schaden
+   (`schadenProPunkt`) ist ersatzlos gestrichen; `damage()` liest den Schadenswert nicht
+   mehr.
+4. **Rollbilder mit breiten Farbbaendern** (dritter Codex-Lauf; Bildunterschied 1 zu 5
+   jetzt 28,7 % statt 10,6 %) und die Drehrate am TATSAECHLICHEN Durchmesser statt an
+   der Nenngroesse - sonst dreht ein perspektivisch kleineres Fass zu langsam und
+   rutscht sichtbar.
+
+**Was die Trefferzaehlung gekostet hat, und was daraus zu lernen war:** Die erste
+Trefferzahl des Fasses (90) war aus der Salve gerechnet - 30 Figuren mal 3 Schuss je
+Sekunde. Im Spiel kommt davon ein Bruchteil an: **gemessen 3,3 Treffer je Sekunde** an
+einem Objekt der Seitenbahn, weil nur die Kugeln zaehlen, die zufaellig in seiner Spur
+liegen. Mit 90 stand ein Fass 24,5 Sekunden. Auf 20 gesenkt.
+
+**Messwerte danach** (21 s Testgelaende): Fass 94 % der Zeit sichtbar, Standzeit 6,2 s
+ohne aktives Hinsteuern, alle acht Rollbilder werden durchlaufen, Inhaltsreihenfolge
+(Waffe, DMG, RATE) haelt.
+
 ---
 
 ## Wo die Historie steht

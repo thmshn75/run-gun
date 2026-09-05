@@ -1,20 +1,18 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
-import { getWallPlan } from '../src/systems/wallPlan'
 import {
   VERSUCH_WAFFENREIHE,
   getFassInhalt,
-  getFassLebenspunkte,
+  getFassTreffer,
   getFassWaffe,
   getRollBild,
-  getSchadenProPunkt,
+  getRollUmfang,
   getTorStand,
   getTorStartwert,
   getTruppeNachTor,
   haeltJetzt,
 } from '../src/systems/versuchPlan'
-import type { WeaponKey } from '../src/systems/weapons'
 
 /**
  * VERSUCH "ZWEI BAHNEN" (Thomas 2026-09-05) - rechts Gegner und Minus-Tore, links
@@ -66,38 +64,32 @@ describe('Versuch Zwei Bahnen', () => {
       expect(werte.size).toBeGreaterThan(5)
     })
 
-    it('zaehlt mit dem Schaden hoch, ueber Null hinaus, und stoppt am Deckel', () => {
-      const proPunkt = 10
-      expect(getTorStand(-12, 0, proPunkt)).toBe(-12)
-      expect(getTorStand(-12, 50, proPunkt)).toBe(-7)
-      expect(getTorStand(-12, 120, proPunkt)).toBe(0)
-      expect(getTorStand(-12, 150, proPunkt)).toBe(3)
-      expect(getTorStand(-12, 1e9, proPunkt)).toBe(BALANCE.versuch.tor.plusMax)
+    it('zaehlt EINEN Punkt je Treffer, ueber Null hinaus, und stoppt am Deckel', () => {
+      // Thomas 2026-09-05: "jeder treffer eine punkt +". Kein Schaden, keine Umrechnung.
+      expect(getTorStand(-12, 0)).toBe(-12)
+      expect(getTorStand(-12, 5)).toBe(-7)
+      expect(getTorStand(-12, 12)).toBe(0)
+      expect(getTorStand(-12, 15)).toBe(3)
+      expect(getTorStand(-12, 1e9)).toBe(BALANCE.versuch.tor.plusMax)
     })
 
     it('faellt nie unter den Startwert und nie ueber den Deckel', () => {
       for (let i = 0; i < 500; i += 1) {
         const start = getTorStartwert(i / 500)
-        const schaden = (i % 37) * 13.7
-        const stand = getTorStand(start, schaden, 8.5)
+        const stand = getTorStand(start, i % 37)
         expect(stand).toBeGreaterThanOrEqual(start)
         expect(stand).toBeLessThanOrEqual(BALANCE.versuch.tor.plusMax)
       }
     })
 
-    it('braucht 1,5 bis 4,0 Sekunden bis zur Null - mit echten Balance-Werten gerechnet', () => {
-      // GEMESSEN STATT BEHAUPTET: Die Zeit ergibt sich aus der Feuerkraft, die an der
-      // Kachel ankommt (wallPlan.referenceDps, das ist Truppenfeuerkraft mal
-      // walls.wallHitShare). Faellt sie aus dem Fenster, ist entweder punkteProSek
-      // falsch gewaehlt oder das Startband zu breit - beides waere ein Befund.
-      const truppe = BALANCE.testground.truppe
-      const level = BALANCE.testground.level
-      for (const waffe of ['pistol', 'shotgun', 'minigun'] as WeaponKey[]) {
-        const plan = getWallPlan(level, truppe, waffe, BALANCE.stats.damage.base, BALANCE.stats.shotsPerSec.base)
-        const proPunkt = getSchadenProPunkt(plan.referenceDps)
-        const sekunden = (BALANCE.versuch.tor.startMax * proPunkt) / plan.referenceDps
-        expect(sekunden).toBeGreaterThanOrEqual(1.5)
-        expect(sekunden).toBeLessThanOrEqual(4.0)
+    it('ist mit genau so vielen Treffern auf Null, wie draufsteht', () => {
+      // Die Zusage der neuen Kopplung: Was auf dem Tor steht, ist zugleich die Zahl der
+      // Kugeln bis zur Null - keine verborgene Umrechnung dazwischen.
+      for (const zufall of [0, 0.4, 0.9999]) {
+        const start = getTorStartwert(zufall)
+        expect(getTorStand(start, Math.abs(start) - 1)).toBe(-1)
+        expect(getTorStand(start, Math.abs(start))).toBe(0)
+        expect(getTorStand(start, Math.abs(start) + 1)).toBe(1)
       }
     })
 
@@ -123,6 +115,9 @@ describe('Versuch Zwei Bahnen', () => {
     it('rollt gegen die Fahrtrichtung und laeuft dabei sauber im Kreis', () => {
       const { umfangPx, bilder } = BALANCE.versuch.fass
       const folge = Array.from({ length: bilder }, (_, i) => getRollBild((i * umfangPx) / bilder))
+      // Der Umfang folgt der ANZEIGEGROESSE, sonst dreht ein perspektivisch kleineres
+      // Fass zu langsam und rutscht sichtbar ueber die Strasse.
+      expect(getRollUmfang(96)).toBeCloseTo(Math.PI * 96, 5)
       // Jedes Bild genau einmal je Umlauf - kein Stocken, kein Sprung.
       expect(new Set(folge).size).toBe(bilder)
       expect(Math.min(...folge)).toBe(0)
@@ -134,15 +129,16 @@ describe('Versuch Zwei Bahnen', () => {
       expect(getRollBild(umfangPx)).toBe(getRollBild(0))
     })
 
-    it('braucht deutlich laenger als eine Wandkachel', () => {
-      // Das Fass ist das einzige Ziel der linken Bahn. Faellt es so schnell wie eine
-      // Wandkachel (0,3-0,6 s), kostet die linke Bahn keine Zeit - und der
-      // Zielkonflikt, um den es im Versuch geht, entsteht gar nicht erst.
-      const plan = getWallPlan(BALANCE.testground.level, BALANCE.testground.truppe, 'shotgun', BALANCE.stats.damage.base, BALANCE.stats.shotsPerSec.base)
-      const hp = getFassLebenspunkte(plan.referenceDps)
-      const sekunden = hp / plan.referenceDps
-      expect(sekunden).toBeGreaterThan(BALANCE.wallHardness.maxFocusSec * 2)
-      expect(Math.abs(sekunden - BALANCE.versuch.fass.fokusSec)).toBeLessThan(0.05)
+    it('haelt genug Treffer aus, dass die linke Bahn Zeit kostet', () => {
+      // Das Fass ist das einzige Ziel der linken Bahn. Faellt es nach ein paar Kugeln,
+      // kostet die Bahn keine Zeit - und der Zielkonflikt, um den es im Versuch geht,
+      // entsteht gar nicht erst. Bezug ist die GEMESSENE Trefferrate an einem Objekt der
+      // Seitenbahn (3,3 Treffer je Sekunde bei mittig stehender Truppe, im Browser
+      // gezaehlt), nicht die Zahl der abgefeuerten Kugeln - die ist rund 27-mal hoeher
+      // und hat beim ersten Anlauf zu einem Fass gefuehrt, das 24 Sekunden stand.
+      const trefferJeSekunde = 3.3
+      expect(getFassTreffer() / trefferJeSekunde).toBeGreaterThan(3)
+      expect(getFassTreffer() / trefferJeSekunde).toBeLessThan(12)
     })
 
     it('liefert die Inhalte in fester Reihenfolge, die Waffen aufsteigend nach Staerke', () => {

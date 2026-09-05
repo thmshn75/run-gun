@@ -1138,19 +1138,21 @@ export const BALANCE = {
     // 20 Faesser, also mehrere volle Zyklen beider Bahnen.
     gegnerphaseSec: 90,
     tor: {
-      // DIE ENTSCHEIDENDE GROESSE. Der Zaehler auf dem Tor ist eine FIGURENZAHL, keine
-      // Lebenspunkte - er ist beim Durchfahren wortwoertlich die Aenderung der Truppe.
-      // Treffer duerfen ihn deshalb nicht 1:1 hochzaehlen: Bei der Testgelaende-Truppe
-      // (30 Figuren) und rund 5 Schuss/s kommen je nach Waffe 40-50 Treffer je Sekunde
-      // an der Kachel an (walls.wallHitShare, gemessen 12-46 %), ein "-12" waere in
-      // einer Viertelsekunde weg und die Frage "schaffe ich die Null noch?" nie eine.
+      // EIN TREFFER IST EIN PUNKT (Thomas 2026-09-05: "jeder treffer eine punkt +").
       //
-      // GERECHNET: schadenProPunkt = dpsAnDerKachel / punkteProSek. Bei 6 Punkten je
-      // Sekunde braucht ein Tor mit -12 rund 2,0 s konzentriertes Feuer bis zur Null -
-      // lang genug fuer eine echte Entscheidung, kurz genug, dass es zwischen zwei
-      // Horden passt. Der Wert skaliert automatisch mit Waffe, Truppe und Level, weil
-      // dpsAnDerKachel aus wallPlan stammt.
-      punkteProSek: 6,
+      // Der erste Anlauf rechnete den Zaehler aus dem SCHADEN (schadenProPunkt), damit
+      // ein Tor rund zwei Sekunden bis zur Null braucht. Das ist gestrichen: Thomas will
+      // die Kopplung des Vorbilds - eine Kugel, ein Punkt, sichtbar mitzaehlend.
+      //
+      // WAS DAS KOSTET, damit es niemand spaeter fuer einen Fehler haelt: Die Truppe
+      // schiesst im Testgelaende mit 30 Figuren rund 90 Kugeln je Sekunde. Ein Tor mit
+      // -12 ist damit in einem Sekundenbruchteil auf Null, wenn die ganze Truppe
+      // draufhaelt. Die Entscheidung liegt dann nicht mehr in "schaffe ich die Null
+      // noch?", sondern in "schiesse ich ueberhaupt nach rechts oder nach links?" -
+      // und genau diese Frage stellt der Versuch. Die gemessene Zeit steht in
+      // docs/active-task.md; ist sie Thomas zu kurz, gibt es zwei Stellschrauben:
+      // groessere Startzahlen (dann ist auch die Strafe groesser) oder wieder die
+      // Kopplung an den Schaden.
       // Startwert (als Betrag; das Tor zeigt ihn negativ). 8-18 sind 27-60 % der
       // Testgelaende-Truppe: spuerbar, aber nie toedlich - und die Spanne sorgt dafuer,
       // dass nicht jedes Tor dieselbe Antwort hat.
@@ -1163,10 +1165,16 @@ export const BALANCE = {
       // 145 px/s) sind das 3,9 s - dazwischen ist die rechte Bahn frei fuer Gegner
       // ("die Waende kommen zwischen den Gegnern - nicht laufend", Thomas).
       abstandPx: 560,
-      // Anteil der RECHTEN Fahrbahnhaelfte, den das Tor einnimmt. 0,62 ist breit genug,
-      // dass Durchfahren eine Entscheidung ist, und laesst rechts wie links genug Platz
-      // zum Vorbeisteuern.
-      breiteShare: 0.62,
+      // WIE BREIT das Tor ist, als Anteil der halben Spielfeldbreite (Thomas 2026-09-05:
+      // "etwas weiter nach rechts und breiter"). 0,80 statt der ersten 0,62.
+      // Zusammen mit bahnAnteil 0,58 endet die Aussenkante bei 0,58 + 0,40 = 0,98 der
+      // halben Spielfeldbreite, also knapp INNERHALB der Strasse - ein Tor, das ueber
+      // den Rand ragt, koennte man nicht mehr rechts umfahren.
+      breiteShare: 0.8,
+      // WO die Mitte des Tores liegt, als Anteil der halben Spielfeldbreite rechts der
+      // Strassenmitte. 0,58 statt der ersten 0,50: weiter nach rechts, damit zwischen
+      // Tor und Strassenmitte Platz zum Durchfahren bleibt.
+      bahnAnteil: 0.58,
       // Hoehe in Weltpixeln, etwas hoeher als eine heutige Wandkachel (72), damit die
       // grosse Zahl darauf auch am Horizont noch lesbar ist.
       hoehePx: 84,
@@ -1176,11 +1184,25 @@ export const BALANCE = {
       // Truppe (die sitzt bei rund 0,85) und damit im Feuerbereich, aber weit genug weg,
       // dass man es kommen sieht und sich entscheiden kann.
       haltYShare: 0.58,
-      // Zielzeit konzentrierten Feuers bis das Fass faellt. Deutlich laenger als eine
-      // heutige Wandkachel (0,3-0,6 s): Das Fass ist das EINZIGE Ziel der linken Bahn,
-      // es steht nicht in einer Kette, und es soll die Zeit kosten, die man dann nicht
-      // auf der rechten Bahn hat.
-      fokusSec: 2.5,
+      // WIE VIELE TREFFER ein Fass aushaelt (Thomas 2026-09-05: "zerschiessen jeder
+      // treffer ein punkt"). Auch hier zaehlt die Kugel, nicht der Schaden - dieselbe
+      // Aenderung wie beim Tor, damit beide Bahnen gleich zu lesen sind.
+      //
+      // ZWANZIG, UND DIE ZAHL IST GEMESSEN, nicht aus der Salve gerechnet. Der erste
+      // Anlauf setzte 90 - abgeleitet aus den rund 90 Kugeln, die die Testgelaende-Truppe
+      // je Sekunde abfeuert. IM SPIEL KOMMT DAVON EIN BRUCHTEIL AN: Am Tor wurden 5
+      // Treffer in 1,5 s gezaehlt, also 3,3 je Sekunde, weil nur die Kugeln zaehlen, die
+      // zufaellig in der Spur des Objekts liegen. Mit 90 stand ein Fass 24,5 Sekunden -
+      // man kam in einer ganzen Gegnerphase an kaum eine Waffe.
+      //
+      // 20 Treffer sind bei dieser Rate rund 6 Sekunden, wenn die Truppe mittig steht und
+      // nur nebenbei trifft, und deutlich weniger, sobald man nach links steuert. Genau
+      // das ist der Zielkonflikt: Wer die Waffe will, muss hinfahren.
+      treffer: 20,
+      // WO das Fass steht, als Anteil der halben Spielfeldbreite links der Mitte
+      // (Thomas 2026-09-05: "die faesser gehoeren weiter nach links"). 0,68 statt 0,50 -
+      // dahinter beginnt der Strassenrand.
+      bahnAnteil: 0.68,
       // Wie viele heutige Tore ein Fass wert ist (walls.gatesPerLevelStep = 16 Tore je
       // Levelsprung). Zwoelf heisst: drei Viertel eines Levelsprungs je Fass.
       //
