@@ -15,11 +15,25 @@ export type FassInhalt = 'weapon' | 'damage' | 'rate'
 // REINE RECHENLOGIK - ohne Phaser, damit sie ohne Renderer pruefbar ist.
 // ---------------------------------------------------------------------------
 
-/** Startwert eines Tores. Immer negativ; `zufall` ist eine Zahl in [0, 1). */
-export function getTorStartwert(zufall: number): number {
-  const { startMin, startMax } = BALANCE.versuch.tor
-  const spanne = startMax - startMin
-  return -(startMin + Math.floor(Math.min(Math.max(zufall, 0), 0.9999999999999999) * (spanne + 1)))
+/**
+ * Startwert eines Tores - immer negativ, und als ANTEIL DER TRUPPE gerechnet
+ * (Thomas 2026-09-05: "man muss das halt dann an die teamgroesse und schwierigkeit
+ * anpassen"). `zufall` ist eine Zahl in [0, 1).
+ *
+ * Weil die Trefferrate ebenfalls mit der Truppe waechst, bleibt die Zeit bis zur Null
+ * dabei konstant; was waechst, ist der Einsatz. Herleitung bei BALANCE.versuch.tor.
+ */
+export function getTorStartwert(zufall: number, truppe: number): number {
+  const { startAnteilMin, startAnteilMax, startMindest } = BALANCE.versuch.tor
+  const sicher = Math.min(Math.max(zufall, 0), 0.9999999999999999)
+  const anteil = startAnteilMin + sicher * (startAnteilMax - startAnteilMin)
+  return -Math.max(startMindest, Math.round(anteil * Math.max(1, truppe)))
+}
+
+/** Wie weit ein Tor ins Plus laufen kann - ebenfalls an der Truppe gemessen. */
+export function getTorPlusDeckel(truppe: number): number {
+  const { plusAnteil, plusMindest } = BALANCE.versuch.tor
+  return Math.max(plusMindest, Math.round(plusAnteil * Math.max(1, truppe)))
 }
 
 /**
@@ -31,8 +45,8 @@ export function getTorStartwert(zufall: number): number {
  * er bei plusMax - ohne diesen Deckel waere Draufhalten bis zum Anflug immer richtig
  * und die Entscheidung wieder weg.
  */
-export function getTorStand(startwert: number, treffer: number): number {
-  return Math.min(BALANCE.versuch.tor.plusMax, startwert + Math.max(0, Math.floor(treffer)))
+export function getTorStand(startwert: number, treffer: number, truppe: number): number {
+  return Math.min(getTorPlusDeckel(truppe), startwert + Math.max(0, Math.floor(treffer)))
 }
 
 /**
@@ -61,8 +75,10 @@ export function haeltJetzt(centerY: number, halteY: number, haeltSchon: boolean)
  * (Thomas 2026-09-05: "zerschiessen jeder treffer ein punkt"). Eine feste Zahl also,
  * keine aus der Feuerkraft abgeleitete: Genau darin besteht die Aenderung.
  */
-export function getFassTreffer(): number {
-  return Math.max(1, Math.round(BALANCE.versuch.fass.treffer))
+export function getFassTreffer(truppe: number, schussProSek: number): number {
+  const { zielSekunden, trefferJeFigurUndSchuss, trefferMindest } = BALANCE.versuch.fass
+  const trefferProSek = Math.max(1, truppe) * Math.max(0.1, schussProSek) * trefferJeFigurUndSchuss
+  return Math.max(trefferMindest, Math.round(trefferProSek * zielSekunden))
 }
 
 /**

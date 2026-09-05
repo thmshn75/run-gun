@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { HUD_COLORS } from '../config/colors'
-import { advanceAlongRoad, getPlayfieldHalfWidth, getRoadScale, getRoadSegment } from './road'
+import { advanceAlongRoad, getRoadHalfWidth, getRoadScale, getRoadSegment } from './road'
 import { getCurrentScrollSpeed } from './speed'
 import {
   VERSUCH_WAFFENREIHE,
@@ -89,6 +89,8 @@ type FassZustand = {
 
 export class VersuchBahnen implements BahnSystem {
   private readonly scene: Phaser.Scene
+  private readonly getTeamSize: () => number
+  private readonly getShotsPerSec: () => number
   private readonly rng: () => number
   private readonly applyReinforcement: (apply: (current: number) => number) => void
   private readonly applyFassGate: (stat: 'damage' | 'rate', schritte: number, x: number, y: number) => void
@@ -108,11 +110,15 @@ export class VersuchBahnen implements BahnSystem {
 
   public constructor(
     scene: Phaser.Scene,
+    getTeamSize: () => number,
+    getShotsPerSec: () => number,
     rng: () => number,
     applyReinforcement: (apply: (current: number) => number) => void,
     applyFassGate: (stat: 'damage' | 'rate', schritte: number, x: number, y: number) => void,
   ) {
     this.scene = scene
+    this.getTeamSize = getTeamSize
+    this.getShotsPerSec = getShotsPerSec
     this.rng = rng
     this.applyReinforcement = applyReinforcement
     this.applyFassGate = applyFassGate
@@ -197,7 +203,7 @@ export class VersuchBahnen implements BahnSystem {
   public collectPickup(wall: Phaser.Physics.Arcade.Image): number {
     const tor = this.torZuObjekt.get(wall)
     if (tor === undefined || !tor.aktiv) return 0
-    const stand = getTorStand(tor.startwert, tor.treffer)
+    const stand = getTorStand(tor.startwert, tor.treffer, this.getTeamSize())
     this.applyReinforcement((current) => getTruppeNachTor(current, stand))
     this.recycleTor(tor)
     return stand
@@ -263,7 +269,7 @@ export class VersuchBahnen implements BahnSystem {
       if (!tor.aktiv) continue
       tor.anchorY = advanceAlongRoad(this.scene.scale.width, this.scene.scale.height, tor.anchorY, movement)
       const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, tor.anchorY, BALANCE.versuch.tor.hoehePx)
-      const geometrie = this.bahnGeometrie('right', segment.centerY, BALANCE.versuch.tor.breiteShare)
+      const geometrie = this.torGeometrie(segment.centerY)
       tor.bild.setPosition(geometrie.x, segment.centerY).setDisplaySize(geometrie.breite, segment.height)
       ;(tor.bild.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       const alpha = Math.min(1, Math.max(0, (segment.centerY - segment.height / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
@@ -279,10 +285,10 @@ export class VersuchBahnen implements BahnSystem {
     if (tor === undefined) return
     tor.aktiv = true
     tor.anchorY = BALANCE.road.horizonY
-    tor.startwert = getTorStartwert(this.rng())
+    tor.startwert = getTorStartwert(this.rng(), this.getTeamSize())
     tor.treffer = 0
     const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, tor.anchorY, BALANCE.versuch.tor.hoehePx)
-    const geometrie = this.bahnGeometrie('right', segment.centerY, BALANCE.versuch.tor.breiteShare)
+    const geometrie = this.torGeometrie(segment.centerY)
     tor.bild.enableBody(true, geometrie.x, segment.centerY, true, true)
     tor.bild.setDisplaySize(geometrie.breite, segment.height).setActive(true).setVisible(true).setAlpha(0)
     const body = tor.bild.body as Phaser.Physics.Arcade.Body
@@ -299,7 +305,7 @@ export class VersuchBahnen implements BahnSystem {
    * gedreht ist, muss man das sehen, sonst faehrt man an der eigenen Arbeit vorbei.
    */
   private beschrifteTor(tor: TorZustand): void {
-    const stand = getTorStand(tor.startwert, tor.treffer)
+    const stand = getTorStand(tor.startwert, tor.treffer, this.getTeamSize())
     tor.label.setText(stand > 0 ? `+${stand}` : `${stand}`)
     tor.label.setColor(stand > 0 ? '#3ddc84' : '#ff6b6b')
     tor.bild.setTexture(stand > 0 ? 'wall-segment-right' : 'wall-segment-bad')
@@ -349,8 +355,10 @@ export class VersuchBahnen implements BahnSystem {
     // Abgang Platz macht, kam nie wieder ein Fass. Gemessen: ein einziges Fass in 20 s,
     // danach Stillstand der ganzen linken Bahn.
     if (!this.fass.zerschossen) this.fass.haelt = haeltJetzt(segment.centerY, halteY, this.fass.haelt)
-    const geometrie = this.bahnGeometrie('left', segment.centerY, 1)
-    const groesse = Math.min(segment.height, geometrie.breite)
+    // Die Groesse zuerst: Sie bestimmt, wo die Mitte liegen muss, damit die Aussenkante
+    // am Strassenrand sitzt.
+    const groesse = segment.height
+    const geometrie = this.fassGeometrie(segment.centerY, groesse)
     // Eingeblendet statt aufgeploppt: Ein Fass, das aus dem Nichts mitten auf der
     // Strasse steht, liest sich als Fehler. Ueber die gefahrene Strecke, nicht ueber
     // eine Zeitkonstante - dieselbe Regel wie bei der Drehung.
@@ -375,7 +383,7 @@ export class VersuchBahnen implements BahnSystem {
 
   private spawneFass(): void {
     const inhalt = getFassInhalt(this.fassIndex)
-    const hp = getFassTreffer()
+    const hp = getFassTreffer(this.getTeamSize(), this.getShotsPerSec())
     this.fass.aktiv = true
     this.fass.haelt = false
     this.fass.zerschossen = false
@@ -389,7 +397,7 @@ export class VersuchBahnen implements BahnSystem {
     this.fass.anchorY = this.scene.scale.height * BALANCE.versuch.fass.haltYShare
     this.fassEinblendPx = 0
     const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, this.fass.anchorY, BALANCE.versuch.fass.groessePx)
-    const geometrie = this.bahnGeometrie('left', segment.centerY, 1)
+    const geometrie = this.fassGeometrie(segment.centerY, segment.height)
     this.fass.bild.enableBody(true, geometrie.x, segment.centerY, true, true)
     this.fass.bild.setActive(true).setVisible(true).setAlpha(0)
     const body = this.fass.bild.body as Phaser.Physics.Arcade.Body
@@ -479,12 +487,29 @@ export class VersuchBahnen implements BahnSystem {
    * Mitte und Breite einer FAHRBAHNHAELFTE auf Hoehe y - nicht der Wandzone am Rand.
    * Der Versuch teilt die Strasse in zwei Haelften, statt an ihren Raendern zu bauen.
    */
-  private bahnGeometrie(seite: 'left' | 'right', y: number, breiteShare: number): { x: number; breite: number } {
-    const spielfeldHalb = getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
-    const anteil = seite === 'left' ? -BALANCE.versuch.fass.bahnAnteil : BALANCE.versuch.tor.bahnAnteil
-    return {
-      x: this.scene.scale.width / 2 + anteil * spielfeldHalb,
-      breite: spielfeldHalb * breiteShare,
-    }
+  /**
+   * Beide Bahnen liegen jetzt AM STRASSENRAND, nicht auf einem Anteil dazwischen
+   * (Thomas 2026-09-05: Faesser "am linken rand, nur ein kleiner spalt", Tore "nach
+   * rechts breiter").
+   *
+   * Bezug ist die volle Strassenbreite, nicht die um die Wandzone gekuerzte
+   * Spielfeldbreite: Im Versuch gibt es keine Randwaende, die Zone waere hier nur eine
+   * geerbte Sperre, die beide Bahnen unnoetig nach innen draengt.
+   */
+  private fassGeometrie(y: number, groesse: number): { x: number } {
+    const strasseHalb = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
+    const massstab = getRoadScale(this.scene.scale.width, this.scene.scale.height, y)
+    // Vom Rand her gerechnet: Aussenkante = Rand minus Spalt, daraus die Mitte.
+    const spalt = BALANCE.versuch.fass.randSpaltPx * massstab
+    return { x: this.scene.scale.width / 2 - (strasseHalb - spalt - groesse / 2) }
+  }
+
+  private torGeometrie(y: number): { x: number; breite: number } {
+    const strasseHalb = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
+    const massstab = getRoadScale(this.scene.scale.width, this.scene.scale.height, y)
+    const spalt = BALANCE.versuch.tor.randSpaltPx * massstab
+    const innen = strasseHalb * BALANCE.versuch.tor.innenkanteAnteil
+    const aussen = strasseHalb - spalt
+    return { x: this.scene.scale.width / 2 + (innen + aussen) / 2, breite: Math.max(8, aussen - innen) }
   }
 }

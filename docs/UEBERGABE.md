@@ -513,6 +513,11 @@ die drei behobenen Fehler stehen in `docs/active-task.md`.
 **Regel, die dabei entstanden ist:** Versuche laufen ab jetzt ausschliesslich im
 Testgelaende, bis Thomas sein Go gibt (`docs/lessons.md`, 2026-09-05).
 
+**Vorgemerkt aus dem Bahnversuch (Thomas 2026-09-05, ausdruecklich "nur zur Info"):**
+Am Anfang eines Levels sollen weniger Gegner kommen, besonders im ersten Level. Das
+gehoert in den ECHTEN Run, nicht in den Versuch, und beruehrt die abgenommene
+Level-1-Balance - erst nach eigener Beauftragung anfassen.
+
 **Aelteres, weiter offen:**
 
 0a. ~~Wandlogik aus dem Genre-Vorbild besprechen~~ — **beantwortet am 2026-09-05**:

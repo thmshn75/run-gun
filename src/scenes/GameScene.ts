@@ -728,6 +728,8 @@ export class GameScene extends Phaser.Scene {
   private baueVersuchsBahnen(): BahnSystem {
     return new VersuchBahnen(
       this,
+      () => this.runStats.get('hp'),
+      () => this.runStats.get('shotsPerSec'),
       () => Phaser.Math.RND.frac(),
       (apply) => {
         const before = this.runStats.get('hp')

@@ -1153,28 +1153,48 @@ export const BALANCE = {
       // docs/active-task.md; ist sie Thomas zu kurz, gibt es zwei Stellschrauben:
       // groessere Startzahlen (dann ist auch die Strafe groesser) oder wieder die
       // Kopplung an den Schaden.
-      // Startwert (als Betrag; das Tor zeigt ihn negativ). 8-18 sind 27-60 % der
-      // Testgelaende-Truppe: spuerbar, aber nie toedlich - und die Spanne sorgt dafuer,
-      // dass nicht jedes Tor dieselbe Antwort hat.
-      startMin: 8,
-      startMax: 18,
+      // STARTWERT ALS ANTEIL DER TRUPPE, nicht als feste Zahl (Thomas 2026-09-05: "man
+      // muss das halt dann an die teamgroesse und schwierigkeit anpassen").
+      //
+      // WARUM DAS AUCH DIE ZEIT LOEST: Die Trefferrate an einem Objekt der Seitenbahn
+      // waechst mit der Truppe (gemessen 3,3 Treffer/s bei 30 Figuren und Rate 3,0, also
+      // rund 0,037 je Figur und Schuss). Waechst der Startwert im selben Mass, kuerzt
+      // sich die Truppengroesse aus der Rechnung heraus: Die Zeit bis zur Null bleibt
+      // konstant bei rund 0,40 / (0,037 x Rate) = 3,6 s, egal ob 5 oder 100 Figuren
+      // dastehen. Was mit der Truppe waechst, ist der EINSATZ - und genau das soll es.
+      //
+      // 0,25 bis 0,55 der Truppe: spuerbar, aber nie toedlich. Bei 30 Figuren sind das
+      // 8 bis 17 (dieselbe Spanne wie die vorher fest gesetzten 8-18), bei 100 Figuren
+      // 25 bis 55.
+      startAnteilMin: 0.25,
+      startAnteilMax: 0.55,
+      // Untergrenze in Figuren: Bei einer kleinen Truppe waere jeder Anteil unter 1
+      // gerundet null, und das Tor traege gar keine Zahl mehr.
+      startMindest: 3,
       // Ueber Null laeuft der Zaehler weiter, aber nicht endlos: Ohne Deckel waere
       // Draufhalten bis zum Anflug immer richtig und die Entscheidung wieder weg.
-      plusMax: 10,
+      // Auch das ein Anteil der Truppe - ein fester Deckel waere bei 100 Figuren
+      // bedeutungslos und bei 5 Figuren eine Verdopplung.
+      plusAnteil: 0.33,
+      plusMindest: 3,
       // Abstand zweier Tore in Weltpixeln. Bei Testgelaende-Tempo (Level 5, rund
       // 145 px/s) sind das 3,9 s - dazwischen ist die rechte Bahn frei fuer Gegner
       // ("die Waende kommen zwischen den Gegnern - nicht laufend", Thomas).
       abstandPx: 560,
-      // WIE BREIT das Tor ist, als Anteil der halben Spielfeldbreite (Thomas 2026-09-05:
-      // "etwas weiter nach rechts und breiter"). 0,80 statt der ersten 0,62.
-      // Zusammen mit bahnAnteil 0,58 endet die Aussenkante bei 0,58 + 0,40 = 0,98 der
-      // halben Spielfeldbreite, also knapp INNERHALB der Strasse - ein Tor, das ueber
-      // den Rand ragt, koennte man nicht mehr rechts umfahren.
-      breiteShare: 0.8,
-      // WO die Mitte des Tores liegt, als Anteil der halben Spielfeldbreite rechts der
-      // Strassenmitte. 0,58 statt der ersten 0,50: weiter nach rechts, damit zwischen
-      // Tor und Strassenmitte Platz zum Durchfahren bleibt.
-      bahnAnteil: 0.58,
+      // DAS TOR REICHT BIS AN DEN RECHTEN STRASSENRAND (Thomas 2026-09-05: "die Waende
+      // breiter machen - nach rechts breiter"). Beschrieben wird jetzt seine INNENKANTE
+      // statt Mitte und Breite: Die Aussenkante steht fest am Rand, nur nach innen
+      // waechst das Tor.
+      //
+      // 0,15 der halben Strassenbreite heisst: Das Tor beginnt knapp rechts der
+      // Mittellinie und reicht bis zum Rand, ist also rund 0,85 der halben Strasse
+      // breit - vorher waren es 0,53. Links davon bleiben 1,15 halbe Strassenbreiten
+      // zum Ausweichen, mehr als genug fuer die Truppe.
+      innenkanteAnteil: 0.15,
+      // Spalt zwischen Toraussenkante und Strassenrand, in Pixeln auf Kampfhoehe. Ohne
+      // ihn sitzt das Tor auf der Randmarkierung und sieht aus, als gehoere es zur
+      // Kulisse statt zur Fahrbahn.
+      randSpaltPx: 4,
       // Hoehe in Weltpixeln, etwas hoeher als eine heutige Wandkachel (72), damit die
       // grosse Zahl darauf auch am Horizont noch lesbar ist.
       hoehePx: 84,
@@ -1188,21 +1208,30 @@ export const BALANCE = {
       // treffer ein punkt"). Auch hier zaehlt die Kugel, nicht der Schaden - dieselbe
       // Aenderung wie beim Tor, damit beide Bahnen gleich zu lesen sind.
       //
-      // ZWANZIG, UND DIE ZAHL IST GEMESSEN, nicht aus der Salve gerechnet. Der erste
-      // Anlauf setzte 90 - abgeleitet aus den rund 90 Kugeln, die die Testgelaende-Truppe
-      // je Sekunde abfeuert. IM SPIEL KOMMT DAVON EIN BRUCHTEIL AN: Am Tor wurden 5
-      // Treffer in 1,5 s gezaehlt, also 3,3 je Sekunde, weil nur die Kugeln zaehlen, die
-      // zufaellig in der Spur des Objekts liegen. Mit 90 stand ein Fass 24,5 Sekunden -
-      // man kam in einer ganzen Gegnerphase an kaum eine Waffe.
+      // WIE LANGE ein Fass stehen soll, wenn die Truppe mittig steht und nur nebenbei
+      // trifft. Daraus wird die Trefferzahl gerechnet - sie ist damit an Truppengroesse
+      // und Feuerrate gekoppelt (Thomas 2026-09-05: "an die teamgroesse und
+      // schwierigkeit anpassen").
       //
-      // 20 Treffer sind bei dieser Rate rund 6 Sekunden, wenn die Truppe mittig steht und
-      // nur nebenbei trifft, und deutlich weniger, sobald man nach links steuert. Genau
-      // das ist der Zielkonflikt: Wer die Waffe will, muss hinfahren.
-      treffer: 20,
-      // WO das Fass steht, als Anteil der halben Spielfeldbreite links der Mitte
-      // (Thomas 2026-09-05: "die faesser gehoeren weiter nach links"). 0,68 statt 0,50 -
-      // dahinter beginnt der Strassenrand.
-      bahnAnteil: 0.68,
+      // GEMESSENE GRUNDLAGE: An einem Objekt der Seitenbahn kamen 3,3 Treffer je Sekunde
+      // an, bei 30 Figuren und Rate 3,0. Das sind 3,3 / (30 x 3,0) = 0,037 Treffer je
+      // Figur, Schuss und Sekunde - der Rest der rund 90 abgefeuerten Kugeln fliegt
+      // daneben. Ein erster Anlauf setzte die Trefferzahl auf eben diese 90 und liess
+      // ein Fass 24,5 Sekunden stehen.
+      //
+      // 6 Sekunden ergeben bei der Testgelaende-Truppe 20 Treffer - der Wert, der zuletzt
+      // gemessen 6,2 s stand. Bei doppelter Truppe verdoppelt sich die Trefferzahl, die
+      // Zeit bleibt.
+      zielSekunden: 6,
+      trefferJeFigurUndSchuss: 0.037,
+      // Untergrenze, damit ein Fass nie mit einer einzigen Kugel faellt.
+      trefferMindest: 5,
+      // DAS FASS STEHT AM LINKEN STRASSENRAND (Thomas 2026-09-05: "noch weiter links, am
+      // linken rand, nur ein kleiner spalt"). Es wird deshalb nicht mehr ueber einen
+      // Anteil gesetzt, sondern vom Rand her: Aussenkante gleich Strassenrand minus
+      // diesem Spalt in Pixeln auf Kampfhoehe. So bleibt es am Rand, egal wie breit die
+      // Strasse auf der jeweiligen Hoehe gerade ist.
+      randSpaltPx: 6,
       // Wie viele heutige Tore ein Fass wert ist (walls.gatesPerLevelStep = 16 Tore je
       // Levelsprung). Zwoelf heisst: drei Viertel eines Levelsprungs je Fass.
       //
@@ -1217,14 +1246,15 @@ export const BALANCE = {
       // rund ein Fuenftel mehr Feuerkraft - spuerbar, ohne den gemessenen Deckel
       // (meta.totalBoostCap) sofort zu erreichen, der ohnehin greift.
       torSchritte: 12,
-      // Durchmesser des Fasses in Weltpixeln.
-      groessePx: 96,
-      // Umfang = pi x Durchmesser = 3,1416 x 96 = 301,6. GEBRAUCHT WIRD ER FUER DIE
+      // Durchmesser des Fasses in Weltpixeln. 96 -> 106 (Thomas 2026-09-05: "um 10 %
+      // groesser machen").
+      groessePx: 106,
+      // Umfang = pi x Durchmesser = 3,1416 x 106 = 333. GEBRAUCHT WIRD ER FUER DIE
       // DREHUNG: Das Fass steht still, weil es gegen die Strasse anrollt (Thomas
       // 2026-09-05: "Faesser die sich gegengleich zur Strasse drehen, dann bleiben sie
       // logischerweise am Platz stehen"). Ein voller Umlauf je Umfang gefahrener
       // Strecke ist die einzige Rate, bei der das Muster nicht sichtbar rutscht.
-      umfangPx: 302,
+      umfangPx: 333,
       // Bilder je Umlauf in der Rollbildfolge (barrel-roll-1..8).
       bilder: 8,
       // Ueber wie viele gefahrene Pixel ein neues Fass einblendet. 60 px sind bei

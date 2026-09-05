@@ -227,6 +227,38 @@ liegen. Mit 90 stand ein Fass 24,5 Sekunden. Auf 20 gesenkt.
 ohne aktives Hinsteuern, alle acht Rollbilder werden durchlaufen, Inhaltsreihenfolge
 (Waffe, DMG, RATE) haelt.
 
+
+## Nachtrag 2026-09-05, dritte Runde (Thomas' Korrekturen)
+
+1. **Fass am linken Strassenrand**, nur ein Spalt von 6 px dazwischen, und 10 % groesser
+   (Durchmesser 96 -> 106). Beide Bahnen werden jetzt VOM RAND HER gerechnet statt ueber
+   einen Anteil, und sie beziehen sich auf die volle Strassenbreite statt auf die um die
+   Wandzone gekuerzte Spielfeldbreite - im Versuch gibt es keine Randwaende, die Zone
+   waere hier nur eine geerbte Sperre.
+2. **Tor bis an den rechten Strassenrand.** Beschrieben wird jetzt seine Innenkante
+   (0,15 der halben Strassenbreite); die Aussenkante steht fest am Rand. Gemessen bei
+   390 px Bildbreite: Torbreite 112 px statt 54 px, rechte Kante 11 px vor dem Rand.
+3. **Startwert und Fasshaerte haengen an der Truppengroesse** (Thomas: "man muss das halt
+   dann an die teamgroesse und schwierigkeit anpassen"). Der Torstartwert ist ein Anteil
+   der Truppe (25-55 %), die Fasshaerte kommt aus Truppe x Feuerrate x der gemessenen
+   Trefferquote 0,037. **Die Zeit bleibt dabei konstant, der Einsatz waechst:** Weil die
+   Trefferrate linear mit der Truppe steigt, kuerzt sich die Truppengroesse aus der Zeit
+   heraus.
+
+**Was die Randlage veraendert hat - gemessen:** Vorher fiel das Fass nebenbei (6,2 s bei
+mittiger Truppe). Jetzt steht es bei mittiger Truppe **24 Sekunden unberuehrt**, weil
+keine Kugel mehr dorthin faellt - und ist **in 1,0 Sekunde weg, sobald die Truppe
+hinfaehrt**. Das ist der Zielkonflikt in Reinform: Die linke Bahn kostet jetzt einen
+echten Bahnwechsel, keinen Streifschuss mehr. Ob eine Sekunde am Fass zu kurz ist,
+entscheidet Thomas am Geraet.
+
+## Vorgemerkt, nicht umgesetzt (Thomas 2026-09-05, "das nur zur Info")
+
+**Am Anfang eines Levels sollen weniger Gegner kommen, besonders im ersten Level.**
+Ausdruecklich als Hinweis gegeben, nicht als Auftrag - gehoert in den echten Run, nicht
+in den Testgelaende-Versuch, und beruehrt die abgenommene Level-1-Balance
+(`enemy.spawnBands`, Leveltabelle). Erst nach eigener Beauftragung anfassen.
+
 ---
 
 ## Wo die Historie steht

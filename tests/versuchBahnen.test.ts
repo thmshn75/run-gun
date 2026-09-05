@@ -8,6 +8,7 @@ import {
   getFassWaffe,
   getRollBild,
   getRollUmfang,
+  getTorPlusDeckel,
   getTorStand,
   getTorStartwert,
   getTruppeNachTor,
@@ -51,45 +52,67 @@ describe('Versuch Zwei Bahnen', () => {
   })
 
   describe('Minus-Tore rechts', () => {
-    it('startet immer im Minus und innerhalb des Bandes', () => {
+    it('startet immer im Minus, im Anteilsband der Truppe', () => {
+      const truppe = BALANCE.testground.truppe
       for (const zufall of [0, 0.25, 0.5, 0.75, 0.9999]) {
-        const start = getTorStartwert(zufall)
+        const start = getTorStartwert(zufall, truppe)
         expect(start).toBeLessThan(0)
-        expect(Math.abs(start)).toBeGreaterThanOrEqual(BALANCE.versuch.tor.startMin)
-        expect(Math.abs(start)).toBeLessThanOrEqual(BALANCE.versuch.tor.startMax)
+        expect(Math.abs(start)).toBeGreaterThanOrEqual(Math.round(BALANCE.versuch.tor.startAnteilMin * truppe))
+        expect(Math.abs(start)).toBeLessThanOrEqual(Math.round(BALANCE.versuch.tor.startAnteilMax * truppe))
       }
       // Die Spanne wird auch wirklich ausgeschoepft - sonst haette jedes Tor dieselbe
       // Antwort und die Frage "schaffe ich die Null noch?" waere auswendig gelernt.
-      const werte = new Set(Array.from({ length: 200 }, (_, i) => getTorStartwert(i / 200)))
+      const werte = new Set(Array.from({ length: 200 }, (_, i) => getTorStartwert(i / 200, truppe)))
       expect(werte.size).toBeGreaterThan(5)
+    })
+
+    it('waechst mit der Truppe, ohne dass die Zeit bis zur Null waechst', () => {
+      // DAS IST DER PUNKT DER ANTEILSRECHNUNG (Thomas: "an die teamgroesse anpassen"):
+      // Trefferrate UND Startwert haengen beide linear an der Truppe, also kuerzt sie
+      // sich aus der Zeit heraus. Was waechst, ist der Einsatz - nicht die Wartezeit.
+      const rate = BALANCE.stats.shotsPerSec.base
+      const sekunden = (truppe: number) => {
+        const start = Math.abs(getTorStartwert(0.5, truppe))
+        const trefferProSek = truppe * rate * BALANCE.versuch.fass.trefferJeFigurUndSchuss
+        return start / trefferProSek
+      }
+      expect(getTorStartwert(0.5, 100)).toBeLessThan(getTorStartwert(0.5, 30))
+      expect(Math.abs(sekunden(100) - sekunden(30))).toBeLessThan(0.3)
     })
 
     it('zaehlt EINEN Punkt je Treffer, ueber Null hinaus, und stoppt am Deckel', () => {
       // Thomas 2026-09-05: "jeder treffer eine punkt +". Kein Schaden, keine Umrechnung.
-      expect(getTorStand(-12, 0)).toBe(-12)
-      expect(getTorStand(-12, 5)).toBe(-7)
-      expect(getTorStand(-12, 12)).toBe(0)
-      expect(getTorStand(-12, 15)).toBe(3)
-      expect(getTorStand(-12, 1e9)).toBe(BALANCE.versuch.tor.plusMax)
+      const truppe = BALANCE.testground.truppe
+      expect(getTorStand(-12, 0, truppe)).toBe(-12)
+      expect(getTorStand(-12, 5, truppe)).toBe(-7)
+      expect(getTorStand(-12, 12, truppe)).toBe(0)
+      expect(getTorStand(-12, 15, truppe)).toBe(3)
+      expect(getTorStand(-12, 1e9, truppe)).toBe(getTorPlusDeckel(truppe))
+      // Auch der Deckel haengt an der Truppe: Ein fester waere bei 100 Figuren
+      // bedeutungslos und bei 5 Figuren eine Verdopplung.
+      expect(getTorPlusDeckel(100)).toBeGreaterThan(getTorPlusDeckel(30))
+      expect(getTorPlusDeckel(1)).toBeGreaterThanOrEqual(BALANCE.versuch.tor.plusMindest)
     })
 
     it('faellt nie unter den Startwert und nie ueber den Deckel', () => {
       for (let i = 0; i < 500; i += 1) {
-        const start = getTorStartwert(i / 500)
-        const stand = getTorStand(start, i % 37)
+        const truppe = 1 + (i % 120)
+        const start = getTorStartwert(i / 500, truppe)
+        const stand = getTorStand(start, i % 37, truppe)
         expect(stand).toBeGreaterThanOrEqual(start)
-        expect(stand).toBeLessThanOrEqual(BALANCE.versuch.tor.plusMax)
+        expect(stand).toBeLessThanOrEqual(getTorPlusDeckel(truppe))
       }
     })
 
     it('ist mit genau so vielen Treffern auf Null, wie draufsteht', () => {
       // Die Zusage der neuen Kopplung: Was auf dem Tor steht, ist zugleich die Zahl der
       // Kugeln bis zur Null - keine verborgene Umrechnung dazwischen.
+      const truppe = BALANCE.testground.truppe
       for (const zufall of [0, 0.4, 0.9999]) {
-        const start = getTorStartwert(zufall)
-        expect(getTorStand(start, Math.abs(start) - 1)).toBe(-1)
-        expect(getTorStand(start, Math.abs(start))).toBe(0)
-        expect(getTorStand(start, Math.abs(start) + 1)).toBe(1)
+        const start = getTorStartwert(zufall, truppe)
+        expect(getTorStand(start, Math.abs(start) - 1, truppe)).toBe(-1)
+        expect(getTorStand(start, Math.abs(start), truppe)).toBe(0)
+        expect(getTorStand(start, Math.abs(start) + 1, truppe)).toBe(1)
       }
     })
 
@@ -136,9 +159,15 @@ describe('Versuch Zwei Bahnen', () => {
       // Seitenbahn (3,3 Treffer je Sekunde bei mittig stehender Truppe, im Browser
       // gezaehlt), nicht die Zahl der abgefeuerten Kugeln - die ist rund 27-mal hoeher
       // und hat beim ersten Anlauf zu einem Fass gefuehrt, das 24 Sekunden stand.
+      const truppe = BALANCE.testground.truppe
+      const rate = BALANCE.stats.shotsPerSec.base
       const trefferJeSekunde = 3.3
-      expect(getFassTreffer() / trefferJeSekunde).toBeGreaterThan(3)
-      expect(getFassTreffer() / trefferJeSekunde).toBeLessThan(12)
+      const treffer = getFassTreffer(truppe, rate)
+      expect(treffer / trefferJeSekunde).toBeGreaterThan(3)
+      expect(treffer / trefferJeSekunde).toBeLessThan(12)
+      // Und die Standzeit bleibt gleich, wenn die Truppe waechst - die Trefferzahl zieht
+      // mit, statt das Fass bei grosser Truppe zu einem Streifschuss zu machen.
+      expect(getFassTreffer(100, rate)).toBeGreaterThan(getFassTreffer(30, rate) * 2)
     })
 
     it('liefert die Inhalte in fester Reihenfolge, die Waffen aufsteigend nach Staerke', () => {
