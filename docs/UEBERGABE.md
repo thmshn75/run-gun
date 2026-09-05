@@ -1,8 +1,12 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-08-30 (V4 gebaut inkl. aller Aenderungen vom 25.–28.08.; Bennis
-iPhone-Test am 2026-08-29 erledigt und ok — kein neuer Befund. Am 30.08. der Ton
-komplett entfernt.)
+Stand: 2026-09-05 (Zehn eigene Gangarten fertig und im Spiel, Tempo und Bildtakt je
+Gangart nach drei Korrekturrunden von Thomas abgenommen. Davor: V4 gebaut, Bennis
+iPhone-Test am 2026-08-29 ok, am 30.08. der Ton komplett entfernt.)
+
+**Das Naechste liegt in `## Offen — naechster Schritt zuerst`.** Zwei Punkte davon
+brauchen Thomas, nicht Maschinenzeit: die Wandlogik aus dem Genre-Vorbild und Bennis
+Urteil zu den neuen Bewegungen.
 
 ## Ziel
 Kostenloses iPhone-PWA-Spiel (Auto-Runner-Shooter, Hochformat), gespielt von Benni (7).
@@ -62,9 +66,9 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   **Offen:** Ob die Gangarten sich auch unterschiedlich schnell FORTBEWEGEN sollen
   (Thomas' Wunsch, noch nicht entschieden) — das aendert die Schwierigkeit und braucht
   eine Messreihe, keine geratene Zahl. Und Bennis iPhone-Test steht aus.
-  Die Pruefskripte (`abnahme-check.py`, `abnahme-check-heavy.py`) liegen im
-  Session-Scratchpad; ihr Aufbau und die Kalibrierung stehen in `docs/lessons.md`
-  unter dem 2026-09-04.
+  Die Pruefskripte liegen im Repo unter **`scripts/bildabnahme/`** (Aufruf aus dem
+  Projektwurzelverzeichnis, README daneben); ihr Aufbau und die Kalibrierung stehen in
+  `docs/lessons.md` unter dem 2026-09-04.
 
 - **V1 (`v1.0`), V2 (`v2.0`), V3 (`v3.0`)** — alle abgenommen, alle drei Tags sind
   Rueckschrittspunkte. Letzter Commit `6bd5994`, Arbeitsverzeichnis sauber, alles gepusht.
@@ -494,6 +498,37 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
     `standard-g`, `standard-i`, `heavy-e`, `heavy-g`, `heavy-i`.
 
 ## Offen — naechster Schritt zuerst
+
+**Neu am 2026-09-05, zuerst dran:**
+
+0a. **Wandlogik aus dem Genre-Vorbild besprechen** — Vorbild ist **Last Z: Survival
+    Shooter** (dasselbe Spiel, aus dem Laufbewegung und Bruecke/Wasser stammen).
+    Uebernommen ist beides bereits; die Wandlogik steht noch aus. **Der Stand der
+    Besprechung:** Recherchiert ist, dass dort Tore und Faesser sichtbare ZAHLEN tragen,
+    die man leerschiessen muss - die Belohnung kommt erst bei null, und sie ist gross
+    (volle Faehigkeitsladung, Truppenzuwachs). Blaue Tore verstaerken, rote schwaechen.
+    Daneben gibt es UNZERSTOERBARE Hindernisse, denen man nur ausweichen kann.
+    Unsere Wand ist dagegen ein Behaelter: wegschiessen, Inhalt einsammeln. Es fehlt
+    also (a) der sichtbare Zaehler, der eine Entscheidung im Moment erzwingt ("schaffe
+    ich die Null noch?"), und (b) die Kategorie "unzerstoerbar, nur ausweichen".
+    **Offen ist Thomas' Antwort, welcher Punkt ihn im Video ueberzeugt hat** - ohne die
+    nicht bauen, die beiden Ideen sind verschieden viel Arbeit.
+
+0b. **Bennis Urteil zu den neuen Bewegungen** — zehn Gangarten mit eigenem Tempo und
+    Bildtakt sind seit dem 2026-09-05 live. Thomas hat sie am Desktop abgenommen
+    ("ok, so ist es gut erstmal"), Benni hat sie noch nicht gesehen.
+
+0c. **Die Schwierigkeit ist dreimal gesenkt worden, ohne Nachmessung** — mittleres
+    Tempo je Staerke jetzt leicht 0,93, mittel 0,95, schwer 0,91 statt jeweils 1,00.
+    Thomas am 2026-09-05: "schwierigkeiten momentan ok" - also KEIN Handlungsbedarf,
+    aber der Durchkommensanteil ist seither ungemessen. Wer ihn misst, findet den Weg
+    in `docs/lessons.md` (2026-09-05, Lebendpruefung der Sonde).
+
+0d. **Stampfen und Schreiten sind nie im Spiel beobachtet worden** — schwere Gestalten
+    spawnen zu selten. Gleicher Codepfad wie die acht gemessenen, aber unbelegt.
+
+**Aelter:**
+
 1. ~~Bennis iPhone-Test~~ — **erledigt am 2026-08-29, ok** (Thomas). Gamefeel damit
    abgenommen. Noch nachzuziehen (siehe unten): Wirkung der Aufruestungsstufen im Spiel
    und die neuen Preise gegen die Einnahmen eines echten Runs messen.
@@ -709,7 +744,8 @@ echten Runs. Beides sollte nach Bennis Test nachgezogen werden.
 
 ## Einstiegssatz
 "Lies `docs/UEBERGABE.md`, `docs/lessons.md` und `docs/plan-v4.md` und arbeite dort weiter.
-**Nichts neu aufsetzen** — V1/V2/V3 sind abgenommen und getaggt, V4 ist gebaut, gemessen
-und am 2026-08-29 per iPhone-Test abgenommen. Naechste Schritte: die zwei offenen
-Nachmessungen (Aufruestungsstufen im Spiel, Preise gegen echte Run-Einnahmen) und die
-Staerke von Prellschuss und Saegeblatt im Normalspiel."
+**Nichts neu aufsetzen** — V1/V2/V3 sind abgenommen und getaggt, V4 ist gebaut und
+gemessen, die zehn Gangarten sind seit dem 2026-09-05 fertig und im Spiel.
+Naechster Schritt ist eine BESPRECHUNG, kein Bauauftrag: die Wandlogik aus dem
+Genre-Vorbild Last Z: Survival Shooter (Punkt 0a in `## Offen`). Der Rechercheteil ist
+erledigt, es fehlt Thomas' Entscheidung. Danach die aelteren Nachmessungen."
