@@ -108,6 +108,8 @@ export class VersuchBahnen implements BahnSystem {
   private waffenIndex: number
   private nextSpawnId: number
   private hatRollbilder: boolean
+  /** Nur waehrend Bosswarnung und Bosskampf gesetzt - siehe setPausiert. */
+  private pausiert = false
 
   public constructor(
     scene: Phaser.Scene,
@@ -267,7 +269,23 @@ export class VersuchBahnen implements BahnSystem {
     return this.loeseFassEin(fass)
   }
 
+  /**
+   * Ruhen die Bahnen gerade? Im Bosskampf ja (Thomas 2026-09-05: "als der Boss erschienen
+   * ist, waren die Gegner wieder in und um die Waende").
+   *
+   * Der Phasenwechsel raeumt die Bahnen zwar ab (`deactivateAll` in updateLevelPhase),
+   * aber `update` setzte im naechsten Bild sofort das naechste Tor an den Horizont - und
+   * die Horden, die der Boss ruft, laufen im selben rechten Band. Ein Tor davor ist im
+   * Duell doppelt falsch: Es verdeckt die gerufenen Gegner UND faengt die Schuesse ab,
+   * die dem Boss gelten.
+   */
+  public setPausiert(pausiert: boolean): void {
+    if (pausiert && !this.pausiert) this.deactivateAll()
+    this.pausiert = pausiert
+  }
+
   public update(dt: number): void {
+    if (this.pausiert) return
     const movement = (getCurrentScrollSpeed() * dt) / 1000
     this.aktualisiereTore(movement)
     this.aktualisiereFaesser(movement)

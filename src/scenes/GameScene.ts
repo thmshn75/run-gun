@@ -486,13 +486,16 @@ export class GameScene extends Phaser.Scene {
     this.aktualisiereTestgelaendeKnopf()
     this.weapons.update(dt)
     this.spawner.update(dt)
-    this.walls.update(dt)
     // VERSUCH: Hinter einer Wand darf kein Gegner erscheinen (Thomas 2026-09-05). Jedes
     // Bild neu gesetzt, weil das Fenster an der gefahrenen Strecke haengt - und ueber
     // einen EIGENEN Schalter, damit es die Spawnsperre der Bossphase nicht ueberschreibt.
     if (this.istTestgelaende() && this.walls instanceof VersuchBahnen) {
-      this.spawner.setSpawnSperre(this.walls.istTorFenster())
+      // Ausserhalb der Gegnerphase ruhen die Bahnen: Im Bosskampf laufen sonst Tore
+      // durchs Duell, und die vom Boss gerufenen Horden stehen in ihrem Schatten.
+      this.walls.setPausiert(this.levelPhase !== 'normal')
+      this.spawner.setSpawnSperre(this.levelPhase === 'normal' && this.walls.istTorFenster())
     }
+    this.walls.update(dt)
     this.popups.update(dt)
     this.boss.update(dt)
     this.syncBossColliders()

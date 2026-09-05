@@ -426,6 +426,25 @@ durchrollende Faesser stellt der Zaehler beim SPAWN weiter; im Browser nachgemes
 Waffenfolge pistol -> shotgun -> normal ueber 29 s, keine einzige Wiederholung, und nie
 mehr als ein Waffen-Fund gleichzeitig im Bild.
 
+
+## Nachtrag: Bahnen ruhen im Bosskampf (Thomas 2026-09-05)
+
+"Als der Boss erschienen ist, waren die Gegner wieder in und um die Waende."
+
+**Ursache:** Der Phasenwechsel raeumt die Bahnen zwar ab (`walls.deactivateAll()` in
+`updateLevelPhase`), aber `update()` setzte im naechsten Bild sofort das naechste Tor an
+den Horizont - und die Horden, die der Boss ruft, laufen im selben rechten Band. Die
+Gegnersperre half dort nicht: Boss-Horden gehen ueber `requestBossHorde` und umgehen den
+regulaeren Takt bewusst.
+
+**Behoben:** Waehrend Bosswarnung und Bosskampf ruhen beide Bahnen ganz - keine neuen
+Tore, keine neuen Faesser, die Strasse daneben ist leer. Ein Tor im Duell waere doppelt
+falsch: Es verdeckt die gerufenen Gegner UND faengt die Schuesse ab, die dem Boss gelten.
+Gesetzt wird der Schalter VOR `walls.update`, sonst spawnt der Phasenwechsel noch ein Bild.
+
+**Gemessen:** Ueber die gesamte Boss- und Warnphase null aktive Tore und null aktive
+Faesser; in der Gegnerphase davor liefen beide normal.
+
 ---
 
 ## Wo die Historie steht
