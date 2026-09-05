@@ -972,6 +972,15 @@ export class GameScene extends Phaser.Scene {
       if (this.walls.isWall(target)) return
       const enemyImage = target as Phaser.Physics.Arcade.Image
       if (!this.crowd.overlapsFigure(enemyImage.getBounds())) return
+      // VERSUCH "ZWEI BAHNEN": Jeder Gegner, der die Truppe erreicht, nimmt genau EINE
+      // Figur mit (Thomas 2026-09-05). Vor der Unverwundbarkeitspruefung, und das ist
+      // der Punkt: Ein iframe schuetzt vor einer Trefferserie - hier soll aber jeder
+      // einzelne Gegner zaehlen, sonst ist die Rechnung "Zuwachs gegen Verlust", um die
+      // es im Versuch geht, nicht mehr aufzustellen.
+      if (this.istTestgelaende()) {
+        this.versuchKontakt(enemyImage)
+        return
+      }
       if (this.elapsedMs < this.enemyContactIframeUntilMs) return
       this.handlePlayerHit(enemyImage)
       return
@@ -1107,6 +1116,36 @@ export class GameScene extends Phaser.Scene {
     }
     this.updateHud()
     if (this.runStats.get('hp') <= 0) this.triggerGameOver()
+  }
+
+  /**
+   * Kontaktregel des Versuchs: EIN Gegner kostet EINE Figur, dann ist er weg
+   * (Thomas 2026-09-05: "wenn gegner das team erreichen, soll es auch dezimiert werden,
+   * 1 teammitglied je gegner der es beruehrt").
+   *
+   * Bewusst nicht ueber handlePlayerDamage: Das schont das Testgelaende ausdruecklich
+   * ("wer eine Waffe ausprobiert, soll dabei nicht sterben") und setzt Unverwundbarkeit
+   * plus Kamerawackeln - bei mehreren Gegnern je Sekunde waere das Bild unruhig.
+   *
+   * MARKIERTE ANNAHME: Die Truppe faellt nie unter eine Figur, es gibt also kein Game
+   * Over im Versuch. Thomas hat eines nicht verlangt, und ein abbrechender Testlauf
+   * koennte die Bahnoekonomie nicht mehr zeigen - das ist der Zweck des Versuchs.
+   */
+  private versuchKontakt(enemy: Phaser.Physics.Arcade.Image): void {
+    if (!enemy.active || this.boss.isEnemy(enemy)) return
+    this.spawner.recycle(enemy)
+    const vorher = this.runStats.get('hp')
+    const nachher = Math.max(1, vorher - 1)
+    if (nachher === vorher) return
+    this.runStats.set('hp', nachher)
+    this.syncCrowdSize()
+    this.popups.spawn(
+      this.crowd.getAnchorX(),
+      this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
+      '-1',
+      '#ff6b6b',
+    )
+    this.updateHud()
   }
 
   private handlePlayerDamage(damage: number): void {

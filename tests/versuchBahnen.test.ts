@@ -39,6 +39,18 @@ describe('Versuch Zwei Bahnen', () => {
       expect(gameScene).toMatch(/private baueVersuchsBahnen\(\): BahnSystem \{\s*\n\s*return new VersuchBahnen\(/)
     })
 
+    it('dezimiert die Truppe nur im Testgelaende je Gegner um eine Figur', () => {
+      // Thomas 2026-09-05: "wenn gegner das team erreichen, soll es auch dezimiert
+      // werden, 1 teammitglied je gegner der es beruehrt". Im echten Run gilt weiter die
+      // alte Regel mit Unverwundbarkeitsfenster - deshalb steht die Weiche VOR der
+      // iframe-Pruefung und ist an istTestgelaende gebunden.
+      const aufrufe = gameScene.split('\n').filter((zeile) => /this\.versuchKontakt\(/.test(zeile))
+      expect(aufrufe).toHaveLength(1)
+      expect(gameScene).toMatch(/if \(this\.istTestgelaende\(\)\) \{\s*\n\s*this\.versuchKontakt\(enemyImage\)/)
+      // Und die alte Regel steht weiterhin dahinter, unveraendert.
+      expect(gameScene).toMatch(/if \(this\.elapsedMs < this\.enemyContactIframeUntilMs\) return\s*\n\s*this\.handlePlayerHit\(enemyImage\)/)
+    })
+
     it('schickt die Gegner nur im Testgelaende nach rechts', () => {
       const aufrufe = gameScene.split('\n').filter((zeile) => /setVersuchsBahnen\(/.test(zeile))
       expect(aufrufe).toHaveLength(1)
@@ -51,6 +63,8 @@ describe('Versuch Zwei Bahnen', () => {
       // Versuch, gilt sie ohne weiteres Zutun wieder.
       expect(BALANCE.testground.normalPhaseSec).toBe(20)
       expect(BALANCE.versuch.gegnerphaseSec).toBeGreaterThan(BALANCE.testground.normalPhaseSec)
+      // Aber nicht so lang, dass niemand den Boss zu sehen bekommt (Thomas 2026-09-05).
+      expect(BALANCE.versuch.gegnerphaseSec).toBeLessThanOrEqual(60)
     })
   })
 
@@ -154,14 +168,16 @@ describe('Versuch Zwei Bahnen', () => {
   })
 
   describe('stehende Faesser links', () => {
-    it('haelt an und bleibt stehen, egal wie weit die Strasse noch laeuft', () => {
-      const halteY = 500
-      expect(haeltJetzt(300, halteY, false)).toBe(false)
-      expect(haeltJetzt(500, halteY, false)).toBe(true)
-      // Und das Entscheidende: Einmal angehalten, bleibt es stehen. Ohne diese Zusage
-      // wuerde das Fass beim naechsten Bild weiterrutschen und waere wieder eine Wand.
-      expect(haeltJetzt(200, halteY, true)).toBe(true)
-      expect(haeltJetzt(-9999, halteY, true)).toBe(true)
+    it('rollt durch, statt anzuhalten - und langsamer als die Strasse', () => {
+      // Thomas 2026-09-05: "von oben die strasse runterrollen, langsam und dann auch
+      // weiter rollen, damit man nicht jedes mal ein upgrade erwischt". Das Anhalten ist
+      // damit ersatzlos weg; die Grenze ist jetzt die Zeit im Bild.
+      expect(BALANCE.versuch.fass.tempoAnteil).toBeGreaterThan(0)
+      expect(BALANCE.versuch.fass.tempoAnteil).toBeLessThan(1)
+      // "oefter, aber mit entsprechend Abstand": haeufiger als die Tore, aber nicht
+      // Schlag auf Schlag.
+      expect(BALANCE.versuch.fass.abstandPx).toBeLessThan(BALANCE.versuch.tor.abstandPx)
+      expect(BALANCE.versuch.fass.abstandPx).toBeGreaterThan(BALANCE.versuch.fass.groessePx * 3)
     })
 
     it('rollt gegen die Fahrtrichtung und laeuft dabei sauber im Kreis', () => {
@@ -255,19 +271,25 @@ describe('Versuch Zwei Bahnen', () => {
       expect(ertraege[0]).toBeGreaterThan(ertraege[20])
     })
 
-    it('kommt mit Pause, statt als Fliessband zu laufen', () => {
-      // Gemessen waren bis zu 60 Faesser je Minute moeglich - ein Fliessband. Feuerzeit
-      // plus Pause muessen zusammen deutlich darunter bleiben.
+    it('kommt oefter als die Tore, ohne ein Fliessband zu sein', () => {
       const tempo = 145
+      const faesserProMinute = 60 / (BALANCE.versuch.fass.abstandPx / tempo)
+      const toreProMinute = 60 / (BALANCE.versuch.tor.abstandPx / tempo)
+      expect(faesserProMinute).toBeGreaterThan(toreProMinute)
+      expect(faesserProMinute).toBeLessThan(25)
+    })
+
+    it('ist in der Zeit zu schaffen, die es im Bild ist - aber nicht nebenbei', () => {
+      // Seit die Faesser durchrollen, ist die ZEIT IM BILD die Grenze, nicht mehr die
+      // Geduld: Bei halbem Tempo braucht ein Fass rund die doppelte Zeit eines
+      // mitlaufenden Objekts. Die noetige Feuerzeit muss deutlich darunter liegen, sonst
+      // waere kein einziges zu schaffen.
       const truppe = BALANCE.testground.truppe
       const rate = BALANCE.stats.shotsPerSec.base
-      // Beim Hinfahren gemessen: 20 Treffer in 1,0 s bei Truppe 30 und Rate 3.
-      const trefferProSekBeimHinfahren = 20
-      const feuerSek = getFassTreffer(truppe, rate) / trefferProSekBeimHinfahren
-      const pauseSek = BALANCE.versuch.fass.pausePx / tempo
-      const faesserProMinute = 60 / (feuerSek + pauseSek)
-      expect(faesserProMinute).toBeLessThan(20)
-      expect(faesserProMinute).toBeGreaterThan(6)
+      // Beim Hinfahren gemessen: 20 Treffer je Sekunde bei Truppe 30 und Rate 3.
+      const feuerSek = getFassTreffer(truppe, rate) / 20
+      expect(feuerSek).toBeGreaterThan(0.5)
+      expect(feuerSek).toBeLessThan(3)
     })
 
     it('gibt am Anfang mehr als ein einzelnes Wandtor des echten Runs', () => {

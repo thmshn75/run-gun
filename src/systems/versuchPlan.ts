@@ -87,16 +87,6 @@ export function getTruppeNachTor(aktuell: number, stand: number): number {
 }
 
 /**
- * Haelt das Fass auf dieser Hoehe an? Einmal angehalten, bleibt es angehalten - es
- * rutscht auch dann nicht weiter, wenn die Strasse unter ihm laeuft. Genau das ist der
- * Unterschied zur Wand: "stehende Gebilde, die nicht weiterlaufen, wenn ich nicht drauf
- * schiesse" (Thomas 2026-09-05).
- */
-export function haeltJetzt(centerY: number, halteY: number, haeltSchon: boolean): boolean {
-  return haeltSchon || centerY >= halteY
-}
-
-/**
  * Wie viele TREFFER ein Fass aushaelt - auch hier zaehlt die Kugel, nicht der Schaden
  * (Thomas 2026-09-05: "zerschiessen jeder treffer ein punkt"). Eine feste Zahl also,
  * keine aus der Feuerkraft abgeleitete: Genau darin besteht die Aenderung.

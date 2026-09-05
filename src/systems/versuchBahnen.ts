@@ -13,7 +13,6 @@ import {
   getTorStand,
   getTorStartwert,
   getTruppeNachTor,
-  haeltJetzt,
   type FassInhalt,
 } from './versuchPlan'
 import type { WeaponKey } from './weapons'
@@ -80,8 +79,9 @@ type FassZustand = {
   inhaltText: Phaser.GameObjects.Text
   reward: Phaser.Physics.Arcade.Image
   anchorY: number
+  /** Weg AUF DER STRASSE, nicht auf dem Bildschirm - daraus kommt die Drehung. */
+  rollPx: number
   aktiv: boolean
-  haelt: boolean
   zerschossen: boolean
   inhalt: FassInhalt
   waffe: WeaponKey
@@ -99,14 +99,12 @@ export class VersuchBahnen implements BahnSystem {
   private readonly rewardGroup: Phaser.Physics.Arcade.Group
   private readonly tore: TorZustand[]
   private readonly torZuObjekt: Map<Phaser.GameObjects.GameObject, TorZustand>
-  private readonly fass: FassZustand
+  private readonly faesser: FassZustand[]
   private readonly fassZuObjekt: Map<Phaser.GameObjects.GameObject, FassZustand>
   private torAbstandPx: number
+  private fassAbstandPx: number
   private fassIndex: number
   private waffenIndex: number
-  private rollStreckePx: number
-  private fassEinblendPx: number
-  private fassPausePx: number
   private nextSpawnId: number
   private hatRollbilder: boolean
 
@@ -132,10 +130,8 @@ export class VersuchBahnen implements BahnSystem {
     this.torAbstandPx = BALANCE.versuch.tor.abstandPx
     this.fassIndex = 0
     this.waffenIndex = 0
-    this.rollStreckePx = 0
-    this.fassEinblendPx = 0
-    // Das erste Fass kommt ohne Wartezeit - die Pause gilt zwischen zwei Faessern.
-    this.fassPausePx = BALANCE.versuch.fass.pausePx
+    // Das erste Fass kommt sofort, danach je Abstand eines.
+    this.fassAbstandPx = BALANCE.versuch.fass.abstandPx
     this.nextSpawnId = -1
     // Liegt die Rollbildfolge vor? Fehlt sie (Codex-Lauf noch nicht fertig), laeuft das
     // Fass mit der Wandtextur ohne Drehung - die Mechanik ist dann trotzdem pruefbar.
@@ -150,16 +146,23 @@ export class VersuchBahnen implements BahnSystem {
       this.tore.push(tor)
       this.torZuObjekt.set(tor.bild, tor)
     }
-    this.fass = this.erzeugeFass()
+    this.faesser = []
     this.fassZuObjekt = new Map()
-    this.fassZuObjekt.set(this.fass.bild, this.fass)
+    // Bei 520 px Abstand, halbem Tempo und rund 700 px Fahrstrecke im Bild sind
+    // hoechstens drei gleichzeitig unterwegs; vier lassen Luft fuer eine liegengebliebene
+    // Waffe, die noch ausrollt.
+    for (let i = 0; i < 4; i += 1) {
+      const fass = this.erzeugeFass()
+      this.faesser.push(fass)
+      this.fassZuObjekt.set(fass.bild, fass)
+    }
   }
 
   public getWalls(): Phaser.Physics.Arcade.Group { return this.wallGroup }
 
   public getRewards(): Phaser.Physics.Arcade.Group { return this.rewardGroup }
 
-  public hasActivePair(): boolean { return this.tore.some((tor) => tor.aktiv) || this.fass.aktiv }
+  public hasActivePair(): boolean { return this.tore.some((tor) => tor.aktiv) || this.faesser.some((fass) => fass.aktiv) }
 
   /**
    * Die Levelnummer geht in den Versuch NICHT ein: Tor- und Fasshaerte zaehlen Treffer,
@@ -173,7 +176,7 @@ export class VersuchBahnen implements BahnSystem {
 
   public deactivateAll(): void {
     for (const tor of this.tore) this.recycleTor(tor)
-    this.recycleFass()
+    for (const fass of this.faesser) this.recycleFass(fass)
   }
 
   public isWall(candidate: Phaser.GameObjects.GameObject): candidate is Phaser.Physics.Arcade.Image {
@@ -216,13 +219,14 @@ export class VersuchBahnen implements BahnSystem {
   }
 
   public isReward(candidate: Phaser.GameObjects.GameObject): candidate is Phaser.Physics.Arcade.Image {
-    return candidate === this.fass.reward
+    return this.faesser.some((fass) => fass.reward === candidate)
   }
 
   public collect(reward: Phaser.Physics.Arcade.Image): WeaponKey | undefined {
-    if (reward !== this.fass.reward || !this.fass.zerschossen || !reward.active) return undefined
-    const waffe = this.fass.waffe
-    this.recycleFass()
+    const fass = this.faesser.find((kandidat) => kandidat.reward === reward)
+    if (fass === undefined || !fass.zerschossen || !reward.active) return undefined
+    const waffe = fass.waffe
+    this.recycleFass(fass)
     return waffe
   }
 
@@ -251,9 +255,8 @@ export class VersuchBahnen implements BahnSystem {
 
   public update(dt: number): void {
     const movement = (getCurrentScrollSpeed() * dt) / 1000
-    this.rollStreckePx += movement
     this.aktualisiereTore(movement)
-    this.aktualisiereFass(movement)
+    this.aktualisiereFaesser(movement)
   }
 
   /** Nur fuer die Schnittstelle - der Versuch hat je Bahn genau eine Objektgroesse. */
@@ -341,108 +344,98 @@ export class VersuchBahnen implements BahnSystem {
   // Linke Bahn
   // -------------------------------------------------------------------------
 
-  private aktualisiereFass(movement: number): void {
-    if (!this.fass.aktiv) {
-      // PAUSE ZWISCHEN ZWEI FAESSERN, in gefahrener Strecke gemessen. Ohne sie steht
-      // sofort das naechste da: gemessen bis zu 60 Faesser je Minute, also ein
-      // Fliessband statt einer Entscheidung (Oekonomie-Befund 2026-09-05).
-      this.fassPausePx += movement
-      if (this.fassPausePx < BALANCE.versuch.fass.pausePx) return
-      this.fassPausePx = 0
+  /**
+   * DIE FAESSER ROLLEN DURCH, sie halten nicht mehr an (Thomas 2026-09-05: "von oben die
+   * strasse runterrollen, langsam und dann auch weiter rollen, damit man nicht jedes mal
+   * ein upgrade erwischt, dafuer wieder oefter, aber mit entsprechend abstand").
+   *
+   * Zwei Bewegungen, die leicht auseinanderlaufen: Das Fass wandert mit `tempoAnteil`
+   * der Strassengeschwindigkeit ueber den BILDSCHIRM, es dreht sich aber nach seiner
+   * Bewegung relativ zur STRASSE - und die ist der Rest, `1 - tempoAnteil`. Wer die
+   * Drehung an die Bildschirmbewegung haengt, laesst das Fass sichtbar rutschen.
+   */
+  private aktualisiereFaesser(movement: number): void {
+    this.fassAbstandPx += movement
+    if (this.fassAbstandPx >= BALANCE.versuch.fass.abstandPx) {
+      this.fassAbstandPx -= BALANCE.versuch.fass.abstandPx
       this.spawneFass()
-      return
     }
-    // DER KERN DES VERSUCHS: Solange das Fass haelt, waechst sein Weltanker NICHT mit.
-    // Die Strasse laeuft darunter durch, das Fass bleibt auf derselben Bildschirmhoehe -
-    // und rollt optisch dagegen an (getRollBild).
-    const halteY = this.scene.scale.height * BALANCE.versuch.fass.haltYShare
-    if (!this.fass.haelt) {
-      this.fass.anchorY = advanceAlongRoad(this.scene.scale.width, this.scene.scale.height, this.fass.anchorY, movement)
-    }
-    const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, this.fass.anchorY, BALANCE.versuch.fass.groessePx)
-    // DIE HALTEREGEL GILT NUR FUER DAS FASS SELBST, nicht fuer das, was von ihm uebrig
-    // bleibt. Im Browser gemessen, warum das hier stehen muss: Die freigeschossene Waffe
-    // startet UNTERHALB der Halteschwelle - ohne diese Bedingung griff die Regel beim
-    // naechsten Bild sofort wieder, die Waffe blieb fuer immer liegen, und weil erst ihr
-    // Abgang Platz macht, kam nie wieder ein Fass. Gemessen: ein einziges Fass in 20 s,
-    // danach Stillstand der ganzen linken Bahn.
-    if (!this.fass.zerschossen) this.fass.haelt = haeltJetzt(segment.centerY, halteY, this.fass.haelt)
-    // Die Groesse zuerst: Sie bestimmt, wo die Mitte liegen muss, damit die Aussenkante
-    // am Strassenrand sitzt.
-    const groesse = segment.height
-    const geometrie = this.fassGeometrie(segment.centerY, groesse)
-    // Eingeblendet statt aufgeploppt: Ein Fass, das aus dem Nichts mitten auf der
-    // Strasse steht, liest sich als Fehler. Ueber die gefahrene Strecke, nicht ueber
-    // eine Zeitkonstante - dieselbe Regel wie bei der Drehung.
-    this.fassEinblendPx += movement
-    const alpha = Math.min(1, this.fassEinblendPx / BALANCE.versuch.fass.einblendPx)
-    const massstab = getRoadScale(this.scene.scale.width, this.scene.scale.height, segment.centerY)
-    if (this.fass.bild.active) {
-      this.fass.bild.setPosition(geometrie.x, segment.centerY).setDisplaySize(groesse, groesse).setAlpha(alpha)
-      if (this.hatRollbilder) this.fass.bild.setTexture(`barrel-roll-${getRollBild(this.rollStreckePx, getRollUmfang(groesse)) + 1}`)
-      ;(this.fass.bild.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
-      this.fass.label.setPosition(geometrie.x, segment.centerY + groesse / 2 + 10 * massstab).setAlpha(alpha).setScale(massstab)
-      this.fass.inhaltText.setPosition(geometrie.x, segment.centerY).setAlpha(alpha).setScale(massstab)
-    }
-    if (this.fass.zerschossen && this.fass.reward.active) {
-      this.fass.reward.setPosition(geometrie.x, segment.centerY)
-      ;(this.fass.reward.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
-      // Nicht eingesammelt heisst verpasst, nicht "blockiert bis in alle Ewigkeit":
-      // Unten aus dem Bild heraus macht die Waffe Platz fuer das naechste Fass.
-      if (segment.centerY - this.fass.reward.displayHeight / 2 > this.scene.scale.height) this.recycleFass()
+    const { tempoAnteil } = BALANCE.versuch.fass
+    const eigenerWeg = movement * tempoAnteil
+    const wegAufDerStrasse = movement * (1 - tempoAnteil)
+    for (const fass of this.faesser) {
+      if (!fass.aktiv) continue
+      fass.anchorY = advanceAlongRoad(this.scene.scale.width, this.scene.scale.height, fass.anchorY, eigenerWeg)
+      fass.rollPx += wegAufDerStrasse
+      const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, fass.anchorY, BALANCE.versuch.fass.groessePx)
+      const groesse = segment.height
+      const geometrie = this.fassGeometrie(segment.centerY, groesse)
+      const alpha = Math.min(1, Math.max(0, (segment.centerY - groesse / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
+      const massstab = getRoadScale(this.scene.scale.width, this.scene.scale.height, segment.centerY)
+      if (fass.bild.active) {
+        fass.bild.setPosition(geometrie.x, segment.centerY).setDisplaySize(groesse, groesse).setAlpha(alpha)
+        if (this.hatRollbilder) fass.bild.setTexture(`barrel-roll-${getRollBild(fass.rollPx, getRollUmfang(groesse)) + 1}`)
+        ;(fass.bild.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
+        fass.label.setPosition(geometrie.x, segment.centerY + groesse / 2 + 10 * massstab).setAlpha(alpha).setScale(massstab)
+        fass.inhaltText.setPosition(geometrie.x, segment.centerY).setAlpha(alpha).setScale(massstab)
+      }
+      if (fass.zerschossen && fass.reward.active) {
+        fass.reward.setPosition(geometrie.x, segment.centerY)
+        ;(fass.reward.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
+      }
+      // Unten aus dem Bild: verpasst. Genau das ist der Sinn des Durchrollens - "damit
+      // man nicht jedes Mal ein Upgrade erwischt".
+      if (segment.centerY - groesse / 2 > this.scene.scale.height) this.recycleFass(fass)
     }
   }
 
   private spawneFass(): void {
+    const fass = this.faesser.find((kandidat) => !kandidat.aktiv)
+    if (fass === undefined) return
     const inhalt = getFassInhalt(this.fassIndex)
     const hp = getFassTreffer(this.getTeamSize(), this.getShotsPerSec())
-    this.fass.aktiv = true
-    this.fass.haelt = false
-    this.fass.zerschossen = false
-    this.fass.inhalt = inhalt
-    this.fass.waffe = inhalt === 'weapon' ? getFassWaffe(this.waffenIndex) : this.fass.waffe
-    // DAS FASS ERSCHEINT AN SEINEM PLATZ, es fliegt nicht heran. Im Browser gemessen,
-    // warum: Vom Horizont bis zur Halteposition sind es rund fuenf Sekunden, und die
-    // Truppe feuert die ganze Zeit - das Fass war jedes Mal zerschossen, BEVOR es
-    // ankam. Man bekam nie ein stehendes Fass zu sehen, nur die Waffe, die davon uebrig
-    // blieb. Genau das Gegenteil von "stehende Gebilde, die nicht weiterlaufen".
-    this.fass.anchorY = this.scene.scale.height * BALANCE.versuch.fass.haltYShare
-    this.fassEinblendPx = 0
-    const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, this.fass.anchorY, BALANCE.versuch.fass.groessePx)
+    // DER ZAEHLER STELLT BEIM SPAWN WEITER, nicht beim Einloesen. Seit die Faesser
+    // durchrollen, wird nicht mehr jedes zerschossen - haette der Zaehler am Einloesen
+    // gehangen, bliebe die Reihe stehen, sobald man eines durchlaesst, und dieselbe
+    // Waffe kaeme wieder und wieder.
+    this.fassIndex += 1
+    fass.aktiv = true
+    fass.zerschossen = false
+    fass.inhalt = inhalt
+    if (inhalt === 'weapon') {
+      fass.waffe = getFassWaffe(this.waffenIndex)
+      this.waffenIndex += 1
+    }
+    fass.anchorY = BALANCE.road.horizonY
+    fass.rollPx = 0
+    const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, fass.anchorY, BALANCE.versuch.fass.groessePx)
     const geometrie = this.fassGeometrie(segment.centerY, segment.height)
-    this.fass.bild.enableBody(true, geometrie.x, segment.centerY, true, true)
-    this.fass.bild.setActive(true).setVisible(true).setAlpha(0)
-    const body = this.fass.bild.body as Phaser.Physics.Arcade.Body
+    fass.bild.enableBody(true, geometrie.x, segment.centerY, true, true)
+    fass.bild.setActive(true).setVisible(true).setAlpha(0)
+    const body = fass.bild.body as Phaser.Physics.Arcade.Body
     body.moves = false
     body.updateFromGameObject()
-    this.fass.bild.setData('hp', hp)
-    this.fass.bild.setData('spawnId', this.nextSpawnId)
+    fass.bild.setData('hp', hp)
+    fass.bild.setData('spawnId', this.nextSpawnId)
     this.nextSpawnId -= 1
-    this.fass.label.setText(`${hp}`).setActive(true).setVisible(true).setAlpha(0)
-    this.fass.inhaltText
+    fass.label.setText(`${hp}`).setActive(true).setVisible(true).setAlpha(0)
+    fass.inhaltText
       .setText(inhalt === 'weapon' ? 'WAFFE' : inhalt === 'damage' ? '+DMG' : '+RATE')
       .setActive(true).setVisible(true).setAlpha(0)
-    this.fass.reward.setActive(false).setVisible(false)
+    fass.reward.setActive(false).setVisible(false)
   }
 
   /**
-   * Das Fass ist gefallen. DMG und RATE wirken sofort; eine Waffe bleibt als
-   * einsammelbares Objekt an Ort und Stelle liegen - dort, wo das Fass stand.
+   * Das Fass ist gefallen. DMG und RATE wirken sofort; eine Waffe rollt als
+   * einsammelbares Objekt weiter, bis sie eingesammelt ist oder unten hinausrollt.
    */
   private loeseFassEin(fass: FassZustand): boolean {
     fass.zerschossen = true
-    // DER HALT ENDET MIT DEM FASS. Gemessen im Browser: Blieb er bestehen, lag die
-    // freigeschossene Waffe fuer immer an derselben Stelle - und weil erst das
-    // eingesammelte Fass Platz fuer das naechste macht, kam nie wieder eines. Wer die
-    // Waffe nicht wollte, hatte die linke Bahn damit dauerhaft verstopft.
-    fass.haelt = false
     fass.bild.disableBody(true, true)
     fass.bild.setActive(false).setVisible(false)
     fass.label.setActive(false).setVisible(false)
     fass.inhaltText.setActive(false).setVisible(false)
-    this.fassIndex += 1
     if (fass.inhalt === 'weapon') {
-      this.waffenIndex += 1
       fass.reward.setTexture(`weapon-${fass.waffe}-gate`)
       fass.reward.enableBody(true, fass.bild.x, fass.bild.y, true, true)
       fass.reward.setActive(true).setVisible(true).setAlpha(1)
@@ -453,20 +446,19 @@ export class VersuchBahnen implements BahnSystem {
       return true
     }
     this.applyFassGate(fass.inhalt, fass.bild.x, fass.bild.y)
-    this.recycleFass()
+    this.recycleFass(fass)
     return true
   }
 
-  private recycleFass(): void {
-    this.fass.aktiv = false
-    this.fass.haelt = false
-    this.fass.zerschossen = false
-    this.fass.bild.disableBody(true, true)
-    this.fass.bild.setActive(false).setVisible(false)
-    this.fass.label.setActive(false).setVisible(false)
-    this.fass.inhaltText.setActive(false).setVisible(false)
-    this.fass.reward.disableBody(true, true)
-    this.fass.reward.setActive(false).setVisible(false)
+  private recycleFass(fass: FassZustand): void {
+    fass.aktiv = false
+    fass.zerschossen = false
+    fass.bild.disableBody(true, true)
+    fass.bild.setActive(false).setVisible(false)
+    fass.label.setActive(false).setVisible(false)
+    fass.inhaltText.setActive(false).setVisible(false)
+    fass.reward.disableBody(true, true)
+    fass.reward.setActive(false).setVisible(false)
   }
 
   private erzeugeFass(): FassZustand {
@@ -488,17 +480,13 @@ export class VersuchBahnen implements BahnSystem {
     this.rewardGroup.add(reward)
     return {
       bild, label, inhaltText, reward,
-      anchorY: BALANCE.road.horizonY, aktiv: false, haelt: false, zerschossen: false,
+      anchorY: BALANCE.road.horizonY, rollPx: 0, aktiv: false, zerschossen: false,
       inhalt: 'weapon', waffe: VERSUCH_WAFFENREIHE[0],
     }
   }
 
   // -------------------------------------------------------------------------
 
-  /**
-   * Mitte und Breite einer FAHRBAHNHAELFTE auf Hoehe y - nicht der Wandzone am Rand.
-   * Der Versuch teilt die Strasse in zwei Haelften, statt an ihren Raendern zu bauen.
-   */
   /**
    * Beide Bahnen liegen jetzt AM STRASSENRAND, nicht auf einem Anteil dazwischen
    * (Thomas 2026-09-05: Faesser "am linken rand, nur ein kleiner spalt", Tore "nach

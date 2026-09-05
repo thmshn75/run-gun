@@ -1136,7 +1136,12 @@ export const BALANCE = {
     // ist sie zu kurz: In 20 s kommen bei 560 px Torabstand und Testgelaende-Tempo rund
     // fuenf Tore und vier Faesser, das traegt kein Urteil. 90 s ergeben rund 22 Tore und
     // 20 Faesser, also mehrere volle Zyklen beider Bahnen.
-    gegnerphaseSec: 90,
+    // 90 -> 55 (Thomas 2026-09-05: "baue ins testgelaende einen level boss wieder ein").
+    // Der Boss war nie ausgebaut - im Browser geprueft, er erscheint und kaempft. Er kam
+    // nur erst nach 90 Sekunden Gegnerphase, und so lange spielt niemand einen Versuch.
+    // 55 s tragen die Bahnbeurteilung (rund 8 Tore und 20 Faesser) und lassen den Boss
+    // innerhalb einer Minute kommen.
+    gegnerphaseSec: 55,
     tor: {
       // EIN TREFFER IST EIN PUNKT (Thomas 2026-09-05: "jeder treffer eine punkt +").
       //
@@ -1212,10 +1217,26 @@ export const BALANCE = {
       hoehePx: 84,
     },
     fass: {
-      // Wo das Fass anhaelt, als Anteil der Bildschirmhoehe. 0,58 liegt deutlich vor der
-      // Truppe (die sitzt bei rund 0,85) und damit im Feuerbereich, aber weit genug weg,
-      // dass man es kommen sieht und sich entscheiden kann.
-      haltYShare: 0.58,
+      // DIE FAESSER ROLLEN DURCH, sie halten nicht mehr an (Thomas 2026-09-05: "die
+      // faesser sollen von oben die strasse runterrollen, langsam und dann auch weiter
+      // rollen, damit man nicht jedes mal ein upgrade erwischt, dafuer wieder oefter,
+      // aber mit entsprechend abstand").
+      //
+      // TEMPO ALS ANTEIL DER STRASSENGESCHWINDIGKEIT. 0,55 heisst: Das Fass laeuft
+      // langsamer als die Strasse unter ihm, wandert also relativ zu ihr nach hinten und
+      // bleibt fast doppelt so lange im Bild wie ein mitlaufendes Objekt. Genau das ist
+      // "langsam runterrollen" - und es gibt die Zeit zum Schiessen, die das Anhalten
+      // vorher erzwungen hat.
+      //
+      // Die Drehung folgt der Bewegung RELATIV ZUR STRASSE (1 - tempoAnteil): Ein Fass,
+      // das langsamer laeuft als der Boden, rollt auf ihm nach hinten. Wer die Drehung
+      // an die Bildschirmbewegung haengt, laesst es sichtbar rutschen.
+      tempoAnteil: 0.55,
+      // Abstand zweier Faesser in gefahrenen Weltpixeln. 520 px sind bei
+      // Testgelaende-Tempo rund 3,6 s - "wieder oefter, aber mit entsprechend Abstand".
+      // Zum Vergleich: Mit Anhalten und Pause kamen zuletzt 3 Faesser je Minute an, hier
+      // sind es rund 17.
+      abstandPx: 520,
       // WIE VIELE TREFFER ein Fass aushaelt (Thomas 2026-09-05: "zerschiessen jeder
       // treffer ein punkt"). Auch hier zaehlt die Kugel, nicht der Schaden - dieselbe
       // Aenderung wie beim Tor, damit beide Bahnen gleich zu lesen sind.
@@ -1231,18 +1252,16 @@ export const BALANCE = {
       // daneben. Ein erster Anlauf setzte die Trefferzahl auf eben diese 90 und liess
       // ein Fass 24,5 Sekunden stehen.
       //
-      // 6 -> 10 Sekunden nach dem Oekonomie-Befund (2026-09-05): Beim Hinfahren fiel ein
-      // Fass in 1,0 s, es waeren also bis zu 60 Faesser je Minute moeglich gewesen. Mit
-      // 10 Sekunden sind es rund 33 Treffer und damit 1,7 s beim Hinfahren.
-      zielSekunden: 10,
+      // 10 -> 4 Sekunden, seit die Faesser durchrollen (2026-09-05). Solange sie standen,
+      // hatte man beliebig lange Zeit und die Haerte war der einzige Regler. Jetzt ist
+      // die ZEIT im Bild die Grenze: Ein Fass ist rund 9 s unterwegs (halbes Tempo,
+      // volle Bildhoehe), davon liegt es nur einen Teil in Reichweite. Bleibt es bei 10
+      // Sekunden Zielzeit, waere kaum eines zu schaffen - "damit man nicht jedes mal ein
+      // Upgrade erwischt" heisst nicht "fast nie".
+      zielSekunden: 4,
       trefferJeFigurUndSchuss: 0.037,
       // Untergrenze, damit ein Fass nie mit einer einzigen Kugel faellt.
       trefferMindest: 5,
-      // PAUSE NACH EINEM FASS, in gefahrenen Weltpixeln, bevor das naechste erscheint.
-      // Ohne sie steht sofort das naechste da und die linke Bahn ist ein Fliessband:
-      // gemessen bis zu 60 Faesser je Minute. 420 px sind bei Testgelaende-Tempo rund
-      // 2,9 s; zusammen mit den 1,7 s Feuer ergibt das rund 13 Faesser je Minute.
-      pausePx: 420,
       // DAS FASS STEHT AM LINKEN STRASSENRAND (Thomas 2026-09-05: "noch weiter links, am
       // linken rand, nur ein kleiner spalt"). Es wird deshalb nicht mehr ueber einen
       // Anteil gesetzt, sondern vom Rand her: Aussenkante gleich Strassenrand minus

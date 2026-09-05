@@ -346,6 +346,55 @@ sich im Durchkommensanteil um Faktor 20 unterscheiden.
 gegen die alte feste Schrittzahl misst; im Browser 9 Tore je Minute gemessen und
 belegt, dass Tore die Truppe in beide Richtungen aendern (30 -> 27 -> 34).
 
+
+## Umsetzung 2026-09-05, fuenfte Runde
+
+**1. Jeder Gegner an der Truppe kostet eine Figur.** Neue Weiche in `handleCombatOverlap`,
+VOR der Unverwundbarkeitspruefung - ein iframe schuetzt vor einer Trefferserie, hier soll
+aber jeder einzelne Gegner zaehlen. Der Gegner verschwindet dabei; im echten Run bleibt
+die alte Regel Zeile fuer Zeile unveraendert (ein Test haelt beide Pfade fest).
+**Markierte Annahme:** Die Truppe faellt nie unter eine Figur, es gibt also kein Game Over
+im Versuch - Thomas hat keines verlangt, und ein abbrechender Lauf koennte die
+Bahnoekonomie nicht mehr zeigen.
+
+**2. Die Faesser rollen durch, statt anzuhalten.** Aus dem Einzelfass ist ein Pool von
+vier geworden; sie kommen alle 520 px (rund 3,6 s) und laufen mit 55 % der
+Strassengeschwindigkeit - langsamer als der Boden, also fast doppelt so lange im Bild.
+Wer nicht trifft, verpasst sie: genau das war der Auftrag. **Die Drehung folgt dabei der
+Bewegung RELATIV ZUR STRASSE** (1 - tempoAnteil), nicht der auf dem Bildschirm; sonst
+rutscht das Fass sichtbar. Die Zielzeit ist von 10 s auf 4 s gesenkt, weil jetzt die Zeit
+im Bild die Grenze ist und nicht mehr die Geduld. Gemessen: **8 Faesser in 22 s (rund 22
+je Minute), bis zu vier gleichzeitig**, Inhaltsreihenfolge haelt (pistol, damage, rate,
+shotgun, damage, rate, normal, damage).
+
+**3. Der Boss war nie ausgebaut.** Im Browser geprueft: Phase `boss`, Boss aktiv und in
+Position. Er kam nur erst nach 90 s Gegnerphase, und so lange spielt niemand einen
+Versuch. Gegnerphase deshalb auf **55 s** - traegt die Bahnbeurteilung (rund 8 Tore, 20
+Faesser) und laesst den Boss innerhalb einer Minute kommen.
+
+## Befund zur Frage "muss die Truppe gedeckelt dargestellt werden?"
+
+**Gemessen, nicht geschaetzt:**
+- Die Truppe hat einen **Figuren-Pool von genau 30 Objekten** (`BALANCE.crowd.max`).
+  Gesetzt auf 60 oder 120 zeigt sie weiterhin 30 - der Rest existiert nur als Zahl im HUD.
+- Ab Level 2 laufen beide auseinander: `getStatCap('hp')` erlaubt 37 Figuren auf Level 3,
+  65 auf Level 8, 120 auf Level 30. Man sieht also den groessten Teil seiner Truppe nicht.
+- **Leistung ist NICHT der Grund:** 180 zusaetzliche Sprites (90 Figuren plus Schatten) in
+  die laufende Szene gezeichnet - Bildzeit unveraendert bei 16,7 ms Median und 18,8 ms im
+  95. Perzentil, also weiter 60 Bilder je Sekunde. Der Deckel kostet Darstellung, ohne
+  Rechenzeit zu sparen.
+- **Der wirkliche Grund ist Platz:** Die Formation darf nur `crowd.maxWidthRatio` breit
+  werden (rund 78 px) und steht schon bei 30 Figuren am Mindestabstand von 11 px. Mehr
+  Figuren muessten nach hinten wachsen, und die Tiefe ist durch den Bildschirmrand
+  begrenzt.
+
+**Empfehlung:** Die echte Anzahl ist darstellbar - das Genre-Vorbild zeigt genau solche
+Massen. Noetig waeren drei Dinge: Figuren-Pool auf den hoechsten Truppendeckel vergroessern
+(120), `crowd.max` an `getStatCap('hp')` koppeln statt fest zu setzen, und die
+Formationstiefe pruefen (bei 8 Spalten braeuchten 120 Figuren 15 Reihen, das sind rund
+210 px nach hinten). **Nicht umgesetzt** - die Truppendarstellung gehoert dem echten Run,
+und das waere ein Eingriff dort.
+
 ---
 
 ## Wo die Historie steht
