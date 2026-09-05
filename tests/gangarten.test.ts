@@ -30,25 +30,47 @@ describe('Gangarten', () => {
    * durch die Hintertuer schneller oder langsamer, ohne dass jemand an speedFactor
    * gedreht haette.
    */
-  it('je Staerke bleibt das mittlere Tempo 1,0', () => {
+  it('das mittlere Tempo je Staerke steht auf seinem dokumentierten Wert', () => {
+    // Leicht und mittel bleiben neutral. Schwer liegt bewusst bei 0,91: Die grossen
+    // Gestalten kamen zu schnell heran (Thomas 2026-09-05), alle drei Tempi sind um
+    // 12 % gedaempft. Das macht schwere Gegner rund ein Zehntel langsamer und damit
+    // etwas leichter - eine bewusste Entscheidung, kein Versehen. Wer diese Zahlen
+    // aendert, aendert die Schwierigkeit und muss das hier mitschreiben.
+    const soll: Readonly<Record<string, number>> = {
+      'enemy-light': 1.0,
+      'enemy-standard': 1.0,
+      'enemy-heavy': 0.91,
+    }
     for (const basis of grundgestalten) {
       const eigene = Object.keys(gangarten).filter((k) => k.startsWith(`${basis}-`))
       expect(eigene.length, `${basis} hat keine Sondergestalten`).toBeGreaterThan(0)
       const summe = eigene.reduce((s, k) => s + gangarten[k].tempo, 1) // 1 = Grundgestalt
       const mittel = summe / (eigene.length + 1)
-      expect(mittel, `${basis} verschiebt die Schwierigkeit`).toBeCloseTo(1, 2)
+      expect(mittel, `${basis} verschiebt die Schwierigkeit`).toBeCloseTo(soll[basis], 2)
     }
   })
 
-  it('der Bildtakt bleibt fluessig und die Spanne beherrschbar', () => {
-    const takte = Object.values(gangarten).map((g) => g.takt)
-    // Zwoelf Bilder je Zyklus, also sind Bilder je Sekunde = Takt x 12.
-    // Unten 0,50 (167 ms Standzeit): darunter zerfaellt die Bewegung in Einzelbilder.
-    // Oben 0,90 (10,8 Bilder/s): darueber flirrt eine gezeichnete Figur, statt zu
-    // laufen - genau das war der Befund vom 2026-09-05 ("sehr hektisch und zu schnell",
-    // damals lief Rennen mit 16,8 Bildern/s).
-    expect(Math.min(...takte)).toBeGreaterThanOrEqual(0.5)
-    expect(Math.max(...takte) * 12).toBeLessThanOrEqual(11)
+  it('keine Gangart wirkt hektisch oder schleppend', () => {
+    // NICHT der Takt entscheidet ueber die gefuehlte Hektik, sondern die AENDERUNG JE
+    // SEKUNDE: Silhouettensprung je Bild x Bilder je Sekunde. Die leichten Saetze
+    // springen fast doppelt so weit wie die schweren (kleine Figuren brauchen groessere
+    // Posenwechsel, um lesbar zu sein) - bei gleichem Takt wirken sie deshalb doppelt
+    // so hektisch. Genau daran ist die erste Korrektur vom 2026-09-05 vorbeigegangen.
+    //
+    // Die Sprungwerte sind an den Bilddateien gemessen. Springt ein neuer Satz anders,
+    // faellt es hier auf, statt erst am Bildschirm.
+    const sprungJeBild: Readonly<Record<string, number>> = {
+      'enemy-light-e': 31.2, 'enemy-light-f': 37.8, 'enemy-light-g': 28.0, 'enemy-light-i': 32.5,
+      'enemy-standard-e': 20.0, 'enemy-standard-g': 25.5, 'enemy-standard-i': 24.1,
+      'enemy-heavy-e': 23.4, 'enemy-heavy-g': 16.0, 'enemy-heavy-i': 22.1,
+    }
+    for (const [key, g] of Object.entries(gangarten)) {
+      const sprung = sprungJeBild[key]
+      expect(sprung, `${key} hat keinen gemessenen Sprungwert`).toBeDefined()
+      const aenderungJeSekunde = sprung * g.takt * 12
+      expect(aenderungJeSekunde, `${key} wirkt hektisch`).toBeLessThanOrEqual(190)
+      expect(aenderungJeSekunde, `${key} wirkt schleppend`).toBeGreaterThanOrEqual(110)
+    }
     const tempi = Object.values(gangarten).map((g) => g.tempo)
     // Ungedaempft laege der Renner zum Zucker bei 8,4 : 1 - das kippt den
     // Durchkommensanteil. Gedaempft bleibt es unter 2,5 : 1.
