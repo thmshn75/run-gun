@@ -1171,16 +1171,28 @@ export const BALANCE = {
       // Untergrenze in Figuren: Bei einer kleinen Truppe waere jeder Anteil unter 1
       // gerundet null, und das Tor traege gar keine Zahl mehr.
       startMindest: 3,
-      // Ueber Null laeuft der Zaehler weiter, aber nicht endlos: Ohne Deckel waere
-      // Draufhalten bis zum Anflug immer richtig und die Entscheidung wieder weg.
-      // Auch das ein Anteil der Truppe - ein fester Deckel waere bei 100 Figuren
-      // bedeutungslos und bei 5 Figuren eine Verdopplung.
-      plusAnteil: 0.33,
+      // WIE WEIT EIN TOR INS PLUS LAUFEN KANN - als Anteil des RESTWEGS BIS ZUM
+      // TRUPPENDECKEL, nicht als Anteil der Truppe selbst.
+      //
+      // DER BEFUND, DER DAS AUSLOEST (2026-09-05): Ein Anteil der Truppe ist ein
+      // Zinseszins - er waechst mit dem, was er selbst erzeugt hat. Gerechnet wurden aus
+      // 30 Figuren in einer Minute 2.852. Im Spiel faengt der Statdeckel das ab
+      // (getStatCap), aber damit war die rechte Bahn nach ZWEI Toren am Anschlag: Ab da
+      // gab jedes Tor nichts mehr, waehrend die Strafe fuer ein verpasstes voll bestehen
+      // blieb. Aus einer Chance wurde eine reine Strafbahn.
+      //
+      // Am Restweg gemessen passiert beides nicht mehr: Der Ertrag wird kleiner, je
+      // naeher man am Deckel steht, erreicht ihn nie ganz und verpufft deshalb nie. 0,35
+      // schliesst gut ein Drittel der Luecke - drei Tore bringen rund 73 % des Wegs.
+      plusAnteilRest: 0.35,
       plusMindest: 3,
-      // Abstand zweier Tore in Weltpixeln. Bei Testgelaende-Tempo (Level 5, rund
-      // 145 px/s) sind das 3,9 s - dazwischen ist die rechte Bahn frei fuer Gegner
-      // ("die Waende kommen zwischen den Gegnern - nicht laufend", Thomas).
-      abstandPx: 560,
+      // Abstand zweier Tore in Weltpixeln. 560 -> 1100 nach dem Oekonomie-Befund vom
+      // 2026-09-05: Bei 560 kamen 15,5 Tore je Minute, also alle 3,9 s eines. Das ist
+      // kein Zielkonflikt mehr, sondern Dauerbeschuss - man faehrt ohnehin die ganze
+      // Zeit rechts. 1100 px sind bei Testgelaende-Tempo (rund 145 px/s) 7,6 s und rund
+      // 8 Tore je Minute: dazwischen bleibt Zeit, sich um die linke Bahn zu kuemmern,
+      // und jedes einzelne Tor wiegt schwerer.
+      abstandPx: 1100,
       // DAS TOR REICHT BIS AN DEN RECHTEN STRASSENRAND (Thomas 2026-09-05: "die Waende
       // breiter machen - nach rechts breiter"). Beschrieben wird jetzt seine INNENKANTE
       // statt Mitte und Breite: Die Aussenkante steht fest am Rand, nur nach innen
@@ -1219,33 +1231,50 @@ export const BALANCE = {
       // daneben. Ein erster Anlauf setzte die Trefferzahl auf eben diese 90 und liess
       // ein Fass 24,5 Sekunden stehen.
       //
-      // 6 Sekunden ergeben bei der Testgelaende-Truppe 20 Treffer - der Wert, der zuletzt
-      // gemessen 6,2 s stand. Bei doppelter Truppe verdoppelt sich die Trefferzahl, die
-      // Zeit bleibt.
-      zielSekunden: 6,
+      // 6 -> 10 Sekunden nach dem Oekonomie-Befund (2026-09-05): Beim Hinfahren fiel ein
+      // Fass in 1,0 s, es waeren also bis zu 60 Faesser je Minute moeglich gewesen. Mit
+      // 10 Sekunden sind es rund 33 Treffer und damit 1,7 s beim Hinfahren.
+      zielSekunden: 10,
       trefferJeFigurUndSchuss: 0.037,
       // Untergrenze, damit ein Fass nie mit einer einzigen Kugel faellt.
       trefferMindest: 5,
+      // PAUSE NACH EINEM FASS, in gefahrenen Weltpixeln, bevor das naechste erscheint.
+      // Ohne sie steht sofort das naechste da und die linke Bahn ist ein Fliessband:
+      // gemessen bis zu 60 Faesser je Minute. 420 px sind bei Testgelaende-Tempo rund
+      // 2,9 s; zusammen mit den 1,7 s Feuer ergibt das rund 13 Faesser je Minute.
+      pausePx: 420,
       // DAS FASS STEHT AM LINKEN STRASSENRAND (Thomas 2026-09-05: "noch weiter links, am
       // linken rand, nur ein kleiner spalt"). Es wird deshalb nicht mehr ueber einen
       // Anteil gesetzt, sondern vom Rand her: Aussenkante gleich Strassenrand minus
       // diesem Spalt in Pixeln auf Kampfhoehe. So bleibt es am Rand, egal wie breit die
       // Strasse auf der jeweiligen Hoehe gerade ist.
       randSpaltPx: 6,
-      // Wie viele heutige Tore ein Fass wert ist (walls.gatesPerLevelStep = 16 Tore je
-      // Levelsprung). Zwoelf heisst: drei Viertel eines Levelsprungs je Fass.
+      // WIE VIEL EIN FASS AUFRUESTET - als Anteil des RESTWEGS BIS ZUM WERTDECKEL,
+      // nicht als feste Zahl von Torschritten.
       //
-      // ZUERST STANDEN HIER VIER - am Durchsatz gerechnet (Fassbahn rund ein Fass je 4 s
-      // gegen zwei Wandkacheln je Sekunde). IM BROWSER GEMESSEN war beides daneben:
-      // Es kamen 19 Faesser in 30 s (ein Fass je 1,6 s, nicht je 4 s), und die sechs
-      // DMG-Faesser darunter hoben den Schaden von 1,00 auf 1,04 - vier Prozent in einer
-      // halben Minute. Thomas' Vorgabe war "die upgrades muessen entsprechend gut sein";
-      // vier Prozent sind das nicht, sie sind unter der Wahrnehmungsschwelle.
+      // DER BEFUND DAZU (2026-09-05): Mit festen zwoelf Torschritten war die Feuerkraft
+      // nach 12 Faessern (Level 1), 27 (Level 5) bzw. 56 (Level 12) ausgereizt - bei bis
+      // zu 60 Faessern je Minute also nach 12 bis 27 Sekunden. Danach warf die ganze
+      // linke Bahn nur noch Muenzen ab, und im Testgelaende gibt es keine.
       //
-      // ZWOELF ergibt rund zwei Prozent je Fass und damit ueber eine Gegnerphase (90 s)
-      // rund ein Fuenftel mehr Feuerkraft - spuerbar, ohne den gemessenen Deckel
-      // (meta.totalBoostCap) sofort zu erreichen, der ohnehin greift.
-      torSchritte: 12,
+      // Am Restweg gemessen bleibt jedes Fass wertvoll: Es schliesst immer denselben
+      // Anteil der verbleibenden Luecke.
+      //
+      // GERECHNET, WARUM 0,10 UND NICHT MEHR: Auf Level 5 sind es 216 Torschritte bis
+      // zum Deckel. Das erste Fass gibt davon 22 Schritte - deutlich mehr als die zwoelf
+      // der festen Rechnung, der Fund ist also spuerbarer als zuvor. Der Rest schrumpft
+      // je Fass auf 90 %, der Deckel wird damit erst nach rund 41 Faessern erreicht statt
+      // nach 27; bei rund 13 Faessern je Minute reicht die Bahn ueber drei Minuten statt
+      // ueber eine halbe. Mit 0,18 waeren es nur 25 Faesser gewesen - der Anteil laeuft
+      // exponentiell in den Deckel, ein grosszuegiger Anteil kauft also kaum Zeit.
+      //
+      // Die Zahl der Schritte wird daraus gerechnet (getFassGateSchritte); ein Schritt
+      // ist weiterhin ein Tor im Sinne von walls.gatesPerLevelStep, damit im Versuch
+      // dieselbe Deckel- und Umleitungslogik gilt wie im echten Run.
+      deckelAnteil: 0.10,
+      // Mindestens ein Schritt: Ein Fass, das rechnerisch null Schritte gaebe, waere ein
+      // leeres Versprechen.
+      schritteMindest: 1,
       // Durchmesser des Fasses in Weltpixeln. 96 -> 106 (Thomas 2026-09-05: "um 10 %
       // groesser machen").
       groessePx: 106,

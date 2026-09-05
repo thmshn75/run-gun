@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
+import { getGateGrowth, getStatCap } from '../src/systems/upgrades'
 import {
   VERSUCH_WAFFENREIHE,
+  getFassGateSchritte,
   getFassInhalt,
   getFassTreffer,
   getFassWaffe,
@@ -12,6 +14,7 @@ import {
   getTorStand,
   getTorStartwert,
   getTruppeNachTor,
+  getWaffenStaerke,
   haeltJetzt,
 } from '../src/systems/versuchPlan'
 
@@ -83,24 +86,22 @@ describe('Versuch Zwei Bahnen', () => {
     it('zaehlt EINEN Punkt je Treffer, ueber Null hinaus, und stoppt am Deckel', () => {
       // Thomas 2026-09-05: "jeder treffer eine punkt +". Kein Schaden, keine Umrechnung.
       const truppe = BALANCE.testground.truppe
-      expect(getTorStand(-12, 0, truppe)).toBe(-12)
-      expect(getTorStand(-12, 5, truppe)).toBe(-7)
-      expect(getTorStand(-12, 12, truppe)).toBe(0)
-      expect(getTorStand(-12, 15, truppe)).toBe(3)
-      expect(getTorStand(-12, 1e9, truppe)).toBe(getTorPlusDeckel(truppe))
-      // Auch der Deckel haengt an der Truppe: Ein fester waere bei 100 Figuren
-      // bedeutungslos und bei 5 Figuren eine Verdopplung.
-      expect(getTorPlusDeckel(100)).toBeGreaterThan(getTorPlusDeckel(30))
-      expect(getTorPlusDeckel(1)).toBeGreaterThanOrEqual(BALANCE.versuch.tor.plusMindest)
+      const deckel = 60
+      expect(getTorStand(-12, 0, truppe, deckel)).toBe(-12)
+      expect(getTorStand(-12, 5, truppe, deckel)).toBe(-7)
+      expect(getTorStand(-12, 12, truppe, deckel)).toBe(0)
+      expect(getTorStand(-12, 15, truppe, deckel)).toBe(3)
+      expect(getTorStand(-12, 1e9, truppe, deckel)).toBe(getTorPlusDeckel(truppe, deckel))
     })
 
     it('faellt nie unter den Startwert und nie ueber den Deckel', () => {
       for (let i = 0; i < 500; i += 1) {
         const truppe = 1 + (i % 120)
+        const deckel = truppe + (i % 50)
         const start = getTorStartwert(i / 500, truppe)
-        const stand = getTorStand(start, i % 37, truppe)
+        const stand = getTorStand(start, i % 37, truppe, deckel)
         expect(stand).toBeGreaterThanOrEqual(start)
-        expect(stand).toBeLessThanOrEqual(getTorPlusDeckel(truppe))
+        expect(stand).toBeLessThanOrEqual(getTorPlusDeckel(truppe, deckel))
       }
     })
 
@@ -108,12 +109,40 @@ describe('Versuch Zwei Bahnen', () => {
       // Die Zusage der neuen Kopplung: Was auf dem Tor steht, ist zugleich die Zahl der
       // Kugeln bis zur Null - keine verborgene Umrechnung dazwischen.
       const truppe = BALANCE.testground.truppe
+      const deckel = truppe * 2
       for (const zufall of [0, 0.4, 0.9999]) {
         const start = getTorStartwert(zufall, truppe)
-        expect(getTorStand(start, Math.abs(start) - 1, truppe)).toBe(-1)
-        expect(getTorStand(start, Math.abs(start), truppe)).toBe(0)
-        expect(getTorStand(start, Math.abs(start) + 1, truppe)).toBe(1)
+        expect(getTorStand(start, Math.abs(start) - 1, truppe, deckel)).toBe(-1)
+        expect(getTorStand(start, Math.abs(start), truppe, deckel)).toBe(0)
+        expect(getTorStand(start, Math.abs(start) + 1, truppe, deckel)).toBe(1)
       }
+    })
+
+    it('misst den Ertrag am RESTWEG zum Deckel, nicht an der Truppe selbst', () => {
+      // DER BEFUND, DER DAS AUSLOESTE (2026-09-05): Ein Anteil der Truppe ist ein
+      // Zinseszins und war nach zwei Toren am Statdeckel - ab da gab die Bahn nichts
+      // mehr, waehrend die Strafe voll bestehen blieb.
+      const deckel = 100
+      // Je naeher an den Deckel, desto weniger gibt ein Tor.
+      expect(getTorPlusDeckel(20, deckel)).toBeGreaterThan(getTorPlusDeckel(60, deckel))
+      expect(getTorPlusDeckel(60, deckel)).toBeGreaterThan(getTorPlusDeckel(90, deckel))
+      // Und der Deckel wird nie ueberschritten: Wiederholtes Volltanken naehert sich ihm
+      // an, statt hineinzulaufen und dort zu verpuffen.
+      let truppe = 20
+      for (let i = 0; i < 40; i += 1) truppe = Math.min(deckel, truppe + getTorPlusDeckel(truppe, deckel))
+      expect(truppe).toBeLessThanOrEqual(deckel)
+      expect(truppe).toBeGreaterThan(90)
+      // Steht die Truppe schon am Deckel, bleibt nur noch die Mindestgabe.
+      expect(getTorPlusDeckel(deckel, deckel)).toBe(BALANCE.versuch.tor.plusMindest)
+    })
+
+    it('kommt selten genug, dass dazwischen Zeit fuer die andere Bahn bleibt', () => {
+      // Gemessen kamen bei 560 px Abstand 15,5 Tore je Minute - alle 3,9 s eines, also
+      // Dauerbeschuss statt Entscheidung. Bezugstempo ist das des Testgelaendes.
+      const tempo = 145
+      const sekundenJeTor = BALANCE.versuch.tor.abstandPx / tempo
+      expect(sekundenJeTor).toBeGreaterThan(6)
+      expect(sekundenJeTor).toBeLessThan(12)
     })
 
     it('gibt beim Durchfahren genau den Stand - und laesst nie weniger als eine Figur uebrig', () => {
@@ -178,26 +207,77 @@ describe('Versuch Zwei Bahnen', () => {
         'weapon', 'damage', 'rate',
         'weapon', 'damage', 'rate',
       ])
-      // Die Waffenreihe ist die Staffelung des Spiels, nicht eine neu erfundene:
-      // aufsteigend nach minLevel, jede genau einmal, bevor sie sich wiederholt.
+      // DIE REIHE STEIGT NACH FEUERKRAFT, nicht nach Freischaltlevel (Befund
+      // 2026-09-05: nach minLevel sortiert fiel sie hinter der Minigun von 23,8 auf 6,0).
       const waffen = Array.from({ length: VERSUCH_WAFFENREIHE.length }, (_, i) => getFassWaffe(i))
       expect(waffen).toEqual([...VERSUCH_WAFFENREIHE])
       expect(new Set(waffen).size).toBe(waffen.length)
-      const stufen = waffen.map((waffe) => (BALANCE.weapon[waffe] as { minLevel: number }).minLevel)
-      expect([...stufen].sort((a, b) => a - b)).toEqual(stufen)
-      // Und sie schliesst sich zum Kreis, statt undefined zu liefern.
-      expect(getFassWaffe(VERSUCH_WAFFENREIHE.length)).toBe(VERSUCH_WAFFENREIHE[0])
+      const staerken = waffen.map(getWaffenStaerke)
+      for (let i = 1; i < staerken.length; i += 1) expect(staerken[i]).toBeGreaterThanOrEqual(staerken[i - 1])
+      // UND SIE BLEIBT OBEN STEHEN, statt zur Pistole zurueckzurotieren: Ein Fass darf
+      // nie eine Verschlechterung ausgeben.
+      const letzte = VERSUCH_WAFFENREIHE[VERSUCH_WAFFENREIHE.length - 1]
+      expect(getFassWaffe(VERSUCH_WAFFENREIHE.length)).toBe(letzte)
+      expect(getFassWaffe(999)).toBe(letzte)
     })
 
-    it('ist als Aufruestung mehrere Tore wert - sonst lohnt die linke Bahn nicht', () => {
-      // Thomas: "die upgrades muessen entsprechend gut sein". Gerechnet am Durchsatz:
-      // ein Fass je rund 4 s gegen rund zwei Wandkacheln je Sekunde.
-      // Im Browser gemessen: vier Schritte hoben den Schaden in 30 s um vier Prozent -
-      // unter der Wahrnehmungsschwelle. Untergrenze ist deshalb ein Viertel Levelsprung
-      // je Fass; die Obergrenze bleibt ein voller Levelsprung, darueber ersetzt ein
-      // einziges Fass eine ganze Levelstufe.
-      expect(BALANCE.versuch.fass.torSchritte).toBeGreaterThanOrEqual(BALANCE.walls.gatesPerLevelStep / 4)
-      expect(BALANCE.versuch.fass.torSchritte).toBeLessThan(BALANCE.walls.gatesPerLevelStep)
+    it('bleibt bis zum Levelende wertvoll, statt in den Deckel zu laufen', () => {
+      // DER BEFUND (2026-09-05): Mit festen zwoelf Torschritten war die Feuerkraft nach
+      // 12 Faessern (Level 1) bzw. 27 (Level 5) ausgereizt - bei bis zu 60 Faessern je
+      // Minute nach 12 bis 27 Sekunden. Danach warf die linke Bahn nur noch Muenzen ab.
+      const wachstum = getGateGrowth('damage')
+      let wert = BALANCE.stats.damage.base
+      const deckel = getStatCap('damage', 5)
+      const ertraege: number[] = []
+      for (let fass = 0; fass < 60; fass += 1) {
+        const schritte = getFassGateSchritte('damage', wert, deckel)
+        const neu = Math.min(deckel, wert * wachstum ** schritte)
+        ertraege.push(neu - wert)
+        wert = neu
+      }
+      // GEGENPROBE STATT FESTER SCHWELLE: verglichen wird mit der alten Rechnung, die
+      // je Fass zwoelf feste Torschritte gab und den Deckel auf Level 5 nach 27 Faessern
+      // erreichte. Die Restwegrechnung muss deutlich laenger tragen.
+      const faesserBisDeckel = (schritteJeFass: (wert: number) => number) => {
+        let w = BALANCE.stats.damage.base
+        for (let i = 0; i < 500; i += 1) {
+          const neu = Math.min(deckel, w * wachstum ** schritteJeFass(w))
+          if (neu <= w) return i
+          w = neu
+        }
+        return 500
+      }
+      const neu = faesserBisDeckel((w) => getFassGateSchritte('damage', w, deckel))
+      const altFest = faesserBisDeckel(() => 12)
+      expect(neu).toBeGreaterThan(altFest * 1.5)
+      // Die Ertraege werden dabei kleiner, nicht groesser: das ist der Sinn der
+      // Restwegrechnung.
+      expect(ertraege[0]).toBeGreaterThan(ertraege[20])
+    })
+
+    it('kommt mit Pause, statt als Fliessband zu laufen', () => {
+      // Gemessen waren bis zu 60 Faesser je Minute moeglich - ein Fliessband. Feuerzeit
+      // plus Pause muessen zusammen deutlich darunter bleiben.
+      const tempo = 145
+      const truppe = BALANCE.testground.truppe
+      const rate = BALANCE.stats.shotsPerSec.base
+      // Beim Hinfahren gemessen: 20 Treffer in 1,0 s bei Truppe 30 und Rate 3.
+      const trefferProSekBeimHinfahren = 20
+      const feuerSek = getFassTreffer(truppe, rate) / trefferProSekBeimHinfahren
+      const pauseSek = BALANCE.versuch.fass.pausePx / tempo
+      const faesserProMinute = 60 / (feuerSek + pauseSek)
+      expect(faesserProMinute).toBeLessThan(20)
+      expect(faesserProMinute).toBeGreaterThan(6)
+    })
+
+    it('gibt am Anfang mehr als ein einzelnes Wandtor des echten Runs', () => {
+      // Thomas: "die upgrades muessen entsprechend gut sein". Ein Wandtor im echten Run
+      // ist ein Sechzehntel Levelsprung (walls.gatesPerLevelStep); ein frisches Fass
+      // muss deutlich darueber liegen, sonst faellt der Fund unter die
+      // Wahrnehmungsschwelle - im Browser gemessen waren vier Schritte nur vier Prozent
+      // Schaden in einer halben Minute.
+      const schritte = getFassGateSchritte('damage', BALANCE.stats.damage.base, getStatCap('damage', 5))
+      expect(schritte).toBeGreaterThan(BALANCE.walls.gatesPerLevelStep / 2)
     })
   })
 

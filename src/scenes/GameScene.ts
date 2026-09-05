@@ -3,6 +3,7 @@ import { BALANCE } from '../config/balance'
 import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
 import { Walls } from '../systems/walls'
 import { VersuchBahnen, type BahnSystem } from '../systems/versuchBahnen'
+import { getFassGateSchritte } from '../systems/versuchPlan'
 import { Popups } from '../systems/popups'
 import { Coins } from '../systems/coins'
 import { ShopOverlay } from '../systems/shopOverlay'
@@ -730,6 +731,10 @@ export class GameScene extends Phaser.Scene {
       this,
       () => this.runStats.get('hp'),
       () => this.runStats.get('shotsPerSec'),
+      // Der Truppendeckel dieses Levels. Die Tore bemessen ihren Ertrag am Restweg
+      // dorthin, statt an einem Anteil der Truppe - sonst waeren sie nach zwei Toren am
+      // Anschlag und danach nur noch Strafe (Oekonomie-Befund 2026-09-05).
+      () => getStatCap('hp', this.currentLevel, this.runStats.getSteps(), this.runStats.getMeta()),
       () => Phaser.Math.RND.frac(),
       (apply) => {
         const before = this.runStats.get('hp')
@@ -747,16 +752,26 @@ export class GameScene extends Phaser.Scene {
         this.syncCrowdSize()
         this.updateHud()
       },
-      // Ein Fass ist mehrere Tore wert (BALANCE.versuch.fass.torSchritte). Umgesetzt als
-      // wiederholter Torschritt statt als eigener Faktor: So gilt im Versuch dieselbe
+      // WIE VIEL EIN FASS AUFRUESTET, gerechnet am Restweg bis zum Wertdeckel: Ein Fass
+      // schliesst immer denselben Anteil der verbleibenden Luecke und bleibt deshalb bis
+      // zum Levelende wertvoll. Mit fester Schrittzahl war die Feuerkraft nach 12 bis 56
+      // Faessern ausgereizt und die linke Bahn danach wertlos (Befund 2026-09-05).
+      //
+      // Umgesetzt bleibt es als wiederholter TORSCHRITT: So gilt im Versuch dieselbe
       // Deckel- und Umleitungslogik wie im echten Run, und ein ausgereiztes Fass wirft
       // wie ein ausgereiztes Tor Muenzen ab.
-      (stat, schritte, x, y) => {
+      (stat, x, y) => {
+        const key = stat === 'damage' ? 'damage' : 'shotsPerSec'
+        const schritte = getFassGateSchritte(
+          key,
+          this.runStats.get(key),
+          getStatCap(key, this.currentLevel, this.runStats.getSteps(), this.runStats.getMeta()),
+        )
         let summe = 0
         let umgeleitet = false
         let ziel: 'damage' | 'shotsPerSec' | undefined
         for (let i = 0; i < schritte; i += 1) {
-          const ergebnis = applyGoodGate(this.runStats, stat === 'damage' ? 'damage' : 'shotsPerSec')
+          const ergebnis = applyGoodGate(this.runStats, key)
           if (ergebnis.stat === undefined) {
             this.dropCoins(x, y, BALANCE.walls.maxedCoinBonus)
             continue

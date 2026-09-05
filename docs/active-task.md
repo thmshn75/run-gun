@@ -304,6 +304,48 @@ auf Level 5, ueber die 90 s Gegnerphase: **0,9 -> 1,1 -> 1,3 -> 1,6 -> 2,1 -> 2,
 - Waffenreihe nach gemessener Feuerkraft sortieren statt nach Freischaltlevel, und am
   staerksten Eintrag stehenbleiben statt zur Pistole zurueckzurotieren.
 
+
+## Umsetzung 2026-09-05, vierte Runde: die drei Befunde behoben
+
+Thomas: "setze alles um, wie von dir vorgeschlagen."
+
+**1. Ertraege am Restweg zum Deckel statt an festen Anteilen.**
+- *Tore:* Der Plusdeckel ist jetzt ein Anteil des Wegs zwischen aktueller Truppe und
+  `getStatCap('hp')` (35 %), nicht mehr 33 % der Truppe. Gerechnet fuer Truppe 30 bei
+  Deckel 46: +6, +4, +3, +3 - der Ertrag sinkt, je naeher man dem Deckel kommt, und
+  erreicht ihn nach acht vollen Toren statt nach zwei. Der Zinseszins ist damit weg.
+- *Faesser:* Ein Fass schliesst 10 % des Wegs zum Feuerkraftdeckel
+  (`getFassGateSchritte`). Gemessen an den echten Balance-Werten: Das erste Fass auf
+  Level 5 gibt 11 Torschritte (vorher fest 12), der Deckel wird aber erst nach **34
+  Faessern** erreicht statt nach 10 - auf Level 12 nach 40 statt 19, auf Level 1 nach 26
+  statt 4. **Warum nicht grosszuegiger:** Mit 18 % waeren es nur 25 Faesser gewesen; der
+  Restanteil laeuft exponentiell in den Deckel, ein hoeherer Anteil kauft kaum Zeit.
+
+**2. Takt gestreckt.** Torabstand 560 -> 1100 px (im Spiel gemessen: **9 Tore je Minute**
+statt 15,5). Faesser bekommen eine Pause von 420 px zwischen zwei Stueck; rechnerisch
+sind das rund 13 je Minute statt bis zu 60, im Spiel ohne aktives Hinsteuern deutlich
+weniger (gemessen 3), weil ein Fass am Rand nur getroffen wird, wenn man hinfaehrt.
+
+**3. Waffenreihe nach gemessener Staerke, oben stehenbleibend.**
+Sortiert wird jetzt nach `killsPerSec` - dem MESSWERT aus der Waffen-Vergleichsreihe des
+Projekts, aus dem auch der Laden seine Sterne und die Kaufpreise ableitet. Die Reihe
+lautet damit: **pistol 1,75 -> shotgun 3,13 -> normal 3,40 -> minigun 3,97 ->
+flamethrower 4,83 -> chainlightning 5,07 -> rocket 7,47 -> ricochet 7,67 -> sawblade
+7,67 -> laser 8,27 -> grenade 10,27 -> shockwave 12,47 -> cluster 13,80.** Nach der
+letzten bleibt sie stehen, statt zur Pistole zurueckzurotieren.
+
+**Ein Zwischenschritt, der verworfen wurde:** Zuerst hatte ich nach
+`getCombatFirepower` sortiert (Schaden mal Rate). Das stellte ausgerechnet die vier
+Flaechenwaffen ganz nach vorn, weil diese Groesse nur ein Ziel sieht und uebersieht, dass
+eine Granate mehrere Gegner auf einmal nimmt. `killsPerSec` misst das mit.
+**Bekannte Grenze davon** (im Projekt schon zweimal teuer bezahlt, `docs/lessons.md`
+2026-08-25): Es misst die REICHWEITE nicht mit - zwei Waffen mit gleichem Wert koennen
+sich im Durchkommensanteil um Faktor 20 unterscheiden.
+
+**Belegt durch:** 371 Tests gruen inkl. Gegenprobe-Test, der die neue Restwegrechnung
+gegen die alte feste Schrittzahl misst; im Browser 9 Tore je Minute gemessen und
+belegt, dass Tore die Truppe in beide Richtungen aendern (30 -> 27 -> 34).
+
 ---
 
 ## Wo die Historie steht

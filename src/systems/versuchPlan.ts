@@ -1,4 +1,5 @@
 import { BALANCE } from '../config/balance'
+import { getGateGrowth } from './upgrades'
 import type { WeaponKey } from './weapons'
 
 // ===========================================================================
@@ -30,10 +31,35 @@ export function getTorStartwert(zufall: number, truppe: number): number {
   return -Math.max(startMindest, Math.round(anteil * Math.max(1, truppe)))
 }
 
-/** Wie weit ein Tor ins Plus laufen kann - ebenfalls an der Truppe gemessen. */
-export function getTorPlusDeckel(truppe: number): number {
-  const { plusAnteil, plusMindest } = BALANCE.versuch.tor
-  return Math.max(plusMindest, Math.round(plusAnteil * Math.max(1, truppe)))
+/**
+ * Wie weit ein Tor ins Plus laufen kann - als Anteil des RESTWEGS BIS ZUM TRUPPENDECKEL.
+ *
+ * Ein Anteil der Truppe selbst waere ein Zinseszins und liefe nach zwei Toren in den
+ * Statdeckel; ab da gaebe die Bahn nichts mehr, waehrend die Strafe voll bestehen bliebe
+ * (Oekonomie-Befund 2026-09-05). Am Restweg gemessen wird der Ertrag kleiner, je naeher
+ * man am Deckel steht, erreicht ihn nie ganz - und verpufft deshalb nie.
+ */
+export function getTorPlusDeckel(truppe: number, truppenDeckel: number): number {
+  const { plusAnteilRest, plusMindest } = BALANCE.versuch.tor
+  const rest = Math.max(0, truppenDeckel - Math.max(0, truppe))
+  return Math.max(plusMindest, Math.round(plusAnteilRest * rest))
+}
+
+/**
+ * Wie viele Torschritte ein Fass gibt - ebenfalls am Restweg bemessen, hier zum
+ * Wertdeckel (getStatCap).
+ *
+ * Ein Torschritt hebt den Wert um getGateGrowth. Der Weg von `aktuell` bis `deckel`
+ * entspricht also log(deckel/aktuell) / log(wachstum) Schritten; davon geht ein Fass
+ * `deckelAnteil`. Mit festen Schritten war die Feuerkraft nach 12 bis 56 Faessern
+ * ausgereizt und die linke Bahn danach wertlos (Befund 2026-09-05).
+ */
+export function getFassGateSchritte(stat: 'damage' | 'shotsPerSec', aktuell: number, deckel: number): number {
+  const { deckelAnteil, schritteMindest } = BALANCE.versuch.fass
+  const wachstum = getGateGrowth(stat)
+  if (!(aktuell > 0) || !(deckel > aktuell) || wachstum <= 1) return schritteMindest
+  const schritteBisDeckel = Math.log(deckel / aktuell) / Math.log(wachstum)
+  return Math.max(schritteMindest, Math.round(deckelAnteil * schritteBisDeckel))
 }
 
 /**
@@ -45,8 +71,8 @@ export function getTorPlusDeckel(truppe: number): number {
  * er bei plusMax - ohne diesen Deckel waere Draufhalten bis zum Anflug immer richtig
  * und die Entscheidung wieder weg.
  */
-export function getTorStand(startwert: number, treffer: number, truppe: number): number {
-  return Math.min(getTorPlusDeckel(truppe), startwert + Math.max(0, Math.floor(treffer)))
+export function getTorStand(startwert: number, treffer: number, truppe: number, truppenDeckel: number): number {
+  return Math.min(getTorPlusDeckel(truppe, truppenDeckel), startwert + Math.max(0, Math.floor(treffer)))
 }
 
 /**
@@ -99,11 +125,30 @@ export const VERSUCH_WAFFENREIHE: readonly WeaponKey[] = ((Object.keys(BALANCE.w
     const eintrag = (BALANCE.weapon as Record<string, unknown>)[key]
     return typeof eintrag === 'object' && eintrag !== null && 'minLevel' in eintrag
   }) as WeaponKey[])
-  // AUSDRUECKLICH SORTIERT, nicht uebernommen: In BALANCE.weapon stehen die Waffen in
-  // der Reihenfolge, in der sie ins Spiel kamen (1, 2, 3, 18, 11, 5, …), nicht in der
-  // ihrer Staffelung. Nur weapons.ts fuehrt sie sortiert - und die Datei zieht Phaser.
-  .sort((links, rechts) => (BALANCE.weapon[links] as { minLevel: number }).minLevel
-    - (BALANCE.weapon[rechts] as { minLevel: number }).minLevel)
+  // NACH DER GEMESSENEN STAERKE SORTIERT, NICHT NACH FREISCHALTLEVEL.
+  //
+  // Zuerst stand hier minLevel - das ist die Reihenfolge, in der eine Waffe im Run
+  // verfuegbar wird, nicht ihre Staerke; die Reihe fiel damit hinter der Minigun ab.
+  // Ein zweiter Anlauf rechnete Schaden mal Feuerrate (getCombatFirepower) und stellte
+  // ausgerechnet die vier Flaechenwaffen ganz nach vorn: Diese Groesse sieht nur EIN
+  // Ziel und uebersieht, dass eine Granate mehrere Gegner auf einmal nimmt.
+  //
+  // killsPerSec ist der MESSWERT aus der Waffen-Vergleichsreihe des Projekts - dieselbe
+  // Zahl, aus der der Laden seine Staerke-Sterne (weaponStars.ts) und die Kaufpreise
+  // ableitet. Die Fassreihe folgt damit derselben Rangfolge, die der Spieler im Laden
+  // sieht; zwei verschiedene Rangfolgen fuer dieselben Waffen waeren ein Widerspruch im
+  // eigenen Spiel.
+  //
+  // BEKANNTE GRENZE, im Projekt schon zweimal teuer bezahlt (docs/lessons.md,
+  // 2026-08-25): killsPerSec misst die REICHWEITE nicht mit. Zwei Waffen mit gleichem
+  // Wert koennen sich im Durchkommensanteil um Faktor 20 unterscheiden. Faellt eine
+  // Waffe in der Fassreihe auf, ist das hier die Stelle.
+  .sort((links, rechts) => getWaffenStaerke(links) - getWaffenStaerke(rechts))
+
+/** Die Kennzahl, nach der die Fassreihe sortiert: gemessene Toetungen je Sekunde. */
+export function getWaffenStaerke(waffe: WeaponKey): number {
+  return (BALANCE.weapon[waffe] as { killsPerSec?: number }).killsPerSec ?? 0
+}
 
 /**
  * Was im `index`-ten Fass steckt. Fester Zyklus, kein Zufall: Waffe, DMG, RATE, Waffe, …
@@ -114,10 +159,17 @@ export function getFassInhalt(index: number): FassInhalt {
   return rest === 0 ? 'weapon' : rest === 1 ? 'damage' : 'rate'
 }
 
-/** Welche Waffe im `waffenIndex`-ten Waffenfass steckt - der Reihe nach, aufsteigend. */
+/**
+ * Welche Waffe im `waffenIndex`-ten Waffenfass steckt - der Reihe nach, aufsteigend.
+ *
+ * AM STAERKSTEN EINTRAG BLEIBT SIE STEHEN. Vorher lief sie zyklisch weiter: Nach der
+ * dreizehnten Waffe kam wieder die Pistole, das Fass haette also eine Verschlechterung
+ * ausgegeben (Befund 2026-09-05). Wer die Reihe durchgespielt hat, bekommt weiterhin die
+ * staerkste - kein Rueckschritt, aber auch kein neuer Gewinn.
+ */
 export function getFassWaffe(waffenIndex: number): WeaponKey {
   const laenge = VERSUCH_WAFFENREIHE.length
-  return VERSUCH_WAFFENREIHE[((waffenIndex % laenge) + laenge) % laenge]
+  return VERSUCH_WAFFENREIHE[Math.min(Math.max(0, Math.floor(waffenIndex)), laenge - 1)]
 }
 
 /**

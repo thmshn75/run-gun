@@ -91,9 +91,10 @@ export class VersuchBahnen implements BahnSystem {
   private readonly scene: Phaser.Scene
   private readonly getTeamSize: () => number
   private readonly getShotsPerSec: () => number
+  private readonly getTruppenDeckel: () => number
   private readonly rng: () => number
   private readonly applyReinforcement: (apply: (current: number) => number) => void
-  private readonly applyFassGate: (stat: 'damage' | 'rate', schritte: number, x: number, y: number) => void
+  private readonly applyFassGate: (stat: 'damage' | 'rate', x: number, y: number) => void
   private readonly wallGroup: Phaser.Physics.Arcade.Group
   private readonly rewardGroup: Phaser.Physics.Arcade.Group
   private readonly tore: TorZustand[]
@@ -105,6 +106,7 @@ export class VersuchBahnen implements BahnSystem {
   private waffenIndex: number
   private rollStreckePx: number
   private fassEinblendPx: number
+  private fassPausePx: number
   private nextSpawnId: number
   private hatRollbilder: boolean
 
@@ -112,13 +114,15 @@ export class VersuchBahnen implements BahnSystem {
     scene: Phaser.Scene,
     getTeamSize: () => number,
     getShotsPerSec: () => number,
+    getTruppenDeckel: () => number,
     rng: () => number,
     applyReinforcement: (apply: (current: number) => number) => void,
-    applyFassGate: (stat: 'damage' | 'rate', schritte: number, x: number, y: number) => void,
+    applyFassGate: (stat: 'damage' | 'rate', x: number, y: number) => void,
   ) {
     this.scene = scene
     this.getTeamSize = getTeamSize
     this.getShotsPerSec = getShotsPerSec
+    this.getTruppenDeckel = getTruppenDeckel
     this.rng = rng
     this.applyReinforcement = applyReinforcement
     this.applyFassGate = applyFassGate
@@ -130,6 +134,8 @@ export class VersuchBahnen implements BahnSystem {
     this.waffenIndex = 0
     this.rollStreckePx = 0
     this.fassEinblendPx = 0
+    // Das erste Fass kommt ohne Wartezeit - die Pause gilt zwischen zwei Faessern.
+    this.fassPausePx = BALANCE.versuch.fass.pausePx
     this.nextSpawnId = -1
     // Liegt die Rollbildfolge vor? Fehlt sie (Codex-Lauf noch nicht fertig), laeuft das
     // Fass mit der Wandtextur ohne Drehung - die Mechanik ist dann trotzdem pruefbar.
@@ -203,7 +209,7 @@ export class VersuchBahnen implements BahnSystem {
   public collectPickup(wall: Phaser.Physics.Arcade.Image): number {
     const tor = this.torZuObjekt.get(wall)
     if (tor === undefined || !tor.aktiv) return 0
-    const stand = getTorStand(tor.startwert, tor.treffer, this.getTeamSize())
+    const stand = getTorStand(tor.startwert, tor.treffer, this.getTeamSize(), this.getTruppenDeckel())
     this.applyReinforcement((current) => getTruppeNachTor(current, stand))
     this.recycleTor(tor)
     return stand
@@ -305,7 +311,7 @@ export class VersuchBahnen implements BahnSystem {
    * gedreht ist, muss man das sehen, sonst faehrt man an der eigenen Arbeit vorbei.
    */
   private beschrifteTor(tor: TorZustand): void {
-    const stand = getTorStand(tor.startwert, tor.treffer, this.getTeamSize())
+    const stand = getTorStand(tor.startwert, tor.treffer, this.getTeamSize(), this.getTruppenDeckel())
     tor.label.setText(stand > 0 ? `+${stand}` : `${stand}`)
     tor.label.setColor(stand > 0 ? '#3ddc84' : '#ff6b6b')
     tor.bild.setTexture(stand > 0 ? 'wall-segment-right' : 'wall-segment-bad')
@@ -337,6 +343,12 @@ export class VersuchBahnen implements BahnSystem {
 
   private aktualisiereFass(movement: number): void {
     if (!this.fass.aktiv) {
+      // PAUSE ZWISCHEN ZWEI FAESSERN, in gefahrener Strecke gemessen. Ohne sie steht
+      // sofort das naechste da: gemessen bis zu 60 Faesser je Minute, also ein
+      // Fliessband statt einer Entscheidung (Oekonomie-Befund 2026-09-05).
+      this.fassPausePx += movement
+      if (this.fassPausePx < BALANCE.versuch.fass.pausePx) return
+      this.fassPausePx = 0
       this.spawneFass()
       return
     }
@@ -440,7 +452,7 @@ export class VersuchBahnen implements BahnSystem {
       ;(fass.reward.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       return true
     }
-    this.applyFassGate(fass.inhalt, BALANCE.versuch.fass.torSchritte, fass.bild.x, fass.bild.y)
+    this.applyFassGate(fass.inhalt, fass.bild.x, fass.bild.y)
     this.recycleFass()
     return true
   }
