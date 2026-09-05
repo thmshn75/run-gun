@@ -21,26 +21,31 @@ Live: https://thmshn75.github.io/run-gun/ · **V4 = Endlos-Modus**, Plan `docs/p
   Deploy per `gh run watch` verifizieren.
 
 ## Fertig
-- **Gangart-Tempo gemessen und belegt (2026-09-05)** — jede Gangart bewegt sich auch
-  unterschiedlich schnell fort, nicht nur im Bild (Thomas: "ja sie sollen sich
-  unterschiedlich schnell fortbewegen, je nach gangart in der realitaet").
-  Takt und Tempo stehen zusammen in `BALANCE.enemy.bilder.gangarten` — getrennt gepflegt
-  wuerden die Fuesse ueber die Strasse rutschen. Herkunft: reale Kadenz mal Schrittlaenge,
-  gedaempft auf 0,35, je Staerke auf Mittel 1,0 normiert (Test `tests/gangarten.test.ts`
-  haelt das fest, damit keine Staerke durch die Hintertuer schneller wird).
-  **Im laufenden Spiel gemessen** (Testgelaende, Level 16 und 24, ueber 14.000 Proben),
-  Median der Fallgeschwindigkeit gegen die taumelnde Grundgestalt mit 124,0 px/s:
-    Rennen 191,0 (1,54) · Marschieren 153,8 (1,24) · Schleichen 110,4 (0,89) ·
-    Schlurfen 107,9 (0,87) · Kriechen 106,7 (0,86) · Watscheln 105,5 (0,85) ·
-    Humpeln 104,2 (0,84) · Zucken 94,2 (0,76).
-  Acht der zehn Gangarten sind so direkt belegt und treffen ihren Sollwert auf zwei
-  Stellen. **Stampfen und Schreiten wurden nicht beobachtet** — schwere Gestalten sind
-  selten, in 48 s kam nur `heavy-e` vor. Sie laufen ueber denselben Codepfad, sind aber
-  nicht gemessen.
-  **Der Durchkommensanteil wurde NICHT neu gemessen.** Er ist bistabil und streut bei
-  unveraenderter Einstellung um 2 Prozentpunkte; der erwartete Effekt liegt darunter,
-  weil das mittlere Tempo je Staerke konstruktiv 1,0 bleibt. Wer die Streuungswirkung
-  belegen will, braucht mehrere Laeufe je Variante.
+- **Gangart-Tempo und Bildtakt (2026-09-05)** — jede Gangart bewegt sich unterschiedlich
+  schnell fort UND hat ihren eigenen Bildtakt. Beides steht zusammen in
+  `BALANCE.enemy.bilder.gangarten`; getrennt gepflegt wuerden die Fuesse rutschen.
+  `tests/gangarten.test.ts` haelt die Grenzen fest.
+  **Die entscheidende Groesse beim Bildtakt ist NICHT der Takt, sondern die AENDERUNG JE
+  SEKUNDE** (Silhouettensprung je Bild x Bilder je Sekunde). Das hat drei Anlaeufe
+  gekostet: Die leichten Saetze springen je Bild fast doppelt so weit wie die schweren
+  (28-38 % gegen 16-23 %), weil kleine Figuren groessere Posenwechsel brauchen, um
+  lesbar zu sein. Bei gleichem Takt wirken sie deshalb doppelt so hektisch. Alle zehn
+  Gangarten stehen jetzt auf **120 %/s** — dem Wert, den Thomas ausdruecklich als gut
+  bezeichnet hat. Die Takte reichen dafuer von 0,26 (Kriechen, 320 ms je Bild) bis 0,62
+  (Stampfen); die alte Faustregel "unter 100 ms Standzeit" gilt nur fuer kleine
+  Aenderungen und ist hier irrefuehrend.
+  **Das Tempo wurde im laufenden Spiel gemessen** (Testgelaende, Level 16 und 24, ueber
+  14.000 Proben): Die Faktoren wirken exakt, jede Gestalt traf ihren Sollwert auf zwei
+  Stellen. Die Messung stammt aus der Fassung VOR den Tempo-Korrekturen; die Verhaeltnisse
+  gelten weiter, die Absolutwerte sind seither um 5-12 % gesunken.
+  **Stampfen und Schreiten wurden nie beobachtet** — schwere Gestalten spawnen selten.
+  **DIE SCHWIERIGKEIT IST DREIMAL GESENKT WORDEN, OHNE NACHMESSUNG.** Aus dem
+  Spielgefuehl heraus (Thomas: schwere "als ganzes zu schnell im kommen", Renner "zu
+  schnell auf mich zu") liegt das mittlere Tempo jetzt bei leicht 0,93, mittel 0,95,
+  schwer 0,91 statt jeweils 1,00. Alle Gegner brauchen also rund ein Zwanzigstel bis
+  Zehntel laenger bis zur Truppe und sind leichter zu raeumen. Der Durchkommensanteil
+  ist damit ungemessen — **das ist der wichtigste offene Punkt.**
+
 - **Zehn eigene Gangarten (2026-09-04)** — jede Sondergestalt bewegt sich anders, und
   jede in ihrem eigenen Takt. Block 1: `standard-e` marschiert, `standard-g` schlurft,
   `standard-i` schleicht. Block 2: `light-e` rennt, `light-f` kriecht, `light-g` zuckt,
