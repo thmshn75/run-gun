@@ -157,6 +157,16 @@ export class Spawner {
    * Gegner - 0, wenn der Deckel erreicht ist oder kein Platz auf der Strasse war.
    */
   public requestBossHorde(size: number, maxActiveCalled: number): number {
+    // DIE TORSPERRE GILT AUCH FUER GERUFENE HORDEN (Thomas 2026-09-05: "bei den Waenden
+    // keine kleinen Gegner"). Sie umgehen den regulaeren Takt bewusst, also muss die
+    // Sperre hier eigens stehen - sonst erscheinen ausgerechnet im Bosskampf wieder
+    // Gegner im Schatten des Tores.
+    //
+    // BEWUSSTE FOLGE: Ein Ruf, der ins Fenster faellt, verfaellt - wie heute schon ein
+    // Ruf, der am Begleiter-Deckel scheitert. Der Hordendruck sinkt im Versuch damit um
+    // den Fensteranteil (gemessen 47 %). Ihn stattdessen aufzustauen haette den Takt in
+    // boss.ts geaendert, und der gehoert dem echten Run.
+    if (this.spawnSperre) return 0
     const activeCalled = this.countBossCompanions()
     if (!canSpawnBossHorde(activeCalled, size, maxActiveCalled)) return 0
     const before = activeCalled

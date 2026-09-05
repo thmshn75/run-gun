@@ -52,19 +52,16 @@ describe('Versuch Zwei Bahnen', () => {
       expect(gameScene).toMatch(/if \(this\.elapsedMs < this\.enemyContactIframeUntilMs\) return\s*\n\s*this\.handlePlayerHit\(enemyImage\)/)
     })
 
-    it('laesst die Bahnen im Bosskampf ruhen', () => {
-      // Thomas 2026-09-05: "als der boss erschienen ist waren die gegner wieder in und um
-      // die waende". Der Phasenwechsel raeumt die Bahnen zwar ab, aber update() setzte im
-      // naechsten Bild sofort das naechste Tor an den Horizont - und die vom Boss
-      // gerufenen Horden laufen im selben rechten Band.
-      expect(gameScene).toMatch(/this\.walls\.setPausiert\(this\.levelPhase !== 'normal'\)/)
-      // Und die Gegnersperre gilt nur in der Gegnerphase: Im Bosskampf haette sie nichts
-      // zu sperren, waere aber ein zweiter Schalter am selben Ventil.
-      expect(gameScene).toMatch(/setSpawnSperre\(this\.levelPhase === 'normal' && this\.walls\.istTorFenster\(\)\)/)
-      // Gesetzt wird beides VOR walls.update - sonst spawnt der Phasenwechsel noch ein Bild.
-      const pausIndex = gameScene.indexOf('this.walls.setPausiert(')
-      const updateIndex = gameScene.indexOf('this.walls.update(dt)')
-      expect(pausIndex).toBeLessThan(updateIndex)
+    it('haelt die Gegner auch im Bosskampf von den Waenden fern, ohne die Bahnen anzuhalten', () => {
+      // Thomas 2026-09-05: "es soll schon alles weiterlaufen, nur bei den waenden keine
+      // kleinen gegner wie vorher im spiel". Ein erster Anlauf hatte die Bahnen im
+      // Bosskampf ganz angehalten - das war zu viel.
+      expect(gameScene).not.toContain('setPausiert')
+      expect(gameScene).toMatch(/setSpawnSperre\(this\.walls\.istTorFenster\(\)\)/)
+      // Und die Sperre muss auch fuer die vom Boss gerufenen Horden gelten: Sie gehen
+      // ueber requestBossHorde und umgehen den regulaeren Takt.
+      const spawner = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
+      expect(spawner).toMatch(/public requestBossHorde\([^)]*\): number \{[\s\S]{0,900}?if \(this\.spawnSperre\) return 0/)
     })
 
     it('schickt die Gegner nur im Testgelaende nach rechts', () => {

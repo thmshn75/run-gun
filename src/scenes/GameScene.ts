@@ -489,11 +489,12 @@ export class GameScene extends Phaser.Scene {
     // VERSUCH: Hinter einer Wand darf kein Gegner erscheinen (Thomas 2026-09-05). Jedes
     // Bild neu gesetzt, weil das Fenster an der gefahrenen Strecke haengt - und ueber
     // einen EIGENEN Schalter, damit es die Spawnsperre der Bossphase nicht ueberschreibt.
+    // GILT IN JEDER PHASE, auch im Bosskampf (Thomas 2026-09-05: "es soll schon alles
+    // weiterlaufen, nur bei den Waenden keine kleinen Gegner wie vorher im Spiel"). Die
+    // Bahnen laufen also durch; nur der Gegnernachschub haelt sich vom Tor fern - und
+    // das schliesst die Horden ein, die der Boss ruft.
     if (this.istTestgelaende() && this.walls instanceof VersuchBahnen) {
-      // Ausserhalb der Gegnerphase ruhen die Bahnen: Im Bosskampf laufen sonst Tore
-      // durchs Duell, und die vom Boss gerufenen Horden stehen in ihrem Schatten.
-      this.walls.setPausiert(this.levelPhase !== 'normal')
-      this.spawner.setSpawnSperre(this.levelPhase === 'normal' && this.walls.istTorFenster())
+      this.spawner.setSpawnSperre(this.walls.istTorFenster())
     }
     this.walls.update(dt)
     this.popups.update(dt)

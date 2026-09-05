@@ -427,23 +427,27 @@ Waffenfolge pistol -> shotgun -> normal ueber 29 s, keine einzige Wiederholung, 
 mehr als ein Waffen-Fund gleichzeitig im Bild.
 
 
-## Nachtrag: Bahnen ruhen im Bosskampf (Thomas 2026-09-05)
+## Nachtrag: Gegner meiden die Waende auch im Bosskampf (Thomas 2026-09-05)
 
-"Als der Boss erschienen ist, waren die Gegner wieder in und um die Waende."
+"Als der Boss erschienen ist, waren die Gegner wieder in und um die Waende." - und nach
+dem ersten Anlauf praezisiert: "Es soll schon alles weiterlaufen, nur bei den Waenden
+keine kleinen Gegner wie vorher im Spiel."
 
-**Ursache:** Der Phasenwechsel raeumt die Bahnen zwar ab (`walls.deactivateAll()` in
-`updateLevelPhase`), aber `update()` setzte im naechsten Bild sofort das naechste Tor an
-den Horizont - und die Horden, die der Boss ruft, laufen im selben rechten Band. Die
-Gegnersperre half dort nicht: Boss-Horden gehen ueber `requestBossHorde` und umgehen den
-regulaeren Takt bewusst.
+**Ursache:** Die Horden, die der Boss ruft, gehen ueber `requestBossHorde` und umgehen
+den regulaeren Spawntakt bewusst (so war es schon vor dem Versuch). Die Torsperre der
+Gegnerphase griff dort deshalb nicht.
 
-**Behoben:** Waehrend Bosswarnung und Bosskampf ruhen beide Bahnen ganz - keine neuen
-Tore, keine neuen Faesser, die Strasse daneben ist leer. Ein Tor im Duell waere doppelt
-falsch: Es verdeckt die gerufenen Gegner UND faengt die Schuesse ab, die dem Boss gelten.
-Gesetzt wird der Schalter VOR `walls.update`, sonst spawnt der Phasenwechsel noch ein Bild.
+**Verworfener erster Anlauf:** Die Bahnen im Bosskampf ganz anzuhalten. Das loeste das
+Problem, nahm aber mehr weg als noetig - Thomas will die Bahnen durchlaufen sehen.
 
-**Gemessen:** Ueber die gesamte Boss- und Warnphase null aktive Tore und null aktive
-Faesser; in der Gegnerphase davor liefen beide normal.
+**Behoben:** Die Sperre steht jetzt in `requestBossHorde` selbst und gilt damit in jeder
+Phase. **Bewusste Folge:** Ein Ruf, der ins Torfenster faellt, verfaellt - wie heute
+schon ein Ruf, der am Begleiter-Deckel scheitert. Der Hordendruck des Bosses sinkt damit
+um den Fensteranteil (rund 47 %). Ihn stattdessen aufzustauen haette den Takt in
+`boss.ts` geaendert, und der gehoert dem echten Run.
+
+**Gemessen im Bosskampf:** Tore und Faesser laufen weiter (in 29 Proben durchgehend
+Faesser, dazu Tore), und von 58 gerufenen Gegnern fiel **kein einziger** ins Torfenster.
 
 ---
 
