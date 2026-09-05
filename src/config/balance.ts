@@ -2023,9 +2023,17 @@ export const BALANCE = {
     // Takt kamen sie auf 230-337 % je Sekunde, die schweren nur auf 121-152 %. Nicht
     // der Takt war ungleich, sondern das Produkt.
     //
-    // Die leichten sind deshalb auf rund 175 % je Sekunde gebracht - das Niveau der
-    // mittleren Gestalten, die nie bemaengelt wurden. Die schweren bleiben unveraendert
-    // ("sind ok"), die mittleren ebenfalls.
+    // ALLE GANGARTEN LIEGEN JETZT BEI 120 % JE SEKUNDE. Es hat drei Anlaeufe gebraucht:
+    // erst die Spitze gekappt (16,8 auf 10,8 Bilder/s), dann die leichten auf 175 %
+    // gebracht - beide Male blieb der Befund "zu schnell". Massgeblich ist der Wert,
+    // den Thomas ausdruecklich als gut bezeichnet hat: `heavy-g` mit 121 % ("die
+    // Bewegung der grossen sind ok"). Darauf steht jetzt alles.
+    //
+    // Die Takte sind deshalb SEHR unterschiedlich (0,26 bis 0,63) - das ist kein
+    // Versehen, sondern die Folge: Ein Satz mit weiten Spruengen braucht einen
+    // niedrigen Takt fuer dieselbe Wirkung wie einer mit engen. `light-f` steht bei
+    // 320 ms je Bild und flimmert trotzdem nicht, weil sich dabei 37,8 % der
+    // Silhouette aendern.
     //
     // DAHER STEHT DIE UNTERGRENZE NICHT MEHR BEI 0,50: `light-f` liegt bei 0,39 und
     // damit 214 ms je Bild. Das flimmert NICHT, weil dieser Satz je Bild 37,8 % seiner
@@ -2047,38 +2055,46 @@ export const BALANCE = {
     // fest.
     //
     //   Gangart         Takt  Bilder/s  Sprung/Bild  Aenderung/s   Tempo
-    //   Rennen          0,47     5,6       31,2 %        176 %/s     1,54
-    //   Marschieren     0,72     8,6       20,0 %        173 %/s     1,24
-    //   Stampfen        0,63     7,6       16,0 %        121 %/s     0,99
-    //   Schreiten       0,50     6,0       22,1 %        133 %/s     0,90
-    //   Schleichen      0,54     6,5       24,1 %        156 %/s     0,89
-    //   Schlurfen       0,59     7,1       25,5 %        181 %/s     0,87
-    //   Kriechen        0,39     4,7       37,8 %        177 %/s     0,86
-    //   Watscheln       0,54     6,5       23,4 %        152 %/s     0,75
-    //   Humpeln         0,45     5,4       32,5 %        176 %/s     0,84
-    //   Zucken          0,52     6,2       28,0 %        175 %/s     0,76
+    //   Rennen         0.32      3.8        31.2 %        120 %/s     1.20
+    //   Marschieren    0.50      6.0        20.0 %        120 %/s     1.24
+    //   Stampfen       0.62      7.4        16.0 %        119 %/s     0.99
+    //   Schreiten      0.45      5.4        22.1 %        119 %/s     0.90
+    //   Schleichen     0.41      4.9        24.1 %        119 %/s     0.89
+    //   Schlurfen      0.39      4.7        25.5 %        119 %/s     0.87
+    //   Kriechen       0.26      3.1        37.8 %        118 %/s     0.86
+    //   Watscheln      0.43      5.2        23.4 %        121 %/s     0.75
+    //   Humpeln        0.31      3.7        32.5 %        121 %/s     0.84
+    //   Zucken         0.36      4.3        28.0 %        121 %/s     0.76
     //
     // GRENZE: Die Aenderung je Sekunde bleibt zwischen 110 und 190 %. Darueber wirkt es
     // hektisch, darunter schleppend. Ein Test haelt das fest - mit den gemessenen
     // Sprungwerten, damit auffaellt, wenn ein neuer Bildersatz anders springt.
     //
-    // DIE GROSSEN KAMEN ZU SCHNELL HERAN (Thomas 2026-09-05: "teilweise als ganzes zu
-    // schnell im kommen"). Alle drei schweren Tempi sind deshalb um 12 % gedaempft.
-    // FOLGE FUER DIE BALANCE, bewusst in Kauf genommen: Das mittlere Tempo der schweren
-    // Gestalten liegt jetzt bei 0,91 statt 1,00 - schwere Gegner brauchen rund ein
-    // Zehntel laenger bis zur Truppe und sind damit etwas leichter zu raeumen. Bei
-    // leicht und mittel bleibt das Mittel unveraendert 1,00.
+    // ZWEI TEMPO-KORREKTUREN AUS DEM SPIELGEFUEHL, beide mit Folgen fuer die Balance:
+    //   - Die schweren kamen als Ganzes zu schnell heran (Thomas 2026-09-05: "teilweise
+    //     als ganzes zu schnell im kommen"). Alle drei Tempi um 12 % gedaempft.
+    //   - Der Renner kam zu schnell (Thomas: "die kleinen roten kapuzentypen kommen
+    //     auch zu schnell auf mich zu", auf Rueckfrage der aufrechte Renner, nicht der
+    //     Kriecher). 1,54 -> 1,20. Er bleibt der schnellste Gegner, aber mit Abstand
+    //     statt mit Vorsprung. Dabei fiel auf, dass MARSCHIEREN mit 1,24 dann schneller
+    //     gewesen waere als Rennen - ein Soldat im Gleichschritt ueberholt keinen
+    //     Rennenden. Marschieren daher 1,24 -> 1,05. Der Test hat das gefunden, nicht
+    //     das Auge.
+    // FOLGE, bewusst in Kauf genommen: Das mittlere Tempo liegt bei leicht auf 0,93,
+    // bei mittel auf 0,95 und bei schwer auf 0,91 statt jeweils 1,00 - alle drei Sorten
+    // brauchen rund ein Zwanzigstel bis Zehntel laenger bis zur Truppe und sind damit
+    // etwas leichter zu raeumen.
     gangarten: {
-      'enemy-light-e':    { takt: 0.47, tempo: 1.54 },   // RENNEN
-      'enemy-light-f':    { takt: 0.39, tempo: 0.86 },   // KRIECHEN
-      'enemy-light-g':    { takt: 0.52, tempo: 0.76 },   // ZUCKEN
-      'enemy-light-i':    { takt: 0.45, tempo: 0.84 },   // HUMPELN
-      'enemy-standard-e': { takt: 0.72, tempo: 1.24 },   // MARSCHIEREN
-      'enemy-standard-g': { takt: 0.59, tempo: 0.87 },   // SCHLURFEN
-      'enemy-standard-i': { takt: 0.54, tempo: 0.89 },   // SCHLEICHEN
-      'enemy-heavy-e':    { takt: 0.54, tempo: 0.75 },   // WATSCHELN
-      'enemy-heavy-g':    { takt: 0.63, tempo: 0.99 },   // STAMPFEN
-      'enemy-heavy-i':    { takt: 0.5, tempo: 0.9 },   // SCHREITEN
+      'enemy-light-e':    { takt: 0.32, tempo: 1.2 },   // RENNEN
+      'enemy-light-f':    { takt: 0.26, tempo: 0.86 },   // KRIECHEN
+      'enemy-light-g':    { takt: 0.36, tempo: 0.76 },   // ZUCKEN
+      'enemy-light-i':    { takt: 0.31, tempo: 0.84 },   // HUMPELN
+      'enemy-standard-e': { takt: 0.5, tempo: 1.05 },   // MARSCHIEREN
+      'enemy-standard-g': { takt: 0.39, tempo: 0.87 },   // SCHLURFEN
+      'enemy-standard-i': { takt: 0.41, tempo: 0.89 },   // SCHLEICHEN
+      'enemy-heavy-e':    { takt: 0.43, tempo: 0.75 },   // WATSCHELN
+      'enemy-heavy-g':    { takt: 0.62, tempo: 0.99 },   // STAMPFEN
+      'enemy-heavy-i':    { takt: 0.45, tempo: 0.9 },   // SCHREITEN
     } as Readonly<Record<string, { readonly takt: number; readonly tempo: number }>>,
     // Ab hier liegt die Standflaeche, daran misst bildVersatz.ts den seitlichen
     // Ausgleich. Zwei Drittel: darunter sind Beine und Fuesse, keine Arme.

@@ -31,14 +31,15 @@ describe('Gangarten', () => {
    * gedreht haette.
    */
   it('das mittlere Tempo je Staerke steht auf seinem dokumentierten Wert', () => {
-    // Leicht und mittel bleiben neutral. Schwer liegt bewusst bei 0,91: Die grossen
-    // Gestalten kamen zu schnell heran (Thomas 2026-09-05), alle drei Tempi sind um
-    // 12 % gedaempft. Das macht schwere Gegner rund ein Zehntel langsamer und damit
-    // etwas leichter - eine bewusste Entscheidung, kein Versehen. Wer diese Zahlen
-    // aendert, aendert die Schwierigkeit und muss das hier mitschreiben.
+    // Nur die mittleren sind neutral. Leicht (0,93) und schwer (0,91) liegen bewusst
+    // darunter: Die schweren kamen als Ganzes zu schnell heran, und der Renner mit 1,54
+    // war zu schnell (beides Thomas 2026-09-05). Das macht beide Sorten rund ein
+    // Zehntel langsamer und damit etwas leichter - eine bewusste Entscheidung aus dem
+    // Spielgefuehl, kein Versehen. Wer diese Zahlen aendert, aendert die Schwierigkeit
+    // und muss das hier mitschreiben.
     const soll: Readonly<Record<string, number>> = {
-      'enemy-light': 1.0,
-      'enemy-standard': 1.0,
+      'enemy-light': 0.93,
+      'enemy-standard': 0.95,
       'enemy-heavy': 0.91,
     }
     for (const basis of grundgestalten) {
@@ -68,7 +69,9 @@ describe('Gangarten', () => {
       const sprung = sprungJeBild[key]
       expect(sprung, `${key} hat keinen gemessenen Sprungwert`).toBeDefined()
       const aenderungJeSekunde = sprung * g.takt * 12
-      expect(aenderungJeSekunde, `${key} wirkt hektisch`).toBeLessThanOrEqual(190)
+      // 120 %/s ist der Wert, den Thomas ausdruecklich als gut bezeichnet hat
+      // (`heavy-g`). Alle Gangarten stehen darauf; die Toleranz faengt nur Rundung.
+      expect(aenderungJeSekunde, `${key} wirkt hektisch`).toBeLessThanOrEqual(130)
       expect(aenderungJeSekunde, `${key} wirkt schleppend`).toBeGreaterThanOrEqual(110)
     }
     const tempi = Object.values(gangarten).map((g) => g.tempo)
