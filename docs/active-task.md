@@ -259,6 +259,51 @@ Ausdruecklich als Hinweis gegeben, nicht als Auftrag - gehoert in den echten Run
 in den Testgelaende-Versuch, und beruehrt die abgenommene Level-1-Balance
 (`enemy.spawnBands`, Leveltabelle). Erst nach eigener Beauftragung anfassen.
 
+
+## Befund 2026-09-05: Verteilung gegen eigene Staerke und Gegnerstaerke
+
+Thomas' Auftrag: "die verteilung wie oft man was bekommt in der relation zur eigenen
+staerke und der gegenerstaerke musst du dir noch ansehen". **Nur angesehen, nichts
+geaendert.** Gerechnet mit den echten Balance-Funktionen ueber Level 1-30, Trefferraten
+aus den Browser-Messungen.
+
+**1. Beide Bahnen laufen binnen Sekunden in ihren Deckel - und ab da ist nur noch die
+Strafe uebrig.** `RunStats.set` deckelt jeden Wert an `getStatCap`. Die Truppe startet im
+Testgelaende bei 30, der Deckel auf Level 5 liegt bei 46. Ein volles Tor gibt 33 % der
+Truppe, also 10 Figuren - **nach zwei Toren (rund 8 Sekunden) ist der Deckel erreicht**,
+und jedes weitere Tor gibt nichts mehr. Die Strafe fuer ein verpasstes Tor bleibt aber
+voll bestehen (bis -16). Die rechte Bahn kippt damit nach kurzer Zeit von einer Chance zu
+einer reinen Strafbahn. Dasselbe bei der Feuerkraft: **ausgereizt nach 12 Faessern auf
+Level 1, nach 27 auf Level 5, nach 56 auf Level 12** - bei bis zu 60 Faessern je Minute
+sind das 12 bis 27 Sekunden.
+
+**2. Der Truppenertrag ist ein Zinseszins.** Der Plusdeckel ist ein ANTEIL der Truppe
+(33 %), und er wirkt auf die schon gewachsene Truppe. Ohne den Statdeckel waeren aus 30
+Figuren in einer Minute 2.852 geworden. Der Statdeckel faengt das ab - aber damit
+entscheidet nicht mehr die Bahn ueber die Truppengroesse, sondern die Levelnummer.
+
+**3. Die Waffenreihe ist nicht nach Staerke sortiert und faellt am Ende zurueck.**
+Sortiert wird nach Freischaltlevel (`minLevel`), und das ist nicht dasselbe wie Staerke.
+Gemessen an `getCombatFirepower` (Truppe 30, Level 5) ergibt die Ausgabereihenfolge:
+12,2 -> 17,1 -> 21,6 -> **23,8 (Minigun)** -> 19,7 -> 8,1 -> 6,7 -> 11,3 -> 9,4 -> 11,0
+-> **6,0 (Granate)** -> 7,6 -> 8,3 -> **und dann wieder Pistole 12,2**. Nach der Minigun
+geht es also bergab, und nach der dreizehnten Waffe faengt die Reihe von vorn an. Der
+Vorbehalt dazu: `getCombatFirepower` misst Schaden mal Rate und unterschaetzt
+Flaechenwaffen, die mehrere Gegner auf einmal treffen - der Absturz von 23,8 auf 6,0 ist
+aber zu gross, um daran allein zu liegen.
+
+**4. Die Bilanz kippt innerhalb eines Levels.** Spielerkraft geteilt durch Gegnerbedarf
+auf Level 5, ueber die 90 s Gegnerphase: **0,9 -> 1,1 -> 1,3 -> 1,6 -> 2,1 -> 2,2 ->
+2,6**. Der Start ist knapp, nach einer Minute ist es doppelt so leicht.
+
+**Was daraus folgen wuerde** (Vorschlag, nicht umgesetzt):
+- Ertraege am ABSTAND ZUM DECKEL bemessen statt an festen Anteilen - dann verpufft nichts
+  und die Bahn bleibt bis zum Levelende eine Entscheidung.
+- Takt strecken: weniger Tore und Faesser, dafuer jedes einzelne wertvoller. Bei 15 Toren
+  und bis zu 60 Faessern je Minute ist beides heute eher Dauerbeschuss als Entscheidung.
+- Waffenreihe nach gemessener Feuerkraft sortieren statt nach Freischaltlevel, und am
+  staerksten Eintrag stehenbleiben statt zur Pistole zurueckzurotieren.
+
 ---
 
 ## Wo die Historie steht
