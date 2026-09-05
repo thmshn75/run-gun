@@ -42,10 +42,13 @@ describe('Gangarten', () => {
 
   it('der Bildtakt bleibt fluessig und die Spanne beherrschbar', () => {
     const takte = Object.values(gangarten).map((g) => g.takt)
-    // Zwoelf Bilder: unter 0,5 Zyklen/s steht ein Bild laenger als 167 ms und die
-    // Bewegung zerfaellt in Einzelbilder.
+    // Zwoelf Bilder je Zyklus, also sind Bilder je Sekunde = Takt x 12.
+    // Unten 0,50 (167 ms Standzeit): darunter zerfaellt die Bewegung in Einzelbilder.
+    // Oben 0,90 (10,8 Bilder/s): darueber flirrt eine gezeichnete Figur, statt zu
+    // laufen - genau das war der Befund vom 2026-09-05 ("sehr hektisch und zu schnell",
+    // damals lief Rennen mit 16,8 Bildern/s).
     expect(Math.min(...takte)).toBeGreaterThanOrEqual(0.5)
-    expect(Math.max(...takte)).toBeLessThanOrEqual(2)
+    expect(Math.max(...takte) * 12).toBeLessThanOrEqual(11)
     const tempi = Object.values(gangarten).map((g) => g.tempo)
     // Ungedaempft laege der Renner zum Zucker bei 8,4 : 1 - das kippt den
     // Durchkommensanteil. Gedaempft bleibt es unter 2,5 : 1.

@@ -1998,8 +1998,22 @@ export const BALANCE = {
     // HERKUNFT. Je Gangart zwei reale Kennwerte: die Kadenz (Schritte je Sekunde) und
     // die Schrittlaenge als Anteil der Koerperhoehe. Referenz ist normales Gehen mit
     // 2,0 Schritten je Sekunde und 0,42 Koerperhoehe je Schritt.
-    //     takt  = Schritte je Sekunde / 2      (zwoelf Bilder sind ein Doppelschritt)
     //     tempo ~ Schritte je Sekunde x Schrittlaenge
+    //
+    // BEIM TAKT GILT DIE REALE KADENZ NICHT DIREKT (Thomas 2026-09-05: "die bewegung der
+    // figuren selbst (arme und beine) wirken sehr hektisch und zu schnell"). Gerechnet
+    // als Kadenz/2 lief das Rennen mit 1,4 Zyklen/s - bei zwoelf Bildern sind das
+    // 16,8 Bilder je Sekunde und 60 ms Standzeit. Gezeichnete Figuren liest das Auge
+    // aber nur bis rund 11 Bildern je Sekunde als EINE Bewegung; darueber flirrt es,
+    // egal wie richtig die Kadenz ist. Der Grund ist die Bildzahl: Zwoelf Bilder je
+    // Doppelschritt sind fuer schnelle Gangarten zu viele - handgezeichnete Laufzyklen
+    // kommen mit sechs bis acht aus.
+    //
+    // Der Bereich ist deshalb von [0,50 .. 1,40] auf [0,50 .. 0,90] gestaucht: Die
+    // Reihenfolge und die Abstaende bleiben, nur die Spitze faellt. Damit liegt alles
+    // zwischen 6,0 und 10,8 Bildern je Sekunde (93 bis 167 ms Standzeit). Das Tempo der
+    // Fortbewegung ist davon NICHT betroffen - Thomas: "die gangart und geschwindigkeit
+    // passt an sich".
     //
     // DAEMPFUNG 0,35 auf den Tempo-Anteil. Unveraendert stuende der Renner zum Zucker
     // im Verhaeltnis 8,4 : 1 - der Renner waere dreimal so schnell wie heute jeder
@@ -2012,30 +2026,30 @@ export const BALANCE = {
     // bleibt dadurch unangetastet, es kommt nur die Streuung dazu. Ein Test haelt das
     // fest.
     //
-    //   Gangart        Schritte/s  Schrittlaenge   Takt   Tempo
-    //   Rennen             2,8         0,62        1,40    1,54
-    //   Marschieren        2,0         0,42        1,00    1,24
-    //   Stampfen           1,6         0,40        0,80    1,13
-    //   Schreiten          1,0         0,50        0,50    1,02
-    //   Schleichen         1,2         0,28        0,60    0,89
-    //   Schlurfen          1,4         0,22        0,70    0,87
-    //   Kriechen           1,6         0,26        0,80    0,86
-    //   Watscheln          1,2         0,22        0,60    0,85
-    //   Humpeln            1,4         0,26        0,70    0,84
-    //   Zucken             2,6         0,08        1,30    0,76
+    //   Gangart        Schritte/s  Schrittlaenge   Takt  Bilder/s   Tempo
+    //   Rennen             2,8         0,62        0,90    10,8      1,54
+    //   Marschieren        2,0         0,42        0,72     8,6      1,24
+    //   Stampfen           1,6         0,40        0,63     7,6      1,13
+    //   Schreiten          1,0         0,50        0,50     6,0      1,02
+    //   Schleichen         1,2         0,28        0,54     6,5      0,89
+    //   Schlurfen          1,4         0,22        0,59     7,1      0,87
+    //   Kriechen           1,6         0,26        0,63     7,6      0,86
+    //   Watscheln          1,2         0,22        0,54     6,5      0,85
+    //   Humpeln            1,4         0,26        0,59     7,1      0,84
+    //   Zucken             2,6         0,08        0,86    10,3      0,76
     //
-    // GRENZE NACH UNTEN beim Takt: Bei zwoelf Bildern und 0,5 Zyklen/s steht ein Bild
-    // 167 ms - ueber der Flimmerschwelle von rund 100 ms, aber noch fluessig.
+    // GRENZEN BEIM TAKT: nach unten 0,50 - ein Bild steht dann 167 ms, laenger zerfaellt
+    // die Bewegung in Einzelbilder. Nach oben 0,90 - darueber flirrt sie (siehe oben).
     gangarten: {
-      'enemy-light-e':    { takt: 1.4, tempo: 1.54 },   // RENNEN
-      'enemy-light-f':    { takt: 0.8, tempo: 0.86 },   // KRIECHEN
-      'enemy-light-g':    { takt: 1.3, tempo: 0.76 },   // ZUCKEN
-      'enemy-light-i':    { takt: 0.7, tempo: 0.84 },   // HUMPELN
-      'enemy-standard-e': { takt: 1.0, tempo: 1.24 },   // MARSCHIEREN
-      'enemy-standard-g': { takt: 0.7, tempo: 0.87 },   // SCHLURFEN
-      'enemy-standard-i': { takt: 0.6, tempo: 0.89 },   // SCHLEICHEN
-      'enemy-heavy-e':    { takt: 0.6, tempo: 0.85 },   // WATSCHELN
-      'enemy-heavy-g':    { takt: 0.8, tempo: 1.13 },   // STAMPFEN
+      'enemy-light-e':    { takt: 0.9, tempo: 1.54 },   // RENNEN
+      'enemy-light-f':    { takt: 0.63, tempo: 0.86 },   // KRIECHEN
+      'enemy-light-g':    { takt: 0.86, tempo: 0.76 },   // ZUCKEN
+      'enemy-light-i':    { takt: 0.59, tempo: 0.84 },   // HUMPELN
+      'enemy-standard-e': { takt: 0.72, tempo: 1.24 },   // MARSCHIEREN
+      'enemy-standard-g': { takt: 0.59, tempo: 0.87 },   // SCHLURFEN
+      'enemy-standard-i': { takt: 0.54, tempo: 0.89 },   // SCHLEICHEN
+      'enemy-heavy-e':    { takt: 0.54, tempo: 0.85 },   // WATSCHELN
+      'enemy-heavy-g':    { takt: 0.63, tempo: 1.13 },   // STAMPFEN
       'enemy-heavy-i':    { takt: 0.5, tempo: 1.02 },   // SCHREITEN
     } as Readonly<Record<string, { readonly takt: number; readonly tempo: number }>>,
     // Ab hier liegt die Standflaeche, daran misst bildVersatz.ts den seitlichen
