@@ -1,8 +1,10 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-09-05 (Versuch "Zwei Bahnen" fertig und von Benni abgenommen - er BLEIBT
-vorerst im Testgelaende, der echte Run ist unveraendert. Davor: zehn Gangarten mit Tempo
-und Bildtakt, V4, Bennis iPhone-Test am 2026-08-29 ok, am 30.08. der Ton entfernt.)
+Stand: 2026-09-06 (Die neue Wandlogik nach dem Genre-Vorbild Last Z: Survival Shooter
+liegt im Testgelaende und BLEIBT vorerst dort - der echte Run ist unveraendert. Davor:
+Versuch "Zwei Bahnen" fertig und von Benni abgenommen, ebenfalls nur im Testgelaende;
+zehn Gangarten mit Tempo und Bildtakt, V4, Bennis iPhone-Test am 2026-08-29 ok, am 30.08.
+der Ton entfernt.)
 
 **Das Naechste liegt in `## Offen`.**
 
@@ -244,6 +246,7 @@ echten Runs. Beides sollte nach Bennis Test nachgezogen werden.
 "Lies `docs/UEBERGABE.md`, `docs/lessons.md` und `docs/plan-v4.md` und arbeite dort weiter.
 **Nichts neu aufsetzen** — V1/V2/V3 sind abgenommen und getaggt, V4 ist gebaut und
 gemessen, die zehn Gangarten sind seit dem 2026-09-05 fertig und im Spiel.
-Naechster Schritt ist eine BESPRECHUNG, kein Bauauftrag: die Wandlogik aus dem
-Genre-Vorbild Last Z: Survival Shooter (Punkt 0a in `## Offen`). Der Rechercheteil ist
-erledigt, es fehlt Thomas' Entscheidung. Danach die aelteren Nachmessungen."
+Die Wandlogik aus dem Genre-Vorbild Last Z: Survival Shooter ist erledigt - sie liegt
+seit dem 2026-09-06 im Testgelaende und bleibt vorerst dort; ohne Thomas' Go wandert sie
+nicht in den echten Run. **Es laeuft gerade nichts.** Was liegen bleibt, steht in
+`## Offen`; ganz oben Thomas' Entscheidung zur Truppenanzeige."

@@ -17,15 +17,16 @@ laufenden Kosten.
 schon steht:**
 1. `docs/UEBERGABE.md` — wo die Arbeit steht und was als Naechstes drankommt.
 2. `docs/lessons.md` — die teuer bezahlten Regeln.
-3. `docs/plan-v2.md` — **der aktuell verbindliche Plan.**
+3. `docs/plan-v4.md` — **der aktuell verbindliche Plan.**
 
-`docs/plan.md` ist das ARCHIV von V1. V1 ist am 2026-08-22 abgenommen und als Git-Tag
-`v1.0` gesichert; die dortigen Etappen E9/E10 sind ersetzt bzw. entfallen. Wer den
-Projektstand aus `plan.md` beantwortet, antwortet falsch (siehe `docs/lessons.md`,
-Eintrag vom 2026-08-22). Bei mehreren Plandateien gilt immer die hoechste Version, und
-`git tag -l` zeigt, was bereits abgenommen ist.
+`docs/plan.md` (V1), `docs/plan-v2.md` (V2) und `docs/plan-v3.md` (V3) sind ARCHIV. V1
+ist am 2026-08-22 abgenommen, V3 am 2026-08-24, V4 ist gebaut und gemessen; gesichert als
+Git-Tags `v1.0` bis `v4.0`. Die Etappen E9/E10 aus `plan.md` sind ersetzt bzw. entfallen.
+Wer den Projektstand aus einer Archivdatei beantwortet, antwortet falsch (siehe
+`docs/lessons.md`, Eintrag vom 2026-08-22). Bei mehreren Plandateien gilt immer die
+hoechste Version, und `git tag -l` zeigt, was bereits abgenommen ist.
 
-Scope-Deckel: die Etappen aus `docs/plan-v2.md`; keine Features darueber hinaus, bevor
+Scope-Deckel: die Etappen aus `docs/plan-v4.md`; keine Features darueber hinaus, bevor
 die offenen Etappen fertig sind.
 
 ## Deine Rolle: Denken & Entscheiden

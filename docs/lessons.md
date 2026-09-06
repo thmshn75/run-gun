@@ -1076,7 +1076,9 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   und `balance.ts`: Dreispur-Tore seien rechnerisch erledigt, die Wandlogik fertig
   abgenommen, "offen ist an dem Themenkomplex nichts mehr". Gemeint war etwas ganz
   anderes - das Genre-Vorbild **Last Z: Survival Shooter**, aus dem Laufbewegung und
-  Bruecke/Wasser schon uebernommen sind und dessen **Wandlogik noch offen** ist.
+  Bruecke/Wasser schon uebernommen sind und dessen Wandlogik damals noch offen war.
+  (Nachtrag 2026-09-06: Die neue Wandlogik liegt im Testgelaende und bleibt vorerst dort.
+  Der Punkt ist erledigt - dieser Eintrag bleibt nur wegen der Regel darunter stehen.)
 - **Warum es passieren konnte:** In den Projektdateien steht der Spielname NIRGENDS. Es
   heisst nur "nach einem Genre-Video" und "nach demselben Video". Die Suche nach dem
   Thema fand deshalb den falschen Treffer - und der klang plausibel genug, um nicht zu
