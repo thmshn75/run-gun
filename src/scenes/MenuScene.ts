@@ -117,14 +117,28 @@ export class MenuScene extends Phaser.Scene {
     // TESTGELAENDE (Benni ueber Thomas 2026-08-25: "ob es sowas wie ein testlevel geben
     // kann, wo man alle waffen einzeln ausprobieren kann"). Es zaehlt fuer nichts: kein
     // Spielstand, keine Bestenliste, kein Sterben.
+    // PROBELAUF (Thomas 2026-09-15) teilt sich den Slot: Eine neue Zeile im Stapel wuerde
+    // alle Safe-Area-gerechneten Knoepfe verschieben.
+    const testBreite = (safeWidth - 2 * BALANCE.menu.sidePadding - 8) / 2
+    const testMitte = layout.testButton.top + layout.testButton.height / 2
     this.addButton(
-      safeLeft + safeWidth / 2,
-      layout.testButton.top + layout.testButton.height / 2,
-      safeWidth - 2 * BALANCE.menu.sidePadding,
+      safeLeft + BALANCE.menu.sidePadding + testBreite / 2,
+      testMitte,
+      testBreite,
       layout.testButton.height,
-      'TESTGELÄNDE — ALLE WAFFEN AUSPROBIEREN',
+      'TESTGELÄNDE',
       true,
       () => { this.scene.start('GameScene', { einstieg: 'test' }) },
+      undefined, true,
+    )
+    this.addButton(
+      safeLeft + safeWidth - BALANCE.menu.sidePadding - testBreite / 2,
+      testMitte,
+      testBreite,
+      layout.testButton.height,
+      'PROBELAUF',
+      true,
+      () => { this.zeigeProbelaufWahl() },
       undefined, true,
     )
     // FORTSCHRITT ZURUECKHOLEN - steht nur da, wenn es etwas zurueckzuholen gibt
@@ -455,6 +469,63 @@ export class MenuScene extends Phaser.Scene {
    * dieselbe Funktion. Zwei Fragen mit zwei Aufbauten waeren zwei Stellen, an denen
    * dieselbe Falle unterschiedlich aussieht.
    */
+  /**
+   * PROBELAUF (Thomas 2026-09-15): die neuen Bahnen nach den Regeln des echten Laufs.
+   * Startlevel waehlbar, damit spaete Level nicht erst nach zwanzig Minuten zu sehen sind.
+   * Es wird nichts gespeichert - der Laufstand im Menue bleibt, wie er ist.
+   */
+  private zeigeProbelaufWahl(): void {
+    if (this.confirmationObjects.length > 0) return
+    const width = this.scale.width
+    const height = this.scale.height
+    const safeWidth = width - this.insets.left - this.insets.right
+    const centerX = this.insets.left + safeWidth / 2
+    const centerY = (height + this.insets.top - this.insets.bottom) / 2
+    const panelWidth = safeWidth - 2 * BALANCE.menu.sidePadding
+    const wall = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.65).setDepth(10).setInteractive()
+    wall.on('pointerdown', () => undefined)
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, 244, MENU_COLORS.row, 1).setDepth(11)
+      .setStrokeStyle(2, MENU_COLORS.rowStroke, 1)
+    const titel = this.add.text(centerX, centerY - 88, 'PROBELAUF', {
+      fontFamily: 'system-ui', fontSize: '23px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
+    }).setOrigin(0.5).setDepth(12)
+    const text = this.add.text(centerX, centerY - 46, 'Die neuen Bahnen mit den Regeln\ndes echten Laufs. Es wird nichts gespeichert.', {
+      fontFamily: 'system-ui', fontSize: '14px', align: 'center', lineSpacing: 3,
+      color: this.colorFor(MENU_COLORS.text),
+    }).setOrigin(0.5).setDepth(12)
+    this.confirmationObjects.push(wall, panel, titel, text)
+    const levels: readonly number[] = BALANCE.versuch.probe.startLevels
+    const abstand = 6
+    const knopfBreite = (panelWidth - 32 - abstand * (levels.length - 1)) / levels.length
+    levels.forEach((level, index) => {
+      const x = centerX - (panelWidth - 32) / 2 + knopfBreite / 2 + index * (knopfBreite + abstand)
+      this.confirmationObjects.push(...this.addButton(x, centerY + 20, knopfBreite, 44, `LEVEL ${level}`, true,
+        () => { this.starteProbelauf(level) }, undefined, false, 12))
+    })
+    this.confirmationObjects.push(...this.addButton(centerX, centerY + 84, panelWidth - 32, 36, 'ZURÜCK', true, () => {
+      this.closeResetConfirmation()
+    }, undefined, true, 12))
+  }
+
+  /** Wie beim neuen Spiel: Wer Waffen gekauft hat, waehlt die Startwaffe fuer das Startlevel. */
+  private starteProbelauf(level: number): void {
+    this.closeResetConfirmation()
+    const wahl = getStartWeaponChoices('pistol', level, getOwnedWeapons(this.save))
+    if (wahl.length < 2) {
+      this.scene.start('GameScene', { einstieg: 'probe', probeStartLevel: level })
+      return
+    }
+    this.startwaffe = 'pistol'
+    this.zeigeStartwaffenwahl({
+      level,
+      wahl,
+      starten: () => {
+        this.closeShop()
+        this.scene.start('GameScene', { einstieg: 'probe', probeStartLevel: level, startwaffe: this.startwaffe })
+      },
+    })
+  }
+
   private zeigeFrage(titel: string, erklaerung: string, jaText: string, onJa: () => void): void {
     if (this.confirmationObjects.length > 0) return
     const width = this.scale.width

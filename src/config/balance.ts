@@ -1338,6 +1338,33 @@ export const BALANCE = {
     // (enemy.spawnBands.singleLaneShare) - dort beginnt die Wandzone. Nach innen bleibt
     // bei 0,18 ein schmaler Streifen um die Mitte frei, damit die linke Fahrbahnhaelfte
     // den Faessern gehoert und der Wechsel zwischen den Bahnen eine echte Fahrt ist.
+    // PROBELAUF (Thomas 2026-09-15): dieselben Bahnen nach der Logik des echten Runs,
+    // nichts wird gespeichert. Regeln in versuchPlan.ts (PROBELAUF_REGELN).
+    //
+    // STARTWERTE FUER DIE KALIBRIERUNG, nicht gemessen. Abgenommen wird gegen den echten
+    // Run (docs/active-task.md, A2-A4): Muenzen 75-125 %, Truppenverlust und Feuerkraft-
+    // zuwachs 50-200 % des alten Werts auf Level 1/5/12/20.
+    probe: {
+      startLevels: [1, 5, 10, 15, 20],
+      // Deckel des Levelwachstums (1,2 je Level): Das Fass erreicht ihn auf Level 5, das
+      // Tor auf Level 3. Die Wandkachel endet ebenso an ihrer Fokuszeit.
+      fassHaerteDeckel: 2,
+      torHaerteDeckel: 1.5,
+      // EIN FASS ERSETZT RUND VIER WANDKACHELN - gemessen, nicht gesetzt (2026-09-15,
+      // Diagnoselauf, je 30 s, Truppe 30): Im echten Run wurden auf Level 1/12/20
+      // 34/26/21 gute Kacheln zerschossen, im Probelauf 8/5/8 Faesser - Faktor 2,6 bis 5,2.
+      // Mit 1 Schritt und 3 Muenzen je Fass (wie EINE Kachel) kam Runde 1 auf 31-47 % der
+      // Muenzen und 23-62 % des Feuerkraftzuwachses.
+      //
+      // Torschritte je DMG/RATE-Fass: 3, nicht 4. Hochgerechnet auf die Mediane aus Runde 1
+      // liegt 4 auf Level 12 bei 248 % (Korridor bis 200 %), 3 auf allen Leveln bei 69-186 %.
+      // Gilt auch fuer ROTE Faesser (rotSchritte): Mit nur einem Verlustschritt wuchs die
+      // Feuerkraft auf Level 12/20 weiter, wo der Run sie durch Rot stillhaelt.
+      fassSchritte: 3,
+      // 4 x walls.coinReward. Hochgerechnet auf Runde 1: 88-116 % der Muenzen des Runs.
+      fassMuenzen: 12,
+      torMuenzen: 0,
+    },
     gegnerBandMitte: 0.42,
     gegnerBandBreite: 0.24,
   },

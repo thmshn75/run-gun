@@ -10,9 +10,20 @@ der Ton entfernt.)
 
 ## Offen — naechster Schritt zuerst
 
-**Es laeuft gerade nichts.** Der Bahnversuch ist abgeschlossen und bleibt im
-Testgelaende. Was liegen bleibt, in der Reihenfolge, in der es beim naechsten Mal
-sinnvoll ist:
+0. **PROBELAUF (2026-09-15, Stand `IMPL_DONE`, uncommittet).** Thomas hat das Go gegeben,
+   die Bahnen in den echten Run zu holen - aber "logisch wie das alte" und zuerst im
+   Testbereich. Gebaut: Menueknopf PROBELAUF (Startlevel 1/5/10/15/20), Bahnen nach den
+   Regeln des Runs (`PROBELAUF_REGELN` in `versuchPlan.ts`), nichts wird gespeichert.
+   Spielstand-Schutz im Browser belegt, Muenzen/Waffen/Verlust kalibriert, rote Faesser
+   ziehen seit dem Nachlauf so viele Schritte ab wie gute geben. **Offen:** Feuerkraft auf
+   Level 12/20 waechst im Probelauf weiter (+4-9 % Schaden je 30 s), im Run nicht - Ursache
+   ist der Werteboden, nicht die Schrittzahl. Thomas entscheidet: akzeptieren oder Rot
+   haeufiger. Danach sein iPhone-Test, erst dann das Umschalten des echten Runs. Alles
+   Weitere in `docs/active-task.md`.
+   Mess-Sonde lag im Scratchpad (`vergleich.mjs`, `auswertung.mjs`) - bei Bedarf ins Repo
+   unter `scripts/` holen.
+
+Was sonst liegen bleibt, in der Reihenfolge, in der es beim naechsten Mal sinnvoll ist:
 
 1. **Truppenanzeige: gedeckelt oder echte Zahl?** Gemessen (2026-09-05): Die Truppe hat
    einen Figuren-Pool von genau 30 Objekten (`BALANCE.crowd.max`), gesetzt auf 60 oder
@@ -231,6 +242,14 @@ echten Runs. Beides sollte nach Bennis Test nachgezogen werden.
   Stufenpreise brauchen eine Basis: 900, hergeleitet wie alle Waffenpreise aus der
   gemessenen Staerke (guenstigste kaufbare Waffe 1.600 bei killsPerSec 3,13, Pistole
   1,75 -> 895). Fuenf Stufen kosten zusammen 3.500 - der billigste Ausbau des Spiels.
+
+## Harte Randbedingungen
+- **Claude setzt direkt um (kein Codex-Handoff) - ausser Bildern, die erzeugt Codex.**
+  Gilt seit 2026-08-23 und hat Vorrang vor dem Handoff-Abschnitt der Projekt-`CLAUDE.md`.
+  Die Zeile war beim Kuerzen dieser Datei am 2026-09-05 verloren gegangen (2026-09-15
+  wiederhergestellt).
+- Testsuite, Builds und Codex-Laeufe ins Terminal (`.command` + `open -a Terminal`).
+- Versuche nur im Testbereich (Testgelaende/Probelauf), bis Thomas sein Go gibt.
 
 ## Wichtige Dateien und Befehle
 - Plan `docs/plan-v4.md` (enthaelt die Befunde beider Gegenpruefungen) ·

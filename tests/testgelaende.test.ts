@@ -34,7 +34,8 @@ describe('Testgelaende', () => {
     expect(direkteAufrufe.map((e) => e.zeile)).toEqual(['writeSave(data)'])
 
     // Und der Waechter selbst muss die Sperre tragen.
-    expect(quelle).toMatch(/private speichere\(data: SaveData\): void \{\s*\n\s*if \(this\.istTestgelaende\(\)\) return/)
+    // Seit 2026-09-15 sperrt dieselbe Zeile auch den Probelauf.
+    expect(quelle).toMatch(/private speichere\(data: SaveData\): void \{\s*\n\s*if \(this\.istTestgelaende\(\) \|\| this\.istProbelauf\(\)\) return/)
   })
 
   it('stellt die Truppe auf einen Wert, ab dem nur noch die Waffe zaehlt', () => {

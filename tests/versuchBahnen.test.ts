@@ -35,7 +35,9 @@ describe('Versuch Zwei Bahnen', () => {
       // laeuft - dieselbe Bauart wie der Spielstand-Waechter in testgelaende.test.ts.
       const aufrufe = gameScene.split('\n').filter((zeile) => /new VersuchBahnen\(/.test(zeile))
       expect(aufrufe).toHaveLength(1)
-      expect(gameScene).toMatch(/if \(this\.istTestgelaende\(\)\) \{\s*\n\s*this\.walls = this\.baueVersuchsBahnen\(\)/)
+      // Seit 2026-09-15 auch im Probelauf - dieselbe eine Weiche, nutztBahnen().
+      expect(gameScene).toMatch(/if \(this\.nutztBahnen\(\)\) \{\s*\n\s*this\.walls = this\.baueVersuchsBahnen\(\)/)
+      expect(gameScene).toMatch(/private nutztBahnen\(\): boolean \{\s*\n\s*return this\.istTestgelaende\(\) \|\| this\.istProbelauf\(\)/)
       // Und der einzige Bauplatz liegt in baueVersuchsBahnen, nicht irgendwo sonst.
       expect(gameScene).toMatch(/private baueVersuchsBahnen\(\): BahnSystem \{\s*\n\s*return new VersuchBahnen\(/)
     })
@@ -67,7 +69,7 @@ describe('Versuch Zwei Bahnen', () => {
     it('schickt die Gegner nur im Testgelaende nach rechts', () => {
       const aufrufe = gameScene.split('\n').filter((zeile) => /setVersuchsBahnen\(/.test(zeile))
       expect(aufrufe).toHaveLength(1)
-      expect(aufrufe[0]).toContain('this.istTestgelaende()')
+      expect(aufrufe[0]).toContain('this.nutztBahnen()')
     })
 
     it('laesst die abgenommene Testgelaende-Dauer als Wert stehen', () => {

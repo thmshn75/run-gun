@@ -3,19 +3,26 @@ import { BALANCE } from '../config/balance'
 import { HUD_COLORS } from '../config/colors'
 import { advanceAlongRoad, getRoadHalfWidth, getRoadScale, getRoadSegment } from './road'
 import { getCurrentScrollSpeed } from './speed'
+import { getGateLoss } from './upgrades'
 import {
   VERSUCH_WAFFENREIHE,
   getFassInhalt,
-  getFassTreffer,
-  getFassWaffe,
   getRollBild,
   getRollUmfang,
   getTorStand,
-  getTorStartwert,
   getTruppeNachTor,
   istImTorFenster,
+  type BahnKontext,
+  type BahnRegeln,
   type FassInhalt,
 } from './versuchPlan'
+
+/** Rote Faesser: dieselbe Aussage wie die rote Wandkachel - nicht anfassen. */
+const BAHN_ROT = 0xff6b6b
+
+const FASS_TEXT: Record<FassInhalt, string> = {
+  weapon: 'WAFFE', damage: '+DMG', rate: '+RATE', weakenDamage: '-DMG', weakenRate: '-RATE',
+}
 import type { WeaponKey } from './weapons'
 
 // ===========================================================================
@@ -96,6 +103,12 @@ export class VersuchBahnen implements BahnSystem {
   private readonly rng: () => number
   private readonly applyReinforcement: (apply: (current: number) => number) => void
   private readonly applyFassGate: (stat: 'damage' | 'rate', x: number, y: number) => void
+  private readonly regeln: BahnRegeln
+  private readonly getKampfwerte: () => { waffe: WeaponKey; gekaufte: readonly string[] }
+  private readonly weakenStat: (stat: 'damage' | 'rate', faktor: number) => void
+  private readonly dropCoins: (x: number, y: number, wert: number) => void
+  private level: number
+  private rotSerie: number
   private readonly wallGroup: Phaser.Physics.Arcade.Group
   private readonly rewardGroup: Phaser.Physics.Arcade.Group
   private readonly tore: TorZustand[]
@@ -117,6 +130,10 @@ export class VersuchBahnen implements BahnSystem {
     rng: () => number,
     applyReinforcement: (apply: (current: number) => number) => void,
     applyFassGate: (stat: 'damage' | 'rate', x: number, y: number) => void,
+    regeln: BahnRegeln,
+    getKampfwerte: () => { waffe: WeaponKey; gekaufte: readonly string[] },
+    weakenStat: (stat: 'damage' | 'rate', faktor: number) => void,
+    dropCoins: (x: number, y: number, wert: number) => void,
   ) {
     this.scene = scene
     this.getTeamSize = getTeamSize
@@ -125,6 +142,12 @@ export class VersuchBahnen implements BahnSystem {
     this.rng = rng
     this.applyReinforcement = applyReinforcement
     this.applyFassGate = applyFassGate
+    this.regeln = regeln
+    this.getKampfwerte = getKampfwerte
+    this.weakenStat = weakenStat
+    this.dropCoins = dropCoins
+    this.level = 1
+    this.rotSerie = 0
     this.wallGroup = scene.physics.add.group()
     this.rewardGroup = scene.physics.add.group()
     // Erstes Tor sofort: der erste update() setzt es an den Horizont.
@@ -166,11 +189,13 @@ export class VersuchBahnen implements BahnSystem {
   public hasActivePair(): boolean { return this.tore.some((tor) => tor.aktiv) || this.faesser.some((fass) => fass.aktiv) }
 
   /**
-   * Die Levelnummer geht in den Versuch NICHT ein: Tor- und Fasshaerte zaehlen Treffer,
-   * nicht Schaden, und die Trefferzahl soll auf jedem Level dieselbe sein - sonst
-   * beurteilt Thomas beim Testen zwei Dinge auf einmal.
+   * Die Levelnummer wird gemerkt, aber nur die Regeln entscheiden, ob sie wirkt: Im
+   * Testgelaende geht sie NICHT ein (dort soll die Trefferzahl auf jedem Level dieselbe
+   * sein, sonst beurteilt Thomas zwei Dinge auf einmal), im Probelauf waechst mit ihr die
+   * Haerte und die Waffenauswahl wie im echten Run.
    */
-  public resetForLevel(): void {
+  public resetForLevel(level: number): void {
+    this.level = Math.max(1, Math.floor(level))
     this.deactivateAll()
     this.torAbstandPx = BALANCE.versuch.tor.abstandPx
   }
@@ -228,6 +253,7 @@ export class VersuchBahnen implements BahnSystem {
     if (tor === undefined || !tor.aktiv) return 0
     const stand = getTorStand(tor.startwert, tor.treffer, this.getTeamSize(), this.getTruppenDeckel())
     this.applyReinforcement((current) => getTruppeNachTor(current, stand))
+    if (stand > 0 && this.regeln.torMuenzen > 0) this.dropCoins(tor.bild.x, tor.bild.y, this.regeln.torMuenzen)
     this.recycleTor(tor)
     return stand
   }
@@ -308,7 +334,7 @@ export class VersuchBahnen implements BahnSystem {
     if (tor === undefined) return
     tor.aktiv = true
     tor.anchorY = BALANCE.road.horizonY
-    tor.startwert = getTorStartwert(this.rng(), this.getTeamSize())
+    tor.startwert = this.regeln.torStartwert(this.rng(), this.kontext())
     tor.treffer = 0
     const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, tor.anchorY, BALANCE.versuch.tor.hoehePx)
     const geometrie = this.torGeometrie(segment.centerY)
@@ -416,21 +442,35 @@ export class VersuchBahnen implements BahnSystem {
     // der Zaehler weiterlaufen, faehrt man an einer Waffe der Reihe vorbei, ohne sie je
     // gesehen zu haben.
     const waffeUnterwegs = this.faesser.some((f) => f.aktiv && (f.inhalt === 'weapon' || f.reward.active))
+    const kontext = this.kontext()
     const geplant = getFassInhalt(this.fassIndex)
-    const inhalt: FassInhalt = geplant === 'weapon' && waffeUnterwegs ? 'damage' : geplant
-    const hp = getFassTreffer(this.getTeamSize(), this.getShotsPerSec())
+    // ROT GEHT VOR (Probelauf, 2026-09-15) - wie an der Wand des echten Runs, sonst koennte
+    // ein geplantes Waffenfass das rote verdraengen. Der Zaehler bleibt dabei stehen, die
+    // Waffe kommt ein Fass spaeter. Im Testgelaende gibt es kein rotes Fass.
+    const rot = this.regeln.fassRot(kontext, this.rng)
+    this.rotSerie = rot === undefined ? 0 : this.rotSerie + 1
+    let inhalt: FassInhalt = rot ?? (geplant === 'weapon' && waffeUnterwegs ? 'damage' : geplant)
+    const hp = this.regeln.fassTreffer(kontext)
     // DER ZAEHLER STELLT BEIM SPAWN WEITER, nicht beim Einloesen. Seit die Faesser
     // durchrollen, wird nicht mehr jedes zerschossen - haette der Zaehler am Einloesen
     // gehangen, bliebe die Reihe stehen, sobald man eines durchlaesst, und dieselbe
     // Waffe kaeme wieder und wieder.
     if (inhalt === geplant) this.fassIndex += 1
+    if (inhalt === 'weapon') {
+      // Im Probelauf zieht das Fass wie das Wandtor: nur Freigeschaltetes oder Gekauftes.
+      // Gibt es nichts Neues (Level 1 ohne Kaeufe), wird es ein Feuerkraftfass - der
+      // Zaehler ist dann schon weitergestellt, sonst bliebe die Bahn auf "Waffe" stehen.
+      const waffe = this.regeln.fassWaffe(kontext, this.rng)
+      if (waffe === undefined) {
+        inhalt = this.rng() < 0.5 ? 'damage' : 'rate'
+      } else {
+        fass.waffe = waffe
+        this.waffenIndex += 1
+      }
+    }
     fass.aktiv = true
     fass.zerschossen = false
     fass.inhalt = inhalt
-    if (inhalt === 'weapon') {
-      fass.waffe = getFassWaffe(this.waffenIndex)
-      this.waffenIndex += 1
-    }
     fass.anchorY = BALANCE.road.horizonY
     fass.rollPx = 0
     const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, fass.anchorY, BALANCE.versuch.fass.groessePx)
@@ -443,9 +483,15 @@ export class VersuchBahnen implements BahnSystem {
     fass.bild.setData('hp', hp)
     fass.bild.setData('spawnId', this.nextSpawnId)
     this.nextSpawnId -= 1
+    // Rot schlaegt die Fassfarbe wie an der Wand: Was abzieht, muss man erkennen, bevor man
+    // die Beschriftung liest. Kein eigenes Bild - die Rollbilder werden eingefaerbt.
+    const istRot = inhalt === 'weakenDamage' || inhalt === 'weakenRate'
+    if (istRot) fass.bild.setTint(BAHN_ROT)
+    else fass.bild.clearTint()
     fass.label.setText(`${hp}`).setActive(true).setVisible(true).setAlpha(0)
     fass.inhaltText
-      .setText(inhalt === 'weapon' ? 'WAFFE' : inhalt === 'damage' ? '+DMG' : '+RATE')
+      .setText(FASS_TEXT[inhalt])
+      .setColor(istRot ? '#ff6b6b' : '#ffd166')
       .setActive(true).setVisible(true).setAlpha(0)
     fass.reward.setActive(false).setVisible(false)
   }
@@ -455,6 +501,9 @@ export class VersuchBahnen implements BahnSystem {
    * einsammelbares Objekt weiter, bis sie eingesammelt ist oder unten hinausrollt.
    */
   private loeseFassEin(fass: FassZustand): boolean {
+    // Muenzen wie beim Bruch einer guten Wandkachel - rote geben keine (walls.ts, onBroken).
+    const rot = fass.inhalt === 'weakenDamage' || fass.inhalt === 'weakenRate'
+    if (!rot && this.regeln.fassMuenzen > 0) this.dropCoins(fass.bild.x, fass.bild.y, this.regeln.fassMuenzen)
     fass.zerschossen = true
     fass.bild.disableBody(true, true)
     fass.bild.setActive(false).setVisible(false)
@@ -473,13 +522,33 @@ export class VersuchBahnen implements BahnSystem {
       ;(fass.reward.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       return true
     }
-    this.applyFassGate(fass.inhalt, fass.bild.x, fass.bild.y)
+    if (fass.inhalt === 'weakenDamage' || fass.inhalt === 'weakenRate') {
+      // Derselbe Verlust wie an der roten Wandkachel (walls.ts, damage).
+      const stat = fass.inhalt === 'weakenDamage' ? 'damage' : 'rate'
+      this.weakenStat(stat, getGateLoss(stat === 'damage' ? 'damage' : 'shotsPerSec') ** this.regeln.rotSchritte)
+    } else {
+      this.applyFassGate(fass.inhalt, fass.bild.x, fass.bild.y)
+    }
     this.recycleFass(fass)
     return true
   }
 
+  private kontext(): BahnKontext {
+    const kampf = this.getKampfwerte()
+    return {
+      level: this.level,
+      truppe: this.getTeamSize(),
+      schussProSek: this.getShotsPerSec(),
+      waffe: kampf.waffe,
+      gekaufte: kampf.gekaufte,
+      waffenIndex: this.waffenIndex,
+      rotSerie: this.rotSerie,
+    }
+  }
+
   private recycleFass(fass: FassZustand): void {
     fass.aktiv = false
+    fass.bild.clearTint()
     fass.zerschossen = false
     fass.bild.disableBody(true, true)
     fass.bild.setActive(false).setVisible(false)

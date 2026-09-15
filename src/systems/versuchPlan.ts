@@ -1,5 +1,6 @@
 import { BALANCE } from '../config/balance'
 import { getGateGrowth } from './upgrades'
+import { chooseWeightedWeapon, getWeaponRewardChoices } from './weaponChoices'
 import type { WeaponKey } from './weapons'
 
 // ===========================================================================
@@ -10,7 +11,7 @@ import type { WeaponKey } from './weapons'
 // nachrechnen. Dasselbe Muster wie wallPlan.ts neben walls.ts.
 // ===========================================================================
 
-export type FassInhalt = 'weapon' | 'damage' | 'rate'
+export type FassInhalt = 'weapon' | 'damage' | 'rate' | 'weakenDamage' | 'weakenRate'
 
 // ---------------------------------------------------------------------------
 // REINE RECHENLOGIK - ohne Phaser, damit sie ohne Renderer pruefbar ist.
@@ -206,5 +207,113 @@ export function getRollBild(streckePx: number, umfangPx: number = BALANCE.versuc
  */
 export function getRollUmfang(durchmesserPx: number): number {
   return Math.max(1, Math.PI * durchmesserPx)
+}
+
+// ===========================================================================
+// REGELN JE EINSATZORT (2026-09-15): Testgelaende oder Probelauf.
+//
+// Thomas 2026-09-15: "die neue Art muss von der Logik und dem Aufbau der Level mit Waffen,
+// die dazukommen, und Schwierigkeit logisch wie das alte aufgebaut sein, gekaufte Waffen
+// und Aufwertungen sollen erhalten bleiben".
+//
+// Dieselbe Bahnklasse laeuft an zwei Orten, und nur diese Regeln unterscheiden sie. Kein
+// Schalter in VersuchBahnen: Die GameScene reicht das passende Regelobjekt hinein.
+//   TESTGELAENDE_REGELN  der abgenommene Versuch, Wert fuer Wert wie bisher.
+//   PROBELAUF_REGELN     jede Regel spiegelt die Wand des echten Runs (walls.ts).
+// ===========================================================================
+
+/** Was eine Regel ueber den Moment wissen darf, in dem ein Tor oder Fass erscheint. */
+export interface BahnKontext {
+  readonly level: number
+  readonly truppe: number
+  readonly schussProSek: number
+  readonly waffe: WeaponKey
+  readonly gekaufte: readonly string[]
+  /** Wie viele Waffenfaesser schon kamen - nur die feste Reihe des Testgelaendes braucht ihn. */
+  readonly waffenIndex: number
+  /** Wie viele rote Faesser zuletzt in Folge kamen. */
+  readonly rotSerie: number
+}
+
+export interface BahnRegeln {
+  readonly name: 'testgelaende' | 'probelauf'
+  /** Rotes Fass statt des geplanten? `zufall` wird NUR aufgerufen, wenn es gebraucht wird. */
+  fassRot(kontext: BahnKontext, zufall: () => number): 'weakenDamage' | 'weakenRate' | undefined
+  /** Welche Waffe im Waffenfass steckt - undefined, wenn es nichts zu holen gibt. */
+  fassWaffe(kontext: BahnKontext, zufall: () => number): WeaponKey | undefined
+  fassTreffer(kontext: BahnKontext): number
+  torStartwert(zufall: number, kontext: BahnKontext): number
+  fassSchritte(stat: 'damage' | 'shotsPerSec', aktuell: number, deckel: number): number
+  /**
+   * Wie viele Verlustschritte (getGateLoss) ein rotes Fass abzieht. MUSS zu fassSchritte
+   * passen: Gibt ein gutes Fass mehrere Schritte und ein rotes nur einen, waechst die
+   * Feuerkraft auf hohen Leveln weiter, wo der Run sie durch Rot stillhaelt (Messung
+   * 2026-09-15, Level 12/20: +0,27/+0,21 gegen -0,01/+0,04).
+   */
+  readonly rotSchritte: number
+  /** Muenzen je zerschossenem guten Fass und je durchfahrenem Tor im Plus. */
+  readonly fassMuenzen: number
+  readonly torMuenzen: number
+}
+
+export const TESTGELAENDE_REGELN: BahnRegeln = {
+  name: 'testgelaende',
+  fassRot: () => undefined,
+  fassWaffe: (kontext) => getFassWaffe(kontext.waffenIndex),
+  fassTreffer: (kontext) => getFassTreffer(kontext.truppe, kontext.schussProSek),
+  torStartwert: (zufall, kontext) => getTorStartwert(zufall, kontext.truppe),
+  fassSchritte: getFassGateSchritte,
+  rotSchritte: 1,
+  fassMuenzen: 0,
+  torMuenzen: 0,
+}
+
+/**
+ * Wie viel haerter Tor und Fass auf diesem Level sind - mit demselben Wachstum wie die
+ * Wandkachel des echten Runs (`wallHardness.perLevelGrowth`, getWallPlan) und wie dort
+ * gedeckelt: Die Kachel endet an ihrer Fokuszeit, das Fass an `deckel`.
+ *
+ * AUF LEVEL 1 GENAU 1: Der Probelauf beginnt beim Wert des abgenommenen Versuchs.
+ *
+ * BEWUSST OHNE den Teamterm aus getWallPlan: Die Treffer eines Fasses wachsen schon heute
+ * LINEAR mit der Truppe (getFassTreffer), die Kachel nur mit der Wurzel. Den Teamterm
+ * noch einmal draufzulegen hiesse, die Truppe doppelt zu zaehlen.
+ */
+export function getProbeHaerte(level: number, deckel: number): number {
+  const stufe = Math.max(1, Math.floor(level))
+  return Math.min(Math.max(1, deckel), BALANCE.wallHardness.perLevelGrowth ** (stufe - 1))
+}
+
+export const PROBELAUF_REGELN: BahnRegeln = {
+  name: 'probelauf',
+  // WIE DIE ROTE WANDKACHEL (walls.ts, rollBad): ab badMinLevel, mit badChance, nie mehr als
+  // badMaxRun in Folge. Ist die Serie voll, wird gar nicht erst gewuerfelt.
+  fassRot: (kontext, zufall) => {
+    const { badMinLevel, badChance, badMaxRun } = BALANCE.walls
+    if (kontext.level < badMinLevel || kontext.rotSerie >= badMaxRun) return undefined
+    if (zufall() >= badChance) return undefined
+    return zufall() < 0.5 ? 'weakenDamage' : 'weakenRate'
+  },
+  // WIE DAS WANDTOR (Spawner.chooseWallWeapon): nur, was auf diesem Level freigeschaltet
+  // oder dauerhaft gekauft ist, gewichtet zugunsten der neueren Waffen.
+  fassWaffe: (kontext, zufall) => chooseWeightedWeapon(
+    getWeaponRewardChoices(kontext.waffe, kontext.level, kontext.gekaufte),
+    zufall(),
+  ),
+  fassTreffer: (kontext) => Math.max(
+    BALANCE.versuch.fass.trefferMindest,
+    Math.round(getFassTreffer(kontext.truppe, kontext.schussProSek)
+      * getProbeHaerte(kontext.level, BALANCE.versuch.probe.fassHaerteDeckel)),
+  ),
+  torStartwert: (zufall, kontext) => Math.round(
+    getTorStartwert(zufall, kontext.truppe) * getProbeHaerte(kontext.level, BALANCE.versuch.probe.torHaerteDeckel),
+  ),
+  // EIN Torschritt wie eine Wandkachel - nicht der Restweg-Anteil des Versuchs, der auf
+  // Level 12 in 30 s den Schaden mehr als verdoppelte (Messung 2026-09-15).
+  fassSchritte: () => BALANCE.versuch.probe.fassSchritte,
+  // Symmetrisch: Ein rotes Fass ersetzt ebenso viele rote Kacheln wie ein gutes gute.
+  rotSchritte: BALANCE.versuch.probe.fassSchritte,
+  fassMuenzen: BALANCE.versuch.probe.fassMuenzen,
+  torMuenzen: BALANCE.versuch.probe.torMuenzen,
 }
 

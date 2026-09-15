@@ -3,7 +3,7 @@ import { BALANCE } from '../config/balance'
 import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
 import { Walls } from '../systems/walls'
 import { VersuchBahnen, type BahnSystem } from '../systems/versuchBahnen'
-import { getFassGateSchritte } from '../systems/versuchPlan'
+import { PROBELAUF_REGELN, TESTGELAENDE_REGELN, type BahnRegeln } from '../systems/versuchPlan'
 import { Popups } from '../systems/popups'
 import { Coins } from '../systems/coins'
 import { ShopOverlay } from '../systems/shopOverlay'
@@ -23,7 +23,7 @@ import { Spawner } from '../systems/spawner'
 import { getStartWeaponChoices, getWeaponRewardChoices } from '../systems/weaponChoices'
 import { WeaponDetailPanel } from '../systems/weaponDetail'
 import { getWeaponStars } from '../systems/weaponStars'
-import { RunStats, type ShopLine, applyGoodGate, getStatCap, getShopPrice, getContinuePrice, isFirepowerMaxed } from '../systems/upgrades'
+import { KEINE_STUFEN, RunStats, type ShopLine, applyGoodGate, getStatCap, getShopPrice, getContinuePrice, isFirepowerMaxed } from '../systems/upgrades'
 import { WEAPON_LABELS, Weapons, type WeaponKey, WEAPON_KEYS } from '../systems/weapons'
 import { enableSharpText } from '../systems/textSharpness'
 
@@ -190,7 +190,7 @@ export class GameScene extends Phaser.Scene {
   private crowdPickupCollider: Phaser.Physics.Arcade.Collider | undefined
 
   /** Wie dieser Run begonnen hat - frisch, fortgesetzt oder freigekauft. */
-  private einstieg: 'neu' | 'fortsetzen' | 'weiterspielen' | 'test' = 'neu'
+  private einstieg: 'neu' | 'fortsetzen' | 'weiterspielen' | 'test' | 'probe' = 'neu'
   private continuesUsed = 0
 
   /** Kennung des laufenden Runs - haelt seine Bestenlisten-Eintraege zusammen. */
@@ -221,17 +221,32 @@ export class GameScene extends Phaser.Scene {
   /** Im Menue gewaehlte Startwaffe eines neuen Laufs. Undefiniert heisst: Pistole. */
   private startwaffe: WeaponKey | undefined
 
+  /**
+   * PROBELAUF (Thomas 2026-09-15): die Bahnen nach der Logik des echten Runs, ohne dass
+   * etwas gespeichert wird. Gesetzt EINMAL in init, danach nie wieder.
+   *
+   * WARUM EIN EIGENES FELD STATT `einstieg`: stelleEinstiegHer schreibt `einstieg` um
+   * (ohne gesicherten Run wird aus FORTSETZEN ein 'neu'). Haengte der Probelauf daran,
+   * waere der Speicher-Waechter ab diesem Moment still aus.
+   */
+  private probe: { readonly startLevel: number } | undefined
+
   public constructor() {
     super('GameScene')
   }
 
   public init(data: Readonly<{
-    einstieg?: 'neu' | 'fortsetzen' | 'weiterspielen' | 'test'
+    einstieg?: 'neu' | 'fortsetzen' | 'weiterspielen' | 'test' | 'probe'
     /** Gewaehlte Startwaffe fuer einen NEUEN Lauf; ohne sie beginnt er mit der Pistole. */
     startwaffe?: WeaponKey
+    probeStartLevel?: number
   }>): void {
     this.einstieg = data.einstieg ?? 'neu'
     this.startwaffe = data.startwaffe
+    const startLevels: readonly number[] = BALANCE.versuch.probe.startLevels
+    this.probe = data.einstieg === 'probe'
+      ? { startLevel: startLevels.includes(data.probeStartLevel ?? 1) ? (data.probeStartLevel ?? 1) : 1 }
+      : undefined
   }
 
   public create(): void {
@@ -287,12 +302,12 @@ export class GameScene extends Phaser.Scene {
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
     this.spawner = new Spawner(this, this.runStats, () => this.crowd.getAnchorX(), (contactDamage) => this.handleBreakthrough(contactDamage))
     // Im Versuch kommen die Gegner von rechts - siehe Spawner.setVersuchsBahnen.
-    this.spawner.setVersuchsBahnen(this.istTestgelaende())
+    this.spawner.setVersuchsBahnen(this.nutztBahnen())
     // DIE EINZIGE WEICHE DES VERSUCHS "ZWEI BAHNEN" (Thomas 2026-09-05: "wenn wir etwas
     // versuchen, dann NUR im Testgelaende, dort testen wir bis ich mein Go gebe").
     // Ausserhalb des Testgelaendes wird VersuchBahnen nie gebaut, und der echte Run
     // laeuft Zeile fuer Zeile wie zuvor.
-    if (this.istTestgelaende()) {
+    if (this.nutztBahnen()) {
       this.walls = this.baueVersuchsBahnen()
     } else {
       this.walls = new Walls(
@@ -355,22 +370,7 @@ export class GameScene extends Phaser.Scene {
           this.updateHud()
         },
         // ROTE Kachel: Abzug am eigenen Wert, nach unten bremst der Run-Startwert.
-        (stat, faktor) => {
-          const key = stat === 'damage' ? 'damage' : 'shotsPerSec'
-          const before = this.runStats.get(key)
-          this.runStats.set(key, Math.max(this.statFloor[key], before * faktor))
-          const after = this.runStats.get(key)
-          if (after !== before) {
-            const delta = Math.round((after - before) * 100) / 100
-            this.popups.spawn(
-              this.crowd.getAnchorX(),
-              this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
-              `${stat === 'damage' ? 'DMG' : 'RATE'} ${delta}`,
-              '#ff6b6b',
-            )
-          }
-          this.updateHud()
-        },
+        (stat, faktor) => { this.schwaecheWert(stat, faktor) },
         () => isFirepowerMaxed(this.runStats),
       )
     }
@@ -493,7 +493,7 @@ export class GameScene extends Phaser.Scene {
     // weiterlaufen, nur bei den Waenden keine kleinen Gegner wie vorher im Spiel"). Die
     // Bahnen laufen also durch; nur der Gegnernachschub haelt sich vom Tor fern - und
     // das schliesst die Horden ein, die der Boss ruft.
-    if (this.istTestgelaende() && this.walls instanceof VersuchBahnen) {
+    if (this.nutztBahnen() && this.walls instanceof VersuchBahnen) {
       this.spawner.setSpawnSperre(this.walls.istTorFenster())
     }
     this.walls.update(dt)
@@ -607,6 +607,26 @@ export class GameScene extends Phaser.Scene {
    * Deckels, beim Fortsetzen mit dem Stand, den man beim Aufhoeren hatte.
    */
   private stelleEinstiegHer(): void {
+    // PROBELAUF ZUERST, vor jedem Blick in den gesicherten Run: Er liest ihn nie, und er
+    // darf nie in den Zweig fallen, der `einstieg` auf 'neu' umschreibt.
+    const probe = this.probe
+    if (probe !== undefined) {
+      this.currentLevel = probe.startLevel
+      this.runStats.setLevel(this.currentLevel)
+      // Level 1 beginnt wie ein neuer Lauf. Hoeher startet die Truppe wie beim bezahlten
+      // Weiterspielen - MARKIERTE ANNAHME: Ein echter Spieler kaeme mit Run-Shop-Stufen
+      // und gesammelter Feuerkraft an, der Probelauf ist dort also etwas schwaecher.
+      const truppe = this.currentLevel <= 1
+        ? BALANCE.stats.hp.base
+        : Math.round(getStatCap('hp', this.currentLevel, KEINE_STUFEN, this.runStats.getMeta()) * BALANCE.continueRun.teamShareOnContinue)
+      this.runStats.set('hp', Math.max(BALANCE.stats.hp.base, truppe))
+      if (this.startwaffe !== undefined && this.gekaufteWaffen.includes(this.startwaffe)) {
+        this.equipWeapon(this.startwaffe)
+      }
+      this.startLevel()
+      this.syncCrowdSize()
+      return
+    }
     if (this.istTestgelaende()) {
       // Feste Buehne statt Level 1: Dort ist der Gegnernachschub der Engpass, nicht die
       // Feuerkraft - zwei Waffen sehen dann gleich aus (gemessen 2026-08-25).
@@ -728,6 +748,45 @@ export class GameScene extends Phaser.Scene {
     return this.einstieg === 'test'
   }
 
+  /** Laeuft diese Szene als Probelauf? Liest NUR das in init gesetzte Feld. */
+  private istProbelauf(): boolean {
+    return this.probe !== undefined
+  }
+
+  /**
+   * Bahnen statt Waenden - im Testgelaende UND im Probelauf. Steuert nur, welches
+   * Bahnsystem gebaut wird und wohin die Gegner laufen; alles andere entscheidet jede
+   * Stelle einzeln (Tabelle in docs/active-task.md, 2026-09-15).
+   */
+  private nutztBahnen(): boolean {
+    return this.istTestgelaende() || this.istProbelauf()
+  }
+
+  private bahnRegeln(): BahnRegeln {
+    return this.istProbelauf() ? PROBELAUF_REGELN : TESTGELAENDE_REGELN
+  }
+
+  /**
+   * Rote Kachel oder rotes Fass: Schaden oder Rate sinken, nie unter den Stand beim
+   * Levelstart. EIN Weg fuer beide Bahnsysteme, damit Rot ueberall dasselbe kostet.
+   */
+  private schwaecheWert(stat: 'damage' | 'rate', faktor: number): void {
+    const key = stat === 'damage' ? 'damage' : 'shotsPerSec'
+    const before = this.runStats.get(key)
+    this.runStats.set(key, Math.max(this.statFloor[key], before * faktor))
+    const after = this.runStats.get(key)
+    if (after !== before) {
+      const delta = Math.round((after - before) * 100) / 100
+      this.popups.spawn(
+        this.crowd.getAnchorX(),
+        this.crowd.getAnchorY() - this.crowd.getFigureHeight(),
+        `${stat === 'damage' ? 'DMG' : 'RATE'} ${delta}`,
+        '#ff6b6b',
+      )
+    }
+    this.updateHud()
+  }
+
   /**
    * Der Bahnversuch. Wird NUR aus der einen Weiche in create() heraus gebaut - im echten
    * Run existiert diese Klasse zur Laufzeit nicht.
@@ -772,7 +831,7 @@ export class GameScene extends Phaser.Scene {
       // wie ein ausgereiztes Tor Muenzen ab.
       (stat, x, y) => {
         const key = stat === 'damage' ? 'damage' : 'shotsPerSec'
-        const schritte = getFassGateSchritte(
+        const schritte = this.bahnRegeln().fassSchritte(
           key,
           this.runStats.get(key),
           getStatCap(key, this.currentLevel, this.runStats.getSteps(), this.runStats.getMeta()),
@@ -800,6 +859,10 @@ export class GameScene extends Phaser.Scene {
         )
         this.updateHud()
       },
+      this.bahnRegeln(),
+      () => ({ waffe: this.weapons.getWeapon(), gekaufte: this.gekaufteWaffen }),
+      (stat, faktor) => { this.schwaecheWert(stat, faktor) },
+      (x, y, wert) => { this.dropCoins(x, y, wert) },
     )
   }
 
@@ -813,7 +876,7 @@ export class GameScene extends Phaser.Scene {
    * ausprobiert hat.
    */
   private speichere(data: SaveData): void {
-    if (this.istTestgelaende()) return
+    if (this.istTestgelaende() || this.istProbelauf()) return
     writeSave(data)
   }
 
@@ -1174,7 +1237,23 @@ export class GameScene extends Phaser.Scene {
     if (this.runStats.get('hp') <= 0) this.triggerGameOver()
   }
 
+  /**
+   * Das Ende eines Probelaufs. NIE ueber die GameOverScene: Deren WEITERSPIELEN ruft
+   * writeSave direkt, am Waechter vorbei - ein Tipp darauf koennte Bennis echten,
+   * gestorbenen Lauf mit echtem Geld freikaufen (Angriffssicht 2026-09-15).
+   */
+  private beendeProbelauf(): void {
+    if (this.gameOverStarted) return
+    this.gameOverStarted = true
+    this.spawner.setSpawningEnabled(false)
+    this.physics.pause()
+    this.levelOverlayBackground.setVisible(true)
+    this.levelOverlay.setText(`PROBELAUF VORBEI\nLEVEL ${this.currentLevel}`).setVisible(true)
+    this.time.delayedCall(BALANCE.level.clearedMs, () => { this.scene.start('MenuScene') })
+  }
+
   private triggerGameOver(): void {
+    if (this.istProbelauf()) return this.beendeProbelauf()
     if (this.gameOverStarted) return
     this.gameOverStarted = true
     const runCoins = this.coins.getCount()
@@ -1296,7 +1375,9 @@ export class GameScene extends Phaser.Scene {
     if (offen <= 0) return 0
     this.gebuchteMuenzen = this.coins.getCount()
     const saved = loadSave()
-    this.kontoStand = saved.coins + offen
+    // Im Probelauf ist das Konto nur im Speicher: Es waechst von seinem eigenen Stand aus,
+    // nicht vom gespeicherten - dort kommt ja nie etwas an.
+    this.kontoStand = (this.istProbelauf() ? this.kontoStand : saved.coins) + offen
     this.speichere({ ...saved, coins: this.kontoStand })
     return offen
   }
@@ -1319,6 +1400,7 @@ export class GameScene extends Phaser.Scene {
   private shopZustand() {
     return {
       testgelaende: this.istTestgelaende(),
+      probelauf: this.istProbelauf(),
       level: this.currentLevel - 1,
       konto: this.kontoStand,
       waffen: this.waehlbareWaffen(),
@@ -1418,6 +1500,19 @@ export class GameScene extends Phaser.Scene {
       return
     }
     if (this.kaeufeInPause[line] >= BALANCE.shop.maxStepsPerPause) return
+    // IM PROBELAUF GEGEN DAS SPEICHERKONTO: loadSave() zeigte nach jedem Kauf wieder den
+    // unveraenderten Stand, und man koennte mehr kaufen, als das Konto hergibt.
+    if (this.istProbelauf()) {
+      const probePreis = getShopPrice(this.runStats.getStepCount(line))
+      if (probePreis === undefined || this.kontoStand < probePreis) return
+      if (!this.runStats.addStep(line)) return
+      this.kontoStand -= probePreis
+      this.kaeufeInPause[line] += 1
+      this.shop.aktualisieren(this.shopZustand())
+      this.syncCrowdSize()
+      this.updateHud()
+      return
+    }
     const preis = getShopPrice(this.runStats.getStepCount(line))
     if (preis === undefined) return
     const saved = loadSave()
@@ -1453,7 +1548,7 @@ export class GameScene extends Phaser.Scene {
     // Im Testgelaende ist derselbe Knopf mit ZURUECK INS MENUE beschriftet und laesst
     // den Spielstand unberuehrt - beide Aufrufe wuerden zwar am Waechter abprallen, aber
     // ein Bestenlisten-Eintrag fuer ein Ausprobieren waere auch als Absicht falsch.
-    if (this.istTestgelaende()) {
+    if (this.istTestgelaende() || this.istProbelauf()) {
       this.waffenAnsicht.verstecken()
       this.shop.verstecken()
       this.scene.start('MenuScene')

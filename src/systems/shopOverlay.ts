@@ -48,6 +48,8 @@ export interface ShopZustand {
    * bleibt alles wie im normalen Lauf.
    */
   readonly testgelaende?: boolean
+  /** Probelauf (2026-09-15): echtes Level, aber auch hier wird nichts gespeichert. */
+  readonly probelauf?: boolean
 }
 
 interface Knopf {
@@ -238,7 +240,7 @@ export class ShopOverlay {
     this.ueberschrift.setText(zustand.testgelaende === true ? 'TESTGELÄNDE' : `LEVEL ${zustand.level} GESCHAFFT`)
     // "SPEICHERN & BEENDEN" waere im Testgelaende eine Luege: Dort wird nichts
     // gespeichert, mit Absicht.
-    this.beendenText.setText(zustand.testgelaende === true ? 'ZURÜCK INS MENÜ' : 'SPEICHERN & BEENDEN')
+    this.beendenText.setText(zustand.testgelaende === true || zustand.probelauf === true ? 'ZURÜCK INS MENÜ' : 'SPEICHERN & BEENDEN')
     this.waffenTitel.setText(zustand.testgelaende === true ? 'WAFFE AUSPROBIEREN' : 'STARTWAFFE')
     this.konto.setText(`¢ ${zustand.konto}`)
     this.aktualisiereKnopf('firepower', zustand)
