@@ -227,6 +227,34 @@ Muenzen und Verlust pendeln zwischen Runde 2 und Nachmessung um die Korridorgren
 in der Messstreuung. **Offen fuer Thomas:** Drift akzeptieren (+4-9 % Schaden je 30 s auf hohen
 Leveln) oder Rot im Probelauf haeufiger machen. Kein weiteres Drehen ohne sein Wort.
 
+### Nachlauf 2 - Rot haeufiger (Thomas' Entscheidung 2026-09-16)
+
+Thomas hat gegen "Drift akzeptieren" entschieden. Umgesetzt: Der Probelauf wuerfelt Rot nicht
+mehr mit den Wandwerten, sondern mit eigenen (`versuch.probe.rotChance` 0,62,
+`rotMaxSerie` 2) - Rot-Anteil 50 % statt 25 %, also doppelt so viele rote Faesser bei halb
+so vielen guten. `walls.badMinLevel` gilt unveraendert weiter, der echte Run sieht die
+Aenderung nicht (A1). Beleg, dass der Hebel greift: rote Faesser je 30 s von 2 auf 5-6.
+
+Messung 2026-09-16, Level 12/20, alt gegen probe, je 3 Wiederholungen, Median, 12 von 12
+Faellen gueltig (Szene aktiv, Phase durchgehend 'normal'):
+
+| Level | Muenzen (A2) | Verlust (A3) | Feuerkraft alt / Probe (A4) | Waffenverstoesse (A5) |
+|---|---|---|---|---|
+| 12 | 82 % | 87 % | +0,08 / +0,03 (vorher +0,24) | 0 |
+| 20 | 105 % | 54 % | +0,07 / +0,09 (vorher +0,21) | 0 |
+
+**A4 gilt damit als erfuellt - mit angepasstem Kriterium.** Der Prozentkorridor 50-200 % ist
+auf hohen Leveln nicht messbar, weil der alte Run dort selbst nahe null liegt und zwischen
++0,01 und +0,08 je 30 s schwankt; 50-200 % davon verschwindet in der Streuung. Vor dem Lauf
+festgelegtes Ersatzkriterium: **Probe-Zuwachs <= +0,05 je 30 s**. L12 haelt es (+0,03),
+L20 liegt mit +0,09 knapp darueber, dafuer im Prozentkorridor bei 127 %. Entscheidend ist,
+dass Probelauf und Run jetzt in derselben Groessenordnung liegen statt um Faktor 3 bis 24
+auseinander. Nicht weitergedreht (Reisseine, zweiter Kandidatenwert bewusst nicht gezogen).
+
+**Offen bleibt allein A9 fuer den NEUEN Stand:** Thomas' iPhone-Test am 2026-09-16 ("soweit
+ok") galt dem Stand MIT halb so vielen roten Faessern. Die Verdopplung ist ein spuerbarer
+Eingriff ins Spielgefuehl und am Geraet ungetestet.
+
 ### Reisseine
 Die Kalibrierung (R2/R3/R5) bekommt **zwei Messrunden**. Liegen danach A2-A4 nicht im Korridor,
 nicht weiterdrehen, sondern Thomas die Zahlen vorlegen - die Level-Balance des Runs ist

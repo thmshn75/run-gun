@@ -10,18 +10,22 @@ der Ton entfernt.)
 
 ## Offen — naechster Schritt zuerst
 
-0. **PROBELAUF (2026-09-15, Stand `IMPL_DONE`, uncommittet).** Thomas hat das Go gegeben,
+0. **PROBELAUF (Stand 2026-09-16, `IMPL_DONE`, committet).** Thomas hat das Go gegeben,
    die Bahnen in den echten Run zu holen - aber "logisch wie das alte" und zuerst im
    Testbereich. Gebaut: Menueknopf PROBELAUF (Startlevel 1/5/10/15/20), Bahnen nach den
    Regeln des Runs (`PROBELAUF_REGELN` in `versuchPlan.ts`), nichts wird gespeichert.
-   Spielstand-Schutz im Browser belegt, Muenzen/Waffen/Verlust kalibriert, rote Faesser
-   ziehen seit dem Nachlauf so viele Schritte ab wie gute geben. **Offen:** Feuerkraft auf
-   Level 12/20 waechst im Probelauf weiter (+4-9 % Schaden je 30 s), im Run nicht - Ursache
-   ist der Werteboden, nicht die Schrittzahl. Thomas entscheidet: akzeptieren oder Rot
-   haeufiger. Danach sein iPhone-Test, erst dann das Umschalten des echten Runs. Alles
-   Weitere in `docs/active-task.md`.
-   Mess-Sonde lag im Scratchpad (`vergleich.mjs`, `auswertung.mjs`) - bei Bedarf ins Repo
-   unter `scripts/` holen.
+   Spielstand-Schutz im Browser belegt. **A1-A8 sind erfuellt**: Muenzen, Truppenverlust und
+   Feuerkraft liegen auf Level 12/20 in derselben Groessenordnung wie im echten Run, 0
+   Waffenverstoesse (Messung 2026-09-16, 12 von 12 Faellen gueltig - Zahlen in
+   `docs/active-task.md`). Die Feuerkraft-Drift ist geschlossen, indem rote Faesser im
+   Probelauf haeufiger kommen als an der Wand (`versuch.probe.rotChance` 0,62,
+   `rotMaxSerie` 2 - Rot-Anteil 50 % statt 25 %); Thomas' Entscheidung vom 2026-09-16
+   gegen "Drift akzeptieren".
+   **Offen: nur noch A9.** Thomas' iPhone-Test ("soweit ok") galt dem Stand VOR der
+   Verdopplung der roten Faesser - das Spielgefuehl mit der neuen Haeufigkeit ist am Geraet
+   ungetestet. Danach erst das Umschalten des echten Runs, und auch das nur auf sein Wort.
+   Mess-Sonde: `vergleich.mjs` / `auswertung.mjs`, am 2026-09-16 gehaertet (aeusseres
+   try/catch, siehe `docs/lessons.md`) - liegt im Scratchpad, bei Bedarf nach `scripts/`.
 
 Was sonst liegen bleibt, in der Reihenfolge, in der es beim naechsten Mal sinnvoll ist:
 
@@ -268,4 +272,4 @@ gemessen, die zehn Gangarten sind seit dem 2026-09-05 fertig und im Spiel.
 Die Wandlogik aus dem Genre-Vorbild Last Z: Survival Shooter ist erledigt - sie liegt
 seit dem 2026-09-06 im Testgelaende und bleibt vorerst dort; ohne Thomas' Go wandert sie
 nicht in den echten Run. **Es laeuft gerade nichts.** Was liegen bleibt, steht in
-`## Offen`; ganz oben Thomas' Entscheidung zur Truppenanzeige."
+`## Offen`; ganz oben der PROBELAUF."

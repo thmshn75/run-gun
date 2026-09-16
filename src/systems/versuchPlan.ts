@@ -286,12 +286,16 @@ export function getProbeHaerte(level: number, deckel: number): number {
 
 export const PROBELAUF_REGELN: BahnRegeln = {
   name: 'probelauf',
-  // WIE DIE ROTE WANDKACHEL (walls.ts, rollBad): ab badMinLevel, mit badChance, nie mehr als
-  // badMaxRun in Folge. Ist die Serie voll, wird gar nicht erst gewuerfelt.
+  // WIE DIE ROTE WANDKACHEL (walls.ts, rollBad), ABER HAEUFIGER: ab walls.badMinLevel, dann
+  // mit den EIGENEN Probe-Werten rotChance/rotMaxSerie statt badChance/badMaxRun. Grund und
+  // Rechenweg stehen an den Konstanten (balance.ts, versuch.probe) - kurz: Am Werteboden
+  // zaehlt die Anzahl der roten Ereignisse, nicht ihre Groesse, und mit den Wandwerten
+  // kamen im Probelauf nur 2 je 30 s gegen 7-10 im Run. Ist die Serie voll, wird gar nicht
+  // erst gewuerfelt.
   fassRot: (kontext, zufall) => {
-    const { badMinLevel, badChance, badMaxRun } = BALANCE.walls
-    if (kontext.level < badMinLevel || kontext.rotSerie >= badMaxRun) return undefined
-    if (zufall() >= badChance) return undefined
+    const { rotChance, rotMaxSerie } = BALANCE.versuch.probe
+    if (kontext.level < BALANCE.walls.badMinLevel || kontext.rotSerie >= rotMaxSerie) return undefined
+    if (zufall() >= rotChance) return undefined
     return zufall() < 0.5 ? 'weakenDamage' : 'weakenRate'
   },
   // WIE DAS WANDTOR (Spawner.chooseWallWeapon): nur, was auf diesem Level freigeschaltet

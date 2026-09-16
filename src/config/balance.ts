@@ -1364,6 +1364,23 @@ export const BALANCE = {
       // 4 x walls.coinReward. Hochgerechnet auf Runde 1: 88-116 % der Muenzen des Runs.
       fassMuenzen: 12,
       torMuenzen: 0,
+      // ROT HAEUFIGER ALS AN DER WAND (Thomas' Entscheidung 2026-09-16). Der Nachlauf vom
+      // 2026-09-15 hat gezeigt, dass die Schrittzahl allein die Drift nicht schliesst:
+      // Schaden und Rate fallen nie unter ihren Startwert (statFloor), der Probelauf steht
+      // beim Messen genau darauf, und die nur 2 roten Faesser je 30 s verpuffen dort. Im Run
+      // halten 7-10 rote Kacheln den Wert am Boden. Nicht die Groesse des einzelnen
+      // Ereignisses zaehlt am Boden, sondern ihre ANZAHL.
+      //
+      // Gerechnet, nicht geraten: Mit Serienlimit m und Wuerfelchance p ist der Rot-Anteil
+      // (p+p^2)/(1+p+p^2) fuer m=2. walls.badChance 0,3333 mit badMaxRun 1 ergibt heute
+      // 0,3333/1,3333 = 25 %. p=0,62 mit m=2 ergibt 50,1 % - doppelt so viele rote Faesser
+      // (2 -> rund 4 je 30 s) bei halb so vielen guten, netto also ein stehender Wert
+      // statt +0,24 Feuerkraft je 30 s.
+      //
+      // walls.badMinLevel (ab Level 2) gilt unveraendert weiter - nur Chance und Serie sind
+      // eigene Werte, damit der echte Run diese Aenderung nicht sieht (A1).
+      rotChance: 0.62,
+      rotMaxSerie: 2,
     },
     gegnerBandMitte: 0.42,
     gegnerBandBreite: 0.24,

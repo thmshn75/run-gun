@@ -116,12 +116,24 @@ describe('Probelauf', () => {
       expect(TESTGELAENDE_REGELN.rotSchritte).toBe(1)
     })
 
-    it('kommen nicht vor badMinLevel und nie laenger als badMaxRun in Folge', () => {
+    it('kommen nicht vor badMinLevel und nie laenger als rotMaxSerie in Folge', () => {
       const immerRot = () => 0
       expect(PROBELAUF_REGELN.fassRot(kontext({ level: BALANCE.walls.badMinLevel - 1 }), immerRot)).toBeUndefined()
-      expect(PROBELAUF_REGELN.fassRot(kontext({ level: 5, rotSerie: BALANCE.walls.badMaxRun }), immerRot)).toBeUndefined()
+      expect(PROBELAUF_REGELN.fassRot(kontext({ level: 5, rotSerie: BALANCE.versuch.probe.rotMaxSerie }), immerRot)).toBeUndefined()
       expect(PROBELAUF_REGELN.fassRot(kontext({ level: 5 }), immerRot)).toBe('weakenDamage')
       expect(PROBELAUF_REGELN.fassRot(kontext({ level: 5 }), () => 0.99)).toBeUndefined()
+    })
+
+    it('kommen haeufiger als an der Wand - am Werteboden zaehlt die Anzahl, nicht die Groesse', () => {
+      // Der Anteil roter Faesser bei Serienlimit 2 ist (p+p^2)/(1+p+p^2), an der Wand mit
+      // Serienlimit 1 dagegen p/(1+p). Die Probe muss deutlich darueber liegen, sonst
+      // waechst die Feuerkraft auf Level 12/20 weiter (Messung 2026-09-15: +0,24 je 30 s).
+      const { rotChance: p, rotMaxSerie } = BALANCE.versuch.probe
+      expect(rotMaxSerie).toBe(2)
+      const anteilProbe = (p + p ** 2) / (1 + p + p ** 2)
+      const anteilWand = BALANCE.walls.badChance / (1 + BALANCE.walls.badChance)
+      expect(anteilProbe).toBeGreaterThan(anteilWand * 1.8)
+      expect(anteilProbe).toBeLessThan(0.6)
     })
 
     it('wirft je gutem Fass so viel ab wie mehrere Wandkacheln - ein Fass ersetzt mehrere', () => {

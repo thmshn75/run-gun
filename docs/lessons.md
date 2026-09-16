@@ -1,5 +1,24 @@
 # Lessons: Run & Gun
 
+### 2026-09-16 — Die Sonde war innen abgesichert und aussen nicht
+
+Die Lesson vom 2026-09-05 ("Eine Messsonde muss ihr Messobjekt ueberleben") war umgesetzt:
+`try/catch` im `setInterval`-Rueckruf, `scene.isActive()`-Pruefung, harte Obergrenze an
+Durchlaeufen. Trotzdem riss eine Reihe aus 12 Faellen nach dem vierten ab — Playwright warf
+"Execution context was destroyed" am `page.evaluate` SELBST, also eine Ebene ueber dem
+abgesicherten Rueckruf. Der Node-Prozess starb, die restlichen acht Faelle liefen nie.
+Gerettet hat nur, dass die Sonde nach jedem Fall schreibt statt am Ende.
+
+**Regel:** Absicherung gehoert an JEDE Grenze zwischen zwei Prozessen, nicht nur an die
+innerste. Bei einer Browser-Sonde sind das drei: der Rueckruf in der Seite, der
+`evaluate`-Aufruf von aussen, und das Schliessen des Kontexts. Faellt eine davon aus, darf
+das den EINEN Fall kosten und nie die Reihe. Dazu gehoert das inkrementelle Schreiben als
+Pflicht, nicht als Komfort — es ist der Unterschied zwischen "vier Faelle gerettet" und
+"drei Minuten Messung weg".
+
+**Gegenprobe, die den Unterschied belegt:** Nach dem Haerten liefen die acht Nachzuegler
+ohne Ausfall durch, 12 von 12 Faellen gueltig.
+
 ### 2026-09-05 — Drei Kennzahlen fuer "Staerke", zwei davon falsch
 
 Der Auftrag lautete, die Waffen der Fassreihe "in einer logischen Reihenfolge nach
