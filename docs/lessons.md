@@ -1,5 +1,22 @@
 # Lessons: Run & Gun
 
+### 2026-09-17 — Einen Zustand fuer eine Maschine setzen heisst, ihre Regel zu lesen
+
+Beim Abschluss des Probelaufs habe ich `docs/active-task.md` auf `IDLE` gesetzt und in den
+Task-Abschnitt "Keiner. Es laeuft gerade nichts. Zuletzt abgeschlossen: ..." geschrieben.
+Fuer jeden Leser erledigt. Die Projekt-Triage (`AI Brain/scripts/update-project-triage.py`)
+erkennt einen leeren Task aber nicht am Sinn, sondern an `TASK_PLACEHOLDERS`,
+`TASK_EMPTY_PREFIXES` und `TASK_EMPTY_RE` — und beendet den Task-Body an der ersten `---`
+oder Ueberschrift. Meine Formulierung passte auf keine davon: Der naechste Freshness-Lauf
+haette denselben Task erneut gemeldet, nur mit anderem Text ("enthaelt Taskbeschreibung
+trotz Status IDLE"). Aufgefallen ist es nur, weil Thomas nachgefragt hat.
+
+**Regel:** Wird ein Zustand gesetzt, den eine Automatik ausliest, vorher deren
+Erkennungsregel im Quelltext nachsehen und die Formulierung daran ausrichten — danach die
+Parser-Funktion einmal gegen die Datei laufen lassen, statt auf Sinngemaessheit zu
+vertrauen. Fuer diese Datei heisst das konkret: Task-Abschnitt exakt "Kein aktiver Task.",
+jede Historie hinter eine `---`-Linie.
+
 ### 2026-09-16 — Die Sonde war innen abgesichert und aussen nicht
 
 Die Lesson vom 2026-09-05 ("Eine Messsonde muss ihr Messobjekt ueberleben") war umgesetzt:
