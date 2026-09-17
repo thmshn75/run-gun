@@ -1,7 +1,9 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-09-06 (Die neue Wandlogik nach dem Genre-Vorbild Last Z: Survival Shooter
-liegt im Testgelaende und BLEIBT vorerst dort - der echte Run ist unveraendert. Davor:
+Stand: 2026-09-17 (Der PROBELAUF ist fertig, gemessen und von Thomas am iPhone
+abgenommen - er bleibt vorerst im Testbereich, der echte Run ist unveraendert. Davor: die
+neue Wandlogik nach dem Genre-Vorbild Last Z: Survival Shooter, ebenfalls im Testgelaende.
+Davor:
 Versuch "Zwei Bahnen" fertig und von Benni abgenommen, ebenfalls nur im Testgelaende;
 zehn Gangarten mit Tempo und Bildtakt, V4, Bennis iPhone-Test am 2026-08-29 ok, am 30.08.
 der Ton entfernt.)
@@ -10,20 +12,20 @@ der Ton entfernt.)
 
 ## Offen — naechster Schritt zuerst
 
-0. **PROBELAUF (Stand 2026-09-16, `IMPL_DONE`, committet).** Thomas hat das Go gegeben,
-   die Bahnen in den echten Run zu holen - aber "logisch wie das alte" und zuerst im
-   Testbereich. Gebaut: Menueknopf PROBELAUF (Startlevel 1/5/10/15/20), Bahnen nach den
-   Regeln des Runs (`PROBELAUF_REGELN` in `versuchPlan.ts`), nichts wird gespeichert.
-   Spielstand-Schutz im Browser belegt. **A1-A8 sind erfuellt**: Muenzen, Truppenverlust und
-   Feuerkraft liegen auf Level 12/20 in derselben Groessenordnung wie im echten Run, 0
-   Waffenverstoesse (Messung 2026-09-16, 12 von 12 Faellen gueltig - Zahlen in
-   `docs/active-task.md`). Die Feuerkraft-Drift ist geschlossen, indem rote Faesser im
-   Probelauf haeufiger kommen als an der Wand (`versuch.probe.rotChance` 0,62,
-   `rotMaxSerie` 2 - Rot-Anteil 50 % statt 25 %); Thomas' Entscheidung vom 2026-09-16
-   gegen "Drift akzeptieren".
-   **Offen: nur noch A9.** Thomas' iPhone-Test ("soweit ok") galt dem Stand VOR der
-   Verdopplung der roten Faesser - das Spielgefuehl mit der neuen Haeufigkeit ist am Geraet
-   ungetestet. Danach erst das Umschalten des echten Runs, und auch das nur auf sein Wort.
+0. **PROBELAUF — fertig und abgenommen (2026-09-17).** Thomas hat den Stand am iPhone
+   getestet und entschieden: **bleibt vorerst so.** Der Probelauf liegt im Testbereich,
+   der echte Run ist unveraendert; das Umschalten des Runs passiert nur auf sein
+   ausdrueckliches Wort. Nichts zu tun.
+   Gebaut: Menueknopf PROBELAUF (Startlevel 1/5/10/15/20), Bahnen nach den Regeln des
+   Runs (`PROBELAUF_REGELN` in `versuchPlan.ts`), nichts wird gespeichert;
+   Spielstand-Schutz im Browser belegt. A1-A9 erfuellt. Endmessung 2026-09-16, Level 12/20,
+   alt gegen probe, Median aus 3, 12 von 12 Faellen gueltig: Muenzen 82 % / 105 %,
+   Truppenverlust 87 % / 54 %, Feuerkraftzuwachs je 30 s +0,08 gegen +0,03 (L12) und
+   +0,07 gegen +0,09 (L20), 0 Waffenverstoesse. Die Feuerkraft-Drift ist geschlossen, indem
+   rote Faesser im Probelauf haeufiger kommen als an der Wand (`versuch.probe.rotChance`
+   0,62, `rotMaxSerie` 2 - Rot-Anteil 50 % statt 25 %; Thomas' Entscheidung 2026-09-16
+   gegen "Drift akzeptieren"). Vollstaendige Spec, Kalibrierrunden und Zwischenzahlen:
+   `docs/active-task.md` im Commit `fc704e3`.
    Mess-Sonde: `vergleich.mjs` / `auswertung.mjs`, am 2026-09-16 gehaertet (aeusseres
    try/catch, siehe `docs/lessons.md`) - liegt im Scratchpad, bei Bedarf nach `scripts/`.
 
@@ -269,7 +271,7 @@ echten Runs. Beides sollte nach Bennis Test nachgezogen werden.
 "Lies `docs/UEBERGABE.md`, `docs/lessons.md` und `docs/plan-v4.md` und arbeite dort weiter.
 **Nichts neu aufsetzen** — V1/V2/V3 sind abgenommen und getaggt, V4 ist gebaut und
 gemessen, die zehn Gangarten sind seit dem 2026-09-05 fertig und im Spiel.
-Die Wandlogik aus dem Genre-Vorbild Last Z: Survival Shooter ist erledigt - sie liegt
-seit dem 2026-09-06 im Testgelaende und bleibt vorerst dort; ohne Thomas' Go wandert sie
-nicht in den echten Run. **Es laeuft gerade nichts.** Was liegen bleibt, steht in
-`## Offen`; ganz oben der PROBELAUF."
+Die Wandlogik aus dem Genre-Vorbild Last Z: Survival Shooter und der PROBELAUF sind
+erledigt - beide liegen im Testbereich und bleiben vorerst dort; ohne Thomas' Go wandert
+nichts davon in den echten Run. **Es laeuft gerade nichts, `docs/active-task.md` ist
+leer.** Was liegen bleibt, steht in `## Offen`."
