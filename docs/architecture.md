@@ -3,6 +3,10 @@
 Verbindlicher Umsetzungsplan mit vollständiger Architektur, Etappen und Akzeptanzkriterien:
 `docs/plan.md`. Diese Datei hält nur den Stack-Überblick und das Entscheidungslog.
 
+## Ziel
+
+Privates, kostenloses iPhone-PWA-Spiel: Auto-Runner-Shooter im Hochformat (Phaser 3 + TypeScript + Vite), ohne App Store, Accounts, Backend oder laufende Kosten.
+
 ## Stack
 
 | Layer | Technologie |
