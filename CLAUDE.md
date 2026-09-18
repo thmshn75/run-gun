@@ -47,9 +47,10 @@ Context7 (`find-docs` skill) ist aktiv — Nutzungsregel in `~/Claude/CLAUDE.md`
 Nur wenn der Task ein Deliverable erzeugt, auf dem danach weitergebaut wird, und die
 Akzeptanzkriterien stehen. Bei kleinen, klar umrissenen Tasks entfällt der Schritt.
 
-1. Zwei Gegenprüfungen parallel als Subagents (`general-purpose`, `model: sonnet`):
-   Premortem („woran scheitert dieser Task?") und Angriffssicht („wo bricht es im
-   Betrieb, wo kommen Daten trotzdem raus?"). Genau zwei, nicht mehr.
+1. Zwei Gegenprüfungen parallel als Subagents: `premortem` und `angriffssicht`
+   (liegen als benannte Agents in `.claude/agents/`, laufen auf `model: sonnet`).
+   Genau zwei, nicht mehr. Die Agent-Dateien sind die Quelle der Prüffragen —
+   nicht jedes Mal neu formulieren, sondern bei Bedarf dort schärfen.
 2. Befunde **in** die betroffenen Abschnitte von `docs/active-task.md` einarbeiten,
    nicht als Liste anhängen — angehängte Befunde werden beim Bauen überlesen.
 3. Maximal zwei Runden. Runde 2 nur, wenn Runde 1 einen strukturändernden Befund
@@ -61,7 +62,9 @@ Akzeptanzkriterien stehen. Bei kleinen, klar umrissenen Tasks entfällt der Schr
 Wenn ein Task bereit zur Umsetzung ist:
 1. docs/active-task.md vollständig ausfüllen
 2. Status auf `SPEC_READY` setzen
-3. **Codex im Terminal starten, nicht in der Extension.** Das setzt die globale Betriebsregel um
+3. **Codex im Terminal starten, nicht in der Extension** — dafür den globalen Skill
+   `codex-terminal-handoff` verwenden, der genau dieses Verfahren kapselt.
+   Das setzt die globale Betriebsregel um
    (`~/.claude/CLAUDE.md`; Hintergrund: `AI Brain/wiki/_system/betriebs-runbook.md`, Abschnitt
    "Session-Abbrueche in der VS-Code-Extension (Exit 143)"). Ein `.command`-Skript ins Session-Scratchpad
    schreiben, `chmod +x`, dann `open -a Terminal <pfad>`. Inhalt des Skripts:
@@ -112,7 +115,10 @@ Thomas' Test am echten iPhone als erfuellt, nie nach Desktop-Preview allein.
 Nach jeder Nutzerkorrektur: Muster in `docs/lessons.md` eintragen und Regel formulieren, die denselben Fehler künftig verhindert. Lessons zu Sitzungsbeginn lesen.
 
 ## Nicht tun
-- Keinen produktiven Code direkt schreiben
+- Keinen produktiven Code direkt schreiben. Das erzwingt seit 2026-09-18 ein
+  PreToolUse-Hook: `.claude/hooks/no-direct-src-edit.py` blockiert Edit/Write auf
+  `src/`. `docs/`, `tests/` und `.claude/` bleiben frei. Notausgang für begründete
+  Ausnahmen: `RUNGUN_ALLOW_SRC_EDIT=1` in der Umgebung.
 - Keine Produkt- oder Architekturentscheidungen an Codex delegieren
 - Technische Detailentscheidungen darf Codex nur innerhalb der Spezifikation treffen
 - Keine kostenpflichtigen Dienste, keine API-Keys, keine externen Requests zur Laufzeit (siehe docs/plan.md)
