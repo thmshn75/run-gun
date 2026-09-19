@@ -1,5 +1,28 @@
 # Lessons: Run & Gun
 
+### 2026-09-19 — Der erste Lauf nach dem Laden verdeckt den Fehler: Szenenfelder ueberleben `scene.start`
+
+E2r (der Strom im Torlauf) bestand Review und Tests, und die erste Bot-Messung im
+Browser war einwandfrei: Pfeiler fiel in 2,5 s, Quelle wuchs 10 → 61. Die zweite und
+dritte Messung in derselben Sitzung ergaben **null Treffer** — 136 geometrische
+Ueberlappungen, `physics.world.overlap` meldete sie, Collider `active`, und der Handler
+wurde nie aufgerufen. Ursache: Phaser-Szenen sind Singletons; `scene.start` ruft
+`create()` auf **derselben Instanz** auf. `create()` legte eine neue `Strom`-Gruppe an,
+aber `this.stromWallCollider` behielt den Wert aus dem vorigen Lauf; `syncWallColliders`
+sah das gesetzte Feld und baute keinen neuen Collider — der alte zeigte auf die
+Gruppen des vorigen Laufs. Die uebrigen Collider-Felder hatten das Problem nur deshalb
+nicht, weil ihre Reset-Zweige zufaellig im ersten Bild greifen (`!hasActivePair()`).
+
+Das haette jeden Spieler getroffen, der den Torlauf zweimal startet — und kein
+einzelner Testlauf, kein Unit-Test und keine erste Messung haette es gezeigt.
+
+- **Regel:** Jedes Instanzfeld einer Szene, das auf ein in `create()` erzeugtes Objekt
+  zeigt (Collider, Gruppen, Timer, Tweens), wird **zu Beginn von `create()` explizit
+  zurueckgesetzt** — nicht darauf vertrauen, dass ein spaeterer Zweig es tut. Und jede
+  Browser-Abnahme eines Modus enthaelt **einen zweiten Start in derselben Sitzung**
+  (Menue → Modus → Menue → Modus); der erste Start ist kein Beleg. Gilt sofort fuer E3
+  (Horde-Collider) und E4.
+
 ### 2026-09-19 — Die Kernmechanik des Vorbilds durch die eigene ersetzt, ohne es zu sagen
 
 Thomas wollte einen Probelauf "so nah als moeglich an dem Video" (Genre: Crowd Runner).

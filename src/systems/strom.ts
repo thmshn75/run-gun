@@ -1,0 +1,98 @@
+import Phaser from 'phaser'
+import { BALANCE } from '../config/balance'
+import { getBobOffsetPx, getPhaseOffset, getStepCycleHz } from './gamefeel'
+import { getLaneRatio, getLaneSlope, getRoadHalfWidth } from './roadGeometry'
+import { getStromFigurenProSek, getStromLaneX } from './stromPlan'
+
+/** Eigener Torlauf-Strom: Figuren ersetzen dort Projektile, ohne WeaponKey oder Shop zu beruehren. */
+export class Strom {
+  private readonly scene: Phaser.Scene
+  private readonly getSalvoPositions: () => Array<{ x: number; y: number }>
+  private readonly getTeamSize: () => number
+  private readonly figures: Phaser.Physics.Arcade.Image[] = []
+  private readonly group: Phaser.Physics.Arcade.Group
+  private accumulatorMs = 0
+  private elapsedMs = 0
+  private lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
+  private nextIndex = 0
+
+  public constructor(scene: Phaser.Scene, getSalvoPositions: () => Array<{ x: number; y: number }>, getTeamSize: () => number) {
+    this.scene = scene
+    this.getSalvoPositions = getSalvoPositions
+    this.getTeamSize = getTeamSize
+    this.group = scene.physics.add.group()
+    for (let index = 0; index < BALANCE.pools.strom; index += 1) {
+      const figure = scene.physics.add.image(0, 0, 'player').setDepth(BALANCE.layers.gameplay).setScale(BALANCE.render.figureTextureScale * BALANCE.torlauf.crowd.figureScale)
+      figure.setData('strom', true)
+      figure.setData('hitSpawnIds', new Set<number>())
+      figure.setData('phaseOffset', getPhaseOffset(index))
+      figure.setActive(false).setVisible(false)
+      figure.disableBody(true, true)
+      this.group.add(figure)
+      this.figures.push(figure)
+    }
+  }
+
+  public getGroup(): Phaser.Physics.Arcade.Group { return this.group }
+
+  public update(dt: number): void {
+    this.elapsedMs += dt
+    this.accumulatorMs += dt
+    const rate = getStromFigurenProSek(this.getTeamSize())
+    const intervalMs = 1000 / Math.max(rate, 0.0001)
+    while (this.accumulatorMs >= intervalMs) {
+      this.accumulatorMs -= intervalMs
+      const origin = this.getSalvoPositions()[0]
+      if (origin !== undefined) this.spawn(origin.x, origin.y, 0, new Set<number>())
+    }
+    for (const figure of this.figures) {
+      if (!figure.active) continue
+      const y = figure.y - BALANCE.torlauf.strom.tempoPxPerSec * dt / 1000
+      const x = getStromLaneX(this.scene.scale.width, this.scene.scale.height, y, figure.getData('laneOriginX') as number, figure.getData('laneRatio') as number, figure.getData('lateralPx') as number)
+      figure.setPosition(x, y + getBobOffsetPx(this.elapsedMs, getStepCycleHz(figure.displayHeight), figure.getData('phaseOffset') as number, BALANCE.gamefeel.bobAmplitudePx))
+      ;(figure.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
+      if (figure.y - figure.displayHeight / 2 <= BALANCE.road.horizonY || figure.x < -figure.displayWidth || figure.x > this.scene.scale.width + figure.displayWidth) this.recycle(figure)
+    }
+  }
+
+  public vervielfache(figure: Phaser.Physics.Arcade.Image, count: number): void {
+    const hitSpawnIds = figure.getData('hitSpawnIds') as Set<number>
+    for (let copy = 0; copy < count; copy += 1) this.spawn(figure.x + (copy + 1) * BALANCE.torlauf.strom.kopieVersatzPx, figure.y, figure.getData('lateralPx') as number, new Set(hitSpawnIds))
+  }
+
+  private spawn(x: number, y: number, lateralPx: number, hitSpawnIds: Set<number>): void {
+    const figure = this.nextFree()
+    if (figure === undefined) {
+      this.warnPoolExhausted()
+      return
+    }
+    const laneRatio = getLaneRatio(this.scene.scale.width, this.scene.scale.height, x, y)
+    const laneOriginX = x - laneRatio * getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
+    figure.enableBody(true, x, y, true, true).setActive(true).setVisible(true).setAlpha(1).clearTint()
+    figure.setRotation(Math.atan(-laneRatio * getLaneSlope(this.scene.scale.width, this.scene.scale.height)))
+    figure.setData('laneRatio', laneRatio)
+    figure.setData('laneOriginX', laneOriginX)
+    figure.setData('lateralPx', lateralPx)
+    figure.setData('hitSpawnIds', hitSpawnIds)
+    ;(figure.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0)
+  }
+
+  private nextFree(): Phaser.Physics.Arcade.Image | undefined {
+    for (let attempts = 0; attempts < this.figures.length; attempts += 1) {
+      const figure = this.figures[this.nextIndex]
+      this.nextIndex = (this.nextIndex + 1) % this.figures.length
+      if (!figure.active) return figure
+    }
+    return undefined
+  }
+
+  private recycle(figure: Phaser.Physics.Arcade.Image): void {
+    figure.disableBody(true, true).setActive(false).setVisible(false)
+  }
+
+  private warnPoolExhausted(): void {
+    if (!import.meta.env.DEV || this.elapsedMs - this.lastPoolWarningAtMs < BALANCE.feedback.poolWarningIntervalMs) return
+    console.warn('Strom pool exhausted')
+    this.lastPoolWarningAtMs = this.elapsedMs
+  }
+}

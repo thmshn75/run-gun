@@ -48,6 +48,22 @@ export const BALANCE = {
       randSpaltPx: 4,
       gegnerSperreVorPx: 150,
       gegnerSperreNachPx: 380,
+      // Zwei ×-Platten muessen weiter als die Flugstrecke (ca. 500 px) auseinander
+      // liegen: 1100 px stellt sicher, dass die erste Kopienwolke weg ist.
+      malMindestabstandPx: 1100,
+    },
+    strom: {
+      // min(N, 60) x 0,4/s: N=10 ergibt 4/s, ab N=60 genau 24/s wie die abgenommene Feuerlinie.
+      deckelEinheiten: 60,
+      figurenJeEinheitProSek: 0.4,
+      // Balance-Stellschraube: 260 px/s macht den Strom auf Level 1 sichtbar schneller,
+      // auf hohen Leveln fast stehend gegen den Scroll.
+      tempoPxPerSec: 260,
+      kopieVersatzPx: 6,
+    },
+    kachel: {
+      // 500 px Anflug / 140 px = vier gleichzeitig; der 12er-Pool hat dreifache Reserve.
+      abstandPx: 140,
     },
     crowd: {
       // `poolGroesse`/`max` 150: Das Video zeigt ~8 x 18. Ueber 150 traegt die Zahl weiter,
@@ -3505,6 +3521,10 @@ export const BALANCE = {
     figureTextureScale: 0.5,
   },
   pools: {
+    // Gemessen auf Level 5: ~0,8 s Flugzeit bei 24 Figuren/s (16-22 gleichzeitig); 200 bleibt grosse Reserve.
+    strom: 200,
+    // 500 px Anflug / 140 px = vier gleichzeitig; 12 laesst Reserve bei Leveltempo.
+    kacheln: 12,
     projectiles: {
       // Peak: ceil(1.12s flight / 0.125s interval) = 9 salvos x 8 shooters x 1 bullet = 72; 96 leaves 33% reserve.
       normal: 96,

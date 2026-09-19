@@ -72,6 +72,7 @@ export class Weapons {
   private elapsedMs: number
   private activeWeapon: WeaponKey
   private engageLimitEnabled: boolean
+  private feuerAktiv: boolean
 
   public constructor(
     scene: Phaser.Scene,
@@ -118,6 +119,7 @@ export class Weapons {
     // Startwaffe seit 2026-08-24: die Pistole, nicht mehr das Sturmgewehr.
     this.activeWeapon = 'pistol'
     this.engageLimitEnabled = true
+    this.feuerAktiv = true
 
     for (const key of WEAPON_KEYS) {
       const segment = this.segments[key]
@@ -179,6 +181,11 @@ export class Weapons {
     this.engageLimitEnabled = enabled
   }
 
+  /** Im Torlauf bleiben vorhandene Projektile beweglich, es entstehen aber keine neuen. */
+  public setFeuerAktiv(aktiv: boolean): void {
+    this.feuerAktiv = aktiv
+  }
+
   /** Rueckgabe: Zahl der in diesem Bild abgefeuerten Salven. */
   public update(dt: number): number {
     this.elapsedMs += dt
@@ -186,7 +193,7 @@ export class Weapons {
     const weapon = this.getWeaponConfig(this.activeWeapon)
     const salvoIntervalMs = 1000 / (this.runStats.get('shotsPerSec') * weapon.rateFactor)
     let salvos = 0
-    while (this.fireAccumulatorMs >= salvoIntervalMs) {
+    while (this.feuerAktiv && this.fireAccumulatorMs >= salvoIntervalMs) {
       this.fireAccumulatorMs -= salvoIntervalMs
       this.fire()
       salvos += 1

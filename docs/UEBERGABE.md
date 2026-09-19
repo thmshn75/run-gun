@@ -1,8 +1,8 @@
 # Uebergabe: Run & Gun
 
 Stand: 2026-09-19 (**Plan V5 TORLAUF: Kernmechanik korrigiert — im Torlauf wird NICHT
-geschossen, die Figuren sind die Kugeln. E0/E1 abgenommen, E2 gebaut und durch die
-Korrektur ueberholt, E2r "Der Strom" spezifiziert und gehaertet, Codex-Handoff steht an.** Davor drei Gamefeel-Tasks nach Thomas' Genre-Video, alle
+geschossen, die Figuren sind die Kugeln. E0/E1 abgenommen, E2r "Der Strom" gebaut,
+gemessen und nachgebessert — wartet auf Thomas' iPhone-Test.** Davor drei Gamefeel-Tasks nach Thomas' Genre-Video, alle
 abgenommen: TREFFERQUITTUNG, FLUESSIGERE BEWEGUNGEN, ABWECHSLUNG. Davor: PROBELAUF fertig, gemessen und am 2026-09-17 abgenommen; er bleibt
 im Testbereich, der echte Run ist unveraendert.)
 
@@ -10,8 +10,12 @@ im Testbereich, der echte Run ist unveraendert.)
 
 ## Offen — naechster Schritt zuerst
 
-0. **V5 / E2r DER STROM — Spec fertig (`docs/active-task.md`), Handoff an Codex als
-   naechster Schritt.** Ausloeser: Thomas' Korrektur nach E2 ("da gibt es doch kein
+0. **V5 / E2r DER STROM — gebaut, reviewt, per Bot gemessen; offen ist A11 (Thomas am
+   iPhone, mit N1.4 Wipptakt).** Messungen: ×2-Pfeiler faellt in 2,5 s, Quelle 10 → 61
+   in 47 s, Bildzeit 16,7 ms Median bei Quelle 60. **Bug gefunden und behoben (N4):** beim
+   zweiten Torlauf-Start in derselben Sitzung traf der Strom nichts, weil
+   `stromWallCollider` bei `scene.start` nicht zurueckgesetzt wurde — jetzt Reset aller
+   Collider-Felder in `create()`, Lesson dazu (zweiter Start gehoert zu jeder Abnahme). Ausloeser: Thomas' Korrektur nach E2 ("da gibt es doch kein
    schiessen, es werden einheiten losgeschickt") und die bestaetigte Kernmechanik: Die
    Truppe unten ist die Quelle mit N Einheiten und schickt laufend Figuren nach oben; eine
    Figur hackt Pfeiler (ein Punkt, laeuft weiter), wird an einer Platte ×k vervielfacht,

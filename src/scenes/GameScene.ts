@@ -4,6 +4,7 @@ import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
 import { Walls } from '../systems/walls'
 import { VersuchBahnen, type BahnSystem } from '../systems/versuchBahnen'
 import { Torbahn } from '../systems/torbahn'
+import { Strom } from '../systems/strom'
 import { PROBELAUF_REGELN, TESTGELAENDE_REGELN, type BahnRegeln } from '../systems/versuchPlan'
 import { Popups } from '../systems/popups'
 import { Sterbeeffekte } from '../systems/sterbeeffekte'
@@ -136,6 +137,7 @@ export class GameScene extends Phaser.Scene {
   private bruecke!: Bruecke
   private crowd!: Crowd
   private weapons!: Weapons
+  private strom: Strom | undefined
   private spawner!: Spawner
   private coins!: Coins
   private runStats!: RunStats
@@ -200,6 +202,7 @@ export class GameScene extends Phaser.Scene {
   private crowdBossCollider: Phaser.Physics.Arcade.Collider | undefined
   private crowdRewardCollider: Phaser.Physics.Arcade.Collider | undefined
   private crowdPickupCollider: Phaser.Physics.Arcade.Collider | undefined
+  private stromWallCollider: Phaser.Physics.Arcade.Collider | undefined
 
   /** Wie dieser Run begonnen hat - frisch, fortgesetzt oder freigekauft. */
   private einstieg: 'neu' | 'fortsetzen' | 'weiterspielen' | 'test' | 'probe' = 'neu'
@@ -256,6 +259,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   public create(): void {
+    // Phaser verwendet dieselbe Szeneninstanz erneut: Collider aus dem vorigen Start
+    // duerfen deshalb nie auf die alten Physik-Gruppen zeigen.
+    this.projectileWallCollider = undefined
+    this.crowdRewardCollider = undefined
+    this.crowdPickupCollider = undefined
+    this.stromWallCollider = undefined
+    this.projectileBossCollider = undefined
+    this.crowdBossCollider = undefined
     enableSharpText(this)
     this.runStats = new RunStats()
     // MUSS VOR setLevel STEHEN: Die dauerhaften Aufwertungen heben die Deckel, und der
@@ -333,6 +344,8 @@ export class GameScene extends Phaser.Scene {
           this.updateHud()
         },
       )
+      this.strom = new Strom(this, () => this.crowd.getNextSalvoPositions(1), () => this.runStats.get('hp'))
+      this.weapons.setFeuerAktiv(false)
     } else if (this.nutztBahnen()) {
       this.walls = this.baueVersuchsBahnen()
     } else {
@@ -531,6 +544,7 @@ export class GameScene extends Phaser.Scene {
       this.spawner.setSpawnSperre(this.walls.istTorFenster?.() ?? false)
     }
     this.walls.update(dt)
+    this.strom?.update(dt)
     this.popups.update(dt)
     this.sterbeeffekte.update(dt)
     this.boss.update(dt)
@@ -601,6 +615,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private syncWallColliders(): void {
+    if (this.strom !== undefined && this.stromWallCollider === undefined) {
+      this.stromWallCollider = this.addCombatOverlap(this.strom.getGroup(), this.walls.getWalls())
+    }
     if (this.walls.hasActivePair()) {
       if (this.projectileWallCollider === undefined) {
         this.projectileWallCollider = this.addCombatOverlap(this.weapons.getProjectileGroup(), this.walls.getWalls())
@@ -619,9 +636,11 @@ export class GameScene extends Phaser.Scene {
     this.projectileWallCollider?.destroy()
     this.crowdRewardCollider?.destroy()
     this.crowdPickupCollider?.destroy()
+    this.stromWallCollider?.destroy()
     this.projectileWallCollider = undefined
     this.crowdRewardCollider = undefined
     this.crowdPickupCollider = undefined
+    this.stromWallCollider = undefined
   }
 
   private equipWeapon(weapon: WeaponKey): void {
@@ -1051,6 +1070,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleCombatOverlap(first: Phaser.GameObjects.GameObject, second: Phaser.GameObjects.GameObject): void {
+    const stromFigur = this.findObjectWithData(first, second, 'strom')
+    if (stromFigur !== undefined) {
+      this.handleStromTreffer(stromFigur as Phaser.Physics.Arcade.Image, (stromFigur === first ? second : first) as Phaser.Physics.Arcade.Image)
+      return
+    }
     const playerProjectile = this.findObjectWithData(first, second, 'weapon')
     if (playerProjectile !== undefined) {
       const enemy = playerProjectile === first ? second : first
@@ -1081,6 +1105,8 @@ export class GameScene extends Phaser.Scene {
         }
         return
       }
+      // +1-Kacheln gehoeren ausschliesslich dem Strom, nie der Truppenhuelle.
+      if (this.walls.istKachel?.(target) ?? false) return
       // Wandsegmente kosten bei Beruehrung NICHTS - das war seit W4 so und muss hier
       // ausdruecklich stehen: Seit die Truppenhuelle gegen die ganze Wandgruppe prueft
       // (fuer die Sammelbahn), fiel eine beruehrte rechte Wand sonst bis zur
@@ -1108,6 +1134,42 @@ export class GameScene extends Phaser.Scene {
       console.warn('Unhandled combat overlap: neither object identifies as a player projectile, boss projectile, or player hull.')
       this.lastUnknownCombatOverlapWarningAtMs = this.elapsedMs
     }
+  }
+
+  private handleStromTreffer(figur: Phaser.Physics.Arcade.Image, wall: Phaser.Physics.Arcade.Image): void {
+    if (!figur.active || !wall.active || !(this.walls instanceof Torbahn)) return
+    if (this.walls.istKachel(wall)) {
+      this.applyTorlaufReinforcement(1, figur.x, figur.y)
+      this.walls.recycleKachelBild(wall)
+      return
+    }
+    const wirkung = this.walls.getTorWirkung(wall)
+    if (wirkung === undefined) return
+    const hitSpawnIds = figur.getData('hitSpawnIds') as Set<number>
+    const spawnId = wall.getData('spawnId') as number | undefined
+    if (spawnId !== undefined && hitSpawnIds.has(spawnId)) return
+    if (spawnId !== undefined) hitSpawnIds.add(spawnId)
+    const stand = this.walls.getStand(wall)
+    if (stand === undefined) return
+    if (stand < 0) {
+      this.walls.damage(wall, 1)
+      return
+    }
+    if (wirkung.art === 'mal') {
+      this.strom?.vervielfache(figur, wirkung.faktor - 1)
+      this.popups.spawn(figur.x, figur.y, `×${wirkung.faktor}`, '#3ddc84')
+      return
+    }
+    this.applyTorlaufReinforcement(stand, figur.x, figur.y)
+    this.walls.recyclePaar(wall)
+  }
+
+  private applyTorlaufReinforcement(amount: number, x: number, y: number): void {
+    const before = this.runStats.get('hp')
+    this.runStats.set('hp', Math.min(BALANCE.torlauf.crowd.max, before + amount))
+    const delta = Math.round(this.runStats.get('hp') - before)
+    if (delta > 0) this.popups.spawn(x, y, `+${delta}`, '#3ddc84')
+    this.updateHud()
   }
 
   /**
@@ -1359,6 +1421,16 @@ export class GameScene extends Phaser.Scene {
     this.phaseRemainingMs -= dt
     if (this.phaseRemainingMs > 0) return
     if (this.levelPhase === 'normal') {
+      if (this.istTorlauf()) {
+        // E2r hat keine Horde und keinen Nahkampf: der Torlauf endet bewusst ohne Niederlage.
+        this.currentLevel += 1
+        this.levelPhase = 'cleared'
+        this.syncBossColliders()
+        this.phaseRemainingMs = BALANCE.level.clearedMs
+        this.levelOverlayBackground.setVisible(true)
+        this.levelOverlay.setText(`LEVEL ${this.currentLevel - 1} GESCHAFFT`).setVisible(true)
+        return
+      }
       this.levelPhase = 'warning'
       this.phaseRemainingMs = BALANCE.level.warningMs
       this.spawner.setSpawningEnabled(false)
@@ -1659,6 +1731,7 @@ export class GameScene extends Phaser.Scene {
     this.levelOverlayBackground.setVisible(false)
     this.levelOverlay.setVisible(false)
     this.spawner.resetForLevel(this.currentLevel)
+    if (this.istTorlauf()) this.spawner.setSpawningEnabled(false)
     this.sterbeeffekte.deactivateAll()
     this.walls.resetForLevel(this.currentLevel)
     this.setzeWeltThema()
@@ -1714,6 +1787,7 @@ export class GameScene extends Phaser.Scene {
     this.hud.damage.setText(`DMG ${damage}`)
     this.hud.rate.setText(`RATE ${shotsPerSec}`)
     this.hud.weapon.setTexture(`weapon-${this.weapons.getWeapon()}-hud`)
+    this.hud.weapon.setVisible(!this.istTorlauf())
   }
 
   private syncCrowdSize(): void {

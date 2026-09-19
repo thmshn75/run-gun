@@ -69,6 +69,7 @@ export interface BahnSystem {
   update(dt: number): void
   getSegmentHeight(side: 'left' | 'right'): number
   istTorFenster?(): boolean
+  istKachel?(candidate: Phaser.GameObjects.GameObject): boolean
 }
 
 // ---------------------------------------------------------------------------

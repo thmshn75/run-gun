@@ -13,8 +13,8 @@ function startwert(zufall: number, _truppe: number): number {
 }
 
 /** Zieht ein Paar; beide Seiten sind absichtlich erst hier und nicht im Phaser-Pool entschieden. */
-export function torPaarZiehen(zufall: () => number, truppe: number): TorPaar {
-  const mal = zufall() < BALANCE.torlauf.tor.malChance
+export function torPaarZiehen(zufall: () => number, truppe: number, pxSeitLetztemMal = Number.POSITIVE_INFINITY): TorPaar {
+  const mal = pxSeitLetztemMal >= BALANCE.torlauf.tor.malMindestabstandPx && zufall() < BALANCE.torlauf.tor.malChance
   const linksStart = startwert(zufall(), truppe)
   let rechtsStart = startwert(zufall(), truppe)
   if (!mal && rechtsStart === linksStart) rechtsStart = linksStart - 1
