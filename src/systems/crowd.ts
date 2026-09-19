@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
 import { computeFormation } from './formation'
-import { approachAngle, getBobOffsetPx, getLeanRadians, getPhaseOffset, getStepCycleHz, getStepSquash, getStepSwayRadians } from './gamefeel'
+import { approachAngle, createCrowdMotionProfiles, getBobOffsetPx, getLeanRadians, getStepCycleHz, getStepSquash, getStepSwayRadians, type CrowdMotionProfile } from './gamefeel'
 import { getDriveLimitHalfWidth } from './roadGeometry'
 import { overlapsVisibleFigure, type RectangleBounds } from './rectangles'
 
@@ -11,6 +11,7 @@ type FormationMember = {
   offsetX: number
   offsetY: number
   row: number
+  readonly motion: CrowdMotionProfile
 }
 
 export class Crowd {
@@ -50,6 +51,7 @@ export class Crowd {
 
     // Bodenschatten: einmal je Poolplatz erzeugt, nie zur Laufzeit.
     const shadowWidth = this.figureWidth * BALANCE.shadow.widthOfFigure
+    const motionProfiles = createCrowdMotionProfiles(BALANCE.pools.crowd, () => Phaser.Math.RND.frac())
     for (let index = 0; index < BALANCE.pools.crowd; index += 1) {
       const sprite = index === 0
         ? firstSprite
@@ -61,7 +63,7 @@ export class Crowd {
         .setAlpha(BALANCE.shadow.alpha)
         .setActive(false)
         .setVisible(false)
-      this.members.push({ sprite, shadow, offsetX: 0, offsetY: 0, row: 0 })
+      this.members.push({ sprite, shadow, offsetX: 0, offsetY: 0, row: 0, motion: motionProfiles[index] })
     }
 
     this.hull = scene.add.zone(anchorX, anchorY, hullWidth, hullHeight)
@@ -184,7 +186,8 @@ export class Crowd {
     const origins: Array<{ x: number; y: number }> = []
     for (let offset = 0; offset < count; offset += 1) {
       const member = activeMembers[(start + offset) % activeMembers.length]
-      origins.push({ x: member.sprite.x, y: member.sprite.y })
+      // Optische Bewegung darf den Schussursprung nicht verschieben.
+      origins.push({ x: this.anchorX + member.offsetX, y: this.anchorY + member.offsetY })
     }
     this.salvoCursor = (start + count) % activeMembers.length
     return origins
@@ -216,19 +219,22 @@ export class Crowd {
     for (let index = 0; index < this.members.length; index += 1) {
       const member = this.members[index]
       if (!member.sprite.active) continue
-      const bob = getBobOffsetPx(this.elapsedMs, cycleHz, getPhaseOffset(index), BALANCE.gamefeel.bobAmplitudePx)
+      const motion = member.motion
+      const individualCycleHz = cycleHz * motion.frequencyFactor
+      const bobAmplitude = BALANCE.gamefeel.bobAmplitudePx * motion.bobFactor
+      const bob = getBobOffsetPx(this.elapsedMs, individualCycleHz, motion.phaseOffset, bobAmplitude, bobAmplitude * BALANCE.gamefeel.bobSecondWaveAmplitudeShare, BALANCE.gamefeel.bobSecondWaveFrequencyRatio)
       const x = this.anchorX + member.offsetX
       const groundY = this.anchorY + member.offsetY
       member.sprite.setPosition(x, groundY + bob)
       // Wiegen im Schritttakt kommt zur Neigung beim Lenken dazu: Das Lenken ist die
       // Reaktion auf den Finger, das Wiegen laeuft immer. Beide sind Drehungen um
       // dieselbe Achse und addieren sich.
-      const sway = getStepSwayRadians(this.elapsedMs, cycleHz, getPhaseOffset(index), BALANCE.gamefeel.stepSwayMaxDeg)
+      const sway = getStepSwayRadians(this.elapsedMs, individualCycleHz, motion.phaseOffset, BALANCE.gamefeel.stepSwayMaxDeg * motion.swayFactor)
       member.sprite.setRotation(this.leanRadians + sway)
       // Federn beim Aufsetzen. Die Truppe traegt ihre Kollision in einer eigenen Huelle
       // (this.hull), die Sprites haben keine — hier darf die Skalierung deshalb ohne
       // Umweg auf die Figur.
-      const squash = getStepSquash(this.elapsedMs, cycleHz, getPhaseOffset(index), BALANCE.gamefeel.stepSquashShare)
+      const squash = getStepSquash(this.elapsedMs, individualCycleHz, motion.phaseOffset, BALANCE.gamefeel.stepSquashShare * motion.squashFactor)
       member.sprite.setScale(
         BALANCE.render.figureTextureScale * squash.scaleX,
         BALANCE.render.figureTextureScale * squash.scaleY,

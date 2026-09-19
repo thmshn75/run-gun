@@ -73,6 +73,11 @@ describe('Gangarten', () => {
       // (`heavy-g`). Alle Gangarten stehen darauf; die Toleranz faengt nur Rundung.
       expect(aenderungJeSekunde, `${key} wirkt hektisch`).toBeLessThanOrEqual(130)
       expect(aenderungJeSekunde, `${key} wirkt schleppend`).toBeGreaterThanOrEqual(110)
+      for (const taktFaktor of [1 - BALANCE.gamefeel.imageGaitTaktVariation, 1 + BALANCE.gamefeel.imageGaitTaktVariation]) {
+        const gestreut = aenderungJeSekunde * taktFaktor
+        expect(gestreut, `${key} ausserhalb der Taktstreuung hektisch`).toBeLessThanOrEqual(130)
+        expect(gestreut, `${key} ausserhalb der Taktstreuung schleppend`).toBeGreaterThanOrEqual(110)
+      }
     }
     const tempi = Object.values(gangarten).map((g) => g.tempo)
     // Ungedaempft laege der Renner zum Zucker bei 8,4 : 1 - das kippt den

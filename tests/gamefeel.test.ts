@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../src/config/balance'
-import { approachAngle, getBobOffsetPx, getLeanRadians, getPhaseOffset, getPopScale, getStepCycleHz, getStepSquash, getStepSwayRadians } from '../src/systems/gamefeel'
+import { approachAngle, createCrowdMotionProfiles, getBobOffsetPx, getLeanRadians, getPhaseOffset, getPopScale, getStepCycleHz, getStepSquash, getStepSwayRadians } from '../src/systems/gamefeel'
 
 const FIGURE_H = 46 // player.png
 
@@ -53,6 +53,56 @@ describe('Lebendigkeit', () => {
     // Auch ein sehr schneller Wisch kippt die Figuren nicht um.
     expect(getLeanRadians(99_999)).toBeCloseTo(maxRad)
     expect(getLeanRadians(-99_999)).toBeCloseTo(-maxRad)
+  })
+
+  it('gibt jeder Truppenfigur einen stabilen, neutral gemittelten Bewegungscharakter', () => {
+    let state = 7
+    const random = (): number => { state = (state * 16807) % 2147483647; return state / 2147483647 }
+    const profiles = createCrowdMotionProfiles(25, random)
+    const range = BALANCE.gamefeel.crowdMotionVariation
+    for (const profile of profiles) {
+      expect(profile.phaseOffset).toBeGreaterThanOrEqual(0)
+      expect(profile.phaseOffset).toBeLessThan(1)
+      for (const factor of [profile.bobFactor, profile.swayFactor, profile.squashFactor, profile.frequencyFactor]) {
+        expect(factor).toBeGreaterThanOrEqual(1 - range)
+        expect(factor).toBeLessThanOrEqual(1 + range)
+      }
+    }
+    for (const key of ['bobFactor', 'swayFactor', 'squashFactor', 'frequencyFactor'] as const) expect(profiles.reduce((sum, profile) => sum + profile[key], 0) / profiles.length).toBeCloseTo(1, 12)
+    const first = profiles[0]
+    for (let frame = 0; frame < 500; frame += 1) expect(profiles[0]).toBe(first)
+  })
+
+  it('legt nur auf den Hub eine begrenzte, nicht periodengleiche zweite Welle', () => {
+    const cycleHz = getStepCycleHz(FIGURE_H)
+    const amplitude = BALANCE.gamefeel.bobAmplitudePx
+    const share = BALANCE.gamefeel.bobSecondWaveAmplitudeShare
+    const ratio = BALANCE.gamefeel.bobSecondWaveFrequencyRatio
+    expect(share).toBeLessThanOrEqual(0.25)
+    // Nach genau einem Hauptzyklus hat die 0,37-Welle keinen gleichen Stand erreicht.
+    const atStart = getBobOffsetPx(0, cycleHz, 0, amplitude, amplitude * share, ratio)
+    const afterMainCycle = getBobOffsetPx(1000 / cycleHz, cycleHz, 0, amplitude, amplitude * share, ratio)
+    expect(afterMainCycle).not.toBeCloseTo(atStart, 6)
+    // Wiegen und Federn haben keine zweite Eingabe und bleiben deshalb Hauptphasen-Rechnung.
+    expect(getStepSwayRadians(321, cycleHz, 0.2, 3)).toBeCloseTo(getStepSwayRadians(321, cycleHz, 0.2, 3))
+    expect(getStepSquash(321, cycleHz, 0.2, 0.03)).toEqual(getStepSquash(321, cycleHz, 0.2, 0.03))
+  })
+
+  it('haelt Huellen und Schussurspruenge von der individuellen Optik frei', () => {
+    const source = readFileSync(new URL('../src/systems/crowd.ts', import.meta.url), 'utf8')
+    const salvo = source.slice(source.indexOf('public getNextSalvoPositions('), source.indexOf('public update('))
+    expect(salvo).toContain('this.anchorX + member.offsetX')
+    expect(salvo).not.toContain('member.sprite.x')
+    expect(source).toContain('this.hull.setPosition(this.anchorX, this.anchorY)')
+  })
+
+  it('zieht den Bildsatz-Takt einmal beim Spawn und niemals je Bild neu', () => {
+    const source = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
+    const activation = source.slice(source.indexOf('private activateEnemy('), source.indexOf('private applyPerspectiveScale('))
+    const update = source.slice(source.indexOf('public update('), source.indexOf('private getSpawnIntervalMs('))
+    expect(activation).toContain("enemy.setData('bildTaktFaktor'")
+    expect(update).not.toContain("setData('bildTaktFaktor'")
+    expect(source).toContain('imageGaitTaktVariation')
   })
 
   it('glaettet die Neigung frameratenunabhaengig', () => {

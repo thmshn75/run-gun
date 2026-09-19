@@ -215,12 +215,17 @@ describe('Testgelaende als Pruefplatz', () => {
 
   it('nutzt gleich viele, verschiedene Bilder je Bosstyp', () => {
     const { elite, basic, zyklenProSekunde } = BALANCE.boss.bilder
+    const sprungJeBild = { basic: 29.172189, elite: 20.332005 }
+    // Gemessen und dokumentiert, aber bewusst NICHT gegen den Gegner-Korridor pruefen:
+    // Thomas empfand 192,5 %/s bereits als zu stufig und 1,0 als gut.
+    const balanceSource = readFileSync(new URL('../src/config/balance.ts', import.meta.url), 'utf8')
+    expect(balanceSource).toContain('basic 29,172189 %, elite 20,332005 %')
+    expect(balanceSource).toContain('Der Gegner-Korridor 110..190 %/s gilt hier nicht')
     expect(zyklenProSekunde).toBe(1)
     // Gleich lang, damit beide Bosstypen im selben Takt laufen.
     expect(elite).toHaveLength(basic.length)
     for (const satz of [elite, basic]) {
       expect(satz.length).toBeGreaterThanOrEqual(12)
-      expect(satz.length * zyklenProSekunde).toBeGreaterThanOrEqual(12)
       expect(new Set(satz).size).toBe(satz.length)
     }
   })

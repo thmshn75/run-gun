@@ -26,10 +26,16 @@ function getStepPhase(elapsedMs: number, cycleHz: number, phaseOffset: number): 
 
 // Versatz einer Figur gegenueber ihrer Ruheposition. phaseOffset streut den Takt ueber
 // die Formation, damit die Truppe nicht als Block huepft.
-export function getBobOffsetPx(elapsedMs: number, cycleHz: number, phaseOffset: number, amplitudePx: number): number {
+export function getBobOffsetPx(elapsedMs: number, cycleHz: number, phaseOffset: number, amplitudePx: number, secondWaveAmplitudePx = 0, secondWaveFrequencyRatio = 0): number {
   // Betrag statt Sinus: Ein Laeufer faellt nach unten und stoesst sich ab, er schwingt
   // nicht symmetrisch. Der Scheitel liegt oben, der Kontakt unten — deshalb negativ.
-  return -Math.abs(Math.sin(getStepPhase(elapsedMs, cycleHz, phaseOffset))) * amplitudePx
+  const primary = -Math.abs(Math.sin(getStepPhase(elapsedMs, cycleHz, phaseOffset))) * amplitudePx
+  // Nur der Hub bekommt diese langsame zweite Welle. Wiegen und Federn bleiben auf
+  // der Hauptphase, damit der sichtbare Schritt zusammengehoert.
+  const secondary = secondWaveFrequencyRatio > 0
+    ? -Math.abs(Math.sin(getStepPhase(elapsedMs, cycleHz * secondWaveFrequencyRatio, phaseOffset))) * secondWaveAmplitudePx
+    : 0
+  return primary + secondary
 }
 
 // Seitliches Wiegen des Oberkoerpers im Laufrhythmus (2026-09-03). Zusammen mit dem
@@ -62,6 +68,29 @@ export function getStepSquash(elapsedMs: number, cycleHz: number, phaseOffset: n
 // Der goldene Winkel streut gleichmaessig, ohne dass Nachbarn synchron laufen.
 export function getPhaseOffset(index: number): number {
   return (index * 0.618033988749895) % 1
+}
+
+export type CrowdMotionProfile = Readonly<{ phaseOffset: number, bobFactor: number, swayFactor: number, squashFactor: number, frequencyFactor: number }>
+
+// Einmal beim Anlegen, nie im Hot Path: Paare um 1,0 halten den Mittelwert jeder
+// Amplitudenreihe exakt neutral, waehrend Richtung und Phase echter Zufall bleiben.
+export function createCrowdMotionProfiles(count: number, random: () => number): CrowdMotionProfile[] {
+  const range = BALANCE.gamefeel.crowdMotionVariation
+  const pairedFactors = (): number[] => {
+    const factors: number[] = []
+    while (factors.length < count) {
+      if (factors.length === count - 1) {
+        factors.push(1)
+        continue
+      }
+      const delta = (random() * 2 - 1) * range
+      factors.push(1 + delta)
+      if (factors.length < count) factors.push(1 - delta)
+    }
+    return factors
+  }
+  const bob = pairedFactors(); const sway = pairedFactors(); const squash = pairedFactors(); const frequency = pairedFactors()
+  return Array.from({ length: count }, (_unused, index) => ({ phaseOffset: random(), bobFactor: bob[index], swayFactor: sway[index], squashFactor: squash[index], frequencyFactor: frequency[index] }))
 }
 
 // Neigung beim Lenken: proportional zur seitlichen Geschwindigkeit, gedeckelt. Die

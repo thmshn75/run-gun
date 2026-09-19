@@ -162,6 +162,14 @@ export const BALANCE = {
     // Hubhoehe des Wippens. 3 px bei 46 px Figur = 6,5 % Koerperhoehe; darueber wirkt
     // es wie Huepfen statt Laufen.
     bobAmplitudePx: 3,
+    // Individuelle Bewegung der Truppe. ±12 %: bei 3 px Hub sind das 2,64..3,36 px;
+    // darunter verschwindet die Abweichung, darueber faellt eine Figur aus der Gruppe.
+    // Die Profile werden paarweise um 1,0 gezogen, daher bleibt ihr Mittel exakt 1,0.
+    crowdMotionVariation: 0.12,
+    // Zweite, langsamere Hub-Schwingung: 0,37 ist kein glattes Verhaeltnis zur
+    // Hauptfrequenz; maximal ein Viertel der Hauptamplitude, damit der Schritt lesbar bleibt.
+    bobSecondWaveFrequencyRatio: 0.37,
+    bobSecondWaveAmplitudeShare: 0.25,
     // Gegner wippen flacher: Sie sind Kulisse fuer den Blick auf die eigene Truppe,
     // und bei bis zu 104 gleichzeitig wuerde voller Hub das Bild unruhig machen.
     enemyBobAmplitudePx: 2,
@@ -189,6 +197,10 @@ export const BALANCE = {
     stepSquashShare: 0.03,
     // Gegner federn flacher, gleiches Verhaeltnis wie beim Hub: 0,03 x 2/3.
     enemyStepSquashShare: 0.02,
+    // Bildsatz-Gegner bekommen beim Spawn einmalig ±6 % auf ihren Bildtakt. Die
+    // abgenommenen Gangarten bleiben damit bei 110..130 % Aenderung/s, ohne
+    // Fortbewegung oder Groesse zu veraendern.
+    imageGaitTaktVariation: 0.06,
     // Neigung beim Lenken: voller Ausschlag ab dieser Drag-Geschwindigkeit.
     // Der Fahrbereich ist rund 300 px breit, ein zuegiger Wisch quert ihn in ~0,4 s
     // — das sind die 750 px/s, ab denen die Truppe maximal lehnt.
@@ -2354,14 +2366,14 @@ export const BALANCE = {
     // etwas leichter zu raeumen.
     gangarten: {
       'enemy-light-e':    { takt: 0.32, tempo: 1.2 },   // RENNEN
-      'enemy-light-f':    { takt: 0.26, tempo: 0.86 },   // KRIECHEN
-      'enemy-light-g':    { takt: 0.36, tempo: 0.76 },   // ZUCKEN
-      'enemy-light-i':    { takt: 0.31, tempo: 0.84 },   // HUMPELN
+      'enemy-light-f':    { takt: 0.26, tempo: 0.86 },  // KRIECHEN
+      'enemy-light-g':    { takt: 0.36, tempo: 0.76 },  // ZUCKEN
+      'enemy-light-i':    { takt: 0.31, tempo: 0.84 },  // HUMPELN
       'enemy-standard-e': { takt: 0.5, tempo: 1.05 },   // MARSCHIEREN
-      'enemy-standard-g': { takt: 0.39, tempo: 0.87 },   // SCHLURFEN
-      'enemy-standard-i': { takt: 0.41, tempo: 0.89 },   // SCHLEICHEN
-      'enemy-heavy-e':    { takt: 0.43, tempo: 0.75 },   // WATSCHELN
-      'enemy-heavy-g':    { takt: 0.62, tempo: 0.99 },   // STAMPFEN
+      'enemy-standard-g': { takt: 0.39, tempo: 0.87 },  // SCHLURFEN
+      'enemy-standard-i': { takt: 0.41, tempo: 0.89 },  // SCHLEICHEN
+      'enemy-heavy-e':    { takt: 0.43, tempo: 0.75 },  // WATSCHELN
+      'enemy-heavy-g':    { takt: 0.62, tempo: 0.99 },  // STAMPFEN
       'enemy-heavy-i':    { takt: 0.45, tempo: 0.9 },   // SCHREITEN
     } as Readonly<Record<string, { readonly takt: number; readonly tempo: number }>>,
     // Ab hier liegt die Standflaeche, daran misst bildVersatz.ts den seitlichen
@@ -3268,12 +3280,12 @@ export const BALANCE = {
         'boss-basic-move-5', 'boss-basic-move-6', 'boss-basic-move-7', 'boss-basic-move-8',
         'boss-basic-move-9', 'boss-basic-move-10', 'boss-basic-move-11', 'boss-basic-move-12',
       ] as const,
-      // Volle Auf-und-ab-Bewegung je Sekunde. 0,55 -> 0,8 (Thomas 2026-09-04: "abgehakt
-      // ... fluessiger gestalten") -> 1,0 (2026-09-19). GERECHNET: Mit vier Bildern
-      // stand jedes 455 ms und war als Standbild zu sehen. Zwoelf Bilder bei 1,0 Zyklus
-      // ergeben 12 Bildwechsel/s, also 83 ms je Bild - genau die Schwelle, ab der
-      // Sprite-Bewegung fluessig gelesen wird. Der Boss baeumt sich damit in 1,0 s statt
-      // 1,25 s auf und bleibt schwerfaellig.
+      // Silhouettensprung (vorhandene Bildabnahme, Alpha >=128, Nachbarn im Ring,
+      // Mittel): basic 29,172189 %, elite 20,332005 %. Bei 1,0 sind das
+      // basic 29,172189 x 12 x 1,0 = 350,07 %/s und elite 243,98 %/s.
+      // Der Gegner-Korridor 110..190 %/s gilt hier nicht: Thomas empfand schon 192,5
+      // %/s bei 0,55 als zu stufig, 1,0 als gut; der Boss baeumt sich gross auf statt
+      // als Kleinfigur zu laufen. Ohne neues Urteil bleibt deshalb 1,0 verbindlich.
       zyklenProSekunde: 1.0,
       // Ab welchem Anteil der Bildhoehe die Standflaeche beginnt. Daraus misst
       // bildVersatz.ts, wie weit die Figur je Bild seitlich von der Bildmitte abweicht -

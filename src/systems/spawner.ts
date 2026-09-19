@@ -344,8 +344,8 @@ export class Spawner {
     const enemySpeed = this.getEnemySpeed()
     // Laufrhythmus (Lebendigkeit): Der Wippanteil wird vor dem Fortschritt wieder
     // abgezogen, damit er sich nicht aufaddiert und die Laufstrecke verfaelscht. Die
-    // Pool-Position dient als Taktversatz — stabil ueber die Lebensdauer eines Gegners
-    // und ohne Zufall, der Testlaeufe unvergleichbar machen wuerde.
+    // Pool-Position dient nur der Phase der gerechneten Ersatzbewegung. Bildsatz-Gegner
+    // tragen ihren einmal gezogenen Taktfaktor selbst, nicht am Poolplatz.
     const bobCycleHz = getStepCycleHz(getFigureHeight(BALANCE.enemy.types[0]))
     let poolIndex = -1
     for (const child of this.enemies.getChildren()) {
@@ -416,8 +416,8 @@ export class Spawner {
         // Bilder mehr als doppelt so schnell wie ein Schreiter. Ohne eigenen Eintrag
         // gilt der Grundwert.
         const gestalt = enemy.getData('gestalt') as string
-        const takt = BALANCE.enemy.bilder.gangarten[gestalt]?.takt
-          ?? BALANCE.enemy.bilder.zyklenProSekunde
+        const takt = (BALANCE.enemy.bilder.gangarten[gestalt]?.takt
+          ?? BALANCE.enemy.bilder.zyklenProSekunde) * (enemy.getData('bildTaktFaktor') as number)
         const zyklus = ((this.elapsedMs / 1000) * takt + phase) % 1
         const bild = bilder[Math.min(bilder.length - 1, Math.floor(zyklus * bilder.length))]
         enemy.setTexture(bild)
@@ -692,6 +692,9 @@ export class Spawner {
     // Tempo aus der GEZOGENEN GESTALT - dieselbe Quelle wie der Bildtakt, damit die
     // Fuesse nicht ueber die Strasse rutschen. Grundgestalten ohne Eintrag: 1,0.
     enemy.setData('gangartTempo', BALANCE.enemy.bilder.gangarten[gestalt]?.tempo ?? 1)
+    // Einmal beim Auftauchen, danach stabil: Bildtakt streut nur die Optik; Tempo,
+    // Trefferflaeche, Groesse und Gangart bleiben unveraendert.
+    enemy.setData('bildTaktFaktor', 1 + (Phaser.Math.RND.frac() * 2 - 1) * BALANCE.gamefeel.imageGaitTaktVariation)
     enemy.setData('contactDamage', type.contactDamage)
     enemy.setData('coinValue', type.coinValue)
     // Kampfhoehen-Masse, nicht Sprite-Masse: Spurwahl, Schatten und Formationsbreite
