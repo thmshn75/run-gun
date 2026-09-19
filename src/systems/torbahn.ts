@@ -37,6 +37,8 @@ export type HordeZustand = {
   /** Unsichtbarer Kollisionskoerper ueber die Bahnbreite; die Optik machen `figuren`. */
   bild: Phaser.Physics.Arcade.Image
   figuren: Phaser.GameObjects.Image[]
+  /** Zaehler ueber dem Kopf; nur Heavys und Bosse zeigen einen. */
+  marken: Phaser.GameObjects.Text[]
   label: Phaser.GameObjects.Text
   anchorY: number
   y: number
@@ -155,6 +157,7 @@ export class Torbahn implements BahnSystem {
     horde.aktiv = false
     horde.bild.disableBody(true, true).setActive(false).setVisible(false)
     for (const figur of horde.figuren) figur.setActive(false).setVisible(false)
+    for (const marke of horde.marken) marke.setActive(false).setVisible(false)
     horde.label.setActive(false).setVisible(false)
   }
 
@@ -414,8 +417,12 @@ export class Torbahn implements BahnSystem {
       figur.setData('phaseOffset', getPhaseOffset(index))
       figuren.push(figur)
     }
+    const marken: Phaser.GameObjects.Text[] = []
+    for (let index = 0; index < BALANCE.pools.hordeFiguren; index += 1) {
+      marken.push(this.scene.add.text(0, 0, '', { fontFamily: 'system-ui', fontSize: `${BALANCE.torlauf.horde.heavyZahlFontPx}px`, color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 3, fontStyle: 'bold' }).setOrigin(0.5).setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false))
+    }
     const label = this.scene.add.text(0, 0, '', { fontFamily: 'system-ui', fontSize: '34px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 5, fontStyle: 'bold' }).setOrigin(0.5).setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false)
-    return { bild, figuren, label, anchorY: BALANCE.road.horizonY, y: BALANCE.road.horizonY, punkte: 0, aktiv: false, haelt: false, ohneTrefferMs: 0 }
+    return { bild, figuren, marken, label, anchorY: BALANCE.road.horizonY, y: BALANCE.road.horizonY, punkte: 0, aktiv: false, haelt: false, ohneTrefferMs: 0 }
   }
 
   private positioniereHorde(horde: HordeZustand): void {
@@ -433,12 +440,24 @@ export class Torbahn implements BahnSystem {
    */
   private stelleHordeAuf(horde: HordeZustand, mitte: number, breite: number): void {
     const konfig = BALANCE.torlauf.horde
-    const gewuenscht = Math.min(konfig.maxFiguren, Math.ceil(horde.punkte / konfig.punkteJeSichtbarerFigur))
-    const plaetze = computeBlockFormation(gewuenscht, {
+    // Einheiten auf Figuren verteilen: Ein Heavy steht fuer `heavyWertFaktor` Standard-
+    // figuren und braucht deshalb nur einen Platz, zaehlt aber mehrfach. So stimmt die
+    // Summe der Zaehler weiterhin mit dem Hordenvorrat ueberein.
+    const einheiten = Math.ceil(horde.punkte / konfig.punkteJeSichtbarerFigur)
+    const rollen: Array<'standard' | 'heavy'> = []
+    for (let rest = einheiten; rest > 0 && rollen.length < konfig.maxFiguren;) {
+      const heavy = rollen.length > 0 && rollen.length % konfig.heavyJedeXte === 0 && rest >= konfig.heavyWertFaktor
+      rollen.push(heavy ? 'heavy' : 'standard')
+      rest -= heavy ? konfig.heavyWertFaktor : 1
+    }
+    // Volle Bahnbreite bis auf je einen Streifen in Breite der +1-Felder links UND
+    // rechts (Thomas 2026-09-19). Die Horde reicht damit fast von Rand zu Rand.
+    const randstreifen = breite / 2 * BALANCE.torlauf.kachel.breiteAnteil
+    const plaetze = computeBlockFormation(rollen.length, {
       rowSpacingY: konfig.reihenAbstandPx,
       colSpacing: konfig.spaltenAbstandPx,
       minColSpacing: Math.min(konfig.spaltenAbstandPx, 9),
-      maxWidth: breite * 0.92,
+      maxWidth: Math.max(40, breite - 2 * randstreifen),
       maxDepth: konfig.hoehePx * 0.8,
       plaetzeJeReihe: konfig.plaetzeJeReihe,
     })
@@ -450,18 +469,29 @@ export class Torbahn implements BahnSystem {
       const platz = plaetze[index]
       if (platz === undefined) {
         if (figur.visible) figur.setActive(false).setVisible(false)
+        if (horde.marken[index]?.visible === true) horde.marken[index].setActive(false).setVisible(false)
         continue
       }
       const figurY = unterkante - platz.offsetY
-      const rolle = this.hordenRolle(index, platz.row, plaetze)
+      const rolle = this.hordenRolle(index, platz.row, plaetze, rollen)
       if (figur.getData('rolle') !== rolle) {
-        figur.setTexture(this.hordenTextur(rolle)).setTint(konfig.tint)
+        figur.setTexture(this.hordenTextur(rolle)).setTint(this.hordenTon(rolle, index))
         this.skaliereAufStandardhoehe(figur, rolle)
         figur.setData('rolle', rolle)
       }
       const takt = getStepCycleHz(figur.displayHeight / this.figurSkala(rolle)) * konfig.wippenTaktFaktor
       const wippen = getBobOffsetPx(this.hordeZeitMs, takt, figur.getData('phaseOffset') as number, BALANCE.gamefeel.bobAmplitudePx * konfig.wippenFaktor)
       figur.setPosition(mitte + platz.offsetX, figurY + wippen).setActive(true).setVisible(true)
+      // Zaehler ueber dem Kopf: nur Heavys und Bosse tragen einen, die Standardmasse
+      // bleibt ohne - sonst steht ein Zahlenteppich ueber der Bahn.
+      const marke = horde.marken[index]
+      if (marke !== undefined) {
+        if (rolle === 'standard') marke.setActive(false).setVisible(false)
+        else {
+          const wert = rolle === 'heavy' ? konfig.heavyWertFaktor * konfig.punkteJeSichtbarerFigur : Math.round(horde.punkte)
+          marke.setText(`${wert}`).setPosition(figur.x, figur.y - figur.displayHeight / 2 - 6).setActive(true).setVisible(true)
+        }
+      }
     }
     // Die Zahl sitzt direkt ueber der hintersten Reihe, nicht ueber der (viel hoeheren)
     // Kollisionsflaeche: sonst schwebt sie weit vor der Masse in der Bahn.
@@ -473,7 +503,7 @@ export class Torbahn implements BahnSystem {
    * Wer steht wo: Der Boss ganz hinten in der Mitte, Heavys verteilt in der hinteren
    * Haelfte, alles davor Standardfiguren (Thomas 2026-09-19).
    */
-  private hordenRolle(index: number, reihe: number, plaetze: readonly { readonly row: number }[]): 'standard' | 'heavy' | 'boss' | 'elite' {
+  private hordenRolle(index: number, _reihe: number, plaetze: readonly { readonly row: number }[], rollen: readonly ('standard' | 'heavy')[]): 'standard' | 'heavy' | 'boss' | 'elite' {
     const letzteReihe = plaetze.length === 0 ? 0 : plaetze[plaetze.length - 1].row
     // Der Boss steht in der MITTE der hintersten Reihe, nicht an ihrem Rand.
     const hinten = plaetze.map((platz, nummer) => ({ platz, nummer })).filter((eintrag) => eintrag.platz.row === letzteReihe)
@@ -481,8 +511,7 @@ export class Torbahn implements BahnSystem {
     if (index === bossIndex && letzteReihe > 0) {
       return this.bossLevel >= BALANCE.torlauf.horde.eliteAbLevel ? 'elite' : 'boss'
     }
-    const hintereHaelfte = reihe >= letzteReihe / 2
-    return hintereHaelfte && index % BALANCE.torlauf.horde.heavyJedeXte === 0 ? 'heavy' : 'standard'
+    return rollen[index] ?? 'standard'
   }
 
   /**
@@ -503,6 +532,14 @@ export class Torbahn implements BahnSystem {
     const basis = BALANCE.torlauf.crowd.figureScale
     if (rolle === 'elite' || rolle === 'boss') return basis * konfig.bossSkala
     return rolle === 'heavy' ? basis * konfig.heavySkala : basis
+  }
+
+  /** Farbton: Heavys und Bosse eigen, die Masse in wechselnden Gruentoenen. */
+  private hordenTon(rolle: 'standard' | 'heavy' | 'boss' | 'elite', index: number): number {
+    const konfig = BALANCE.torlauf.horde
+    if (rolle === 'boss' || rolle === 'elite') return konfig.bossTon
+    if (rolle === 'heavy') return konfig.heavyTon
+    return konfig.toene[index % konfig.toene.length]
   }
 
   private hordenTextur(rolle: 'standard' | 'heavy' | 'boss' | 'elite'): string {

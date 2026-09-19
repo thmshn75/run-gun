@@ -156,7 +156,13 @@ export const BALANCE = {
       // multipliziert statt ersetzt (dunkle Toene wurden zu schwarzen Flecken,
       // Thomas 2026-09-19). Gruen ist hell genug, um bei 10 px Figurenhoehe lesbar zu
       // bleiben, und nicht mit der eigenen Truppe zu verwechseln.
+      // Mehrere Toene statt einer Farbe (Thomas 2026-09-19: "sie sollen nicht alle
+      // dieselbe Farbe haben"). Die Figur bekommt ihren Ton nach Platznummer, bleibt
+      // also stabil, solange sie steht.
       tint: 0x76e05a,
+      toene: [0x76e05a, 0x9ad94f, 0x5cc77a, 0xb7e05a, 0x6fd6a0],
+      heavyTon: 0xd9a441,
+      bossTon: 0xe06a3a,
       // Wie die eigene Truppe aufgestellt: 20 Plaetze je Reihe, also 4 Reihen bei 80
       // Figuren. Abstaende etwas weiter als bei der eigenen Truppe, damit die Horde
       // breiter und bedrohlicher steht statt als Klumpen.
@@ -171,9 +177,13 @@ export const BALANCE = {
       wippenTaktFaktor: 0.75,
       // Zusammensetzung (Thomas 2026-09-19: "Standardfigur fuer Horde ist die Figur
       // Standard, Heavy Figuren zwischendurch und am Ende die Bosse und Elite-Bosse").
-      // Jede vierte Figur der hinteren Haelfte ist ein Heavy; ganz hinten in der Mitte
-      // steht ein Boss, ab Level 5 ein Elite-Boss.
-      heavyJedeXte: 4,
+      // Nur noch jede neunte Figur ist ein Heavy (Thomas 2026-09-19: "heavy nur ab und
+      // zu dazwischen"); ganz hinten in der Mitte steht ein Boss, ab Level 5 ein Elite.
+      heavyJedeXte: 9,
+      // Ein Heavy steht fuer dreimal so viele Punkte wie eine Standardfigur und traegt
+      // diese Zahl als Zaehler ueber dem Kopf.
+      heavyWertFaktor: 3,
+      heavyZahlFontPx: 15,
       heavySkala: 1.35,
       bossSkala: 2.1,
       eliteAbLevel: 5,
