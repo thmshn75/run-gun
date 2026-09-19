@@ -392,8 +392,7 @@ export class Spawner {
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       const rueckstossPx = decayRueckstoss(
         previousRueckstoss,
-        BALANCE.feedback.rueckstossPx * enemy.scaleY,
-        BALANCE.feedback.rueckstossMs,
+        BALANCE.feedback.rueckstossHalfLifeMs,
         dt,
       )
       enemy.setData('rueckstossPx', rueckstossPx)

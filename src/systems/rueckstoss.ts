@@ -8,7 +8,10 @@ export function addRueckstoss(currentPx: number, startPx: number): { valuePx: nu
   return { valuePx: nextPx, deltaPx: nextPx - currentPx }
 }
 
-/** Klingt den negativen Sichtversatz gleichmaessig bis null ab. */
-export function decayRueckstoss(currentPx: number, startPx: number, durationMs: number, dt: number): number {
-  return Math.min(0, currentPx + (startPx * dt) / durationMs)
+/** Klingt den negativen Sichtversatz mit einer bildratenunabhaengigen Halbwertszeit aus. */
+export function decayRueckstoss(currentPx: number, halfLifeMs: number, dt: number): number {
+  if (currentPx === 0) return 0
+  const nextPx = currentPx * 2 ** (-dt / halfLifeMs)
+  // Die asymptotische Kurve darf keinen Rest bis ans Lebensende eines Gegners tragen.
+  return Math.abs(nextPx) < 0.5 ? 0 : nextPx
 }

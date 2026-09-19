@@ -88,3 +88,9 @@ export function getPopScale(progress: number, overshoot: number): number {
   const clamped = Math.max(0, Math.min(1, progress))
   return 1 + Math.sin(clamped * Math.PI) * overshoot
 }
+
+// Schneller Beginn, weiches Ende fuer kurze optische Effekte ohne Tween im Hot Path.
+export function getEaseOutProgress(progress: number): number {
+  const clamped = Math.max(0, Math.min(1, progress))
+  return 1 - (1 - clamped) ** 2
+}

@@ -3269,11 +3269,12 @@ export const BALANCE = {
         'boss-basic-move-9', 'boss-basic-move-10', 'boss-basic-move-11', 'boss-basic-move-12',
       ] as const,
       // Volle Auf-und-ab-Bewegung je Sekunde. 0,55 -> 0,8 (Thomas 2026-09-04: "abgehakt
-      // ... fluessiger gestalten"). GERECHNET: Mit vier Bildern stand jedes 455 ms und
-      // war als Standbild zu sehen. Zwoelf Bilder bei 0,8 Zyklen ergeben 104 ms - knapp
-      // an der Schwelle von rund 100 ms, ab der Sprite-Bewegung fluessig gelesen wird.
-      // Der Boss baeumt sich damit in 1,25 s statt 1,8 s auf und bleibt schwerfaellig.
-      zyklenProSekunde: 0.8,
+      // ... fluessiger gestalten") -> 1,0 (2026-09-19). GERECHNET: Mit vier Bildern
+      // stand jedes 455 ms und war als Standbild zu sehen. Zwoelf Bilder bei 1,0 Zyklus
+      // ergeben 12 Bildwechsel/s, also 83 ms je Bild - genau die Schwelle, ab der
+      // Sprite-Bewegung fluessig gelesen wird. Der Boss baeumt sich damit in 1,0 s statt
+      // 1,25 s auf und bleibt schwerfaellig.
+      zyklenProSekunde: 1.0,
       // Ab welchem Anteil der Bildhoehe die Standflaeche beginnt. Daraus misst
       // bildVersatz.ts, wie weit die Figur je Bild seitlich von der Bildmitte abweicht -
       // beim Grundboss sind das bis zu 30 von 240 px, die sonst als Rutschen zu sehen
@@ -3365,11 +3366,12 @@ export const BALANCE = {
     // (boss.phaseTwo.transitionFlashMs) bleibt: Sie ist ein einmaliges Ereignis,
     // kein Dauerflackern. Am 2026-09-19 wurde der Blitz ein zweites Mal vorgeschlagen
     // und von Thomas ein zweites Mal verworfen.
-    // 3 px bei voller Groesse sind sichtbar, aber kein Ruckeln auf der Stelle; 120 ms
-    // klingt vor dem naechsten normalen Feuerimpuls ab. Die Skalierung passiert im
-    // Spawner mit scaleY, damit der Horizont nur anteilig springt.
+    // 3 px bei voller Groesse sind sichtbar, aber kein Ruckeln auf der Stelle. Die
+    // Halbwertszeit von 30 ms laesst nach vier Halbwertszeiten (120 ms) nur noch rund
+    // 6 % stehen; unter 0,5 px setzt rueckstoss.ts deshalb hart auf null. Die Skalierung
+    // passiert im Spawner mit scaleY, damit der Horizont nur anteilig springt.
     rueckstossPx: 3,
-    rueckstossMs: 120,
+    rueckstossHalfLifeMs: 30,
     // Der Effekt lebt 150 ms und waechst auf 1,4x. Bei maximal etwa 18 Toden/s liegen
     // 2,7 Effekte gleichzeitig; 16 deckt einen Salven-Burst vielfach ab. Ueberlauf
     // ersetzt definiert den aeltesten Effekt, nie einen Gegnerpoolplatz.

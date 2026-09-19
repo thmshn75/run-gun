@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import { getEaseOutProgress } from './gamefeel'
 
 interface Sterbeeffekt {
   readonly image: Phaser.GameObjects.Image
@@ -43,8 +44,9 @@ export class Sterbeeffekte {
         continue
       }
       const progress = 1 - effect.remainingMs / BALANCE.feedback.sterbeeffektMs
-      const scale = 1 + (BALANCE.feedback.sterbeeffektScale - 1) * progress
-      effect.image.setScale(effect.startScaleX * scale, effect.startScaleY * scale).setAlpha(1 - progress)
+      const easedProgress = getEaseOutProgress(progress)
+      const scale = 1 + (BALANCE.feedback.sterbeeffektScale - 1) * easedProgress
+      effect.image.setScale(effect.startScaleX * scale, effect.startScaleY * scale).setAlpha(1 - easedProgress)
     }
   }
 

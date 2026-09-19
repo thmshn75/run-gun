@@ -215,11 +215,12 @@ describe('Testgelaende als Pruefplatz', () => {
 
   it('nutzt gleich viele, verschiedene Bilder je Bosstyp', () => {
     const { elite, basic, zyklenProSekunde } = BALANCE.boss.bilder
-    expect(zyklenProSekunde).toBeGreaterThan(0)
+    expect(zyklenProSekunde).toBe(1)
     // Gleich lang, damit beide Bosstypen im selben Takt laufen.
     expect(elite).toHaveLength(basic.length)
     for (const satz of [elite, basic]) {
       expect(satz.length).toBeGreaterThanOrEqual(12)
+      expect(satz.length * zyklenProSekunde).toBeGreaterThanOrEqual(12)
       expect(new Set(satz).size).toBe(satz.length)
     }
   })

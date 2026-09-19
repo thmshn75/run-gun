@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import { BALANCE } from '../src/config/balance'
 import { decayRueckstoss } from '../src/systems/rueckstoss'
+import { getEaseOutProgress } from '../src/systems/gamefeel'
 
 vi.mock('phaser', () => ({ default: {} }))
 
@@ -32,7 +33,7 @@ function frame(enemy: SimulatedEnemy, dt: number, progressPx: number, scaleY = 1
   // Dieselbe Buchfuehrung wie Spawner.update(): Sichtversatz vor dem Fortschritt
   // herausnehmen, danach den abgeklungenen Rest nur optisch wieder auflegen.
   const logicalY = enemy.y - enemy.rueckstossPx + progressPx
-  enemy.rueckstossPx = decayRueckstoss(enemy.rueckstossPx, BALANCE.feedback.rueckstossPx * scaleY, BALANCE.feedback.rueckstossMs, dt)
+  enemy.rueckstossPx = decayRueckstoss(enemy.rueckstossPx, BALANCE.feedback.rueckstossHalfLifeMs, dt)
   enemy.y = logicalY + enemy.rueckstossPx
 }
 
@@ -43,17 +44,31 @@ describe('Trefferquittung', () => {
     expect(boss).not.toContain('trefferBlitzMs')
     expect(boss).not.toContain('registerHit')
     expect(BALANCE.feedback.rueckstossPx).toBe(3)
-    expect(BALANCE.feedback.rueckstossMs).toBe(120)
+    expect(BALANCE.feedback.rueckstossHalfLifeMs).toBe(30)
+    expect(readFileSync(new URL('../src/config/balance.ts', import.meta.url), 'utf8')).not.toContain('rueckstossMs')
     expect(readFileSync(new URL('../src/config/balance.ts', import.meta.url), 'utf8')).toContain('2026-09-19 wurde der Blitz ein zweites Mal vorgeschlagen')
   })
 
-  it('schiebt Treffer ueber mehrere Bilder zum Horizont und klingt nach 120 ms aus', () => {
+  it('schiebt Treffer ueber mehrere Bilder zum Horizont und klingt innerhalb von 120 ms aus', () => {
     const enemy: SimulatedEnemy = { y: 100, rueckstossPx: 0 }
     damage(enemy)
     expect(enemy.y).toBeLessThan(100)
     expect(enemy.rueckstossPx).toBeLessThan(0)
-    for (let elapsed = 0; elapsed < BALANCE.feedback.rueckstossMs; elapsed += 10) frame(enemy, 10, 0)
-    expect(enemy.rueckstossPx).toBeCloseTo(0)
+    for (let elapsed = 0; elapsed < 120; elapsed += 10) frame(enemy, 10, 0)
+    expect(enemy.rueckstossPx).toBe(0)
+  })
+
+  it('klingt zuerst schnell und dann weich aus, unabhaengig von der Bildrate', () => {
+    const start = -24
+    const nachErsterHaelfte = decayRueckstoss(start, BALANCE.feedback.rueckstossHalfLifeMs, 30)
+    const nachZweiterHaelfte = decayRueckstoss(nachErsterHaelfte, BALANCE.feedback.rueckstossHalfLifeMs, 30)
+    expect(Math.abs(start - nachErsterHaelfte)).toBeGreaterThan(Math.abs(nachErsterHaelfte - nachZweiterHaelfte))
+
+    let bei120Hz = start
+    for (let elapsed = 0; elapsed < 80; elapsed += 8) bei120Hz = decayRueckstoss(bei120Hz, BALANCE.feedback.rueckstossHalfLifeMs, 8)
+    let bei60Hz = start
+    for (let elapsed = 0; elapsed < 80; elapsed += 16) bei60Hz = decayRueckstoss(bei60Hz, BALANCE.feedback.rueckstossHalfLifeMs, 16)
+    expect(bei120Hz).toBeCloseTo(bei60Hz, 10)
   })
 
   it('bucht Mehrfachtreffer eines Bildes vollstaendig zurueck', () => {
@@ -67,7 +82,7 @@ describe('Trefferquittung', () => {
       frame(baseline, 10, 2)
       frame(getroffen, 10, 2)
     }
-    expect(getroffen.rueckstossPx).toBeCloseTo(0)
+    expect(getroffen.rueckstossPx).toBe(0)
     expect(getroffen.y).toBeCloseTo(baseline.y)
     // Die Erstfassung addierte dreimal +3 px, merkte aber nur einen Wert. Sie waere
     // hier dauerhaft sechs Pixel vor der Vergleichsstrecke geblieben und faellt damit
@@ -88,7 +103,7 @@ describe('Trefferquittung', () => {
       frame(baseline, 10, 2)
       frame(getroffen, 10, 2)
     }
-    expect(getroffen.rueckstossPx).toBeCloseTo(0)
+    expect(getroffen.rueckstossPx).toBe(0)
     expect(getroffen.y).toBeCloseTo(baseline.y)
   })
 
@@ -121,6 +136,15 @@ describe('Trefferquittung', () => {
     const bossDefeat = scene.slice(scene.indexOf('private handleBossDefeated'), scene.indexOf('private bucheMuenzenAufsKonto'))
     expect(bossDefeat.indexOf('this.sterbeeffekte.spawn')).toBeLessThan(bossDefeat.indexOf('this.boss.deactivate()'))
     expect(bossDefeat).not.toContain('this.sterbeeffekte.deactivateAll()')
+  })
+
+  it('laesst den Sterbeeffekt in 150 ms schnell starten und weich enden, ohne Tween', () => {
+    expect(BALANCE.feedback.sterbeeffektMs).toBe(150)
+    expect(getEaseOutProgress(0)).toBe(0)
+    expect(getEaseOutProgress(1)).toBe(1)
+    expect(getEaseOutProgress(0.5)).toBeGreaterThan(0.5)
+    expect(effects).toContain('getEaseOutProgress(progress)')
+    expect(effects).not.toContain('.tweens.')
   })
 
   it('zeigt die Boss-Lebenspunkte nur mit sichtbarem Balken und aktualisiert Text nur bei Aenderung', () => {
