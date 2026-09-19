@@ -4,6 +4,8 @@ import { HUD_COLORS } from '../config/colors'
 import { advanceAlongRoad, getRoadScale, getRoadSegment } from './road'
 import { getRoadHalfWidth } from './roadGeometry'
 import { getCurrentScrollSpeed } from './speed'
+import { computeBlockFormation } from './formation'
+import { getBobOffsetPx, getPhaseOffset, getStepCycleHz } from './gamefeel'
 import { getLevelPlan } from './levelPlan'
 import { torGeometrie } from './torObjekt'
 import { getTorlaufStand, torPaarZiehen, type TorWirkung } from './torlaufPlan'
@@ -32,7 +34,9 @@ type KachelZustand = {
 }
 
 export type HordeZustand = {
+  /** Unsichtbarer Kollisionskoerper ueber die Bahnbreite; die Optik machen `figuren`. */
   bild: Phaser.Physics.Arcade.Image
+  figuren: Phaser.GameObjects.Image[]
   label: Phaser.GameObjects.Text
   anchorY: number
   y: number
@@ -50,6 +54,8 @@ export class Torbahn implements BahnSystem {
   private readonly kacheln: KachelZustand[] = []
   private readonly zuKachel = new Map<Phaser.GameObjects.GameObject, KachelZustand>()
   private horde: HordeZustand | undefined
+  /** Eigene Uhr fuer den Gehtakt der Hordenfiguren. */
+  private hordeZeitMs = 0
   private abstand = BALANCE.torlauf.tor.abstandPx
   private kachelAbstand = BALANCE.torlauf.kachel.abstandPx
   private nextSpawnId = 1
@@ -141,6 +147,7 @@ export class Torbahn implements BahnSystem {
     if (horde === undefined) return
     horde.aktiv = false
     horde.bild.disableBody(true, true).setActive(false).setVisible(false)
+    for (const figur of horde.figuren) figur.setActive(false).setVisible(false)
     horde.label.setActive(false).setVisible(false)
   }
 
@@ -245,6 +252,7 @@ export class Torbahn implements BahnSystem {
     }
     const horde = this.getHorde()
     if (horde !== undefined) {
+      this.hordeZeitMs += dt
       if (!horde.haelt) {
         horde.anchorY = advanceAlongRoad(this.scene.scale.width, this.scene.scale.height, horde.anchorY, bewegung)
         const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, horde.anchorY, BALANCE.torlauf.horde.hoehePx)
@@ -369,19 +377,66 @@ export class Torbahn implements BahnSystem {
   }
 
   private erzeugeHorde(): HordeZustand {
-    const bild = this.scene.physics.add.image(0, 0, 'wall-segment-bad').setDepth(BALANCE.layers.gameplay).setTint(0xd63b3b).setActive(false).setVisible(false)
+    // Der Koerper traegt die Kollision ueber die ganze Bahnbreite, wird aber NICHT
+    // gezeichnet (Alpha 0): Eine rote Wand mit Zahl ist keine Horde. Gesehen wird die
+    // Masse aus `figuren`, die mit jedem abgebauten Stueck sichtbar duenner wird.
+    const bild = this.scene.physics.add.image(0, 0, 'wall-segment-bad').setDepth(BALANCE.layers.gameplay).setAlpha(0).setActive(false).setVisible(false)
     ;(bild.body as Phaser.Physics.Arcade.Body).setAllowGravity(false)
     bild.disableBody(true, true)
     this.walls.add(bild)
+    const figuren: Phaser.GameObjects.Image[] = []
+    for (let index = 0; index < BALANCE.pools.hordeFiguren; index += 1) {
+      const figur = this.scene.add.image(0, 0, 'enemy-standard')
+        .setDepth(BALANCE.layers.gameplay)
+        .setScale(BALANCE.render.figureTextureScale * BALANCE.torlauf.crowd.figureScale)
+        .setTint(BALANCE.torlauf.horde.tint)
+        .setActive(false).setVisible(false)
+      figur.setData('phaseOffset', getPhaseOffset(index))
+      figuren.push(figur)
+    }
     const label = this.scene.add.text(0, 0, '', { fontFamily: 'system-ui', fontSize: '34px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 5, fontStyle: 'bold' }).setOrigin(0.5).setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false)
-    return { bild, label, anchorY: BALANCE.road.horizonY, y: BALANCE.road.horizonY, punkte: 0, aktiv: false, haelt: false }
+    return { bild, figuren, label, anchorY: BALANCE.road.horizonY, y: BALANCE.road.horizonY, punkte: 0, aktiv: false, haelt: false }
   }
 
   private positioniereHorde(horde: HordeZustand): void {
+    const mitte = this.scene.scale.width / 2
     const breite = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, horde.y) * 2
-    horde.bild.setPosition(this.scene.scale.width / 2, horde.y).setDisplaySize(breite, BALANCE.torlauf.horde.hoehePx)
+    horde.bild.setPosition(mitte, horde.y).setDisplaySize(breite, BALANCE.torlauf.horde.hoehePx)
     ;(horde.bild.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
-    horde.label.setPosition(this.scene.scale.width / 2, horde.y)
+    horde.label.setPosition(mitte, horde.y - BALANCE.torlauf.horde.hoehePx / 2 - BALANCE.torlauf.zahlAbstandPx / 2)
+    this.stelleHordeAuf(horde, mitte, breite)
+  }
+
+  /**
+   * Verteilt so viele Figuren auf die Kollisionsflaeche, wie die Horde noch Punkte hat.
+   * Damit schrumpft die Masse sichtbar, waehrend der Strom sie abarbeitet - das ist der
+   * Unterschied zwischen "rote Wand, deren Zahl kleiner wird" und einer Horde.
+   */
+  private stelleHordeAuf(horde: HordeZustand, mitte: number, breite: number): void {
+    const konfig = BALANCE.torlauf.horde
+    const gewuenscht = Math.min(konfig.maxFiguren, Math.ceil(horde.punkte / konfig.punkteJeSichtbarerFigur))
+    const plaetze = computeBlockFormation(gewuenscht, {
+      rowSpacingY: konfig.reihenAbstandPx,
+      colSpacing: konfig.spaltenAbstandPx,
+      minColSpacing: Math.min(konfig.spaltenAbstandPx, 9),
+      maxWidth: breite * 0.92,
+      maxDepth: konfig.hoehePx * 0.8,
+      plaetzeJeReihe: konfig.plaetzeJeReihe,
+    })
+    // Vorderste Reihe an der Unterkante: Die Horde laeuft der Truppe entgegen, also
+    // stehen die hinteren Reihen weiter oben, Richtung Horizont.
+    const unterkante = horde.y + konfig.hoehePx / 2
+    for (let index = 0; index < horde.figuren.length; index += 1) {
+      const figur = horde.figuren[index]
+      const platz = plaetze[index]
+      if (platz === undefined) {
+        if (figur.visible) figur.setActive(false).setVisible(false)
+        continue
+      }
+      const figurY = unterkante - platz.offsetY
+      const wippen = getBobOffsetPx(this.hordeZeitMs, getStepCycleHz(figur.displayHeight / BALANCE.torlauf.crowd.figureScale), figur.getData('phaseOffset') as number, BALANCE.gamefeel.bobAmplitudePx * BALANCE.torlauf.crowd.figureScale)
+      figur.setPosition(mitte + platz.offsetX, figurY + wippen).setActive(true).setVisible(true)
+    }
   }
 
   private beschrifteHorde(horde: HordeZustand): void { horde.label.setText(`${Math.ceil(horde.punkte)}`) }

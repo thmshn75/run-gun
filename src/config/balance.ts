@@ -93,16 +93,35 @@ export const BALANCE = {
       grenzeBodenAbstandPx: 220,
       punkteJeFigur: 1,
       fressRateProSek: 8,
+      // Die Horde ist eine MASSE AUS FIGUREN, keine rote Wand mit Zahl (Thomas
+      // 2026-09-19: "die Horde sind keine Zombies sondern nur eine grosse Wand mit Zahl").
+      // Je 4 Punkte steht eine sichtbare Figur: 320 Startpunkte = 80 Figuren, und mit
+      // jedem Stueck, das der Strom abarbeitet, verschwinden sichtbar Figuren.
+      punkteJeSichtbarerFigur: 4,
+      maxFiguren: 80,
+      // Dunkler, kalter Ton. Ohne ihn sehen Horde und eigene Truppe gleich aus - beide
+      // sind roetliche Figurenmassen, und auf dem iPhone ist nicht zu erkennen, wer
+      // Freund und wer Feind ist. Die eigene Truppe bleibt unangetastet hell.
+      tint: 0x2f3550,
+      // Wie die eigene Truppe aufgestellt: 20 Plaetze je Reihe, also 4 Reihen bei 80
+      // Figuren. Abstaende etwas weiter als bei der eigenen Truppe, damit die Horde
+      // breiter und bedrohlicher steht statt als Klumpen.
+      plaetzeJeReihe: 20,
+      reihenAbstandPx: 14,
+      spaltenAbstandPx: 13,
     },
     kachel: {
       // 500 px Anflug / 140 px = vier gleichzeitig; der 12er-Pool hat dreifache Reserve.
       abstandPx: 140,
-      // 0,22 der halben Strassenbreite: bei rund 150 px auf Kampfhoehe 33 px breit.
-      // 0,14 (21 px) war auf dem iPhone kaum zu treffen (Thomas 2026-09-19: "die +1 Waende
-      // sind nur klein"); 0,22 bleibt ein Randstreifen und reicht nicht zur Bahnmitte.
-      breiteAnteil: 0.22,
-      // 0,7 x Breite: 33 px werden zu einer 23-px-Platte - hoch genug, um sie zu sehen.
-      hoeheAnteil: 0.7,
+      // 0,30 der halben Strassenbreite = 50 px auf Kampfhoehe. Das ist das Maximum, bei dem
+      // die 214 px breite Truppenformation noch frei bleibt (ab Mitte 113,7 px frei gegen
+      // 107 px Bedarf) - 0,35 wuerde bereits in die Formation ragen, was Thomas
+      // ausdruecklich nicht will ("keine zusaetzlichen Waende in der Mitte").
+      breiteAnteil: 0.3,
+      // 2,6 x Breite = 130 px HOCH. Der eigentliche Grund, warum die Kachel zweimal als
+      // "zu klein" gemeldet wurde: Sie lag mit 0,5 flach am Boden wie eine Platte. Im
+      // Vorbild stehen die +1-Felder aufrecht wie Tafeln und sind schon von weitem lesbar.
+      hoeheAnteil: 2.6,
       // Wie bei den Toren zwei Kampfhoehen-Pixel innerhalb der linken Strassenkante.
       randSpaltPx: 2,
     },
@@ -3564,6 +3583,8 @@ export const BALANCE = {
   pools: {
     // Gemessen auf Level 5: ~0,8 s Flugzeit bei 24 Figuren/s (16-22 gleichzeitig); 200 bleibt grosse Reserve.
     strom: 200,
+    // Deckel aus torlauf.horde.maxFiguren; mehr Figuren kann die Horde nie zeigen.
+    hordeFiguren: 80,
     // 500 px Anflug / 140 px = vier gleichzeitig; 12 laesst Reserve bei Leveltempo.
     kacheln: 12,
     projectiles: {

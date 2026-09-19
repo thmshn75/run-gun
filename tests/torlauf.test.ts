@@ -59,7 +59,7 @@ describe('Torlauf E0', () => {
 })
 
 describe('Torlauf E1 sichtbare Masse', () => {
-  it('haelt die +1-Kachel als flachen linken Randstreifen ausserhalb der 214-px-Formation', () => {
+  it('haelt die +1-Kachel als aufrechte Tafel am linken Rand ausserhalb der 214-px-Formation', () => {
     const breite = 390
     const hoehe = 844
     const mitte = breite / 2
@@ -70,8 +70,10 @@ describe('Torlauf E1 sichtbare Masse', () => {
     const linkeKante = mitte - halbbreite + BALANCE.torlauf.kachel.randSpaltPx * getRoadScale(breite, hoehe, kampfhoehe)
     const rechteKante = linkeKante + kachelBreite
 
-    expect(BALANCE.torlauf.kachel).toMatchObject({ breiteAnteil: 0.22, hoeheAnteil: 0.7, randSpaltPx: 2 })
-    expect(kachelHoehe).toBeCloseTo(kachelBreite * 0.7)
+    expect(BALANCE.torlauf.kachel).toMatchObject({ breiteAnteil: 0.3, hoeheAnteil: 2.6, randSpaltPx: 2 })
+    // Aufrecht, nicht liegend: Thomas hat die flache Platte zweimal als "zu klein"
+    // gemeldet. Hoeher als breit ist hier die eigentliche Anforderung.
+    expect(kachelHoehe).toBeGreaterThan(kachelBreite * 2)
     // Die 214-px-Formation braucht ab Mitte 107 px je Seite frei.
     expect(mitte - rechteKante).toBeGreaterThan(214 / 2)
   })

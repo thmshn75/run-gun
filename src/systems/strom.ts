@@ -55,11 +55,18 @@ export class Strom {
     }
     for (const figure of this.figures) {
       if (!figure.active) continue
-      const y = figure.y - BALANCE.torlauf.strom.tempoPxPerSec * dt / 1000
-      const x = getStromLaneX(this.scene.scale.width, this.scene.scale.height, y, figure.getData('laneOriginX') as number, figure.getData('laneRatio') as number, figure.getData('lateralPx') as number)
-      figure.setPosition(x, y + getBobOffsetPx(this.elapsedMs, getStepCycleHz(figure.displayHeight), figure.getData('phaseOffset') as number, BALANCE.gamefeel.bobAmplitudePx))
+      // Die Laufhoehe wird GETRENNT von der gezeichneten Hoehe gefuehrt. Frueher stand
+      // hier `figure.y`, in dem der Huepf-Versatz des Vorbildes schon steckte - der
+      // Versatz wurde damit Bild fuer Bild aufaddiert. Weil die Figuren beim Schritt
+      // nach oben ausschlagen, rannten sie mit gemessenen 530 px/s statt der
+      // eingestellten 150 (Thomas 2026-09-19: "die ausgeschickten Truppen sind viel zu
+      // schnell" - Absenken des Wertes half deshalb kaum).
+      const laufY = (figure.getData('laufY') as number) - BALANCE.torlauf.strom.tempoPxPerSec * dt / 1000
+      figure.setData('laufY', laufY)
+      const x = getStromLaneX(this.scene.scale.width, this.scene.scale.height, laufY, figure.getData('laneOriginX') as number, figure.getData('laneRatio') as number, figure.getData('lateralPx') as number)
+      figure.setPosition(x, laufY + getBobOffsetPx(this.elapsedMs, getStepCycleHz(figure.displayHeight / (BALANCE.render.figureTextureScale * BALANCE.torlauf.crowd.figureScale)), figure.getData('phaseOffset') as number, BALANCE.gamefeel.bobAmplitudePx * BALANCE.torlauf.crowd.figureScale))
       ;(figure.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
-      if (figure.y - figure.displayHeight / 2 <= BALANCE.road.horizonY || figure.x < -figure.displayWidth || figure.x > this.scene.scale.width + figure.displayWidth) this.recycle(figure)
+      if (laufY - figure.displayHeight / 2 <= BALANCE.road.horizonY || figure.x < -figure.displayWidth || figure.x > this.scene.scale.width + figure.displayWidth) this.recycle(figure)
     }
   }
 
@@ -80,6 +87,7 @@ export class Strom {
     const laneOriginX = x - laneRatio * getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
     figure.enableBody(true, x, y, true, true).setActive(true).setVisible(true).setAlpha(1).clearTint()
     figure.setRotation(Math.atan(-laneRatio * getLaneSlope(this.scene.scale.width, this.scene.scale.height)))
+    figure.setData('laufY', y)
     figure.setData('laneRatio', laneRatio)
     figure.setData('laneOriginX', laneOriginX)
     figure.setData('lateralPx', lateralPx)

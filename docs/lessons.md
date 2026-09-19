@@ -1280,3 +1280,26 @@ bei 1. Das war kein Fehler der Mechanik, sondern der Startwert des echten Laufs
 (`stats.hp.base = 1`), der für einen Modus, in dem die Truppengröße die Feuerkraft
 IST, nicht taugt. Ein neuer Modus erbt die Startwerte des alten stillschweigend —
 jeden übernommenen Wert daraufhin prüfen, ob er im neuen Modus dieselbe Bedeutung hat.
+
+## 2026-09-19 — Abgeleiteten Wert nie als Zustand zurücklesen
+
+**Was passierte:** Die losgeschickten Figuren liefen mit gemessenen 530 px/s, obwohl
+`tempoPxPerSec` auf 150 stand. Thomas' Meldung "viel zu schnell" liess sich durch
+Absenken des Wertes nicht beheben — bei 260 waren es in Wahrheit über 900 px/s.
+
+**Warum:** Die Schrittbewegung (Wippen) wurde auf die Position addiert und im nächsten
+Bild aus derselben Position wieder ausgelesen: `y = figure.y - tempo*dt` mit
+`figure.y`, in dem der Versatz des Vorbildes schon steckte. Weil Figuren beim Schritt
+nach OBEN ausschlagen, ist der Versatz im Mittel negativ — er summierte sich Bild für
+Bild zu einem zweiten, unsichtbaren Antrieb.
+
+**Regel:** Wer eine Darstellungs-Korrektur (Wippen, Zittern, Rückstoß, Versatz) auf
+eine Position rechnet, führt die ECHTE Position getrennt mit und liest nie das
+Ergebnis zurück. Prüfzeichen: Kommt bei einer Messung ein anderes Tempo heraus als
+in der Konfiguration steht, ist der Wert nicht falsch eingestellt, sondern es gibt
+einen zweiten Antrieb. Derselbe Fehler steckte im Rückstoß (2026-09-18) — dort war
+er aufgefallen, hier nicht, weil niemand das Tempo nachgemessen hat.
+
+**Was das über die Arbeitsweise sagt:** Drei Sitzungen lang wurde an Balance-Werten
+gedreht, ohne je nachzusehen, ob der eingestellte Wert im Bild ankommt. Eine einzige
+Messung (Position über Zeit) hätte das sofort gezeigt.
