@@ -131,6 +131,9 @@ export class Boss {
     this.enemy.setData('maxHp', this.plan.maxHp)
     this.enemy.setData('contactDamage', 0)
     this.enemy.setData('coinValue', BALANCE.boss.coinReward)
+    // Gemeinsamer Schadenseingang, aber kein Rueckstoss: der Boss hat eine eigene
+    // Schwingung und wird in Spawner.damage() an dieser Markierung ausgenommen.
+    this.enemy.setData('isBoss', true)
     this.enemy.setData('spawnId', this.nextSpawnId())
   }
 

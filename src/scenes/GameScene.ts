@@ -5,6 +5,7 @@ import { Walls } from '../systems/walls'
 import { VersuchBahnen, type BahnSystem } from '../systems/versuchBahnen'
 import { PROBELAUF_REGELN, TESTGELAENDE_REGELN, type BahnRegeln } from '../systems/versuchPlan'
 import { Popups } from '../systems/popups'
+import { Sterbeeffekte } from '../systems/sterbeeffekte'
 import { Coins } from '../systems/coins'
 import { ShopOverlay } from '../systems/shopOverlay'
 import { selectChainLightningTargets } from '../systems/chainLightning'
@@ -147,6 +148,7 @@ export class GameScene extends Phaser.Scene {
   // stehen (VersuchBahnen), im echten Run immer Walls. Siehe baueBahnen().
   private walls!: BahnSystem
   private popups!: Popups
+  private sterbeeffekte!: Sterbeeffekte
   // Durchbrueche kosten Bruchteile einer Figur (enemy.breakthroughDamageFactor). Sie
   // werden hier gesammelt und erst bei einer vollen Figur eingeloest - sonst gaebe es
   // bei bis zu 6 Durchbruechen je Sekunde sechsmal eine Anzeige.
@@ -156,6 +158,7 @@ export class GameScene extends Phaser.Scene {
   private phaseRemainingMs!: number
   private bossBarBackground!: Phaser.GameObjects.Rectangle
   private bossBarFill!: Phaser.GameObjects.Rectangle
+  private bossBarText!: Phaser.GameObjects.Text
   private bossBarWidth!: number
   private levelOverlayBackground!: Phaser.GameObjects.Rectangle
   private levelOverlay!: Phaser.GameObjects.Text
@@ -300,7 +303,10 @@ export class GameScene extends Phaser.Scene {
     this.bruecke = new Bruecke(this, () => Phaser.Math.RND.frac())
     this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
-    this.spawner = new Spawner(this, this.runStats, () => this.crowd.getAnchorX(), (contactDamage) => this.handleBreakthrough(contactDamage))
+    this.sterbeeffekte = new Sterbeeffekte(this)
+    this.spawner = new Spawner(this, this.runStats, () => this.crowd.getAnchorX(), (contactDamage) => this.handleBreakthrough(contactDamage), (enemy) => {
+      if (!this.boss.isEnemy(enemy)) this.sterbeeffekte.spawn(enemy.x, enemy.y, enemy.texture.key, enemy.scaleX, enemy.scaleY)
+    })
     // Im Versuch kommen die Gegner von rechts - siehe Spawner.setVersuchsBahnen.
     this.spawner.setVersuchsBahnen(this.nutztBahnen())
     // DIE EINZIGE WEICHE DES VERSUCHS "ZWEI BAHNEN" (Thomas 2026-09-05: "wenn wir etwas
@@ -440,8 +446,12 @@ export class GameScene extends Phaser.Scene {
     const bossBarX = (this.scale.width - this.bossBarWidth) / 2
     this.bossBarBackground = this.add.rectangle(bossBarX, bossBarY, this.bossBarWidth, 8, HUD_COLORS.bossBarBack).setOrigin(0, 0).setDepth(BALANCE.hud.depthText)
     this.bossBarFill = this.add.rectangle(bossBarX, bossBarY, 0, 8, HUD_COLORS.bossBarFill).setOrigin(0, 0).setDepth(BALANCE.hud.depthText + 1)
+    this.bossBarText = this.add.text(this.scale.width / 2, bossBarY + 4, '', {
+      fontFamily: 'system-ui', fontSize: '12px', fontStyle: 'bold', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(BALANCE.hud.depthText + 2)
     this.bossBarBackground.setVisible(false)
     this.bossBarFill.setVisible(false)
+    this.bossBarText.setVisible(false)
     this.levelOverlayBackground = this.add.rectangle(this.scale.width / 2, this.scale.height / 2, this.scale.width, this.scale.height, HUD_COLORS.panel, 0.65)
       .setDepth(BALANCE.hud.depthText + 2)
       .setVisible(false)
@@ -498,6 +508,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.walls.update(dt)
     this.popups.update(dt)
+    this.sterbeeffekte.update(dt)
     this.boss.update(dt)
     this.syncBossColliders()
     this.syncWallColliders()
@@ -1348,6 +1359,8 @@ export class GameScene extends Phaser.Scene {
 
   private handleBossDefeated(): void {
     if (this.levelPhase !== 'boss') return
+    const bossEnemy = this.boss.getEnemy()
+    this.sterbeeffekte.spawn(bossEnemy.x, bossEnemy.y, bossEnemy.texture.key, bossEnemy.scaleX, bossEnemy.scaleY)
     this.spawner.recycleBossCompanions()
     this.walls.deactivateAll()
     this.popups.deactivateAll()
@@ -1612,6 +1625,7 @@ export class GameScene extends Phaser.Scene {
     this.levelOverlayBackground.setVisible(false)
     this.levelOverlay.setVisible(false)
     this.spawner.resetForLevel(this.currentLevel)
+    this.sterbeeffekte.deactivateAll()
     this.walls.resetForLevel(this.currentLevel)
     this.setzeWeltThema()
 
@@ -1625,10 +1639,13 @@ export class GameScene extends Phaser.Scene {
     const visible = this.levelPhase === 'boss' && bossEnemy.active
     this.bossBarBackground.setVisible(visible)
     this.bossBarFill.setVisible(visible)
+    this.bossBarText.setVisible(visible)
     if (!visible) return
     const hp = bossEnemy.getData('hp') as number
     const maxHp = bossEnemy.getData('maxHp') as number
     this.bossBarFill.setSize(this.bossBarWidth * Math.max(0, hp) / maxHp, 8)
+    const label = `${Math.max(0, Math.round(hp))}`
+    if (this.bossBarText.text !== label) this.bossBarText.setText(label)
   }
 
   private updateIframes(): void {

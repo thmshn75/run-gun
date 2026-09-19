@@ -1,22 +1,24 @@
 # Active Task
 
 ## Status
-`IDLE`
+`IMPL_DONE`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
-## Task
-Kein aktiver Task.
+## Stand des Reviews (2026-09-19)
 
----
+**Code-Review bestanden.** Der Rueckbau des Trefferblitzes ist vollstaendig (kein
+`trefferBlitzMs` mehr in `src/`, Kommentar an `BALANCE.feedback` wiederhergestellt und
+um das zweite Nein ergaenzt). Vorzeichen und Buchfuehrung des Rueckstosses sind in
+`src/systems/rueckstoss.ts` gekapselt, die Tests dazu rechnen ueber mehrere Bilder.
+`npm run check`, `npm test` (37 Dateien, 399 Tests) und `npm run build` sind gruen —
+selbst im Terminal nachgelaufen, nicht aus dem Codex-Log uebernommen.
 
-## Zuletzt abgeschlossen
+**Offen und nur von Thomas zu erledigen:**
 
-**PROBELAUF** - gebaut, gemessen (A1-A8) und am 2026-09-17 von Thomas am iPhone
-abgenommen (A9). Entscheidung: bleibt vorerst so, der echte Run wird nicht umgeschaltet.
-Spec, Kalibrierrunden und alle Messzahlen stehen in der Fassung dieser Datei im
-Commit `fc704e3`.
+- **A14 — iPhone-Test.** Fuehlen sich die Treffer beantwortet an, ohne dass das Bild
+  unruhig wird? Bis dahin gilt der Task nicht als erfuellt.
+- **Leistungs-Reissleine.** Der Bildzeit-Median unter voller Horde ist nicht gemessen
+  worden; dafuer fehlt Codex das Geraet. Steigt er ueber 16,7 ms, faellt zuerst C
+  (Zerplatzen), dann B (Rueckstoss).
 
-## Wo die Historie steht
-
-Diese Datei traegt nur den LAUFENDEN Task. Der Stand des Projekts und alle
-abgeschlossenen Arbeiten stehen in `docs/UEBERGABE.md`, die Regeln in `docs/lessons.md`.
+Der Status bleibt deshalb `IMPL_DONE` und **nicht** `APPROVED`.

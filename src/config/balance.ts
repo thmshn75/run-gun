@@ -3363,7 +3363,18 @@ export const BALANCE = {
     // Der Boss hatte denselben Zweig, aber seine flashRemainingMs wurde NIE gesetzt -
     // toter Code, der mit entfernt ist. Die Phasenumschaltung des Bosses
     // (boss.phaseTwo.transitionFlashMs) bleibt: Sie ist ein einmaliges Ereignis,
-    // kein Dauerflackern.
+    // kein Dauerflackern. Am 2026-09-19 wurde der Blitz ein zweites Mal vorgeschlagen
+    // und von Thomas ein zweites Mal verworfen.
+    // 3 px bei voller Groesse sind sichtbar, aber kein Ruckeln auf der Stelle; 120 ms
+    // klingt vor dem naechsten normalen Feuerimpuls ab. Die Skalierung passiert im
+    // Spawner mit scaleY, damit der Horizont nur anteilig springt.
+    rueckstossPx: 3,
+    rueckstossMs: 120,
+    // Der Effekt lebt 150 ms und waechst auf 1,4x. Bei maximal etwa 18 Toden/s liegen
+    // 2,7 Effekte gleichzeitig; 16 deckt einen Salven-Burst vielfach ab. Ueberlauf
+    // ersetzt definiert den aeltesten Effekt, nie einen Gegnerpoolplatz.
+    sterbeeffektMs: 150,
+    sterbeeffektScale: 1.4,
     gameOverRestartDelayMs: 400,
     poolWarningIntervalMs: 1000,
   },
@@ -3457,6 +3468,7 @@ export const BALANCE = {
     splashFlashes: 12,
     // At most 5.6 salvos/s x 3 shooters x 3 chain jumps x 0.12s = 6.1; 16 leaves reserve.
     chainFlashes: 16,
+    sterbeeffekte: 16,
     // Worst case: Gegner spawnen vollstaendig oberhalb des Horizonts (halbe Koerperhoehe
     // plus bis zu 81 px Reihenversatz), laufen also bis zu 881 px. Seit alle Typen
     // gleich schnell sind, gilt dafuer EIN Tempo: am Boden speed.floor = 70 px/s, also

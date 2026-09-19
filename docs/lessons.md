@@ -1,5 +1,56 @@
 # Lessons: Run & Gun
 
+### 2026-09-19 — Ein fehlendes Feature spezifiziert, das absichtlich entfernt worden war
+
+Aus Thomas' Genre-Video wurde ein Task "Trefferquittung" spezifiziert, der als ersten
+Baustein einen Trefferblitz verlangte — mit der Begruendung, am getroffenen Gegner
+passiere "optisch nichts". Das stimmte, aber der Grund war das Gegenteil einer Luecke:
+**Den Blitz gab es, und Thomas hatte ihn am 2026-08-23 streichen lassen** ("das
+trefferblitzen weg lassen komplett"), weil bei bis zu 73 gleichzeitigen Gegnern ein
+grosser Teil des Bildes flackerte. Die Begruendung stand als mehrzeiliger Kommentar
+genau an der Stelle in `balance.ts`, an der der neue Wert eingefuegt wurde — Codex hat
+sie geloescht, um Platz fuer `trefferBlitzMs` zu machen, wie die Spec es verlangte.
+Vorausgegangen war ein Suchlauf, der `tint` in `spawner.ts` durchaus gefunden hatte;
+gelesen wurde die Fundstelle nicht. Auch die beiden Pruef-Agents der Spec-Haertung
+haben es nicht bemerkt: Sie pruefen die Spec gegen den Code, nicht gegen die Geschichte
+des Codes.
+
+Das ist die Wiederholung der Lesson vom 2026-08-22 ("Fehlende Faehigkeit gemeldet, die
+es schon gab") — diesmal eine Stufe teurer, weil aus dem Irrtum nicht nur eine falsche
+Aussage wurde, sondern ein gebauter Task.
+
+- **Regel:** Bevor ein fehlender Effekt in eine Spec geschrieben wird, gilt die Frage
+  nicht "gibt es das?", sondern **"gab es das schon einmal, und warum ist es weg?"**.
+  Ein Suchtreffer ist erst abgearbeitet, wenn seine Fundstelle **gelesen** ist —
+  besonders bei Kommentaren in `balance.ts`, die dort als Gedaechtnis fuer genau diesen
+  Fall stehen. Zusatzregel fuer den Rueckbau: Wird ein Vorschlag ein zweites Mal
+  verworfen, gehoert **das zweite Nein in denselben Kommentar**, sonst kommt derselbe
+  Vorschlag ein drittes Mal.
+
+### 2026-09-19 — Tests, die Quelltext-Muster pruefen, bestaetigen den Code gegen sich selbst
+
+Die erste Umsetzung der Trefferquittung war von 398 gruenen Tests gedeckt, darunter ein
+neuer Test je Akzeptanzkriterium. Trotzdem enthielt sie zwei Fehler, die beide die
+"harte Grenze" des Tasks verletzten: Der Rueckstoss hatte **das falsche Vorzeichen**
+(er schob den getroffenen Gegner auf die Truppe zu statt zum Horizont), und bei
+mehreren Treffern im selben Bild wurde der Sichtversatz addiert, aber nur einfach
+gemerkt — die Differenz blieb dauerhaft in der Laufstrecke und haette die
+Schwierigkeit still verschoben.
+
+Der Grund: Die Tests pruefen, **ob bestimmte Zeilen im Quelltext stehen**
+(`expect(update).toContain('enemy.y += rueckstossPx')`, Reihenfolge per `indexOf`).
+Beide Zeilen standen genau so da, wie gesucht wurde — mit falschem Vorzeichen und
+falscher Buchfuehrung. Ein solcher Test kann per Konstruktion nichts finden, was der
+Autor des Codes nicht schon bedacht hat: Er vergleicht den Code mit sich selbst.
+
+- **Regel:** Ein Kriterium ueber **Verhalten** (Richtung, Betrag, Erhaltung ueber Zeit)
+  braucht einen Test, der die Groesse **ausrechnet und ueber mehrere Bilder laufen
+  laesst**, nicht eine Mustersuche im Quelltext. Mustersuchen sind zulaessig fuer
+  Struktur, die sich nicht ausrechnen laesst (Reihenfolge zweier Aufrufe, Abwesenheit
+  eines Bezeichners), aber nie als einzige Absicherung. Pruefkriterium beim Schreiben:
+  **Wuerde dieser Test die vorherige, falsche Fassung durchfallen lassen?** Wenn nein,
+  prueft er nichts.
+
 ### 2026-09-17 — Einen Zustand fuer eine Maschine setzen heisst, ihre Regel zu lesen
 
 Beim Abschluss des Probelaufs habe ich `docs/active-task.md` auf `IDLE` gesetzt und in den

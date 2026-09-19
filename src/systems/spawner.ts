@@ -6,6 +6,7 @@ import { getEnemySpawnCenterY, getSquadSpawnBaseY, isRevealedAtHorizon } from '.
 import { getLevelPlan, getMaxSquadSize, type LevelPlan } from './levelPlan'
 import { getBildVersatzPx } from './bildVersatz'
 import { getBobOffsetPx, getPhaseOffset, getStepCycleHz, getStepSquash, getStepSwayRadians } from './gamefeel'
+import { addRueckstoss, decayRueckstoss } from './rueckstoss'
 import { getFigureOverscanFactor, getPerspectiveScale, getPlayfieldHalfWidth } from './road'
 import { chooseSpawnLane, type SpawnLaneEnemy } from './spawnLanes'
 import { computeHordeOffsets, getSquadWidth } from './squads'
@@ -26,6 +27,7 @@ export class Spawner {
   // aendert sich ohnehin jedes Bild.
   private readonly getCrowdAnchorX: (() => number) | undefined
   private readonly onBreakthrough: ((contactDamage: number) => void) | undefined
+  private readonly onEnemyDefeated: ((enemy: Phaser.Physics.Arcade.Image) => void) | undefined
   private readonly enemies: Phaser.Physics.Arcade.Group
   private readonly shadows: Phaser.GameObjects.Image[]
   private spawnAccumulatorMs: number
@@ -56,11 +58,13 @@ export class Spawner {
     runStats: RunStats,
     getCrowdAnchorX?: () => number,
     onBreakthrough?: (contactDamage: number) => void,
+    onEnemyDefeated?: (enemy: Phaser.Physics.Arcade.Image) => void,
   ) {
     this.scene = scene
     this.runStats = runStats
     this.getCrowdAnchorX = getCrowdAnchorX
     this.onBreakthrough = onBreakthrough
+    this.onEnemyDefeated = onEnemyDefeated
     this.enemies = scene.physics.add.group()
     this.spawnAccumulatorMs = 0
     this.elapsedMs = 0
@@ -280,8 +284,19 @@ export class Spawner {
     const remainingHp = (enemy.getData('hp') as number) - damage
     enemy.setData('hp', remainingHp)
     if (remainingHp <= 0) {
+      this.onEnemyDefeated?.(enemy)
       this.recycle(enemy)
       return true
+    }
+    if (enemy.getData('isBoss') !== true) {
+      const startPx = BALANCE.feedback.rueckstossPx * enemy.scaleY
+      const currentPx = (enemy.getData('rueckstossPx') as number | undefined) ?? 0
+      const rueckstoss = addRueckstoss(currentPx, startPx)
+      enemy.setData('rueckstossPx', rueckstoss.valuePx)
+      // damage() laeuft nach dem Kollisionsabgleich des aktuellen Bildes. Der sichtbare
+      // Startversatz und gespeicherter Wert sind dieselbe Differenz. Mehrfachtreffer
+      // im selben Bild bleiben damit vollstaendig buchgefuehrt und laufen nicht nach.
+      enemy.y += rueckstoss.deltaPx
     }
     return false
   }
@@ -338,12 +353,13 @@ export class Spawner {
       const enemy = child as Phaser.Physics.Arcade.Image
       if (!enemy.active) continue
       const previousBob = (enemy.getData('bobPx') as number | undefined) ?? 0
+      const previousRueckstoss = (enemy.getData('rueckstossPx') as number | undefined) ?? 0
       // Zwei Faktoren, zwei Zustaendigkeiten: speedFactor kommt von der STAERKE
       // (light/standard/heavy) und traegt die Balance, gangartTempo von der GANGART und
       // traegt die Optik. Je Staerke ist das Mittel der Gangarten 1,0, die Balance
       // bleibt also unberuehrt - ein Test haelt das fest.
       const gangartTempo = enemy.getData('gangartTempo') as number
-      const logicalY = enemy.y - previousBob
+      const logicalY = enemy.y - previousBob - previousRueckstoss
         + (enemySpeed * (enemy.getData('speedFactor') as number) * gangartTempo * dt) / 1000
       // Die Groesse gehoert zur Laufhoehe, nicht zur gewippten: Sonst pulsiert der
       // Gegner im Schritttakt.
@@ -374,6 +390,16 @@ export class Spawner {
       this.applyHorizonReveal(enemy)
       this.updateShadow(poolIndex, enemy, logicalY, bob)
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
+      const rueckstossPx = decayRueckstoss(
+        previousRueckstoss,
+        BALANCE.feedback.rueckstossPx * enemy.scaleY,
+        BALANCE.feedback.rueckstossMs,
+        dt,
+      )
+      enemy.setData('rueckstossPx', rueckstossPx)
+      // Nach body.updateFromGameObject: reine Optik, Trefferflaeche und Schatten bleiben
+      // auf der unveraenderten logischen Laufhoehe.
+      enemy.y += rueckstossPx
       // Laufbewegung ZULETZT, nach dem Nachfuehren der Trefferflaeche und nach dem
       // Schatten: Wiegen und Federn sind reine Optik. Laegen sie davor, atmete die
       // Trefferflaeche im Schritttakt mit (+-2 %) und der Schatten pulsierte —
@@ -675,7 +701,11 @@ export class Spawner {
     enemy.setData('bodyHeight', getFigureHeight(type))
     enemy.setData('lane', lane)
     enemy.setData('bossCompanion', bossCompanion)
+    // Der Boss bleibt ausserhalb dieses Pools; die Markierung sperrt Rueckstoss auch
+    // dann, wenn sein gemeinsamer Schadenseingang hier vorbeikommt.
+    enemy.setData('isBoss', false)
     enemy.setData('durchgebrochen', false)
+    enemy.setData('rueckstossPx', 0)
     enemy.setData('spawnId', this.allocateSpawnId())
   }
 
