@@ -58,6 +58,7 @@ export class Torbahn implements BahnSystem {
   private horde: HordeZustand | undefined
   /** Eigene Uhr fuer den Gehtakt der Hordenfiguren. */
   private hordeZeitMs = 0
+  private readonly getCrowdAnchorX: () => number
   private abstand = BALANCE.torlauf.tor.abstandPx
   private kachelAbstand = BALANCE.torlauf.kachel.abstandPx
   private nextSpawnId = 1
@@ -68,12 +69,13 @@ export class Torbahn implements BahnSystem {
   public constructor(
     scene: Phaser.Scene,
     _getTeamSize: () => number,
-    _getCrowdAnchorX: () => number,
+    getCrowdAnchorX: () => number,
     zufall: () => number,
     _applyReinforcement: (apply: (current: number) => number, popup: string) => void,
   ) {
     this.scene = scene
     this.zufall = zufall
+    this.getCrowdAnchorX = getCrowdAnchorX
     this.walls = scene.physics.add.group()
     this.rewards = scene.physics.add.group()
     for (let i = 0; i < 8; i += 1) {
@@ -210,8 +212,11 @@ export class Torbahn implements BahnSystem {
     // Kein Nachschub mehr im Takt: Es gibt GENAU EIN Tor, es steht fest in der Mitte
     // und bleibt dauerhaft stehen (Thomas 2026-09-19).
     this.sorgeFuerMitteltor()
-    this.kachelAbstand += bewegung
-    if (this.kachelAbstand >= BALANCE.torlauf.kachel.abstandPx) {
+    // Die +1-Reihe laeuft mit EIGENEM Tempo, nicht mit dem Strassenscroll: langsam,
+    // solange die Truppe mittig faehrt, deutlich schneller, je weiter links sie steht.
+    const kachelWeg = this.kachelTempoPxPerSec() * dt / 1000
+    this.kachelAbstand += kachelWeg
+    while (this.kachelAbstand >= BALANCE.torlauf.kachel.abstandPx) {
       this.kachelAbstand -= BALANCE.torlauf.kachel.abstandPx
       this.spawneKachel()
     }
@@ -230,7 +235,7 @@ export class Torbahn implements BahnSystem {
     }
     for (const kachel of this.kacheln) {
       if (!kachel.aktiv) continue
-      kachel.anchorY = advanceAlongRoad(this.scene.scale.width, this.scene.scale.height, kachel.anchorY, bewegung)
+      kachel.anchorY = advanceAlongRoad(this.scene.scale.width, this.scene.scale.height, kachel.anchorY, kachelWeg)
       const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, kachel.anchorY, BALANCE.torlauf.tor.hoehePx)
       const halbbreite = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, segment.centerY)
       const massstab = getRoadScale(this.scene.scale.width, this.scene.scale.height, segment.centerY)
@@ -276,6 +281,20 @@ export class Torbahn implements BahnSystem {
     kachel.bild.enableBody(true, 0, 0, true, true).setActive(true).setVisible(true)
     ;(kachel.bild.body as Phaser.Physics.Arcade.Body).moves = false
     kachel.label.setActive(true).setVisible(true)
+  }
+
+  /**
+   * Tempo der +1-Reihe. Steht die Truppe mittig oder rechts, zieht die Reihe nur
+   * gemaechlich vorbei; je weiter links sie faehrt, desto schneller kommt Nachschub
+   * (Thomas 2026-09-19: "langsam fahrend, nur wenn ich nach links fahre schneller
+   * werdend"). Der Anteil ist 0 in der Bahnmitte und 1 am linken Fahrbahnrand.
+   */
+  private kachelTempoPxPerSec(): number {
+    const kachel = BALANCE.torlauf.kachel
+    const mitte = this.scene.scale.width / 2
+    const halbbreite = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, this.scene.scale.height - BALANCE.torlauf.anchorBottomOffset)
+    const linksAnteil = Math.min(1, Math.max(0, (mitte - this.getCrowdAnchorX()) / Math.max(1, halbbreite)))
+    return kachel.grundTempoPxPerSec + linksAnteil * kachel.linksZusatzTempoPxPerSec
   }
 
   private sorgeFuerMitteltor(): void {

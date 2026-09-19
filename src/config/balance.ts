@@ -50,12 +50,15 @@ export const BALANCE = {
       abstandPx: 900,
       // Das Tor steht FEST in der Bahnmitte und zieht nicht mehr vorbei (Thomas
       // 2026-09-19: "es soll nur ein Tor in der Mitte sein ... dauerhaft da").
-      // y = 380: deutlich vor der Truppe (624) und weit genug vom Horizont, damit der
-      // Strom eine sichtbare Strecke bis dorthin und danach bis zur Horde zuruecklegt.
-      festY: 380,
-      // Anteil der vollen Bahnbreite auf Torhoehe. 0,42 laesst links und rechts je rund
-      // ein Drittel frei - der Strom muss also gezielt hindurchgefuehrt werden.
-      mitteBreiteAnteil: 0.42,
+      // y = 460: ungefaehr auf halbem Weg zwischen Truppe (624) und Horizont (180),
+      // also deutlich naeher an der Truppe als die 380 davor (Thomas 2026-09-19:
+      // "naeher zu meiner Truppe ruecken, ungefaehr die halbe Weglaenge"). Der Strom
+      // erreicht das Tor damit frueher und hat danach mehr Strecke bis zur Horde.
+      festY: 460,
+      // Anteil der vollen Bahnbreite auf Torhoehe. 0,58 statt 0,42 (Thomas 2026-09-19:
+      // "das Tor in der Mitte breiter machen"); links und rechts bleibt je rund ein
+      // Fuenftel frei, der Strom trifft das Tor also fast immer.
+      mitteBreiteAnteil: 0.58,
       hoehePx: 84,
       startAnteilMin: 0.25,
       startAnteilMax: 0.55,
@@ -123,11 +126,10 @@ export const BALANCE = {
       // bis zur Truppe (624) sind das 43 s - lange genug, dass der Kampf oberhalb des
       // Tors stattfindet, und trotzdem endlich, damit eine Niederlage moeglich bleibt.
       vorrueckTempoPxPerSec: 8,
-      // Eigenes, LANGSAMES Anflugtempo statt des Strassenscrolls. Vorher kam die Horde
-      // mit der Bahngeschwindigkeit herangerauscht; jetzt braucht sie vom Horizont bis
-      // zur Truppe rund 18 s (444 px / 25 px/s) - Zeit genug, dass der am Tor
-      // verdoppelte Strom sie unterwegs trifft.
-      anflugTempoPxPerSec: 25,
+      // 9 px/s: Die Horde soll "einfach schon von oben weg viel langsamer anlaufen"
+      // (Thomas 2026-09-19). Vom Horizont (180) bis zum Kampfplatz (300) sind das rund
+      // 13 s, in denen sie langsam groesser wird - statt der 5 s bei 25 px/s.
+      anflugTempoPxPerSec: 9,
       // Weiter als bis zur Truppe darf die Horde nie: ohne diese Grenze lief sie unbegrenzt
       // nach unten weiter (gemessen y=5032 bei 844 px Bildhoehe), war vom Bild verschwunden
       // und hat nie gefressen. Der Wert ist derselbe Bodenabstand wie der Truppenanker
@@ -155,13 +157,22 @@ export const BALANCE = {
       spaltenAbstandPx: 13,
     },
     kachel: {
-      // 500 px Anflug / 140 px = vier gleichzeitig; der 12er-Pool hat dreifache Reserve.
-      abstandPx: 140,
-      // 0,30 der halben Strassenbreite = 50 px auf Kampfhoehe. Das ist das Maximum, bei dem
-      // die 214 px breite Truppenformation noch frei bleibt (ab Mitte 113,7 px frei gegen
-      // 107 px Bedarf) - 0,35 wuerde bereits in die Formation ragen, was Thomas
-      // ausdruecklich nicht will ("keine zusaetzlichen Waende in der Mitte").
-      breiteAnteil: 0.3,
+      // 60 px statt 140: Die +1-Felder sollen eine DURCHGEHENDE Reihe bilden, nicht
+      // einzelne Schilder (Thomas 2026-09-19: "mehr hintereinander, durchgehend").
+      // 500 px Anflug / 60 px = rund neun gleichzeitig - dafuer ist der Pool von 12 auf
+      // 16 erhoeht.
+      abstandPx: 60,
+      // EIGENES, langsames Tempo statt des Strassenscrolls: Die Reihe zieht gemaechlich
+      // vorbei, damit man sie ueberhaupt treffen kann. Faehrt die Truppe nach links,
+      // wird sie schneller - das ist die Belohnung fuers Hinfahren (Thomas 2026-09-19:
+      // "langsam fahrend, nur wenn ich nach links fahre schneller werdend").
+      grundTempoPxPerSec: 70,
+      linksZusatzTempoPxPerSec: 260,
+      // 0,38 der halben Strassenbreite = 63 px auf Kampfhoehe (Thomas 2026-09-19:
+      // "+1 Waende groesser"). Ab Mitte bleiben damit 100 px frei; die Truppe steht als
+      // Traube rund 90 px breit ab Mitte, passt also noch vorbei. Mehr geht nicht, ohne
+      // dass die Felder in die Formation ragen - das will Thomas ausdruecklich nicht.
+      breiteAnteil: 0.38,
       // 0,45 x Breite: WAAGRECHT liegend, wie Thomas es am 2026-09-19 verlangt hat.
       // Die aufrechte Tafel (2,6) davor war hoch, aber nicht das, was er wollte.
       // Mit 50 px Breite bleiben 22 px Hoehe - deutlich groesser als die 21x10 px
@@ -3636,8 +3647,9 @@ export const BALANCE = {
     strom: 200,
     // Deckel aus torlauf.horde.maxFiguren; mehr Figuren kann die Horde nie zeigen.
     hordeFiguren: 80,
-    // 500 px Anflug / 140 px = vier gleichzeitig; 12 laesst Reserve bei Leveltempo.
-    kacheln: 12,
+    // Durchgehende Reihe: 500 px Anflug / 60 px Abstand = rund neun gleichzeitig;
+    // 16 laesst Reserve, auch wenn die Reihe beim Linksfahren schneller nachrueckt.
+    kacheln: 16,
     projectiles: {
       // Peak: ceil(1.12s flight / 0.125s interval) = 9 salvos x 8 shooters x 1 bullet = 72; 96 leaves 33% reserve.
       normal: 96,

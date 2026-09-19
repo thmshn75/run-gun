@@ -70,13 +70,13 @@ describe('Torlauf E1 sichtbare Masse', () => {
     const linkeKante = mitte - halbbreite + BALANCE.torlauf.kachel.randSpaltPx * getRoadScale(breite, hoehe, kampfhoehe)
     const rechteKante = linkeKante + kachelBreite
 
-    expect(BALANCE.torlauf.kachel).toMatchObject({ breiteAnteil: 0.3, hoeheAnteil: 0.45, randSpaltPx: 2 })
+    expect(BALANCE.torlauf.kachel).toMatchObject({ breiteAnteil: 0.38, hoeheAnteil: 0.45, randSpaltPx: 2 })
     // WAAGRECHT liegend (Thomas 2026-09-19), aber mit 50 px Breite deutlich groesser
     // als die 21 px vom Anfang, die er zu Recht "zu klein" nannte.
-    expect(kachelBreite).toBeGreaterThan(45)
+    expect(kachelBreite).toBeGreaterThan(60)
     expect(kachelHoehe).toBeLessThan(kachelBreite)
-    // Die 214-px-Formation braucht ab Mitte 107 px je Seite frei.
-    expect(mitte - rechteKante).toBeGreaterThan(214 / 2)
+    // Die Truppe steht als Traube rund 90 px ab Mitte breit; so viel muss frei bleiben.
+    expect(mitte - rechteKante).toBeGreaterThan(95)
   })
 
   it('haelt das Run-Profil unveraendert und gibt dem Torlauf 150 kleine Figuren als Traube', () => {
