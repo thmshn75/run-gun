@@ -260,3 +260,41 @@ diese Zahl ist eine Schaetzung auf Basis einer Messung, kein Ergebnis.
 **Akzeptanz N7:** N7.1 Horde stoppt an der Huellen-Oberkante (Test + Browser).
 N7.2 Sicherheitsnetz unten (Test). N7.3 Fressen im Betrieb belegt: Quelle sinkt bei
 Kontakt (Test + Browser). N7.4 `basis` 320 mit Rechenweg. N7.5 check/test/build gruen.
+
+---
+
+## N8 — VORGEMERKT: Thomas' iPhone-Test am 2026-09-19, 18:17 (vier Befunde)
+
+Wortlaut: "in Torlauf sind die +1 Waende nur klein, es kommen keine Horden, keinerlei
+Gegner und die ausgeschickten Truppen sind viel zu schnell."
+
+**ZUERST KLAEREN, VOR JEDER AENDERUNG: Welchen Stand hat Thomas getestet?** Die PWA auf
+dem iPhone laedt den zuletzt ausgelieferten Stand, nicht den Arbeitsbaum. Befund 2 und 3
+passen exakt auf **E2r ohne E3** (dort gibt es die Horde noch nicht, und der
+Gegner-Nachschub ist im Torlauf bewusst aus). Die Horde steckt erst im
+Zwischenstand-Commit `c544021`, der nicht ausgeliefert ist. **Erst den Auslieferungsweg
+pruefen** (Lesson 2026-09-18: zwischen "gebaut" und "sichtbar" liegt eine Strecke, die
+niemandem gehoert) — sonst werden Befunde behoben, die keine sind.
+
+Danach, je Befund:
+
+1. **"+1-Waende nur klein"** — N6 hat sie von quadratisch-bildfuellend auf 21 px Breite
+   gebracht; das ist zu weit in die Gegenrichtung. Mitte halten: `breiteAnteil` 0,14 →
+   **0,22** (rund 33 px auf Kampfhoehe), `hoeheAnteil` 0,5 → **0,7**. Die Pruefung aus
+   N6 bleibt: die 214-px-Formation muss frei daneben durchpassen (33 px Breite laesst
+   auf Kampfhoehe noch rund 84 px Luft bis zur Formationskante — reicht).
+2. **"keine Horden"** — bei E2r richtig (gibt es dort nicht). Bei E3: Sie kommt erst
+   **nach der vollen Gegnerphase** (`level.gegnerphaseMs`, im Run 55 s). Das ist zu
+   spaet fuer einen Test und vermutlich auch fuers Spiel. Pruefen, ob die Torlauf-Phase
+   kuerzer sein soll (Vorschlag: eigener Wert `torlauf.gegnerphaseMs`, 25-30 s).
+3. **"keinerlei Gegner"** — **so gewollt** (Spec E2r, Abschnitt C: Spawner im Torlauf
+   aus, die Gegner sind Horde und Boss). Mit Thomas klaeren, ob er zwischendurch
+   Gegner will; im Video gibt es zwischen den Toren keine. Wenn ja, sind das die
+   `heavy`-Figuren mit Zaehler aus E5, nicht der normale Nachschub.
+4. **"ausgeschickte Truppen viel zu schnell"** — `torlauf.strom.tempoPxPerSec` 260.
+   Der Scroll liegt bei 135-305 px/s je Level; 260 laesst die Figuren auf Level 1 fast
+   fliegen. Vorschlag **150** und in den Kommentar, dass der Wert **relativ zum
+   Scroll** gelesen werden muss, nicht absolut. Am Geraet gegenpruefen.
+
+**Reihenfolge nach der Pause:** N7 (Horde-Nahkampf, blockiert bis Codex-Limit faellt),
+dann N8 mit diesen vier Punkten, dann erneute Messung und Auslieferung an Thomas' iPhone.

@@ -22,6 +22,11 @@ im Testbereich, der echte Run ist unveraendert.)
    unten, Fress-Test ueber den echten Pfad, `basis` 120 → 320 (gemessen: der Strom baut
    28 Punkte/s ab, eine 120er-Horde ist nach 5 s weg, bevor sie die Truppe erreicht).
    **Nach N7 neu messen** — die 320 sind eine Schaetzung auf Messbasis.
+   **Dazu N8 (Thomas' iPhone-Test 18:17, in `docs/active-task.md` vorgemerkt):**
+   +1-Kacheln zu klein (N6 ueberschossen), Strom zu schnell (260 px/s), Horde kommt zu
+   spaet bzw. gar nicht, keine Gegner. **Erster Schritt dort: klaeren, welchen Stand
+   sein iPhone geladen hat** — "keine Horde, keine Gegner" passt genau auf E2r ohne den
+   nicht ausgelieferten E3-Zwischenstand.
 
 0. **V5 / E2r DER STROM — gebaut, reviewt, per Bot gemessen; offen ist A11 (Thomas am
    iPhone, mit N1.4 Wipptakt).** Messungen: ×2-Pfeiler faellt in 2,5 s, Quelle 10 → 61
