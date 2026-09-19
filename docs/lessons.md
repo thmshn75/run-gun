@@ -1,5 +1,26 @@
 # Lessons: Run & Gun
 
+### 2026-09-19 — Die Kernmechanik des Vorbilds durch die eigene ersetzt, ohne es zu sagen
+
+Thomas wollte einen Probelauf "so nah als moeglich an dem Video" (Genre: Crowd Runner).
+Der Plan V5 uebersetzte das Vorbild in unseren Shooter: Pfeiler werden
+**heruntergeschossen**, die Horde wird **beschossen** — mit dem Satz "das aendert die
+Darstellung, nicht das Prinzip". E2 wurde so gebaut, gemessen, nachgebessert, committet.
+Erst Thomas' Nachfrage ("da gibt es doch kein schiessen, es werden einheiten
+losgeschickt") und ein zweiter, dichterer Blick ins Video zeigten: Die Figuren **hacken**
+den Pfeiler durch Beruehrung ab, die Platte vervielfacht den Strom, die Horde ist ein
+Schiebe-Kampf Masse gegen Masse. Das Losschicken **ist** das Prinzip. Der erste
+Kontaktbogen (1 Bild je Sekunde) hatte das nicht aufgeloest; die Deutung "schiessen"
+kam aus dem eigenen Spiel, nicht aus dem Video.
+
+- **Regel:** Wer ein Vorbild in den eigenen Stack uebersetzt, benennt **vor dem Plan** in
+  einem Satz die Kernmechanik des Vorbilds (was tut der Spieler, was tun die Figuren,
+  wodurch sinkt eine Zahl) und legt sie Thomas zur Bestaetigung vor — getrennt von der
+  Frage, wie sie bei uns aussieht. Eine Uebersetzung, die die Kernmechanik ersetzt, ist
+  eine Produktentscheidung und kein Detail. Zweitens: Bewegungsablaeufe aus einem Video
+  mit mindestens 4 Bildern je Sekunde an der entscheidenden Stelle lesen, nie mit einem
+  Sekunden-Kontaktbogen — der zeigt Zustaende, nicht Handlungen.
+
 ### 2026-09-19 — Eine Kennzahl aus einem Kontext in einen anderen uebertragen, gegen das Urteil des Nutzers
 
 Der Boss-Bildtakt wurde angehoben mit der Begruendung "unter zwoelf Bildwechseln je
