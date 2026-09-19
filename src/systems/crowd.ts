@@ -242,14 +242,14 @@ export class Crowd {
       dt,
       BALANCE.gamefeel.leanHalfLifeMs,
     )
-    const cycleHz = getStepCycleHz(this.figureHeight)
+    const cycleHz = getStepCycleHz(this.figureHeight / this.profil.figureScale)
 
     for (let index = 0; index < this.members.length; index += 1) {
       const member = this.members[index]
       if (!member.sprite.active) continue
       const motion = member.motion
       const individualCycleHz = cycleHz * motion.frequencyFactor
-      const bobAmplitude = BALANCE.gamefeel.bobAmplitudePx * motion.bobFactor
+      const bobAmplitude = BALANCE.gamefeel.bobAmplitudePx * this.profil.figureScale * motion.bobFactor
       const bob = getBobOffsetPx(this.elapsedMs, individualCycleHz, motion.phaseOffset, bobAmplitude, bobAmplitude * BALANCE.gamefeel.bobSecondWaveAmplitudeShare, BALANCE.gamefeel.bobSecondWaveFrequencyRatio)
       const x = this.anchorX + member.offsetX
       const groundY = this.anchorY + member.offsetY

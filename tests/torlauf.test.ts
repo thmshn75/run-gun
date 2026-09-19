@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { BALANCE, RUN_FORMATIONS_PROFIL } from '../src/config/balance'
 import { getPlayerPower } from '../src/systems/enemyTypes'
 import { computeBlockFormation } from '../src/systems/formation'
+import { getStepCycleHz } from '../src/systems/gamefeel'
 
 vi.mock('phaser', () => ({
   default: {
@@ -97,6 +98,23 @@ describe('Torlauf E1 sichtbare Masse', () => {
     expect(crowd).toContain('this.hull.setPosition(this.anchorX, this.anchorY + this.formationstiefe / 2)')
     expect(crowd).toContain('this.hull.setPosition(this.anchorX, this.anchorY)')
     expect(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8')).toMatch(/if \(import\.meta\.env\.DEV\) \{[\s\S]*__runGunMessung[\s\S]*bildzeit/)
+  })
+
+  it('N1.1 behaelt mit dem Run-Profil den bisherigen Schritttakt und Hub bei', () => {
+    const runFigureHeight = 92 * BALANCE.render.figureTextureScale
+    const cycleHz = getStepCycleHz(runFigureHeight)
+    const bobAmplitude = BALANCE.gamefeel.bobAmplitudePx
+
+    expect(getStepCycleHz(runFigureHeight / RUN_FORMATIONS_PROFIL.figureScale)).toBe(cycleHz)
+    expect(BALANCE.gamefeel.bobAmplitudePx * RUN_FORMATIONS_PROFIL.figureScale).toBe(bobAmplitude)
+  })
+
+  it('N1.2 zeichnet den Torlauf im Run-Takt und mit 1,8 px Hub', () => {
+    const runFigureHeight = 92 * BALANCE.render.figureTextureScale
+    const torlaufFigureHeight = runFigureHeight * BALANCE.torlauf.crowd.figureScale
+
+    expect(getStepCycleHz(torlaufFigureHeight / BALANCE.torlauf.crowd.figureScale)).toBe(getStepCycleHz(runFigureHeight))
+    expect(BALANCE.gamefeel.bobAmplitudePx * BALANCE.torlauf.crowd.figureScale).toBeCloseTo(1.8)
   })
 })
 

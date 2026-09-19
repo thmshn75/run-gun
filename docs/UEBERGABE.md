@@ -9,8 +9,11 @@ im Testbereich, der echte Run ist unveraendert.)
 
 ## Offen — naechster Schritt zuerst
 
-0. **V5 / E1 SICHTBARE MASSE — gebaut, reviewt, gemessen; offen ist A11 (Thomas am
-   iPhone).** E0 (Geruest) ist abgenommen. E1: `Crowd` nimmt ein Formationsprofil; der
+0. **V5 / E1 SICHTBARE MASSE — abgenommen (Thomas: "ansonsten ok und weiter"), mit
+   Nacharbeit N1: Wipptakt haengt jetzt an der Koerpergroesse statt an der dargestellten
+   Hoehe, Hub skaliert mit `figureScale` (Thomas: "die figuren bewegen sich zu schnell").
+   N1.4 (Sichtpruefung) erfolgt mit E2. Naechste Etappe: E2 Torpaare, Spec in
+   `docs/active-task.md`.** E0 (Geruest) ist abgenommen. E1: `Crowd` nimmt ein Formationsprofil; der
    Run laeuft mit `RUN_FORMATIONS_PROFIL` (aus `BALANCE.crowd` abgeleitet, Dreieck, 30,
    feste Huelle — Fixtures fuer 1/8/30 belegen Bitgleichheit), der Torlauf mit
    `BALANCE.torlauf.crowd` (Block 20 je Reihe, Pool 150, Figuren 0,6-fach, Anker 220

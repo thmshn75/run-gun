@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`IMPL_DONE`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -281,3 +281,44 @@ aus dieser Spec kopiert, mit Markdown-Fettdruck und einem verrutschten Absatz an
 `bottomMargin`. E2 fasst den Block ohnehin an und glaettet das mit.
 
 **Offen: A11 — Thomas' iPhone-Test.** Bis dahin `IMPL_DONE`, nicht `APPROVED`.
+
+---
+
+## NACHARBEIT N1 (2026-09-19, nach Thomas' iPhone-Test): Die Truppe wippt zu schnell
+
+Thomas: "die figuren bewegen sich nur zu schnell (also die bewegung der eigenen figuren
+selbst) ansonsten ok". Zwei Ursachen, beide in `crowd.ts`, beide durch `figureScale` 0,6
+ausgeloest — und beide sind ein Fehler der E1-Spec, nicht der Umsetzung:
+
+1. **Der Schritttakt haengt an der dargestellten Hoehe.** Z.245:
+   `getStepCycleHz(this.figureHeight)` mit `figureHeight = displayHeight` = 28 px im
+   Torlauf. `getStepCycleHz` rechnet Schrittlaenge = Hoehe x `strideOfHeight`; bei 28
+   statt 46 px wird der Schritt kuerzer und die Frequenz steigt um 46/28 = **1,64-fach**.
+   Physikalisch stimmte das fuer kleinere Menschen — die Torlauf-Figuren sind aber
+   dieselben Menschen, nur kleiner **gezeichnet**. `figureScale` ist ein
+   Darstellungsmassstab, keine Koerpergroesse.
+2. **Der Hub ist absolut.** Z.252: `BALANCE.gamefeel.bobAmplitudePx` (3 px) unveraendert
+   auf 28-px-Figuren = 10,7 % der Koerperhoehe statt 6,5 %. Der Kommentar an der
+   Konstante sagt selbst: "darueber wirkt es wie Huepfen statt Laufen."
+
+**Umbau (zwei Zeilen):**
+- Z.245: `getStepCycleHz(this.figureHeight / this.profil.figureScale)` — der Takt haengt
+  an der Koerpergroesse 46 px, unabhaengig vom Massstab.
+- Z.252: `BALANCE.gamefeel.bobAmplitudePx * this.profil.figureScale * motion.bobFactor` —
+  der Hub bleibt 6,5 % der dargestellten Hoehe.
+
+Wiegen (`stepSwayMaxDeg`, Winkel) und Federn (`stepSquashShare`, Anteil) sind bereits
+relativ und bleiben unveraendert. Gegner und Boss sind nicht betroffen (sie rechnen mit
+`getFigureHeight(type)` bzw. `bodyHeight`, nicht mit der Darstellung).
+
+**Akzeptanz:**
+- **N1.1** Im Run (`figureScale` 1) sind Takt und Hub **bitgleich** wie vor E1 — ein
+  Rechentest mit dem Run-Profil belegt es.
+- **N1.2** Im Torlauf ist der Takt gleich dem des Runs (Test: `getStepCycleHz`-Eingang
+  46 px in beiden Profilen) und der Hub 1,8 px.
+- **N1.3** `npm run check`, `npm test` gruen.
+- **N1.4 (Thomas)** iPhone: Die Truppe laeuft im Torlauf im selben Takt wie im Run.
+
+**Review N1 (2026-09-19):** exakt die zwei Zeilen, Rechentests N1.1/N1.2 gruen, 418 Tests,
+Build gruen. Thomas hat E1 am iPhone mit "ansonsten ok und weiter" abgenommen; **N1.4
+(Wipptakt) prueft er zusammen mit E2.**
