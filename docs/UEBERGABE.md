@@ -1,21 +1,22 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-09-19 (TREFFERQUITTUNG gebaut, reviewt und gepusht - **wartet auf Thomas'
-iPhone-Test**. Davor: PROBELAUF fertig, gemessen und am 2026-09-17 abgenommen; er bleibt
+Stand: 2026-09-19 (TREFFERQUITTUNG gebaut, reviewt, gepusht und von Thomas am iPhone
+abgenommen: "funktioniert gut". Davor: PROBELAUF fertig, gemessen und am 2026-09-17 abgenommen; er bleibt
 im Testbereich, der echte Run ist unveraendert.)
 
 **Das Naechste liegt in `## Offen`.**
 
 ## Offen — naechster Schritt zuerst
 
-0. **TREFFERQUITTUNG — gebaut, Code-Review bestanden, wartet auf den iPhone-Test.**
+0. **TREFFERQUITTUNG — fertig und am 2026-09-19 von Thomas abgenommen.**
    Commit `a8d5fae`. Getroffene Gegner werden sichtbar zum Horizont geschoben, sterbende
    Gegner und der besiegte Boss zerplatzen (eigener Ringpuffer-Pool, der Gegnerpoolplatz
    wird unveraendert sofort frei), der Boss zeigt seine Lebenspunkte zusaetzlich zum
    Balken als tickende Zahl. Keine Balance-Zahl geaendert, keine Trefferflaeche
    verschoben; 399 Tests und Build gruen, im Terminal nachgelaufen.
-   **Offen: A14 (Thomas' iPhone-Test) und der Bildzeit-Median unter voller Horde.**
-   Steigt der Median ueber 16,7 ms, faellt zuerst das Zerplatzen, dann der Rueckstoss.
+   Alle Akzeptanzkriterien erfuellt. Der Bildzeit-Median unter voller Horde ist nur
+   als Eindruck abgenommen, nicht als Zahl gemessen; bei spaeterem Ruckeln faellt
+   zuerst das Zerplatzen, dann der Rueckstoss (Reissleine in der Spec).
    Spec und Reviewstand: `docs/active-task.md`.
    **Der Trefferblitz aus der ersten Fassung ist wieder raus** — Thomas hat ihn am
    2026-08-23 und erneut am 2026-09-19 verworfen. Warum das zweimal passieren konnte,
