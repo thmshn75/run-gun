@@ -1,16 +1,26 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-09-17 (Der PROBELAUF ist fertig, gemessen und von Thomas am iPhone
-abgenommen - er bleibt vorerst im Testbereich, der echte Run ist unveraendert. Davor: die
-neue Wandlogik nach dem Genre-Vorbild Last Z: Survival Shooter, ebenfalls im Testgelaende.
-Davor:
-Versuch "Zwei Bahnen" fertig und von Benni abgenommen, ebenfalls nur im Testgelaende;
-zehn Gangarten mit Tempo und Bildtakt, V4, Bennis iPhone-Test am 2026-08-29 ok, am 30.08.
-der Ton entfernt.)
+Stand: 2026-09-19 (TREFFERQUITTUNG gebaut, reviewt und gepusht - **wartet auf Thomas'
+iPhone-Test**. Davor: PROBELAUF fertig, gemessen und am 2026-09-17 abgenommen; er bleibt
+im Testbereich, der echte Run ist unveraendert.)
 
 **Das Naechste liegt in `## Offen`.**
 
 ## Offen — naechster Schritt zuerst
+
+0. **TREFFERQUITTUNG — gebaut, Code-Review bestanden, wartet auf den iPhone-Test.**
+   Commit `a8d5fae`. Getroffene Gegner werden sichtbar zum Horizont geschoben, sterbende
+   Gegner und der besiegte Boss zerplatzen (eigener Ringpuffer-Pool, der Gegnerpoolplatz
+   wird unveraendert sofort frei), der Boss zeigt seine Lebenspunkte zusaetzlich zum
+   Balken als tickende Zahl. Keine Balance-Zahl geaendert, keine Trefferflaeche
+   verschoben; 399 Tests und Build gruen, im Terminal nachgelaufen.
+   **Offen: A14 (Thomas' iPhone-Test) und der Bildzeit-Median unter voller Horde.**
+   Steigt der Median ueber 16,7 ms, faellt zuerst das Zerplatzen, dann der Rueckstoss.
+   Spec und Reviewstand: `docs/active-task.md`.
+   **Der Trefferblitz aus der ersten Fassung ist wieder raus** — Thomas hat ihn am
+   2026-08-23 und erneut am 2026-09-19 verworfen. Warum das zweimal passieren konnte,
+   steht in `docs/lessons.md` (2026-09-19); der Grund steht jetzt auch wieder als
+   Kommentar an `BALANCE.feedback`, mit beiden Absagen.
 
 0. **PROBELAUF — fertig und abgenommen (2026-09-17).** Thomas hat den Stand am iPhone
    getestet und entschieden: **bleibt vorerst so.** Der Probelauf liegt im Testbereich,
