@@ -3,6 +3,7 @@ import { BALANCE } from '../config/balance'
 import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
 import { Walls } from '../systems/walls'
 import { VersuchBahnen, type BahnSystem } from '../systems/versuchBahnen'
+import { Torbahn } from '../systems/torbahn'
 import { PROBELAUF_REGELN, TESTGELAENDE_REGELN, type BahnRegeln } from '../systems/versuchPlan'
 import { Popups } from '../systems/popups'
 import { Sterbeeffekte } from '../systems/sterbeeffekte'
@@ -45,6 +46,13 @@ interface SplashFlash {
 interface ChainFlash {
   image: Phaser.GameObjects.Image
   remainingMs: number
+}
+
+interface GameSceneStartData {
+  einstieg?: 'neu' | 'fortsetzen' | 'weiterspielen' | 'test' | 'probe'
+  startwaffe?: WeaponKey
+  probeStartLevel?: number
+  probeVariante?: 'bahnen' | 'torlauf'
 }
 
 type LevelPhase = 'normal' | 'warning' | 'boss' | 'cleared' | 'shop'
@@ -159,6 +167,7 @@ export class GameScene extends Phaser.Scene {
   private bossBarBackground!: Phaser.GameObjects.Rectangle
   private bossBarFill!: Phaser.GameObjects.Rectangle
   private bossBarText!: Phaser.GameObjects.Text
+  private torlaufZahl!: Phaser.GameObjects.Text
   private bossBarWidth!: number
   private levelOverlayBackground!: Phaser.GameObjects.Rectangle
   private levelOverlay!: Phaser.GameObjects.Text
@@ -232,24 +241,18 @@ export class GameScene extends Phaser.Scene {
    * (ohne gesicherten Run wird aus FORTSETZEN ein 'neu'). Haengte der Probelauf daran,
    * waere der Speicher-Waechter ab diesem Moment still aus.
    */
-  private probe: { readonly startLevel: number } | undefined
+  private probe: { readonly startLevel: number; readonly variante: 'bahnen' | 'torlauf' } | undefined
 
   public constructor() {
     super('GameScene')
   }
 
-  public init(data: Readonly<{
-    einstieg?: 'neu' | 'fortsetzen' | 'weiterspielen' | 'test' | 'probe'
-    /** Gewaehlte Startwaffe fuer einen NEUEN Lauf; ohne sie beginnt er mit der Pistole. */
-    startwaffe?: WeaponKey
-    probeStartLevel?: number
-  }>): void {
+  public init(data: Readonly<GameSceneStartData>): void {
     this.einstieg = data.einstieg ?? 'neu'
     this.startwaffe = data.startwaffe
     const startLevels: readonly number[] = BALANCE.versuch.probe.startLevels
-    this.probe = data.einstieg === 'probe'
-      ? { startLevel: startLevels.includes(data.probeStartLevel ?? 1) ? (data.probeStartLevel ?? 1) : 1 }
-      : undefined
+    const startLevel = startLevels.includes(data.probeStartLevel ?? 1) ? (data.probeStartLevel ?? 1) : 1
+    this.probe = data.einstieg === 'probe' ? { startLevel, variante: data.probeVariante ?? 'bahnen' } : undefined
   }
 
   public create(): void {
@@ -308,12 +311,14 @@ export class GameScene extends Phaser.Scene {
       if (!this.boss.isEnemy(enemy)) this.sterbeeffekte.spawn(enemy.x, enemy.y, enemy.texture.key, enemy.scaleX, enemy.scaleY)
     })
     // Im Versuch kommen die Gegner von rechts - siehe Spawner.setVersuchsBahnen.
-    this.spawner.setVersuchsBahnen(this.nutztBahnen())
+    this.spawner.setVersuchsBahnen(this.nutztBahnen() && !this.istTorlauf())
     // DIE EINZIGE WEICHE DES VERSUCHS "ZWEI BAHNEN" (Thomas 2026-09-05: "wenn wir etwas
     // versuchen, dann NUR im Testgelaende, dort testen wir bis ich mein Go gebe").
     // Ausserhalb des Testgelaendes wird VersuchBahnen nie gebaut, und der echte Run
     // laeuft Zeile fuer Zeile wie zuvor.
-    if (this.nutztBahnen()) {
+    if (this.istTorlauf()) {
+      this.walls = new Torbahn(this)
+    } else if (this.nutztBahnen()) {
       this.walls = this.baueVersuchsBahnen()
     } else {
       this.walls = new Walls(
@@ -452,6 +457,9 @@ export class GameScene extends Phaser.Scene {
     this.bossBarBackground.setVisible(false)
     this.bossBarFill.setVisible(false)
     this.bossBarText.setVisible(false)
+    this.torlaufZahl = this.add.text(this.crowd.getAnchorX(), this.crowd.getAnchorY() - BALANCE.torlauf.zahlAbstandPx, '', {
+      fontFamily: 'system-ui', fontSize: `${BALANCE.torlauf.zahlFontPx}px`, fontStyle: 'bold', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(BALANCE.layers.gameplay + 1).setVisible(this.istTorlauf())
     this.levelOverlayBackground = this.add.rectangle(this.scale.width / 2, this.scale.height / 2, this.scale.width, this.scale.height, HUD_COLORS.panel, 0.65)
       .setDepth(BALANCE.hud.depthText + 2)
       .setVisible(false)
@@ -516,6 +524,7 @@ export class GameScene extends Phaser.Scene {
     this.splashFlashes.update(dt)
     this.chainFlashes.update(dt)
     this.updateBossBar()
+    this.updateTorlaufZahl()
     if (this.runStats.get('hp') <= 0) {
       this.triggerGameOver()
       return
@@ -762,6 +771,10 @@ export class GameScene extends Phaser.Scene {
   /** Laeuft diese Szene als Probelauf? Liest NUR das in init gesetzte Feld. */
   private istProbelauf(): boolean {
     return this.probe !== undefined
+  }
+
+  private istTorlauf(): boolean {
+    return this.probe?.variante === 'torlauf'
   }
 
   /**
@@ -1259,7 +1272,7 @@ export class GameScene extends Phaser.Scene {
     this.spawner.setSpawningEnabled(false)
     this.physics.pause()
     this.levelOverlayBackground.setVisible(true)
-    this.levelOverlay.setText(`PROBELAUF VORBEI\nLEVEL ${this.currentLevel}`).setVisible(true)
+    this.levelOverlay.setText(`${this.istTorlauf() ? 'TORLAUF' : 'PROBELAUF'} VORBEI\nLEVEL ${this.currentLevel}`).setVisible(true)
     this.time.delayedCall(BALANCE.level.clearedMs, () => { this.scene.start('MenuScene') })
   }
 
@@ -1646,6 +1659,12 @@ export class GameScene extends Phaser.Scene {
     this.bossBarFill.setSize(this.bossBarWidth * Math.max(0, hp) / maxHp, 8)
     const label = `${Math.max(0, Math.round(hp))}`
     if (this.bossBarText.text !== label) this.bossBarText.setText(label)
+  }
+
+  private updateTorlaufZahl(): void {
+    this.torlaufZahl.setPosition(this.crowd.getAnchorX(), this.crowd.getAnchorY() - BALANCE.torlauf.zahlAbstandPx)
+    const label = `${Math.round(this.runStats.get('hp'))}`
+    if (this.torlaufZahl.text !== label) this.torlaufZahl.setText(label)
   }
 
   private updateIframes(): void {

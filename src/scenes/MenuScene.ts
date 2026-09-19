@@ -117,9 +117,9 @@ export class MenuScene extends Phaser.Scene {
     // TESTGELAENDE (Benni ueber Thomas 2026-08-25: "ob es sowas wie ein testlevel geben
     // kann, wo man alle waffen einzeln ausprobieren kann"). Es zaehlt fuer nichts: kein
     // Spielstand, keine Bestenliste, kein Sterben.
-    // PROBELAUF (Thomas 2026-09-15) teilt sich den Slot: Eine neue Zeile im Stapel wuerde
-    // alle Safe-Area-gerechneten Knoepfe verschieben.
-    const testBreite = (safeWidth - 2 * BALANCE.menu.sidePadding - 8) / 2
+    // PROBELAUF und TORLAUF teilen sich den Slot: Eine neue Zeile im Stapel wuerde alle
+    // Safe-Area-gerechneten Knoepfe verschieben.
+    const testBreite = (safeWidth - 2 * BALANCE.menu.sidePadding - 16) / 3
     const testMitte = layout.testButton.top + layout.testButton.height / 2
     this.addButton(
       safeLeft + BALANCE.menu.sidePadding + testBreite / 2,
@@ -132,13 +132,23 @@ export class MenuScene extends Phaser.Scene {
       undefined, true,
     )
     this.addButton(
-      safeLeft + safeWidth - BALANCE.menu.sidePadding - testBreite / 2,
+      safeLeft + BALANCE.menu.sidePadding + testBreite * 1.5 + 8,
       testMitte,
       testBreite,
       layout.testButton.height,
       'PROBELAUF',
       true,
       () => { this.zeigeProbelaufWahl() },
+      undefined, true,
+    )
+    this.addButton(
+      safeLeft + safeWidth - BALANCE.menu.sidePadding - testBreite / 2,
+      testMitte,
+      testBreite,
+      layout.testButton.height,
+      'TORLAUF',
+      true,
+      () => { this.zeigeProbelaufWahl('torlauf') },
       undefined, true,
     )
     // FORTSCHRITT ZURUECKHOLEN - steht nur da, wenn es etwas zurueckzuholen gibt
@@ -474,7 +484,7 @@ export class MenuScene extends Phaser.Scene {
    * Startlevel waehlbar, damit spaete Level nicht erst nach zwanzig Minuten zu sehen sind.
    * Es wird nichts gespeichert - der Laufstand im Menue bleibt, wie er ist.
    */
-  private zeigeProbelaufWahl(): void {
+  private zeigeProbelaufWahl(variante: 'bahnen' | 'torlauf' = 'bahnen'): void {
     if (this.confirmationObjects.length > 0) return
     const width = this.scale.width
     const height = this.scale.height
@@ -486,10 +496,10 @@ export class MenuScene extends Phaser.Scene {
     wall.on('pointerdown', () => undefined)
     const panel = this.add.rectangle(centerX, centerY, panelWidth, 244, MENU_COLORS.row, 1).setDepth(11)
       .setStrokeStyle(2, MENU_COLORS.rowStroke, 1)
-    const titel = this.add.text(centerX, centerY - 88, 'PROBELAUF', {
+    const titel = this.add.text(centerX, centerY - 88, variante === 'torlauf' ? 'TORLAUF' : 'PROBELAUF', {
       fontFamily: 'system-ui', fontSize: '23px', fontStyle: 'bold', color: this.colorFor(MENU_COLORS.title),
     }).setOrigin(0.5).setDepth(12)
-    const text = this.add.text(centerX, centerY - 46, 'Die neuen Bahnen mit den Regeln\ndes echten Laufs. Es wird nichts gespeichert.', {
+    const text = this.add.text(centerX, centerY - 46, variante === 'torlauf' ? 'Tore, Masse und Horde nach dem\nGenre-Vorbild. Es wird nichts gespeichert.' : 'Die neuen Bahnen mit den Regeln\ndes echten Laufs. Es wird nichts gespeichert.', {
       fontFamily: 'system-ui', fontSize: '14px', align: 'center', lineSpacing: 3,
       color: this.colorFor(MENU_COLORS.text),
     }).setOrigin(0.5).setDepth(12)
@@ -500,7 +510,7 @@ export class MenuScene extends Phaser.Scene {
     levels.forEach((level, index) => {
       const x = centerX - (panelWidth - 32) / 2 + knopfBreite / 2 + index * (knopfBreite + abstand)
       this.confirmationObjects.push(...this.addButton(x, centerY + 20, knopfBreite, 44, `LEVEL ${level}`, true,
-        () => { this.starteProbelauf(level) }, undefined, false, 12))
+        () => { this.starteProbelauf(level, variante) }, undefined, false, 12))
     })
     this.confirmationObjects.push(...this.addButton(centerX, centerY + 84, panelWidth - 32, 36, 'ZURÜCK', true, () => {
       this.closeResetConfirmation()
@@ -508,11 +518,11 @@ export class MenuScene extends Phaser.Scene {
   }
 
   /** Wie beim neuen Spiel: Wer Waffen gekauft hat, waehlt die Startwaffe fuer das Startlevel. */
-  private starteProbelauf(level: number): void {
+  private starteProbelauf(level: number, variante: 'bahnen' | 'torlauf' = 'bahnen'): void {
     this.closeResetConfirmation()
     const wahl = getStartWeaponChoices('pistol', level, getOwnedWeapons(this.save))
     if (wahl.length < 2) {
-      this.scene.start('GameScene', { einstieg: 'probe', probeStartLevel: level })
+      this.scene.start('GameScene', { einstieg: 'probe', probeStartLevel: level, probeVariante: variante })
       return
     }
     this.startwaffe = 'pistol'
@@ -521,7 +531,7 @@ export class MenuScene extends Phaser.Scene {
       wahl,
       starten: () => {
         this.closeShop()
-        this.scene.start('GameScene', { einstieg: 'probe', probeStartLevel: level, startwaffe: this.startwaffe })
+        this.scene.start('GameScene', { einstieg: 'probe', probeStartLevel: level, probeVariante: variante, startwaffe: this.startwaffe })
       },
     })
   }

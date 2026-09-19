@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`IMPL_DONE`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -168,3 +168,34 @@ Diese Datei traegt nur den LAUFENDEN Task. Projektstand: `docs/UEBERGABE.md`, Re
 
 **Zuletzt abgeschlossen:** ABWECHSLUNG IN DEN BEWEGUNGEN, Commit `25b4ac7`, am
 2026-09-19 von Thomas abgenommen.
+
+## Stand des Reviews (2026-09-19)
+
+**Code-Review bestanden.** Torlauf als Probelauf-Variante (`probe.variante`),
+`istProbelauf()` woertlich unveraendert, Weiche in `create()` als eine
+if/else-if/else-Kette, `Torbahn` mit allen fuenfzehn Interface-Methoden und leeren
+Physik-Gruppen, Menue mit drei Knoepfen im geteilten Slot, grosse Zahl mit `setText`
+nur bei Aenderung, `BALANCE.torlauf` mit zwei Werten. `probelauf.test.ts` unveraendert.
+Nachgezogen im Review: `tests/torlauf.test.ts` prueft jetzt zusaetzlich, dass
+`probe.variante` genau einmal gelesen wird, in `istTorlauf()` (A3).
+
+`npm run check`, `npm test` (38 Dateien, 408 Tests), `npm run build` gruen, im Terminal
+nachgelaufen.
+
+**Browser-Nachweis Speicherschutz (A3), selbst durchgefuehrt, Playwright, Vite-Dev,
+Viewport 390x844:** Spielstand gesetzt mit Konto 777, Hoechstlevel 7, ein
+Bestenlisten-Eintrag, Meta-Stufen 2/1; Menue zeigte "KONTO ¢ 777" und "1. ¢ 777 LEVEL 7".
+Torlauf Level 5 gestartet (`einstieg: 'probe', probeVariante: 'torlauf'`): `this.walls`
+ist `Torbahn`, Truppe 24, Zahl "24" sichtbar und mitlaufend, 15 aktive Gegner von oben
+ueber die volle Breite (x 155-231, y 109-214), keine Waende, HUD-Konto im Lauf 821
+(777 + 44 gesammelt). Lauf endete durch Tod der Truppe, zurueck im Menue: Konto 777,
+Bestenliste unveraendert, kein offener Run, `localStorage` byte-gleich mit der
+Referenz vor dem Lauf. 0 Konsolenfehler. Screenshots im Session-Scratchpad
+(`nachweis-e0/`).
+
+**Angemerkt, nicht behoben:** Die Zahl liegt auf `layers.gameplay + 1`, die
+Truppenreihen auf `gameplay + row`; im Screenshot stand sie frei ueber der Truppe. Faellt
+am iPhone eine Ueberdeckung durch hintere Reihen auf, ist die Depth auf
+`gameplay + 1.9` (unter den Popups bei +2) zu heben — eine Zahl.
+
+**Offen: A9 — Thomas' iPhone-Test.** Bis dahin `IMPL_DONE`, nicht `APPROVED`.

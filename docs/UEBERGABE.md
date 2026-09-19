@@ -1,13 +1,21 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-09-19 (drei Gamefeel-Tasks nach Thomas' Genre-Video gebaut und abgenommen:
-TREFFERQUITTUNG "funktioniert gut", FLUESSIGERE BEWEGUNGEN "ist ok", ABWECHSLUNG "ok
-soweit". Danach Pruefauftrag: zweiter Probelauf mit der Tor-Logik aus dem Video. Davor: PROBELAUF fertig, gemessen und am 2026-09-17 abgenommen; er bleibt
+Stand: 2026-09-19 (**Plan V5 TORLAUF freigegeben, E0 gebaut und reviewt, wartet auf
+Thomas' iPhone-Test.** Davor drei Gamefeel-Tasks nach Thomas' Genre-Video, alle
+abgenommen: TREFFERQUITTUNG, FLUESSIGERE BEWEGUNGEN, ABWECHSLUNG. Davor: PROBELAUF fertig, gemessen und am 2026-09-17 abgenommen; er bleibt
 im Testbereich, der echte Run ist unveraendert.)
 
 **Das Naechste liegt in `## Offen`.**
 
 ## Offen — naechster Schritt zuerst
+
+0. **V5 / E0 TORLAUF — gebaut, Code-Review und Browser-Nachweis bestanden, offen ist
+   A9 (Thomas am iPhone).** Plan: `docs/plan-v5.md` (freigegeben 2026-09-19, "so nah als
+   moeglich an dem Video", Truppendeckel faellt nur im neuen Modus). E0 ist das Geruest:
+   Torlauf als Variante des Probelaufs (`probe.variante`), leere `Torbahn`, dritter
+   Menueknopf, grosse Truppenzahl. Naechste Etappe nach A9: **E1 sichtbare Masse**
+   (Pool 150, eigener Block `BALANCE.torlauf.crowd`, Feuerlinie bleibt bei 30,
+   Bildzeit messen). Danach E2 Torpaare, E3 Horde. Reissleinen und Aufwand im Plan.
 
 0. **Drei Gamefeel-Tasks vom 2026-09-19 — alle abgenommen.** Commits `a8d5fae` (Trefferquittung:
    Rueckstoss, Zerplatzen, Boss-Lebenspunktzahl), `a1f2f1f` (Boss-Bildtakt 1,0,

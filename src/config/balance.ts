@@ -18,6 +18,13 @@ export type LevelDefinition = {
 
 export const BALANCE = {
   debug: false,
+  // TORLAUF E0 (docs/plan-v5.md): E1 (crowd-Werte) und E2/E3 (Tore/Horde) kommen hier hinzu.
+  torlauf: {
+    // 28 px: groesser als HUD-Text (22 px), aber unter der Boss-Overlay-Schrift (34 px).
+    zahlFontPx: 28,
+    // Eine Figurenhoehe Abstand ueber der vordersten Reihe, damit Zahl und Truppe getrennt bleiben.
+    zahlAbstandPx: 42,
+  },
   maxDeltaMs: 100,
   levelSpeed: {
     // Steigerung je Level (Thomas 2026-08-22: "jedes Level ein wenig schneller").
