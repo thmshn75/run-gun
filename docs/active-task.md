@@ -75,7 +75,13 @@ mehr `fire()` laesst) und das Waffen-HUD (`hud.weapon`, Z.1716) ausgeblendet.
 ## B — Beruehrung: Pfeiler, Platte, +1-Kachel
 
 Collider `strom.getGroup()` ↔ `walls.getWalls()` (nur im Torlauf), Handler
-`handleStromTreffer(figur, wall)` in `GameScene`:
+`handleStromTreffer(figur, wall)` in `GameScene`. **Der Verteiler `handleCombatOverlap`
+(Z.~1053) kennt heute nur zwei Faelle: Projektil (`getData('weapon')`) und
+Truppenhuelle — eine Strom-Figur fiele durch, und kein isolierter Handler-Test merkt
+es.** Deshalb: Strom-Figuren tragen `setData('strom', true)`, und `handleCombatOverlap`
+bekommt **vor** den beiden bestehenden Zweigen einen dritten, der bei
+`findObjectWithData(first, second, 'strom')` direkt `handleStromTreffer` aufruft. Ein
+Test belegt den Dispatch ueber `handleCombatOverlap`, nicht nur ueber den Handler.
 
 - **Pfeiler** (`Torbahn`-Tor mit `stand < 0`): `walls.damage(wall, 1)` — ein Punkt.
   Die Figur merkt sich die `spawnId` (Set wie `hitSpawnIds`) und **laeuft weiter**; ein
@@ -83,7 +89,10 @@ Collider `strom.getGroup()` ↔ `walls.getWalls()` (nur im Torlauf), Handler
 - **Platte `mal`** (`stand >= 0`, `wirkung.art === 'mal'`): die Figur laeuft durch;
   `Strom.vervielfache(figur, faktor - 1)` spawnt Kopien an derselben Stelle mit
   seitlichem Versatz (`torlauf.strom.kopieVersatzPx` 6), gleicher Spur. Die Figur merkt
-  sich die `spawnId`. **Die Platte bleibt liegen**, bis sie aus dem Bild ist, und
+  sich die `spawnId` — **und jede Kopie bekommt beim Erzeugen dieselbe Markierung** in
+  ihr (geleertes) Set, sonst ueberlappt die Kopie im naechsten Bild dieselbe Platte und
+  vervielfacht sich exponentiell. Ein Test: eine Figur, eine ×3-Platte, drei Bilder →
+  genau drei Figuren. **Die Platte bleibt liegen**, bis sie aus dem Bild ist, und
   vervielfacht jede Figur — das ist die ×88-Wirkung des Videos. Das Partner-Tor
   verfaellt beim ersten Durchlauf (Recycling ueber `partner`).
 - **Platte `plus`** (`stand >= 0`, `wirkung.art === 'plus'`): die **erste** Figur, die
@@ -91,9 +100,19 @@ Collider `strom.getGroup()` ↔ `walls.getWalls()` (nur im Torlauf), Handler
   Tor **und** Partner recycelt. (Im Video gibt es nur ×-Platten und +1-Kacheln; das
   +N-Tor bleibt als Paar-Alternative erhalten, wirkt aber einmalig.)
 - **Verpasster Pfeiler** (`stand < 0`, erreicht die Quelle): **nichts** — kein Malus
-  mehr. `Torbahn.collectPickup` (Huellen-Pfad) liefert im Torlauf immer 0 und recycelt
-  das Paar, sobald eines der beiden Tore die Ankerhoehe passiert. Die Huelle wendet
-  keine Wirkung mehr an.
+  mehr. `Torbahn.collectPickup` bekommt **am Funktionsanfang** einen Guard, der im
+  Torlauf sofort zurueckkehrt (0) — **nicht** nur den Rueckgabewert verwerfen: die
+  Funktion enthaelt heute den `applyReinforcement`-Aufruf mit ×-Faktor auf die Quelle
+  (`torbahn.ts:102-113`), und der darf nie mehr laufen. Ausloeser bleibt allein der
+  bestehende `crowdPickupCollider`-Kontakt; **keine zweite Pruefung in `update()`.**
+  Das Paar wird beim Huellen-Kontakt recycelt (beide Tore), ohne Wirkung.
+- **Nie zwei ×-Platten im selben Flugfenster.** Zwei ×3-Platten innerhalb einer
+  Flugstrecke ergaeben Faktor 9 und 410 Figuren gegen Pool 200 — Ueberlauf als
+  Normalfall. Deshalb: `torPaarZiehen` bekommt `pxSeitLetztemMal` und zieht `mal` nur,
+  wenn `pxSeitLetztemMal >= torlauf.tor.malMindestabstandPx` (Vorschlag **1100**, mehr
+  als die doppelte Flugstrecke von 500 px, damit auch eine spaet liegende Platte aus dem
+  Bild ist). Die `Torbahn` fuehrt den Zaehler. Rechentest: Folge von Ziehungen erzeugt
+  nie zwei `mal` innerhalb 1100 px.
 - **+1-Kachel:** neues Objekt in der `Torbahn`, Kette am **linken Rand** wie die
   Sammelbahn (`walls.ts`-Vorbild, Textur `wall-pickup`-artig, Beschriftung `+1`),
   gespawnt alle `torlauf.kachel.abstandPx` (Vorschlag 140) auf der linken Randspur,
@@ -107,13 +126,25 @@ Collider `strom.getGroup()` ↔ `walls.getWalls()` (nur im Torlauf), Handler
 
 - `Weapons.setFeuerAktiv(false)` im Torlauf-Zweig von `create()`; `hud.weapon`
   unsichtbar; `updateHud` schreibt DMG/RATE weiter (unschaedlich).
-- **Gegner-Nachschub aus:** `spawner.setSpawningEnabled(false)` im Torlauf ab Levelstart
-  (das Video hat keine laufenden Gegner; die Gegner sind Horde und Boss, E3/E4).
-  `startLevel` darf ihn im Torlauf nicht wieder einschalten — Stelle per grep.
+- **Gegner-Nachschub aus:** `Spawner.resetForLevel()` setzt `spawningEnabled = true`
+  (`spawner.ts`, geprueft) und wird in `startLevel()` (Z.~1661) bei jedem Level gerufen.
+  Deshalb steht **direkt danach** im Torlauf-Zweig von `startLevel()`
+  `this.spawner.setSpawningEnabled(false)` — unabhaengig davon, was `resetForLevel`
+  tut. Ein Test belegt es fuer Level 1 **und** Level 2.
 - **Levelende, Zwischenloesung bis E3/E4:** Ohne Waffen kann der Boss nicht besiegt
   werden. Im Torlauf springt `updateLevelPhase` nach der Gegnerphase **direkt auf
-  `cleared`** (kein `warning`, kein `boss`). Kommentar nennt E3/E4 als Abloesung.
-  Ein Test haelt fest, dass Run/Probelauf weiter `warning → boss` laufen.
+  `cleared`** (kein `warning`, kein `boss`). **`currentLevel += 1` und
+  `syncBossColliders()` passieren heute nur in `handleBossDefeated()`** (Z.~1394) — der
+  Torlauf-Sprung uebernimmt deshalb als eigener, kommentierter Block dieselben Schritte
+  (`currentLevel += 1`, `syncBossColliders()`; `speichere` sperrt im Torlauf ohnehin),
+  ruft aber `handleBossDefeated` **nicht** auf. Tests: Run/Probelauf laufen weiter
+  `warning → boss`; im Torlauf nimmt `levelPhase` **nie** den Wert `'boss'` an; das
+  Level zaehlt nach `cleared` hoch.
+- **Keine Niederlage in E2r — bewusst.** Ohne Gegner und ohne Malus sinkt N nie; der
+  Torlauf endet nur ueber ZURUECK INS MENUE. Das ist der Zwischenzustand bis E3 (die
+  Horde frisst die Quelle). Im Kommentar am `cleared`-Sprung benennen.
+- **Zaehler fuer den Bot:** `Torbahn` fuehrt `paareVerbraucht` (je Recycling eines
+  Paars +1), im DEV-Build lesbar — A10 zaehlt Paare darueber, nicht ueber N.
 
 ## D — Balance-Block und Sonde
 
@@ -145,13 +176,18 @@ Collider `strom.getGroup()` ↔ `walls.getWalls()` (nur im Torlauf), Handler
 - **A9** `npm run check`, `npm test`, `npm run build` gruen. `VersuchBahnen`, `Weapons`
   (bis auf den Schalter), `BALANCE.weapon`, `WEAPON_KEYS` unveraendert.
 - **A10 (Reviewer)** Bot-Messung: Quelle 10, ohne Horde: ein Pfeiler mit -12 faellt in
-  ≤ 4 s; ueber 9 Paare waechst N auf 40-120 (weniger als E2, weil +N einmalig und ×
-  nur den Strom trifft — die Quelle waechst jetzt ueber +1-Kacheln und +N); Bildzeit
-  ≤ 16,7 ms bei vollem Pool.
+  ≤ 4 s; ueber 9 Paare (`paareVerbraucht`) waechst N auf 40-120 (weniger als E2, weil +N
+  einmalig und × nur den Strom trifft — die Quelle waechst jetzt ueber +1-Kacheln und
+  +N); Bildzeit ≤ 16,7 ms **im Lastfall N=60 mit einer ×3-Platte im Bild** (Pool-Spitze
+  ~138), gezielt herbeigefuehrt, nicht abgewartet.
 - **A11 (Thomas)** iPhone: Der Strom liest sich als losgeschickte Einheiten, Pfeiler
   fallen sichtbar unter dem Strom, ×2 verdoppelt die Dichte, +1 zaehlt hoch. Und N1.4.
 
 ## Reissleine
+
+**Pool-Ueberlauf:** Meldet die DEV-Warnung im Lastfall regelmaessig Ueberlauf oder
+zeigt der Strom sichtbare Luecken, dann `malMindestabstandPx` erhoehen oder
+`deckelEinheiten` senken — **nicht** den Pool hochsetzen.
 
 Traegt die spurtreue Bewegung oder der Collider die Figuren nicht in **einer Session**,
 dann Treffer per Rechteckvergleich (`rectangles.ts`) statt Arcade-Overlap — nicht das
