@@ -1,5 +1,31 @@
 # Lessons: Run & Gun
 
+### 2026-09-19 — Eine Kennzahl aus einem Kontext in einen anderen uebertragen, gegen das Urteil des Nutzers
+
+Der Boss-Bildtakt wurde angehoben mit der Begruendung "unter zwoelf Bildwechseln je
+Sekunde ruckelt es". Diese Faustregel ist im Projekt ausdruecklich verworfen: Massgeblich
+ist die **Aenderung je Sekunde** (Silhouettensprung x Bilder/s), Korridor 110-190 %, in
+drei Anlaeufen mit Thomas an den Gegnern erarbeitet. Beim Nachmessen stellte sich heraus,
+dass der Boss weit darueber liegt — woraufhin die Spec seine Senkung auf 0,542 erzwang.
+**Damit landete er bei 189,7 %/s, praktisch genau auf dem Zustand, den Thomas zwei Wochen
+zuvor als "abgehakt" abgelehnt hatte.** Die Umsetzung war korrekt; die Spec hat eine an
+laufenden Kleinfiguren gewonnene Kennzahl auf eine bildschirmfuellende Figur uebertragen,
+die sich gar nicht fortbewegt, sondern auf der Stelle aufbaeumt.
+
+Aufgefallen ist es nur, weil die drei Urteile von Thomas zu dieser einen Figur noch im
+Kommentar standen und sich gegen den Korridor rechnen liessen: 192 %/s "abgehakt",
+350 %/s "ist ok". Waeren sie nicht dokumentiert gewesen, waere der Rueckschritt
+ausgeliefert worden — mit einer Messung als Beleg.
+
+- **Regel:** Eine hergeleitete Kennzahl gilt fuer den Fall, an dem sie gewonnen wurde,
+  nicht fuer jeden aehnlich aussehenden. Vor der Uebertragung auf einen neuen Fall
+  **zuerst die vorhandenen Urteile des Nutzers zu genau diesem Fall gegen die Kennzahl
+  rechnen.** Widersprechen sie ihr, gilt sein Urteil und die Kennzahl bekommt eine
+  dokumentierte Ausnahme — nicht umgekehrt. Zweitens: Wird ein Wert gesenkt oder
+  angehoben, immer pruefen, ob das Ergebnis einen frueher abgelehnten Zustand
+  wiederherstellt. Ein Kreis ist teurer als ein Fehler, weil er sich als Fortschritt
+  ausgibt.
+
 ### 2026-09-19 — Ein fehlendes Feature spezifiziert, das absichtlich entfernt worden war
 
 Aus Thomas' Genre-Video wurde ein Task "Trefferquittung" spezifiziert, der als ersten
