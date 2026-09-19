@@ -307,15 +307,11 @@ export class Torbahn implements BahnSystem {
   }
 
   private beschrifte(tor: TorZustand): void {
-    const stand = getTorlaufStand(tor.startwert, tor.treffer, this.getTeamSize())
-    if (tor.wirkung.art === 'mal') {
-      tor.label.setText(`×${tor.wirkung.faktor}`).setColor(HUD_COLORS.torMal)
-      tor.restLabel.setText(stand < 0 ? `${stand}` : '').setColor('#ff6b6b')
-    } else {
-      tor.label.setText(stand > 0 ? `+${stand}` : `${stand}`).setColor(stand > 0 ? '#3ddc84' : '#ff6b6b')
-      tor.restLabel.setText('')
-    }
-    tor.bild.setTexture(stand > 0 ? 'wall-segment-right' : 'wall-segment-bad')
+    // Nur noch der Faktor. Die zweite Zeile trug frueher den Reststand eines Pfeilers,
+    // den der Strom erst aufhacken musste - den gibt es nicht mehr.
+    tor.label.setText(`×${tor.wirkung.faktor}`).setColor('#ffffff')
+    tor.restLabel.setText('')
+    tor.bild.setTexture('wall-segment-right')
   }
 
   private recycle(tor: TorZustand): void {
@@ -337,12 +333,15 @@ export class Torbahn implements BahnSystem {
     ;(bild.body as Phaser.Physics.Arcade.Body).setAllowGravity(false)
     bild.disableBody(true, true)
     this.walls.add(bild)
+    // 44 px statt 30: Der Faktor ist die einzige Information am Tor und muss aus der
+    // Entfernung lesbar sein. Weiss auf dunklem Rand statt des blassen Lila, das auf
+    // dem blauen Torband kaum zu sehen war.
     const text = this.scene.add.text(0, 0, '', {
       fontFamily: 'system-ui',
-      fontSize: '30px',
+      fontSize: '44px',
       color: '#ffffff',
       stroke: HUD_COLORS.textDark,
-      strokeThickness: 4,
+      strokeThickness: 6,
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false)
     const restLabel = this.scene.add.text(0, 0, '', {
@@ -358,7 +357,7 @@ export class Torbahn implements BahnSystem {
       label: text,
       restLabel,
       seite: 'links',
-      wirkung: { art: 'plus' },
+      wirkung: { art: 'mal', faktor: 2 },
       anchorY: BALANCE.road.horizonY,
       startwert: -1,
       treffer: 0,
@@ -403,7 +402,6 @@ export class Torbahn implements BahnSystem {
     const breite = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, horde.y) * 2
     horde.bild.setPosition(mitte, horde.y).setDisplaySize(breite, BALANCE.torlauf.horde.hoehePx)
     ;(horde.bild.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
-    horde.label.setPosition(mitte, horde.y - BALANCE.torlauf.horde.hoehePx / 2 - BALANCE.torlauf.zahlAbstandPx / 2)
     this.stelleHordeAuf(horde, mitte, breite)
   }
 
@@ -437,6 +435,10 @@ export class Torbahn implements BahnSystem {
       const wippen = getBobOffsetPx(this.hordeZeitMs, getStepCycleHz(figur.displayHeight / BALANCE.torlauf.crowd.figureScale), figur.getData('phaseOffset') as number, BALANCE.gamefeel.bobAmplitudePx * BALANCE.torlauf.crowd.figureScale)
       figur.setPosition(mitte + platz.offsetX, figurY + wippen).setActive(true).setVisible(true)
     }
+    // Die Zahl sitzt direkt ueber der hintersten Reihe, nicht ueber der (viel hoeheren)
+    // Kollisionsflaeche: sonst schwebt sie weit vor der Masse in der Bahn.
+    const tiefe = plaetze.length === 0 ? 0 : Math.max(...plaetze.map((platz) => platz.offsetY))
+    horde.label.setPosition(mitte, unterkante - tiefe - BALANCE.torlauf.zahlAbstandPx * 0.6)
   }
 
   private beschrifteHorde(horde: HordeZustand): void { horde.label.setText(`${Math.ceil(horde.punkte)}`) }

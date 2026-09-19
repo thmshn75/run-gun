@@ -97,11 +97,14 @@ describe('Torlauf Strom E2r', () => {
     expect(gameScene).toContain('this.weapons.setFeuerAktiv(false)')
   })
 
-  it('zieht nie zwei ×-Platten innerhalb des Mindestabstands', () => {
-    const first = torPaarZiehen(() => 0, 10, BALANCE.torlauf.tor.malMindestabstandPx)
-    const next = torPaarZiehen(() => 0, 10, BALANCE.torlauf.tor.malMindestabstandPx - 1)
-    expect(first.some((tor) => tor.wirkung.art === 'mal')).toBe(true)
-    expect(next.every((tor) => tor.wirkung.art === 'plus')).toBe(true)
+  it('daempft den hohen Faktor, wenn das letzte Paar noch zu nah steht', () => {
+    // Jedes Tor ist ein Multiplikator; der Mindestabstand regelt nur noch, ob ein x3
+    // ueberhaupt gezogen werden darf. Sonst schaukeln sich die Faktoren in wenigen
+    // Metern zu einer unspielbaren Menge auf.
+    const weit = torPaarZiehen(() => 0, 10, BALANCE.torlauf.tor.malMindestabstandPx)
+    const nah = torPaarZiehen(() => 0, 10, BALANCE.torlauf.tor.malMindestabstandPx - 1)
+    expect(weit.some((tor) => tor.wirkung.faktor === 3)).toBe(true)
+    expect(nah.every((tor) => tor.wirkung.faktor === 2)).toBe(true)
   })
 
   it('schaltet Nachschub aus und springt im Torlauf ohne Boss zu cleared', () => {

@@ -28,6 +28,8 @@ export type FormationsProfil = Readonly<{
   bottomMargin: number
   hullWidthFigures: number
   hullHeightFigures: number
+  /** Nur der Torlauf faerbt seine Truppe (blau); im echten Run bleibt sie, wie sie ist. */
+  tint?: number
 }>
 
 export class Crowd {
@@ -62,6 +64,7 @@ export class Crowd {
     // stimmt displayWidth wieder mit der Spielgroesse ueberein, an der Formation,
     // Fahrbereich und Schatten haengen.
     const firstSprite = scene.add.image(anchorX, anchorY, 'player').setScale(BALANCE.render.figureTextureScale * profil.figureScale)
+    if (profil.tint !== undefined) firstSprite.setTint(profil.tint)
     this.figureWidth = firstSprite.displayWidth
     this.figureHeight = firstSprite.displayHeight
     const hullWidth = firstSprite.displayWidth * profil.hullWidthFigures
@@ -75,6 +78,7 @@ export class Crowd {
       const sprite = index === 0
         ? firstSprite
         : scene.add.image(anchorX, anchorY, 'player').setScale(BALANCE.render.figureTextureScale * profil.figureScale)
+      if (profil.tint !== undefined) sprite.setTint(profil.tint)
       sprite.setActive(false).setVisible(false)
       const shadow = scene.add.image(anchorX, anchorY, 'figure-shadow')
         .setDepth(BALANCE.layers.shadow)

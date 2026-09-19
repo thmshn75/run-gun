@@ -23,6 +23,8 @@ export class Strom {
     this.getTeamSize = getTeamSize
     this.group = scene.physics.add.group()
     for (let index = 0; index < BALANCE.pools.strom; index += 1) {
+      // Dieselbe Farbe wie die Truppe: Die losgeschickten Figuren SIND die Truppe.
+      // Sie bleiben deshalb ungefaerbt, solange die Truppe ungefaerbt ist.
       const figure = scene.physics.add.image(0, 0, 'player').setDepth(BALANCE.layers.gameplay).setScale(BALANCE.render.figureTextureScale * BALANCE.torlauf.crowd.figureScale)
       figure.setData('strom', true)
       figure.setData('hitSpawnIds', new Set<number>())
@@ -85,7 +87,8 @@ export class Strom {
     }
     const laneRatio = getLaneRatio(this.scene.scale.width, this.scene.scale.height, x, y)
     const laneOriginX = x - laneRatio * getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
-    figure.enableBody(true, x, y, true, true).setActive(true).setVisible(true).setAlpha(1).clearTint()
+    // KEIN clearTint hier: Es loeschte die Faerbung, die der Pool beim Anlegen setzt.
+    figure.enableBody(true, x, y, true, true).setActive(true).setVisible(true).setAlpha(1)
     figure.setRotation(Math.atan(-laneRatio * getLaneSlope(this.scene.scale.width, this.scene.scale.height)))
     figure.setData('laufY', y)
     figure.setData('laneRatio', laneRatio)

@@ -54,16 +54,31 @@ export const BALANCE = {
       // mindestens drei Figuren bringen kann.
       plusAnteilRest: 0.12,
       plusMindest: 3,
-      malChance: 0.25,
+      // 1,0: JEDES Tor ist ein Multiplikator. Die Pfeiler mit Minuszahl, die man erst
+      // aufhacken musste, gibt es im Vorbild nicht - dort laeuft der Strom durch ein
+      // Feld wie "x88" und vervielfacht sich sofort (Thomas 2026-09-19: "die Tore x88
+      // muss der Strom treffen und vermehrt sich dann entsprechend und trifft dann
+      // vermehrt auf die Horde dahinter").
+      malChance: 1,
       // Von den 25 % Mal-Toren sind 10 % ein ×3: 2,5 % aller Tore.
-      malDreiAnteil: 0.1,
-      innenkanteAnteil: 0.15,
+      // Anteil der Tore, die statt x2 ein x3 zeigen. Beide Haelften eines Paares
+      // bekommen verschiedene Faktoren, damit die Seitenwahl etwas entscheidet.
+      malDreiAnteil: 0.5,
+      // 0 statt 0,15: Die beiden Torhaelften stossen in der Bahnmitte aneinander und
+      // decken zusammen die volle Breite. Vorher blieb dazwischen eine Luecke, durch
+      // die der Strom mittig hindurchlief, ohne je ein Tor zu beruehren - der Grund,
+      // warum sich nichts vervielfachte und die Tore "gar nichts bringen".
+      innenkanteAnteil: 0,
       randSpaltPx: 4,
       gegnerSperreVorPx: 150,
       gegnerSperreNachPx: 380,
       // Zwei ×-Platten muessen weiter als die Flugstrecke (ca. 500 px) auseinander
       // liegen: 1100 px stellt sicher, dass die erste Kopienwolke weg ist.
-      malMindestabstandPx: 1100,
+      // 900 = genau der Torabstand. Hoeher darf er nicht sein: Seit JEDES Tor ein
+      // Multiplikator ist, wird der Abstand seit dem letzten x-Tor immer am Torabstand
+      // gemessen - bei 1100 war die Bedingung nie erfuellt und es gab nie ein x3
+      // (im Browser gesehen: beide Seiten zeigten dauerhaft x2).
+      malMindestabstandPx: 900,
     },
     strom: {
       // min(N, 60) x 0,4/s: N=10 ergibt 4/s, ab N=60 genau 24/s wie die abgenommene Feuerlinie.
@@ -99,10 +114,12 @@ export const BALANCE = {
       // jedem Stueck, das der Strom abarbeitet, verschwinden sichtbar Figuren.
       punkteJeSichtbarerFigur: 4,
       maxFiguren: 80,
-      // Dunkler, kalter Ton. Ohne ihn sehen Horde und eigene Truppe gleich aus - beide
-      // sind roetliche Figurenmassen, und auf dem iPhone ist nicht zu erkennen, wer
-      // Freund und wer Feind ist. Die eigene Truppe bleibt unangetastet hell.
-      tint: 0x2f3550,
+      // Giftgruen. Im Vorbild ist die feindliche Masse rot und die eigene blau - das
+      // geht hier nicht, weil unsere Spielerfigur selbst roetlich ist und ein Tint
+      // multipliziert statt ersetzt (dunkle Toene wurden zu schwarzen Flecken,
+      // Thomas 2026-09-19). Gruen ist hell genug, um bei 10 px Figurenhoehe lesbar zu
+      // bleiben, und nicht mit der eigenen Truppe zu verwechseln.
+      tint: 0x76e05a,
       // Wie die eigene Truppe aufgestellt: 20 Plaetze je Reihe, also 4 Reihen bei 80
       // Figuren. Abstaende etwas weiter als bei der eigenen Truppe, damit die Horde
       // breiter und bedrohlicher steht statt als Klumpen.
@@ -126,6 +143,11 @@ export const BALANCE = {
       randSpaltPx: 2,
     },
     crowd: {
+      // KEIN Tint. Ein Tint wird mit der Bildfarbe MULTIPLIZIERT: Blau auf die
+      // roetliche Spielerfigur ergibt Schwarz, nicht Blau (im Browser gesehen, die
+      // Truppe war ein dunkler Fleck). Richtig blaue Eigenfiguren brauchen ein eigenes
+      // Bild - das zeichnet Codex, sobald sein Kontingent wieder offen ist.
+      tint: undefined,
       // `poolGroesse`/`max` 150: Das Video zeigt ~8 x 18. Ueber 150 traegt die Zahl weiter,
       // die Menge bleibt stehen (`setSize` klemmt auf `max`), und `runStats.hp` ist davon
       // unberuehrt — die Zahl ueber der Truppe zeigt weiterhin `hp`.

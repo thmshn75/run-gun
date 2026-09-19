@@ -1,27 +1,27 @@
 import { BALANCE } from '../config/balance'
 
-export type TorWirkung = { readonly art: 'plus' } | { readonly art: 'mal'; readonly faktor: 2 | 3 }
+/** Nur noch Multiplikatoren: Die +1-Felder am Rand sind keine Tore, sondern Kacheln. */
+export type TorWirkung = { readonly art: 'mal'; readonly faktor: 2 | 3 }
 export type TorPaar = readonly [{ readonly seite: 'links'; readonly wirkung: TorWirkung; readonly startwert: number }, { readonly seite: 'rechts'; readonly wirkung: TorWirkung; readonly startwert: number }]
 
-function startwert(zufall: number, _truppe: number): number {
-  const tor = BALANCE.torlauf.tor
-  const sicher = Math.min(Math.max(zufall, 0), 0.9999999999999999)
-  // Im Torlauf ist die Feuerlinie immer gleich: Acht Schuetzen rotieren ueber die
-  // Truppe, daher geht ihre Groesse bewusst nicht in den Startwert ein.
-  const feuerlinie = BALANCE.crowd.max
-  return -Math.max(tor.startMindest, Math.round((tor.startAnteilMin + sicher * (tor.startAnteilMax - tor.startAnteilMin)) * feuerlinie))
-}
 
-/** Zieht ein Paar; beide Seiten sind absichtlich erst hier und nicht im Phaser-Pool entschieden. */
-export function torPaarZiehen(zufall: () => number, truppe: number, pxSeitLetztemMal = Number.POSITIVE_INFINITY): TorPaar {
-  const mal = pxSeitLetztemMal >= BALANCE.torlauf.tor.malMindestabstandPx && zufall() < BALANCE.torlauf.tor.malChance
-  const linksStart = startwert(zufall(), truppe)
-  let rechtsStart = startwert(zufall(), truppe)
-  if (!mal && rechtsStart === linksStart) rechtsStart = linksStart - 1
-  const plus: TorWirkung = { art: 'plus' }
-  const faktor: 2 | 3 = zufall() < BALANCE.torlauf.tor.malDreiAnteil ? 3 : 2
-  const links = mal && zufall() < 0.5 ? { seite: 'links' as const, wirkung: { art: 'mal' as const, faktor }, startwert: linksStart } : { seite: 'links' as const, wirkung: plus, startwert: linksStart }
-  const rechts = mal && links.wirkung.art === 'plus' ? { seite: 'rechts' as const, wirkung: { art: 'mal' as const, faktor }, startwert: rechtsStart } : { seite: 'rechts' as const, wirkung: plus, startwert: rechtsStart }
+/**
+ * Zieht ein Paar. BEIDE Haelften sind Multiplikatoren, und zwar mit verschiedenen
+ * Faktoren: Der Strom laeuft mittig aus der Truppe nach vorn, also entscheidet die
+ * Seite, auf der die Truppe steht, durch welches Tor er geht. Frueher standen hier
+ * Pfeiler mit Minuswerten, die der Strom erst aufhacken musste - die gibt es im
+ * Vorbild nicht (Thomas 2026-09-19).
+ */
+export function torPaarZiehen(zufall: () => number, _truppe: number, pxSeitLetztemMal = Number.POSITIVE_INFINITY): TorPaar {
+  const tor = BALANCE.torlauf.tor
+  const nahDran = pxSeitLetztemMal < tor.malMindestabstandPx
+  // Steht das letzte Paar noch zu nah, faellt das schwaechere Tor auf x2 zurueck,
+  // damit sich die Faktoren nicht in wenigen Metern aufschaukeln.
+  const hoch: 2 | 3 = !nahDran && zufall() < tor.malDreiAnteil ? 3 : 2
+  const niedrig: 2 | 3 = 2
+  const hochLinks = zufall() < 0.5
+  const links = { seite: 'links' as const, wirkung: { art: 'mal' as const, faktor: hochLinks ? hoch : niedrig }, startwert: 0 }
+  const rechts = { seite: 'rechts' as const, wirkung: { art: 'mal' as const, faktor: hochLinks ? niedrig : hoch }, startwert: 0 }
   return [links, rechts]
 }
 

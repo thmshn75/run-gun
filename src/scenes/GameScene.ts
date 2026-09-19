@@ -1177,19 +1177,11 @@ export class GameScene extends Phaser.Scene {
     const spawnId = wall.getData('spawnId') as number | undefined
     if (spawnId !== undefined && hitSpawnIds.has(spawnId)) return
     if (spawnId !== undefined) hitSpawnIds.add(spawnId)
-    const stand = torbahn.getStand(wall)
-    if (stand === undefined) return
-    if (stand < 0) {
-      torbahn.damage(wall, 1)
-      return
-    }
-    if (wirkung.art === 'mal') {
-      this.strom?.vervielfache(figur, wirkung.faktor - 1)
-      this.popups.spawn(figur.x, figur.y, `×${wirkung.faktor}`, '#3ddc84')
-      return
-    }
-    this.applyTorlaufReinforcement(stand, figur.x, figur.y)
-    torbahn.recyclePaar(wall)
+    // Jedes Tor ist ein Multiplikator: Die Figur laeuft hindurch und wird zu mehreren,
+    // die weiter auf die Horde zulaufen. Das Tor bleibt stehen, damit die naechste
+    // Welle es ebenfalls nutzen kann.
+    this.strom?.vervielfache(figur, wirkung.faktor - 1)
+    this.popups.spawn(figur.x, figur.y, `×${wirkung.faktor}`, '#3ddc84')
   }
 
   private updateHordeKontakt(dt: number): void {

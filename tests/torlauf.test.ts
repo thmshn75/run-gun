@@ -155,6 +155,7 @@ function createCrowdSceneStub(): object {
       displayWidth: 40,
       displayHeight: 56,
       setScale(scaleX: number, scaleY = scaleX) { this.displayWidth = 40 * scaleX; this.displayHeight = 56 * scaleY; return this },
+      setTint() { return this },
       setActive() { return this },
       setVisible() { return this },
       setDepth() { return this },

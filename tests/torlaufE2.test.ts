@@ -19,30 +19,30 @@ describe('Torlauf E2', () => {
     expect(gameScene).toMatch(/if \(probe !== undefined\) \{[\s\S]*if \(this\.istTorlauf\(\)\) this\.runStats\.setHpDeckelOverride\(BALANCE\.torlauf\.crowd\.max\)/)
   })
 
-  it('zieht echte Paare, begrenzt Multiplikatoren und differenziert zwei Plus-Tore', () => {
-    const plus = torPaarZiehen(() => 0.99, 30)
-    expect(plus.map((tor) => tor.wirkung.art)).toEqual(['plus', 'plus'])
-    expect(plus[0].startwert).not.toBe(plus[1].startwert)
-    const mal = torPaarZiehen(() => 0, 30)
-    expect(mal.some((tor) => tor.wirkung.art === 'mal')).toBe(true)
-    for (const tor of mal) if (tor.wirkung.art === 'mal') expect(tor.wirkung.faktor).toBeLessThanOrEqual(3)
-  })
-
-  it('begrenzt Startwerte auf die 30 Figuren der Feuerlinie', () => {
-    for (const truppe of [10, 30, 100, 150]) {
-      const paar = torPaarZiehen(() => 0, truppe)
-      for (const tor of paar) expect(tor.startwert).toBeGreaterThanOrEqual(-17)
-      for (const tor of paar) expect(tor.startwert).toBeLessThanOrEqual(-8)
+  it('zieht Paare aus zwei Multiplikatoren, nie aus Pfeilern mit Minuswert', () => {
+    // Im Vorbild laeuft der Strom durch ein Feld wie "x88" und vervielfacht sich sofort.
+    // Pfeiler, die man erst von einem Minuswert hochhacken muss, gibt es dort nicht.
+    for (const wurf of [0, 0.3, 0.7, 0.99]) {
+      const paar = torPaarZiehen(() => wurf, 30)
+      expect(paar.map((tor) => tor.wirkung.art)).toEqual(['mal', 'mal'])
+      for (const tor of paar) expect([2, 3]).toContain(tor.wirkung.faktor)
     }
   })
 
-  it('liest die korrigierte Tor-Balance einschliesslich des ×3-Anteils', () => {
-    expect(BALANCE.torlauf.tor.plusAnteilRest).toBe(0.12)
-    expect(BALANCE.torlauf.tor.malChance).toBe(0.25)
-    expect(BALANCE.torlauf.tor.malDreiAnteil).toBe(0.1)
-    const zufall = [0, 0, 0, 0.09, 0.4]
-    const paar = torPaarZiehen(() => zufall.shift() ?? 0, 30)
-    expect(paar.find((tor) => tor.wirkung.art === 'mal')?.wirkung).toEqual({ art: 'mal', faktor: 3 })
+  it('gibt den beiden Seiten verschiedene Faktoren, damit die Seitenwahl etwas entscheidet', () => {
+    const paar = torPaarZiehen(() => 0, 30)
+    expect(paar[0].wirkung.faktor).not.toBe(paar[1].wirkung.faktor)
+    // Und unabhaengig von der Truppengroesse: die Faktoren haengen nicht an ihr.
+    for (const truppe of [10, 30, 100, 150]) {
+      expect(torPaarZiehen(() => 0, truppe).map((tor) => tor.wirkung.faktor)).toEqual(paar.map((tor) => tor.wirkung.faktor))
+    }
+  })
+
+  it('laesst jedes Tor ein Multiplikator sein und deckt die volle Bahnbreite ab', () => {
+    expect(BALANCE.torlauf.tor.malChance).toBe(1)
+    // Ohne Luecke in der Mitte: sonst laeuft der Strom mittig hindurch, ohne je ein
+    // Tor zu beruehren - genau der Zustand, den Thomas als "bringen gar nichts" sah.
+    expect(BALANCE.torlauf.tor.innenkanteAnteil).toBe(0)
   })
 
   it('berechnet Restwert am 150er-Deckel und laesst Ankerseite statt Huelle entscheiden', () => {
@@ -69,13 +69,12 @@ describe('Torlauf E2', () => {
     expect(lines.every((line) => !/^(this|tor)\./.test(line))).toBe(true)
   })
 
-  it('N3.2 setzt die Feuerlinie bewusst konstant und behaelt die Startwertgrenzen', () => {
-    const torlaufPlan = readFileSync(new URL('../src/systems/torlaufPlan.ts', import.meta.url), 'utf8')
-    expect(torlaufPlan).toContain('const feuerlinie = BALANCE.crowd.max')
-    expect(torlaufPlan).toContain('geht ihre Groesse bewusst nicht in den Startwert ein')
-    for (const truppe of [10, 30, 100, 150]) {
-      for (const tor of torPaarZiehen(() => 0, truppe)) expect(tor.startwert).toBeGreaterThanOrEqual(-17)
-    }
+  it('hebt die Horde farblich ab und laesst die eigene Truppe ungefaerbt', () => {
+    // Ohne Trennung sind beide Seiten roetliche Punkte und niemand erkennt, wer Freund
+    // und wer Feind ist. Die eigene Truppe bleibt dabei UNGEFAERBT: Ein Tint wird mit
+    // der Bildfarbe multipliziert, Blau auf die roetliche Spielerfigur ergibt Schwarz.
+    expect(BALANCE.torlauf.crowd.tint).toBeUndefined()
+    expect(BALANCE.torlauf.horde.tint).toBe(0x76e05a)
   })
 
   it('N3.3 hinterlaesst in der Torbahn keine Zeilenend-Semikolons', () => {
