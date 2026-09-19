@@ -1,7 +1,7 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-09-19 (**Plan V5 TORLAUF freigegeben, E0 gebaut und reviewt, wartet auf
-Thomas' iPhone-Test.** Davor drei Gamefeel-Tasks nach Thomas' Genre-Video, alle
+Stand: 2026-09-19 (**Plan V5 TORLAUF: E0 abgenommen, E1 sichtbare Masse gebaut,
+reviewt und gemessen — wartet auf Thomas' iPhone-Test.** Davor drei Gamefeel-Tasks nach Thomas' Genre-Video, alle
 abgenommen: TREFFERQUITTUNG, FLUESSIGERE BEWEGUNGEN, ABWECHSLUNG. Davor: PROBELAUF fertig, gemessen und am 2026-09-17 abgenommen; er bleibt
 im Testbereich, der echte Run ist unveraendert.)
 
@@ -9,13 +9,23 @@ im Testbereich, der echte Run ist unveraendert.)
 
 ## Offen — naechster Schritt zuerst
 
-0. **V5 / E0 TORLAUF — gebaut, Code-Review und Browser-Nachweis bestanden, offen ist
-   A9 (Thomas am iPhone).** Plan: `docs/plan-v5.md` (freigegeben 2026-09-19, "so nah als
-   moeglich an dem Video", Truppendeckel faellt nur im neuen Modus). E0 ist das Geruest:
-   Torlauf als Variante des Probelaufs (`probe.variante`), leere `Torbahn`, dritter
-   Menueknopf, grosse Truppenzahl. Naechste Etappe nach A9: **E1 sichtbare Masse**
-   (Pool 150, eigener Block `BALANCE.torlauf.crowd`, Feuerlinie bleibt bei 30,
-   Bildzeit messen). Danach E2 Torpaare, E3 Horde. Reissleinen und Aufwand im Plan.
+0. **V5 / E1 SICHTBARE MASSE — gebaut, reviewt, gemessen; offen ist A11 (Thomas am
+   iPhone).** E0 (Geruest) ist abgenommen. E1: `Crowd` nimmt ein Formationsprofil; der
+   Run laeuft mit `RUN_FORMATIONS_PROFIL` (aus `BALANCE.crowd` abgeleitet, Dreieck, 30,
+   feste Huelle — Fixtures fuer 1/8/30 belegen Bitgleichheit), der Torlauf mit
+   `BALANCE.torlauf.crowd` (Block 20 je Reihe, Pool 150, Figuren 0,6-fach, Anker 220
+   statt 130, Huelle folgt der Formation mit Oberkante am Anker). Anker-Leser: Spawner
+   per Injektion, `roadGeometry`/`bruecke` bewusst beim Run-Wert. DEV-Sonde
+   `window.__runGunMessung.bildzeit(ms)`.
+   **Gemessen (Playwright, Vite-Dev, 390x844, je 30 s in der Gegnerphase):** Torlauf
+   Level 20 mit 150 Figuren durchgehend, 8 Reihen, im Mittel 18 Gegner: **Median 16,7 ms,
+   p95 18,1 ms, 1800 Bilder.** Referenz Bahnen-Probelauf Level 20 (26 Figuren, 37
+   Gegner): Median 16,7 ms, p95 17,8 ms. Kein messbarer Unterschied, 0 Konsolenfehler.
+   Screenshot im Session-Scratchpad (`nachweis-e1/`).
+   **Befund fuer E2, im Plan notiert:** `runStats.set('hp')` klemmt am Level-Cap (Level
+   20 = 113). Ein ×2-Tor kaeme damit nie ueber den Cap — der Torlauf braucht seinen
+   eigenen Truppendeckel (150), nicht den Level-Cap. Ohne das sind Tore wirkungslos.
+   **Naechste Etappe nach A11: E2 Torpaare** (`docs/plan-v5.md`).
 
 0. **Drei Gamefeel-Tasks vom 2026-09-19 — alle abgenommen.** Commits `a8d5fae` (Trefferquittung:
    Rueckstoss, Zerplatzen, Boss-Lebenspunktzahl), `a1f2f1f` (Boss-Bildtakt 1,0,

@@ -105,6 +105,29 @@ const game = new Phaser.Game({
 
 if (import.meta.env.DEV) {
   ;(window as unknown as { __runGun?: Phaser.Game }).__runGun = game
+  ;(window as unknown as {
+    __runGunMessung?: { bildzeit(dauerMs: number): Promise<{ median: number, p95: number, bilder: number }> }
+  }).__runGunMessung = {
+    bildzeit(dauerMs: number): Promise<{ median: number, p95: number, bilder: number }> {
+      return new Promise((resolve) => {
+        const deltas: number[] = []
+        let previous: number | undefined
+        const start = performance.now()
+        const frame = (now: number): void => {
+          if (previous !== undefined) deltas.push(now - previous)
+          previous = now
+          if (now - start < Math.max(0, dauerMs)) {
+            requestAnimationFrame(frame)
+            return
+          }
+          const sorted = [...deltas].sort((a, b) => a - b)
+          const at = (share: number): number => sorted.length === 0 ? 0 : sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * share) - 1)]
+          resolve({ median: at(0.5), p95: at(0.95), bilder: deltas.length })
+        }
+        requestAnimationFrame(frame)
+      })
+    },
+  }
 }
 
 game.canvas.addEventListener('contextmenu', (event) => event.preventDefault())

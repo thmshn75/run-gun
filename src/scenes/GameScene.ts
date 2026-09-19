@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { BALANCE } from '../config/balance'
+import { BALANCE, RUN_FORMATIONS_PROFIL } from '../config/balance'
 import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
 import { Walls } from '../systems/walls'
 import { VersuchBahnen, type BahnSystem } from '../systems/versuchBahnen'
@@ -304,10 +304,11 @@ export class GameScene extends Phaser.Scene {
     this.road = new Road(this)
     this.scenery = new Scenery(this, () => Phaser.Math.RND.frac())
     this.bruecke = new Bruecke(this, () => Phaser.Math.RND.frac())
-    this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - BALANCE.player.anchorBottomOffset)
+    const formationsProfil = this.istTorlauf() ? BALANCE.torlauf.crowd : RUN_FORMATIONS_PROFIL
+    this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - this.getAnchorBottomOffset(), formationsProfil)
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
     this.sterbeeffekte = new Sterbeeffekte(this)
-    this.spawner = new Spawner(this, this.runStats, () => this.crowd.getAnchorX(), (contactDamage) => this.handleBreakthrough(contactDamage), (enemy) => {
+    this.spawner = new Spawner(this, this.runStats, () => this.crowd.getAnchorX(), () => this.getAnchorBottomOffset(), (contactDamage) => this.handleBreakthrough(contactDamage), (enemy) => {
       if (!this.boss.isEnemy(enemy)) this.sterbeeffekte.spawn(enemy.x, enemy.y, enemy.texture.key, enemy.scaleX, enemy.scaleY)
     })
     // Im Versuch kommen die Gegner von rechts - siehe Spawner.setVersuchsBahnen.
@@ -775,6 +776,10 @@ export class GameScene extends Phaser.Scene {
 
   private istTorlauf(): boolean {
     return this.probe?.variante === 'torlauf'
+  }
+
+  private getAnchorBottomOffset(): number {
+    return this.istTorlauf() ? BALANCE.torlauf.anchorBottomOffset : BALANCE.player.anchorBottomOffset
   }
 
   /**

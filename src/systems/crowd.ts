@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { computeFormation } from './formation'
+import { computeBlockFormation, computeFormation } from './formation'
 import { approachAngle, createCrowdMotionProfiles, getBobOffsetPx, getLeanRadians, getStepCycleHz, getStepSquash, getStepSwayRadians, type CrowdMotionProfile } from './gamefeel'
 import { getDriveLimitHalfWidth } from './roadGeometry'
 import { overlapsVisibleFigure, type RectangleBounds } from './rectangles'
@@ -14,8 +14,25 @@ type FormationMember = {
   readonly motion: CrowdMotionProfile
 }
 
+export type FormationsProfil = Readonly<{
+  poolGroesse: number
+  max: number
+  figureScale: number
+  rowSpacingY: number
+  colSpacing: number
+  minColSpacing: number
+  maxWidthRatio: number
+  form: 'dreieck' | 'block'
+  plaetzeJeReihe: number
+  huelleFolgtFormation: boolean
+  bottomMargin: number
+  hullWidthFigures: number
+  hullHeightFigures: number
+}>
+
 export class Crowd {
   private readonly scene: Phaser.Scene
+  private readonly profil: FormationsProfil
   private readonly members: FormationMember[]
   private figuresAlpha: number
   private readonly hull: Phaser.GameObjects.Zone
@@ -25,13 +42,15 @@ export class Crowd {
   private readonly anchorY: number
   private salvoCursor: number
   private halfFormationWidth: number = 0
+  private formationstiefe: number = 0
   private elapsedMs: number = 0
   private lastAnchorX: number
   private leanRadians: number = 0
   private wallPresenceProvider: ((y: number, halfSpanPx: number) => Readonly<{ left: boolean; right: boolean }>) | null = null
 
-  public constructor(scene: Phaser.Scene, anchorX: number, anchorY: number) {
+  public constructor(scene: Phaser.Scene, anchorX: number, anchorY: number, profil: FormationsProfil) {
     this.scene = scene
+    this.profil = profil
     this.anchorX = anchorX
     this.lastAnchorX = anchorX
     this.anchorY = anchorY
@@ -42,20 +61,20 @@ export class Crowd {
     // Die Spielerfigur liegt seit W7 in doppelter Aufloesung vor - erst nach setScale
     // stimmt displayWidth wieder mit der Spielgroesse ueberein, an der Formation,
     // Fahrbereich und Schatten haengen.
-    const firstSprite = scene.add.image(anchorX, anchorY, 'player').setScale(BALANCE.render.figureTextureScale)
+    const firstSprite = scene.add.image(anchorX, anchorY, 'player').setScale(BALANCE.render.figureTextureScale * profil.figureScale)
     this.figureWidth = firstSprite.displayWidth
     this.figureHeight = firstSprite.displayHeight
-    const hullWidth = firstSprite.displayWidth * BALANCE.crowd.hullWidthFigures
-    const hullHeight = firstSprite.displayHeight * BALANCE.crowd.hullHeightFigures
+    const hullWidth = firstSprite.displayWidth * profil.hullWidthFigures
+    const hullHeight = firstSprite.displayHeight * profil.hullHeightFigures
     firstSprite.setActive(false).setVisible(false)
 
     // Bodenschatten: einmal je Poolplatz erzeugt, nie zur Laufzeit.
     const shadowWidth = this.figureWidth * BALANCE.shadow.widthOfFigure
-    const motionProfiles = createCrowdMotionProfiles(BALANCE.pools.crowd, () => Phaser.Math.RND.frac())
-    for (let index = 0; index < BALANCE.pools.crowd; index += 1) {
+    const motionProfiles = createCrowdMotionProfiles(profil.poolGroesse, () => Phaser.Math.RND.frac())
+    for (let index = 0; index < profil.poolGroesse; index += 1) {
       const sprite = index === 0
         ? firstSprite
-        : scene.add.image(anchorX, anchorY, 'player').setScale(BALANCE.render.figureTextureScale)
+        : scene.add.image(anchorX, anchorY, 'player').setScale(BALANCE.render.figureTextureScale * profil.figureScale)
       sprite.setActive(false).setVisible(false)
       const shadow = scene.add.image(anchorX, anchorY, 'figure-shadow')
         .setDepth(BALANCE.layers.shadow)
@@ -75,16 +94,25 @@ export class Crowd {
   }
 
   public setSize(count: number): void {
-    const size = Phaser.Math.Clamp(Math.floor(count), 0, BALANCE.crowd.max)
-    const slots = computeFormation(size, {
-      rowSpacingY: BALANCE.crowd.rowSpacingY,
-      colSpacing: BALANCE.crowd.colSpacing,
-      minColSpacing: BALANCE.crowd.minColSpacing,
-      maxWidth: this.scene.scale.width * BALANCE.crowd.maxWidthRatio,
-      maxDepth: this.scene.scale.height - this.anchorY - this.figureHeight / 2 - BALANCE.crowd.bottomMargin,
-    })
+    const size = Phaser.Math.Clamp(Math.floor(count), 0, this.profil.max)
+    const options = {
+      rowSpacingY: this.profil.rowSpacingY,
+      colSpacing: this.profil.colSpacing,
+      minColSpacing: this.profil.minColSpacing,
+      maxWidth: this.scene.scale.width * this.profil.maxWidthRatio,
+      maxDepth: this.scene.scale.height - this.anchorY - this.figureHeight / 2 - this.profil.bottomMargin,
+    }
+    const slots = this.profil.form === 'block'
+      ? computeBlockFormation(size, { ...options, plaetzeJeReihe: this.profil.plaetzeJeReihe })
+      : computeFormation(size, options)
 
     this.halfFormationWidth = slots.reduce((widest, slot) => Math.max(widest, Math.abs(slot.offsetX)), 0)
+    this.formationstiefe = slots.reduce((deepest, slot) => Math.max(deepest, slot.offsetY), 0) + (slots.length > 0 ? this.figureHeight : 0)
+    if (this.profil.huelleFolgtFormation) {
+      const width = this.halfFormationWidth * 2 + this.figureWidth
+      this.hull.setSize(width, this.formationstiefe)
+      ;(this.hull.body as Phaser.Physics.Arcade.Body).setSize(width, this.formationstiefe)
+    }
 
     for (let index = 0; index < this.members.length; index += 1) {
       const member = this.members[index]
@@ -236,8 +264,8 @@ export class Crowd {
       // Umweg auf die Figur.
       const squash = getStepSquash(this.elapsedMs, individualCycleHz, motion.phaseOffset, BALANCE.gamefeel.stepSquashShare * motion.squashFactor)
       member.sprite.setScale(
-        BALANCE.render.figureTextureScale * squash.scaleX,
-        BALANCE.render.figureTextureScale * squash.scaleY,
+        BALANCE.render.figureTextureScale * this.profil.figureScale * squash.scaleX,
+        BALANCE.render.figureTextureScale * this.profil.figureScale * squash.scaleY,
       )
       // Der Schatten bleibt am Boden, waehrend die Figur wippt, und schrumpft mit der
       // Hebung. Erst dadurch liest man das Wippen als Schritt statt als Zittern.
@@ -251,7 +279,11 @@ export class Crowd {
     }
     // Die Kollisionshuelle bleibt bewusst ruhig: Sie darf nicht mitwippen, sonst
     // haengt Schaden am Zufall des Laufzyklus.
-    this.hull.setPosition(this.anchorX, this.anchorY)
+    if (this.profil.huelleFolgtFormation) {
+      this.hull.setPosition(this.anchorX, this.anchorY + this.formationstiefe / 2)
+    } else {
+      this.hull.setPosition(this.anchorX, this.anchorY)
+    }
     ;(this.hull.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
   }
 }

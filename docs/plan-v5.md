@@ -152,6 +152,15 @@ Umbau der Renderschleife.**
 - Bilder: Pfeiler stehend, gekippt, Platte — drei Bilder je Wirkungsart. **Codex
   erzeugt sie.** Bis sie da sind, Rechtecke mit Text (wie die Wandkacheln heute).
 
+**Befund aus dem E1-Review (2026-09-19), der E2 bestimmt:** `runStats.set('hp', …)`
+klemmt jeden Wert am Level-Cap (`getStatCap('hp', level)`, auf Level 20 = 113). Ein
+×2-Tor, das ueber `set` schreibt, kann die Truppe **nie ueber den Cap heben** — auf
+Level 5 (Cap ~50) waere ×2 ab 25 Figuren wirkungslos. E2 braucht deshalb eine
+Entscheidung, die hier vorbereitet ist: **Im Torlauf gilt ein eigener Truppendeckel
+(`torlauf.crowd.max` 150), nicht der Level-Cap.** Der Level-Cap bleibt im Run
+unveraendert; die Klemme bekommt im Torlauf den Torlauf-Deckel. Wer das uebersieht,
+baut Tore, die nichts tun, und misst dann "zu schwer".
+
 **Zielgroesse:** In einem Level mit 6 Torpaaren waechst die Truppe ohne Gegner von 10
 auf 60-150 (gemessen ueber 10 Laeufe mit Bot-Wahl "immer das bessere Tor"). Mit Gegnern
 liegt der Truppenverlust im Korridor des Probelaufs (54 % je Level, Endmessung

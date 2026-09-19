@@ -24,6 +24,52 @@ export const BALANCE = {
     zahlFontPx: 28,
     // Eine Figurenhoehe Abstand ueber der vordersten Reihe, damit Zahl und Truppe getrennt bleiben.
     zahlAbstandPx: 42,
+    // Im Torlauf braucht der Block Platz nach unten: `BALANCE.torlauf.anchorBottomOffset`
+    // **220** statt 130 (Rechenweg: 8 Reihen x 9 px = 63 px plus halbe Figur plus
+    // `bottomMargin`, plus Reserve fuer 150 Figuren in 8 Reihen; 220 laesst 220 - 14 - 8 =
+    // 198 px, das Doppelte des Bedarfs, damit die Formation nie komprimiert).
+    anchorBottomOffset: 220,
+    crowd: {
+      // `poolGroesse`/`max` 150: Das Video zeigt ~8 x 18. Ueber 150 traegt die Zahl weiter,
+      // die Menge bleibt stehen (`setSize` klemmt auf `max`), und `runStats.hp` ist davon
+      // unberuehrt — die Zahl ueber der Truppe zeigt weiterhin `hp`.
+      poolGroesse: 150,
+      max: 150,
+      // `figureScale` 0,6 → 28 px hohe, 20 px breite Figuren. Das Video zeigt Figuren von
+      // rund einem Zwanzigstel der Bahnbreite; unsere Bahn ist auf Kampfhoehe ~300 px breit,
+      // 20 px sind ein Fuenfzehntel — etwas groesser als im Video, damit die 12-Bild-Laufsaetze
+      // lesbar bleiben.
+      figureScale: 0.6,
+      // `rowSpacingY` 9 → 8 Reihen = 63 px Tiefe; die Figuren (28 px hoch) ueberlappen zu
+      // zwei Dritteln, genau die dichte Staffelung des Videos. Die Depth-Regel
+      // `gameplay + row` bleibt, damit hintere Reihen hinter vorderen liegen.
+      rowSpacingY: 9,
+      // `maxWidthRatio` 0,55 → 214 px, zwei Drittel der Bahn auf Kampfhoehe; die 152 px
+      // einer vollen Reihe passen mit Rand hinein, `colSpacing` 10 wird also nie unter
+      // `minColSpacing` gedrueckt.
+      colSpacing: 10,
+      minColSpacing: 8,
+      maxWidthRatio: 0.55,
+      // **Die Formation hat zwei Formen, `form: 'dreieck' | 'block'`.** Der Run laeuft mit
+      // `dreieck` — das ist der heutige Code in `computeFormation`, Zeile fuer Zeile. Der
+      // Torlauf laeuft mit `block`: **jede Reihe hat `plaetzeJeReihe` Plaetze, die letzte den
+      // Rest, zentriert.** Ein Dreieck wuerde 150 Figuren in 17 immer breitere Reihen legen —
+      // spitz und schmal, nicht die Masse des Videos.
+      form: 'block',
+      // `plaetzeJeReihe` **20** → 150 Figuren = 7 volle Reihen plus 10, also 8 Reihen; das
+      // Video zeigt rund 8 x 18. Bei `minColSpacing` 8 ist eine volle Reihe 152 px breit.
+      plaetzeJeReihe: 20,
+      // Mit `huelleFolgtFormation` true setzt `setSize` die Huelle nach jeder Formation neu:
+      // Breite = 2 x `halfFormationWidth` + eine Figurenbreite, Hoehe = Formationstiefe + eine
+      // Figurenhoehe, **Position so, dass die vorderste Reihe (der Anker) die Oberkante bleibt**.
+      huelleFolgtFormation: true,
+      // `bottomMargin`, plus Reserve fuer 150 Figuren in 8 Reihen; 220 laesst 220 - 14 - 8 =
+      // 198 px, das Doppelte des Bedarfs, damit die Formation nie komprimiert.
+      bottomMargin: 8,
+      // Die Kollisionshuelle ist **fest** 2,4 x 1,6 Figuren.
+      hullWidthFigures: 2.4,
+      hullHeightFigures: 1.6,
+    },
   },
   maxDeltaMs: 100,
   levelSpeed: {
@@ -3557,4 +3603,22 @@ export const BALANCE = {
     // 400ms cadence (18 with cross streets); 30 keeps the peak plus six-object reserve.
     scenery: 30,
   },
+} as const
+
+// E1: Das Run-Profil wird aus BALANCE.crowd abgeleitet, damit der echte Run seine
+// bestaetigten Formationswerte und seinen Pool unveraendert weiterverwendet.
+export const RUN_FORMATIONS_PROFIL = {
+  poolGroesse: BALANCE.pools.crowd,
+  max: BALANCE.crowd.max,
+  figureScale: 1,
+  rowSpacingY: BALANCE.crowd.rowSpacingY,
+  colSpacing: BALANCE.crowd.colSpacing,
+  minColSpacing: BALANCE.crowd.minColSpacing,
+  maxWidthRatio: BALANCE.crowd.maxWidthRatio,
+  form: 'dreieck',
+  plaetzeJeReihe: 0,
+  huelleFolgtFormation: false,
+  bottomMargin: BALANCE.crowd.bottomMargin,
+  hullWidthFigures: BALANCE.crowd.hullWidthFigures,
+  hullHeightFigures: BALANCE.crowd.hullHeightFigures,
 } as const

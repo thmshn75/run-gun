@@ -26,6 +26,7 @@ export class Spawner {
   // Lazy, nicht als Wert: Die Truppe wird nach dem Spawner erzeugt, und ihre Position
   // aendert sich ohnehin jedes Bild.
   private readonly getCrowdAnchorX: (() => number) | undefined
+  private readonly getAnchorBottomOffset: () => number
   private readonly onBreakthrough: ((contactDamage: number) => void) | undefined
   private readonly onEnemyDefeated: ((enemy: Phaser.Physics.Arcade.Image) => void) | undefined
   private readonly enemies: Phaser.Physics.Arcade.Group
@@ -56,13 +57,15 @@ export class Spawner {
   public constructor(
     scene: Phaser.Scene,
     runStats: RunStats,
-    getCrowdAnchorX?: () => number,
+    getCrowdAnchorX: (() => number) | undefined,
+    getAnchorBottomOffset: () => number,
     onBreakthrough?: (contactDamage: number) => void,
     onEnemyDefeated?: (enemy: Phaser.Physics.Arcade.Image) => void,
   ) {
     this.scene = scene
     this.runStats = runStats
     this.getCrowdAnchorX = getCrowdAnchorX
+    this.getAnchorBottomOffset = getAnchorBottomOffset
     this.onBreakthrough = onBreakthrough
     this.onEnemyDefeated = onEnemyDefeated
     this.enemies = scene.physics.add.group()
@@ -227,7 +230,7 @@ export class Spawner {
     if (this.onBreakthrough === undefined) return
     if (this.levelPlan.level < BALANCE.enemy.breakthroughMinLevel) return
     if (enemy.getData('durchgebrochen') === true) return
-    const truppenhoehe = this.scene.scale.height - BALANCE.player.anchorBottomOffset
+    const truppenhoehe = this.scene.scale.height - this.getAnchorBottomOffset()
     if (enemy.y <= truppenhoehe) return
     enemy.setData('durchgebrochen', true)
     const contactDamage = enemy.getData('contactDamage') as number | undefined
@@ -442,7 +445,7 @@ export class Spawner {
    */
   private getTargetLane(): number {
     if (this.getCrowdAnchorX === undefined) return 0
-    const anchorY = this.scene.scale.height - BALANCE.player.anchorBottomOffset
+    const anchorY = this.scene.scale.height - this.getAnchorBottomOffset()
     const halbeBreite = getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, anchorY)
     if (halbeBreite <= 0) return 0
     return (this.getCrowdAnchorX() - this.scene.scale.width / 2) / halbeBreite
@@ -522,7 +525,7 @@ export class Spawner {
       getPlayfieldHalfWidth(
         this.scene.scale.width,
         this.scene.scale.height,
-        this.scene.scale.height - BALANCE.player.anchorBottomOffset,
+        this.scene.scale.height - this.getAnchorBottomOffset(),
       ),
       () => Phaser.Math.RND.frac(),
       BALANCE.enemy.spawnLaneSafetyGap,
@@ -546,7 +549,7 @@ export class Spawner {
     const anchorHalfWidth = getPlayfieldHalfWidth(
       this.scene.scale.width,
       this.scene.scale.height,
-      this.scene.scale.height - BALANCE.player.anchorBottomOffset,
+      this.scene.scale.height - this.getAnchorBottomOffset(),
     )
     const maxWidthAnchor = Math.min(anchorHalfWidth * 2, BALANCE.walls.hordeMaxWidthPx)
     // Typen VOR dem Layout ziehen: Die Dichteregel staucht mit der echten breitesten

@@ -1,5 +1,19 @@
 import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { BALANCE, RUN_FORMATIONS_PROFIL } from '../src/config/balance'
+import { getPlayerPower } from '../src/systems/enemyTypes'
+import { computeBlockFormation } from '../src/systems/formation'
+
+vi.mock('phaser', () => ({
+  default: {
+    Math: {
+      Clamp: (value: number, min: number, max: number) => Math.min(Math.max(value, min), max),
+      RND: { frac: () => 0.5 },
+    },
+  },
+}))
+
+import { Crowd } from '../src/systems/crowd'
 
 const gameScene = readFileSync(new URL('../src/scenes/GameScene.ts', import.meta.url), 'utf8')
 const menuScene = readFileSync(new URL('../src/scenes/MenuScene.ts', import.meta.url), 'utf8')
@@ -40,3 +54,89 @@ describe('Torlauf E0', () => {
     expect(balance).toMatch(/torlauf: \{[\s\S]*zahlFontPx: 28,[\s\S]*zahlAbstandPx: 42,/)
   })
 })
+
+describe('Torlauf E1 sichtbare Masse', () => {
+  it('haelt das Run-Profil unveraendert und gibt dem Torlauf 150 kleine Blockfiguren', () => {
+    expect(RUN_FORMATIONS_PROFIL).toMatchObject({ poolGroesse: 30, max: 30, figureScale: 1, form: 'dreieck', huelleFolgtFormation: false })
+    expect(BALANCE.torlauf).toMatchObject({ anchorBottomOffset: 220, crowd: { poolGroesse: 150, max: 150, figureScale: 0.6, form: 'block', plaetzeJeReihe: 20, huelleFolgtFormation: true } })
+    expect(BALANCE.crowd.max).toBe(30)
+    expect(BALANCE.pools.crowd).toBe(30)
+  })
+
+  it('bildet im Torlauf zentrierte Blockreihen und klemmt die sichtbare Menge auf 150', () => {
+    const options = { rowSpacingY: 9, colSpacing: 10, minColSpacing: 8, maxWidth: 214.5, maxDepth: 198, plaetzeJeReihe: 20 }
+    expect(computeBlockFormation(54, options)).toHaveLength(54)
+    expect(new Set(computeBlockFormation(54, options).map((slot) => slot.row)).size).toBe(3)
+    const full = computeBlockFormation(150, options)
+    expect(full).toHaveLength(150)
+    expect(new Set(full.map((slot) => slot.row)).size).toBe(8)
+    expect(full.at(-1)).toMatchObject({ offsetX: 45, row: 7 })
+  })
+
+  it('legt fuer die Torlauf-Crowd 150 und fuer das Run-Profil 30 Member-Objekte an', () => {
+    const scene = createCrowdSceneStub()
+    const torlaufCrowd = new Crowd(scene as never, 195, 624, BALANCE.torlauf.crowd)
+    const runCrowd = new Crowd(scene as never, 195, 714, RUN_FORMATIONS_PROFIL)
+
+    expect(getMembers(torlaufCrowd)).toHaveLength(150)
+    expect(getMembers(runCrowd)).toHaveLength(30)
+  })
+
+  it('laesst die Feuerkraft ab 30 unveraendert und injiziert nur dem Spawner die Torlaufhoehe', () => {
+    expect(getPlayerPower(30, 4, 2, 12)).toBe(getPlayerPower(150, 4, 2, 12))
+    expect(gameScene).toContain("this.istTorlauf() ? BALANCE.torlauf.crowd : RUN_FORMATIONS_PROFIL")
+    expect(gameScene).toContain('private getAnchorBottomOffset(): number')
+    expect(gameScene).toContain('BALANCE.torlauf.anchorBottomOffset')
+    expect(spawnerDirectAnchorReaders()).toBe(0)
+    expect((roadGeometry.match(/BALANCE\.player\.anchorBottomOffset/g) ?? [])).toHaveLength(6)
+    expect((bruecke.match(/BALANCE\.player\.anchorBottomOffset/g) ?? [])).toHaveLength(1)
+  })
+
+  it('laesst die Huelle nach update an der Ankeroberkante und die Mess-Sonde nur im DEV-Build', () => {
+    expect(crowd).toContain('this.hull.setSize(width, this.formationstiefe)')
+    expect(crowd).toContain('this.hull.setPosition(this.anchorX, this.anchorY + this.formationstiefe / 2)')
+    expect(crowd).toContain('this.hull.setPosition(this.anchorX, this.anchorY)')
+    expect(readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8')).toMatch(/if \(import\.meta\.env\.DEV\) \{[\s\S]*__runGunMessung[\s\S]*bildzeit/)
+  })
+})
+
+const crowd = readFileSync(new URL('../src/systems/crowd.ts', import.meta.url), 'utf8')
+const roadGeometry = readFileSync(new URL('../src/systems/roadGeometry.ts', import.meta.url), 'utf8')
+const bruecke = readFileSync(new URL('../src/systems/bruecke.ts', import.meta.url), 'utf8')
+const spawnerSource = readFileSync(new URL('../src/systems/spawner.ts', import.meta.url), 'utf8')
+
+function spawnerDirectAnchorReaders(): number {
+  return (spawnerSource.match(/BALANCE\.player\.anchorBottomOffset/g) ?? []).length
+}
+
+function createCrowdSceneStub(): object {
+  const image = () => {
+    const stub = {
+      active: true,
+      displayWidth: 40,
+      displayHeight: 56,
+      setScale(scaleX: number, scaleY = scaleX) { this.displayWidth = 40 * scaleX; this.displayHeight = 56 * scaleY; return this },
+      setActive() { return this },
+      setVisible() { return this },
+      setDepth() { return this },
+      setDisplaySize(width: number, height: number) { this.displayWidth = width; this.displayHeight = height; return this },
+      setAlpha() { return this },
+      setPosition() { return this },
+      setRotation() { return this },
+    }
+    return stub
+  }
+  const zone = () => {
+    const body = { setSize: () => body, setAllowGravity: () => body, updateFromGameObject: () => undefined }
+    return { body, setSize: () => undefined, setPosition: () => undefined }
+  }
+  return {
+    add: { image, zone },
+    physics: { add: { existing: () => undefined } },
+    scale: { width: 390, height: 844 },
+  }
+}
+
+function getMembers(crowdInstance: Crowd): unknown[] {
+  return (crowdInstance as unknown as { members: unknown[] }).members
+}

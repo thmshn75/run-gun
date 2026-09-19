@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`IMPL_DONE`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -245,3 +245,39 @@ Funktion** neben dem Dreieck statt als Option — nicht weiterbohren.
 Projektstand: `docs/UEBERGABE.md`, Regeln: `docs/lessons.md`, Plan: `docs/plan-v5.md`.
 **Zuletzt abgeschlossen:** V5/E0 TORLAUF-Geruest, Commit `5c0c2dc`, abgenommen
 2026-09-19.
+
+## Stand des Reviews (2026-09-19)
+
+**Code-Review bestanden, eine kleine Nacharbeit (Rechenweg-Kommentare, Zaehl-Test).**
+Formationsprofil in `Crowd` mit allen gegrepten Lesern (inkl. Z.54/55), Block-Formation
+als eigene Funktion neben dem unveraenderten Dreieck (Fixtures 1/8/30 bitgleich),
+Huelle folgt der Formation und wird in `update()` korrekt mit Oberkante am Anker
+gesetzt (im Browser gemessen: `body.top` = 624 = Anker), Anker-Tabelle aus B exakt
+umgesetzt (Spawner 0 Direktleser, roadGeometry 6, bruecke 1), DEV-Sonde im
+`import.meta.env.DEV`-Guard. `npm run check`, `npm test`, `npm run build` gruen, im
+Terminal nachgelaufen.
+
+**A10 — Bildzeit, selbst gemessen (Playwright, Vite-Dev, Viewport 390x844, je 30 s
+vollstaendig in der Gegnerphase, 1800 Bilder):**
+
+| Lauf | Figuren | Gegner (Mittel) | Median | p95 |
+|---|---|---|---|---|
+| Torlauf Level 20, 150 Figuren erzwungen, 8 Reihen | 150 durchgehend | 18,1 | **16,7 ms** | 18,1 ms |
+| Referenz Bahnen-Probelauf Level 20 | 26,3 | 37,3 | 16,7 ms | 17,8 ms |
+
+Kein messbarer Unterschied; die Grenze 16,7 ms ist eingehalten. 0 Konsolenfehler.
+Screenshot der Masse im Session-Scratchpad (`nachweis-e1/e1-150-masse.jpeg`): 8
+dichte Reihen als Block, Zahl frei darueber.
+
+**Im Browser zusaetzlich belegt:** 150 Member-Objekte im Torlauf; Startlevel 20 ergibt
+56 Figuren in 3 Reihen, Figurenhoehe 28 px, Anker 624.
+
+**Befund fuer E2 (im Plan notiert):** `runStats.set('hp', 150)` liefert 113 — die
+Klemme am Level-Cap. Die 150 waren fuer die Messung nur per Halte-Schleife erreichbar.
+E2 braucht einen Torlauf-eigenen Truppendeckel, sonst sind ×2-Tore wirkungslos.
+
+**Angemerkt, nicht behoben:** Die neuen Kommentare in `BALANCE.torlauf` sind woertlich
+aus dieser Spec kopiert, mit Markdown-Fettdruck und einem verrutschten Absatz an
+`bottomMargin`. E2 fasst den Block ohnehin an und glaettet das mit.
+
+**Offen: A11 — Thomas' iPhone-Test.** Bis dahin `IMPL_DONE`, nicht `APPROVED`.
