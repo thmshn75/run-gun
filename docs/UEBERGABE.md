@@ -1,7 +1,8 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-09-19 (**Plan V5 TORLAUF: E0 und E1 abgenommen, E2 Torpaare gebaut,
-per Bot gemessen und nachgebessert — wartet auf Thomas' iPhone-Test.** Davor drei Gamefeel-Tasks nach Thomas' Genre-Video, alle
+Stand: 2026-09-19 (**Plan V5 TORLAUF: Kernmechanik korrigiert — im Torlauf wird NICHT
+geschossen, die Figuren sind die Kugeln. E0/E1 abgenommen, E2 gebaut und durch die
+Korrektur ueberholt, E2r "Der Strom" spezifiziert und gehaertet, Codex-Handoff steht an.** Davor drei Gamefeel-Tasks nach Thomas' Genre-Video, alle
 abgenommen: TREFFERQUITTUNG, FLUESSIGERE BEWEGUNGEN, ABWECHSLUNG. Davor: PROBELAUF fertig, gemessen und am 2026-09-17 abgenommen; er bleibt
 im Testbereich, der echte Run ist unveraendert.)
 
@@ -9,23 +10,23 @@ im Testbereich, der echte Run ist unveraendert.)
 
 ## Offen — naechster Schritt zuerst
 
-0. **V5 / E2 TORPAARE — gebaut, reviewt, per Bot gemessen; offen ist A10 (Thomas am
-   iPhone, zusammen mit N1.4 Wipptakt aus E1).** E0/E1 sind abgenommen. E2: Torpaare
-   links/rechts in der `Torbahn` (Restwert per Treffer, `plus`/`mal` bis ×3, Malus bei
-   negativem Stand), Wahl ueber die **Ankerseite** (die 214-px-Huelle beruehrt beide Tore),
-   Torlauf-eigener Truppendeckel 150 via `hpDeckelOverride` in `RunStats` (nur im
-   Probe-Zweig hinter `istTorlauf()`), Spawnsperre als optionales Interface-Member.
-   `VersuchBahnen` unveraendert bis auf die Interface-Zeile. Neue Module `torlaufPlan.ts`,
-   `torObjekt.ts`.
-   **Bot-Messung (Reviewer, Playwright):** Erste Fassung wuchs 10 → 100 in zwei Paaren und
-   kassierte ab dem dritten nur Malus — Startwert als Anteil der ganzen Truppe passt nicht
-   zur festen Feuerlinie (24 Treffer/s bei 8 Schuetzen, Tor ~3-4 s im Schussfeld). Nach
-   N2 (Startwert an Feuerlinie 30, `plusAnteilRest` 0,12, `malChance` 0,25, ×3-Anteil
-   0,1): ohne Gegner 9 Paare 10 → 106 gleichmaessig, 0 Malus, 0 Saettigung; **mit Gegnern
-   Level 5: 24 → 148, Boss besiegt, praktisch kein Verlust.** Das Verlust-Kriterium (≥54 %)
-   ist ohne die Horde nicht erreichbar und **wandert nach E3** — dort ist der Gegenspieler
-   der Masse. In E2 nicht weiter an der Balance drehen (Reissleine).
-   **Naechste Etappe nach A10: E3 Horde.** E2b (Pfeiler-Bilder, Codex) offen.
+0. **V5 / E2r DER STROM — Spec fertig (`docs/active-task.md`), Handoff an Codex als
+   naechster Schritt.** Ausloeser: Thomas' Korrektur nach E2 ("da gibt es doch kein
+   schiessen, es werden einheiten losgeschickt") und die bestaetigte Kernmechanik: Die
+   Truppe unten ist die Quelle mit N Einheiten und schickt laufend Figuren nach oben; eine
+   Figur hackt Pfeiler (ein Punkt, laeuft weiter), wird an einer Platte ×k vervielfacht,
+   erhoeht an +1-Kacheln die Quelle, wird an der Horde verbraucht. Plan V5 ist
+   entsprechend umgeschrieben (`docs/plan-v5.md`, Abschnitt "Kernmechanik"), Lesson dazu in
+   `docs/lessons.md` (Vorbild-Kernmechanik vor der Uebersetzung bestaetigen lassen).
+   **E2r baut auf E2 auf:** eigenes System `Strom` (kein neuer `WeaponKey`), Waffen im
+   Torlauf still, Gegner-Nachschub aus, Level endet vorerst nach der Gegnerphase (Boss
+   folgt mit E3/E4). **Thomas' Figurenauswahl (E5):** Strom = `player`, Horde =
+   `standard`, `heavy` als Zwischenhindernisse mit Zaehler, Bosse am Ende — alles 0,6
+   skaliert. Danach E3 Horde (Schiebe-Kampf), E4 Boss-Nahkampf, E2b Pfeiler-Bilder.
+   E2-Stand (Torpaare mit Kugeln) bleibt als Commit `eb38515` Grundlage; seine
+   Bot-Messungen stehen im Reviewstand jenes Commits.
+
+
 
 0. **Drei Gamefeel-Tasks vom 2026-09-19 — alle abgenommen.** Commits `a8d5fae` (Trefferquittung:
    Rueckstoss, Zerplatzen, Boss-Lebenspunktzahl), `a1f2f1f` (Boss-Bildtakt 1,0,
