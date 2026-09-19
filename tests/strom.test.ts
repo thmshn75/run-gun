@@ -107,10 +107,11 @@ describe('Torlauf Strom E2r', () => {
     expect(nah.every((tor) => tor.wirkung.faktor === 2)).toBe(true)
   })
 
-  it('schaltet Nachschub aus und springt im Torlauf ohne Boss zu cleared', () => {
-    expect(gameScene).toContain('if (this.istTorlauf()) this.spawner.setSpawningEnabled(false)')
-    expect(gameScene).toContain("this.levelPhase = 'cleared'")
-    expect(gameScene).toContain('this.currentLevel += 1')
+  it('laesst den Gegnernachschub im Torlauf laufen und blendet nur die Waffe aus', () => {
+    // Frueher wurde der Spawner im Torlauf abgeschaltet und eine einzelne Horde
+    // gesetzt. Thomas 2026-09-19: "die Horde kommt von oben immer nach - immer und
+    // immer wieder, keine Pause." Seitdem laeuft der normale Nachschub durch.
+    expect(gameScene).not.toContain('if (this.istTorlauf()) this.spawner.setSpawningEnabled(false)')
     expect(gameScene).toContain('this.hud.weapon.setVisible(!this.istTorlauf())')
   })
 
@@ -129,6 +130,8 @@ describe('Torlauf Strom E2r', () => {
     const scene = {
       strom: { getGroup: () => activeGroup },
       stromWallCollider: undefined as { object1: unknown, destroy: () => void } | undefined,
+      stromEnemyCollider: undefined as { object1: unknown, destroy: () => void } | undefined,
+      spawner: { getEnemies: () => ({ id: 'enemies' }) },
       walls: { getWalls: () => ({ id: 'walls' }), hasActivePair: () => true, getRewards: () => ({ id: 'rewards' }) },
       weapons: { getProjectileGroup: () => ({ id: 'projectiles' }) },
       crowd: { getHullBounds: () => ({ id: 'crowd' }) },

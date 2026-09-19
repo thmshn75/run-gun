@@ -56,7 +56,7 @@ interface GameSceneStartData {
   probeVariante?: 'bahnen' | 'torlauf'
 }
 
-type LevelPhase = 'normal' | 'warning' | 'boss' | 'horde' | 'cleared' | 'shop'
+type LevelPhase = 'normal' | 'warning' | 'boss' | 'cleared' | 'shop'
 
 class SplashFlashPool {
   private readonly flashes: SplashFlash[]
@@ -166,8 +166,6 @@ export class GameScene extends Phaser.Scene {
   private currentLevel!: number
   private levelPhase!: LevelPhase
   private phaseRemainingMs!: number
-  private hordeKontakt = false
-  private hordeFressRest = 0
   private bossBarBackground!: Phaser.GameObjects.Rectangle
   private bossBarFill!: Phaser.GameObjects.Rectangle
   private bossBarText!: Phaser.GameObjects.Text
@@ -205,6 +203,8 @@ export class GameScene extends Phaser.Scene {
   private crowdRewardCollider: Phaser.Physics.Arcade.Collider | undefined
   private crowdPickupCollider: Phaser.Physics.Arcade.Collider | undefined
   private stromWallCollider: Phaser.Physics.Arcade.Collider | undefined
+  private stromEnemyCollider: Phaser.Physics.Arcade.Collider | undefined
+  private stromBossCollider: Phaser.Physics.Arcade.Collider | undefined
 
   /** Wie dieser Run begonnen hat - frisch, fortgesetzt oder freigekauft. */
   private einstieg: 'neu' | 'fortsetzen' | 'weiterspielen' | 'test' | 'probe' = 'neu'
@@ -267,6 +267,8 @@ export class GameScene extends Phaser.Scene {
     this.crowdRewardCollider = undefined
     this.crowdPickupCollider = undefined
     this.stromWallCollider = undefined
+    this.stromEnemyCollider = undefined
+    this.stromBossCollider = undefined
     this.projectileBossCollider = undefined
     this.crowdBossCollider = undefined
     enableSharpText(this)
@@ -306,8 +308,6 @@ export class GameScene extends Phaser.Scene {
     // Phaser konstruiert die Szene beim Neustart nicht neu - der Rest aus dem vorigen
     // Lauf muss hier weg, sonst startet die naechste Runde mit angebrochenem Verlust.
     this.breakthroughAccumulator = 0
-    this.hordeKontakt = false
-    this.hordeFressRest = 0
     setCurrentScrollSpeed(getScrollSpeed(this.currentLevel))
     // Gegnertempo ist seit 2026-08-22 eine reine Levelgroesse, kein Ausbau mehr.
     this.runStats.set('speed', getEnemySpeed(this.currentLevel))
@@ -328,6 +328,7 @@ export class GameScene extends Phaser.Scene {
     })
     // Im Versuch kommen die Gegner von rechts - siehe Spawner.setVersuchsBahnen.
     this.spawner.setVersuchsBahnen(this.nutztBahnen() && !this.istTorlauf())
+    this.spawner.setFigurenMassstab(this.istTorlauf() ? BALANCE.torlauf.gegnerMassstab : 1)
     // DIE EINZIGE WEICHE DES VERSUCHS "ZWEI BAHNEN" (Thomas 2026-09-05: "wenn wir etwas
     // versuchen, dann NUR im Testgelaende, dort testen wir bis ich mein Go gebe").
     // Ausserhalb des Testgelaendes wird VersuchBahnen nie gebaut, und der echte Run
@@ -543,12 +544,15 @@ export class GameScene extends Phaser.Scene {
     // weiterlaufen, nur bei den Waenden keine kleinen Gegner wie vorher im Spiel"). Die
     // Bahnen laufen also durch; nur der Gegnernachschub haelt sich vom Tor fern - und
     // das schliesst die Horden ein, die der Boss ruft.
-    if (this.nutztBahnen()) {
+    // NICHT im Torlauf: Dort steht das eine Tor FEST in der Bahnmitte, sein Fenster ist
+    // also dauerhaft offen - die Sperre haette den Gegnernachschub komplett unterbunden
+    // (im Browser gemessen: 0 Gegner ueber 20 s). Die Regel stammt von vorbeiziehenden
+    // Toren im Versuch; dort bleibt sie unveraendert.
+    if (this.nutztBahnen() && !this.istTorlauf()) {
       // Vor E2 direkt: this.spawner.setSpawnSperre(this.walls.istTorFenster())
       this.spawner.setSpawnSperre(this.walls.istTorFenster?.() ?? false)
     }
     this.walls.update(dt)
-    this.updateHordeKontakt(dt)
     this.strom?.update(dt)
     this.popups.update(dt)
     this.sterbeeffekte.update(dt)
@@ -611,15 +615,26 @@ export class GameScene extends Phaser.Scene {
       if (this.crowdBossCollider === undefined) {
         this.crowdBossCollider = this.addCombatOverlap(this.crowd.getHullBounds(), this.boss.getEnemy())
       }
+      // Im Torlauf ist der Strom die einzige Waffe: Ohne diesen Collider stand der
+      // Lebensvorrat des Bosses im Browser 30 s lang unveraendert auf 393 und das
+      // Level konnte gar nicht enden.
+      if (this.strom !== undefined && this.stromBossCollider === undefined) {
+        this.stromBossCollider = this.addCombatOverlap(this.strom.getGroup(), this.boss.getEnemy())
+      }
       return
     }
     this.projectileBossCollider?.destroy()
     this.crowdBossCollider?.destroy()
+    this.stromBossCollider?.destroy()
     this.projectileBossCollider = undefined
     this.crowdBossCollider = undefined
+    this.stromBossCollider = undefined
   }
 
   private syncWallColliders(): void {
+    if (this.strom !== undefined && this.stromEnemyCollider === undefined) {
+      this.stromEnemyCollider = this.addCombatOverlap(this.strom.getGroup(), this.spawner.getEnemies())
+    }
     if (this.strom !== undefined && this.stromWallCollider === undefined) {
       this.stromWallCollider = this.addCombatOverlap(this.strom.getGroup(), this.walls.getWalls())
     }
@@ -642,6 +657,8 @@ export class GameScene extends Phaser.Scene {
     this.crowdRewardCollider?.destroy()
     this.crowdPickupCollider?.destroy()
     this.stromWallCollider?.destroy()
+    this.stromEnemyCollider?.destroy()
+    this.stromBossCollider?.destroy()
     this.projectileWallCollider = undefined
     this.crowdRewardCollider = undefined
     this.crowdPickupCollider = undefined
@@ -1122,12 +1139,6 @@ export class GameScene extends Phaser.Scene {
         ;(this.walls as Torbahn).recycleKachelBild(kachel)
         return
       }
-      // Die Horde ist absichtlich keine Wand: Ihr Kontakt wird einmal pro Bild mit dt
-      // verrechnet, damit die Fressrate nicht von der Physik-Tickrate abhaengt.
-      if (this.walls instanceof Torbahn && this.walls.istHorde(target)) {
-        this.hordeKontakt = true
-        return
-      }
       // Wandsegmente kosten bei Beruehrung NICHTS - das war seit W4 so und muss hier
       // ausdruecklich stehen: Seit die Truppenhuelle gegen die ganze Wandgruppe prueft
       // (fuer die Sammelbahn), fiel eine beruehrte rechte Wand sonst bis zur
@@ -1159,17 +1170,16 @@ export class GameScene extends Phaser.Scene {
 
   private handleStromTreffer(figur: Phaser.Physics.Arcade.Image, wall: Phaser.Physics.Arcade.Image): void {
     if (!figur.active || !wall.active) return
-    if (!(this.walls instanceof Torbahn)) return
-    const torbahn = this.walls
-    if (torbahn.istHorde(wall)) {
-      const horde = torbahn.getHorde()
-      if (horde === undefined) return
-      const besiegt = torbahn.damageHorde(BALANCE.torlauf.horde.punkteJeFigur)
-      this.strom?.recycleFigure(figur)
+    // Gegner aus dem normalen Nachschub: Eine Figur nimmt genau einen Punkt mit und
+    // ist danach verbraucht - so wie im Vorbild, wo der Strom in die Masse laeuft.
+    if (wall.getData('hp') !== undefined) {
+      this.damageEnemy(wall, BALANCE.torlauf.horde.punkteJeFigur)
       this.sterbeeffekte.spawn(figur.x, figur.y, figur.texture.key, figur.scaleX, figur.scaleY)
-      if (besiegt) this.handleHordeDefeated(horde.bild)
+      this.strom?.recycleFigure(figur)
       return
     }
+    if (!(this.walls instanceof Torbahn)) return
+    const torbahn = this.walls
     if (torbahn.istKachel(wall)) return
     const wirkung = torbahn.getTorWirkung(wall)
     if (wirkung === undefined) return
@@ -1182,49 +1192,6 @@ export class GameScene extends Phaser.Scene {
     // Welle es ebenfalls nutzen kann.
     this.strom?.vervielfache(figur, wirkung.faktor - 1)
     this.popups.spawn(figur.x, figur.y, `×${wirkung.faktor}`, '#3ddc84')
-  }
-
-  private updateHordeKontakt(dt: number): void {
-    if (!this.hordeKontakt) return
-    this.hordeKontakt = false
-    if (!(this.walls instanceof Torbahn) || this.levelPhase !== 'horde') return
-    const horde = this.walls.getHorde()
-    if (horde === undefined) return
-    const verlust = BALANCE.torlauf.horde.fressRateProSek * dt / 1000
-    // Bruchteile sammeln, statt sie Bild fuer Bild an runStats zu geben: `hp` ist
-    // ganzzahlig (clampStat rundet), 8 Figuren/s sind bei 60 Bildern aber nur 0,13 je
-    // Bild - jedes einzelne Bild wuerde auf 0 gerundet und die Truppe verloere NIE eine
-    // Einheit. Genau das war im Browser gemessen: Horde frisst, Truppe bleibt stehen.
-    this.hordeFressRest += verlust
-    const ganze = Math.floor(this.hordeFressRest)
-    if (ganze > 0) {
-      this.hordeFressRest -= ganze
-      this.runStats.set('hp', Math.max(0, this.runStats.get('hp') - ganze))
-    }
-    const besiegt = this.walls.damageHorde(verlust)
-    this.syncCrowdSize()
-    this.updateHud()
-    if (besiegt) {
-      this.handleHordeDefeated(horde.bild)
-      return
-    }
-    // Die Gegenrichtung: Ist die Truppe aufgebraucht, ist der Lauf vorbei. Ohne diese
-    // Zeile frass die Horde die Truppe auf 0 und das Spiel lief einfach weiter - genau
-    // die fehlende Niederlage, die E3 zurueckbringen soll. triggerGameOver leitet im
-    // Probelauf auf beendeProbelauf um, die GameOverScene bleibt also aussen vor.
-    if (this.runStats.get('hp') <= 0) this.triggerGameOver()
-  }
-
-  private handleHordeDefeated(horde: Phaser.Physics.Arcade.Image): void {
-    if (this.levelPhase !== 'horde' || !(this.walls instanceof Torbahn)) return
-    this.sterbeeffekte.spawn(horde.x, horde.y, horde.texture.key, horde.scaleX * 2, horde.scaleY * 2)
-    this.walls.recycleHorde()
-    this.currentLevel += 1
-    this.levelPhase = 'cleared'
-    this.syncBossColliders()
-    this.phaseRemainingMs = BALANCE.level.clearedMs
-    this.levelOverlayBackground.setVisible(true)
-    this.levelOverlay.setText('HORDE GESCHAFFT').setVisible(true)
   }
 
   private applyTorlaufReinforcement(amount: number, x: number, y: number): void {
@@ -1480,16 +1447,14 @@ export class GameScene extends Phaser.Scene {
   private updateLevelPhase(dt: number): void {
     // Der Shop wartet auf WEITER, nicht auf einen Zeitgeber (Benni ist 7 - er soll in
     // Ruhe lesen und tippen koennen).
-    if (this.levelPhase === 'boss' || this.levelPhase === 'shop' || this.levelPhase === 'horde') return
+    if (this.levelPhase === 'boss' || this.levelPhase === 'shop') return
     this.phaseRemainingMs -= dt
     if (this.phaseRemainingMs > 0) return
     if (this.levelPhase === 'normal') {
-      if (this.istTorlauf()) {
-        this.levelPhase = 'horde'
-        this.walls.deactivateAll()
-        ;(this.walls as Torbahn).spawneHorde(this.currentLevel)
-        return
-      }
+      // Auch im Torlauf endet die Laufphase mit dem Boss: Waehrend sie laeuft, kommt
+      // ohne Pause Gegnernachschub von oben (Thomas 2026-09-19: "die Horde kommt von
+      // oben immer nach - immer und immer wieder, keine Pause ... und erst ganz zum
+      // Schluss der Boss, damit das Level ein Ende hat").
       this.levelPhase = 'warning'
       this.phaseRemainingMs = BALANCE.level.warningMs
       this.spawner.setSpawningEnabled(false)
@@ -1790,7 +1755,6 @@ export class GameScene extends Phaser.Scene {
     this.levelOverlayBackground.setVisible(false)
     this.levelOverlay.setVisible(false)
     this.spawner.resetForLevel(this.currentLevel)
-    if (this.istTorlauf()) this.spawner.setSpawningEnabled(false)
     this.sterbeeffekte.deactivateAll()
     this.walls.resetForLevel(this.currentLevel)
     this.setzeWeltThema()

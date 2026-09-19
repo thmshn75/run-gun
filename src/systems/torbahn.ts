@@ -4,9 +4,6 @@ import { HUD_COLORS } from '../config/colors'
 import { advanceAlongRoad, getRoadScale, getRoadSegment } from './road'
 import { getRoadHalfWidth } from './roadGeometry'
 import { getCurrentScrollSpeed } from './speed'
-import { computeBlockFormation } from './formation'
-import { getBobOffsetPx, getPhaseOffset, getStepCycleHz } from './gamefeel'
-import { getLevelPlan } from './levelPlan'
 import { torGeometrieMitte } from './torObjekt'
 import { torFaktorZiehen, type TorWirkung } from './torlaufPlan'
 import { istImTorFenster } from './versuchPlan'
@@ -33,22 +30,6 @@ type KachelZustand = {
   aktiv: boolean
 }
 
-export type HordeZustand = {
-  /** Unsichtbarer Kollisionskoerper ueber die Bahnbreite; die Optik machen `figuren`. */
-  bild: Phaser.Physics.Arcade.Image
-  figuren: Phaser.GameObjects.Image[]
-  /** Zaehler ueber dem Kopf; nur Heavys und Bosse zeigen einen. */
-  marken: Phaser.GameObjects.Text[]
-  label: Phaser.GameObjects.Text
-  anchorY: number
-  y: number
-  punkte: number
-  aktiv: boolean
-  haelt: boolean
-  /** Zeit seit dem letzten Treffer; steuert, ob die Horde haelt oder vorrueckt. */
-  ohneTrefferMs: number
-}
-
 /** Zwei getrennte Kollisionsobjekte bilden ein gemeinsames Los: der Anker entscheidet. */
 export class Torbahn implements BahnSystem {
   private readonly walls: Phaser.Physics.Arcade.Group
@@ -57,13 +38,6 @@ export class Torbahn implements BahnSystem {
   private readonly zuTor = new Map<Phaser.GameObjects.GameObject, TorZustand>()
   private readonly kacheln: KachelZustand[] = []
   private readonly zuKachel = new Map<Phaser.GameObjects.GameObject, KachelZustand>()
-  private horde: HordeZustand | undefined
-  /** Eigene Uhr fuer den Gehtakt der Hordenfiguren. */
-  private hordeZeitMs = 0
-  /** Level der laufenden Horde; entscheidet ueber Boss oder Elite-Boss. */
-  private bossLevel = 1
-  /** Dargestellte Hoehe einer Standard-Hordenfigur; Massstab fuer Heavy und Bosse. */
-  private standardFigurHoehe = 0
   private readonly getCrowdAnchorX: () => number
   private abstand = BALANCE.torlauf.tor.abstandPx
   private kachelAbstand: number = BALANCE.torlauf.kachel.abstandPx
@@ -100,7 +74,7 @@ export class Torbahn implements BahnSystem {
 
   public getRewards(): Phaser.Physics.Arcade.Group { return this.rewards }
 
-  public hasActivePair(): boolean { return this.tore.some((tor) => tor.aktiv) || this.kacheln.some((kachel) => kachel.aktiv) || this.horde?.aktiv === true }
+  public hasActivePair(): boolean { return this.tore.some((tor) => tor.aktiv) || this.kacheln.some((kachel) => kachel.aktiv) }
 
   public resetForLevel(_level: number): void {
     this.deactivateAll()
@@ -120,45 +94,6 @@ export class Torbahn implements BahnSystem {
 
   public isWall(candidate: Phaser.GameObjects.GameObject): candidate is Phaser.Physics.Arcade.Image {
     return this.zuTor.has(candidate)
-  }
-
-  public istHorde(candidate: Phaser.GameObjects.GameObject): boolean { return this.horde?.bild === candidate && this.horde.aktiv }
-
-  public spawneHorde(level: number): void {
-    if (this.horde === undefined) this.horde = this.erzeugeHorde()
-    const horde = this.horde
-    horde.anchorY = BALANCE.road.horizonY
-    horde.y = BALANCE.road.horizonY
-    horde.punkte = BALANCE.torlauf.horde.basis * getLevelPlan(level).hardness
-    this.bossLevel = level
-    horde.aktiv = true
-    horde.haelt = false
-    horde.ohneTrefferMs = 0
-    horde.bild.enableBody(true, 0, 0, true, true).setActive(true).setVisible(true)
-    ;(horde.bild.body as Phaser.Physics.Arcade.Body).moves = false
-    horde.label.setActive(true).setVisible(true)
-    this.beschrifteHorde(horde)
-  }
-
-  public getHorde(): HordeZustand | undefined { return this.horde?.aktiv ? this.horde : undefined }
-
-  public damageHorde(punkte: number): boolean {
-    const horde = this.getHorde()
-    if (horde === undefined) return false
-    horde.punkte = Math.max(0, horde.punkte - punkte)
-    horde.ohneTrefferMs = 0
-    this.beschrifteHorde(horde)
-    return horde.punkte === 0
-  }
-
-  public recycleHorde(): void {
-    const horde = this.horde
-    if (horde === undefined) return
-    horde.aktiv = false
-    horde.bild.disableBody(true, true).setActive(false).setVisible(false)
-    for (const figur of horde.figuren) figur.setActive(false).setVisible(false)
-    for (const marke of horde.marken) marke.setActive(false).setVisible(false)
-    horde.label.setActive(false).setVisible(false)
   }
 
   public istKachel(candidate: Phaser.GameObjects.GameObject): boolean {
@@ -225,13 +160,12 @@ export class Torbahn implements BahnSystem {
     const kachelWeg = this.kachelTempoPxPerSec() * dt / 1000
     this.kachelAbstand += kachelWeg
     // Nachschub NUR, solange eine Horde auf der Bahn ist (Thomas 2026-09-19: "die +1
-    // Tore erst mit den Horden erscheinen lassen"). Bereits gespawnte Kacheln laufen
-    // weiter aus, damit die Reihe nicht mitten im Bild abreisst.
-    while (this.horde?.aktiv === true && this.kachelAbstand >= BALANCE.torlauf.kachel.abstandPx) {
+    // Nachschub laeuft durchgehend: Seit der Gegnernachschub vom Spawner kommt, gibt
+    // es keine gegnerfreie Phase mehr, in der die Reihe pausieren muesste.
+    while (this.kachelAbstand >= BALANCE.torlauf.kachel.abstandPx) {
       this.kachelAbstand -= BALANCE.torlauf.kachel.abstandPx
       this.spawneKachel()
     }
-    if (this.horde?.aktiv !== true) this.kachelAbstand = Math.min(this.kachelAbstand, BALANCE.torlauf.kachel.abstandPx)
     for (const tor of this.tore) {
       if (!tor.aktiv) continue
       // Feste Hoehe, kein Mitlaufen mit der Strasse und kein Recycling: Das Tor ist ein
@@ -259,29 +193,6 @@ export class Torbahn implements BahnSystem {
       ;(kachel.bild.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       kachel.label.setPosition(x, segment.centerY).setScale(breite / 48)
       if (segment.centerY - segment.height / 2 > this.scene.scale.height) this.recycleKachel(kachel)
-    }
-    const horde = this.getHorde()
-    if (horde !== undefined) {
-      this.hordeZeitMs += dt
-      // EIGENES, langsames Tempo statt des Strassenscrolls: Mit der Bahngeschwindigkeit
-      // rauschte die Horde heran, bevor der am Tor verdoppelte Strom sie erreichen
-      // konnte. Jetzt braucht sie vom Horizont bis zur Truppe rund 18 s, und der
-      // Strom trifft sie die ganze Zeit ueber (Thomas 2026-09-19: "die Horde schon
-      // viel frueher kommen, aber langsam").
-      horde.ohneTrefferMs += dt
-      if (!horde.haelt) {
-        horde.y += BALANCE.torlauf.horde.anflugTempoPxPerSec * dt / 1000
-        if (horde.y >= BALANCE.torlauf.horde.haltY) horde.haelt = true
-      } else if (horde.ohneTrefferMs >= BALANCE.torlauf.horde.ohneTrefferVorrueckenMs) {
-        // Nur ohne Beschuss geht es weiter nach vorn. Unter Beschuss bleibt die Horde
-        // auf ihrem Kampfplatz hinter dem Tor stehen.
-        horde.y += BALANCE.torlauf.horde.vorrueckTempoPxPerSec * dt / 1000
-      }
-      // Harte Grenze auf Hoehe der Truppe: ohne sie wanderte die Horde unbegrenzt weiter
-      // nach unten, verliess das Bild und kam nie in Beruehrung - der Nahkampf fand nie
-      // statt. Hier stehenbleiben heisst Dauerkontakt mit der Huelle, also fressen.
-      horde.y = Math.min(horde.y, this.scene.scale.height - BALANCE.torlauf.horde.grenzeBodenAbstandPx)
-      this.positioniereHorde(horde)
     }
   }
 
@@ -397,156 +308,4 @@ export class Torbahn implements BahnSystem {
     return { bild, label, anchorY: BALANCE.road.horizonY, aktiv: false }
   }
 
-  private erzeugeHorde(): HordeZustand {
-    const probe = this.scene.textures.get('enemy-standard').getSourceImage()
-    this.standardFigurHoehe = probe.height * BALANCE.render.figureTextureScale * BALANCE.torlauf.crowd.figureScale
-    // Der Koerper traegt die Kollision ueber die ganze Bahnbreite, wird aber NICHT
-    // gezeichnet (Alpha 0): Eine rote Wand mit Zahl ist keine Horde. Gesehen wird die
-    // Masse aus `figuren`, die mit jedem abgebauten Stueck sichtbar duenner wird.
-    const bild = this.scene.physics.add.image(0, 0, 'wall-segment-bad').setDepth(BALANCE.layers.gameplay).setAlpha(0).setActive(false).setVisible(false)
-    ;(bild.body as Phaser.Physics.Arcade.Body).setAllowGravity(false)
-    bild.disableBody(true, true)
-    this.walls.add(bild)
-    const figuren: Phaser.GameObjects.Image[] = []
-    for (let index = 0; index < BALANCE.pools.hordeFiguren; index += 1) {
-      const figur = this.scene.add.image(0, 0, 'enemy-standard')
-        .setDepth(BALANCE.layers.gameplay)
-        .setScale(BALANCE.render.figureTextureScale * BALANCE.torlauf.crowd.figureScale)
-        .setTint(BALANCE.torlauf.horde.tint)
-        .setActive(false).setVisible(false)
-      figur.setData('phaseOffset', getPhaseOffset(index))
-      figuren.push(figur)
-    }
-    const marken: Phaser.GameObjects.Text[] = []
-    for (let index = 0; index < BALANCE.pools.hordeFiguren; index += 1) {
-      marken.push(this.scene.add.text(0, 0, '', { fontFamily: 'system-ui', fontSize: `${BALANCE.torlauf.horde.heavyZahlFontPx}px`, color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 3, fontStyle: 'bold' }).setOrigin(0.5).setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false))
-    }
-    const label = this.scene.add.text(0, 0, '', { fontFamily: 'system-ui', fontSize: '34px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 5, fontStyle: 'bold' }).setOrigin(0.5).setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false)
-    return { bild, figuren, marken, label, anchorY: BALANCE.road.horizonY, y: BALANCE.road.horizonY, punkte: 0, aktiv: false, haelt: false, ohneTrefferMs: 0 }
-  }
-
-  private positioniereHorde(horde: HordeZustand): void {
-    const mitte = this.scene.scale.width / 2
-    const breite = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, horde.y) * 2
-    horde.bild.setPosition(mitte, horde.y).setDisplaySize(breite, BALANCE.torlauf.horde.hoehePx)
-    ;(horde.bild.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
-    this.stelleHordeAuf(horde, mitte, breite)
-  }
-
-  /**
-   * Verteilt so viele Figuren auf die Kollisionsflaeche, wie die Horde noch Punkte hat.
-   * Damit schrumpft die Masse sichtbar, waehrend der Strom sie abarbeitet - das ist der
-   * Unterschied zwischen "rote Wand, deren Zahl kleiner wird" und einer Horde.
-   */
-  private stelleHordeAuf(horde: HordeZustand, mitte: number, breite: number): void {
-    const konfig = BALANCE.torlauf.horde
-    // Einheiten auf Figuren verteilen: Ein Heavy steht fuer `heavyWertFaktor` Standard-
-    // figuren und braucht deshalb nur einen Platz, zaehlt aber mehrfach. So stimmt die
-    // Summe der Zaehler weiterhin mit dem Hordenvorrat ueberein.
-    const einheiten = Math.ceil(horde.punkte / konfig.punkteJeSichtbarerFigur)
-    const rollen: Array<'standard' | 'heavy'> = []
-    for (let rest = einheiten; rest > 0 && rollen.length < konfig.maxFiguren;) {
-      const heavy = rollen.length > 0 && rollen.length % konfig.heavyJedeXte === 0 && rest >= konfig.heavyWertFaktor
-      rollen.push(heavy ? 'heavy' : 'standard')
-      rest -= heavy ? konfig.heavyWertFaktor : 1
-    }
-    // Volle Bahnbreite bis auf je einen Streifen in Breite der +1-Felder links UND
-    // rechts (Thomas 2026-09-19). Die Horde reicht damit fast von Rand zu Rand.
-    const randstreifen = breite / 2 * BALANCE.torlauf.kachel.breiteAnteil
-    const plaetze = computeBlockFormation(rollen.length, {
-      rowSpacingY: konfig.reihenAbstandPx,
-      colSpacing: konfig.spaltenAbstandPx,
-      minColSpacing: Math.min(konfig.spaltenAbstandPx, 9),
-      maxWidth: Math.max(40, breite - 2 * randstreifen),
-      maxDepth: konfig.hoehePx * 0.8,
-      plaetzeJeReihe: konfig.plaetzeJeReihe,
-    })
-    // Vorderste Reihe an der Unterkante: Die Horde laeuft der Truppe entgegen, also
-    // stehen die hinteren Reihen weiter oben, Richtung Horizont.
-    const unterkante = horde.y + konfig.hoehePx / 2
-    for (let index = 0; index < horde.figuren.length; index += 1) {
-      const figur = horde.figuren[index]
-      const platz = plaetze[index]
-      if (platz === undefined) {
-        if (figur.visible) figur.setActive(false).setVisible(false)
-        if (horde.marken[index]?.visible === true) horde.marken[index].setActive(false).setVisible(false)
-        continue
-      }
-      const figurY = unterkante - platz.offsetY
-      const rolle = this.hordenRolle(index, platz.row, plaetze, rollen)
-      if (figur.getData('rolle') !== rolle) {
-        figur.setTexture(this.hordenTextur(rolle)).setTint(this.hordenTon(rolle, index))
-        this.skaliereAufStandardhoehe(figur, rolle)
-        figur.setData('rolle', rolle)
-      }
-      const takt = getStepCycleHz(figur.displayHeight / this.figurSkala(rolle)) * konfig.wippenTaktFaktor
-      const wippen = getBobOffsetPx(this.hordeZeitMs, takt, figur.getData('phaseOffset') as number, BALANCE.gamefeel.bobAmplitudePx * konfig.wippenFaktor)
-      figur.setPosition(mitte + platz.offsetX, figurY + wippen).setActive(true).setVisible(true)
-      // Zaehler ueber dem Kopf: nur Heavys und Bosse tragen einen, die Standardmasse
-      // bleibt ohne - sonst steht ein Zahlenteppich ueber der Bahn.
-      const marke = horde.marken[index]
-      if (marke !== undefined) {
-        if (rolle === 'standard') marke.setActive(false).setVisible(false)
-        else {
-          const wert = rolle === 'heavy' ? konfig.heavyWertFaktor * konfig.punkteJeSichtbarerFigur : Math.round(horde.punkte)
-          marke.setText(`${wert}`).setPosition(figur.x, figur.y - figur.displayHeight / 2 - 6).setActive(true).setVisible(true)
-        }
-      }
-    }
-    // Die Zahl sitzt direkt ueber der hintersten Reihe, nicht ueber der (viel hoeheren)
-    // Kollisionsflaeche: sonst schwebt sie weit vor der Masse in der Bahn.
-    const tiefe = plaetze.length === 0 ? 0 : Math.max(...plaetze.map((platz) => platz.offsetY))
-    horde.label.setPosition(mitte, unterkante - tiefe - BALANCE.torlauf.zahlAbstandPx * 0.6)
-  }
-
-  /**
-   * Wer steht wo: Der Boss ganz hinten in der Mitte, Heavys verteilt in der hinteren
-   * Haelfte, alles davor Standardfiguren (Thomas 2026-09-19).
-   */
-  private hordenRolle(index: number, _reihe: number, plaetze: readonly { readonly row: number }[], rollen: readonly ('standard' | 'heavy')[]): 'standard' | 'heavy' | 'boss' | 'elite' {
-    const letzteReihe = plaetze.length === 0 ? 0 : plaetze[plaetze.length - 1].row
-    // Der Boss steht in der MITTE der hintersten Reihe, nicht an ihrem Rand.
-    const hinten = plaetze.map((platz, nummer) => ({ platz, nummer })).filter((eintrag) => eintrag.platz.row === letzteReihe)
-    const bossIndex = hinten.length === 0 ? -1 : hinten[Math.floor((hinten.length - 1) / 2)].nummer
-    if (index === bossIndex && letzteReihe > 0) {
-      return this.bossLevel >= BALANCE.torlauf.horde.eliteAbLevel ? 'elite' : 'boss'
-    }
-    return rollen[index] ?? 'standard'
-  }
-
-  /**
-   * Groesse ueber die DARGESTELLTE Hoehe setzen, nicht ueber den Skalierungsfaktor:
-   * Die Boss- und Heavy-Bilder sind von Haus aus viel groesser als die Standardfigur,
-   * derselbe Faktor haette den Boss auf ein Vielfaches aufgeblasen (im Browser
-   * gesehen: er fuellte die halbe Bahn).
-   */
-  private skaliereAufStandardhoehe(figur: Phaser.GameObjects.Image, rolle: 'standard' | 'heavy' | 'boss' | 'elite'): void {
-    const quelle = figur.texture.getSourceImage()
-    const zielHoehe = this.standardFigurHoehe * (this.figurSkala(rolle) / BALANCE.torlauf.crowd.figureScale)
-    figur.setScale(quelle.height > 0 ? zielHoehe / quelle.height : 1)
-  }
-
-  /** Grundgroesse der Torlauf-Figuren, fuer Heavy und Bosse entsprechend groesser. */
-  private figurSkala(rolle: 'standard' | 'heavy' | 'boss' | 'elite'): number {
-    const konfig = BALANCE.torlauf.horde
-    const basis = BALANCE.torlauf.crowd.figureScale
-    if (rolle === 'elite' || rolle === 'boss') return basis * konfig.bossSkala
-    return rolle === 'heavy' ? basis * konfig.heavySkala : basis
-  }
-
-  /** Farbton: Heavys und Bosse eigen, die Masse in wechselnden Gruentoenen. */
-  private hordenTon(rolle: 'standard' | 'heavy' | 'boss' | 'elite', index: number): number {
-    const konfig = BALANCE.torlauf.horde
-    if (rolle === 'boss' || rolle === 'elite') return konfig.bossTon
-    if (rolle === 'heavy') return konfig.heavyTon
-    return konfig.toene[index % konfig.toene.length]
-  }
-
-  private hordenTextur(rolle: 'standard' | 'heavy' | 'boss' | 'elite'): string {
-    if (rolle === 'elite') return 'enemy-boss-elite'
-    if (rolle === 'boss') return 'enemy-boss'
-    return rolle === 'heavy' ? 'enemy-heavy' : 'enemy-standard'
-  }
-
-  private beschrifteHorde(horde: HordeZustand): void { horde.label.setText(`${Math.ceil(horde.punkte)}`) }
 }

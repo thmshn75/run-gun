@@ -21,6 +21,7 @@ type SpawnRequest =
   | { readonly kind: 'squad'; readonly squadKind: 'wedge' | 'row' | 'cluster'; readonly size: number }
 
 export class Spawner {
+  private figurenMassstab = 1
   private readonly scene: Phaser.Scene
   private readonly runStats: RunStats
   // Lazy, nicht als Wert: Die Truppe wird nach dem Spawner erzeugt, und ihre Position
@@ -121,6 +122,16 @@ export class Spawner {
    */
   public setSpawnSperre(gesperrt: boolean): void {
     this.spawnSperre = gesperrt
+  }
+
+  /**
+   * Zusaetzlicher Groessenfaktor fuer alle Gegner. Der Torlauf setzt ihn unter 1:
+   * Dort ist die eigene Truppe auf 0,78 verkleinert, und Gegner in voller Run-Groesse
+   * wirkten daneben riesig (Thomas 2026-09-19: "die Gegner muessen dann auch kleiner
+   * sein ... auf die Groessen der eigenen Spielerfiguren angepasst").
+   */
+  public setFigurenMassstab(faktor: number): void {
+    this.figurenMassstab = faktor
   }
 
   public setSpawningEnabled(enabled: boolean): void {
@@ -727,7 +738,7 @@ export class Spawner {
     // Grundgroesse x Perspektive: figureScale hebt die Figur auf Spielgroesse, der
     // Perspektivfaktor schrumpft sie mit der Entfernung.
     // figureTextureScale halbiert die doppelt aufgeloeste Textur zurueck auf Spielgroesse.
-    const faktor = BALANCE.enemy.figureScale * BALANCE.render.figureTextureScale
+    const faktor = BALANCE.enemy.figureScale * BALANCE.render.figureTextureScale * this.figurenMassstab
       * getPerspectiveScale(this.scene.scale.width, this.scene.scale.height, y)
     enemy.setScale(faktor)
     // Nachgefuehrte Groesse fuer alle, die mit der Figurenbreite rechnen (Schatten,
