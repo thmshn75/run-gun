@@ -22,6 +22,12 @@ type SpawnRequest =
 
 export class Spawner {
   private figurenMassstab = 1
+  /**
+   * Torlauf-Modus: EIN Gegnertyp (standard), alle gleich schnell und bewusst langsam
+   * (Thomas 2026-09-19: "ich wollte nur standard, gleich langsam alles viele als
+   * Horde, langsam"). Der echte Run behaelt seine Typenmischung unveraendert.
+   */
+  private nurStandard = false
   private readonly scene: Phaser.Scene
   private readonly runStats: RunStats
   // Lazy, nicht als Wert: Die Truppe wird nach dem Spawner erzeugt, und ihre Position
@@ -132,6 +138,16 @@ export class Spawner {
    */
   public setFigurenMassstab(faktor: number): void {
     this.figurenMassstab = faktor
+  }
+
+  public setNurStandard(nurStandard: boolean): void {
+    this.nurStandard = nurStandard
+  }
+
+  /** Im Torlauf immer der Standardtyp, sonst nach der Leveltabelle gewichtet. */
+  private waehleTyp(): EnemyType {
+    if (!this.nurStandard) return chooseEnemyType(this.levelPlan.enemyWeights, () => Phaser.Math.RND.frac())
+    return BALANCE.enemy.types.find((type) => type.key === 'standard') ?? BALANCE.enemy.types[0]
   }
 
   public setSpawningEnabled(enabled: boolean): void {
@@ -468,7 +484,11 @@ export class Spawner {
       this.levelPlan.spawnIntervalMinMs,
       this.levelPlan.spawnIntervalMs - (this.elapsedMs / 1000) * BALANCE.enemy.spawnRampPerSec,
     )
-    return getaktet * this.getWarmupFactor()
+    // Im Torlauf deutlich dichter: Dort soll eine MASSE heranlaufen, keine einzelnen
+    // Gegner (Thomas 2026-09-19: "alles viele als Horde"). Der Faktor greift nur, wenn
+    // nurStandard gesetzt ist - der echte Run behaelt seinen Takt.
+    const takt = getaktet * this.getWarmupFactor()
+    return this.nurStandard ? takt * BALANCE.torlauf.spawnTaktFaktor : takt
   }
 
   /**
@@ -514,7 +534,7 @@ export class Spawner {
       const squad = this.levelPlan.squads.at(-1)!
       return { kind: 'squad', squadKind: squad.kind, size: squad.size }
     }
-    return { kind: 'single', type: chooseEnemyType(this.levelPlan.enemyWeights, () => Phaser.Math.RND.frac()) }
+    return { kind: 'single', type: this.waehleTyp() }
   }
 
   private spawn(request: SpawnRequest): SpawnResult {
@@ -668,7 +688,7 @@ export class Spawner {
    * neu gesetzt worden, damit die tatsaechliche Mischung wieder der Tabelle entspricht.
    */
   private getSquadTypes(squadKind: 'wedge' | 'row' | 'cluster', size: number): EnemyType[] {
-    const types = Array.from({ length: size }, () => chooseEnemyType(this.levelPlan.enemyWeights, () => Phaser.Math.RND.frac()))
+    const types = Array.from({ length: size }, () => this.waehleTyp())
     if (squadKind === 'cluster' && types.every((type) => type.key === types[0].key)) {
       const alternate = BALANCE.enemy.types.find((type, index) => this.levelPlan.enemyWeights[index] > 0 && type.key !== types[0].key)
       if (alternate !== undefined) types[types.length - 1] = alternate
@@ -702,7 +722,9 @@ export class Spawner {
     this.applyPerspectiveScale(enemy, y)
     this.applyHorizonReveal(enemy)
     enemy.setData('hp', getEnemyHp(type, this.levelPlan.level, this.getPlayerPower()))
-    enemy.setData('speedFactor', type.speedFactor)
+    // Im Torlauf zaehlt nur EIN Tempo: Unterschiedlich schnelle Gegner zerfasern die
+    // Masse, die dort als geschlossene Horde heranlaufen soll.
+    enemy.setData('speedFactor', this.nurStandard ? BALANCE.torlauf.gegnerTempoFaktor : type.speedFactor)
     // Tempo aus der GEZOGENEN GESTALT - dieselbe Quelle wie der Bildtakt, damit die
     // Fuesse nicht ueber die Strasse rutschen. Grundgestalten ohne Eintrag: 1,0.
     enemy.setData('gangartTempo', BALANCE.enemy.bilder.gangarten[gestalt]?.tempo ?? 1)

@@ -329,6 +329,7 @@ export class GameScene extends Phaser.Scene {
     // Im Versuch kommen die Gegner von rechts - siehe Spawner.setVersuchsBahnen.
     this.spawner.setVersuchsBahnen(this.nutztBahnen() && !this.istTorlauf())
     this.spawner.setFigurenMassstab(this.istTorlauf() ? BALANCE.torlauf.gegnerMassstab : 1)
+    this.spawner.setNurStandard(this.istTorlauf())
     // DIE EINZIGE WEICHE DES VERSUCHS "ZWEI BAHNEN" (Thomas 2026-09-05: "wenn wir etwas
     // versuchen, dann NUR im Testgelaende, dort testen wir bis ich mein Go gebe").
     // Ausserhalb des Testgelaendes wird VersuchBahnen nie gebaut, und der echte Run
@@ -657,12 +658,16 @@ export class GameScene extends Phaser.Scene {
     this.crowdRewardCollider?.destroy()
     this.crowdPickupCollider?.destroy()
     this.stromWallCollider?.destroy()
-    this.stromEnemyCollider?.destroy()
-    this.stromBossCollider?.destroy()
     this.projectileWallCollider = undefined
     this.crowdRewardCollider = undefined
     this.crowdPickupCollider = undefined
     this.stromWallCollider = undefined
+    // stromEnemyCollider und stromBossCollider werden hier NICHT abgebaut: Sie haengen
+    // nicht an den Waenden. Zerstoert man sie in diesem Zweig, ohne das Feld zu leeren,
+    // gilt der Collider als vorhanden und wird nie wieder gebaut - im Browser gemessen:
+    // 0 Treffer in 12 s bei 73 Stromfiguren und 37 Gegnern, die Gegner liefen einfach
+    // durch (Thomas 2026-09-19: "die Horden laufen einfach durch, ohne dass sie
+    // erschossen werden"). Derselbe Fehlertyp wie beim Collider-Reset am 2026-09-19.
   }
 
   private equipWeapon(weapon: WeaponKey): void {

@@ -42,6 +42,14 @@ export const BALANCE = {
     // Gegner im Torlauf auf Truppengroesse herunterskaliert: 0,78 (Truppe) geteilt
     // durch enemy.figureScale 1,25 ergibt 0,62.
     gegnerMassstab: 0.62,
+    // Einheitliches, langsames Tempo fuer ALLE Torlauf-Gegner. 0,55 des Normaltempos:
+    // Die Masse soll als geschlossene Horde heranschieben, nicht einzeln heranlaufen
+    // (Thomas 2026-09-19: "gleich langsam alles viele als Horde, langsam").
+    gegnerTempoFaktor: 0.55,
+    // 0,3 des normalen Spawntakts = gut dreimal so viele Gegner. Mit dem Normaltakt
+    // standen nur acht gleichzeitig auf der Bahn, sobald der Strom sie wirklich traf -
+    // das sieht nach Einzelgegnern aus, nicht nach einer Horde.
+    spawnTaktFaktor: 0.3,
     // 28 px: groesser als HUD-Text (22 px), aber unter der Boss-Overlay-Schrift (34 px).
     zahlFontPx: 28,
     // Eine Figurenhoehe Abstand ueber der vordersten Reihe, damit Zahl und Truppe getrennt bleiben.
