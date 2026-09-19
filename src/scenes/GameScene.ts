@@ -350,7 +350,12 @@ export class GameScene extends Phaser.Scene {
           this.updateHud()
         },
       )
-      this.strom = new Strom(this, (count) => this.crowd.getNextSalvoPositions(count), () => this.runStats.get('hp'))
+      this.strom = new Strom(
+        this,
+        (count) => this.crowd.getNextSalvoPositions(count),
+        () => this.runStats.get('hp'),
+        (ziel, schaden) => this.damageEnemy(ziel, schaden),
+      )
       this.weapons.setFeuerAktiv(false)
     } else if (this.nutztBahnen()) {
       this.walls = this.baueVersuchsBahnen()
@@ -438,6 +443,9 @@ export class GameScene extends Phaser.Scene {
       (size) => this.spawner.requestBossHorde(size, this.boss.getMaxActiveCalled()),
       () => this.crowd.getAnchorY(),
     )
+    // Erst NACH der Konstruktion: Vorher gab es this.boss noch nicht (im Browser
+    // brach create() genau hier ab).
+    this.boss.setLebensFaktor(this.istTorlauf() ? BALANCE.torlauf.bossLebenFaktor : 1)
     this.coins = new Coins(this, () => this.updateHud())
     this.splashFlashes = new SplashFlashPool(this)
     this.chainFlashes = new ChainFlashPool(this)
@@ -1178,9 +1186,10 @@ export class GameScene extends Phaser.Scene {
     // Gegner aus dem normalen Nachschub: Eine Figur nimmt genau einen Punkt mit und
     // ist danach verbraucht - so wie im Vorbild, wo der Strom in die Masse laeuft.
     if (wall.getData('hp') !== undefined) {
-      this.damageEnemy(wall, BALANCE.torlauf.horde.punkteJeFigur)
-      this.sterbeeffekte.spawn(figur.x, figur.y, figur.texture.key, figur.scaleX, figur.scaleY)
-      this.strom?.recycleFigure(figur)
+      // Kein Verschwinden mehr beim ersten Treffer: Die Figur bleibt stehen und
+      // kaempft, bis das Ziel faellt oder sie selbst aufgerieben ist. Dadurch staut
+      // sich der Strom sichtbar an der Front (Thomas 2026-09-19).
+      this.strom?.bindeAnZiel(figur, wall)
       return
     }
     if (!(this.walls instanceof Torbahn)) return

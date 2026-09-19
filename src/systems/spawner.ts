@@ -147,7 +147,13 @@ export class Spawner {
   /** Im Torlauf immer der Standardtyp, sonst nach der Leveltabelle gewichtet. */
   private waehleTyp(): EnemyType {
     if (!this.nurStandard) return chooseEnemyType(this.levelPlan.enemyWeights, () => Phaser.Math.RND.frac())
-    return BALANCE.enemy.types.find((type) => type.key === 'standard') ?? BALANCE.enemy.types[0]
+    // Ueberwiegend Standard, ab und zu ein Heavy dazwischen: Thomas hat in der reinen
+    // Standardmasse keinen einzigen Heavy mehr gesehen (2026-09-19).
+    const schwer = Phaser.Math.RND.frac() < BALANCE.torlauf.heavyAnteil
+    const gesucht = schwer ? 'heavy' : 'standard'
+    return BALANCE.enemy.types.find((type) => type.key === gesucht)
+      ?? BALANCE.enemy.types.find((type) => type.key === 'standard')
+      ?? BALANCE.enemy.types[0]
   }
 
   public setSpawningEnabled(enabled: boolean): void {
@@ -721,7 +727,9 @@ export class Spawner {
     enemy.setActive(true).setVisible(true).clearTint()
     this.applyPerspectiveScale(enemy, y)
     this.applyHorizonReveal(enemy)
-    enemy.setData('hp', getEnemyHp(type, this.levelPlan.level, this.getPlayerPower()))
+    // Im Torlauf zaeher: Sonst raeumt der Dauerstrom jeden Gegner sofort ab und es
+    // bildet sich nie eine Masse, an der sich die Figuren stauen koennten.
+    enemy.setData('hp', getEnemyHp(type, this.levelPlan.level, this.getPlayerPower()) * (this.nurStandard ? BALANCE.torlauf.gegnerLebenFaktor : 1))
     // Im Torlauf zaehlt nur EIN Tempo: Unterschiedlich schnelle Gegner zerfasern die
     // Masse, die dort als geschlossene Horde heranlaufen soll.
     enemy.setData('speedFactor', this.nurStandard ? BALANCE.torlauf.gegnerTempoFaktor : type.speedFactor)

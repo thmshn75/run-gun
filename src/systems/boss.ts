@@ -8,6 +8,8 @@ import { getRoadHalfWidth } from './roadGeometry'
 import type { WeaponKey } from './weapons'
 
 export class Boss {
+  /** Vervielfacht den Lebensvorrat; der Torlauf setzt ihn hoch. */
+  private lebensFaktor = 1
   private readonly scene: Phaser.Scene
   private readonly enemy: Phaser.Physics.Arcade.Image
   private readonly shadow: Phaser.GameObjects.Image
@@ -50,6 +52,10 @@ export class Boss {
   private phaseTwoStarted: boolean
   private phaseFlashRemainingMs: number
 
+
+  public setLebensFaktor(faktor: number): void {
+    this.lebensFaktor = faktor
+  }
   public constructor(
     scene: Phaser.Scene,
     nextSpawnId: () => number,
@@ -127,8 +133,14 @@ export class Boss {
     body.moves = false
     this.applyPerspectiveScale()
     body.updateFromGameObject()
-    this.enemy.setData('hp', this.plan.maxHp)
-    this.enemy.setData('maxHp', this.plan.maxHp)
+    // Im Torlauf traegt der Boss ein Vielfaches: Dort steht ihm kein Schuetzentrupp
+    // gegenueber, sondern ein Dauerstrom aus bis zu 24 Figuren je Sekunde. Mit dem
+    // Run-Wert fiel er in unter drei Sekunden und war praktisch nicht zu sehen
+    // (Thomas 2026-09-19: "abgesehen davon habe ich keinen Heavy gesehen und einen
+    // Endboss").
+    const maxHp = this.plan.maxHp * this.lebensFaktor
+    this.enemy.setData('hp', maxHp)
+    this.enemy.setData('maxHp', maxHp)
     this.enemy.setData('contactDamage', 0)
     this.enemy.setData('coinValue', BALANCE.boss.coinReward)
     // Gemeinsamer Schadenseingang, aber kein Rueckstoss: der Boss hat eine eigene

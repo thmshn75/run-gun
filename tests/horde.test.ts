@@ -22,29 +22,32 @@ describe('Torlauf Gegnernachschub', () => {
     expect(BALANCE.torlauf.gegnerMassstab).toBeCloseTo(BALANCE.torlauf.crowd.figureScale / BALANCE.enemy.figureScale, 2)
   })
 
-  it('nimmt einem getroffenen Gegner Punkte und verbraucht die Stromfigur', () => {
+  it('bindet die Stromfigur an den Gegner, statt sie beim ersten Treffer zu verbrauchen', () => {
+    // Thomas 2026-09-19: "so dass meine ausgeschickten Truppen anstehen, sich dort
+    // sammeln und von den Gegnern auch zerstoert werden." Der Schaden faellt deshalb
+    // nicht mehr beim Treffer an, sondern ueber die Standzeit im Strom-Update.
     const gegner = { active: true, x: 100, y: 200, getData: (key: string) => key === 'hp' ? 5 : undefined }
     const figur = { active: true, x: 90, y: 250, texture: { key: 'player' }, scaleX: 1, scaleY: 1, getData: () => new Set<number>() }
     const scene = {
       damageEnemy: vi.fn(),
       sterbeeffekte: { spawn: vi.fn() },
-      strom: { recycleFigure: vi.fn() },
+      strom: { bindeAnZiel: vi.fn(), recycleFigure: vi.fn() },
       walls: {},
     }
     const treffer = (GameScene.prototype as unknown as { handleStromTreffer: (f: unknown, w: unknown) => void }).handleStromTreffer
     treffer.call(scene, figur, gegner)
-    expect(scene.damageEnemy).toHaveBeenCalledWith(gegner, BALANCE.torlauf.horde.punkteJeFigur)
-    expect(scene.strom.recycleFigure).toHaveBeenCalledWith(figur)
+    expect(scene.strom.bindeAnZiel).toHaveBeenCalledWith(figur, gegner)
+    expect(scene.strom.recycleFigure).not.toHaveBeenCalled()
   })
 
   it('laesst eine Stromfigur an Objekten ohne Lebenspunkte unberuehrt', () => {
     // Tore und Kacheln haben kein hp: Sie duerfen den Gegner-Zweig nicht ausloesen.
     const kachel = { active: true, x: 70, y: 500, getData: () => undefined }
     const figur = { active: true, x: 90, y: 550, texture: { key: 'player' }, scaleX: 1, scaleY: 1, getData: () => new Set<number>() }
-    const scene = { damageEnemy: vi.fn(), sterbeeffekte: { spawn: vi.fn() }, strom: { recycleFigure: vi.fn() }, walls: {} }
+    const scene = { damageEnemy: vi.fn(), sterbeeffekte: { spawn: vi.fn() }, strom: { bindeAnZiel: vi.fn(), recycleFigure: vi.fn() }, walls: {} }
     const treffer = (GameScene.prototype as unknown as { handleStromTreffer: (f: unknown, w: unknown) => void }).handleStromTreffer
     treffer.call(scene, figur, kachel)
-    expect(scene.damageEnemy).not.toHaveBeenCalled()
+    expect(scene.strom.bindeAnZiel).not.toHaveBeenCalled()
     expect(scene.strom.recycleFigure).not.toHaveBeenCalled()
   })
 })

@@ -26,12 +26,12 @@ export const BALANCE = {
     // Gegner"). 25 s = rund 7 Torpaare bei 900 px Abstand und 250 px/s Scroll, also genug
     // Gelegenheit, die Quelle aufzubauen, bevor die Horde kommt. Ein ganzer Durchgang
     // dauert damit gut eine Minute statt ueber zwei.
-    // 50 s: Solange laeuft der Gegnernachschub ohne Pause, danach kommt der Boss und
+    // 35 s: Solange laeuft der Gegnernachschub ohne Pause, danach kommt der Boss und
     // beendet das Level (Thomas 2026-09-19: "die Horde kommt von oben immer nach -
     // immer und immer wieder, keine Pause ... und erst ganz zum Schluss der Boss,
     // damit das Level ein Ende hat"). Vorher waren es 6 s bis zu EINER Horde, die
     // deshalb "zu leicht zu besiegen" war - es kam schlicht nichts nach.
-    laufphaseSec: 50,
+    laufphaseSec: 35,
     // Startgroesse der Quelle. Der echte Run beginnt mit stats.hp.base = 1, und genau das
     // macht den Torlauf unspielbar: 1 Einheit x 0,4 = 0,4 Figuren/s, also alle 2,5 s eine
     // einzige Figur - damit ist kein Pfeiler mit Startwert -3 bis -17 aufzuhacken und die
@@ -49,7 +49,18 @@ export const BALANCE = {
     // 0,3 des normalen Spawntakts = gut dreimal so viele Gegner. Mit dem Normaltakt
     // standen nur acht gleichzeitig auf der Bahn, sobald der Strom sie wirklich traf -
     // das sieht nach Einzelgegnern aus, nicht nach einer Horde.
-    spawnTaktFaktor: 0.3,
+    // 0,1 des normalen Takts: Die Gegner sollen so dicht stehen, dass der Strom an
+    // ihnen ANSTEHT und sich sammelt, statt einzeln hindurchzulaufen (Thomas
+    // 2026-09-19: "darf ruhig viel dichter sein, so dass meine ausgeschickten Truppen
+    // anstehen, sich dort sammeln und von den Gegnern auch zerstoert werden").
+    spawnTaktFaktor: 0.1,
+    // Ab und zu ein Heavy zwischen den Standardfiguren - Thomas hat in der dichten
+    // Masse keinen einzigen gesehen, weil der Torlauf nur noch Standard spawnte.
+    heavyAnteil: 0.12,
+    // Gegner im Torlauf dreimal so zaeh und der Boss achtmal: Der Strom liefert
+    // dauerhaft Nachschub, gegen Run-Werte faellt alles sofort um.
+    gegnerLebenFaktor: 3,
+    bossLebenFaktor: 8,
     // 28 px: groesser als HUD-Text (22 px), aber unter der Boss-Overlay-Schrift (34 px).
     zahlFontPx: 28,
     // Eine Figurenhoehe Abstand ueber der vordersten Reihe, damit Zahl und Truppe getrennt bleiben.
@@ -163,6 +174,13 @@ export const BALANCE = {
       // Punkt je Figur stauten sich im Browser 48 Gegner und die Truppe fiel von 12
       // auf 1, bevor ueberhaupt etwas gesammelt war.
       punkteJeFigur: 4,
+      // NAHKAMPF AN DER FRONT: Eine Stromfigur verschwindet beim Treffer nicht mehr
+      // sofort, sondern bleibt stehen und kaempft. Dadurch staut sich der Strom an der
+      // Gegnermasse - genau das Bild, das Thomas am 2026-09-19 beschrieben hat.
+      kampfSchadenProSek: 6,
+      // Nach dieser Standzeit im Kampf ist die Figur aufgerieben ("von den Gegnern
+      // auch zerstoert werden").
+      kampfStandzeitMs: 1400,
       fressRateProSek: 8,
       // Die Horde ist eine MASSE AUS FIGUREN, keine rote Wand mit Zahl (Thomas
       // 2026-09-19: "die Horde sind keine Zombies sondern nur eine grosse Wand mit Zahl").

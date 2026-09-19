@@ -9,6 +9,8 @@ export class Strom {
   private readonly scene: Phaser.Scene
   private readonly getSalvoPositions: (count: number) => Array<{ x: number; y: number }>
   private readonly getTeamSize: () => number
+  /** Schaden an ein Ziel melden; der Strom kennt weder Gegner noch Boss. */
+  private readonly verletzeZiel: (ziel: Phaser.Physics.Arcade.Image, schaden: number) => void
   private readonly figures: Phaser.Physics.Arcade.Image[] = []
   private readonly group: Phaser.Physics.Arcade.Group
   private accumulatorFigures = 0
@@ -17,10 +19,11 @@ export class Strom {
   private lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
   private nextIndex = 0
 
-  public constructor(scene: Phaser.Scene, getSalvoPositions: (count: number) => Array<{ x: number; y: number }>, getTeamSize: () => number) {
+  public constructor(scene: Phaser.Scene, getSalvoPositions: (count: number) => Array<{ x: number; y: number }>, getTeamSize: () => number, verletzeZiel: (ziel: Phaser.Physics.Arcade.Image, schaden: number) => void) {
     this.scene = scene
     this.getSalvoPositions = getSalvoPositions
     this.getTeamSize = getTeamSize
+    this.verletzeZiel = verletzeZiel
     this.group = scene.physics.add.group()
     for (let index = 0; index < BALANCE.pools.strom; index += 1) {
       // Dieselbe Farbe wie die Truppe: Die losgeschickten Figuren SIND die Truppe.
@@ -63,6 +66,19 @@ export class Strom {
       // nach oben ausschlagen, rannten sie mit gemessenen 530 px/s statt der
       // eingestellten 150 (Thomas 2026-09-19: "die ausgeschickten Truppen sind viel zu
       // schnell" - Absenken des Wertes half deshalb kaum).
+      const ziel = figure.getData('ziel') as Phaser.Physics.Arcade.Image | undefined
+      if (ziel !== undefined) {
+        if (!ziel.active) {
+          // Ziel gefallen: weiterlaufen, das naechste steht schon dahinter.
+          figure.setData('ziel', undefined)
+        } else {
+          const kampfSeitMs = (figure.getData('kampfSeitMs') as number) + dt
+          figure.setData('kampfSeitMs', kampfSeitMs)
+          this.verletzeZiel(ziel, BALANCE.torlauf.horde.kampfSchadenProSek * dt / 1000)
+          if (kampfSeitMs >= BALANCE.torlauf.horde.kampfStandzeitMs) this.recycle(figure)
+          continue
+        }
+      }
       const laufY = (figure.getData('laufY') as number) - BALANCE.torlauf.strom.tempoPxPerSec * dt / 1000
       figure.setData('laufY', laufY)
       const x = getStromLaneX(this.scene.scale.width, this.scene.scale.height, laufY, figure.getData('laneOriginX') as number, figure.getData('laneRatio') as number, figure.getData('lateralPx') as number)
@@ -79,6 +95,16 @@ export class Strom {
 
   public recycleFigure(figure: Phaser.Physics.Arcade.Image): void { this.recycle(figure) }
 
+  /**
+   * Meldet Nahkampf: Die Figur bleibt an ihrem Ziel stehen, statt beim ersten Treffer
+   * zu verschwinden. So staut sich der Strom an der Gegnermasse (Thomas 2026-09-19).
+   */
+  public bindeAnZiel(figure: Phaser.Physics.Arcade.Image, ziel: Phaser.Physics.Arcade.Image): void {
+    if (figure.getData('ziel') === ziel) return
+    figure.setData('ziel', ziel)
+    figure.setData('kampfSeitMs', 0)
+  }
+
   private spawn(x: number, y: number, lateralPx: number, hitSpawnIds: Set<number>): void {
     const figure = this.nextFree()
     if (figure === undefined) {
@@ -91,6 +117,8 @@ export class Strom {
     figure.enableBody(true, x, y, true, true).setActive(true).setVisible(true).setAlpha(1)
     figure.setRotation(Math.atan(-laneRatio * getLaneSlope(this.scene.scale.width, this.scene.scale.height)))
     figure.setData('laufY', y)
+    figure.setData('ziel', undefined)
+    figure.setData('kampfSeitMs', 0)
     figure.setData('laneRatio', laneRatio)
     figure.setData('laneOriginX', laneOriginX)
     figure.setData('lateralPx', lateralPx)
