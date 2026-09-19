@@ -1,99 +1,146 @@
 # Active Task
 
 ## Status
-`IMPL_DONE`
+`SPEC_READY`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
-## Stand des Reviews (2026-09-19)
+## Task
 
-**Code-Review bestanden nach Nacharbeit N4.** Eigenes System `Strom` mit Pool 200 und
-Spurformel aus dem Projektilpfad, dritter Dispatch-Zweig in `handleCombatOverlap` vor
-Projektil und Huelle, Kopien erben die Platten-Markierung, +1-Kacheln links, kein
-×-Paar innerhalb 1100 px, Guard in `collectPickup`, Nachschub nach jedem Levelstart aus,
-`cleared`-Sprung mit eigener Levelzaehlung, Feuer-Schalter in `Weapons`, Waffen-HUD
-aus. `npm run check`, `npm test` (41 Dateien, 436 Tests), `npm run build` gruen, im
-Terminal nachgelaufen.
+**V5 / E3 — Die Horde: eine rote Masse mit Zahl, die den Strom verbraucht und die
+Quelle frisst. Mit ihr kommt die Niederlage in den Torlauf zurueck.**
 
-**A10 — Bot-Messung, selbst durchgefuehrt (Playwright, Vite-Dev, 390x844):**
+Plan: `docs/plan-v5.md`, Kernmechanik bestaetigt (Losschicken statt Schiessen). E2r
+(Strom, Commit `93b64f5` + N5) ist die Grundlage: Figuren laufen in Wellen nach oben,
+hacken Pfeiler, werden an Platten vervielfacht; die Quelle waechst ueber +1-Kacheln
+(Team faehrt durch) und +N-Tore. **In E2r kann man nicht verlieren** — E3 aendert das.
 
-| Messung | Ergebnis |
-|---|---|
-| Torlauf L5, Quelle 10, Bot lenkt auf das bessere Tor, 9 Paare | ×2-Pfeiler mit -13 faellt in **2,5 s**; Quelle **10 → 61 in 47 s** (vor allem +1/s ueber die Kacheln, dazu +N-Tore); keine Projektile aktiv; hoechstens 22 Strom-Figuren gleichzeitig |
-| Bildzeit, Quelle 60, Torlauf-Level in der Gegnerphase, 20 s | **Median 16,7 ms, p95 18,1 ms**, 1201 Bilder, 0 Pool-Warnungen |
-| **Zweiter Start in derselben Sitzung (vor N4)** | **0 Treffer** bei 136 geometrischen Ueberlappungen — Collider zeigte auf die Gruppen des vorigen Laufs |
-| Zwei Starts in derselben Sitzung (**nach N4**) | Lauf 1: **77** Treffer, Lauf 2: **76** Treffer, Quelle je 40 → 49 in 8 s |
+### Was das Video zeigt (Bild fuer Bild, 4/s)
 
-**Gemessene Flugzeit ~0,8 s** (nicht 1,9 s wie in der Spec geschaetzt) — Pool 200 hat
-sehr viel Reserve, Kommentar am Pool nachgezogen. Die ×3-Vervielfachung konnte im
-Lastfall nicht sichtbar gemacht werden, weil die erzwungene Platte nahe am Horizont
-lag und die Kopien sofort recycelt wurden; die Logik ist ueber `hitSpawnIds` und Tests
-abgesichert, der Lastfall bleibt eine Sichtpruefung fuer E3.
+Die rote Flaeche ist eine dicht gepackte Masse roter Figuren mit einer Zahl daneben
+(858). Die blaue Welle drueckt gegen ihre Unterkante; **beide Zahlen schmelzen im
+Kontakt** (858 → 852 → 828 → 804 → 781 → 757 → 733 → 710, rund 24 je Viertelsekunde bei
+voller Welle). Die Masse rueckt langsam vor. Ist sie bei 0, ist der Weg frei (dann der
+Boss, E4). Ist die Quelle vorher leer, ist der Lauf vorbei.
 
-**Bekannte Eigenheit, keine Aenderung:** Die +1-Kacheln am linken Rand werden fast immer
-eingesammelt, weil die 214-px-Formation Figuren bis an den linken Rand losschickt —
-+1/s Grundwachstum unabhaengig von der Lenkung. Balance-Thema fuer E3, wenn die Horde
-Verlust bringt.
+### Was der Bestand vorgibt (gelesen)
 
-**Offen: A11 — Thomas' iPhone-Test** (Strom liest sich als losgeschickte Einheiten,
-Pfeiler fallen unter dem Strom, ×2 verdoppelt die Dichte, +1 zaehlt; und N1.4
-Wipptakt). Bis dahin `IMPL_DONE`, nicht `APPROVED`. **E2b (Pfeiler-Bilder) offen.**
+- `updateLevelPhase` (GameScene ~Z.1411): im Torlauf springt `normal` nach Ablauf der
+  Gegnerphase direkt auf `cleared` (E2r-Zwischenloesung, eigener Block mit
+  `currentLevel += 1`). `warning`/`boss` werden im Torlauf uebersprungen.
+- Niederlage im Probelauf: `triggerGameOver` → `beendeProbelauf` (E0), ausgeloest,
+  wenn `runStats.hp <= 0` (update-Schleife).
+- Torbahn-Objekte liegen in `getWalls()`; Strom-Figuren treffen sie ueber
+  `handleStromTreffer` (Dispatch-Zweig `'strom'`), die Huelle ueber den Huellen-Zweig
+  von `handleCombatOverlap`. `hitSpawnIds` verhindert Doppeltreffer je Figur.
+- Thomas' Gestalten (E5): Horde = `standard`-Figur, 0,6 skaliert; bis die Figurenmasse
+  gebaut ist, tut es eine Flaeche.
+- Sterbeeffekt-Pool (`sterbeeffekte.ts`) fuer das Zerplatzen.
+
+### Architekturentscheidung
+
+**Die Horde ist ein Objekt der `Torbahn`** (`HordeZustand`), kein Gegner des Spawners
+und kein Boss: ein Physik-Sprite ueber die **volle Strassenbreite** auf ihrer Hoehe,
+Textur vorerst ein Rechteck (`wall-segment-bad`-artig, rot), spaeter die Figurenmasse
+(E3b). Sie liegt in `getWalls()`, damit beide Collider (Strom, Huelle) sie ohne neuen
+Collider erreichen; `istHorde(obj)` unterscheidet sie.
 
 ---
 
-## NACHARBEIT N5 (2026-09-19, Thomas nach dem E2r-Bericht): Kacheln fuers Team, Strom als Welle
+## A — Auftritt und Phase
 
-Thomas: "die plus 1 waende soll man mit dem team erreichen damit sie zaehlen, nicht
-'abschiessen', und die abgeschossenen teams nicht einzeln sondern als welle".
+- Neue Levelphase **nur im Torlauf**: nach der Gegnerphase (`normal`, Dauer wie heute)
+  folgt **`horde`** statt `warning`/`boss`. `updateLevelPhase` (Torlauf-Zweig) setzt
+  `levelPhase = 'horde'`, `walls.deactivateAll()` **bis auf die Horde** (Tore und
+  Kacheln weg — im Video steht am Ende nur die Masse), und ruft
+  `torbahn.spawneHorde(level, quelle)`. `LevelPhase` bekommt den Wert `'horde'`; alle
+  Stellen, die `levelPhase` vergleichen, werden gegrept und benannt (Bossbalken,
+  Collider-Sync, Overlay, Shop) — keine davon darf in `horde` etwas Falsches tun.
+- **Zahl der Horde:** `hordePunkte = torlauf.horde.basis x getLevelPlan(level).hardness`
+  (Vorschlag Basis 120 — Rechenweg: eine Quelle von 40 mit 16 Figuren/s Welle liefert
+  in 8 s ~130 Punkte; Level 5 soll mit 40-60 Einheiten knapp zu schaffen sein). Wert
+  mit Rechenweg nach `balance.ts`; **das ist die Balance-Stellschraube von E3**.
+- Darstellung: Flaeche volle Breite x `torlauf.horde.hoehePx` (140), Zahl gross darauf
+  (Stil der Torlauf-Zahl). Sie faehrt vom Horizont ein wie ein Tor und **rueckt dann
+  mit `vorrueckTempoPxPerSec` (40) auf die Quelle vor** — langsamer als der Scroll,
+  sodass sie im Bild bleibt und Druck macht.
 
-**N5.1 — +1-Kacheln zaehlen nur, wenn die Truppe sie erreicht.**
-- `handleStromTreffer`: Kacheln werden **ignoriert** (Figur laeuft durch, kein +1, keine
-  Recycling).
-- `handleCombatOverlap`, Huellen-Zweig: statt `if (istKachel) return` wird die Kachel
-  eingeloest — Quelle +1 ueber `applyTorlaufReinforcement(1, …)`, Kachel recycelt. Wie
-  die Sammelbahn des Runs: Durchfahren genuegt. Die Kacheln liegen am linken Rand;
-  wer die Quelle dorthin lenkt, sammelt, wer rechts bleibt, nicht — **das ist die
-  Entscheidung links (+1-Kette) gegen rechts (Pfeiler)**, genau wie im Video.
-- Tests: Strom-Treffer auf Kachel aendert N nicht; Huellen-Kontakt mit Kachel gibt +1
-  und recycelt sie (Handler-Tests mit Stubs, kein Quelltextmuster).
+## B — Kontakt
 
-**N5.2 — Der Strom laeuft in Wellen.**
-- `Strom.update` sammelt die Figuren des Akkumulators und gibt sie **alle
-  `torlauf.strom.wellenIntervallMs`** (Vorschlag **1200 ms**, Rechenweg: bei 24/s sind
-  das ~29 Figuren je Welle, bei 4/s ~5; das Video zeigt Reihen von 10-30) als **eine
-  Reihe** ab: nebeneinander ueber die aktive Formationsbreite verteilt (Startpunkte
-  aus `getNextSalvoPositions(anzahl)` — die rotierenden Figurenpositionen der
-  vordersten Reihen), gleiche Startzeit, gleiches Tempo. Zwischen den Wellen laeuft
-  nichts los.
-- Die Rate selbst (`figurenProSek`) bleibt; nur die Abgabe buendelt sich. Pool-Deckel
-  wie gehabt; eine Welle, die nicht in den Pool passt, wird gekuerzt (DEV-Warnung).
-- Test: bei N=60 und 1200 ms Intervall entstehen je Welle ~29 Figuren, dazwischen 0;
-  Positionen der Welle liegen auf einer Hoehe und ueber die Breite verteilt.
+- **Strom-Figur trifft Horde** (`handleStromTreffer`, Zweig `istHorde`): Horde
+  `-torlauf.horde.punkteJeFigur` (1), Figur wird **recycelt** (verbraucht) — anders
+  als am Pfeiler. Kleiner Sterbeeffekt am Kontakt (Pool wie gehabt, Ringpuffer).
+- **Huelle trifft Horde** (Huellen-Zweig): solange Kontakt besteht, verliert die
+  Quelle `fressRateProSek` (8) Einheiten je Sekunde **und** die Horde ebenso viele
+  Punkte — gegenseitig, wie im Video. Kontakt wird je Bild erkannt; die Rate ueber
+  `dt` verrechnet, nicht je Overlap-Ereignis (sonst haengt der Verlust an der
+  Bildrate). Ein Test belegt Bildratenunabhaengigkeit (8 ms vs 16 ms Schritte).
+- **Horde bei 0:** zerplatzt (Sterbeeffekt gross), `levelPhase = 'cleared'`, Level
+  zaehlt hoch wie im E2r-Block. Overlay `HORDE GESCHAFFT`.
+- **Quelle bei 0:** `triggerGameOver` greift wie heute → `beendeProbelauf` mit
+  `TORLAUF VORBEI` — **die Niederlage ist zurueck.** Ein Test belegt den Pfad.
 
-**N5.3** `npm run check`, `npm test`, `npm run build` gruen. Kein Verhalten der
-Pfeiler/Platten aendern.
+## C — Der Strom in der Horde-Phase
 
-## Stand des Reviews N5/N6 (2026-09-19)
+- Der Strom laeuft weiter (Wellen), Pfeiler/Kacheln gibt es keine mehr; jede Welle
+  schlaegt in die Horde. Die Quelle kann jetzt nur noch sinken (Huellenkontakt) — wer
+  die Horde nicht schnell genug abbaut, wird gefressen. Das ist der Kern: **Masse
+  gegen Masse.**
 
-**Beide bestanden, im Browser belegt (je zwei Starts in derselben Sitzung, Lesson
-2026-09-19).**
+## D — Balance, Messung
 
-- **N5 Wellen:** Spawns exakt alle 1200 ms in Buendeln von 12-18 Figuren, dazwischen
-  keine — in beiden Laeufen identisch.
-- **N5 Kacheln:** Der Strom loest keine Kachel mehr ein; die Truppenhuelle sammelte
-  je Lauf 7 Kacheln (Quelle 40 → 47). Pfeilertreffer laufen unveraendert.
-- **N6 Kachelgroesse:** vorher quadratisch mit der Segmenthoehe (bis fast zur
-  Bahnmitte, von Thomas als "Waende in der Mitte" gemeldet), jetzt 14-27 px breit und
-  7-14 px hoch am linken Aussenrand. Rechtskante auf Kampfhoehe bei x=31 gegen
-  Bahnmitte 195 — die 214 px breite Formation passt frei daneben. **Strom-Kontakte mit
-  Kacheln: 390/s → 0/s**, eine eigene Physik-Gruppe ist damit nicht noetig.
-- Bildzeit unveraendert: **Median 16,7 ms**, p95 17,6 ms, Quelle 60.
-- `npm run check`, `npm test` (41 Dateien, 439 Tests), `npm run build` gruen.
+- `BALANCE.torlauf.horde` (`basis`, `hoehePx`, `vorrueckTempoPxPerSec`, `punkteJeFigur`,
+  `fressRateProSek`) mit Rechenweg.
+- **A-Messung (Reviewer, Bot):** Level 5, Bot lenkt auf das bessere Tor und sammelt
+  Kacheln (Anker links, wenn kein besseres Tor rechts): Ziel **60-80 % Siege ueber 5
+  Laeufe**, beim Sieg bleiben 10-40 % der Quelle. Level 15: 20-40 %. Dreifach, frische
+  Szene je Lauf. **Und: zweiter Start in derselben Sitzung** (Lesson 2026-09-19).
+- Bildzeit in der Horde-Phase ≤ 16,7 ms.
 
-**Angemerkt, nicht behoben:** Die Kacheln liegen am Horizont knapp neben der
-Strassenkante statt darauf (perspektivischer Rand); faellt am iPhone nicht auf, gehoert
-aber in E3 mitgenommen, wenn die Bahn ohnehin angefasst wird. Ausserdem castet
-`handleStromTreffer` `this.walls as Torbahn` ohne `instanceof` — funktional sicher
-(den Collider gibt es nur im Torlauf), aber beim naechsten Anfassen zu haerten.
+---
 
-**Offen: A11 — Thomas' iPhone-Test** (Strom als Wellen, Kacheln nur ueber das Team,
-Mitte frei; plus N1.4 Wipptakt). **E3 (Horde) ist der naechste Bau.**
+## Akzeptanzkriterien
+
+- **A1** Torlauf: nach der Gegnerphase folgt `horde`, Tore und Kacheln sind weg, die
+  Horde faehrt ein. Run/Probelauf: unveraendert `warning → boss` (Test).
+- **A2** Hordenzahl aus Basis x Haerte des Levels (Rechentest fuer Level 1, 5, 12).
+- **A3** Strom-Figur: Horde -1, Figur verbraucht (Handler-Test mit Stubs).
+- **A4** Huellenkontakt: Quelle und Horde verlieren `fressRate` je Sekunde, ueber `dt`,
+  bildratenunabhaengig (Rechentest).
+- **A5** Horde 0 → `cleared`, Level +1; Quelle 0 → `beendeProbelauf` (Tests).
+- **A6** Alle `levelPhase`-Vergleiche im Torlauf fuer `horde` korrekt (gegrept, im
+  Kommentar aufgelistet, Test fuer Bossbalken unsichtbar und Shop nicht offen).
+- **A7** Keine Aenderung an Run, Probelauf, `VersuchBahnen`, `Weapons`.
+- **A8** `npm run check`, `npm test`, `npm run build` gruen.
+- **A9 (Reviewer)** Bot-Messung wie in D; Bildzeit.
+- **A10 (Thomas)** iPhone: Die Horde liest sich als Masse gegen Masse, die Zahlen
+  schmelzen sichtbar, verlieren ist moeglich und fair. Zweimal starten.
+
+## Mitnehmen, weil die Bahn ohnehin angefasst wird
+
+- Die +1-Kacheln liegen am Horizont knapp **neben** der Strassenkante statt darauf
+  (perspektivischer Rand, Befund aus dem N6-Nachweis). Beim Bau der Horde mit
+  korrigieren: Kachel-x an derselben Strassengeometrie ausrichten wie die Tore.
+- `handleStromTreffer` castet `this.walls as Torbahn` ohne `instanceof`-Pruefung
+  (funktional sicher, den Collider gibt es nur im Torlauf). Beim Anfassen haerten —
+  die Horde bringt ohnehin einen neuen Zweig in denselben Handler.
+
+## Reissleine
+
+Traegt das gegenseitige Fressen nach **einer Balance-Session** nicht (Sieg immer oder
+nie), zuerst `basis`, dann `fressRateProSek` drehen — **nicht** den Strom staerken.
+Passt die Flaeche als Physik-Objekt nicht in `getWalls()` (Collider-Konflikte mit
+`isWall`-Zweigen), dann eigene Gruppe und eigener Collider — sauber, kein Cast.
+
+## Was kein zulaessiger Ersatz ist
+
+- **Nicht** die Horde aus dem Gegnerpool bauen.
+- **Nicht** Beschuss auf die Horde (es gibt keinen).
+- **Nicht** die Niederlage weglassen — sie ist der Zweck dieser Etappe.
+- **Nicht** Bilder erzeugen — Figurenmasse ist E3b, Pfeiler E2b.
+
+---
+
+## Wo die Historie steht
+
+Projektstand: `docs/UEBERGABE.md`, Regeln: `docs/lessons.md`, Plan: `docs/plan-v5.md`.
+**Zuletzt abgeschlossen:** E2r Der Strom (`93b64f5`) mit N5/N6 (Kacheln fuers Team ueber die Huelle, Strom in Wellen, schmale Randkacheln), Commit `7a5081a`.
