@@ -55,11 +55,11 @@ export const BALANCE = {
       abstandPx: 900,
       // Das Tor steht FEST in der Bahnmitte und zieht nicht mehr vorbei (Thomas
       // 2026-09-19: "es soll nur ein Tor in der Mitte sein ... dauerhaft da").
-      // y = 440: ungefaehr auf halbem Weg zwischen Truppe (704) und Horizont (180),
-      // also deutlich naeher an der Truppe als die 380 davor (Thomas 2026-09-19:
-      // "naeher zu meiner Truppe ruecken, ungefaehr die halbe Weglaenge"). Der Strom
-      // erreicht das Tor damit frueher und hat danach mehr Strecke bis zur Horde.
-      festY: 440,
+      // y = 570: noch einmal den halben verbleibenden Weg naeher an die Truppe (704)
+      // geruckt (Thomas 2026-09-19, zweite Korrektur). Der Strom passiert das Tor damit
+      // schon nach rund 130 px und laeuft die restlichen 270 px bereits vervielfacht
+      // auf die Horde zu - der Kampf findet also fast vollstaendig hinter dem Tor statt.
+      festY: 570,
       // Anteil der vollen Bahnbreite auf Torhoehe. 0,72: noch einmal breiter (Thomas
       // 2026-09-19: "eher breiter"); links und rechts bleiben je 14 Prozent frei, also
       // gerade genug, um das Tor bewusst zu umfahren.
