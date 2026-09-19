@@ -81,7 +81,7 @@ describe('Torlauf E1 sichtbare Masse', () => {
 
   it('haelt das Run-Profil unveraendert und gibt dem Torlauf 150 kleine Figuren als Traube', () => {
     expect(RUN_FORMATIONS_PROFIL).toMatchObject({ poolGroesse: 30, max: 30, figureScale: 1, form: 'dreieck', huelleFolgtFormation: false })
-    expect(BALANCE.torlauf).toMatchObject({ anchorBottomOffset: 140, crowd: { poolGroesse: 150, max: 150, figureScale: 0.6, form: 'traube', plaetzeJeReihe: 20, huelleFolgtFormation: true } })
+    expect(BALANCE.torlauf).toMatchObject({ anchorBottomOffset: 140, crowd: { poolGroesse: 150, max: 150, figureScale: 0.78, form: 'traube', plaetzeJeReihe: 20, huelleFolgtFormation: true } })
     expect(BALANCE.crowd.max).toBe(30)
     expect(BALANCE.pools.crowd).toBe(30)
   })
@@ -131,12 +131,14 @@ describe('Torlauf E1 sichtbare Masse', () => {
     expect(BALANCE.gamefeel.bobAmplitudePx * RUN_FORMATIONS_PROFIL.figureScale).toBe(bobAmplitude)
   })
 
-  it('N1.2 zeichnet den Torlauf im Run-Takt und mit 1,8 px Hub', () => {
+  it('N1.2 zeichnet den Torlauf im Run-Takt und mit figurgerechtem Hub', () => {
     const runFigureHeight = 92 * BALANCE.render.figureTextureScale
     const torlaufFigureHeight = runFigureHeight * BALANCE.torlauf.crowd.figureScale
 
     expect(getStepCycleHz(torlaufFigureHeight / BALANCE.torlauf.crowd.figureScale)).toBe(getStepCycleHz(runFigureHeight))
-    expect(BALANCE.gamefeel.bobAmplitudePx * BALANCE.torlauf.crowd.figureScale).toBeCloseTo(1.8)
+    // Der Hub waechst mit der Figurengroesse mit: 0,78 statt 0,6 seit Thomas'
+    // "etwas groesser" vom 2026-09-19, also 2,34 px statt 1,8 px.
+    expect(BALANCE.gamefeel.bobAmplitudePx * BALANCE.torlauf.crowd.figureScale).toBeCloseTo(2.34)
   })
 })
 

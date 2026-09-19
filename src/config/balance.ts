@@ -161,8 +161,22 @@ export const BALANCE = {
       // Figuren. Abstaende etwas weiter als bei der eigenen Truppe, damit die Horde
       // breiter und bedrohlicher steht statt als Klumpen.
       plaetzeJeReihe: 20,
-      reihenAbstandPx: 14,
-      spaltenAbstandPx: 13,
+      reihenAbstandPx: 16,
+      spaltenAbstandPx: 15,
+      // Die Bewegung der Horde war "kaum zu sehen" (Thomas 2026-09-19). Ihr Wippen
+      // bekommt deshalb die 2,6-fache Amplitude der eigenen Truppe und einen etwas
+      // langsameren Takt - aus der Entfernung liest sich das als schwerfaelliges
+      // Schlurfen statt als Zittern.
+      wippenFaktor: 2.6,
+      wippenTaktFaktor: 0.75,
+      // Zusammensetzung (Thomas 2026-09-19: "Standardfigur fuer Horde ist die Figur
+      // Standard, Heavy Figuren zwischendurch und am Ende die Bosse und Elite-Bosse").
+      // Jede vierte Figur der hinteren Haelfte ist ein Heavy; ganz hinten in der Mitte
+      // steht ein Boss, ab Level 5 ein Elite-Boss.
+      heavyJedeXte: 4,
+      heavySkala: 1.35,
+      bossSkala: 2.1,
+      eliteAbLevel: 5,
     },
     kachel: {
       // 60 px statt 140: Die +1-Felder sollen eine DURCHGEHENDE Reihe bilden, nicht
@@ -204,7 +218,10 @@ export const BALANCE = {
       // rund einem Zwanzigstel der Bahnbreite; unsere Bahn ist auf Kampfhoehe ~300 px breit,
       // 20 px sind ein Fuenfzehntel — etwas groesser als im Video, damit die 12-Bild-Laufsaetze
       // lesbar bleiben.
-      figureScale: 0.6,
+      // 0,78 statt 0,6: Thomas 2026-09-19 "meine Truppen und die Horden etwas groesser".
+      // Bei 0,6 war eine Figur rund 17 px hoch, jetzt 22 px - noch klein genug, dass
+      // 150 Figuren als Masse lesbar bleiben.
+      figureScale: 0.78,
       // `rowSpacingY` 9 → 8 Reihen = 63 px Tiefe; die Figuren (28 px hoch) ueberlappen zu
       // zwei Dritteln, genau die dichte Staffelung des Videos. Die Depth-Regel
       // `gameplay + row` bleibt, damit hintere Reihen hinter vorderen liegen.
