@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`IMPL_DONE`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -297,5 +297,6 @@ der Lesson vom 2026-09-19. Die tragenden Pruefungen daneben (Spanne, Mittelwert 
 Nicht-Periodizitaet der zweiten Welle, Entkopplung des Schussursprungs) sind echte
 Rechnungen. Beim naechsten Anfassen dieser Datei mitnehmen.
 
-**Offen: A14 — Thomas' iPhone-Test.** Wirken Truppe und Gegner weniger gleichfoermig?
-Bis dahin `IMPL_DONE`, nicht `APPROVED`.
+**A14 am 2026-09-19 von Thomas abgenommen: "ok soweit lassen wir es jetzt".**
+Alle Akzeptanzkriterien erfuellt. Der naechste Schritt fuer mehr Abwechslung bei den
+Gegnern (zusaetzliche Bilder) bleibt als Option in `docs/UEBERGABE.md` notiert.

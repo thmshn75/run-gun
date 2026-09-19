@@ -1,27 +1,24 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-09-19 (TREFFERQUITTUNG gebaut, reviewt, gepusht und von Thomas am iPhone
-abgenommen: "funktioniert gut". Davor: PROBELAUF fertig, gemessen und am 2026-09-17 abgenommen; er bleibt
+Stand: 2026-09-19 (drei Gamefeel-Tasks nach Thomas' Genre-Video gebaut und abgenommen:
+TREFFERQUITTUNG "funktioniert gut", FLUESSIGERE BEWEGUNGEN "ist ok", ABWECHSLUNG "ok
+soweit". Danach Pruefauftrag: zweiter Probelauf mit der Tor-Logik aus dem Video. Davor: PROBELAUF fertig, gemessen und am 2026-09-17 abgenommen; er bleibt
 im Testbereich, der echte Run ist unveraendert.)
 
 **Das Naechste liegt in `## Offen`.**
 
 ## Offen — naechster Schritt zuerst
 
-0. **TREFFERQUITTUNG — fertig und am 2026-09-19 von Thomas abgenommen.**
-   Commit `a8d5fae`. Getroffene Gegner werden sichtbar zum Horizont geschoben, sterbende
-   Gegner und der besiegte Boss zerplatzen (eigener Ringpuffer-Pool, der Gegnerpoolplatz
-   wird unveraendert sofort frei), der Boss zeigt seine Lebenspunkte zusaetzlich zum
-   Balken als tickende Zahl. Keine Balance-Zahl geaendert, keine Trefferflaeche
-   verschoben; 399 Tests und Build gruen, im Terminal nachgelaufen.
-   Alle Akzeptanzkriterien erfuellt. Der Bildzeit-Median unter voller Horde ist nur
-   als Eindruck abgenommen, nicht als Zahl gemessen; bei spaeterem Ruckeln faellt
-   zuerst das Zerplatzen, dann der Rueckstoss (Reissleine in der Spec).
-   Spec und Reviewstand: `docs/active-task.md`.
-   **Der Trefferblitz aus der ersten Fassung ist wieder raus** — Thomas hat ihn am
-   2026-08-23 und erneut am 2026-09-19 verworfen. Warum das zweimal passieren konnte,
-   steht in `docs/lessons.md` (2026-09-19); der Grund steht jetzt auch wieder als
-   Kommentar an `BALANCE.feedback`, mit beiden Absagen.
+0. **Drei Gamefeel-Tasks vom 2026-09-19 — alle abgenommen.** Commits `a8d5fae` (Trefferquittung:
+   Rueckstoss, Zerplatzen, Boss-Lebenspunktzahl), `a1f2f1f` (Boss-Bildtakt 1,0,
+   Ausklingkurven), `25b4ac7` (Streuung je Truppenfigur, zweite Hubwelle, ±6 % Takt bei
+   Bildsatz-Gegnern). Zwei Rueckdrehungen unterwegs, beide in `docs/lessons.md`
+   (2026-09-19): Trefferblitz ein zweites Mal verworfen; Gegner-Korridor gilt NICHT fuer
+   den Boss (seine Sprungwerte sind jetzt gemessen: basic 29,17 %, elite 20,33 %).
+   **Option, nicht beauftragt:** Mehr Abwechslung bei Gegnern geht nur noch ueber
+   zusaetzliche Bilder (zweiter Laufzyklus je Gestalt, Stolpern) — Codex erzeugt sie.
+   Thomas' Restbefund: "so richtig wie gekaufte App ist es nicht".
+
 
 0. **PROBELAUF — fertig und abgenommen (2026-09-17).** Thomas hat den Stand am iPhone
    getestet und entschieden: **bleibt vorerst so.** Der Probelauf liegt im Testbereich,
