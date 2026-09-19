@@ -1,8 +1,7 @@
 # Run & Gun — Umsetzungsplan V5 (TORLAUF: zweiter Probelauf nach dem Genre-Video)
 
-Status: **ENTWURF, nicht freigegeben.** Thomas hat am 2026-09-19 den Zuschnitt
-entschieden ("so nah als moeglich an dem Video", Truppendeckel faellt nur im neuen
-Modus); die Etappen unten sind sein Pruefergebnis, kein Bauauftrag. Der bestehende
+Status: **FREIGEGEBEN von Thomas am 2026-09-19 ("go").** Zuschnitt: "so nah als
+moeglich an dem Video", Truppendeckel faellt nur im neuen Modus. E0 ist der erste Task. Der bestehende
 PROBELAUF bleibt unveraendert; der neue Modus kommt **zusaetzlich**.
 
 Die Regeln aus V1-V4 gelten unveraendert: Objekt-Pools mit hergeleiteten Groessen, alle
