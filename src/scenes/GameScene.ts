@@ -446,6 +446,7 @@ export class GameScene extends Phaser.Scene {
     // Erst NACH der Konstruktion: Vorher gab es this.boss noch nicht (im Browser
     // brach create() genau hier ab).
     this.boss.setLebensFaktor(this.istTorlauf() ? BALANCE.torlauf.bossLebenFaktor : 1)
+    this.boss.setSchadenFaktor(this.istTorlauf() ? BALANCE.torlauf.bossSchadenFaktor : 1)
     this.coins = new Coins(this, () => this.updateHud())
     this.splashFlashes = new SplashFlashPool(this)
     this.chainFlashes = new ChainFlashPool(this)
@@ -1201,9 +1202,11 @@ export class GameScene extends Phaser.Scene {
     const spawnId = wall.getData('spawnId') as number | undefined
     if (spawnId !== undefined && hitSpawnIds.has(spawnId)) return
     if (spawnId !== undefined) hitSpawnIds.add(spawnId)
-    // Jedes Tor ist ein Multiplikator: Die Figur laeuft hindurch und wird zu mehreren,
-    // die weiter auf die Horde zulaufen. Das Tor bleibt stehen, damit die naechste
-    // Welle es ebenfalls nutzen kann.
+    // Erst ab der Freischaltgrenze vervielfacht das Tor. Davor laeuft der Strom
+    // hindurch, ohne sich zu vermehren.
+    if (!torbahn.istTorScharf()) return
+    // Die Figur laeuft hindurch und wird zu mehreren, die weiter auf die Gegner
+    // zulaufen. Das Tor bleibt stehen, damit die naechste Welle es ebenfalls nutzt.
     this.strom?.vervielfache(figur, wirkung.faktor - 1)
     this.popups.spawn(figur.x, figur.y, `×${wirkung.faktor}`, '#3ddc84')
   }

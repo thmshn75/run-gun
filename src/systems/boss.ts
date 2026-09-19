@@ -10,6 +10,7 @@ import type { WeaponKey } from './weapons'
 export class Boss {
   /** Vervielfacht den Lebensvorrat; der Torlauf setzt ihn hoch. */
   private lebensFaktor = 1
+  private schadenFaktor = 1
   private readonly scene: Phaser.Scene
   private readonly enemy: Phaser.Physics.Arcade.Image
   private readonly shadow: Phaser.GameObjects.Image
@@ -55,6 +56,10 @@ export class Boss {
 
   public setLebensFaktor(faktor: number): void {
     this.lebensFaktor = faktor
+  }
+
+  public setSchadenFaktor(faktor: number): void {
+    this.schadenFaktor = faktor
   }
   public constructor(
     scene: Phaser.Scene,
@@ -263,7 +268,9 @@ export class Boss {
   }
 
   private advanceTowardsCrowd(dt: number, plan: BossPlan): void {
-    this.enemy.setData('contactDamage', plan.advanceContactDamage)
+    // Im Torlauf schlaegt der Boss ein Vielfaches: Dort steht ihm eine bis zu 150
+    // Figuren starke Truppe gegenueber (Thomas 2026-09-19: "und der Boss erst recht").
+    this.enemy.setData('contactDamage', plan.advanceContactDamage * this.schadenFaktor)
     const stopY = Math.max(BALANCE.boss.battleY, this.getAnchorY() - plan.advanceStopBeforeAnchorPx)
     this.enemy.y = Math.min(this.enemy.y + (plan.advanceSpeed * dt) / 1000, stopY)
     this.swingSideways(dt, plan)

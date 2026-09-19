@@ -39,6 +39,7 @@ export class Torbahn implements BahnSystem {
   private readonly kacheln: KachelZustand[] = []
   private readonly zuKachel = new Map<Phaser.GameObjects.GameObject, KachelZustand>()
   private readonly getCrowdAnchorX: () => number
+  private readonly getTeamSize: () => number
   private abstand = BALANCE.torlauf.tor.abstandPx
   private kachelAbstand: number = BALANCE.torlauf.kachel.abstandPx
   private nextSpawnId = 1
@@ -48,7 +49,7 @@ export class Torbahn implements BahnSystem {
 
   public constructor(
     scene: Phaser.Scene,
-    _getTeamSize: () => number,
+    getTeamSize: () => number,
     getCrowdAnchorX: () => number,
     zufall: () => number,
     _applyReinforcement: (apply: (current: number) => number, popup: string) => void,
@@ -56,6 +57,7 @@ export class Torbahn implements BahnSystem {
     this.scene = scene
     this.zufall = zufall
     this.getCrowdAnchorX = getCrowdAnchorX
+    this.getTeamSize = getTeamSize
     this.walls = scene.physics.add.group()
     this.rewards = scene.physics.add.group()
     for (let i = 0; i < 8; i += 1) {
@@ -73,6 +75,15 @@ export class Torbahn implements BahnSystem {
   public getWalls(): Phaser.Physics.Arcade.Group { return this.walls }
 
   public getRewards(): Phaser.Physics.Arcade.Group { return this.rewards }
+
+  /**
+   * Das Tor vervielfacht erst ab einer Mindest-Truppengroesse. Bis dahin laeuft der
+   * Strom hindurch, ohne sich zu vermehren - so bekommt die Gegnermasse am Anfang
+   * Boden (Thomas 2026-09-19).
+   */
+  public istTorScharf(): boolean {
+    return this.getTeamSize() >= BALANCE.torlauf.tor.freischaltAbTruppe
+  }
 
   public hasActivePair(): boolean { return this.tore.some((tor) => tor.aktiv) || this.kacheln.some((kachel) => kachel.aktiv) }
 
@@ -177,6 +188,7 @@ export class Torbahn implements BahnSystem {
       tor.bild.setPosition(geo.x, mitteY).setDisplaySize(geo.breite, hoehe).setAlpha(1)
       ;(tor.bild.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       tor.label.setPosition(geo.x, mitteY).setScale(scale).setAlpha(1)
+      this.beschrifte(tor)
       tor.restLabel.setAlpha(0)
     }
     for (const kachel of this.kacheln) {
@@ -240,11 +252,16 @@ export class Torbahn implements BahnSystem {
   }
 
   private beschrifte(tor: TorZustand): void {
-    // Nur noch der Faktor. Die zweite Zeile trug frueher den Reststand eines Pfeilers,
-    // den der Strom erst aufhacken musste - den gibt es nicht mehr.
-    tor.label.setText(`×${tor.wirkung.faktor}`).setColor('#ffffff')
+    // Vor der Freischaltung steht die noetige Truppengroesse auf dem Tor, danach der
+    // Faktor. So ist von aussen sichtbar, worauf man hinarbeitet.
+    if (this.istTorScharf()) {
+      tor.label.setText(`×${tor.wirkung.faktor}`).setColor('#ffffff')
+      tor.bild.setTexture('wall-segment-right').clearTint()
+    } else {
+      tor.label.setText(`${BALANCE.torlauf.tor.freischaltAbTruppe}`).setColor('#ffd166')
+      tor.bild.setTexture('wall-segment-right').setTint(0x7a7a7a)
+    }
     tor.restLabel.setText('')
-    tor.bild.setTexture('wall-segment-right')
   }
 
   private recycle(tor: TorZustand): void {

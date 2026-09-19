@@ -49,18 +49,34 @@ export const BALANCE = {
     // 0,3 des normalen Spawntakts = gut dreimal so viele Gegner. Mit dem Normaltakt
     // standen nur acht gleichzeitig auf der Bahn, sobald der Strom sie wirklich traf -
     // das sieht nach Einzelgegnern aus, nicht nach einer Horde.
-    // 0,1 des normalen Takts: Die Gegner sollen so dicht stehen, dass der Strom an
-    // ihnen ANSTEHT und sich sammelt, statt einzeln hindurchzulaufen (Thomas
-    // 2026-09-19: "darf ruhig viel dichter sein, so dass meine ausgeschickten Truppen
-    // anstehen, sich dort sammeln und von den Gegnern auch zerstoert werden").
-    spawnTaktFaktor: 0.1,
+    // 0,5 des normalen Takts. Da jeder Takt eine ganze REIHE setzt (reiheGroesse),
+    // ergibt das rund 20 Gegner je Sekunde und damit eine dauerhaft volle Bahn, ohne
+    // den 288er-Pool leerzulaufen (bei 0,035 war er dauernd erschoepft). Thomas
+    // 2026-09-19:
+    // "Gegner noch viel mehr, im Video ist das Bild komplett voll, so soll es sein ...
+    // wie eine Wand soll der Gegner sein." Der Gegner-Pool fasst 288 Figuren, das
+    // deckelt die Menge nach oben.
+    spawnTaktFaktor: 0.5,
+    // 2 px statt des Run-Werts: Die Gegner duerfen im Torlauf Schulter an Schulter
+    // stehen, sonst findet der dichte Takt keine freie Spur.
+    spawnSpurAbstandPx: 2,
+    // Figuren je Reihe. Der Gegner-Pool fasst 288, bei rund acht Sekunden Lebensdauer
+    // und dem dichten Takt bleibt das die begrenzende Groesse.
+    reiheGroesse: 9,
     // Ab und zu ein Heavy zwischen den Standardfiguren - Thomas hat in der dichten
     // Masse keinen einzigen gesehen, weil der Torlauf nur noch Standard spawnte.
     heavyAnteil: 0.12,
     // Gegner im Torlauf dreimal so zaeh und der Boss achtmal: Der Strom liefert
     // dauerhaft Nachschub, gegen Run-Werte faellt alles sofort um.
     gegnerLebenFaktor: 3,
-    bossLebenFaktor: 8,
+    bossLebenFaktor: 20,
+    // Heavys schlagen im Torlauf haerter: Sie reissen ein Vielfaches des normalen
+    // Kontaktschadens aus der Truppe und halten laenger durch (Thomas 2026-09-19:
+    // "natuerlich sollen die Heavy staerker sein und mehr meiner Truppen schlagen").
+    heavySchadenFaktor: 4,
+    heavyLebenFaktor: 2.5,
+    // Der Boss schlaegt noch haerter - "und der Boss erst recht".
+    bossSchadenFaktor: 10,
     // 28 px: groesser als HUD-Text (22 px), aber unter der Boss-Overlay-Schrift (34 px).
     zahlFontPx: 28,
     // Eine Figurenhoehe Abstand ueber der vordersten Reihe, damit Zahl und Truppe getrennt bleiben.
@@ -85,6 +101,12 @@ export const BALANCE = {
       // schon nach rund 130 px und laeuft die restlichen 270 px bereits vervielfacht
       // auf die Horde zu - der Kampf findet also fast vollstaendig hinter dem Tor statt.
       festY: 570,
+      // FREISCHALTUNG: Das Tor vervielfacht nicht von der ersten Sekunde an. Erst wenn
+      // die Truppe diese Groesse erreicht hat, wird es scharf (Thomas 2026-09-19: "am
+      // Anfang darf nicht sofort meine Truppen verdoppelt werden, wir muessen etwas
+      // einbauen, damit ich erst freischalten muss ... damit die Gegnerhorden auch mal
+      // ein wenig vorruecken koennen"). Bis dahin zeigt es die noetige Zahl.
+      freischaltAbTruppe: 60,
       // Anteil der vollen Bahnbreite auf Torhoehe. 0,72: noch einmal breiter (Thomas
       // 2026-09-19: "eher breiter"); links und rechts bleiben je 14 Prozent frei, also
       // gerade genug, um das Tor bewusst zu umfahren.

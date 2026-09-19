@@ -530,6 +530,14 @@ export class Spawner {
   }
 
   private chooseSpawnRequest(): SpawnRequest {
+    // Im Torlauf ueberwiegend breite REIHEN statt Einzelgegner: Am Horizont ist die
+    // Bahn perspektivisch schmal, dort findet ein Einzelspawn nach dem anderen keine
+    // freie Spur - der dichte Takt verpuffte (gemessen: Intervall 24 ms, trotzdem nur
+    // 21 Gegner). Eine Reihe belegt EINE Spurreservierung und stellt trotzdem viele
+    // Figuren nebeneinander: So entsteht die Wand, die Thomas am 2026-09-19 wollte.
+    if (this.nurStandard) {
+      return { kind: 'squad', squadKind: 'row', size: BALANCE.torlauf.reiheGroesse }
+    }
     if (this.levelPlan.squads.length > 0 && Phaser.Math.RND.frac() < this.getWarmupSquadChance(this.levelPlan.squadChance)) {
       const totalWeight = this.levelPlan.squads.reduce((sum, squad) => sum + squad.weight, 0)
       let roll = Phaser.Math.RND.frac() * totalWeight
@@ -544,7 +552,38 @@ export class Spawner {
   }
 
   private spawn(request: SpawnRequest): SpawnResult {
+    if (this.nurStandard) return this.spawneTorlaufReihe()
     return request.kind === 'single' ? this.spawnSingle(request.type) : this.spawnSquad(request.squadKind, request.size)
+  }
+
+  /**
+   * Eigener Spawnweg fuer den Torlauf: eine volle Reihe ueber die Bahnbreite, OHNE
+   * Spurvergabe. Die normale Spurpruefung sucht am Horizont freien Platz - dort ist
+   * die Bahn perspektivisch nur wenige Figuren breit, weshalb bei dichtem Takt fast
+   * jeder Versuch scheiterte (gemessen: Intervall 24 ms, trotzdem nur rund 20 Gegner).
+   * Der Torlauf braucht aber eine WAND (Thomas 2026-09-19: "im Video ist das Bild
+   * komplett voll, so soll es sein ... wie eine Wand soll der Gegner sein"). Ob die
+   * Figuren dabei eng stehen, ist hier gewollt und kein Fehler.
+   */
+  private spawneTorlaufReihe(): SpawnResult {
+    const anzahl: number = BALANCE.torlauf.reiheGroesse
+    const y = getEnemySpawnCenterY(getFigureHeight(this.waehleTyp()) * this.figurenMassstab)
+    for (let platz = 0; platz < anzahl; platz += 1) {
+      const enemy = this.enemies.getChildren().find((child) => !child.active) as Phaser.Physics.Arcade.Image | undefined
+      if (enemy === undefined) {
+        this.warnPoolExhausted()
+        return 'pool-exhausted'
+      }
+      const type = this.waehleTyp()
+      // Gleichmaessig ueber die Bahn, mit etwas Streuung, damit keine Gitterlinie
+      // entsteht. -1 ist der linke, +1 der rechte Bahnrand.
+      const anteil = anzahl === 1 ? 0 : (platz / (anzahl - 1)) * 2 - 1
+      const streuung = (Phaser.Math.RND.frac() - 0.5) * (2 / anzahl)
+      const lane = Math.max(-0.94, Math.min(0.94, anteil * 0.94 + streuung))
+      this.activateEnemy(enemy, type, lane, y + (Phaser.Math.RND.frac() - 0.5) * 12, false)
+      this.intervalSpawnCount += 1
+    }
+    return 'spawned'
   }
 
   private spawnSingle(type: EnemyType, bossCompanion = false): SpawnResult {
@@ -557,7 +596,7 @@ export class Spawner {
     const y = getEnemySpawnCenterY(getFigureHeight(type))
     const lane = chooseSpawnLane(
       this.getActiveLaneEnemies(),
-      { ...type, y },
+      { ...type, y, bodyWidth: type.bodyWidth * this.figurenMassstab },
       // Kampfhoehe als gemeinsames Bezugssystem aller Spurrechnungen (2026-08-22).
       getPlayfieldHalfWidth(
         this.scene.scale.width,
@@ -565,12 +604,16 @@ export class Spawner {
         this.scene.scale.height - this.getAnchorBottomOffset(),
       ),
       () => Phaser.Math.RND.frac(),
-      BALANCE.enemy.spawnLaneSafetyGap,
+      // Im Torlauf fast kein Sicherheitsabstand: Dort soll eine WAND aus Gegnern
+      // stehen. Mit dem Run-Wert fand jeder zweite Spawn keine freie Spur, und ein
+      // dichterer Takt aenderte nichts an der Menge (gemessen: 11-22 statt der
+      // gewuenschten vollen Bahn).
+      this.nurStandard ? BALANCE.torlauf.spawnSpurAbstandPx : BALANCE.enemy.spawnLaneSafetyGap,
       this.bandGrenze(BALANCE.enemy.spawnBands.singleLaneShare),
       // Randabstand mit Perspektiv-Aufschlag: Weiter oben ist die Figur breiter, als
       // ihr Platz im Kampfhoehen-System hergibt (getFigureOverscanFactor). Ohne den
       // Aufschlag steht sie am Horizont mit der Schulter im Wandsegment.
-      getFigureWidth(type) * getFigureOverscanFactor(this.scene.scale.width, this.scene.scale.height),
+      getFigureWidth(type) * this.figurenMassstab * getFigureOverscanFactor(this.scene.scale.width, this.scene.scale.height),
     )
     if (lane === undefined) return 'no-lane'
     this.activateEnemy(enemy, type, this.ausBand(lane), y, bossCompanion)
@@ -627,7 +670,11 @@ export class Spawner {
       // fand nie eine Spur.
       anchorHalfWidth,
       () => Phaser.Math.RND.frac(),
-      BALANCE.enemy.spawnLaneSafetyGap,
+      // Im Torlauf fast kein Sicherheitsabstand: Dort soll eine WAND aus Gegnern
+      // stehen. Mit dem Run-Wert fand jeder zweite Spawn keine freie Spur, und ein
+      // dichterer Takt aenderte nichts an der Menge (gemessen: 11-22 statt der
+      // gewuenschten vollen Bahn).
+      this.nurStandard ? BALANCE.torlauf.spawnSpurAbstandPx : BALANCE.enemy.spawnLaneSafetyGap,
       this.bandGrenze(BALANCE.enemy.spawnBands.hordeLaneShare),
       // Perspektiv-Aufschlag NUR auf die Figurenbreite, nicht auf die ganze Formation
       // (Korrektur 2026-08-23, gemessen - vorher fand ab Level 6 praktisch keine Horde
@@ -729,7 +776,10 @@ export class Spawner {
     this.applyHorizonReveal(enemy)
     // Im Torlauf zaeher: Sonst raeumt der Dauerstrom jeden Gegner sofort ab und es
     // bildet sich nie eine Masse, an der sich die Figuren stauen koennten.
-    enemy.setData('hp', getEnemyHp(type, this.levelPlan.level, this.getPlayerPower()) * (this.nurStandard ? BALANCE.torlauf.gegnerLebenFaktor : 1))
+    const torlaufLeben = this.nurStandard
+      ? BALANCE.torlauf.gegnerLebenFaktor * (type.key === 'heavy' ? BALANCE.torlauf.heavyLebenFaktor : 1)
+      : 1
+    enemy.setData('hp', getEnemyHp(type, this.levelPlan.level, this.getPlayerPower()) * torlaufLeben)
     // Im Torlauf zaehlt nur EIN Tempo: Unterschiedlich schnelle Gegner zerfasern die
     // Masse, die dort als geschlossene Horde heranlaufen soll.
     enemy.setData('speedFactor', this.nurStandard ? BALANCE.torlauf.gegnerTempoFaktor : type.speedFactor)
@@ -739,12 +789,18 @@ export class Spawner {
     // Einmal beim Auftauchen, danach stabil: Bildtakt streut nur die Optik; Tempo,
     // Trefferflaeche, Groesse und Gangart bleiben unveraendert.
     enemy.setData('bildTaktFaktor', 1 + (Phaser.Math.RND.frac() * 2 - 1) * BALANCE.gamefeel.imageGaitTaktVariation)
-    enemy.setData('contactDamage', type.contactDamage)
+    // Heavys schlagen im Torlauf ein Vielfaches aus der Truppe; Standardgegner bleiben
+    // bei ihrem Wert, sonst reisst die schiere Masse die Truppe sofort auf.
+    const heavyImTorlauf = this.nurStandard && type.key === 'heavy'
+    enemy.setData('contactDamage', heavyImTorlauf ? type.contactDamage * BALANCE.torlauf.heavySchadenFaktor : type.contactDamage)
     enemy.setData('coinValue', type.coinValue)
     // Kampfhoehen-Masse, nicht Sprite-Masse: Spurwahl, Schatten und Formationsbreite
     // rechnen alle in diesem System (enemy.figureScale).
-    enemy.setData('bodyWidth', getFigureWidth(type))
-    enemy.setData('bodyHeight', getFigureHeight(type))
+    // MIT dem Torlauf-Massstab: Die Spurvergabe rechnet in diesen Maszahlen. Ohne den
+    // Faktor reservierte jede Figur den Platz ihrer vollen Run-Groesse, obwohl sie nur
+    // 62 Prozent davon einnimmt - der dichtere Takt verpuffte, weil keine Spur frei war.
+    enemy.setData('bodyWidth', getFigureWidth(type) * this.figurenMassstab)
+    enemy.setData('bodyHeight', getFigureHeight(type) * this.figurenMassstab)
     enemy.setData('lane', lane)
     enemy.setData('bossCompanion', bossCompanion)
     // Der Boss bleibt ausserhalb dieses Pools; die Markierung sperrt Rueckstoss auch
