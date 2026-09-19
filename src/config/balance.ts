@@ -44,22 +44,30 @@ export const BALANCE = {
     // **220** statt 130 (Rechenweg: 8 Reihen x 9 px = 63 px plus halbe Figur plus
     // `bottomMargin`, plus Reserve fuer 150 Figuren in 8 Reihen; 220 laesst 220 - 14 - 8 =
     // 198 px, das Doppelte des Bedarfs, damit die Formation nie komprimiert).
-    anchorBottomOffset: 220,
+    // 140 statt 220: Unter der Truppe stand unnoetig viel leere Bahn. Weiter unten
+    // heisst mehr Strecke nach oben - also mehr Platz und mehr Zeit, die Horde zu
+    // besiegen, bevor sie ankommt (Thomas 2026-09-19). Die Traube braucht bei 150
+    // Figuren rund 108 px Tiefe; 140 - 14 (halbe Figur) - 8 (bottomMargin) = 118 px
+    // bleiben, die Formation wird also weiterhin nicht gestaucht.
+    anchorBottomOffset: 140,
     tor: {
       // 900 Weltpixel lassen zwischen zwei Paaren Beschusszeit, aber halten die Wahl sichtbar.
       abstandPx: 900,
       // Das Tor steht FEST in der Bahnmitte und zieht nicht mehr vorbei (Thomas
       // 2026-09-19: "es soll nur ein Tor in der Mitte sein ... dauerhaft da").
-      // y = 460: ungefaehr auf halbem Weg zwischen Truppe (624) und Horizont (180),
+      // y = 440: ungefaehr auf halbem Weg zwischen Truppe (704) und Horizont (180),
       // also deutlich naeher an der Truppe als die 380 davor (Thomas 2026-09-19:
       // "naeher zu meiner Truppe ruecken, ungefaehr die halbe Weglaenge"). Der Strom
       // erreicht das Tor damit frueher und hat danach mehr Strecke bis zur Horde.
-      festY: 460,
-      // Anteil der vollen Bahnbreite auf Torhoehe. 0,58 statt 0,42 (Thomas 2026-09-19:
-      // "das Tor in der Mitte breiter machen"); links und rechts bleibt je rund ein
-      // Fuenftel frei, der Strom trifft das Tor also fast immer.
-      mitteBreiteAnteil: 0.58,
-      hoehePx: 84,
+      festY: 440,
+      // Anteil der vollen Bahnbreite auf Torhoehe. 0,72: noch einmal breiter (Thomas
+      // 2026-09-19: "eher breiter"); links und rechts bleiben je 14 Prozent frei, also
+      // gerade genug, um das Tor bewusst zu umfahren.
+      mitteBreiteAnteil: 0.72,
+      // 42 statt 84: nur halb so hoch (Thomas 2026-09-19: "das Tor muss gar nicht so
+      // hoch sein, eher breiter und nur halb so hoch"). Fuer die Wirkung zaehlt die
+      // Breite - die Hoehe hat das Tor nur wie eine Mauer wirken lassen.
+      hoehePx: 42,
       startAnteilMin: 0.25,
       startAnteilMax: 0.55,
       startMindest: 3,
@@ -133,8 +141,8 @@ export const BALANCE = {
       // Weiter als bis zur Truppe darf die Horde nie: ohne diese Grenze lief sie unbegrenzt
       // nach unten weiter (gemessen y=5032 bei 844 px Bildhoehe), war vom Bild verschwunden
       // und hat nie gefressen. Der Wert ist derselbe Bodenabstand wie der Truppenanker
-      // (torlauf.anchorBottomOffset), die Horde haelt also genau auf der Truppe an.
-      grenzeBodenAbstandPx: 220,
+      // (torlauf.anchorBottomOffset 140), die Horde haelt also genau auf der Truppe an.
+      grenzeBodenAbstandPx: 140,
       punkteJeFigur: 1,
       fressRateProSek: 8,
       // Die Horde ist eine MASSE AUS FIGUREN, keine rote Wand mit Zahl (Thomas
