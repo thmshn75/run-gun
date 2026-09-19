@@ -119,14 +119,15 @@ Der vorhandene Boss mit seiner Zahl; Strom-Figuren nehmen ihm je Beruehrung Punk
 (`torlauf.boss.punkteJeFigur`), er rueckt auf die Quelle vor und frisst sie bei Kontakt
 wie die Horde. Kein neues System.
 
-## E5 — Gestalten im Torlauf
+## E5 — Gestalten im Torlauf (Thomas' Auswahl, 2026-09-19)
 
-- **Eine Standardfigur**, von Thomas aus den vorhandenen Gegnerbildern gewaehlt
-  (Uebersicht im Session-Scratchpad), skaliert 0,6 — fuer Strom (blau eingefaerbt) und
-  Horde (rot). Keine normalen Gegner-Spawns im Torlauf (Spawner aus); die Gegner sind
-  Horde und Boss.
-- **Groessere Figuren mit Zaehler** als Hindernisse zwischen den Torpaaren (Mini-Boss:
-  steht, Zahl sinkt je Figur, faellt bei 0) — nach E4, nur wenn Thomas sie will.
+- **Strom:** die eigenen Einheiten tragen die Truppentextur `player`, skaliert 0,6.
+- **Horde:** die `standard`-Figur, skaliert 0,6, als dichte Masse (Pool, E3-Optik).
+- **Zwischendurch:** `heavy`-Figuren als Hindernisse mit Zaehler zwischen den Torpaaren
+  (stehen, Zahl sinkt je Strom-Figur, fallen bei 0) — nach E4.
+- **Am Ende:** `enemy-boss` und `enemy-boss-elite` mit Zaehler (E4), ebenfalls auf
+  Truppengroesse skaliert.
+- Keine normalen Gegner-Spawns im Torlauf (Spawner aus, ab E2r).
 
 ## E2b — Pfeiler-Bilder (Codex, parallel)
 
