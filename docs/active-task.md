@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`IMPL_DONE`
+`APPROVED`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -198,4 +198,4 @@ Truppenreihen auf `gameplay + row`; im Screenshot stand sie frei ueber der Trupp
 am iPhone eine Ueberdeckung durch hintere Reihen auf, ist die Depth auf
 `gameplay + 1.9` (unter den Popups bei +2) zu heben — eine Zahl.
 
-**Offen: A9 — Thomas' iPhone-Test.** Bis dahin `IMPL_DONE`, nicht `APPROVED`.
+**A9 am 2026-09-19 von Thomas abgenommen** ("mach weiter mit E1"; sein Befund "nur mein Mann und die Gegner" ist genau der E0-Zuschnitt).
