@@ -29,6 +29,26 @@ export const BALANCE = {
     // `bottomMargin`, plus Reserve fuer 150 Figuren in 8 Reihen; 220 laesst 220 - 14 - 8 =
     // 198 px, das Doppelte des Bedarfs, damit die Formation nie komprimiert).
     anchorBottomOffset: 220,
+    tor: {
+      // 900 Weltpixel lassen zwischen zwei Paaren Beschusszeit, aber halten die Wahl sichtbar.
+      abstandPx: 900,
+      hoehePx: 84,
+      startAnteilMin: 0.25,
+      startAnteilMax: 0.55,
+      startMindest: 3,
+      // 0,12 des Restwegs: bei 10 Figuren +17, bei 100 +6. Das verhindert, dass
+      // ein einzelnes Tor die Truppe vervierfacht, waehrend es nahe dem Deckel noch
+      // mindestens drei Figuren bringen kann.
+      plusAnteilRest: 0.12,
+      plusMindest: 3,
+      malChance: 0.25,
+      // Von den 25 % Mal-Toren sind 10 % ein ×3: 2,5 % aller Tore.
+      malDreiAnteil: 0.1,
+      innenkanteAnteil: 0.15,
+      randSpaltPx: 4,
+      gegnerSperreVorPx: 150,
+      gegnerSperreNachPx: 380,
+    },
     crowd: {
       // `poolGroesse`/`max` 150: Das Video zeigt ~8 x 18. Ueber 150 traegt die Zahl weiter,
       // die Menge bleibt stehen (`setSize` klemmt auf `max`), und `runStats.hp` ist davon

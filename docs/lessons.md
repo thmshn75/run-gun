@@ -76,6 +76,14 @@ Autor des Codes nicht schon bedacht hat: Er vergleicht den Code mit sich selbst.
   eines Bezeichners), aber nie als einzige Absicherung. Pruefkriterium beim Schreiben:
   **Wuerde dieser Test die vorherige, falsche Fassung durchfallen lassen?** Wenn nein,
   prueft er nichts.
+- **Zweiter Beleg, derselbe Tag (E2/N2):** Die Spec verlangte, `torbahn.ts` aus
+  Semikolon-Ketten in lesbaren Code umzuformatieren, und gab als Pruefung "keine Zeile
+  mit mehr als zwei `;`" vor. Die Maschine ersetzte jedes Semikolon mechanisch durch
+  einen Zeilenumbruch — ohne Einrueckung, mitten im `for`-Kopf. Test gruen, Datei
+  schlechter als vorher. **Ein Test auf ein Formmerkmal wird erfuellt, indem das Merkmal
+  entfernt wird, nicht indem die Absicht dahinter erfuellt wird.** Form verlangt man mit
+  einem Vorbild ("wie `versuchBahnen.ts`") und prueft sie am Vorbild, nicht an einer
+  Zaehlregel.
 
 ### 2026-09-17 — Einen Zustand fuer eine Maschine setzen heisst, ihre Regel zu lesen
 

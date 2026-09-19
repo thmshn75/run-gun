@@ -1,7 +1,7 @@
 # Active Task
 
 ## Status
-`SPEC_READY`
+`IMPL_DONE`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
@@ -185,3 +185,119 @@ weiterbohren am Restwert.
 Projektstand: `docs/UEBERGABE.md`, Regeln: `docs/lessons.md`, Plan: `docs/plan-v5.md`.
 **Zuletzt abgeschlossen:** V5/E1 sichtbare Masse (inkl. N1 Wipptakt), Commit folgt in
 der Uebergabe; E0 Commit `5c0c2dc`.
+
+---
+
+## NACHARBEIT N2 (2026-09-19, nach der Bot-Messung des Reviewers)
+
+**Die Umsetzung ist korrekt; zwei Balance-Annahmen der Spec waren es nicht.** Gemessen
+im Browser (Torlauf Level 5, Bot lenkt auf das bessere Tor, keine Gegner, Truppe
+startet bei 10): Verlauf je Paar 10 → 50 → 100 → 85 → 77 → **150** → 130 → 122 → 95 → 80.
+Nach zwei Paaren bei 100, nach fuenf am Deckel — und **ab dem dritten Paar nur noch
+Malus**, obwohl der Bot richtig lenkt (Tore mit -25 bis -59 bei 100+ Figuren).
+Trefferrate am Tor nahe am Anker: **24 Treffer/s** (= 8 Schuetzen x Rate 3, jede Kugel
+trifft), aber das Tor ist nur ~3-4 s im Schussfeld — ~20-70 Treffer je Anflug.
+
+**Ursache 1 — der Startwert waechst mit der Truppe, die Feuerlinie nicht.** Der
+Versuchs-Kommentar ("die Trefferrate waechst mit der Truppe, deshalb kuerzt sich die
+Truppe heraus") gilt im Torlauf **nicht**: Hier schiessen immer 8 (Plan-Regel "Masse ist
+Leben, nicht Feuer"). Ab ~100 Figuren ist kein Tor mehr freizuschiessen.
+**Umbau:** `startwert()` in `torlaufPlan.ts` rechnet den Anteil von
+`Math.min(truppe, BALANCE.crowd.max)` (30) — der Feuerlinien-Truppe —, nicht von der
+ganzen Truppe. Ergebnis -8 bis -17 wie im abgenommenen Versuch bei 30 Figuren; die
+Zeit bis zur Null bleibt ueber alle Truppengroessen konstant. Kommentar am Wert nennt
+diese Rechnung.
+
+**Ursache 2 — der Plus-Deckel ist zu gross.** `plusAnteilRest` 0,35 vom Restweg zu 150
+ergibt bei 10 Figuren +49 (ein Tor vervierfacht die Truppe). **Umbau:** 0,35 → **0,12**
+(bei 10 Figuren +17, bei 100 +6), `plusMindest` bleibt 3.
+
+**Ursache 3 — Saettigung zu frueh.** ×2 bei 77 → 150 nach fuenf Paaren; ein Level hat
+~9 Paare (55 s Gegnerphase / 6,7 s). **Umbau:** `malChance` 0,35 → **0,25**, Anteil
+Faktor 3 innerhalb `mal` 0,2 → **0,1** (als Wert `malDreiAnteil` in `balance.ts`, nicht
+hart in `torPaarZiehen`). Ziel: Saettigung, wenn ueberhaupt, erst in der zweiten
+Levelhaelfte; wird per Bot erneut gemessen.
+
+**Qualitaet, zwei Punkte:**
+- `GameScene.ts` Weiche in `create()`: Der alte Code steht als `void \`...\``-Template-String
+  im Quelltext (Z.~320-328). **Loeschen.** Ein Kommentar "E0-Form der Weiche" ist ebenfalls
+  zu entfernen — Git traegt die Historie.
+- `src/systems/torbahn.ts` ist in Einzeiler mit Semikolon-Ketten gequetscht (`update()` ist
+  eine Zeile mit zehn Anweisungen, der Konstruktor eine mit fuenf). **Umformatieren wie der
+  Rest des Projekts** (eine Anweisung je Zeile, Kommentare wie in `versuchBahnen.ts`).
+  Kein Verhalten aendern — die Tests muessen unveraendert gruen bleiben.
+
+**Akzeptanz N2:**
+- **N2.1** Startwert bei Truppe 10, 30, 100, 150 liegt jeweils in [-17, -8] (Rechentest mit
+  festem Zufall).
+- **N2.2** `plusAnteilRest` 0,12, `malChance` 0,25, `malDreiAnteil` 0,1 in `balance.ts` mit
+  Rechenweg; `torPaarZiehen` liest sie.
+- **N2.3** Kein `void`-Template-String in `GameScene.ts`; `torbahn.ts` ohne
+  Semikolon-Ketten (Test: keine Zeile mit mehr als zwei `;`).
+- **N2.4** `npm run check`, `npm test`, `npm run build` gruen.
+- **N2.5 (Reviewer)** Bot-Messung wiederholt: ueber 9 Paare ohne Gegner Wachstum von 10 auf
+  60-150, keine Saettigung vor Paar 5, kein Malus bei richtiger Wahl; mit Gegnern Level 5
+  Verlust im Korridor.
+
+---
+
+## NACHARBEIT N3 (2026-09-19): Formatierung — der zweite und letzte Anlauf
+
+**N2 ist fachlich richtig** (Bot-Messung: 9 Paare, 10 → 106, kein Malus, keine
+Saettigung). Zwei Stellen sind aber unbrauchbar formatiert, und das ist der zweite
+Anlauf dafuer — beim naechsten Fehlschlag wird gestoppt und Thomas informiert.
+
+1. **`src/systems/torbahn.ts`:** N2 hat die Semikolon-Ketten mechanisch durch
+   Zeilenumbrueche ersetzt — **ohne Einrueckung**, mitten in Methoden, sogar im
+   `for`-Kopf (`for (let i = 0;\ni < 8;\ni += 1)`). Der Mustertest "keine Zeile mit
+   drei Semikolons" ist gruen und trotzdem ist die Datei unlesbar. **Verlangt ist die
+   Form von `versuchBahnen.ts`**: zwei Leerzeichen je Ebene, eine Anweisung je Zeile,
+   Bloecke mit Klammern auf eigenen Zeilen, `type TorZustand` mit einem Feld je Zeile
+   eingerueckt, Methoden durch Leerzeilen getrennt, kein `;` am Zeilenende (das Projekt
+   schreibt ohne). Es gibt keinen Formatter im Projekt — von Hand, nach Vorbild.
+   Kein Verhalten aendern; alle Tests bleiben gruen.
+2. **`src/systems/torlaufPlan.ts` Z.11:** `Math.max(BALANCE.crowd.max, Math.min(truppe,
+   BALANCE.crowd.max))` ist immer `BALANCE.crowd.max`. Das ist fachlich sogar richtig
+   (die Feuerlinie ist bei jeder Truppengroesse dieselbe: 8 Schuetzen rotieren ueber
+   alle Figuren, die Trefferrate am Tor ist konstant — gemessen 24/s), aber der
+   Ausdruck verschleiert es. **Schreiben:** `const feuerlinie = BALANCE.crowd.max` mit
+   dem Kommentar, warum die Truppengroesse hier bewusst **nicht** eingeht (`truppe`
+   bleibt als Parameter fuer `getTorlaufStand`, der Rechenweg steht daneben).
+
+**Akzeptanz N3:** N3.1 `torbahn.ts` liest sich wie `versuchBahnen.ts` (Test: jede
+nicht-leere Zeile innerhalb der Klasse beginnt mit mindestens zwei Leerzeichen; keine
+Zeile beginnt mit `this.` oder `tor.` ohne Einrueckung). N3.2 Z.11 wie oben, Test N2.1
+bleibt gruen. N3.3 check/test/build gruen.
+
+## Stand des Reviews (2026-09-19)
+
+**Code-Review bestanden nach drei Nacharbeiten** (N2 Balance, N3 Form; N1 gehoerte zu
+E1). Torpaare mit Partner-Feld und Wahl ueber die Ankerseite, `hpDeckelOverride` nur
+fuer `hp` und nur im Probe-Zweig hinter `istTorlauf()`, Spawnsperre als optionales
+Interface-Member (`istTorFenster?.() ?? false`), `VersuchBahnen` bis auf die eine
+Interface-Zeile unveraendert, `torlaufPlan.ts`/`torObjekt.ts` als reine Funktionen.
+`npm run check`, `npm test` (40 Dateien, 429 Tests), `npm run build` gruen, im Terminal
+nachgelaufen.
+
+**A8 — Bot-Messung, selbst durchgefuehrt (Playwright, Vite-Dev, Bot lenkt den Anker auf
+das bessere Tor des vordersten Paars, 100-ms-Takt):**
+
+| Lauf | Ergebnis |
+|---|---|
+| Erste Fassung, Level 5, ohne Gegner, Start 10 | 10 → 50 → 100 → 85 → 77 → **150** → 130 → 122 → 95 → 80: nach 2 Paaren bei 100, nach 5 am Deckel, **ab Paar 3 nur Malus** (Startwerte -25..-59 bei 100+ Figuren, Trefferrate am Tor 24/s, Tor ~3-4 s im Schussfeld) |
+| Nach N2, Level 5, ohne Gegner, Start 10 | **10 → 27 → 42 → 55 → 66 → 76 → 85 → 93 → 100 → 106**, 9 Gewinne, 0 Malus, 0 Saettigung, Startwerte -8/-15 |
+| Nach N2, Level 5, **mit Gegnern**, Start 24 | 24 → 148 (max 150), Boss besiegt, 18 Gewinne, 0 Malus, **praktisch kein Verlust**, 128 s |
+
+Wachstum ohne Gegner im Zielkorridor. **Das Verlust-Kriterium (≥ 54 % je Level) ist in
+E2 nicht erreichbar:** Level-5-Gegner sterben am Beschuss, bevor sie eine 150er-Masse
+beruehren; der Gegenspieler der Masse ist die Horde aus E3. Kriterium in `docs/plan-v5.md`
+nach E3 verschoben; in E2 nach N2 nicht weiter an der Balance gedreht (Reissleine).
+Screenshot des ersten Torpaars im Session-Scratchpad (`nachweis-e2/`).
+
+**Zwei Lehren, beide in `docs/lessons.md` (2026-09-19):** Startwert als Anteil der
+ganzen Truppe passt nicht zu einer festen Feuerlinie; und eine Zaehlregel als Formtest
+("keine drei Semikolons") wurde mechanisch erfuellt — Form verlangt ein Vorbild.
+
+**Offen: A10 — Thomas' iPhone-Test** (Wahl lesbar, Herunterschiessen beantwortet, ×2
+laesst die Masse springen; plus N1.4 Wipptakt). Bis dahin `IMPL_DONE`, nicht `APPROVED`.
+**E2b (Pfeiler-Bilder, Codex) bleibt offen.**

@@ -162,9 +162,14 @@ unveraendert; die Klemme bekommt im Torlauf den Torlauf-Deckel. Wer das uebersie
 baut Tore, die nichts tun, und misst dann "zu schwer".
 
 **Zielgroesse:** In einem Level mit 6 Torpaaren waechst die Truppe ohne Gegner von 10
-auf 60-150 (gemessen ueber 10 Laeufe mit Bot-Wahl "immer das bessere Tor"). Mit Gegnern
-liegt der Truppenverlust im Korridor des Probelaufs (54 % je Level, Endmessung
-2026-09-16), nicht darunter — sonst ist der Torlauf ein Geschenk.
+auf 60-150 (gemessen ueber 10 Laeufe mit Bot-Wahl "immer das bessere Tor").
+**Gemessen 2026-09-19 nach N2:** 9 Paare 10 → 106, gleichmaessig, kein Malus, keine
+Saettigung. **Das Verlust-Kriterium (54 % je Level wie im Probelauf) ist in E2 nicht
+erreichbar und gehoert nach E3:** Mit Gegnern auf Level 5 spielte der Bot 24 → 148 und
+besiegte den Boss ohne nennenswerten Verlust — Level-5-Gegner sterben am Beschuss,
+bevor sie eine 150er-Masse beruehren. Der Gegenspieler der Masse ist die Horde; erst
+sie macht die Verlustquote messbar. In E2 wurde deshalb nach N2 **nicht** weiter an der
+Balance gedreht.
 
 **Reissleine (die riskanteste Stelle des Plans):** Laesst sich die Wahl nach **zwei
 Sessions** nicht so balancieren, dass "beide Tore freischiessen" nicht die beste
@@ -195,8 +200,8 @@ Wand. Nicht weiterbohren am Restwert.
   vermisst: ein Sprite-Pool roter Figuren, die mit der Zahl ausduennen. Das ist
   Optik, nicht Mechanik — erst die Mechanik abnehmen.
 
-**Zielgroesse:** Ein Torlauf-Level ist mit dem "immer das bessere Tor"-Bot auf Level 5
-in 60-80 % der Laeufe gewinnbar, auf Level 15 in 20-40 % — gemessen mit frischer Szene
+**Zielgroesse (uebernimmt das Verlust-Kriterium aus E2):** Ein Torlauf-Level ist mit dem
+"immer das bessere Tor"-Bot auf Level 5 in 60-80 % der Laeufe gewinnbar, auf Level 15 in 20-40 % — gemessen mit frischer Szene
 je Messpunkt, dreifach (Lessons 2026-08-22, Bistabilitaet). Beim Sieg bleiben
 10-40 % der Truppe uebrig, nicht 90 % — die Horde muss weh tun.
 

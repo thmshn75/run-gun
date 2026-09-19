@@ -318,7 +318,21 @@ export class GameScene extends Phaser.Scene {
     // Ausserhalb des Testgelaendes wird VersuchBahnen nie gebaut, und der echte Run
     // laeuft Zeile fuer Zeile wie zuvor.
     if (this.istTorlauf()) {
-      this.walls = new Torbahn(this)
+      this.walls = new Torbahn(
+        this,
+        () => this.runStats.get('hp'),
+        () => this.crowd.getAnchorX(),
+        () => Phaser.Math.RND.frac(),
+        (apply, multiplikator) => {
+          const before = this.runStats.get('hp')
+          this.runStats.set('hp', apply(before))
+          const after = this.runStats.get('hp')
+          const delta = Math.round(after - before)
+          if (delta !== 0) this.popups.spawn(this.crowd.getAnchorX(), this.crowd.getAnchorY() - this.crowd.getFigureHeight(), multiplikator === '' ? `${delta > 0 ? '+' : ''}${delta}` : `${multiplikator} → ${after}`, delta > 0 ? '#3ddc84' : '#ff6b6b')
+          this.syncCrowdSize()
+          this.updateHud()
+        },
+      )
     } else if (this.nutztBahnen()) {
       this.walls = this.baueVersuchsBahnen()
     } else {
@@ -512,8 +526,9 @@ export class GameScene extends Phaser.Scene {
     // weiterlaufen, nur bei den Waenden keine kleinen Gegner wie vorher im Spiel"). Die
     // Bahnen laufen also durch; nur der Gegnernachschub haelt sich vom Tor fern - und
     // das schliesst die Horden ein, die der Boss ruft.
-    if (this.nutztBahnen() && this.walls instanceof VersuchBahnen) {
-      this.spawner.setSpawnSperre(this.walls.istTorFenster())
+    if (this.nutztBahnen()) {
+      // Vor E2 direkt: this.spawner.setSpawnSperre(this.walls.istTorFenster())
+      this.spawner.setSpawnSperre(this.walls.istTorFenster?.() ?? false)
     }
     this.walls.update(dt)
     this.popups.update(dt)
@@ -632,6 +647,7 @@ export class GameScene extends Phaser.Scene {
     // darf nie in den Zweig fallen, der `einstieg` auf 'neu' umschreibt.
     const probe = this.probe
     if (probe !== undefined) {
+      if (this.istTorlauf()) this.runStats.setHpDeckelOverride(BALANCE.torlauf.crowd.max)
       this.currentLevel = probe.startLevel
       this.runStats.setLevel(this.currentLevel)
       // Level 1 beginnt wie ein neuer Lauf. Hoeher startet die Truppe wie beim bezahlten

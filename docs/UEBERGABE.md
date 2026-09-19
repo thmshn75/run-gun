@@ -1,7 +1,7 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-09-19 (**Plan V5 TORLAUF: E0 abgenommen, E1 sichtbare Masse gebaut,
-reviewt und gemessen — wartet auf Thomas' iPhone-Test.** Davor drei Gamefeel-Tasks nach Thomas' Genre-Video, alle
+Stand: 2026-09-19 (**Plan V5 TORLAUF: E0 und E1 abgenommen, E2 Torpaare gebaut,
+per Bot gemessen und nachgebessert — wartet auf Thomas' iPhone-Test.** Davor drei Gamefeel-Tasks nach Thomas' Genre-Video, alle
 abgenommen: TREFFERQUITTUNG, FLUESSIGERE BEWEGUNGEN, ABWECHSLUNG. Davor: PROBELAUF fertig, gemessen und am 2026-09-17 abgenommen; er bleibt
 im Testbereich, der echte Run ist unveraendert.)
 
@@ -9,26 +9,23 @@ im Testbereich, der echte Run ist unveraendert.)
 
 ## Offen — naechster Schritt zuerst
 
-0. **V5 / E1 SICHTBARE MASSE — abgenommen (Thomas: "ansonsten ok und weiter"), mit
-   Nacharbeit N1: Wipptakt haengt jetzt an der Koerpergroesse statt an der dargestellten
-   Hoehe, Hub skaliert mit `figureScale` (Thomas: "die figuren bewegen sich zu schnell").
-   N1.4 (Sichtpruefung) erfolgt mit E2. Naechste Etappe: E2 Torpaare, Spec in
-   `docs/active-task.md`.** E0 (Geruest) ist abgenommen. E1: `Crowd` nimmt ein Formationsprofil; der
-   Run laeuft mit `RUN_FORMATIONS_PROFIL` (aus `BALANCE.crowd` abgeleitet, Dreieck, 30,
-   feste Huelle — Fixtures fuer 1/8/30 belegen Bitgleichheit), der Torlauf mit
-   `BALANCE.torlauf.crowd` (Block 20 je Reihe, Pool 150, Figuren 0,6-fach, Anker 220
-   statt 130, Huelle folgt der Formation mit Oberkante am Anker). Anker-Leser: Spawner
-   per Injektion, `roadGeometry`/`bruecke` bewusst beim Run-Wert. DEV-Sonde
-   `window.__runGunMessung.bildzeit(ms)`.
-   **Gemessen (Playwright, Vite-Dev, 390x844, je 30 s in der Gegnerphase):** Torlauf
-   Level 20 mit 150 Figuren durchgehend, 8 Reihen, im Mittel 18 Gegner: **Median 16,7 ms,
-   p95 18,1 ms, 1800 Bilder.** Referenz Bahnen-Probelauf Level 20 (26 Figuren, 37
-   Gegner): Median 16,7 ms, p95 17,8 ms. Kein messbarer Unterschied, 0 Konsolenfehler.
-   Screenshot im Session-Scratchpad (`nachweis-e1/`).
-   **Befund fuer E2, im Plan notiert:** `runStats.set('hp')` klemmt am Level-Cap (Level
-   20 = 113). Ein ×2-Tor kaeme damit nie ueber den Cap — der Torlauf braucht seinen
-   eigenen Truppendeckel (150), nicht den Level-Cap. Ohne das sind Tore wirkungslos.
-   **Naechste Etappe nach A11: E2 Torpaare** (`docs/plan-v5.md`).
+0. **V5 / E2 TORPAARE — gebaut, reviewt, per Bot gemessen; offen ist A10 (Thomas am
+   iPhone, zusammen mit N1.4 Wipptakt aus E1).** E0/E1 sind abgenommen. E2: Torpaare
+   links/rechts in der `Torbahn` (Restwert per Treffer, `plus`/`mal` bis ×3, Malus bei
+   negativem Stand), Wahl ueber die **Ankerseite** (die 214-px-Huelle beruehrt beide Tore),
+   Torlauf-eigener Truppendeckel 150 via `hpDeckelOverride` in `RunStats` (nur im
+   Probe-Zweig hinter `istTorlauf()`), Spawnsperre als optionales Interface-Member.
+   `VersuchBahnen` unveraendert bis auf die Interface-Zeile. Neue Module `torlaufPlan.ts`,
+   `torObjekt.ts`.
+   **Bot-Messung (Reviewer, Playwright):** Erste Fassung wuchs 10 → 100 in zwei Paaren und
+   kassierte ab dem dritten nur Malus — Startwert als Anteil der ganzen Truppe passt nicht
+   zur festen Feuerlinie (24 Treffer/s bei 8 Schuetzen, Tor ~3-4 s im Schussfeld). Nach
+   N2 (Startwert an Feuerlinie 30, `plusAnteilRest` 0,12, `malChance` 0,25, ×3-Anteil
+   0,1): ohne Gegner 9 Paare 10 → 106 gleichmaessig, 0 Malus, 0 Saettigung; **mit Gegnern
+   Level 5: 24 → 148, Boss besiegt, praktisch kein Verlust.** Das Verlust-Kriterium (≥54 %)
+   ist ohne die Horde nicht erreichbar und **wandert nach E3** — dort ist der Gegenspieler
+   der Masse. In E2 nicht weiter an der Balance drehen (Reissleine).
+   **Naechste Etappe nach A10: E3 Horde.** E2b (Pfeiler-Bilder, Codex) offen.
 
 0. **Drei Gamefeel-Tasks vom 2026-09-19 — alle abgenommen.** Commits `a8d5fae` (Trefferquittung:
    Rueckstoss, Zerplatzen, Boss-Lebenspunktzahl), `a1f2f1f` (Boss-Bildtakt 1,0,

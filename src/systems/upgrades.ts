@@ -163,6 +163,7 @@ export function clampStat(
   level = 1,
   steps: ShopSteps = KEINE_STUFEN,
   meta: ShopSteps = KEINE_STUFEN,
+  capOverride?: number,
 ): number {
   // ZWEI NACHKOMMASTELLEN statt einer (2026-08-25). Diese Rundung ist NICHT kosmetisch -
   // sie ist die Stufung, in der Schaden und Feuerrate ueberhaupt existieren. Mit einer
@@ -180,9 +181,10 @@ export function clampStat(
   const { floor } = BALANCE.stats[stat]
   // Der Deckel wird auf dieselbe Stufe gerundet wie der Wert selbst, sonst klebt der
   // erreichbare Wert eine Stufe unter der echten Grenze.
+  const deckel = stat === 'hp' && capOverride !== undefined ? capOverride : getStatCap(stat, level, steps, meta)
   const cap = stat === 'hp' || stat === 'speed'
-    ? Math.round(getStatCap(stat, level, steps, meta))
-    : Math.round(getStatCap(stat, level, steps, meta) * 100) / 100
+    ? Math.round(deckel)
+    : Math.round(deckel * 100) / 100
   return Math.min(cap, Math.max(floor, roundedValue))
 }
 
@@ -195,6 +197,7 @@ export class RunStats {
    * waehrend eines Runs nicht - gekauft wird nur im Hauptmenue.
    */
   private meta: { firepower: number; team: number } = { firepower: 0, team: 0 }
+  private hpDeckelOverride?: number
 
   public constructor() {
     this.values = {
@@ -231,6 +234,11 @@ export class RunStats {
     return { firepower: this.meta.firepower, team: this.meta.team }
   }
 
+  public setHpDeckelOverride(override: number | undefined): void {
+    this.hpDeckelOverride = override
+    this.reclamp()
+  }
+
   /**
    * Meta-Stufen aus dem Spielstand uebernehmen. Muss VOR dem ersten setLevel stehen,
    * sonst klemmt der erste Wert noch gegen den Deckel ohne Meta-Bonus.
@@ -259,7 +267,7 @@ export class RunStats {
     // wird nichts.
     const amDeckel = new Map(betroffen.map((stat) => [
       stat,
-      this.values[stat] >= clampStat(stat, Number.MAX_SAFE_INTEGER, this.level, this.getSteps(), this.getMeta()),
+      this.values[stat] >= clampStat(stat, Number.MAX_SAFE_INTEGER, this.level, this.getSteps(), this.getMeta(), stat === 'hp' ? this.hpDeckelOverride : undefined),
     ]))
     this.steps[line] += 1
     for (const stat of betroffen) {
@@ -267,7 +275,7 @@ export class RunStats {
         ? BALANCE.shop.teamBonusPerStep
         : stat === 'damage' ? BALANCE.shop.damageBonusPerStep : BALANCE.shop.rateBonusPerStep)
       this.setRaw(stat, amDeckel.get(stat) === true
-        ? clampStat(stat, Number.MAX_SAFE_INTEGER, this.level, this.getSteps(), this.getMeta())
+        ? clampStat(stat, Number.MAX_SAFE_INTEGER, this.level, this.getSteps(), this.getMeta(), stat === 'hp' ? this.hpDeckelOverride : undefined)
         : this.values[stat] * faktor)
     }
     return true
@@ -278,12 +286,12 @@ export class RunStats {
   }
 
   private setRaw(stat: StatKey, value: number): void {
-    this.values[stat] = clampStat(stat, value, this.level, this.getSteps(), this.getMeta())
+    this.values[stat] = clampStat(stat, value, this.level, this.getSteps(), this.getMeta(), stat === 'hp' ? this.hpDeckelOverride : undefined)
   }
 
   private reclamp(): void {
     for (const stat of Object.keys(this.values) as StatKey[]) {
-      this.values[stat] = clampStat(stat, this.values[stat], this.level, this.getSteps(), this.getMeta())
+      this.values[stat] = clampStat(stat, this.values[stat], this.level, this.getSteps(), this.getMeta(), stat === 'hp' ? this.hpDeckelOverride : undefined)
     }
   }
 }

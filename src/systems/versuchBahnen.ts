@@ -68,6 +68,7 @@ export interface BahnSystem {
   damage(wall: Phaser.Physics.Arcade.Image, damage: number): boolean
   update(dt: number): void
   getSegmentHeight(side: 'left' | 'right'): number
+  istTorFenster?(): boolean
 }
 
 // ---------------------------------------------------------------------------

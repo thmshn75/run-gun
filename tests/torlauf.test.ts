@@ -38,7 +38,8 @@ describe('Torlauf E0', () => {
   })
 
   it('baut in einer einzigen if/else-if/else-Kette die passende Bahn und lässt Torlauf-Gegner frontal kommen', () => {
-    expect(gameScene).toMatch(/if \(this\.istTorlauf\(\)\) \{\s*\n\s*this\.walls = new Torbahn\(this\)\s*\n\s*\} else if \(this\.nutztBahnen\(\)\) \{\s*\n\s*this\.walls = this\.baueVersuchsBahnen\(\)\s*\n\s*\} else \{/)
+    expect(gameScene).toMatch(/if \(this\.istTorlauf\(\)\) \{\s*\n\s*this\.walls = new Torbahn\(\s*\n\s*this,/)
+    expect(gameScene).toMatch(/\} else if \(this\.nutztBahnen\(\)\) \{\s*\n\s*this\.walls = this\.baueVersuchsBahnen\(\)\s*\n\s*\} else \{/)
     expect(gameScene).toMatch(/this\.spawner\.setVersuchsBahnen\(this\.nutztBahnen\(\) && !this\.istTorlauf\(\)\)/)
   })
 

@@ -97,6 +97,7 @@ export const HUD_COLORS = {
   bossBarFill: 0xd94848,
   bossOverlayText: 0xffffff,
   textDark: '#0b0f18',
+  torMal: '#b18cff',
 } as const
 
 export const MENU_COLORS = {

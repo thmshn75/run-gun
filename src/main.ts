@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { registerSW } from 'virtual:pwa-register'
 import './style.css'
 import { BALANCE } from './config/balance'
+import { getTorlaufStand, torPaarZiehen } from './systems/torlaufPlan'
 import { BootScene } from './scenes/BootScene'
 import { GameOverScene } from './scenes/GameOverScene'
 import { GameScene } from './scenes/GameScene'
@@ -106,7 +107,7 @@ const game = new Phaser.Game({
 if (import.meta.env.DEV) {
   ;(window as unknown as { __runGun?: Phaser.Game }).__runGun = game
   ;(window as unknown as {
-    __runGunMessung?: { bildzeit(dauerMs: number): Promise<{ median: number, p95: number, bilder: number }> }
+    __runGunMessung?: { bildzeit(dauerMs: number): Promise<{ median: number, p95: number, bilder: number }>; torlaufBot(paare: number): { start: number; ende: number; paare: number; saettigungen: number } }
   }).__runGunMessung = {
     bildzeit(dauerMs: number): Promise<{ median: number, p95: number, bilder: number }> {
       return new Promise((resolve) => {
@@ -126,6 +127,23 @@ if (import.meta.env.DEV) {
         }
         requestAnimationFrame(frame)
       })
+    },
+    torlaufBot(paare: number): { start: number; ende: number; paare: number; saettigungen: number } {
+      // Deterministische DEV-Probe: waehlt pro Paar die bessere vollständig freigeschossene Seite.
+      let seed = 0x5eed1234
+      const zufall = (): number => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 0x100000000 }
+      let truppe = 10
+      let saettigungen = 0
+      const anzahl = Math.max(0, Math.floor(paare))
+      for (let i = 0; i < anzahl; i += 1) {
+        const paar = torPaarZiehen(zufall, truppe)
+        const werte = paar.map((tor) => tor.wirkung.art === 'mal'
+          ? Math.min(BALANCE.torlauf.crowd.max, truppe * tor.wirkung.faktor)
+          : Math.max(1, truppe + getTorlaufStand(tor.startwert, Number.MAX_SAFE_INTEGER, truppe)))
+        truppe = Math.max(...werte)
+        if (truppe === BALANCE.torlauf.crowd.max) saettigungen += 1
+      }
+      return { start: 10, ende: truppe, paare: anzahl, saettigungen }
     },
   }
 }
