@@ -7,8 +7,8 @@ import { getCurrentScrollSpeed } from './speed'
 import { computeBlockFormation } from './formation'
 import { getBobOffsetPx, getPhaseOffset, getStepCycleHz } from './gamefeel'
 import { getLevelPlan } from './levelPlan'
-import { torGeometrie } from './torObjekt'
-import { getTorlaufStand, torPaarZiehen, type TorWirkung } from './torlaufPlan'
+import { torGeometrieMitte } from './torObjekt'
+import { torFaktorZiehen, type TorWirkung } from './torlaufPlan'
 import { istImTorFenster } from './versuchPlan'
 import type { BahnSystem } from './versuchBahnen'
 import type { WeaponKey } from './weapons'
@@ -43,6 +43,8 @@ export type HordeZustand = {
   punkte: number
   aktiv: boolean
   haelt: boolean
+  /** Zeit seit dem letzten Treffer; steuert, ob die Horde haelt oder vorrueckt. */
+  ohneTrefferMs: number
 }
 
 /** Zwei getrennte Kollisionsobjekte bilden ein gemeinsames Los: der Anker entscheidet. */
@@ -61,19 +63,16 @@ export class Torbahn implements BahnSystem {
   private nextSpawnId = 1
   public paareVerbraucht = 0
   private readonly scene: Phaser.Scene
-  private readonly getTeamSize: () => number
   private readonly zufall: () => number
-  private pxSeitLetztemMal: number = BALANCE.torlauf.tor.malMindestabstandPx
 
   public constructor(
     scene: Phaser.Scene,
-    getTeamSize: () => number,
+    _getTeamSize: () => number,
     _getCrowdAnchorX: () => number,
     zufall: () => number,
     _applyReinforcement: (apply: (current: number) => number, popup: string) => void,
   ) {
     this.scene = scene
-    this.getTeamSize = getTeamSize
     this.zufall = zufall
     this.walls = scene.physics.add.group()
     this.rewards = scene.physics.add.group()
@@ -99,7 +98,6 @@ export class Torbahn implements BahnSystem {
     this.deactivateAll()
     this.abstand = BALANCE.torlauf.tor.abstandPx
     this.kachelAbstand = BALANCE.torlauf.kachel.abstandPx
-    this.pxSeitLetztemMal = BALANCE.torlauf.tor.malMindestabstandPx
   }
 
   public deactivateAll(): void {
@@ -126,6 +124,7 @@ export class Torbahn implements BahnSystem {
     horde.punkte = BALANCE.torlauf.horde.basis * getLevelPlan(level).hardness
     horde.aktiv = true
     horde.haelt = false
+    horde.ohneTrefferMs = 0
     horde.bild.enableBody(true, 0, 0, true, true).setActive(true).setVisible(true)
     ;(horde.bild.body as Phaser.Physics.Arcade.Body).moves = false
     horde.label.setActive(true).setVisible(true)
@@ -138,6 +137,7 @@ export class Torbahn implements BahnSystem {
     const horde = this.getHorde()
     if (horde === undefined) return false
     horde.punkte = Math.max(0, horde.punkte - punkte)
+    horde.ohneTrefferMs = 0
     this.beschrifteHorde(horde)
     return horde.punkte === 0
   }
@@ -157,11 +157,6 @@ export class Torbahn implements BahnSystem {
 
   public getTorWirkung(candidate: Phaser.GameObjects.GameObject): TorWirkung | undefined {
     return this.zuTor.get(candidate)?.wirkung
-  }
-
-  public getStand(wall: Phaser.Physics.Arcade.Image): number | undefined {
-    const tor = this.zuTor.get(wall)
-    return tor === undefined ? undefined : getTorlaufStand(tor.startwert, tor.treffer, this.getTeamSize())
   }
 
   public recyclePaar(wall: Phaser.Physics.Arcade.Image): void {
@@ -212,11 +207,9 @@ export class Torbahn implements BahnSystem {
   public update(dt: number): void {
     const bewegung = getCurrentScrollSpeed() * dt / 1000
     this.abstand += bewegung
-    this.pxSeitLetztemMal += bewegung
-    if (this.abstand >= BALANCE.torlauf.tor.abstandPx) {
-      this.abstand -= BALANCE.torlauf.tor.abstandPx
-      this.spawnePaar()
-    }
+    // Kein Nachschub mehr im Takt: Es gibt GENAU EIN Tor, es steht fest in der Mitte
+    // und bleibt dauerhaft stehen (Thomas 2026-09-19).
+    this.sorgeFuerMitteltor()
     this.kachelAbstand += bewegung
     if (this.kachelAbstand >= BALANCE.torlauf.kachel.abstandPx) {
       this.kachelAbstand -= BALANCE.torlauf.kachel.abstandPx
@@ -224,16 +217,16 @@ export class Torbahn implements BahnSystem {
     }
     for (const tor of this.tore) {
       if (!tor.aktiv) continue
-      tor.anchorY = advanceAlongRoad(this.scene.scale.width, this.scene.scale.height, tor.anchorY, bewegung)
-      const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, tor.anchorY, BALANCE.torlauf.tor.hoehePx)
-      const geo = torGeometrie(this.scene.scale.width, this.scene.scale.height, segment.centerY, tor.seite)
-      const alpha = Math.min(1, Math.max(0, (segment.centerY - segment.height / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
-      tor.bild.setPosition(geo.x, segment.centerY).setDisplaySize(geo.breite, segment.height).setAlpha(alpha)
+      // Feste Hoehe, kein Mitlaufen mit der Strasse und kein Recycling: Das Tor ist ein
+      // Fixpunkt der Bahn, durch den der Strom immer wieder hindurchlaeuft.
+      const mitteY = BALANCE.torlauf.tor.festY
+      const scale = getRoadScale(this.scene.scale.width, this.scene.scale.height, mitteY)
+      const hoehe = BALANCE.torlauf.tor.hoehePx * scale
+      const geo = torGeometrieMitte(this.scene.scale.width, this.scene.scale.height, mitteY)
+      tor.bild.setPosition(geo.x, mitteY).setDisplaySize(geo.breite, hoehe).setAlpha(1)
       ;(tor.bild.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
-      const scale = getRoadScale(this.scene.scale.width, this.scene.scale.height, segment.centerY)
-      tor.label.setPosition(geo.x, segment.centerY - 10 * scale).setScale(scale).setAlpha(alpha)
-      tor.restLabel.setPosition(geo.x, segment.centerY + 17 * scale).setScale(scale).setAlpha(alpha)
-      if (segment.centerY - segment.height / 2 > this.scene.scale.height) this.recycle(tor)
+      tor.label.setPosition(geo.x, mitteY).setScale(scale).setAlpha(1)
+      tor.restLabel.setAlpha(0)
     }
     for (const kachel of this.kacheln) {
       if (!kachel.aktiv) continue
@@ -253,30 +246,26 @@ export class Torbahn implements BahnSystem {
     const horde = this.getHorde()
     if (horde !== undefined) {
       this.hordeZeitMs += dt
+      // EIGENES, langsames Tempo statt des Strassenscrolls: Mit der Bahngeschwindigkeit
+      // rauschte die Horde heran, bevor der am Tor verdoppelte Strom sie erreichen
+      // konnte. Jetzt braucht sie vom Horizont bis zur Truppe rund 18 s, und der
+      // Strom trifft sie die ganze Zeit ueber (Thomas 2026-09-19: "die Horde schon
+      // viel frueher kommen, aber langsam").
+      horde.ohneTrefferMs += dt
       if (!horde.haelt) {
-        horde.anchorY = advanceAlongRoad(this.scene.scale.width, this.scene.scale.height, horde.anchorY, bewegung)
-        const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, horde.anchorY, BALANCE.torlauf.horde.hoehePx)
-        horde.y = Math.min(BALANCE.torlauf.horde.haltY, segment.centerY)
+        horde.y += BALANCE.torlauf.horde.anflugTempoPxPerSec * dt / 1000
         if (horde.y >= BALANCE.torlauf.horde.haltY) horde.haelt = true
-      } else horde.y += BALANCE.torlauf.horde.vorrueckTempoPxPerSec * dt / 1000
+      } else if (horde.ohneTrefferMs >= BALANCE.torlauf.horde.ohneTrefferVorrueckenMs) {
+        // Nur ohne Beschuss geht es weiter nach vorn. Unter Beschuss bleibt die Horde
+        // auf ihrem Kampfplatz hinter dem Tor stehen.
+        horde.y += BALANCE.torlauf.horde.vorrueckTempoPxPerSec * dt / 1000
+      }
       // Harte Grenze auf Hoehe der Truppe: ohne sie wanderte die Horde unbegrenzt weiter
       // nach unten, verliess das Bild und kam nie in Beruehrung - der Nahkampf fand nie
       // statt. Hier stehenbleiben heisst Dauerkontakt mit der Huelle, also fressen.
       horde.y = Math.min(horde.y, this.scene.scale.height - BALANCE.torlauf.horde.grenzeBodenAbstandPx)
       this.positioniereHorde(horde)
     }
-  }
-
-  private spawnePaar(): void {
-    const links = this.tore.find((t) => !t.aktiv)
-    const rechts = this.tore.find((t) => !t.aktiv && t !== links)
-    if (links === undefined || rechts === undefined) return
-    const paar = torPaarZiehen(this.zufall, this.getTeamSize(), this.pxSeitLetztemMal)
-    if (paar.some((tor) => tor.wirkung.art === 'mal')) this.pxSeitLetztemMal = 0
-    this.aktiviere(links, paar[0].seite, paar[0].wirkung, paar[0].startwert)
-    this.aktiviere(rechts, paar[1].seite, paar[1].wirkung, paar[1].startwert)
-    links.partner = rechts
-    rechts.partner = links
   }
 
   private spawneKachel(): void {
@@ -289,20 +278,22 @@ export class Torbahn implements BahnSystem {
     kachel.label.setActive(true).setVisible(true)
   }
 
-  private aktiviere(tor: TorZustand, seite: 'links' | 'rechts', wirkung: TorWirkung, startwert: number): void {
-    tor.seite = seite
-    tor.wirkung = wirkung
-    tor.startwert = startwert
+  private sorgeFuerMitteltor(): void {
+    if (this.tore.some((tor) => tor.aktiv)) return
+    const tor = this.tore.find((kandidat) => !kandidat.aktiv)
+    if (tor === undefined) return
+    tor.seite = 'links'
+    tor.wirkung = { art: 'mal', faktor: torFaktorZiehen(this.zufall) }
+    tor.startwert = 0
     tor.treffer = 0
-    tor.anchorY = BALANCE.road.horizonY
     tor.aktiv = true
-    tor.partner = undefined
+    tor.anchorY = BALANCE.torlauf.tor.festY
     tor.bild.setData('spawnId', this.nextSpawnId)
     this.nextSpawnId += 1
-    tor.bild.enableBody(true, 0, 0, true, true).setActive(true).setVisible(true).setAlpha(0)
+    tor.bild.enableBody(true, 0, 0, true, true).setActive(true).setVisible(true).setAlpha(1)
     ;(tor.bild.body as Phaser.Physics.Arcade.Body).moves = false
-    tor.label.setActive(true).setVisible(true).setAlpha(0)
-    tor.restLabel.setActive(true).setVisible(true).setAlpha(0)
+    tor.label.setActive(true).setVisible(true).setAlpha(1)
+    tor.restLabel.setActive(false).setVisible(false)
     this.beschrifte(tor)
   }
 
@@ -394,7 +385,7 @@ export class Torbahn implements BahnSystem {
       figuren.push(figur)
     }
     const label = this.scene.add.text(0, 0, '', { fontFamily: 'system-ui', fontSize: '34px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 5, fontStyle: 'bold' }).setOrigin(0.5).setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false)
-    return { bild, figuren, label, anchorY: BALANCE.road.horizonY, y: BALANCE.road.horizonY, punkte: 0, aktiv: false, haelt: false }
+    return { bild, figuren, label, anchorY: BALANCE.road.horizonY, y: BALANCE.road.horizonY, punkte: 0, aktiv: false, haelt: false, ohneTrefferMs: 0 }
   }
 
   private positioniereHorde(horde: HordeZustand): void {

@@ -59,7 +59,7 @@ describe('Torlauf E0', () => {
 })
 
 describe('Torlauf E1 sichtbare Masse', () => {
-  it('haelt die +1-Kachel als aufrechte Tafel am linken Rand ausserhalb der 214-px-Formation', () => {
+  it('haelt die +1-Kachel als waagrechte Platte am linken Rand ausserhalb der 214-px-Formation', () => {
     const breite = 390
     const hoehe = 844
     const mitte = breite / 2
@@ -70,17 +70,18 @@ describe('Torlauf E1 sichtbare Masse', () => {
     const linkeKante = mitte - halbbreite + BALANCE.torlauf.kachel.randSpaltPx * getRoadScale(breite, hoehe, kampfhoehe)
     const rechteKante = linkeKante + kachelBreite
 
-    expect(BALANCE.torlauf.kachel).toMatchObject({ breiteAnteil: 0.3, hoeheAnteil: 2.6, randSpaltPx: 2 })
-    // Aufrecht, nicht liegend: Thomas hat die flache Platte zweimal als "zu klein"
-    // gemeldet. Hoeher als breit ist hier die eigentliche Anforderung.
-    expect(kachelHoehe).toBeGreaterThan(kachelBreite * 2)
+    expect(BALANCE.torlauf.kachel).toMatchObject({ breiteAnteil: 0.3, hoeheAnteil: 0.45, randSpaltPx: 2 })
+    // WAAGRECHT liegend (Thomas 2026-09-19), aber mit 50 px Breite deutlich groesser
+    // als die 21 px vom Anfang, die er zu Recht "zu klein" nannte.
+    expect(kachelBreite).toBeGreaterThan(45)
+    expect(kachelHoehe).toBeLessThan(kachelBreite)
     // Die 214-px-Formation braucht ab Mitte 107 px je Seite frei.
     expect(mitte - rechteKante).toBeGreaterThan(214 / 2)
   })
 
-  it('haelt das Run-Profil unveraendert und gibt dem Torlauf 150 kleine Blockfiguren', () => {
+  it('haelt das Run-Profil unveraendert und gibt dem Torlauf 150 kleine Figuren als Traube', () => {
     expect(RUN_FORMATIONS_PROFIL).toMatchObject({ poolGroesse: 30, max: 30, figureScale: 1, form: 'dreieck', huelleFolgtFormation: false })
-    expect(BALANCE.torlauf).toMatchObject({ anchorBottomOffset: 220, crowd: { poolGroesse: 150, max: 150, figureScale: 0.6, form: 'block', plaetzeJeReihe: 20, huelleFolgtFormation: true } })
+    expect(BALANCE.torlauf).toMatchObject({ anchorBottomOffset: 220, crowd: { poolGroesse: 150, max: 150, figureScale: 0.6, form: 'traube', plaetzeJeReihe: 20, huelleFolgtFormation: true } })
     expect(BALANCE.crowd.max).toBe(30)
     expect(BALANCE.pools.crowd).toBe(30)
   })

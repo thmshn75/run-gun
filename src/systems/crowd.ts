@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { computeBlockFormation, computeFormation } from './formation'
+import { computeBlockFormation, computeFormation, computeTraubeFormation } from './formation'
 import { approachAngle, createCrowdMotionProfiles, getBobOffsetPx, getLeanRadians, getStepCycleHz, getStepSquash, getStepSwayRadians, type CrowdMotionProfile } from './gamefeel'
 import { getDriveLimitHalfWidth } from './roadGeometry'
 import { overlapsVisibleFigure, type RectangleBounds } from './rectangles'
@@ -22,7 +22,7 @@ export type FormationsProfil = Readonly<{
   colSpacing: number
   minColSpacing: number
   maxWidthRatio: number
-  form: 'dreieck' | 'block'
+  form: 'dreieck' | 'block' | 'traube'
   plaetzeJeReihe: number
   huelleFolgtFormation: boolean
   bottomMargin: number
@@ -108,7 +108,9 @@ export class Crowd {
     }
     const slots = this.profil.form === 'block'
       ? computeBlockFormation(size, { ...options, plaetzeJeReihe: this.profil.plaetzeJeReihe })
-      : computeFormation(size, options)
+      : this.profil.form === 'traube'
+        ? computeTraubeFormation(size, { ...options, plaetzeJeReihe: this.profil.plaetzeJeReihe })
+        : computeFormation(size, options)
 
     this.halfFormationWidth = slots.reduce((widest, slot) => Math.max(widest, Math.abs(slot.offsetX)), 0)
     this.formationstiefe = slots.reduce((deepest, slot) => Math.max(deepest, slot.offsetY), 0) + (slots.length > 0 ? this.figureHeight : 0)

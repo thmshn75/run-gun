@@ -17,8 +17,11 @@ describe('Torlauf Horde E3', () => {
     expect(BALANCE.torlauf.horde.basis * getLevelPlan(5).hardness).toBeCloseTo(377.6)
     expect(BALANCE.torlauf.horde.basis * getLevelPlan(12).hardness).toBeCloseTo(478.4)
     expect(torbahn).toContain('horde.punkte = BALANCE.torlauf.horde.basis * getLevelPlan(level).hardness')
-    expect(BALANCE.torlauf.horde.haltY).toBe(300)
-    expect(BALANCE.torlauf.horde.vorrueckTempoPxPerSec).toBe(40)
+    // Oberhalb des Tors (tor.festY): Der Strom muss sich erst vervielfachen, bevor er
+    // auf die Horde trifft.
+    expect(BALANCE.torlauf.horde.haltY).toBeLessThan(BALANCE.torlauf.tor.festY)
+    // Kriechtempo: Der Kampf soll oberhalb des Tors stattfinden, nicht an der Truppe.
+    expect(BALANCE.torlauf.horde.vorrueckTempoPxPerSec).toBe(8)
   })
 
   it('hinterlegt die Horde separat, nicht in Toren oder Kacheln, und haelt den Collider aktiv', () => {

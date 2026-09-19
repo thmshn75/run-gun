@@ -26,7 +26,10 @@ export const BALANCE = {
     // Gegner"). 25 s = rund 7 Torpaare bei 900 px Abstand und 250 px/s Scroll, also genug
     // Gelegenheit, die Quelle aufzubauen, bevor die Horde kommt. Ein ganzer Durchgang
     // dauert damit gut eine Minute statt ueber zwei.
-    laufphaseSec: 25,
+    // 6 s statt 25: Die Horde soll frueh kommen und dann LANGSAM vorruecken, damit der
+    // vervielfachte Strom hinter dem Tor auf sie trifft (Thomas 2026-09-19). Ihr Anflug
+    // dauert danach noch rund 18 s (siehe horde.anflugTempoPxPerSec).
+    laufphaseSec: 6,
     // Startgroesse der Quelle. Der echte Run beginnt mit stats.hp.base = 1, und genau das
     // macht den Torlauf unspielbar: 1 Einheit x 0,4 = 0,4 Figuren/s, also alle 2,5 s eine
     // einzige Figur - damit ist kein Pfeiler mit Startwert -3 bis -17 aufzuhacken und die
@@ -45,6 +48,14 @@ export const BALANCE = {
     tor: {
       // 900 Weltpixel lassen zwischen zwei Paaren Beschusszeit, aber halten die Wahl sichtbar.
       abstandPx: 900,
+      // Das Tor steht FEST in der Bahnmitte und zieht nicht mehr vorbei (Thomas
+      // 2026-09-19: "es soll nur ein Tor in der Mitte sein ... dauerhaft da").
+      // y = 380: deutlich vor der Truppe (624) und weit genug vom Horizont, damit der
+      // Strom eine sichtbare Strecke bis dorthin und danach bis zur Horde zuruecklegt.
+      festY: 380,
+      // Anteil der vollen Bahnbreite auf Torhoehe. 0,42 laesst links und rechts je rund
+      // ein Drittel frei - der Strom muss also gezielt hindurchgefuehrt werden.
+      mitteBreiteAnteil: 0.42,
       hoehePx: 84,
       startAnteilMin: 0.25,
       startAnteilMax: 0.55,
@@ -99,8 +110,24 @@ export const BALANCE = {
       // der Nahkampf findet wirklich statt, statt aus der Ferne wegzuschmelzen.
       basis: 320,
       hoehePx: 140,
+      // 300: Der Kampfplatz, gut 80 px HINTER dem Tor (tor.festY 380). Dort bleibt die
+      // Horde stehen, solange der Strom sie trifft - so laeuft der Kampf immer hinter
+      // dem Tor, also mit vervielfachten Figuren (Thomas 2026-09-19).
       haltY: 300,
-      vorrueckTempoPxPerSec: 40,
+      // Bleibt der Strom so lange aus, gibt die Horde keinen Boden mehr her, sondern
+      // nimmt ihn: Erst nach dieser Pause ohne Treffer rueckt sie wieder vor. Damit
+      // bleibt eine Niederlage moeglich, ohne dass die Horde bei laufendem Kampf unter
+      // das Tor kriecht (dort traefe der Strom sie unvervielfacht - genau verkehrt).
+      ohneTrefferVorrueckenMs: 2000,
+      // 8 px/s statt 40: Nach dem Halt rueckt die Horde nur noch kriechend vor. Von 280
+      // bis zur Truppe (624) sind das 43 s - lange genug, dass der Kampf oberhalb des
+      // Tors stattfindet, und trotzdem endlich, damit eine Niederlage moeglich bleibt.
+      vorrueckTempoPxPerSec: 8,
+      // Eigenes, LANGSAMES Anflugtempo statt des Strassenscrolls. Vorher kam die Horde
+      // mit der Bahngeschwindigkeit herangerauscht; jetzt braucht sie vom Horizont bis
+      // zur Truppe rund 18 s (444 px / 25 px/s) - Zeit genug, dass der am Tor
+      // verdoppelte Strom sie unterwegs trifft.
+      anflugTempoPxPerSec: 25,
       // Weiter als bis zur Truppe darf die Horde nie: ohne diese Grenze lief sie unbegrenzt
       // nach unten weiter (gemessen y=5032 bei 844 px Bildhoehe), war vom Bild verschwunden
       // und hat nie gefressen. Der Wert ist derselbe Bodenabstand wie der Truppenanker
@@ -135,10 +162,11 @@ export const BALANCE = {
       // 107 px Bedarf) - 0,35 wuerde bereits in die Formation ragen, was Thomas
       // ausdruecklich nicht will ("keine zusaetzlichen Waende in der Mitte").
       breiteAnteil: 0.3,
-      // 2,6 x Breite = 130 px HOCH. Der eigentliche Grund, warum die Kachel zweimal als
-      // "zu klein" gemeldet wurde: Sie lag mit 0,5 flach am Boden wie eine Platte. Im
-      // Vorbild stehen die +1-Felder aufrecht wie Tafeln und sind schon von weitem lesbar.
-      hoeheAnteil: 2.6,
+      // 0,45 x Breite: WAAGRECHT liegend, wie Thomas es am 2026-09-19 verlangt hat.
+      // Die aufrechte Tafel (2,6) davor war hoch, aber nicht das, was er wollte.
+      // Mit 50 px Breite bleiben 22 px Hoehe - deutlich groesser als die 21x10 px
+      // vom Anfang, die er zu Recht "zu klein" nannte.
+      hoeheAnteil: 0.45,
       // Wie bei den Toren zwei Kampfhoehen-Pixel innerhalb der linken Strassenkante.
       randSpaltPx: 2,
     },
@@ -168,12 +196,13 @@ export const BALANCE = {
       colSpacing: 10,
       minColSpacing: 8,
       maxWidthRatio: 0.55,
-      // **Die Formation hat zwei Formen, `form: 'dreieck' | 'block'`.** Der Run laeuft mit
-      // `dreieck` — das ist der heutige Code in `computeFormation`, Zeile fuer Zeile. Der
-      // Torlauf laeuft mit `block`: **jede Reihe hat `plaetzeJeReihe` Plaetze, die letzte den
-      // Rest, zentriert.** Ein Dreieck wuerde 150 Figuren in 17 immer breitere Reihen legen —
-      // spitz und schmal, nicht die Masse des Videos.
-      form: 'block',
+      // **Die Formation hat drei Formen, `form: 'dreieck' | 'block' | 'traube'`.** Der Run
+      // laeuft mit `dreieck` — das ist der heutige Code in `computeFormation`, Zeile fuer
+      // Zeile. Der Torlauf lief zunaechst mit `block` (feste Reihenbreite), sah damit aber
+      // aus wie eine militaerische Formation. Thomas will am 2026-09-19 eine TRAUBE: ein
+      // gedraengter Haufen, in der Mitte am breitesten, vorn und hinten schmaler, mit
+      // versetzten Reihen.
+      form: 'traube',
       // `plaetzeJeReihe` **20** → 150 Figuren = 7 volle Reihen plus 10, also 8 Reihen; das
       // Video zeigt rund 8 x 18. Bei `minColSpacing` 8 ist eine volle Reihe 152 px breit.
       plaetzeJeReihe: 20,

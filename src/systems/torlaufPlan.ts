@@ -4,6 +4,11 @@ import { BALANCE } from '../config/balance'
 export type TorWirkung = { readonly art: 'mal'; readonly faktor: 2 | 3 }
 export type TorPaar = readonly [{ readonly seite: 'links'; readonly wirkung: TorWirkung; readonly startwert: number }, { readonly seite: 'rechts'; readonly wirkung: TorWirkung; readonly startwert: number }]
 
+/** Der Faktor des einen, fest stehenden Tors in der Bahnmitte. */
+export function torFaktorZiehen(zufall: () => number): 2 | 3 {
+  return zufall() < BALANCE.torlauf.tor.malDreiAnteil ? 3 : 2
+}
+
 
 /**
  * Zieht ein Paar. BEIDE Haelften sind Multiplikatoren, und zwar mit verschiedenen
