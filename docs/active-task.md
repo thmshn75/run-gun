@@ -1,324 +1,187 @@
 # Active Task
 
 ## Status
-`APPROVED`
+`SPEC_READY`
 <!-- Werte: IDLE → SPEC_READY → IMPL_DONE → APPROVED → IDLE -->
 
 ## Task
 
-**V5 / E1 — Die Truppe als sichtbare Masse, nur im Torlauf.**
+**V5 / E2 — Tor-Paare mit Restwert: die Entscheidung links oder rechts.**
 
-Plan: `docs/plan-v5.md` (freigegeben 2026-09-19). E0 ist abgenommen (Commit `5c0c2dc`).
-E1 loest den offenen Punkt 1 der Uebergabe ("Truppenanzeige: gedeckelt oder echte
-Zahl?") **fuer den Torlauf**: Dort zeigt die Truppe jede Figur bis 150, dicht gestaffelt
-wie im Video. **Der echte Run, das Testgelaende und der Bahnen-Probelauf bleiben bei 30
-und bei ihren heutigen Formationswerten** — das ist die harte Grenze dieses Tasks.
+Plan: `docs/plan-v5.md`. E0 (Geruest) und E1 (Masse, inkl. Nacharbeit N1) sind gebaut;
+E1 wartet nur noch auf Thomas' Sichtpruefung des Wipptakts, die mit E2 zusammen erfolgt.
+E2 fuellt die bisher leere `Torbahn` mit dem Kern des Genres.
 
-### Was der Bestand vorgibt (gelesen, nicht vermutet)
+### Was der Bestand vorgibt (gelesen)
 
-- `Crowd` legt im Konstruktor genau `BALANCE.pools.crowd` (30) Figuren und Schatten an
-  (`crowd.ts:53-66`); `setSize` klemmt hart auf `BALANCE.crowd.max` (Z.79).
-- Die Formation ist ein **Dreieck** (Reihe n hat n Plaetze, `formation.ts`), das vom
-  Anker nach **unten** waechst (`offsetY = row * spacing`). 150 Figuren brauchen so 17
-  Reihen. Der Anker steht 130 px ueber dem Boden (`player.anchorBottomOffset`), unter
-  ihm bleiben `844 - 714 - 23 - 8 = 99 px` Tiefe — 17 Reihen wuerden auf 6 px Abstand
-  gepresst, die 46-px-Figuren laegen fast vollstaendig uebereinander.
-- Die Breite ist auf `maxWidthRatio` 0,2 = 78 px gedeckelt, mit einem Kommentar, der
-  0,20 als **kleinsten zulaessigen** Wert fuer den Run begruendet (Feuerlinie) und einen
-  Test dahinter nennt.
-- Die Kollisionshuelle ist **fest** 2,4 x 1,6 Figuren (`hullWidthFigures`, Kommentar:
-  "stays fixed instead of growing with the formation"). Sie waechst heute **nicht** mit —
-  `docs/plan-v5.md` E1 hat das falsch angenommen und wird hier korrigiert.
-- Die Feuerkraft haengt an `shootersPerSalvo` 8 (rotierend ueber alle aktiven
-  Figuren) und am Truppenbonus, der ueber `damageMultiplierCap*` gedeckelt ist und ab
-  rund 30 Figuren nichts mehr hinzugibt. **Die Zahl der aktiven Figuren aendert die
-  Feuerkraft nicht** — das ist die Sicherung aus dem Plan, und sie steht schon.
-- Figurenmass: `render.figureTextureScale` 0,5 auf die doppelt aufgeloeste Textur,
-  46 px hoch. Schatten, Huelle und Fahrbereichs-Einzug (`dragClampFigures`) haengen an
-  `displayWidth/Height` und skalieren mit.
+- **Die Tor-Mechanik existiert vollstaendig** in `src/systems/versuchBahnen.ts`:
+  `TorZustand` (Z.~80), Pool von 4 Toren (Z.169), `spawneTor` (Z.331), Bewegung entlang
+  der Strasse mit `advanceAlongRoad`/`getRoadSegment`/`getRoadScale` (Z.311-329),
+  Treffer = ein Punkt in `damage()` (Z.~380), Durchfahren in `collectPickup` (Z.249) mit
+  `getTorStand` und `getTruppeNachTor` (`versuchPlan.ts`), Beschriftung nach Stand
+  (`beschrifteTor`, Z.355), Recycling (Z.364). Reine Rechenfunktionen liegen in
+  `versuchPlan.ts` und sind ohne Phaser getestet.
+- **Die Spawnsperre** (kein Gegner hinter einem Tor, Thomas 2026-09-05) haengt an
+  `istImTorFenster` und wird in `GameScene.ts:506` nur hinter
+  `this.walls instanceof VersuchBahnen` aufgerufen.
+- **Die Truppenaenderung** laeuft ueber `applyReinforcement` (`GameScene.ts:335`):
+  `runStats.set('hp', apply(before))` plus Popup. `runStats.set` klemmt ueber
+  `clampStat` (`upgrades.ts:160`) am **Level-Cap** `getStatCap('hp', level)` — auf
+  Level 20 = 113. **Ohne Aenderung kann kein Tor die Truppe ueber den Level-Cap heben;
+  ein ×2 waere ab dem halben Cap wirkungslos** (Befund E1-Review).
+- Collider: `syncWallColliders` (`GameScene.ts:588`) legt Projektile auf
+  `walls.getWalls()` und die Truppenhuelle auf `walls.getRewards()`, sobald
+  `hasActivePair()` wahr ist. `collectPickup` wird ueber `isPickupSegment` erreicht.
+- Texturen: `wall-segment-right` (gruen, Stand > 0), `wall-segment-bad` (rot), Label
+  als Text. Das Video zeigt Pfeiler und eine flache Platte — **Bilder sind ein eigener
+  Folgeschritt (E2b, Codex erzeugt sie)**; E2 laeuft mit den Versuchs-Texturen.
+
+### Die Architekturentscheidung
+
+**`Torbahn` bekommt eine eigene Tor-Implementierung, die die Rechenfunktionen aus
+`versuchPlan.ts` wiederverwendet, aber `VersuchBahnen` nicht anfasst.** Grund: Der
+Bahnen-Probelauf ist abgenommen und darf sich nicht bewegen; `VersuchBahnen` traegt
+zusaetzlich Faesser und die Seitenlogik (rechts Tor, links Fass), die der Torlauf nicht
+hat. Was sich sauber teilen laesst, wandert in eine gemeinsame Datei
+`src/systems/torObjekt.ts` (Bewegung entlang der Strasse, Beschriftung, Recycling —
+**nur, wenn `VersuchBahnen` danach bitgleich weiterlaeuft**; sonst kopieren, und der
+Kommentar nennt die Quelle).
 
 ---
 
-## A — Ein Formationsprofil statt fester Konstanten
+## A — Der Torlauf-Deckel: die Klemme bekommt einen Override
 
-`Crowd` bekommt im Konstruktor ein **Profil** (Werteobjekt), das alles buendelt, was
-heute direkt aus `BALANCE.crowd` und `BALANCE.pools.crowd` gelesen wird:
+- `RunStats` (`upgrades.ts`) bekommt ein optionales Feld `hpDeckelOverride?: number`
+  mit Setter. `clampStat` bekommt einen optionalen Parameter `capOverride`; ist er
+  gesetzt, ersetzt er **fuer `hp`** den Wert aus `getStatCap`. `setRaw`, `Z.262`, `Z.270`,
+  `Z.286`, `Z.367` reichen ihn durch, wo `hp` betroffen ist.
+- Die Szene setzt ihn **im bestehenden Probe-Zweig** von `stelleEinstiegHer`
+  (`GameScene.ts:633`, `if (probe !== undefined)`), hinter `if (this.istTorlauf())`, auf
+  `BALANCE.torlauf.crowd.max` (150) — **kein neuer Zweig davor**: Der Torlauf ist eine
+  Probelauf-Variante (E0), und `probe.variante` darf nur in `istTorlauf()` gelesen werden
+  (E0-Test). `clampStat` hat keine Aufrufer ausserhalb von `upgrades.ts` (gegrept), der
+  optionale Parameter reicht. **Im Run, Testgelaende und Bahnen-Probelauf bleibt er
+  `undefined`** — ein Test belegt, dass `clampStat` ohne Override bitgleich rechnet.
+- Der Startwert der Truppe im Torlauf bleibt wie im Probelauf (Level-Cap x 0,5).
 
-```ts
-type FormationsProfil = Readonly<{
-  poolGroesse: number        // wie viele Figuren+Schatten angelegt werden
-  max: number                // Klemme in setSize
-  figureScale: number        // Faktor auf render.figureTextureScale
-  rowSpacingY: number
-  colSpacing: number
-  minColSpacing: number
-  maxWidthRatio: number
-  form: 'dreieck' | 'block'  // Run: dreieck (heutige Logik), Torlauf: block
-  plaetzeJeReihe: number     // nur fuer block
-  huelleFolgtFormation: boolean
-}>
-```
+## B — Tor-Paare in der `Torbahn`
 
-- **Der Run behaelt sein Profil aus `BALANCE.crowd` unveraendert**: `poolGroesse` 30,
-  `max` 30, `figureScale` 1, `form` dreieck (heutige Logik),
-  `huelleFolgtFormation` false. Ein Test belegt, dass `computeFormation` fuer das
-  Run-Profil **bitgleich** dieselben Slots liefert wie vor diesem Task (Fixtures fuer
-  1, 8, 30 Figuren).
-- **Der Torlauf bekommt `BALANCE.torlauf.crowd`**, ein eigener Block mit Rechenweg je
-  Wert (Vorschlaege, Herleitung unten): `poolGroesse` 150, `max` 150, `figureScale`
-  0,6, `rowSpacingY` 9, `colSpacing` 10, `minColSpacing` 8, `maxWidthRatio` 0,55,
-  `form` block, `plaetzeJeReihe` 20, `huelleFolgtFormation` true.
-- **Alle** direkten Leser in `crowd.ts` gehen auf das Profil — gegrept, nicht
-  vermutet: Z.48/49 (`hullWidthFigures`/`hullHeightFigures`), **Z.54
-  (`createCrowdMotionProfiles(BALANCE.pools.crowd, …)`) und Z.55 (Schleifenlaenge
-  `BALANCE.pools.crowd`)** — werden diese beiden vergessen, existieren im Torlauf nur 30
-  Figuren-Objekte und `setSize(150)` zeigt still 30 —, Z.78 (`max`), Z.80-84
-  (`rowSpacingY`, `colSpacing`, `minColSpacing`, `maxWidthRatio`, `bottomMargin`). Ein
-  Test instanziiert `Crowd` mit dem Torlauf-Profil (Phaser gemockt wie in
-  `trefferquittung.test.ts`) und zaehlt **150 Member-Objekte** — nicht nur 150 Slots aus
-  `computeFormation`.
-- Die Weiche liegt in `GameScene.create()` beim `new Crowd(...)` (Z.307):
-  `this.istTorlauf() ? BALANCE.torlauf.crowd : BALANCE.crowd`-Profil. **Einzige Stelle.**
-  `istTorlauf()` ist in `create()` bereits gesetzt (init laeuft davor) — das hat E0
-  belegt.
+- Alle `BALANCE.versuch.tor.abstandPx`-analogen Werte in einem eigenen Block
+  `BALANCE.torlauf.tor` mit Rechenweg: `abstandPx` (Vorschlag 900 — dichter als der
+  Versuch, das Video zeigt alle ~4 s ein Paar bei unserem Tempo ~135 px/s → 540 px;
+  900 laesst Beschusszeit), `hoehePx` 84, `startAnteilMin/Max` 0,25/0,55 (wie Versuch),
+  `startMindest` 3, `plusAnteilRest` 0,35, `plusMindest` 3, `gegnerSperreVorPx` 150,
+  `gegnerSperreNachPx` 380, `innenkanteAnteil`, `randSpaltPx` (Geometrie wie Versuch).
+- **Ein Spawn erzeugt zwei Tore**, eines links, eines rechts, beide auf derselben
+  `anchorY`. Pool 8 (4 Paare). Jedes Tor hat `wirkung: { art: 'plus' } | { art: 'mal', faktor: 2 | 3 }`.
+- **Restwert** wie im Versuch: Startwert negativ als Anteil der Truppe
+  (`getTorStartwert`), ein Treffer ein Punkt, Deckel nach oben `getTorPlusDeckel`
+  (Restweg zum **Torlauf-Deckel 150**, nicht zum Level-Cap — `getTruppenDeckel` liefert
+  im Torlauf 150).
+- **Durchfahren (`collectPickup`)**:
+  - `stand < 0` → Truppe + stand (Malus, wie im Versuch, `getTruppeNachTor`).
+  - `stand >= 0` und `art: 'plus'` → Truppe + stand.
+  - `stand >= 0` und `art: 'mal'` → Truppe × faktor, **geklemmt auf 150** (durch A).
+  Danach: **beide Tore des Paars werden recycelt** — die Wahl ist getroffen.
+  `TorZustand` bekommt dafuer ein Feld `partner: TorZustand | undefined`, beim Spawn
+  gegenseitig gesetzt; `collectPickup` recycelt `tor` und `tor.partner`.
+- **Die Wahl faellt ueber die Seite des Truppen-Ankers, nicht ueber die Huelle.**
+  Rechnung: `innenkanteAnteil` 0,15 laesst auf Kampfhoehe (Strasse ~300 px) einen
+  Mittelstreifen von nur ~45 px; die Torlauf-Huelle ist bis 214 px breit und beruehrt
+  deshalb **beide** Tore eines Paars im selben Bild — `crowdPickupCollider` ruft
+  `collectPickup` je Ueberlappung auf, beide Wirkungen wuerden gezogen. Deshalb:
+  `collectPickup(wall)` wendet die Wirkung **nur** an, wenn das Tor auf der Seite liegt,
+  auf der `getCrowdAnchorX()` relativ zur Strassenmitte steht (bei exakt Mitte: rechts);
+  fuer das andere Tor liefert es 0 und recycelt nichts — das Ankerseiten-Tor recycelt
+  dann beide. Ein Test deckt "Huelle auf voller Breite mittig durchs Paar" ab: genau eine
+  Wirkung. `Torbahn` bekommt dafuer `getCrowdAnchorX` injiziert (wie der Spawner).
+  Folge: Beide Tore zu verpassen ist im Torlauf **nicht** moeglich — wie im Genre.
+- **Paar-Ziehung** (`torPaarZiehen(zufall, truppe)` als reine Funktion in einer neuen
+  `torlaufPlan.ts`, getestet — `truppe` wird an `getTorStartwert` durchgereicht, genau wie
+  im Versuch; ohne sie ist der Startwert als Truppenanteil nicht rechenbar): Mit `BALANCE.torlauf.tor.malChance` (Vorschlag 0,35)
+  ist eines der beiden ein `mal`-Tor (Faktor 2 mit 0,8, 3 mit 0,2), das andere `plus`;
+  sonst beide `plus` mit unterschiedlichen Startwerten (der Unterschied ist die
+  Entscheidung). Welche Seite das bessere bekommt, ist Zufall. **Deckel Faktor 3**, nie
+  mehr (Plan V5).
+- **Beschriftung**: `plus`-Tore wie im Versuch (`+12` gruen / `-8` rot). `mal`-Tore
+  zeigen `×2` bzw. `×3` in violett (`HUD_COLORS`-Erweiterung) **und** den Restwert
+  darunter, solange er negativ ist; bei `>= 0` nur `×2`. Das ist die Lesart des Videos
+  (grosse Aufschrift, kleine Zahl darunter).
+- **Spawnsperre**: `BahnSystem` bekommt `istTorFenster` als **optionales
+  Interface-Member** mit derselben Signatur wie `VersuchBahnen.istTorFenster` (Z.218);
+  `Torbahn` implementiert es mit den Torlauf-Werten, `VersuchBahnen` behaelt seins
+  unveraendert. Die Abfrage in `GameScene` (heute `instanceof VersuchBahnen`, grep) wird
+  `this.walls.istTorFenster?.(…) ?? false` — **kein `in`-Check** (narrowt nicht, `tsc`
+  bricht) und **kein Cast**. Ein Test belegt, dass beide Klassen erfasst werden.
+- **Collider**: unveraendert ueber `getWalls()` (beide Tore drin) und `isPickupSegment`
+  → `collectPickup`. `getRewards()` bleibt leer (keine Faesser im Torlauf).
+- **Geometrie**: `torObjekt.ts` bekommt eine eigene `torGeometrie(y, seite)`, die fuer
+  `'rechts'` **bitgleich** zur heutigen `VersuchBahnen.torGeometrie` (Z.604) rechnet und
+  fuer `'links'` an der Strassenmitte spiegelt (`x = mitte - (innen + aussen) / 2`).
+  `VersuchBahnen` behaelt seine private Version; `kontext()`/`BahnRegeln` werden nicht
+  geteilt.
 
-**Herleitung der Torlauf-Werte:**
+## C — Quittung und Zahl
 
-- `figureScale` 0,6 → 28 px hohe, 20 px breite Figuren. Das Video zeigt Figuren von
-  rund einem Zwanzigstel der Bahnbreite; unsere Bahn ist auf Kampfhoehe ~300 px breit,
-  20 px sind ein Fuenfzehntel — etwas groesser als im Video, damit die 12-Bild-Laufsaetze
-  lesbar bleiben.
-- **Die Formation hat zwei Formen, `form: 'dreieck' | 'block'`.** Der Run laeuft mit
-  `dreieck` — das ist der heutige Code in `computeFormation`, Zeile fuer Zeile. Der
-  Torlauf laeuft mit `block`: **jede Reihe hat `plaetzeJeReihe` Plaetze, die letzte den
-  Rest, zentriert.** Ein Dreieck wuerde 150 Figuren in 17 immer breitere Reihen legen —
-  spitz und schmal, nicht die Masse des Videos.
-- `plaetzeJeReihe` **20** → 150 Figuren = 7 volle Reihen plus 10, also 8 Reihen; das
-  Video zeigt rund 8 x 18. Bei `minColSpacing` 8 ist eine volle Reihe 152 px breit.
-- `maxWidthRatio` 0,55 → 214 px, zwei Drittel der Bahn auf Kampfhoehe; die 152 px
-  einer vollen Reihe passen mit Rand hinein, `colSpacing` 10 wird also nie unter
-  `minColSpacing` gedrueckt.
-- `rowSpacingY` 9 → 8 Reihen = 63 px Tiefe; die Figuren (28 px hoch) ueberlappen zu
-  zwei Dritteln, genau die dichte Staffelung des Videos. Die Depth-Regel
-  `gameplay + row` bleibt, damit hintere Reihen hinter vorderen liegen.
-- `poolGroesse`/`max` 150: Das Video zeigt ~8 x 18. Ueber 150 traegt die Zahl weiter,
-  die Menge bleibt stehen (`setSize` klemmt auf `max`), und `runStats.hp` ist davon
-  unberuehrt — die Zahl ueber der Truppe zeigt weiterhin `hp`.
-
-## B — Der Anker steht im Torlauf hoeher
-
-Im Torlauf braucht der Block Platz nach unten: `BALANCE.torlauf.anchorBottomOffset`
-**220** statt 130 (Rechenweg: 8 Reihen x 9 px = 63 px plus halbe Figur plus
-`bottomMargin`, plus Reserve fuer 150 Figuren in 8 Reihen; 220 laesst 220 - 14 - 8 =
-198 px, das Doppelte des Bedarfs, damit die Formation nie komprimiert). Die Weiche
-sitzt in `GameScene.create()` (Z.307, `new Crowd(..., height - offset)`), die den
-Wert ueber eine Szenen-Funktion `getAnchorBottomOffset()` liest:
-`istTorlauf() ? BALANCE.torlauf.anchorBottomOffset : BALANCE.player.anchorBottomOffset`.
-
-**Die zwoelf Leser von `BALANCE.player.anchorBottomOffset` (grep 2026-09-19) und was
-mit jedem passiert — Pflichtliste, keine Vermutung:**
-
-| Fundstelle | Zweck | Torlauf |
-|---|---|---|
-| `GameScene.ts:307` `new Crowd` | Truppenposition | **folgt** (220) |
-| `spawner.ts:230` `meldeDurchbruch` | Hoehe, ab der ein Gegner als durchgebrochen gilt | **folgt** — sie meint die Truppe |
-| `spawner.ts:445` `getTargetLane` | Spur, auf die Gegner zulaufen | **folgt** |
-| `spawner.ts:525` `spawnSingle`, `:549` `spawnSquad` | Spurbreite auf Kampfhoehe | **folgt** — Kampfhoehe ist die Truppe |
-| `roadGeometry.ts:48, 67, 88, 140, 173, 183` | Kalibrierpunkt der Strassenperspektive (lambda, Skalierung, Segmente) | **bleibt bei 130** — das ist Geometrie der Strasse, nicht Position der Truppe; wer sie mitzieht, verzerrt Strasse und Wandbewegung im Torlauf |
-| `bruecke.ts:133` | Kalibrierung der Brueckenwellen auf Kampfhoehe | **bleibt bei 130** — dieselbe Klasse wie roadGeometry |
-
-Der Spawner bekommt den Wert **injiziert** (Konstruktor-Callback `getAnchorBottomOffset`,
-wie er heute `getCrowdAnchorX` bekommt), nicht per Import aus der Szene.
-`roadGeometry.ts` und `bruecke.ts` lesen weiter `BALANCE.player.anchorBottomOffset`; ein
-Test haelt fest, dass `getRoadScale`/`advanceAlongRoad` fuer beide Modi identische
-Werte liefern.
-
-**Der Boss folgt der Truppe.** `boss.getAnchorY` ist an `crowd.getAnchorY()` gebunden
-(`GameScene.ts:405`), sein Halt liegt `advanceStopBeforeAnchorPx` davor
-(`boss.ts:255`). Im Torlauf steht er damit automatisch 90 px hoeher — richtig, denn er
-soll die Truppe erreichen. Seine Kampfdauer ist auf die Run-Strecke gerechnet
-(`advanceSpeed` 7,42 px/s auf 334 px) und verkuerzt sich im Torlauf entsprechend um
-rund 12 s. **Das ist Torlauf-Balance, in Kauf genommen; E4 entscheidet, ob der Boss im
-Torlauf eigene Werte bekommt.** Kein Umbau in E1.
-
-**Folge, ausdruecklich in Kauf genommen:** Die Anflugstrecke der Gegner ist im Torlauf
-um 90 px kuerzer (rund 0,7 s weniger Beschuss bei 135 px/s). Das ist Torlauf-Balance
-und wird in E2/E3 an Toren und Horde kalibriert, nicht hier.
-
-## C — Die Huelle folgt der Formation (nur Torlauf)
-
-Mit `huelleFolgtFormation` true setzt `setSize` die Huelle nach jeder Formation neu:
-Breite = 2 x `halfFormationWidth` + eine Figurenbreite, Hoehe = Formationstiefe + eine
-Figurenhoehe, **Position so, dass die vorderste Reihe (der Anker) die Oberkante
-bleibt** — der erste Kontakt mit einem Gegner faellt also auf dieselbe Hoehe wie
-heute, nur die Breite waechst. Begruendung: Im Video ist die Masse die Kontaktflaeche;
-E3 (Horde frisst bei Beruehrung) braucht genau das. Im Run bleibt die Huelle fest
-(Profil false, Code-Pfad unveraendert).
-
-**Die Falle, die das kaputt macht:** `Crowd.update()` setzt die Huelle **jedes Bild**
-auf `(anchorX, anchorY)` zurueck (`crowd.ts:254`), und eine Phaser-Zone positioniert
-ueber ihren **Mittelpunkt**. Wer nur `setSize` aendert, hat eine gewachsene Flaeche,
-die `update()` sofort wieder um den Anker zentriert — Oberkante zu hoch, Unterkante zu
-kurz, und kein `setSize`-Test merkt es. Deshalb: Bei `huelleFolgtFormation` setzt
-`update()` die Huelle auf `(anchorX, anchorY + formationstiefe / 2)`, damit die Oberkante
-am Anker bleibt; die Formationstiefe merkt sich `setSize`. Der A4-Test prueft die
-Huellenlage **nach `update()`**, nicht nach `setSize()`.
-
-## D — Feuerkraft bleibt, Feuerlinie wird breiter
-
-- `shootersPerSalvo` 8, `damagePerExtraFigure`, `damageMultiplierCap*` werden **nicht**
-  angefasst; die Salve rotiert wie heute ueber alle aktiven Figuren. Ein Test haelt
-  fest, dass die Feuerkraft-Zahlen bei 30 und bei 150 Figuren identisch sind
-  (Schuetzen je Salve, Schadensbonus).
-- Dass die Feuerlinie im Torlauf 214 px statt 78 px breit ist, ist gewollt (Masse
-  deckt die Bahn) und Torlauf-Balance. Der Run-Kommentar bei `maxWidthRatio` ("0,20 ist
-  der kleinste zulaessige Wert") gilt fuer den Run und bleibt samt seinem Test.
-
-## E — Mess-Sonde und Nachweis
-
-Codex hat keinen Browser; die Messung macht der Reviewer. Codex liefert dafuer **im
-DEV-Build** (hinter `import.meta.env.DEV`, wie `window.__runGun`) eine Sonde:
-`window.__runGunMessung.bildzeit(dauerMs)` — sammelt `requestAnimationFrame`-Deltas ueber
-`dauerMs` und liefert `{ median, p95, bilder }`. Kein Produktionscode, keine Kosten.
-
-**Was der Reviewer misst (steht hier, damit die Zahl vergleichbar ist):** Torlauf
-Startlevel 20 (Truppe ~54: `getStatCap('hp', 20)` ≈ 108 x `teamShareOnContinue` 0,5),
-dann per Sonde `hp` auf 150 setzen, 30 s laufen lassen mit voller Horde; Vergleich mit
-dem Bahnen-Probelauf Level 20 ueber 30 s. **Grenze: Median nicht ueber 16,7 ms** (der
-Wert aus der Uebergabe), gemessen im selben Browser hintereinander.
-
-## Reissleine
-
-Liegt der Median darueber: zuerst `poolGroesse` auf 75, dann die Bewegungsstreuung aus
-dem Abwechslungs-Task fuer Figuren ab Index 30 abschalten (ein Profil-Flag). **Kein Umbau
-der Renderschleife.** Laesst sich `computeFormation` nicht in **einer Session** um die
-Block-Form erweitern, ohne den Dreieckszweig anzufassen, dann Block als **eigene
-Funktion** neben dem Dreieck statt als Option — nicht weiterbohren.
+- Beim Durchfahren erscheint das Popup wie im Versuch (`applyReinforcement`-Pfad); bei
+  `mal` zeigt es `×2 → 84` (Faktor und Ergebnis). Die grosse Zahl aus E0 tickt mit.
 
 ---
 
 ## Akzeptanzkriterien
 
-- **A1** `Crowd` nimmt ein Formationsprofil; der Run, das Testgelaende und der
-  Bahnen-Probelauf laufen mit einem Profil aus `BALANCE.crowd` (30, Dreieck, feste
-  Huelle). Ein Test belegt: `computeFormation` liefert fuer 1, 8 und 30 Figuren im
-  Dreieck **exakt** dieselben Slots wie vor diesem Task (Fixture aus dem heutigen
-  Stand erzeugen, bevor der Code angefasst wird).
-- **A2** Im Torlauf zeigt die Truppe bis 150 Figuren als Block (20 je Reihe), Figuren
-  0,6-fach, Anker 220 px ueber dem Boden. Bei 54 Figuren (Startlevel 20) sind drei
-  Reihen sichtbar, bei 150 acht.
-- **A3** Ueber 150 bleibt die Menge bei 150, `hp` und die grosse Zahl laufen weiter.
-- **A4** Die Huelle deckt im Torlauf die Formation ab, Oberkante = Anker; im Run ist sie
-  unveraendert 2,4 x 1,6 Figuren. Ein Test belegt beides.
-- **A5** Die Tabelle in B ist umgesetzt: `GameScene:307` und die vier Spawner-Stellen
-  lesen ueber `getAnchorBottomOffset()` (Spawner per Injektion); `roadGeometry.ts` und
-  `bruecke.ts` lesen weiter `BALANCE.player.anchorBottomOffset`. Ein Test greppt genau
-  diese Verteilung (Spawner 0 Direktleser, roadGeometry 6, bruecke 1) und belegt, dass
-  `getRoadScale`/`advanceAlongRoad` modusunabhaengig sind.
-- **A6** Feuerkraft-Zahlen bei 30 und 150 Figuren identisch (Test). `BALANCE.crowd`,
-  `BALANCE.stats`, `BALANCE.pools.crowd` fuer den Run unveraendert (Test).
-- **A7** Die grosse Zahl aus E0 steht ueber der vordersten Reihe (Anker) und wird von
-  keiner Reihe ueberdeckt. Die Depth-Regel `gameplay + row` bleibt **unveraendert**: Der
-  Run erreicht mit 30 Figuren im Dreieck heute schon 8 Reihen (`gameplay + 7`), ohne
-  dass Popups (`+2`) oder Zahl (`+1`) verdeckt wuerden, weil beide ueber dem Anker und
-  damit oberhalb aller Reihen stehen. Kein Umbau, nur Sichtpruefung am iPhone.
-- **A8** Mess-Sonde im DEV-Build vorhanden; im Produktions-Build nicht enthalten (Test
-  auf `import.meta.env.DEV`-Guard).
+- **A1** `clampStat` rechnet ohne Override bitgleich wie vorher (Test mit Fixtures fuer
+  hp auf Level 1, 12, 20). Mit Override 150 klemmt hp bei 150.
+- **A2** Im Torlauf steht der Override auf 150; in Run, Testgelaende und Bahnen-Probelauf
+  ist er `undefined` (Test ueber den Einstiegspfad).
+- **A3** Jeder Spawn liefert ein Paar (links + rechts, gleiche Hoehe). Reine Funktion
+  `torPaarZiehen` getestet: Faktor nie ueber 3, `malChance` eingehalten, bei zwei
+  `plus`-Toren verschiedene Startwerte.
+- **A4** Treffer zaehlen ein Punkt, Beschriftung folgt dem Stand; `mal`-Tore zeigen
+  Faktor und Restwert.
+- **A5** Durchfahren wendet die Wirkung an (`plus`, `mal`, Malus) und recycelt beide
+  Tore des Paars. `mal` klemmt bei 150. Rechentests ueber `collectPickup`-Logik ohne
+  Phaser.
+- **A6** Spawnsperre greift im Torlauf; `VersuchBahnen` weiterhin (Test auf die
+  `in`-Abfrage und beide Klassen).
+- **A7** `VersuchBahnen` und `BALANCE.versuch` sind unveraendert (Diff-Test:
+  `versuchBahnen.ts` nur, falls Code nach `torObjekt.ts` ausgelagert wurde — dann
+  belegen die bestehenden Versuchs-Tests Bitgleichheit).
+- **A8** Bot-Messung (Reviewer, DEV-Sonde `window.__runGunMessung.torlaufBot(paare)`
+  von Codex geliefert: waehlt immer das bessere Tor und schiesst nur darauf): Ohne
+  Gegner waechst die Truppe ueber 6 Paare von 10 auf **60-150**. Mit Gegnern auf Level 5
+  liegt der Truppenverlust je Level nicht unter dem Probelauf-Wert (54 %). **Zusaetzlich:**
+  Anteil der Paare, bei denen die Truppe schon am 150er-Deckel steht — saettigt sie in
+  der ersten Haelfte eines Levels, sind `startAnteil`/`plusAnteilRest` oder der Deckel
+  nachzuschaerfen, nicht nur `malChance`; ein frueh gezogenes ×3 darf die Wahl nicht fuer
+  den Rest des Levels entwerten.
 - **A9** `npm run check`, `npm test`, `npm run build` gruen.
-- **A10 (Reviewer)** Bildzeit-Median Torlauf 150 Figuren ≤ 16,7 ms, gemessen wie in E.
-- **A11 (Thomas)** iPhone: Die Truppe liest sich als Masse, nicht als Raster; beim
-  Lenken bleibt sie zusammen; die Zahl steht frei. **Erst danach erfuellt.**
+- **A10 (Thomas)** iPhone: Die Wahl zwischen zwei Toren ist lesbar, das Herunterschiessen
+  fuehlt sich beantwortet an, ×2 laesst die Masse sichtbar springen. Und N1.4: die
+  Truppe wippt im Run-Takt.
+
+## Reissleine (aus dem Plan, die riskanteste Stelle)
+
+Laesst sich die Wahl nach **zwei Sessions** nicht so balancieren, dass "beide Tore
+freischiessen" nicht die beste Strategie ist, dann statt Restwert eine **Zeitgrenze**:
+Der Pfeiler kippt nur, wenn er vor dem Anflug frei ist, danach ist er verpasst. Nicht
+weiterbohren am Restwert.
 
 ## Was kein zulaessiger Ersatz ist
 
-- **Nicht** `BALANCE.crowd` oder `pools.crowd` fuer den Run veraendern.
-- **Nicht** die Feuerlinie ueber die Figurenzahl staerken (Schuetzen, Bonus).
-- **Nicht** den Dreieckszweig von `computeFormation` "vereinheitlichen" — er bleibt
-  Zeile fuer Zeile, die Block-Form kommt daneben.
-- **Nicht** den Anker im Run anheben.
-- **Nicht** die Messung durch eine Schaetzung ersetzen.
+- **Nicht** `VersuchBahnen` erweitern oder `BALANCE.versuch` anfassen.
+- **Nicht** den Level-Cap fuer hp global aendern — nur der Override im Torlauf.
+- **Nicht** Faktor ueber 3.
+- **Nicht** die Wirkung auf Schaden/Rate/Truppenbonus legen (Plan V5, Zielkonflikt).
+- **Nicht** neue Bilder erzeugen — das ist E2b.
+- **Nicht** `instanceof` fuer die Spawnsperre beibehalten, keinen `in`-Check, keinen
+  Cast — optionales Interface-Member.
+- **Nicht** die Wahl ueber die Huelle entscheiden lassen (beide Tore wuerden ziehen).
 
 ---
 
 ## Wo die Historie steht
 
 Projektstand: `docs/UEBERGABE.md`, Regeln: `docs/lessons.md`, Plan: `docs/plan-v5.md`.
-**Zuletzt abgeschlossen:** V5/E0 TORLAUF-Geruest, Commit `5c0c2dc`, abgenommen
-2026-09-19.
-
-## Stand des Reviews (2026-09-19)
-
-**Code-Review bestanden, eine kleine Nacharbeit (Rechenweg-Kommentare, Zaehl-Test).**
-Formationsprofil in `Crowd` mit allen gegrepten Lesern (inkl. Z.54/55), Block-Formation
-als eigene Funktion neben dem unveraenderten Dreieck (Fixtures 1/8/30 bitgleich),
-Huelle folgt der Formation und wird in `update()` korrekt mit Oberkante am Anker
-gesetzt (im Browser gemessen: `body.top` = 624 = Anker), Anker-Tabelle aus B exakt
-umgesetzt (Spawner 0 Direktleser, roadGeometry 6, bruecke 1), DEV-Sonde im
-`import.meta.env.DEV`-Guard. `npm run check`, `npm test`, `npm run build` gruen, im
-Terminal nachgelaufen.
-
-**A10 — Bildzeit, selbst gemessen (Playwright, Vite-Dev, Viewport 390x844, je 30 s
-vollstaendig in der Gegnerphase, 1800 Bilder):**
-
-| Lauf | Figuren | Gegner (Mittel) | Median | p95 |
-|---|---|---|---|---|
-| Torlauf Level 20, 150 Figuren erzwungen, 8 Reihen | 150 durchgehend | 18,1 | **16,7 ms** | 18,1 ms |
-| Referenz Bahnen-Probelauf Level 20 | 26,3 | 37,3 | 16,7 ms | 17,8 ms |
-
-Kein messbarer Unterschied; die Grenze 16,7 ms ist eingehalten. 0 Konsolenfehler.
-Screenshot der Masse im Session-Scratchpad (`nachweis-e1/e1-150-masse.jpeg`): 8
-dichte Reihen als Block, Zahl frei darueber.
-
-**Im Browser zusaetzlich belegt:** 150 Member-Objekte im Torlauf; Startlevel 20 ergibt
-56 Figuren in 3 Reihen, Figurenhoehe 28 px, Anker 624.
-
-**Befund fuer E2 (im Plan notiert):** `runStats.set('hp', 150)` liefert 113 — die
-Klemme am Level-Cap. Die 150 waren fuer die Messung nur per Halte-Schleife erreichbar.
-E2 braucht einen Torlauf-eigenen Truppendeckel, sonst sind ×2-Tore wirkungslos.
-
-**Angemerkt, nicht behoben:** Die neuen Kommentare in `BALANCE.torlauf` sind woertlich
-aus dieser Spec kopiert, mit Markdown-Fettdruck und einem verrutschten Absatz an
-`bottomMargin`. E2 fasst den Block ohnehin an und glaettet das mit.
-
-**Offen: A11 — Thomas' iPhone-Test.** Bis dahin `IMPL_DONE`, nicht `APPROVED`.
-
----
-
-## NACHARBEIT N1 (2026-09-19, nach Thomas' iPhone-Test): Die Truppe wippt zu schnell
-
-Thomas: "die figuren bewegen sich nur zu schnell (also die bewegung der eigenen figuren
-selbst) ansonsten ok". Zwei Ursachen, beide in `crowd.ts`, beide durch `figureScale` 0,6
-ausgeloest — und beide sind ein Fehler der E1-Spec, nicht der Umsetzung:
-
-1. **Der Schritttakt haengt an der dargestellten Hoehe.** Z.245:
-   `getStepCycleHz(this.figureHeight)` mit `figureHeight = displayHeight` = 28 px im
-   Torlauf. `getStepCycleHz` rechnet Schrittlaenge = Hoehe x `strideOfHeight`; bei 28
-   statt 46 px wird der Schritt kuerzer und die Frequenz steigt um 46/28 = **1,64-fach**.
-   Physikalisch stimmte das fuer kleinere Menschen — die Torlauf-Figuren sind aber
-   dieselben Menschen, nur kleiner **gezeichnet**. `figureScale` ist ein
-   Darstellungsmassstab, keine Koerpergroesse.
-2. **Der Hub ist absolut.** Z.252: `BALANCE.gamefeel.bobAmplitudePx` (3 px) unveraendert
-   auf 28-px-Figuren = 10,7 % der Koerperhoehe statt 6,5 %. Der Kommentar an der
-   Konstante sagt selbst: "darueber wirkt es wie Huepfen statt Laufen."
-
-**Umbau (zwei Zeilen):**
-- Z.245: `getStepCycleHz(this.figureHeight / this.profil.figureScale)` — der Takt haengt
-  an der Koerpergroesse 46 px, unabhaengig vom Massstab.
-- Z.252: `BALANCE.gamefeel.bobAmplitudePx * this.profil.figureScale * motion.bobFactor` —
-  der Hub bleibt 6,5 % der dargestellten Hoehe.
-
-Wiegen (`stepSwayMaxDeg`, Winkel) und Federn (`stepSquashShare`, Anteil) sind bereits
-relativ und bleiben unveraendert. Gegner und Boss sind nicht betroffen (sie rechnen mit
-`getFigureHeight(type)` bzw. `bodyHeight`, nicht mit der Darstellung).
-
-**Akzeptanz:**
-- **N1.1** Im Run (`figureScale` 1) sind Takt und Hub **bitgleich** wie vor E1 — ein
-  Rechentest mit dem Run-Profil belegt es.
-- **N1.2** Im Torlauf ist der Takt gleich dem des Runs (Test: `getStepCycleHz`-Eingang
-  46 px in beiden Profilen) und der Hub 1,8 px.
-- **N1.3** `npm run check`, `npm test` gruen.
-- **N1.4 (Thomas)** iPhone: Die Truppe laeuft im Torlauf im selben Takt wie im Run.
-
-**Review N1 (2026-09-19):** exakt die zwei Zeilen, Rechentests N1.1/N1.2 gruen, 418 Tests,
-Build gruen. Thomas hat E1 am iPhone mit "ansonsten ok und weiter" abgenommen; **N1.4
-(Wipptakt) prueft er zusammen mit E2.**
+**Zuletzt abgeschlossen:** V5/E1 sichtbare Masse (inkl. N1 Wipptakt), Commit folgt in
+der Uebergabe; E0 Commit `5c0c2dc`.
