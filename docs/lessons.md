@@ -1258,3 +1258,25 @@ eine Position. Bei Spielelementen heisst das: darunterschreiben, was das Element
   Vorbildern, Quellen und Videos gehoeren beim ersten Erwaehnen in die UEBERGABE** -
   sonst zeigt die Datei auf "dasselbe Video", das niemand mehr identifizieren kann. Ist
   jetzt nachgetragen.
+
+## 2026-09-19 — Ganzzahliger Zustand frisst eine kontinuierliche Rate auf
+
+**Was passierte:** Die Horde sollte der Truppe 8 Figuren je Sekunde abnehmen. Gemessen
+verlor die Truppe in vier Durchläufen **keine einzige** Einheit, obwohl der Kontakt
+bestand und die Hordenzahl korrekt sank.
+
+**Warum:** `runStats.hp` ist ganzzahlig (`clampStat` rundet). 8 Figuren/s sind bei 60
+Bildern je Sekunde 0,13 je Bild. `Math.round(12 - 0,13) = 12` — jeder einzelne Abzug
+verschwand in der Rundung, Bild für Bild, für immer.
+
+**Regel:** Trifft eine kontinuierliche Rate (x je Sekunde) auf einen ganzzahligen
+Zustand, gehört der Bruchteil in einen eigenen Sammler; abgezogen werden nur ganze
+Einheiten. Wer die Rate direkt je Bild auf den gerundeten Wert anwendet, baut einen
+Verlust, der sich selbst wegrundet. Gegenprobe im Browser, nicht im Unit-Test: der
+Test lief grün, weil sein Stub dieselbe Rundung nicht kannte.
+
+**Zweiter Teil derselben Lektion:** Der passive Messlauf zeigte die Truppe konstant
+bei 1. Das war kein Fehler der Mechanik, sondern der Startwert des echten Laufs
+(`stats.hp.base = 1`), der für einen Modus, in dem die Truppengröße die Feuerkraft
+IST, nicht taugt. Ein neuer Modus erbt die Startwerte des alten stillschweigend —
+jeden übernommenen Wert daraufhin prüfen, ob er im neuen Modus dieselbe Bedeutung hat.

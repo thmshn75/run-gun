@@ -100,7 +100,13 @@ weil `laneFollow` und Kollision an Kugel-Annahmen haengen), dann ein eigener Spr
 im `Strom` ohne Arcade-Body, Treffer per Rechteckvergleich (`rectangles.ts`) — nicht
 das Waffensystem umbauen.
 
-## E3 — Die Horde als Flaeche, die Figuren verbraucht
+## E3 — Die Horde als Flaeche, die Figuren verbraucht ✓ GEBAUT (2026-09-19)
+
+**Stand:** Mechanik, Nahkampf, Sieg und Niederlage laufen und sind im Browser belegt
+(docs/active-task.md). Offen bleibt die Zielgroessen-Messreihe unten — sie setzt
+voraus, dass die Quelle im Spiel waechst, also dass die Tore und Kacheln mit der
+Steuerung erreichbar sind. Das ist Thomas' iPhone-Test.
+
 
 - Rote Flaeche ueber die volle Bahn mit Zahl, rueckt langsam vor. Jede Strom-Figur, die
   sie beruehrt, zieht einen Punkt ab und verschwindet. Beruehrt die Flaeche die Quelle,

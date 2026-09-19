@@ -20,6 +20,19 @@ export const BALANCE = {
   debug: false,
   // TORLAUF E0 (docs/plan-v5.md): E1 (crowd-Werte) und E2/E3 (Tore/Horde) kommen hier hinzu.
   torlauf: {
+    // Eigene, kurze Laufphase: Im echten Run dauert die Gegnerphase 55 s, danach erst
+    // kommt die Horde. Im Torlauf gibt es keine Einzelgegner, die diese Zeit fuellen -
+    // die Bahn wirkte dadurch leer (Thomas 2026-09-19: "es kommen keine Horden, keinerlei
+    // Gegner"). 25 s = rund 7 Torpaare bei 900 px Abstand und 250 px/s Scroll, also genug
+    // Gelegenheit, die Quelle aufzubauen, bevor die Horde kommt. Ein ganzer Durchgang
+    // dauert damit gut eine Minute statt ueber zwei.
+    laufphaseSec: 25,
+    // Startgroesse der Quelle. Der echte Run beginnt mit stats.hp.base = 1, und genau das
+    // macht den Torlauf unspielbar: 1 Einheit x 0,4 = 0,4 Figuren/s, also alle 2,5 s eine
+    // einzige Figur - damit ist kein Pfeiler mit Startwert -3 bis -17 aufzuhacken und die
+    // Quelle waechst nie. Das Vorbild startet mit einer kleinen, aber sichtbaren Gruppe.
+    // 12 Einheiten = 4,8 Figuren/s: ein Pfeiler mit -8 ist in rund 1,7 s durchgehackt.
+    startEinheiten: 12,
     // 28 px: groesser als HUD-Text (22 px), aber unter der Boss-Overlay-Schrift (34 px).
     zahlFontPx: 28,
     // Eine Figurenhoehe Abstand ueber der vordersten Reihe, damit Zahl und Truppe getrennt bleiben.
@@ -57,29 +70,39 @@ export const BALANCE = {
       deckelEinheiten: 60,
       figurenJeEinheitProSek: 0.4,
       wellenIntervallMs: 1200,
-      // Balance-Stellschraube: 260 px/s macht den Strom auf Level 1 sichtbar schneller,
-      // auf hohen Leveln fast stehend gegen den Scroll.
-      tempoPxPerSec: 260,
+      // Balance-Stellschraube: 150 px/s. 260 px/s wirkten auf dem iPhone gehetzt
+      // (Thomas 2026-09-19: "die ausgeschickten Truppen sind viel zu schnell").
+      // 150 px/s heisst: vom Anker (y=624) bis zum Horizont (y=180) rund 3,0 s statt 1,7 s,
+      // die Figuren bleiben also lange genug sichtbar, um den Strom als Strom zu lesen.
+      tempoPxPerSec: 150,
       kopieVersatzPx: 6,
     },
     horde: {
-      // 120 x Haerte: Eine 40er-Quelle sendet in 8,1 s bis zum Kontakt 72-168 Stromfiguren.
-      // Kleine Quellen verlieren damit knapp, grosse gewinnen knapp; A9 misst den Korridor nach.
-      basis: 120,
+      // 320 x Haerte. 120 war zu wenig: gemessen baut der Strom rund 28 Punkte/s ab,
+      // eine 120er-Horde war nach 4,3 s weg, bevor sie die Truppe ueberhaupt erreichte.
+      // 320 / 28 = 11,4 s Abbauzeit gegen rund 8 s Anflug - die Horde kommt also an und
+      // der Nahkampf findet wirklich statt, statt aus der Ferne wegzuschmelzen.
+      basis: 320,
       hoehePx: 140,
       haltY: 300,
       vorrueckTempoPxPerSec: 40,
+      // Weiter als bis zur Truppe darf die Horde nie: ohne diese Grenze lief sie unbegrenzt
+      // nach unten weiter (gemessen y=5032 bei 844 px Bildhoehe), war vom Bild verschwunden
+      // und hat nie gefressen. Der Wert ist derselbe Bodenabstand wie der Truppenanker
+      // (torlauf.anchorBottomOffset), die Horde haelt also genau auf der Truppe an.
+      grenzeBodenAbstandPx: 220,
       punkteJeFigur: 1,
       fressRateProSek: 8,
     },
     kachel: {
       // 500 px Anflug / 140 px = vier gleichzeitig; der 12er-Pool hat dreifache Reserve.
       abstandPx: 140,
-      // 0,14 der halben Strassenbreite: bei rund 150 px auf Kampfhoehe 21 px breit,
-      // also ein schmaler Randstreifen statt einer Wand bis zur Bahnmitte.
-      breiteAnteil: 0.14,
-      // 0,5 x Breite: 21 px werden zu einer flachen, liegenden 10,5-px-Platte.
-      hoeheAnteil: 0.5,
+      // 0,22 der halben Strassenbreite: bei rund 150 px auf Kampfhoehe 33 px breit.
+      // 0,14 (21 px) war auf dem iPhone kaum zu treffen (Thomas 2026-09-19: "die +1 Waende
+      // sind nur klein"); 0,22 bleibt ein Randstreifen und reicht nicht zur Bahnmitte.
+      breiteAnteil: 0.22,
+      // 0,7 x Breite: 33 px werden zu einer 23-px-Platte - hoch genug, um sie zu sehen.
+      hoeheAnteil: 0.7,
       // Wie bei den Toren zwei Kampfhoehen-Pixel innerhalb der linken Strassenkante.
       randSpaltPx: 2,
     },

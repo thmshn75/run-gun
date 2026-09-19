@@ -167,6 +167,7 @@ export class GameScene extends Phaser.Scene {
   private levelPhase!: LevelPhase
   private phaseRemainingMs!: number
   private hordeKontakt = false
+  private hordeFressRest = 0
   private bossBarBackground!: Phaser.GameObjects.Rectangle
   private bossBarFill!: Phaser.GameObjects.Rectangle
   private bossBarText!: Phaser.GameObjects.Text
@@ -306,6 +307,7 @@ export class GameScene extends Phaser.Scene {
     // Lauf muss hier weg, sonst startet die naechste Runde mit angebrochenem Verlust.
     this.breakthroughAccumulator = 0
     this.hordeKontakt = false
+    this.hordeFressRest = 0
     setCurrentScrollSpeed(getScrollSpeed(this.currentLevel))
     // Gegnertempo ist seit 2026-08-22 eine reine Levelgroesse, kein Ausbau mehr.
     this.runStats.set('speed', getEnemySpeed(this.currentLevel))
@@ -678,7 +680,9 @@ export class GameScene extends Phaser.Scene {
       const truppe = this.currentLevel <= 1
         ? BALANCE.stats.hp.base
         : Math.round(getStatCap('hp', this.currentLevel, KEINE_STUFEN, this.runStats.getMeta()) * BALANCE.continueRun.teamShareOnContinue)
-      this.runStats.set('hp', Math.max(BALANCE.stats.hp.base, truppe))
+      // Der Torlauf hat eine eigene Startgroesse: mit der 1 des echten Laufs kaeme der
+      // Strom nie in Gang (BALANCE.torlauf.startEinheiten erklaert den Rechenweg).
+      this.runStats.set('hp', this.istTorlauf() ? BALANCE.torlauf.startEinheiten : Math.max(BALANCE.stats.hp.base, truppe))
       if (this.startwaffe !== undefined && this.gekaufteWaffen.includes(this.startwaffe)) {
         this.equipWeapon(this.startwaffe)
       }
@@ -797,6 +801,10 @@ export class GameScene extends Phaser.Scene {
     // 20 s sind auf den Waffenvergleich gerechnet und tragen kein Bahnurteil (rund
     // fuenf Tore und vier Faesser). BALANCE.testground.normalPhaseSec bleibt dabei
     // unangetastet - endet der Versuch, gilt die abgenommene halbe Laenge sofort wieder.
+    // Der Torlauf hat keine Einzelgegner, die eine 55-s-Phase fuellen koennten: dort
+    // zaehlt nur, wie weit die Quelle bis zur Horde waechst. Deshalb eine eigene, kurze
+    // Dauer (BALANCE.torlauf.laufphaseSec) - sonst sieht ein kurzer Test nie eine Horde.
+    if (this.istTorlauf()) return BALANCE.torlauf.laufphaseSec * 1000
     return this.istTestgelaende()
       ? BALANCE.versuch.gegnerphaseSec * 1000
       : getLevelPlan(this.currentLevel).normalPhaseSec * 1000
@@ -1191,11 +1199,28 @@ export class GameScene extends Phaser.Scene {
     const horde = this.walls.getHorde()
     if (horde === undefined) return
     const verlust = BALANCE.torlauf.horde.fressRateProSek * dt / 1000
-    this.runStats.set('hp', Math.max(0, this.runStats.get('hp') - verlust))
+    // Bruchteile sammeln, statt sie Bild fuer Bild an runStats zu geben: `hp` ist
+    // ganzzahlig (clampStat rundet), 8 Figuren/s sind bei 60 Bildern aber nur 0,13 je
+    // Bild - jedes einzelne Bild wuerde auf 0 gerundet und die Truppe verloere NIE eine
+    // Einheit. Genau das war im Browser gemessen: Horde frisst, Truppe bleibt stehen.
+    this.hordeFressRest += verlust
+    const ganze = Math.floor(this.hordeFressRest)
+    if (ganze > 0) {
+      this.hordeFressRest -= ganze
+      this.runStats.set('hp', Math.max(0, this.runStats.get('hp') - ganze))
+    }
     const besiegt = this.walls.damageHorde(verlust)
     this.syncCrowdSize()
     this.updateHud()
-    if (besiegt) this.handleHordeDefeated(horde.bild)
+    if (besiegt) {
+      this.handleHordeDefeated(horde.bild)
+      return
+    }
+    // Die Gegenrichtung: Ist die Truppe aufgebraucht, ist der Lauf vorbei. Ohne diese
+    // Zeile frass die Horde die Truppe auf 0 und das Spiel lief einfach weiter - genau
+    // die fehlende Niederlage, die E3 zurueckbringen soll. triggerGameOver leitet im
+    // Probelauf auf beendeProbelauf um, die GameOverScene bleibt also aussen vor.
+    if (this.runStats.get('hp') <= 0) this.triggerGameOver()
   }
 
   private handleHordeDefeated(horde: Phaser.Physics.Arcade.Image): void {

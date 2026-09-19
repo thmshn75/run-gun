@@ -70,8 +70,8 @@ describe('Torlauf E1 sichtbare Masse', () => {
     const linkeKante = mitte - halbbreite + BALANCE.torlauf.kachel.randSpaltPx * getRoadScale(breite, hoehe, kampfhoehe)
     const rechteKante = linkeKante + kachelBreite
 
-    expect(BALANCE.torlauf.kachel).toMatchObject({ breiteAnteil: 0.14, hoeheAnteil: 0.5, randSpaltPx: 2 })
-    expect(kachelHoehe).toBeCloseTo(kachelBreite * 0.5)
+    expect(BALANCE.torlauf.kachel).toMatchObject({ breiteAnteil: 0.22, hoeheAnteil: 0.7, randSpaltPx: 2 })
+    expect(kachelHoehe).toBeCloseTo(kachelBreite * 0.7)
     // Die 214-px-Formation braucht ab Mitte 107 px je Seite frei.
     expect(mitte - rechteKante).toBeGreaterThan(214 / 2)
   })

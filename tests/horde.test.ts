@@ -13,9 +13,9 @@ const torbahn = readFileSync(new URL('../src/systems/torbahn.ts', import.meta.ur
 
 describe('Torlauf Horde E3', () => {
   it('berechnet die Hordenzahl aus Basis mal Level-Haerte', () => {
-    expect(BALANCE.torlauf.horde.basis * getLevelPlan(1).hardness).toBe(120)
-    expect(BALANCE.torlauf.horde.basis * getLevelPlan(5).hardness).toBeCloseTo(141.6)
-    expect(BALANCE.torlauf.horde.basis * getLevelPlan(12).hardness).toBeCloseTo(179.4)
+    expect(BALANCE.torlauf.horde.basis * getLevelPlan(1).hardness).toBe(320)
+    expect(BALANCE.torlauf.horde.basis * getLevelPlan(5).hardness).toBeCloseTo(377.6)
+    expect(BALANCE.torlauf.horde.basis * getLevelPlan(12).hardness).toBeCloseTo(478.4)
     expect(torbahn).toContain('horde.punkte = BALANCE.torlauf.horde.basis * getLevelPlan(level).hardness')
     expect(BALANCE.torlauf.horde.haltY).toBe(300)
     expect(BALANCE.torlauf.horde.vorrueckTempoPxPerSec).toBe(40)
@@ -60,6 +60,9 @@ describe('Torlauf Horde E3', () => {
       let hp = 100
       const scene = {
         hordeKontakt: true,
+        // Der Bruchteil-Sammler gehoert zum Zustand der Szene: ohne ihn frisst die Horde
+        // ganze Einheiten nie, weil `hp` ganzzahlig ist (GameScene.updateHordeKontakt).
+        hordeFressRest: 0,
         walls: board,
         levelPhase: 'horde',
         runStats: { get: () => hp, set: (_key: string, value: number) => { hp = value } },

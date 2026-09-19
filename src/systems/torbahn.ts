@@ -251,6 +251,10 @@ export class Torbahn implements BahnSystem {
         horde.y = Math.min(BALANCE.torlauf.horde.haltY, segment.centerY)
         if (horde.y >= BALANCE.torlauf.horde.haltY) horde.haelt = true
       } else horde.y += BALANCE.torlauf.horde.vorrueckTempoPxPerSec * dt / 1000
+      // Harte Grenze auf Hoehe der Truppe: ohne sie wanderte die Horde unbegrenzt weiter
+      // nach unten, verliess das Bild und kam nie in Beruehrung - der Nahkampf fand nie
+      // statt. Hier stehenbleiben heisst Dauerkontakt mit der Huelle, also fressen.
+      horde.y = Math.min(horde.y, this.scene.scale.height - BALANCE.torlauf.horde.grenzeBodenAbstandPx)
       this.positioniereHorde(horde)
     }
   }
