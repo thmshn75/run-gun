@@ -56,6 +56,7 @@ export const BALANCE = {
       // min(N, 60) x 0,4/s: N=10 ergibt 4/s, ab N=60 genau 24/s wie die abgenommene Feuerlinie.
       deckelEinheiten: 60,
       figurenJeEinheitProSek: 0.4,
+      wellenIntervallMs: 1200,
       // Balance-Stellschraube: 260 px/s macht den Strom auf Level 1 sichtbar schneller,
       // auf hohen Leveln fast stehend gegen den Scroll.
       tempoPxPerSec: 260,
@@ -64,6 +65,13 @@ export const BALANCE = {
     kachel: {
       // 500 px Anflug / 140 px = vier gleichzeitig; der 12er-Pool hat dreifache Reserve.
       abstandPx: 140,
+      // 0,14 der halben Strassenbreite: bei rund 150 px auf Kampfhoehe 21 px breit,
+      // also ein schmaler Randstreifen statt einer Wand bis zur Bahnmitte.
+      breiteAnteil: 0.14,
+      // 0,5 x Breite: 21 px werden zu einer flachen, liegenden 10,5-px-Platte.
+      hoeheAnteil: 0.5,
+      // Wie bei den Toren zwei Kampfhoehen-Pixel innerhalb der linken Strassenkante.
+      randSpaltPx: 2,
     },
     crowd: {
       // `poolGroesse`/`max` 150: Das Video zeigt ~8 x 18. Ueber 150 traegt die Zahl weiter,

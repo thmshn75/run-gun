@@ -4,6 +4,7 @@ import { BALANCE, RUN_FORMATIONS_PROFIL } from '../src/config/balance'
 import { getPlayerPower } from '../src/systems/enemyTypes'
 import { computeBlockFormation } from '../src/systems/formation'
 import { getStepCycleHz } from '../src/systems/gamefeel'
+import { getRoadHalfWidth, getRoadScale } from '../src/systems/roadGeometry'
 
 vi.mock('phaser', () => ({
   default: {
@@ -58,6 +59,23 @@ describe('Torlauf E0', () => {
 })
 
 describe('Torlauf E1 sichtbare Masse', () => {
+  it('haelt die +1-Kachel als flachen linken Randstreifen ausserhalb der 214-px-Formation', () => {
+    const breite = 390
+    const hoehe = 844
+    const mitte = breite / 2
+    const kampfhoehe = hoehe - BALANCE.torlauf.anchorBottomOffset
+    const halbbreite = getRoadHalfWidth(breite, hoehe, kampfhoehe)
+    const kachelBreite = halbbreite * BALANCE.torlauf.kachel.breiteAnteil
+    const kachelHoehe = kachelBreite * BALANCE.torlauf.kachel.hoeheAnteil
+    const linkeKante = mitte - halbbreite + BALANCE.torlauf.kachel.randSpaltPx * getRoadScale(breite, hoehe, kampfhoehe)
+    const rechteKante = linkeKante + kachelBreite
+
+    expect(BALANCE.torlauf.kachel).toMatchObject({ breiteAnteil: 0.14, hoeheAnteil: 0.5, randSpaltPx: 2 })
+    expect(kachelHoehe).toBeCloseTo(kachelBreite * 0.5)
+    // Die 214-px-Formation braucht ab Mitte 107 px je Seite frei.
+    expect(mitte - rechteKante).toBeGreaterThan(214 / 2)
+  })
+
   it('haelt das Run-Profil unveraendert und gibt dem Torlauf 150 kleine Blockfiguren', () => {
     expect(RUN_FORMATIONS_PROFIL).toMatchObject({ poolGroesse: 30, max: 30, figureScale: 1, form: 'dreieck', huelleFolgtFormation: false })
     expect(BALANCE.torlauf).toMatchObject({ anchorBottomOffset: 220, crowd: { poolGroesse: 150, max: 150, figureScale: 0.6, form: 'block', plaetzeJeReihe: 20, huelleFolgtFormation: true } })

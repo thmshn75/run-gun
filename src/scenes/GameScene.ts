@@ -344,7 +344,7 @@ export class GameScene extends Phaser.Scene {
           this.updateHud()
         },
       )
-      this.strom = new Strom(this, () => this.crowd.getNextSalvoPositions(1), () => this.runStats.get('hp'))
+      this.strom = new Strom(this, (count) => this.crowd.getNextSalvoPositions(count), () => this.runStats.get('hp'))
       this.weapons.setFeuerAktiv(false)
     } else if (this.nutztBahnen()) {
       this.walls = this.baueVersuchsBahnen()
@@ -1105,8 +1105,12 @@ export class GameScene extends Phaser.Scene {
         }
         return
       }
-      // +1-Kacheln gehoeren ausschliesslich dem Strom, nie der Truppenhuelle.
-      if (this.walls.istKachel?.(target) ?? false) return
+      if (this.walls.istKachel?.(target) ?? false) {
+        const kachel = target as Phaser.Physics.Arcade.Image
+        this.applyTorlaufReinforcement(1, kachel.x, kachel.y)
+        ;(this.walls as Torbahn).recycleKachelBild(kachel)
+        return
+      }
       // Wandsegmente kosten bei Beruehrung NICHTS - das war seit W4 so und muss hier
       // ausdruecklich stehen: Seit die Truppenhuelle gegen die ganze Wandgruppe prueft
       // (fuer die Sammelbahn), fiel eine beruehrte rechte Wand sonst bis zur
@@ -1137,22 +1141,19 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleStromTreffer(figur: Phaser.Physics.Arcade.Image, wall: Phaser.Physics.Arcade.Image): void {
-    if (!figur.active || !wall.active || !(this.walls instanceof Torbahn)) return
-    if (this.walls.istKachel(wall)) {
-      this.applyTorlaufReinforcement(1, figur.x, figur.y)
-      this.walls.recycleKachelBild(wall)
-      return
-    }
-    const wirkung = this.walls.getTorWirkung(wall)
+    if (!figur.active || !wall.active) return
+    const torbahn = this.walls as Torbahn
+    if (torbahn.istKachel(wall)) return
+    const wirkung = torbahn.getTorWirkung(wall)
     if (wirkung === undefined) return
     const hitSpawnIds = figur.getData('hitSpawnIds') as Set<number>
     const spawnId = wall.getData('spawnId') as number | undefined
     if (spawnId !== undefined && hitSpawnIds.has(spawnId)) return
     if (spawnId !== undefined) hitSpawnIds.add(spawnId)
-    const stand = this.walls.getStand(wall)
+    const stand = torbahn.getStand(wall)
     if (stand === undefined) return
     if (stand < 0) {
-      this.walls.damage(wall, 1)
+      torbahn.damage(wall, 1)
       return
     }
     if (wirkung.art === 'mal') {
@@ -1161,7 +1162,7 @@ export class GameScene extends Phaser.Scene {
       return
     }
     this.applyTorlaufReinforcement(stand, figur.x, figur.y)
-    this.walls.recyclePaar(wall)
+    torbahn.recyclePaar(wall)
   }
 
   private applyTorlaufReinforcement(amount: number, x: number, y: number): void {

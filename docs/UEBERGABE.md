@@ -15,7 +15,11 @@ im Testbereich, der echte Run ist unveraendert.)
    in 47 s, Bildzeit 16,7 ms Median bei Quelle 60. **Bug gefunden und behoben (N4):** beim
    zweiten Torlauf-Start in derselben Sitzung traf der Strom nichts, weil
    `stromWallCollider` bei `scene.start` nicht zurueckgesetzt wurde — jetzt Reset aller
-   Collider-Felder in `create()`, Lesson dazu (zweiter Start gehoert zu jeder Abnahme). Ausloeser: Thomas' Korrektur nach E2 ("da gibt es doch kein
+   Collider-Felder in `create()`, Lesson dazu (zweiter Start gehoert zu jeder Abnahme).
+   **N5/N6 nach Thomas' Rueckmeldung:** +1-Kacheln zaehlen nur ueber die Truppenhuelle
+   (der Strom ignoriert sie), der Strom laeuft in Wellen alle 1,2 s (12-18 Figuren je
+   Reihe), und die Kacheln sind schmale Randstreifen statt quadratischer Bloecke bis zur
+   Bahnmitte — das waren die von Thomas gemeldeten "Waende in der Mitte". Ausloeser: Thomas' Korrektur nach E2 ("da gibt es doch kein
    schiessen, es werden einheiten losgeschickt") und die bestaetigte Kernmechanik: Die
    Truppe unten ist die Quelle mit N Einheiten und schickt laufend Figuren nach oben; eine
    Figur hackt Pfeiler (ein Punkt, laeuft weiter), wird an einer Platte ×k vervielfacht,

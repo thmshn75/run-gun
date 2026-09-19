@@ -186,10 +186,15 @@ export class Torbahn implements BahnSystem {
       if (!kachel.aktiv) continue
       kachel.anchorY = advanceAlongRoad(this.scene.scale.width, this.scene.scale.height, kachel.anchorY, bewegung)
       const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, kachel.anchorY, BALANCE.torlauf.tor.hoehePx)
-      const x = this.scene.scale.width / 2 - getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, segment.centerY) + segment.height / 2
-      kachel.bild.setPosition(x, segment.centerY).setDisplaySize(segment.height, segment.height)
+      const halbbreite = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, segment.centerY)
+      const massstab = getRoadScale(this.scene.scale.width, this.scene.scale.height, segment.centerY)
+      const breite = halbbreite * BALANCE.torlauf.kachel.breiteAnteil
+      const hoehe = breite * BALANCE.torlauf.kachel.hoeheAnteil
+      // Linke Aussenkante: Strassenrand + perspektivischer Spalt, dann die halbe Platte.
+      const x = this.scene.scale.width / 2 - halbbreite + BALANCE.torlauf.kachel.randSpaltPx * massstab + breite / 2
+      kachel.bild.setPosition(x, segment.centerY).setDisplaySize(breite, hoehe)
       ;(kachel.bild.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
-      kachel.label.setPosition(x, segment.centerY).setScale(getRoadScale(this.scene.scale.width, this.scene.scale.height, segment.centerY))
+      kachel.label.setPosition(x, segment.centerY).setScale(breite / 48)
       if (segment.centerY - segment.height / 2 > this.scene.scale.height) this.recycleKachel(kachel)
     }
   }

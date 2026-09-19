@@ -7,16 +7,17 @@ import { getStromFigurenProSek, getStromLaneX } from './stromPlan'
 /** Eigener Torlauf-Strom: Figuren ersetzen dort Projektile, ohne WeaponKey oder Shop zu beruehren. */
 export class Strom {
   private readonly scene: Phaser.Scene
-  private readonly getSalvoPositions: () => Array<{ x: number; y: number }>
+  private readonly getSalvoPositions: (count: number) => Array<{ x: number; y: number }>
   private readonly getTeamSize: () => number
   private readonly figures: Phaser.Physics.Arcade.Image[] = []
   private readonly group: Phaser.Physics.Arcade.Group
-  private accumulatorMs = 0
+  private accumulatorFigures = 0
+  private waveAccumulatorMs = 0
   private elapsedMs = 0
   private lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
   private nextIndex = 0
 
-  public constructor(scene: Phaser.Scene, getSalvoPositions: () => Array<{ x: number; y: number }>, getTeamSize: () => number) {
+  public constructor(scene: Phaser.Scene, getSalvoPositions: (count: number) => Array<{ x: number; y: number }>, getTeamSize: () => number) {
     this.scene = scene
     this.getSalvoPositions = getSalvoPositions
     this.getTeamSize = getTeamSize
@@ -37,13 +38,20 @@ export class Strom {
 
   public update(dt: number): void {
     this.elapsedMs += dt
-    this.accumulatorMs += dt
     const rate = getStromFigurenProSek(this.getTeamSize())
-    const intervalMs = 1000 / Math.max(rate, 0.0001)
-    while (this.accumulatorMs >= intervalMs) {
-      this.accumulatorMs -= intervalMs
-      const origin = this.getSalvoPositions()[0]
-      if (origin !== undefined) this.spawn(origin.x, origin.y, 0, new Set<number>())
+    this.accumulatorFigures += rate * dt / 1000
+    this.waveAccumulatorMs += dt
+    while (this.waveAccumulatorMs >= BALANCE.torlauf.strom.wellenIntervallMs) {
+      this.waveAccumulatorMs -= BALANCE.torlauf.strom.wellenIntervallMs
+      const count = Math.max(0, Math.round(this.accumulatorFigures))
+      this.accumulatorFigures -= count
+      const origins = this.getSalvoPositions(count)
+      const freeFigures = this.figures.filter((figure) => !figure.active).length
+      if (origins.length > freeFigures) this.warnPoolExhausted()
+      const waveY = origins[0]?.y
+      if (waveY !== undefined) {
+        for (const origin of origins.slice(0, freeFigures)) this.spawn(origin.x, waveY, 0, new Set<number>())
+      }
     }
     for (const figure of this.figures) {
       if (!figure.active) continue
