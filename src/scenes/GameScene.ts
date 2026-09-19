@@ -56,7 +56,7 @@ interface GameSceneStartData {
   probeVariante?: 'bahnen' | 'torlauf'
 }
 
-type LevelPhase = 'normal' | 'warning' | 'boss' | 'cleared' | 'shop'
+type LevelPhase = 'normal' | 'warning' | 'boss' | 'horde' | 'cleared' | 'shop'
 
 class SplashFlashPool {
   private readonly flashes: SplashFlash[]
@@ -166,6 +166,7 @@ export class GameScene extends Phaser.Scene {
   private currentLevel!: number
   private levelPhase!: LevelPhase
   private phaseRemainingMs!: number
+  private hordeKontakt = false
   private bossBarBackground!: Phaser.GameObjects.Rectangle
   private bossBarFill!: Phaser.GameObjects.Rectangle
   private bossBarText!: Phaser.GameObjects.Text
@@ -304,6 +305,7 @@ export class GameScene extends Phaser.Scene {
     // Phaser konstruiert die Szene beim Neustart nicht neu - der Rest aus dem vorigen
     // Lauf muss hier weg, sonst startet die naechste Runde mit angebrochenem Verlust.
     this.breakthroughAccumulator = 0
+    this.hordeKontakt = false
     setCurrentScrollSpeed(getScrollSpeed(this.currentLevel))
     // Gegnertempo ist seit 2026-08-22 eine reine Levelgroesse, kein Ausbau mehr.
     this.runStats.set('speed', getEnemySpeed(this.currentLevel))
@@ -544,6 +546,7 @@ export class GameScene extends Phaser.Scene {
       this.spawner.setSpawnSperre(this.walls.istTorFenster?.() ?? false)
     }
     this.walls.update(dt)
+    this.updateHordeKontakt(dt)
     this.strom?.update(dt)
     this.popups.update(dt)
     this.sterbeeffekte.update(dt)
@@ -1111,6 +1114,12 @@ export class GameScene extends Phaser.Scene {
         ;(this.walls as Torbahn).recycleKachelBild(kachel)
         return
       }
+      // Die Horde ist absichtlich keine Wand: Ihr Kontakt wird einmal pro Bild mit dt
+      // verrechnet, damit die Fressrate nicht von der Physik-Tickrate abhaengt.
+      if (this.walls instanceof Torbahn && this.walls.istHorde(target)) {
+        this.hordeKontakt = true
+        return
+      }
       // Wandsegmente kosten bei Beruehrung NICHTS - das war seit W4 so und muss hier
       // ausdruecklich stehen: Seit die Truppenhuelle gegen die ganze Wandgruppe prueft
       // (fuer die Sammelbahn), fiel eine beruehrte rechte Wand sonst bis zur
@@ -1142,7 +1151,17 @@ export class GameScene extends Phaser.Scene {
 
   private handleStromTreffer(figur: Phaser.Physics.Arcade.Image, wall: Phaser.Physics.Arcade.Image): void {
     if (!figur.active || !wall.active) return
-    const torbahn = this.walls as Torbahn
+    if (!(this.walls instanceof Torbahn)) return
+    const torbahn = this.walls
+    if (torbahn.istHorde(wall)) {
+      const horde = torbahn.getHorde()
+      if (horde === undefined) return
+      const besiegt = torbahn.damageHorde(BALANCE.torlauf.horde.punkteJeFigur)
+      this.strom?.recycleFigure(figur)
+      this.sterbeeffekte.spawn(figur.x, figur.y, figur.texture.key, figur.scaleX, figur.scaleY)
+      if (besiegt) this.handleHordeDefeated(horde.bild)
+      return
+    }
     if (torbahn.istKachel(wall)) return
     const wirkung = torbahn.getTorWirkung(wall)
     if (wirkung === undefined) return
@@ -1163,6 +1182,32 @@ export class GameScene extends Phaser.Scene {
     }
     this.applyTorlaufReinforcement(stand, figur.x, figur.y)
     torbahn.recyclePaar(wall)
+  }
+
+  private updateHordeKontakt(dt: number): void {
+    if (!this.hordeKontakt) return
+    this.hordeKontakt = false
+    if (!(this.walls instanceof Torbahn) || this.levelPhase !== 'horde') return
+    const horde = this.walls.getHorde()
+    if (horde === undefined) return
+    const verlust = BALANCE.torlauf.horde.fressRateProSek * dt / 1000
+    this.runStats.set('hp', Math.max(0, this.runStats.get('hp') - verlust))
+    const besiegt = this.walls.damageHorde(verlust)
+    this.syncCrowdSize()
+    this.updateHud()
+    if (besiegt) this.handleHordeDefeated(horde.bild)
+  }
+
+  private handleHordeDefeated(horde: Phaser.Physics.Arcade.Image): void {
+    if (this.levelPhase !== 'horde' || !(this.walls instanceof Torbahn)) return
+    this.sterbeeffekte.spawn(horde.x, horde.y, horde.texture.key, horde.scaleX * 2, horde.scaleY * 2)
+    this.walls.recycleHorde()
+    this.currentLevel += 1
+    this.levelPhase = 'cleared'
+    this.syncBossColliders()
+    this.phaseRemainingMs = BALANCE.level.clearedMs
+    this.levelOverlayBackground.setVisible(true)
+    this.levelOverlay.setText('HORDE GESCHAFFT').setVisible(true)
   }
 
   private applyTorlaufReinforcement(amount: number, x: number, y: number): void {
@@ -1418,18 +1463,14 @@ export class GameScene extends Phaser.Scene {
   private updateLevelPhase(dt: number): void {
     // Der Shop wartet auf WEITER, nicht auf einen Zeitgeber (Benni ist 7 - er soll in
     // Ruhe lesen und tippen koennen).
-    if (this.levelPhase === 'boss' || this.levelPhase === 'shop') return
+    if (this.levelPhase === 'boss' || this.levelPhase === 'shop' || this.levelPhase === 'horde') return
     this.phaseRemainingMs -= dt
     if (this.phaseRemainingMs > 0) return
     if (this.levelPhase === 'normal') {
       if (this.istTorlauf()) {
-        // E2r hat keine Horde und keinen Nahkampf: der Torlauf endet bewusst ohne Niederlage.
-        this.currentLevel += 1
-        this.levelPhase = 'cleared'
-        this.syncBossColliders()
-        this.phaseRemainingMs = BALANCE.level.clearedMs
-        this.levelOverlayBackground.setVisible(true)
-        this.levelOverlay.setText(`LEVEL ${this.currentLevel - 1} GESCHAFFT`).setVisible(true)
+        this.levelPhase = 'horde'
+        this.walls.deactivateAll()
+        ;(this.walls as Torbahn).spawneHorde(this.currentLevel)
         return
       }
       this.levelPhase = 'warning'

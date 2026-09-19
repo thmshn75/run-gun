@@ -68,6 +68,8 @@ export class Strom {
     for (let copy = 0; copy < count; copy += 1) this.spawn(figure.x + (copy + 1) * BALANCE.torlauf.strom.kopieVersatzPx, figure.y, figure.getData('lateralPx') as number, new Set(hitSpawnIds))
   }
 
+  public recycleFigure(figure: Phaser.Physics.Arcade.Image): void { this.recycle(figure) }
+
   private spawn(x: number, y: number, lateralPx: number, hitSpawnIds: Set<number>): void {
     const figure = this.nextFree()
     if (figure === undefined) {

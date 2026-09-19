@@ -10,6 +10,19 @@ im Testbereich, der echte Run ist unveraendert.)
 
 ## Offen — naechster Schritt zuerst
 
+0. **V5 / E3 HORDE — gebaut, aber UNFERTIG. Codex-Limit bis ca. 20:15 erreicht;
+   Nacharbeit N7 steht in `docs/active-task.md` und ist der naechste Schritt.**
+   Stand: Die Horde erscheint nach der Gegnerphase, ihre Punkte schmelzen unter dem
+   Strom, Sieg und Phasenwechsel laufen, 447 Tests gruen. **Was fehlt (im Browser
+   gemessen, vier Laeufe mit 12/15/40/60 Einheiten):** Die Horde schiebt sich durch die
+   Truppe hindurch statt an ihr stehen zu bleiben, laeuft endlos weiter (gemessen
+   y=5032 bei Bildschirmhoehe 844) und **frisst deshalb nie — die Quelle verlor in
+   keinem Lauf eine Einheit. Die Niederlage ist also noch nicht zurueck.**
+   N7 (fertig spezifiziert): Horde stoppt an der Huellen-Oberkante, Sicherheitsnetz
+   unten, Fress-Test ueber den echten Pfad, `basis` 120 → 320 (gemessen: der Strom baut
+   28 Punkte/s ab, eine 120er-Horde ist nach 5 s weg, bevor sie die Truppe erreicht).
+   **Nach N7 neu messen** — die 320 sind eine Schaetzung auf Messbasis.
+
 0. **V5 / E2r DER STROM — gebaut, reviewt, per Bot gemessen; offen ist A11 (Thomas am
    iPhone, mit N1.4 Wipptakt).** Messungen: ×2-Pfeiler faellt in 2,5 s, Quelle 10 → 61
    in 47 s, Bildzeit 16,7 ms Median bei Quelle 60. **Bug gefunden und behoben (N4):** beim

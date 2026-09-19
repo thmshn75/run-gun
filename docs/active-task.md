@@ -9,6 +9,11 @@
 **V5 / E3 — Die Horde: eine rote Masse mit Zahl, die den Strom verbraucht und die
 Quelle frisst. Mit ihr kommt die Niederlage in den Torlauf zurueck.**
 
+## Implementation Summary
+
+- A1–A8 umgesetzt: eigene Horde der Torbahn samt Bewegung, Strom- und Huellenkontakt,
+  Sieg/Niederlage sowie Phasen- und Collider-Schutz; A9 bleibt beim Reviewer, A10 beim iPhone-Test.
+
 Plan: `docs/plan-v5.md`, Kernmechanik bestaetigt (Losschicken statt Schiessen). E2r
 (Strom, Commit `93b64f5` + N5) ist die Grundlage: Figuren laufen in Wellen nach oben,
 hacken Pfeiler, werden an Platten vervielfacht; die Quelle waechst ueber +1-Kacheln
@@ -207,3 +212,51 @@ Passt die Flaeche als Physik-Objekt nicht in `getWalls()` (Collider-Konflikte mi
 
 Projektstand: `docs/UEBERGABE.md`, Regeln: `docs/lessons.md`, Plan: `docs/plan-v5.md`.
 **Zuletzt abgeschlossen:** E2r Der Strom (`93b64f5`) mit N5/N6 (Kacheln fuers Team ueber die Huelle, Strom in Wellen, schmale Randkacheln), Commit `7a5081a`.
+
+---
+
+## NACHARBEIT N7 (2026-09-19, Browser-Messung des Reviewers): Die Horde schiebt sich durch
+
+**Die Mechanik steht** — Punkte schmelzen unter dem Strom (142 → 0 in rund 5 s), Phase,
+Overlay und Sieg laufen. **Aber die Quelle verliert nie eine Einheit**, in vier
+Messungen mit 12, 15, 40 und 60 Einheiten: `nStart === nEnde`, immer.
+
+**Ursache, im Browser belegt:** Die Horde haelt bei `haltY` 300 korrekt an und rueckt
+mit 40 px/s vor — **aber sie stoppt nicht an der Truppe.** Sie schiebt sich durch die
+Huelle hindurch und laeuft endlos weiter; gemessen stand sie am Ende bei **y = 5032**
+(Bildschirm ist 844 hoch). Der Kontakt dauert dadurch nur die Bruchteile einer Sekunde,
+in denen sie die 37 px hohe Huelle passiert — bei 8 Einheiten je Sekunde ist das
+gerundet **null**. Im Video treffen die beiden Massen aufeinander und **druecken
+gegeneinander**, bis eine verschwunden ist.
+
+**Umbau:**
+
+1. **Die Horde bleibt an der Truppe stehen.** Sobald ihre **Unterkante** die
+   **Oberkante der Truppenhuelle** erreicht (`crowd.getHullBounds().body.top`, im
+   Torlauf gleich dem Anker), wird `horde.y` genau dort festgehalten — sie rueckt nicht
+   weiter vor. Sie bleibt stehen, bis ihre Punkte 0 sind (Sieg) oder die Quelle 0 ist
+   (Niederlage). Die Torbahn braucht dafuer die Ankerhoehe; sie bekommt sie als
+   Callback injiziert (`getAnchorY`), wie der Spawner seine.
+2. **Sicherheitsnetz:** Laeuft die Horde trotzdem unter den unteren Bildrand
+   (`y - hoehe/2 > scale.height`), wird sie recycelt und die Phase auf `cleared`
+   gesetzt — heute laeuft sie unbegrenzt weiter und bleibt fuer immer aktiv.
+3. **Das Fressen ist im Betrieb zu belegen, nicht nur im Test.** Der A4-Test darf nicht
+   nur die Rechnung pruefen: Ein Test ruft `handleCombatOverlap(huelle, hordeBild)`
+   und danach den `update`-Schritt auf und belegt, dass `hp` um
+   `fressRateProSek * dt / 1000` sinkt. **Der Reviewer misst zusaetzlich im Browser:
+   Quelle sinkt bei stehendem Kontakt sichtbar.**
+
+**Balance, gemessen — die Basis ist zu niedrig:** Der Strom baut rund **28 Punkte je
+Sekunde** ab (24 Figuren/s erreichen die Horde nahezu vollstaendig), nicht die in der
+Spec gerechneten 72-168 Punkte ueber acht Sekunden. Mit `basis` 120 ist die Horde nach
+5 s weg, **bevor sie die Truppe ueberhaupt erreicht** (Level 15 mit 181 Punkten:
+9,8 s, ebenfalls ohne Kontakt). Damit es ueberhaupt zum Schiebe-Kampf kommt:
+**`basis` 120 → 320** (Rechenweg: 28 Punkte/s x 8,1 s bis zum Kontakt = 227 Punkte, die
+der Strom auf dem Weg abbaut; was darueber liegt, muss im Nahkampf fallen —
+320 laesst rund 90 Punkte fuer das gegenseitige Fressen, also gut 11 s bei 8/s).
+Die Rechnung gehoert als Kommentar an den Wert. **Nach dem Umbau neu messen** —
+diese Zahl ist eine Schaetzung auf Basis einer Messung, kein Ergebnis.
+
+**Akzeptanz N7:** N7.1 Horde stoppt an der Huellen-Oberkante (Test + Browser).
+N7.2 Sicherheitsnetz unten (Test). N7.3 Fressen im Betrieb belegt: Quelle sinkt bei
+Kontakt (Test + Browser). N7.4 `basis` 320 mit Rechenweg. N7.5 check/test/build gruen.

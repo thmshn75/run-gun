@@ -4,6 +4,7 @@ import { HUD_COLORS } from '../config/colors'
 import { advanceAlongRoad, getRoadScale, getRoadSegment } from './road'
 import { getRoadHalfWidth } from './roadGeometry'
 import { getCurrentScrollSpeed } from './speed'
+import { getLevelPlan } from './levelPlan'
 import { torGeometrie } from './torObjekt'
 import { getTorlaufStand, torPaarZiehen, type TorWirkung } from './torlaufPlan'
 import { istImTorFenster } from './versuchPlan'
@@ -30,6 +31,16 @@ type KachelZustand = {
   aktiv: boolean
 }
 
+export type HordeZustand = {
+  bild: Phaser.Physics.Arcade.Image
+  label: Phaser.GameObjects.Text
+  anchorY: number
+  y: number
+  punkte: number
+  aktiv: boolean
+  haelt: boolean
+}
+
 /** Zwei getrennte Kollisionsobjekte bilden ein gemeinsames Los: der Anker entscheidet. */
 export class Torbahn implements BahnSystem {
   private readonly walls: Phaser.Physics.Arcade.Group
@@ -38,6 +49,7 @@ export class Torbahn implements BahnSystem {
   private readonly zuTor = new Map<Phaser.GameObjects.GameObject, TorZustand>()
   private readonly kacheln: KachelZustand[] = []
   private readonly zuKachel = new Map<Phaser.GameObjects.GameObject, KachelZustand>()
+  private horde: HordeZustand | undefined
   private abstand = BALANCE.torlauf.tor.abstandPx
   private kachelAbstand = BALANCE.torlauf.kachel.abstandPx
   private nextSpawnId = 1
@@ -75,7 +87,7 @@ export class Torbahn implements BahnSystem {
 
   public getRewards(): Phaser.Physics.Arcade.Group { return this.rewards }
 
-  public hasActivePair(): boolean { return this.tore.some((tor) => tor.aktiv) || this.kacheln.some((kachel) => kachel.aktiv) }
+  public hasActivePair(): boolean { return this.tore.some((tor) => tor.aktiv) || this.kacheln.some((kachel) => kachel.aktiv) || this.horde?.aktiv === true }
 
   public resetForLevel(_level: number): void {
     this.deactivateAll()
@@ -96,6 +108,40 @@ export class Torbahn implements BahnSystem {
 
   public isWall(candidate: Phaser.GameObjects.GameObject): candidate is Phaser.Physics.Arcade.Image {
     return this.zuTor.has(candidate)
+  }
+
+  public istHorde(candidate: Phaser.GameObjects.GameObject): boolean { return this.horde?.bild === candidate && this.horde.aktiv }
+
+  public spawneHorde(level: number): void {
+    if (this.horde === undefined) this.horde = this.erzeugeHorde()
+    const horde = this.horde
+    horde.anchorY = BALANCE.road.horizonY
+    horde.y = BALANCE.road.horizonY
+    horde.punkte = BALANCE.torlauf.horde.basis * getLevelPlan(level).hardness
+    horde.aktiv = true
+    horde.haelt = false
+    horde.bild.enableBody(true, 0, 0, true, true).setActive(true).setVisible(true)
+    ;(horde.bild.body as Phaser.Physics.Arcade.Body).moves = false
+    horde.label.setActive(true).setVisible(true)
+    this.beschrifteHorde(horde)
+  }
+
+  public getHorde(): HordeZustand | undefined { return this.horde?.aktiv ? this.horde : undefined }
+
+  public damageHorde(punkte: number): boolean {
+    const horde = this.getHorde()
+    if (horde === undefined) return false
+    horde.punkte = Math.max(0, horde.punkte - punkte)
+    this.beschrifteHorde(horde)
+    return horde.punkte === 0
+  }
+
+  public recycleHorde(): void {
+    const horde = this.horde
+    if (horde === undefined) return
+    horde.aktiv = false
+    horde.bild.disableBody(true, true).setActive(false).setVisible(false)
+    horde.label.setActive(false).setVisible(false)
   }
 
   public istKachel(candidate: Phaser.GameObjects.GameObject): boolean {
@@ -196,6 +242,16 @@ export class Torbahn implements BahnSystem {
       ;(kachel.bild.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       kachel.label.setPosition(x, segment.centerY).setScale(breite / 48)
       if (segment.centerY - segment.height / 2 > this.scene.scale.height) this.recycleKachel(kachel)
+    }
+    const horde = this.getHorde()
+    if (horde !== undefined) {
+      if (!horde.haelt) {
+        horde.anchorY = advanceAlongRoad(this.scene.scale.width, this.scene.scale.height, horde.anchorY, bewegung)
+        const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, horde.anchorY, BALANCE.torlauf.horde.hoehePx)
+        horde.y = Math.min(BALANCE.torlauf.horde.haltY, segment.centerY)
+        if (horde.y >= BALANCE.torlauf.horde.haltY) horde.haelt = true
+      } else horde.y += BALANCE.torlauf.horde.vorrueckTempoPxPerSec * dt / 1000
+      this.positioniereHorde(horde)
     }
   }
 
@@ -307,4 +363,22 @@ export class Torbahn implements BahnSystem {
     const label = this.scene.add.text(0, 0, '+1', { fontFamily: 'system-ui', fontSize: '24px', color: '#3ddc84', stroke: HUD_COLORS.textDark, strokeThickness: 4, fontStyle: 'bold' }).setOrigin(0.5).setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false)
     return { bild, label, anchorY: BALANCE.road.horizonY, aktiv: false }
   }
+
+  private erzeugeHorde(): HordeZustand {
+    const bild = this.scene.physics.add.image(0, 0, 'wall-segment-bad').setDepth(BALANCE.layers.gameplay).setTint(0xd63b3b).setActive(false).setVisible(false)
+    ;(bild.body as Phaser.Physics.Arcade.Body).setAllowGravity(false)
+    bild.disableBody(true, true)
+    this.walls.add(bild)
+    const label = this.scene.add.text(0, 0, '', { fontFamily: 'system-ui', fontSize: '34px', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 5, fontStyle: 'bold' }).setOrigin(0.5).setDepth(BALANCE.layers.wallContent).setActive(false).setVisible(false)
+    return { bild, label, anchorY: BALANCE.road.horizonY, y: BALANCE.road.horizonY, punkte: 0, aktiv: false, haelt: false }
+  }
+
+  private positioniereHorde(horde: HordeZustand): void {
+    const breite = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, horde.y) * 2
+    horde.bild.setPosition(this.scene.scale.width / 2, horde.y).setDisplaySize(breite, BALANCE.torlauf.horde.hoehePx)
+    ;(horde.bild.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
+    horde.label.setPosition(this.scene.scale.width / 2, horde.y)
+  }
+
+  private beschrifteHorde(horde: HordeZustand): void { horde.label.setText(`${Math.ceil(horde.punkte)}`) }
 }

@@ -62,6 +62,16 @@ export const BALANCE = {
       tempoPxPerSec: 260,
       kopieVersatzPx: 6,
     },
+    horde: {
+      // 120 x Haerte: Eine 40er-Quelle sendet in 8,1 s bis zum Kontakt 72-168 Stromfiguren.
+      // Kleine Quellen verlieren damit knapp, grosse gewinnen knapp; A9 misst den Korridor nach.
+      basis: 120,
+      hoehePx: 140,
+      haltY: 300,
+      vorrueckTempoPxPerSec: 40,
+      punkteJeFigur: 1,
+      fressRateProSek: 8,
+    },
     kachel: {
       // 500 px Anflug / 140 px = vier gleichzeitig; der 12er-Pool hat dreifache Reserve.
       abstandPx: 140,
