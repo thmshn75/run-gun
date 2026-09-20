@@ -4,8 +4,8 @@ import { bewegeStromFigur, figurenProSekunde, stromDarstellungsPosition, type St
 import { haufenHalbeBreite, haufenPlaetze, haufenPositionenX, type HaufenPlatz, truppeGrenzen, truppenAnzeige } from './truppe'
 import { frontStartZustand, mitAnkunft, type FrontZustand } from './front'
 import { sammeltEin, schildPositionen } from './raender'
-import { sammelAuswirkung } from './raender'
-import { durchquertTor, torStartZustand, type TorZustand } from './tor'
+import { sammelAuswirkung, wandSchritt } from './raender'
+import { durchquertTor, mitWandBelohnung, torStartZustand, type TorZustand } from './tor'
 import { aktualisiereEnde, ausgangEinmal, endeStartZustand, type EndeZustand } from './ende'
 import helmBlauUrl from '../assets/v2-helm-blau.png'
 import helmRotUrl from '../assets/v2-helm-rot.png'
@@ -22,7 +22,7 @@ import bossEliteMove10Url from '../assets/boss-elite-move-10.png'
 import bossEliteMove11Url from '../assets/boss-elite-move-11.png'
 import bossEliteMove12Url from '../assets/boss-elite-move-12.png'
 
-type SchildBild = { kasten: Phaser.GameObjects.Rectangle, text: Phaser.GameObjects.Text, umlauf: number, verbraucht: boolean }
+type SchildBild = { kasten: Phaser.GameObjects.Rectangle, text: Phaser.GameObjects.Text, umlauf: number, verbraucht: boolean, rest: number }
 
 /** Das bewusst zustandslose Geruest fuer den isolierten Run-Gun-V2-Probelauf. */
 export class RunGunV2Scene extends Phaser.Scene {
@@ -46,7 +46,7 @@ export class RunGunV2Scene extends Phaser.Scene {
   private randZeitMs = 0
   private randSchilder = new Map<string, SchildBild>()
   private tor: TorZustand = torStartZustand()
-  private torZaehler?: Phaser.GameObjects.Text
+  private torFaktorText?: Phaser.GameObjects.Text
   private ende: EndeZustand = endeStartZustand(frontStartZustand())
   private bossBild?: Phaser.GameObjects.Sprite
   private bossZaehler?: Phaser.GameObjects.Text
@@ -93,7 +93,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.randZeitMs = 0
     this.randSchilder.clear()
     this.tor = torStartZustand()
-    this.torZaehler = undefined
+    this.torFaktorText = undefined
     this.ende = endeStartZustand(this.front)
     this.bossBild = undefined
     this.bossZaehler = undefined
@@ -211,7 +211,10 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.truppenZaehler = this.add.text(this.truppeX, truppeY - BALANCE_V2.truppe.haufenRadiusMaxPx - 20, anzeige.zaehler, {
       fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: '#e8f4ff', stroke: '#16202a', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(BALANCE_V2.ebenen.zaehler)
-    this.staerkeZaehler = this.add.text(this.truppeX, truppeY - BALANCE_V2.truppe.haufenRadiusMaxPx - 46, `STÄRKE ${this.staerke}`, {
+    // Die Staerke-Anzeige ist entfallen: Die rechte Reihe gibt keine Staerke mehr,
+    // sondern ist eine Wand, die heruntergezaehlt wird. Der Faktor bleibt in der
+    // Bilanz auf seinem Grundwert und ist damit neutral.
+    this.staerkeZaehler = this.add.text(this.truppeX, truppeY - BALANCE_V2.truppe.haufenRadiusMaxPx - 46, '', {
       fontFamily: 'system-ui', fontSize: '15px', fontStyle: 'bold', color: '#ffe7a5', stroke: '#16202a', strokeThickness: 3,
     }).setOrigin(0.5).setDepth(BALANCE_V2.ebenen.zaehler)
   }
@@ -222,31 +225,47 @@ export class RunGunV2Scene extends Phaser.Scene {
         schild.seite === 'links' ? 0x277bc0 : 0xe1b72f).setStrokeStyle(2, 0xf6fbff).setDepth(BALANCE_V2.ebenen.schilder)
       const text = this.add.text(0, 0, '', { fontFamily: 'system-ui', fontSize: '20px', fontStyle: 'bold', color: '#ffffff', stroke: '#17212a', strokeThickness: 3 })
         .setOrigin(0.5).setDepth(BALANCE_V2.ebenen.zaehler)
-      this.randSchilder.set(schild.id, { kasten, text, umlauf: schild.umlauf, verbraucht: false })
+      this.randSchilder.set(schild.id, { kasten, text, umlauf: schild.umlauf, verbraucht: false, rest: BALANCE_V2.wand.startRest })
     })
     this.aktualisiereRaender()
   }
 
-  private aktualisiereRaender(): void {
+  private aktualisiereRaender(dtMs = 0): void {
     schildPositionen(this.scale.width, this.scale.height, this.randZeitMs, this.truppeX).forEach((schild) => {
       const bild = this.randSchilder.get(schild.id)
       if (!bild) return
       if (bild.umlauf !== schild.umlauf) {
         bild.umlauf = schild.umlauf
         bild.verbraucht = false
+        bild.rest = BALANCE_V2.wand.startRest
       }
-      if (!bild.verbraucht && sammeltEin(schild, this.truppeX, this.truppeY, {
+      const beruehrt = !bild.verbraucht && sammeltEin(schild, this.truppeX, this.truppeY, {
         seitlich: BALANCE_V2.raender.sammelSeitlichPx,
         hoehe: BALANCE_V2.raender.sammelHoehePx,
-      })) {
+      })
+      if (beruehrt && schild.seite === 'links') {
+        // Links bleibt es beim einmaligen Einsammeln.
         bild.verbraucht = true
-        this.wendeSchildAn(schild.seite)
+        this.wendeSchildAn('links')
+      } else if (beruehrt) {
+        // Rechts steht eine Wand: Solange die Truppe sie beruehrt, zaehlt sie
+        // herunter. Erst bei null faellt die Wand und schreibt ihre Zahl gut.
+        const schritt = wandSchritt(bild.rest, this.truppenGroesse, dtMs)
+        bild.rest = schritt.rest
+        if (schritt.gutschrift > 0) {
+          // Die gefallene Wand schenkt keine Truppen, sondern hebt den Torfaktor:
+          // ab jetzt vervielfacht das Tor jede durchlaufende Figur staerker.
+          bild.verbraucht = true
+          this.tor = mitWandBelohnung(this.tor)
+          this.torFaktorText?.setText(`×${this.tor.faktor}`)
+        }
       }
       const sichtbar = !bild.verbraucht
       const skala = tiefenSkala(this.scale.height, schild.y)
       bild.kasten.setVisible(sichtbar).setPosition(schild.x, schild.y)
         .setSize(BALANCE_V2.raender.schildBreitePx * skala, BALANCE_V2.raender.schildHoehePx * skala)
-      bild.text.setVisible(sichtbar).setPosition(schild.x, schild.y).setFontSize(`${20 * skala}px`).setText(schild.seite === 'links' ? '+1' : '+99')
+      bild.text.setVisible(sichtbar).setPosition(schild.x, schild.y).setFontSize(`${20 * skala}px`)
+        .setText(schild.seite === 'links' ? '+1' : String(Math.ceil(bild.rest)))
     })
   }
 
@@ -267,7 +286,6 @@ export class RunGunV2Scene extends Phaser.Scene {
   private wendeSchildAn(seite: 'links' | 'rechts'): void {
     const neu = sammelAuswirkung(seite, this.truppenGroesse, this.staerke)
     this.staerke = neu.staerke
-    this.staerkeZaehler?.setText(`STÄRKE ${this.staerke}`)
     this.front = { ...this.front, staerke: this.staerke }
     if (neu.truppenGroesse !== this.truppenGroesse) this.erhoeheTruppe(neu.truppenGroesse - this.truppenGroesse)
   }
@@ -286,10 +304,12 @@ export class RunGunV2Scene extends Phaser.Scene {
     const skala = tiefenSkala(height, BALANCE_V2.tor.y)
     this.add.rectangle(mitteX, BALANCE_V2.tor.y, breite, BALANCE_V2.tor.hoehePx * skala, 0xdeb83b)
       .setStrokeStyle(3, 0xfff4bf).setDepth(BALANCE_V2.ebenen.schilder)
-    this.add.text(mitteX, BALANCE_V2.tor.y - 3, `×${BALANCE_V2.tor.faktor}`, {
+    this.torFaktorText = this.add.text(mitteX, BALANCE_V2.tor.y - 3, `×${this.tor.faktor}`, {
       fontFamily: 'system-ui', fontSize: `${30 * skala}px`, fontStyle: 'bold', color: '#342500', stroke: '#fff4bf', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(BALANCE_V2.ebenen.zaehler)
-    this.torZaehler = this.add.text(mitteX, BALANCE_V2.tor.y + 22, String(this.tor.restlicheTreffer), {
+    // Der frühere Freischaltzaehler ist entfallen: Das Tor wirkt sofort, seine
+    // Staerke steht im Faktor darueber.
+    this.add.text(mitteX, BALANCE_V2.tor.y + 22, '', {
       fontFamily: 'system-ui', fontSize: `${16 * skala}px`, fontStyle: 'bold', color: '#fff4bf', stroke: '#342500', strokeThickness: 3,
     }).setOrigin(0.5).setDepth(BALANCE_V2.ebenen.zaehler)
   }
@@ -432,7 +452,6 @@ export class RunGunV2Scene extends Phaser.Scene {
       const durchgang = bewegt.y <= BALANCE_V2.tor.y ? durchquertTor(bewegt, this.tor) : undefined
       if (durchgang) {
         this.tor = durchgang.tor
-        this.torZaehler?.setText(String(this.tor.restlicheTreffer))
         for (let kopie = 1; kopie < durchgang.anzahl; kopie += 1) this.starteVervielfachteStromFigur(bewegt.x, bewegt.y)
       }
       const nachTor = durchgang ? { ...bewegt, ...durchgang.figur } : bewegt
@@ -452,7 +471,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     const ausgang = ausgangEinmal(this.endeAusgeloest, this.ende)
     if (ausgang) this.loeseAusgangAus(ausgang)
     this.zeichneFlaechen(this.scale.width, this.scale.height)
-    this.aktualisiereRaender()
+    this.aktualisiereRaender(delta)
   }
 
   /** Die Anzeige rundet nur; die Ende-Bilanz behaelt die verlorenen Bruchteile. */

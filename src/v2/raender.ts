@@ -33,7 +33,7 @@ export function schildPositionen(width: number, height: number, zeitMs: number, 
   const anzahl = Math.ceil(strecke / abstand) + 1
   const sekunden = Math.max(0, zeitMs) / 1000
   return (['links', 'rechts'] as const).flatMap((seite) => Array.from({ length: anzahl }, (_, index) => {
-    const tempo = seite === 'links' ? linkesReihenTempo(truppeX, width) : BALANCE_V2.raender.grundTempoPxProSek
+    const tempo = seite === 'links' ? linkesReihenTempo(truppeX, width) : BALANCE_V2.raender.rechtesGrundTempoPxProSek
     const rohY = BALANCE_V2.track.horizonY - BALANCE_V2.raender.schildHoehePx + index * abstand + sekunden * tempo
     const umlauf = Math.floor(rohY / strecke)
     const y = ((rohY % strecke) + strecke) % strecke
@@ -62,9 +62,32 @@ export function truppenGroesseNachSammeln(truppenGroesse: number, schildWert: nu
   return Math.max(0, Math.floor(truppenGroesse)) + Math.max(0, Math.floor(schildWert))
 }
 
-/** Rechts staerkt nur den Druck; die sichtbare Truppe darf dabei nie wachsen. */
+/**
+ * Wie schnell die Truppe eine +99-Wand herunterzaehlt. Die Truppengroesse ist der
+ * Hebel: Eine grosse Truppe bricht die Wand in Sekunden, eine kleine schafft es
+ * im knappen Zeitfenster bis zum Boss gar nicht. Genau darin liegt die
+ * Entscheidung - links viele kleine Schritte, rechts einer grosser mit Zeitrisiko.
+ */
+export function wandAbbauProSek(truppenGroesse: number): number {
+  return Math.max(
+    BALANCE_V2.wand.mindestAbbauProSek,
+    Math.max(0, truppenGroesse) * BALANCE_V2.wand.abbauJeTruppenfigurProSek,
+  )
+}
+
+/**
+ * Ein Abbauschritt an einer Wand. Liefert den neuen Rest und, wenn die Wand in
+ * diesem Schritt faellt, die Gutschrift. Rein rechnerisch, ohne Phaser.
+ */
+export function wandSchritt(rest: number, truppenGroesse: number, dtMs: number) {
+  const abbau = wandAbbauProSek(truppenGroesse) * Math.max(0, dtMs) / 1000
+  const neuerRest = Math.max(0, rest - abbau)
+  return { rest: neuerRest, gutschrift: neuerRest <= 0 && rest > 0 ? BALANCE_V2.wand.gutschrift : 0 }
+}
+
+/** Nur die linke Reihe wird eingesammelt; rechts steht eine Wand, die abgebaut wird. */
 export function sammelAuswirkung(seite: SchildSeite, truppenGroesse: number, staerke: number) {
   return seite === 'links'
     ? { truppenGroesse: truppenGroesseNachSammeln(truppenGroesse, 1), staerke }
-    : { truppenGroesse, staerke: staerke + BALANCE_V2.staerke.plus99 }
+    : { truppenGroesse, staerke }
 }

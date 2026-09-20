@@ -64,10 +64,12 @@ export const BALANCE_V2 = {
     figurTextureScale: 0.14,
   },
   tor: {
-    // ×2 braucht 2 Treffer: Faktor und Freischaltzähler bleiben proportional
-    // (99 / 99 = 1 Treffer je Faktorpunkt), daher gleiche gefuehlte Freischaltdauer.
-    faktor: 2,
-    freischaltTreffer: 2,
+    // Das Tor beginnt bei x1 - es vermehrt zunaechst gar nichts. Jede abgebaute
+    // +99-Wand hebt den Faktor um 0,5. Damit ist die rechte Reihe kein zweiter
+    // Mengenlieferant, sondern eine dauerhafte Verbesserung des Durchsatzes:
+    // Nach zwei Waenden steht x2, nach vier x3.
+    startFaktor: 1,
+    zuwachsJeWand: 0.5,
     // 620 px: deutlich vor der bei 752 px stehenden Starttruppe, damit der Strom
     // eine sichtbare Strecke bis zum Tor laeuft und das Tor nicht am Haufen klebt.
     y: 620,
@@ -86,6 +88,13 @@ export const BALANCE_V2 = {
     // Bei 48 px Schildabstand faehrt man dort rund 8 Schilder je Sekunde ein statt
     // 2,5 in der Mitte - das Hineinfahren in die Randspur lohnt sich deutlich.
     zuschlagGanzLinksPxProSek: 280,
+    // 35 px/s. Der Wert folgt aus der noetigen Kontaktzeit, nicht aus dem Gefuehl:
+    // Eine Wand ist 2 * 34 = 68 px lang in Reichweite, bei 35 px/s also 1,94 s.
+    // Mit 0,9 Punkten je Truppenfigur und Sekunde schafft eine volle Truppe (60)
+    // in dieser Zeit 105 Punkte und bricht die 99er-Wand knapp; eine Truppe von
+    // 40 kommt auf 70 und schafft sie nicht. Genau diese Schwelle ist gewollt:
+    // Erst links Menge sammeln, dann rechts das Tor verbessern.
+    rechtesGrundTempoPxProSek: 35,
     // Der Mittelpunkt bleibt in der Mitte des Gehsteigs, nicht auf der Fahrbahn.
     randEinzugPx: 0,
     // Einsammeln ist reine Bildschirmgeometrie, keine Phaser-Physik.
@@ -183,6 +192,18 @@ export const BALANCE_V2 = {
     boss: 90,
     bossZaehler: 100,
     ergebnis: 110,
+  },
+  wand: {
+    // Eine +99-Wand hat 99 Punkte. Die Truppe zaehlt sie herunter; jede Figur
+    // schafft 0,9 Punkte je Sekunde. Rechenweg: Mit der Starttruppe von 10 sind
+    // das 9 Punkte/s, also 11 s fuer eine Wand - viel zu lang im Zeitfenster bis
+    // zum Boss. Mit 60 Figuren sind es 54 Punkte/s und damit knapp 2 s. Wer
+    // rechts etwas holen will, muss also zuerst links Menge gesammelt haben.
+    startRest: 99,
+    abbauJeTruppenfigurProSek: 0.9,
+    mindestAbbauProSek: 2,
+    // Gutschrift ist genau die Zahl auf der Wand: Man bekommt, was draufsteht.
+    gutschrift: 99,
   },
   staerke: {
     // 100 Punkte entsprechen dem Grundfaktor 1. +99 ist absichtlich fast ein

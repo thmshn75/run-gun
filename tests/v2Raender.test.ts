@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BALANCE_V2 } from '../src/v2/balanceV2'
-import { linkesReihenTempo, sammelAuswirkung, sammeltEin, schildMitteX, schildPositionen, truppenGroesseNachSammeln, type RandSchild } from '../src/v2/raender'
+import { linkesReihenTempo, sammelAuswirkung, sammeltEin, schildMitteX, schildPositionen, truppenGroesseNachSammeln, wandAbbauProSek, wandSchritt, type RandSchild } from '../src/v2/raender'
 import { bahnKantenBeiY, fahrbahnKantenBeiY } from '../src/v2/balanceV2'
 
 const breite = 390
@@ -68,9 +68,32 @@ describe('Run Gun V2 — S5 die beiden Raender', () => {
     expect(positionen[3]).toBeGreaterThan(positionen[2])
   })
 
-  it('+99 erhoeht nur die Staerke, +1 nur die Truppengroesse', () => {
-    expect(sammelAuswirkung('rechts', 10, 100)).toEqual({ truppenGroesse: 10, staerke: 199 })
+  it('laesst nur die linke Reihe die Truppe wachsen; rechts aendert das Einsammeln nichts', () => {
+    // Rechts steht seit N15 eine Wand, die abgebaut wird - sie wird nicht mehr
+    // eingesammelt und gibt weder Truppen noch Staerke.
+    expect(sammelAuswirkung('rechts', 10, 100)).toEqual({ truppenGroesse: 10, staerke: 100 })
     expect(sammelAuswirkung('links', 10, 100)).toEqual({ truppenGroesse: 11, staerke: 100 })
     expect(truppenGroesseNachSammeln(10, 1)).toBe(11)
+  })
+
+  it('zaehlt eine Wand umso schneller herunter, je groesser die Truppe ist', () => {
+    expect(wandAbbauProSek(60)).toBeGreaterThan(wandAbbauProSek(10))
+    const mitGrosserTruppe = wandSchritt(BALANCE_V2.wand.startRest, 60, 1000)
+    const mitKleinerTruppe = wandSchritt(BALANCE_V2.wand.startRest, 10, 1000)
+    expect(mitGrosserTruppe.rest).toBeLessThan(mitKleinerTruppe.rest)
+  })
+
+  it('schreibt die Gutschrift genau einmal gut, wenn die Wand faellt', () => {
+    const faelltJetzt = wandSchritt(1, 60, 1000)
+    expect(faelltJetzt.rest).toBe(0)
+    expect(faelltJetzt.gutschrift).toBe(BALANCE_V2.wand.gutschrift)
+    // Ein weiterer Schritt auf der bereits gefallenen Wand gibt nichts mehr.
+    expect(wandSchritt(0, 60, 1000).gutschrift).toBe(0)
+  })
+
+  it('laesst die rechte Reihe deutlich langsamer laufen als die linke', () => {
+    // Eine Wand braucht Zeit zum Abbauen; bei gleichem Tempo waere sie vorbei.
+    expect(BALANCE_V2.raender.rechtesGrundTempoPxProSek)
+      .toBeLessThan(BALANCE_V2.raender.grundTempoPxProSek)
   })
 })

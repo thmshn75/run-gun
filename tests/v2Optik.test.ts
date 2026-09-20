@@ -90,10 +90,11 @@ describe('Run Gun V2 — S8 Optik', () => {
     expect(horizontFarbe(anzahl - 1, anzahl)).toBe(BALANCE_V2.colors.water)
   })
 
-  it('beschriftet rechte Schilder ausschliesslich mit +99, die Truppenanzeige bleibt lesbar', () => {
+  it('beschriftet die rechte Wand mit ihrem Restwert und nennt kein Wort dazu', () => {
     const source = readFileSync(new URL('../src/v2/RunGunV2Scene.ts', import.meta.url), 'utf8')
-    expect(source).toContain("schild.seite === 'links' ? '+1' : '+99'")
-    expect(source).toContain('`STÄRKE ${this.staerke}`')
+    expect(source).toContain("schild.seite === 'links' ? '+1' : String(Math.ceil(bild.rest))")
+    // Die Staerke-Anzeige ist mit der Staerke-Mechanik entfallen.
+    expect(source).not.toContain('STÄRKE ${')
   })
 
   it('legt Gehsteige zwischen Mauer und schmalerer Fahrbahn an und setzt Schilder mittig darauf', () => {
@@ -111,28 +112,22 @@ describe('Run Gun V2 — S8 Optik', () => {
     expect(source).toContain('BALANCE_V2.ebenen.massen')
   })
 
-  it('laesst Mengenweg und Staerkeweg beide gewinnen, bevor der Boss ankommt', () => {
-    // Das Zeitfenster ist nicht frei gewaehlt: Es endet, wenn der Boss vorn ist.
-    // Der Zustrom kommt aus den echten Spielfunktionen, nicht aus Schaetzwerten.
+  it('braucht beide Reihen: Menge allein reicht nicht, eine gefallene Wand entscheidet', () => {
+    // Das Zeitfenster endet, wenn der Boss vorn ist. Der Zustrom kommt aus den
+    // echten Spielfunktionen. Gerechnet wird der Dauerzustand, den ein Spieler
+    // erreicht, der konsequent eine Seite bedient.
     const bildMs = 1000 / 60
     const bilder = Math.floor(BALANCE_V2.ende.bossMaxAbstiegPx / BALANCE_V2.ende.bossTempoPxProSek * 60)
-
-    // Mengenweg: die linke Reihe laesst die Truppe bis zur Hoechstrate wachsen,
-    // das Tor verdoppelt den Strom. Die Staerke bleibt beim Grundwert.
-    const mengenweg = Array.from({ length: bilder }).reduce((front) => {
-      const zustrom = figurenProSekunde(BALANCE_V2.truppe.maxSichtbar) * BALANCE_V2.tor.faktor / 60
-      return aktualisiereFront(mitAnkunft(front, zustrom), bildMs)
+    const lauf = (truppe: number, torFaktor: number) => Array.from({ length: bilder }).reduce((front) => {
+      return aktualisiereFront(mitAnkunft(front, figurenProSekunde(truppe) * torFaktor / 60), bildMs)
     }, frontStartZustand())
-    expect(mengenweg.vorrat).toBe(0)
 
-    // Staerkeweg: die Truppe bleibt bei ihrer Startgroesse, dafuer sammelt sie
-    // alle 2,5 Sekunden ein +99-Schild ein.
-    const staerkeweg = Array.from({ length: bilder }).reduce((front, _leer, bild) => {
-      const zustrom = figurenProSekunde(BALANCE_V2.truppe.startGroesse) * BALANCE_V2.tor.faktor / 60
-      const staerke = BALANCE_V2.staerke.start + Math.floor(bild / 150) * BALANCE_V2.staerke.plus99
-      return aktualisiereFront({ ...mitAnkunft(front, zustrom), staerke }, bildMs)
-    }, frontStartZustand())
-    expect(staerkeweg.vorrat).toBe(0)
+    // Nur Menge, Tor unberuehrt bei x1: reicht im Zeitfenster nicht.
+    expect(lauf(BALANCE_V2.truppe.maxSichtbar, BALANCE_V2.tor.startFaktor).vorrat).toBeGreaterThan(0)
+
+    // Dieselbe Truppe, aber eine abgebaute Wand hebt das Tor auf x1,5: das genuegt.
+    const mitEinerWand = BALANCE_V2.tor.startFaktor + BALANCE_V2.tor.zuwachsJeWand
+    expect(lauf(BALANCE_V2.truppe.maxSichtbar, mitEinerWand).vorrat).toBe(0)
   })
 
   it('laesst den passiven Spieler im selben Zeitfenster verlieren', () => {
@@ -141,9 +136,10 @@ describe('Run Gun V2 — S8 Optik', () => {
     const bildMs = 1000 / 60
     const bilder = Math.floor(BALANCE_V2.ende.bossMaxAbstiegPx / BALANCE_V2.ende.bossTempoPxProSek * 60)
     const passiv = Array.from({ length: bilder }).reduce((front) => {
-      const zustrom = figurenProSekunde(BALANCE_V2.truppe.startGroesse) * BALANCE_V2.tor.faktor / 60
+      const zustrom = figurenProSekunde(BALANCE_V2.truppe.startGroesse) * BALANCE_V2.tor.startFaktor / 60
       return aktualisiereFront(mitAnkunft(front, zustrom), bildMs)
     }, frontStartZustand())
     expect(passiv.vorrat).toBeGreaterThan(0)
   })
+
 })
