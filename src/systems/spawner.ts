@@ -580,6 +580,20 @@ export class Spawner {
   private spawneTorlaufReihe(): SpawnResult {
     const anzahl: number = BALANCE.torlauf.reiheGroesse
     const y = getEnemySpawnCenterY(getFigureHeight(this.standardTyp()) * this.figurenMassstab)
+    // Die Masse STEHT (gegnerTempoFaktor 0,05) und ist ein TEPPICH, kein Zustrom: Die
+    // erste Reihe steht knapp vor dem Tor, jede weitere setzt sich HINTER die bisher
+    // hinterste. So waechst der Block nach hinten bis zum Horizont - im Video reicht er
+    // vom Boss bis zur Front. Reicht er bereits bis oben, kommt nichts nach ('no-lane'
+    // laesst den Spawner es spaeter erneut versuchen, es geht nichts verloren).
+    const abstand = BALANCE.torlauf.reihenAbstandPx
+    const hinterste = this.enemies.getChildren().reduce((kleinstesY, child) => {
+      const gegner = child as Phaser.Physics.Arcade.Image
+      return gegner.active ? Math.min(kleinstesY, gegner.y) : kleinstesY
+    }, Number.POSITIVE_INFINITY)
+    const reihenY = Number.isFinite(hinterste)
+      ? hinterste - abstand
+      : Math.min(BALANCE.torlauf.teppichVorderkanteY, this.scene.scale.height - this.getAnchorBottomOffset() - abstand)
+    if (reihenY <= y) return 'no-lane'
     // HOECHSTENS EIN Heavy je Reihe, und auch das nur ab und zu: Thomas 2026-09-20
     // "es sind zu viele Heavy auf einmal, sie sollen einzeln kommen mit der Horde mit".
     // Vorher wurde je Platz einzeln gewuerfelt, was bei neun Plaetzen regelmaessig
@@ -599,7 +613,7 @@ export class Spawner {
       const anteil = anzahl === 1 ? 0 : (platz / (anzahl - 1)) * 2 - 1
       const streuung = (Phaser.Math.RND.frac() - 0.5) * (2 / anzahl)
       const lane = Math.max(-0.94, Math.min(0.94, anteil * 0.94 + streuung))
-      this.activateEnemy(enemy, type, lane, y + (Phaser.Math.RND.frac() - 0.5) * 12, false)
+      this.activateEnemy(enemy, type, lane, reihenY + (Phaser.Math.RND.frac() - 0.5) * 6, false)
       this.intervalSpawnCount += 1
     }
     return 'spawned'

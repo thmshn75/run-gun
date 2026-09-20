@@ -42,11 +42,16 @@ export const BALANCE = {
     // Gegner im Torlauf auf Truppengroesse herunterskaliert: 0,78 (Truppe) geteilt
     // durch enemy.figureScale 1,25 ergibt 0,62.
     gegnerMassstab: 0.62,
-    // Einheitliches, langsames Tempo fuer ALLE Torlauf-Gegner. 0,3 des Normaltempos
-    // (Thomas 2026-09-20: "die Horden kommen viel zu schnell"; 0,55 war noch zu flott):
+    // 0,05 des Normaltempos: im Video STEHT die gegnerische Masse. Sie ist ein dichter
+    // Teppich vom Boss bis zur Front, und die eigene Flaeche frisst sich von unten
+    // hindurch - der Zaehler faellt dort von 858 auf 402, ohne dass sich der Block
+    // merklich bewegt (Thomas 2026-09-20: "sieh dir im Video nochmal an wie es
+    // funktioniert - genauso nicht anders"). Vorher liefen die Gegner herunter und
+    // schoben die eigenen Figuren vor sich her. Der Rest-Vorschub bleibt als Druck:
+    // wer nichts nachschickt, verliert langsam Boden.
     // Die Masse soll als geschlossene Horde heranschieben, nicht einzeln heranlaufen
     // (Thomas 2026-09-19: "gleich langsam alles viele als Horde, langsam").
-    gegnerTempoFaktor: 0.3,
+    gegnerTempoFaktor: 0.05,
     // 0,3 des normalen Spawntakts = gut dreimal so viele Gegner. Mit dem Normaltakt
     // standen nur acht gleichzeitig auf der Bahn, sobald der Strom sie wirklich traf -
     // das sieht nach Einzelgegnern aus, nicht nach einer Horde.
@@ -64,6 +69,13 @@ export const BALANCE = {
     // Figuren je Reihe. Der Gegner-Pool fasst 288, bei rund acht Sekunden Lebensdauer
     // und dem dichten Takt bleibt das die begrenzende Groesse.
     reiheGroesse: 12,
+    // Reihenabstand im Teppich. Kleiner als eine Figurenhoehe, damit die Masse dicht
+    // wirkt, aber gross genug, dass die Reihen nicht ineinander stapeln.
+    reihenAbstandPx: 13,
+    // Vorderkante des Teppichs bei Levelbeginn. 560 liegt knapp vor dem Tor (570): Die
+    // Masse steht damit von Anfang an im Bild wie im Video, statt erst vom Horizont
+    // herunterzuwachsen. Nach hinten fuellt sie sich bis zum Horizont auf.
+    teppichVorderkanteY: 560,
     // Ab und zu ein Heavy zwischen den Standardfiguren - Thomas hat in der dichten
     // Masse keinen einzigen gesehen, weil der Torlauf nur noch Standard spawnte.
     // Anteil der REIHEN mit genau einem Heavy (nicht mehr Anteil aller Figuren).
