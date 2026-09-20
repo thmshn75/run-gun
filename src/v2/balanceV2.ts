@@ -87,11 +87,13 @@ export const BALANCE_V2 = {
     rechterAbstandPx: 320,
     // In der Mitte 120 px/s, ganz links +100 px/s: 220 px/s ist deutlich schneller,
     // ohne dass die Reihe bei 60 fps mehr als rund 4 px pro Bild springt.
-    grundTempoPxProSek: 120,
-    // Ganz links 120 + 280 = 400 px/s, also mehr als das Dreifache des Grundtempos.
-    // Bei 48 px Schildabstand faehrt man dort rund 8 Schilder je Sekunde ein statt
-    // 2,5 in der Mitte - das Hineinfahren in die Randspur lohnt sich deutlich.
-    zuschlagGanzLinksPxProSek: 280,
+    // 40 px/s: Die Reihe zieht im Ruhezustand ruhig vorbei. Erst das Hinfahren
+    // macht sie schnell - siehe zuschlagGanzLinksPxProSek.
+    grundTempoPxProSek: 40,
+    // Ganz links 40 + 360 = 400 px/s, also das Zehnfache des Ruhetempos. Bei 48 px
+    // Schildabstand faehrt man dort rund 8 Schilder je Sekunde ein statt 0,8 in
+    // der Mitte - das Hineinfahren in die Randspur ist damit der ganze Hebel.
+    zuschlagGanzLinksPxProSek: 360,
     // 35 px/s. Der Wert folgt aus der noetigen Kontaktzeit, nicht aus dem Gefuehl:
     // Eine Wand ist 2 * 34 = 68 px lang in Reichweite, bei 35 px/s also 1,94 s.
     // Mit 0,9 Punkten je Truppenfigur und Sekunde schafft eine volle Truppe (60)
@@ -170,6 +172,10 @@ export const BALANCE_V2 = {
     road: 0x6e747a,
     wall: 0x697682,
     wallEdge: 0xb8c4cb,
+    // Die Absperrung zwischen Fahrbahn und Gehsteig: heller Streifen mit dunklem
+    // Fuss, damit die Kante auch bei wenigen Pixeln Hoehe klar zu sehen ist.
+    curb: 0xd2dadf,
+    curbShadow: 0x4d565f,
     water: 0x246981,
     waterWave: 0x74bdd4,
     menuButton: 0x263d55,
@@ -212,6 +218,14 @@ export const BALANCE_V2 = {
     // Truppe von 20 kann nur 80 Punkte bezahlen und bleibt vor der 99 stehen -
     // sie verliert dabei alles, was sie eingesetzt hat.
     verbrauchJeAbbaupunkt: 0.25,
+    // Eine einschlagende Stromfigur traegt 4 Punkte ab und ist danach verbraucht.
+    // Rechenweg: 99 Punkte brauchen rund 25 Figuren. Bei voller Rate (8/s) sind
+    // das gut 3 Sekunden Dauerbeschuss - und 25 Figuren, die nicht an der Front
+    // ankommen. Das ist der Preis der Wand.
+    abbauJeStromfigur: 4,
+    // Zugabe auf die Schildmasse, damit eine Figur die Wand auch dann trifft,
+    // wenn sie zwischen zwei Bildern ein Stueck weit springt.
+    trefferZugabePx: 6,
     // Gutschrift ist kein Truppenzuwachs mehr, sondern der Zuwachs am Torfaktor
     // (siehe tor.zuwachsJeWand). Der Wert markiert nur, dass die Wand gefallen ist.
     gutschrift: 1,

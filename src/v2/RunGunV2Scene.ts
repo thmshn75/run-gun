@@ -4,7 +4,7 @@ import { bewegeStromFigur, figurenProSekunde, stromDarstellungsPosition, type St
 import { haufenHalbeBreite, haufenPlaetze, haufenPositionenX, type HaufenPlatz, truppeGrenzen, truppenAnzeige } from './truppe'
 import { frontStartZustand, mitAnkunft, type FrontZustand } from './front'
 import { sammeltEin, schildPositionen } from './raender'
-import { sammelAuswirkung, wandSchritt } from './raender'
+import { sammelAuswirkung } from './raender'
 import { durchquertTor, mitWandBelohnung, torStartZustand, type TorZustand } from './tor'
 import { aktualisiereEnde, ausgangEinmal, endeStartZustand, type EndeZustand } from './ende'
 import helmBlauUrl from '../assets/v2-helm-blau.png'
@@ -62,7 +62,6 @@ export class RunGunV2Scene extends Phaser.Scene {
   private randSchilder = new Map<string, SchildBild>()
   private tor: TorZustand = torStartZustand()
   private torFaktorText?: Phaser.GameObjects.Text
-  private wandVerbrauchRest = 0
   private ende: EndeZustand = endeStartZustand(frontStartZustand())
   private bossBild?: Phaser.GameObjects.Sprite
   private bossZaehler?: Phaser.GameObjects.Text
@@ -110,7 +109,6 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.randSchilder.clear()
     this.tor = torStartZustand()
     this.torFaktorText = undefined
-    this.wandVerbrauchRest = 0
     this.ende = endeStartZustand(this.front)
     this.bossBild = undefined
     this.bossZaehler = undefined
@@ -156,6 +154,10 @@ export class RunGunV2Scene extends Phaser.Scene {
     // sichtbar bliebe, deckt ohnehin die Bahn ab, die direkt darueber liegt.
     this.zeichneKante(linkeKante)
     this.zeichneKante(rechteKante)
+    // Absperrung: Die Fahrbahnkanten bekommen einen sichtbaren Bordstein, damit
+    // Fahrbahn und Gehsteig nicht als eine Flaeche gelesen werden.
+    this.zeichneAbsperrung(linkeFahrbahnKante)
+    this.zeichneAbsperrung(rechteFahrbahnKante)
     this.erstelleGelaender(width, height)
 
     const menuButton = this.add.rectangle(52, 34, 84, 36, BALANCE_V2.colors.menuButton)
@@ -186,6 +188,18 @@ export class RunGunV2Scene extends Phaser.Scene {
     const paare: Phaser.Geom.Point[] = []
     for (let index = 0; index < punkte.length; index += 2) paare.push(new Phaser.Geom.Point(punkte[index], punkte[index + 1]))
     this.add.graphics().fillStyle(farbe, 1).fillPoints(paare, true).setDepth(ebene)
+  }
+
+  /** Bordstein entlang einer Fahrbahnkante: dunkler Fuss, heller Kamm darueber. */
+  private zeichneAbsperrung(punkte: readonly number[]): void {
+    const fuss = this.add.graphics().lineStyle(5, BALANCE_V2.colors.curbShadow, 1).setDepth(BALANCE_V2.ebenen.gehsteig + 1)
+    const kamm = this.add.graphics().lineStyle(3, BALANCE_V2.colors.curb, 1).setDepth(BALANCE_V2.ebenen.gehsteig + 2)
+    for (const linie of [fuss, kamm]) {
+      linie.beginPath().moveTo(punkte[0], punkte[1])
+      for (let index = 2; index < punkte.length; index += 2) linie.lineTo(punkte[index], punkte[index + 1])
+      linie.strokePath()
+    }
+    kamm.setY(-2)
   }
 
   private zeichneKante(punkte: readonly number[]): void {
@@ -260,7 +274,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.aktualisiereRaender()
   }
 
-  private aktualisiereRaender(dtMs = 0): void {
+  private aktualisiereRaender(): void {
     schildPositionen(this.scale.width, this.scale.height, this.randZeitMs, this.truppeX).forEach((schild) => {
       const bild = this.randSchilder.get(schild.id)
       if (!bild) return
@@ -277,20 +291,9 @@ export class RunGunV2Scene extends Phaser.Scene {
         // Links bleibt es beim einmaligen Einsammeln.
         bild.verbraucht = true
         this.wendeSchildAn('links')
-      } else if (beruehrt) {
-        // Rechts steht eine Wand: Solange die Truppe sie beruehrt, zaehlt sie
-        // herunter. Erst bei null faellt die Wand und schreibt ihre Zahl gut.
-        const schritt = wandSchritt(bild.rest, this.truppenGroesse, dtMs)
-        bild.rest = schritt.rest
-        if (schritt.verbrauch > 0) this.verringereTruppe(schritt.verbrauch)
-        if (schritt.gutschrift > 0) {
-          // Die gefallene Wand schenkt keine Truppen, sondern hebt den Torfaktor:
-          // ab jetzt vervielfacht das Tor jede durchlaufende Figur staerker.
-          bild.verbraucht = true
-          this.tor = mitWandBelohnung(this.tor)
-          this.torFaktorText?.setText(`×${this.tor.faktor}`)
-        }
       }
+      // Rechts passiert bei Beruehrung durch den Haufen nichts: Die Waende werden
+      // von den ausgesandten Figuren abgetragen, nicht vom Haufen selbst.
       const sichtbar = !bild.verbraucht
       const skala = tiefenSkala(this.scale.height, schild.y)
       bild.kasten.setVisible(sichtbar).setPosition(schild.x, schild.y)
@@ -304,21 +307,6 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.truppenGroesse = Math.max(0, this.truppenGroesse) + Math.max(0, Math.floor(wert))
     this.zeichneTruppeNeu()
     this.front = mitAnkunft(this.front, wert)
-  }
-
-  /**
-   * Der Abbau einer Wand kostet Truppe. Der Verbrauch je Bild ist ein Bruchteil;
-   * ohne Restsammler wuerde ihn das Abrunden jedes Mal verschlucken und die Wand
-   * waere umsonst - derselbe Rundungsfehler, der schon einmal einen ganzen Modus
-   * gekostet hat (siehe docs/lessons.md).
-   */
-  private verringereTruppe(wert: number): void {
-    this.wandVerbrauchRest += Math.max(0, wert)
-    const ganze = Math.floor(this.wandVerbrauchRest)
-    if (ganze <= 0) return
-    this.wandVerbrauchRest -= ganze
-    this.truppenGroesse = Math.max(0, this.truppenGroesse - ganze)
-    this.zeichneTruppeNeu()
   }
 
   private zeichneTruppeNeu(): void {
@@ -505,8 +493,11 @@ export class RunGunV2Scene extends Phaser.Scene {
         for (let kopie = 1; kopie < durchgang.anzahl; kopie += 1) this.starteVervielfachteStromFigur(bewegt.x, bewegt.y)
       }
       const nachTor = durchgang ? { ...bewegt, ...durchgang.figur } : bewegt
-      const aktiv = nachTor.y > this.front.frontY
-      if (!aktiv) this.front = mitAnkunft(this.front)
+      // Eine Figur, die in eine Wand laeuft, traegt sie ab und ist verbraucht.
+      // Das ist zugleich der Preis: Diese Figuren kommen nie an der Front an.
+      const wandTreffer = this.trifftWand(nachTor.x, nachTor.y)
+      const aktiv = !wandTreffer && nachTor.y > this.front.frontY
+      if (!aktiv && !wandTreffer) this.front = mitAnkunft(this.front)
       this.stromFiguren[index] = { ...nachTor, aktiv }
       const bild = this.stromBilder[index]
       bild.setVisible(aktiv)
@@ -521,7 +512,31 @@ export class RunGunV2Scene extends Phaser.Scene {
     const ausgang = ausgangEinmal(this.endeAusgeloest, this.ende)
     if (ausgang) this.loeseAusgangAus(ausgang)
     this.zeichneFlaechen(this.scale.width, this.scale.height)
-    this.aktualisiereRaender(delta)
+    this.aktualisiereRaender()
+  }
+
+  /**
+   * Prueft, ob eine Stromfigur in eine noch stehende Wand laeuft, und traegt sie
+   * in diesem Fall ab. Der Abbau geschieht ausschliesslich so - der Truppenhaufen
+   * selbst beruehrt die Wand nicht mehr.
+   */
+  private trifftWand(x: number, y: number): boolean {
+    for (const schild of schildPositionen(this.scale.width, this.scale.height, this.randZeitMs, this.truppeX)) {
+      if (schild.seite !== 'rechts') continue
+      const bild = this.randSchilder.get(schild.id)
+      if (!bild || bild.verbraucht) continue
+      const halbeBreite = BALANCE_V2.raender.schildBreitePx / 2 + BALANCE_V2.wand.trefferZugabePx
+      const halbeHoehe = BALANCE_V2.raender.schildHoehePx / 2 + BALANCE_V2.wand.trefferZugabePx
+      if (Math.abs(x - schild.x) > halbeBreite || Math.abs(y - schild.y) > halbeHoehe) continue
+      bild.rest = Math.max(0, bild.rest - BALANCE_V2.wand.abbauJeStromfigur)
+      if (bild.rest <= 0) {
+        bild.verbraucht = true
+        this.tor = mitWandBelohnung(this.tor)
+        this.torFaktorText?.setText(`×${this.tor.faktor}`)
+      }
+      return true
+    }
+    return false
   }
 
   /** Die Anzeige rundet nur; die Ende-Bilanz behaelt die verlorenen Bruchteile. */
