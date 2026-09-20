@@ -33,6 +33,7 @@ export class RunGunV2Scene extends Phaser.Scene {
   private ende: EndeZustand = endeStartZustand(frontStartZustand())
   private bossBild?: Phaser.GameObjects.Image
   private bossZaehler?: Phaser.GameObjects.Text
+  private frontPartikel: Phaser.GameObjects.Arc[] = []
   private endeAusgeloest = false
 
   public constructor() {
@@ -64,6 +65,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.ende = endeStartZustand(this.front)
     this.bossBild = undefined
     this.bossZaehler = undefined
+    this.frontPartikel = []
     this.endeAusgeloest = false
     const width = this.scale.width
     const height = this.scale.height
@@ -121,7 +123,7 @@ export class RunGunV2Scene extends Phaser.Scene {
       this.truppeX + platz.dx,
       truppeY + platz.dy,
       'player',
-    ).setScale(BALANCE_V2.truppe.figurTextureScale).setDepth(2))
+    ).setScale(BALANCE_V2.truppe.figurTextureScale).setTintFill(BALANCE_V2.colors.eigeneSeite).setDepth(2))
     this.truppenZaehler = this.add.text(this.truppeX, truppeY - BALANCE_V2.truppe.haufenRadiusMaxPx - 20, anzeige.zaehler, {
       fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: '#e8f4ff', stroke: '#16202a', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(3)
@@ -168,7 +170,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.truppenFiguren.forEach((figur) => figur.destroy())
     this.truppenPlaetze = plaetze
     this.truppenFiguren = plaetze.map((platz) => this.add.image(this.truppeX + platz.dx, this.truppeY + platz.dy, 'player')
-      .setScale(BALANCE_V2.truppe.figurTextureScale).setDepth(2))
+      .setScale(BALANCE_V2.truppe.figurTextureScale).setTintFill(BALANCE_V2.colors.eigeneSeite).setDepth(2))
     this.truppenZaehler?.setText(truppenAnzeige(this.truppenGroesse).zaehler)
     this.front = mitAnkunft(this.front, wert)
   }
@@ -177,7 +179,7 @@ export class RunGunV2Scene extends Phaser.Scene {
   private erstelleStromVorrat(): void {
     this.stromFiguren = Array.from({ length: BALANCE_V2.strom.vorratGroesse }, () => ({ aktiv: false, x: 0, y: 0, torPassiert: false }))
     this.stromBilder = this.stromFiguren.map(() => this.add.image(0, 0, 'player')
-      .setScale(BALANCE_V2.strom.figurTextureScale).setDepth(1).setVisible(false))
+      .setScale(BALANCE_V2.strom.figurTextureScale).setTintFill(BALANCE_V2.colors.eigeneSeite).setDepth(1).setVisible(false))
   }
 
   private erstelleTor(width: number, height: number): void {
@@ -197,17 +199,21 @@ export class RunGunV2Scene extends Phaser.Scene {
   /** Beide Bildvorräte sind fest: Sichtbarkeit und Position kommen nur aus der Front-Bilanz. */
   private erstelleFlaechen(width: number, height: number): void {
     this.gegnerBilder = Array.from({ length: BALANCE_V2.front.gegnerFigurenVorrat }, () => this.add.image(0, 0, 'enemy-standard')
-      .setScale(BALANCE_V2.front.gegnerFigurTextureScale).setTint(BALANCE_V2.front.gegnerFigurTint).setDepth(0).setVisible(false))
+      .setScale(BALANCE_V2.front.gegnerFigurTextureScale).setTintFill(BALANCE_V2.colors.gegnerSeite).setDepth(0).setVisible(false))
     this.eigeneFrontBilder = Array.from({ length: BALANCE_V2.front.eigeneFigurenVorrat }, () => this.add.image(0, 0, 'player')
-      .setScale(BALANCE_V2.front.eigeneFigurTextureScale).setTint(BALANCE_V2.front.eigeneFigurTint).setDepth(1).setVisible(false))
+      .setScale(BALANCE_V2.front.eigeneFigurTextureScale).setTintFill(BALANCE_V2.colors.eigeneSeite).setDepth(1).setVisible(false))
     this.gegnerZaehler = this.add.text(width / 2, BALANCE_V2.track.horizonY + 24, '', {
       fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: '#ffded9', stroke: '#421a1a', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(3)
+    // Feste Zahl kleiner Kreise: dauerhaft an der Front sichtbar, ohne neue Objekte
+    // pro Bild. Dadurch bleibt die Darstellung auch bei 60 Bildern/s sparsam.
+    this.frontPartikel = Array.from({ length: 24 }, () => this.add.circle(0, 0, 3, 0xffffff, 0).setDepth(4))
     this.zeichneFlaechen(width, height)
   }
 
   private erstelleBoss(width: number): void {
-    this.bossBild = this.add.image(width / 2, BALANCE_V2.track.horizonY, 'enemy-boss').setDepth(2)
+    this.bossBild = this.add.image(width / 2, BALANCE_V2.track.horizonY, 'enemy-boss')
+      .setTintFill(BALANCE_V2.colors.gegnerSeite).setDepth(2)
     this.bossZaehler = this.add.text(width / 2, BALANCE_V2.track.horizonY - 44, '', {
       fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: '#ffded9', stroke: '#421a1a', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(3)
@@ -218,8 +224,11 @@ export class RunGunV2Scene extends Phaser.Scene {
     const fortschritt = 1 - Math.min(1, Math.max(0, this.front.vorrat / BALANCE_V2.front.gegnerStartVorrat))
     const y = BALANCE_V2.track.horizonY + fortschritt * BALANCE_V2.ende.bossMaxAbstiegPx
     const scale = BALANCE_V2.ende.bossStartScale + fortschritt * (BALANCE_V2.ende.bossEndScale - BALANCE_V2.ende.bossStartScale)
-    this.bossBild?.setPosition(width / 2, y).setScale(scale)
-    this.bossZaehler?.setPosition(width / 2, y - 44 * scale).setText(String(Math.round(this.ende.bossVorrat)))
+    // Beide vorhandenen Bossbilder werden nur optisch in ruhigem Takt gewechselt.
+    const elitePose = Math.floor(this.time.now / 700) % 2 === 1
+    this.bossBild?.setTexture(elitePose ? 'enemy-boss-elite' : 'enemy-boss')
+      .setPosition(width / 2, y).setScale(scale)
+    this.bossZaehler?.setPosition(width / 2, y - 120 * scale).setText(String(Math.round(this.ende.bossVorrat)))
   }
 
   private zeichneFlaechen(width: number, height: number): void {
@@ -269,8 +278,28 @@ export class RunGunV2Scene extends Phaser.Scene {
       const spalten = Math.max(1, Math.ceil((rightX - leftX) / eigeneSchrittX))
       bild.setVisible(true).setPosition(leftX + (rightX - leftX) * (((index % eigeneSpalten) % spalten + 0.5) / spalten), y)
     })
-    this.gegnerZaehler?.setText(String(Math.round(this.front.vorrat)))
+    // Der Massenzähler bleibt innerhalb der roten Fläche und unter dem Bosszähler.
+    this.gegnerZaehler?.setPosition(width / 2, Math.min(this.front.frontY - 20, BALANCE_V2.track.horizonY + 104))
+      .setText(String(Math.round(this.front.vorrat)))
+    this.zeichneFrontPartikel(width, height)
     this.zeichneBoss(width)
+  }
+
+  /** Reine Front-Optik: weisse Wolken nur, solange beide Flächen noch kämpfen. */
+  private zeichneFrontPartikel(width: number, height: number): void {
+    const aktiv = this.front.vorrat > 0 && this.front.eigenerWert > 0
+    const { leftX, rightX } = bahnKantenBeiY(width, height, this.front.frontY)
+    this.frontPartikel.forEach((partikel, index) => {
+      if (!aktiv) {
+        partikel.setVisible(false)
+        return
+      }
+      const phase = this.time.now / 260 + index * 1.71
+      const x = Phaser.Math.Linear(leftX + 6, rightX - 6, (index + 0.5) / this.frontPartikel.length)
+        + Math.sin(phase) * 5
+      const y = this.front.frontY + Math.cos(phase * 1.3) * 7
+      partikel.setVisible(true).setPosition(x, y).setRadius(2 + (index % 3)).setAlpha(0.38 + (Math.sin(phase) + 1) * 0.24)
+    })
   }
 
   public update(_time: number, delta: number): void {
@@ -319,7 +348,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.truppenFiguren.forEach((figur) => figur.destroy())
     this.truppenPlaetze = plaetze
     this.truppenFiguren = plaetze.map((platz) => this.add.image(this.truppeX + platz.dx, this.truppeY + platz.dy, 'player')
-      .setScale(BALANCE_V2.truppe.figurTextureScale).setDepth(2))
+      .setScale(BALANCE_V2.truppe.figurTextureScale).setTintFill(BALANCE_V2.colors.eigeneSeite).setDepth(2))
     this.truppenZaehler?.setText(truppenAnzeige(neueGroesse).zaehler)
   }
 

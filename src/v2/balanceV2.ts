@@ -95,10 +95,6 @@ export const BALANCE_V2 = {
     eigeneFigurTextureScale: 0.105,
     // Untere Sichtgrenze der eigenen Flaeche: Die Starttruppe bleibt frei sichtbar.
     eigeneFlaecheMaxUntenY: 680,
-    // Eigene Figuren bleiben klar blau. Der Gegner ist dunkles Rot; ein blauer
-    // Tint auf der roetlichen Zombie-Textur wuerde sie fast schwarz multiplizieren.
-    eigeneFigurTint: 0x75bfff,
-    gegnerFigurTint: 0x8f3038,
   },
   ende: {
     // Der Boss hat den im ersten Video sichtbaren eigenen Vorrat 4.000. Nach der
@@ -120,6 +116,11 @@ export const BALANCE_V2 = {
     menuButton: 0x263d55,
     menuButtonEdge: 0xe8f4ff,
     menuText: '#f4fbff',
+    // Die Texturen haben bereits eigene Farben. setTintFill setzt daher die klare
+    // Seitenfarbe, statt Blau mit einer roten Vorlage zu Schwarz zu multiplizieren.
+    // Die RGB-Werte sind bewusst pruefbar und klar voneinander getrennt.
+    eigeneSeite: 0x3d9dff,
+    gegnerSeite: 0xef4e58,
   },
 } as const
 
