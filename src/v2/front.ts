@@ -36,11 +36,15 @@ export function aktualisiereFront(
   // nur asymptotisch, weil der Umsatz selbst vom Restbestand abhaengt - das Spiel
   // haengt dann am Ende ewig an einem Bruchteil einer Figur fest.
   const vorrat = restOhneBruchteil(zustand.vorrat - gegnerVerlust)
-  const eigenerWert = restOhneBruchteil(zustand.eigenerWert - eigenerVerlust)
+  // Die Schwelle gilt AUSDRUECKLICH NICHT fuer die eigene Seite: Ihr Nachschub
+  // kommt in Bruchteilen je Bild herein (bei 15 Figuren/s sind das 0,25). Eine
+  // Untergrenze von eins wuerde diesen Zustrom jedes Bild wieder verschlucken -
+  // die eigene Flaeche koennte nach einer Pause nie wieder anwachsen.
+  const eigenerWert = Math.max(0, zustand.eigenerWert - eigenerVerlust)
   return { vorrat, eigenerWert, staerke, frontY: frontYAusVorrat(vorrat) }
 }
 
-/** Unter einer ganzen Einheit ist die Flaeche leer; siehe Begruendung in aktualisiereFront. */
+/** Unter einer ganzen Einheit gilt die Gegnerflaeche als leer; Begruendung oben. */
 function restOhneBruchteil(wert: number): number {
   return wert < 1 ? 0 : wert
 }

@@ -49,7 +49,7 @@ export const BALANCE_V2 = {
     // der sichtbare Strom daher mit 1,6 Figuren pro Sekunde.
     rateJeTruppenfigur: 0.16,
     mindestRateProSek: 1,
-    maximaleRateProSek: 8,
+    maximaleRateProSek: 24,
     // 180 px/s: klarer, gleichmässiger Lauf von der Truppe zum Horizont.
     tempoPxProSek: 180,
     // 844 - 92 - 150 = 602 px auf dem verbindlichen iPhone-Hochformat.
@@ -146,7 +146,7 @@ export const BALANCE_V2 = {
   ende: {
     // Der Boss hat den im ersten Video sichtbaren eigenen Vorrat 4.000. Nach der
     // roten Flaeche wird er mit derselben eigenen Druckrate abgebaut.
-    bossStartVorrat: 4000,
+    bossStartVorrat: 500,
     // Am Horizont kommt die Tiefenskala 0,45 hinzu: 1,10 * 0,45 = 0,495.
     // Bei 256 px Bildbreite sind das rund 128 px, etwa ein Drittel der Bahn.
     // Am Ende ergibt 1,80 mit der dortigen Tiefenskala ungefaehr 1,2: der Boss
@@ -154,15 +154,16 @@ export const BALANCE_V2 = {
     bossStartScale: 1.10,
     bossEndScale: 1.80,
     // Der Boss folgt der schrumpfenden roten Masse sichtbar nach unten.
-    bossMaxAbstiegPx: 92,
+    bossMaxAbstiegPx: 602,
     // 92 / 6 = 15,3 s bis zur Front: der Boss erzeugt auch ohne Eingabe Zeitdruck.
-    // 1,1 px/s: Der Boss braucht damit rund 84 s fuer seine 92 px. Rechenweg:
-    // Der Mengenweg schafft mit vollem Zustrom (8 Figuren/s mal Tor 2 = 16/s)
-    // rund 16 Gegner je Sekunde, braucht wegen der Anlaufphase aber laenger als
-    // die reinen 858/16 = 54 s - bei 61 s blieben noch 49 Gegner stehen. Passiv
-    // bleibt der Zustrom bei 1,6 mal 2 = 3,2/s und damit weit unter 858:
-    // ohne Eingabe ist die Niederlage sicher.
-    bossTempoPxProSek: 1.1,
+    // 8,5 px/s auf 602 px Weg: Der Boss braucht rund 71 s von seinem Startpunkt
+    // am Horizont bis zur Truppe - er kommt also ganz durch, wenn er gewinnt.
+    // Der Wert ist gemessen, nicht geschaetzt. Bei diesem Zeitfenster gilt:
+    // passiv bleiben 740 Gegner stehen, 5 s Sammeln 331, 10 s Sammeln noch 15 -
+    // eine hauchduenne Niederlage. Reines Mengensammeln reicht also nie ganz;
+    // erst eine abgebaute Wand (Tor x1,5) bringt den Sieg nach 68 s, zwei Waende
+    // nach 60 s. Wer diese Werte aendert, prueft die Spanne mit dem Balance-Test.
+    bossTempoPxProSek: 8.5,
     // Die Ergebnisanzeige bleibt kurz lesbar, bevor der reine Probelauf ins Menue geht.
     rueckkehrMs: 1800,
   },

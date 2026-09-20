@@ -112,35 +112,26 @@ describe('Run Gun V2 — S8 Optik', () => {
     expect(source).toContain('BALANCE_V2.ebenen.massen')
   })
 
-  it('braucht beide Reihen: Menge allein reicht nicht, eine gefallene Wand entscheidet', () => {
-    // Das Zeitfenster endet, wenn der Boss vorn ist. Der Zustrom kommt aus den
-    // echten Spielfunktionen. Gerechnet wird der Dauerzustand, den ein Spieler
-    // erreicht, der konsequent eine Seite bedient.
-    const bildMs = 1000 / 60
-    const bilder = Math.floor(BALANCE_V2.ende.bossMaxAbstiegPx / BALANCE_V2.ende.bossTempoPxProSek * 60)
-    const lauf = (truppe: number, torFaktor: number) => Array.from({ length: bilder }).reduce((front) => {
-      return aktualisiereFront(mitAnkunft(front, figurenProSekunde(truppe) * torFaktor / 60), bildMs)
-    }, frontStartZustand())
+  // Die Balance-Prueffaelle stehen seit N17 vollstaendig in v2Balance.test.ts:
+  // Sie rechnen mit der Sammelpause, die dieses vereinfachte Modell nicht kannte.
 
-    // Nur Menge, Tor unberuehrt bei x1: reicht im Zeitfenster nicht.
-    expect(lauf(BALANCE_V2.truppe.maxSichtbar, BALANCE_V2.tor.startFaktor).vorrat).toBeGreaterThan(0)
-
-    // Dieselbe Truppe, aber eine abgebaute Wand hebt das Tor auf x1,5: das genuegt.
-    const mitEinerWand = BALANCE_V2.tor.startFaktor + BALANCE_V2.tor.zuwachsJeWand
-    expect(lauf(BALANCE_V2.truppe.maxSichtbar, mitEinerWand).vorrat).toBe(0)
+  it('legt Gehsteige zwischen Mauer und schmalerer Fahrbahn an und setzt Schilder mittig darauf', () => {
+    const y = 700
+    const aussen = bahnKantenBeiY(390, 844, y)
+    const fahrbahn = fahrbahnKantenBeiY(390, 844, y)
+    expect(fahrbahn.leftX).toBeGreaterThan(aussen.leftX)
+    expect(fahrbahn.rightX).toBeLessThan(aussen.rightX)
+    expect(gehsteigMitteBeiY('links', 390, 844, y)).toBeCloseTo((aussen.leftX + fahrbahn.leftX) / 2, 8)
   })
 
-  it('laesst den passiven Spieler im selben Zeitfenster verlieren', () => {
-    // Der schaerfste Pruefstein: ohne Eingabe darf das Spiel sich nicht selbst
-    // gewinnen. Das war in N5 schon einmal kaputt.
-    const bildMs = 1000 / 60
-    const bilder = Math.floor(BALANCE_V2.ende.bossMaxAbstiegPx / BALANCE_V2.ende.bossTempoPxProSek * 60)
-    const passiv = Array.from({ length: bilder }).reduce((front) => {
-      const zustrom = figurenProSekunde(BALANCE_V2.truppe.startGroesse) * BALANCE_V2.tor.startFaktor / 60
-      return aktualisiereFront(mitAnkunft(front, zustrom), bildMs)
-    }, frontStartZustand())
-    expect(passiv.vorrat).toBeGreaterThan(0)
+  it('bezieht jede V2-Zeichenebene aus der Ebenentabelle', () => {
+    const source = readFileSync(new URL('../src/v2/RunGunV2Scene.ts', import.meta.url), 'utf8')
+    expect(source).not.toMatch(/setDepth\(\s*\d/)
+    expect(source).toContain('BALANCE_V2.ebenen.massen')
   })
+
+  // Die Balance-Prueffaelle stehen seit N17 vollstaendig in v2Balance.test.ts:
+  // Sie rechnen mit der Sammelpause, die dieses vereinfachte Modell nicht kannte.
 
 })
 

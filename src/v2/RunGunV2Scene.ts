@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { bahnKanten, bahnKantenBeiY, bahnKantenPunkte, BALANCE_V2, fahrbahnKantenBeiY, horizontFarbe, tiefenSkala, wasserWellenOffset } from './balanceV2'
 import { bewegeStromFigur, figurenProSekunde, stromDarstellungsPosition, type StromFigur } from './strom'
-import { haufenHalbeBreite, haufenPlaetze, haufenPositionenX, type HaufenPlatz, truppeGrenzen, truppenAnzeige } from './truppe'
+import { aufLinkemGehsteig, haufenHalbeBreite, haufenPlaetze, haufenPositionenX, type HaufenPlatz, truppeGrenzen, truppenAnzeige } from './truppe'
 import { frontStartZustand, mitAnkunft, type FrontZustand } from './front'
 import { sammeltEin, schildPositionen } from './raender'
 import { sammelAuswirkung } from './raender'
@@ -479,10 +479,16 @@ export class RunGunV2Scene extends Phaser.Scene {
     if (this.endeAusgeloest) return
     this.randZeitMs += Math.max(0, delta)
     this.zeichneWasser()
-    this.stromRest += figurenProSekunde(this.truppenGroesse) * delta / 1000
-    while (this.stromRest >= 1) {
-      this.stromRest -= 1
-      this.starteStromFigur()
+    // Wer links sammelt, schickt niemanden los: Die Truppe ist mit dem Aufnehmen
+    // beschaeftigt. Das ist der Preis des Sammelns - waehrenddessen bekommt die
+    // Front keinen Nachschub und die rote Flaeche kommt naeher.
+    const sammelt = aufLinkemGehsteig(this.scale.width, this.scale.height, this.truppeX, this.truppeY)
+    if (!sammelt) {
+      this.stromRest += figurenProSekunde(this.truppenGroesse) * delta / 1000
+      while (this.stromRest >= 1) {
+        this.stromRest -= 1
+        this.starteStromFigur()
+      }
     }
     this.stromFiguren.forEach((figur, index) => {
       if (!figur.aktiv) return

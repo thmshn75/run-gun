@@ -1400,3 +1400,21 @@ Funktion - und einen Test, der sie erzwingt.
 
 **Prueffrage bei "Flaeche sitzt schief":** Wird irgendwo eine Punktliste
 umgedreht? Dann zuerst dort nachsehen, bevor an Ursprung oder Origin gedreht wird.
+
+## 2026-09-20 — Eine Untergrenze auf einem Wert frisst dessen Zustrom
+
+**Befund:** Nach dem Einbau der Sammelpause (beim Sammeln wird niemand
+losgeschickt) baute die eigene Seite anschliessend nie wieder etwas ab. Gemessen:
+845 statt 148 Gegner Rest - schlechter als bei kuerzerem Sammeln.
+
+**Ursache:** Eine kurz zuvor eingefuehrte Schwelle "unter einer ganzen Einheit ist
+die Flaeche leer" galt auch fuer die eigene Seite. Deren Nachschub kommt aber in
+Bruchteilen je Bild herein (bei 15 Figuren/s sind das 0,25). Fiel die Flaeche
+einmal auf null, verschluckte die Schwelle jeden Zustrom sofort wieder.
+
+**Regel:** Eine Untergrenze gehoert nur auf einen Wert, der ausschliesslich
+abgebaut wird. Sobald derselbe Wert in kleinen Schritten auch waechst, ist sie
+eine Falle - dann entweder Bruchteile zulassen oder einen Sammler fuehren.
+
+**Prueffrage:** Kann dieser Wert in Schritten wachsen, die kleiner sind als meine
+Schwelle? Dann darf die Schwelle dort nicht stehen.

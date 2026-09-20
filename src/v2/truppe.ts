@@ -1,4 +1,4 @@
-import { bahnKantenBeiY, BALANCE_V2 } from './balanceV2'
+import { bahnKantenBeiY, fahrbahnKantenBeiY, BALANCE_V2 } from './balanceV2'
 
 export type HaufenPlatz = Readonly<{ dx: number, dy: number }>
 
@@ -59,4 +59,18 @@ export function sichtbareFiguren(truppenGroesse: number): number {
 
 export function truppenAnzeige(truppenGroesse: number): Readonly<{ sichtbareFiguren: number, zaehler: string }> {
   return { sichtbareFiguren: sichtbareFiguren(truppenGroesse), zaehler: String(Math.max(0, Math.floor(truppenGroesse))) }
+}
+
+/**
+ * Steht der Haufen auf einem der beiden Gehsteige? Dort wird gesammelt
+ * beziehungsweise geschossen - und genau dann ruht der Nachschub zur Front.
+ */
+export function aufGehsteig(width: number, height: number, truppeX: number, truppeY: number): boolean {
+  const { leftX, rightX } = fahrbahnKantenBeiY(width, height, truppeY)
+  return truppeX < leftX || truppeX > rightX
+}
+
+/** Nur der linke Gehsteig: dort sammelt die Truppe und schickt niemanden los. */
+export function aufLinkemGehsteig(width: number, height: number, truppeX: number, truppeY: number): boolean {
+  return truppeX < fahrbahnKantenBeiY(width, height, truppeY).leftX
 }
