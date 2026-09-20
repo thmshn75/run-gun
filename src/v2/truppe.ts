@@ -41,11 +41,11 @@ export function haufenPositionenX(mittelpunktX: number, plaetze: readonly Haufen
 
 /**
  * Der Mittelpunkt darf nur so weit fahren, dass der komplette Haufen auch an seiner
- * untersten (und damit im neuen Trichter schmalsten) Stelle innerhalb der Bahn bleibt.
+ * obersten (und damit im neuen Trichter schmalsten) Stelle innerhalb der Bahn bleibt.
  */
 export function truppeGrenzen(width: number, height: number, halbeBreiteDesHaufens: number): TruppeGrenzen {
-  const untersteHaufenHoehe = height - BALANCE_V2.truppe.abstandVonUntenPx + BALANCE_V2.truppe.haufenRadiusMaxPx
-  const { leftX, rightX } = bahnKantenBeiY(width, height, untersteHaufenHoehe)
+  const obersteHaufenHoehe = height - BALANCE_V2.truppe.abstandVonUntenPx - BALANCE_V2.truppe.haufenRadiusMaxPx
+  const { leftX, rightX } = bahnKantenBeiY(width, height, obersteHaufenHoehe)
   const rand = Math.max(0, halbeBreiteDesHaufens)
   return { minX: leftX + rand, maxX: rightX - rand }
 }

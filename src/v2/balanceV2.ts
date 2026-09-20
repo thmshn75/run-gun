@@ -6,14 +6,18 @@ export const BALANCE_V2 = {
   track: {
     // 150 px: aus der bestehenden Bahn abgelesene Horizonthoehe bei 844 px Spielhoehe.
     horizonY: 150,
-    // 1,0 * 390 px: am Horizont nutzt die Bruecke die volle Bildschirmbreite.
-    topWidthRatio: 1.0,
-    // 0,58 * 390 px: vorne bleibt die Bruecke deutlich schmaler als der Bildschirm.
-    bottomWidthRatio: 0.58,
-    // Bei f = 0,5 bleiben (1 - 0,5)^1,8 = 28,7 % des Breitenueberschusses:
-    // die Auffaecherung sitzt oben, das untere bespielte Drittel ist fast parallel.
+    // 0,62 * 390 px: die Bruecke ist am Horizont sichtbar schmaler.
+    topWidthRatio: 0.62,
+    // 0,94 * 390 px: vorne bleibt trotz Mauern fast die ganze Breite frei.
+    bottomWidthRatio: 0.94,
+    // Bei f = 0,5 kommen erst 0,5^1,8 = 28,7 % des Breitenueberschusses dazu:
+    // die Verjuengung bleibt am Horizont deutlich sichtbar.
     kurvenExponent: 1.8,
-    // 4 px: sichtbares Brueckengelaender statt einer blossen Mauerkante.
+    // Ein Objekt am Horizont ist im Referenzvideo knapp halb so gross wie vorn.
+    skalaHorizont: 0.45,
+    // 26 px im Vordergrund: sichtbare Mauerhoehe statt eines blossen Strichs.
+    mauerHoehePx: 26,
+    // 4 px: sichtbare Brueckenkante.
     wallWidthPx: 4,
   },
   truppe: {
@@ -60,7 +64,7 @@ export const BALANCE_V2 = {
     // Die Schilder folgen der Bahn konstant von oben nach unten. 48 px Abstand bei
     // 56 px Hoehe ueberlappt leicht und laesst auch zwischen zwei Umlaeufen keine Luecke.
     schildHoehePx: 56,
-    schildBreitePx: 54,
+    schildBreitePx: 38,
     abstandPx: 48,
     // In der Mitte 120 px/s, ganz links +100 px/s: 220 px/s ist deutlich schneller,
     // ohne dass die Reihe bei 60 fps mehr als rund 4 px pro Bild springt.
@@ -68,7 +72,7 @@ export const BALANCE_V2 = {
     zuschlagGanzLinksPxProSek: 100,
     // Mittelpunkt 42 px innerhalb der Bahnkante: bei 54 px Schildbreite bleiben
     // einschliesslich der Kontur sichtbar 14 px freie Bahn bis zur Aussenkante.
-    randEinzugPx: 42,
+    randEinzugPx: 30,
     // Einsammeln ist reine Bildschirmgeometrie, keine Phaser-Physik.
     sammelSeitlichPx: 42,
     sammelHoehePx: 34,
@@ -129,8 +133,6 @@ export const BALANCE_V2 = {
     menuButton: 0x263d55,
     menuButtonEdge: 0xe8f4ff,
     menuText: '#f4fbff',
-    // Die Texturen haben bereits eigene Farben. setTintFill setzt daher die klare
-    // Seitenfarbe, statt Blau mit einer roten Vorlage zu Schwarz zu multiplizieren.
     // Die RGB-Werte sind bewusst pruefbar und klar voneinander getrennt.
     eigeneSeite: 0x3d9dff,
     gegnerSeite: 0xef4e58,
@@ -166,13 +168,19 @@ export function bahnKanten(width: number, height: number) {
 export function bahnKantenBeiY(width: number, height: number, y: number, kurvenExponent = BALANCE_V2.track.kurvenExponent) {
   const kanten = bahnKanten(width, height)
   const fortschritt = Math.min(1, Math.max(0, (y - kanten.horizonY) / (kanten.bottomY - kanten.horizonY)))
-  const halbeBreite = width * BALANCE_V2.track.bottomWidthRatio / 2
-    + (width * BALANCE_V2.track.topWidthRatio / 2 - width * BALANCE_V2.track.bottomWidthRatio / 2)
-      * (1 - fortschritt) ** kurvenExponent
+  const halbeBreite = width * BALANCE_V2.track.topWidthRatio / 2
+    + (width * BALANCE_V2.track.bottomWidthRatio / 2 - width * BALANCE_V2.track.topWidthRatio / 2)
+      * fortschritt ** kurvenExponent
   return {
     leftX: width / 2 - halbeBreite,
     rightX: width / 2 + halbeBreite,
   }
+}
+
+/** Eine Darstellungsquelle fuer die ganze Bahn: Horizont klein, Vordergrund echt. */
+export function tiefenSkala(height: number, y: number): number {
+  const fortschritt = Math.min(1, Math.max(0, (y - BALANCE_V2.track.horizonY) / (height - BALANCE_V2.track.horizonY)))
+  return BALANCE_V2.track.skalaHorizont + (1 - BALANCE_V2.track.skalaHorizont) * fortschritt
 }
 
 /** Einziger Aufbaupfad fuer alle gekruemmten Brueckenflaechen und -kanten. */
