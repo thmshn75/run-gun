@@ -6,10 +6,13 @@ export const BALANCE_V2 = {
   track: {
     // 150 px: aus der bestehenden Bahn abgelesene Horizonthoehe bei 844 px Spielhoehe.
     horizonY: 150,
-    // 0,90 * 390 px: die Bruecke ist hinten sichtbar breiter als vorn.
-    topWidthRatio: 0.90,
-    // 0,54 * 390 px: die schmale Vorderkante macht die Bahn zum Trichter.
-    bottomWidthRatio: 0.54,
+    // 1,0 * 390 px: am Horizont nutzt die Bruecke die volle Bildschirmbreite.
+    topWidthRatio: 1.0,
+    // 0,58 * 390 px: vorne bleibt die Bruecke deutlich schmaler als der Bildschirm.
+    bottomWidthRatio: 0.58,
+    // Bei f = 0,5 bleiben (1 - 0,5)^1,8 = 28,7 % des Breitenueberschusses:
+    // die Auffaecherung sitzt oben, das untere bespielte Drittel ist fast parallel.
+    kurvenExponent: 1.8,
     // 4 px: sichtbares Brueckengelaender statt einer blossen Mauerkante.
     wallWidthPx: 4,
   },
@@ -160,11 +163,25 @@ export function bahnKanten(width: number, height: number) {
 }
 
 /** Ermittelt eine Bahnkante auf einer Höhe aus genau den vier S1-Eckpunkten. */
-export function bahnKantenBeiY(width: number, height: number, y: number) {
+export function bahnKantenBeiY(width: number, height: number, y: number, kurvenExponent = BALANCE_V2.track.kurvenExponent) {
   const kanten = bahnKanten(width, height)
   const fortschritt = Math.min(1, Math.max(0, (y - kanten.horizonY) / (kanten.bottomY - kanten.horizonY)))
+  const halbeBreite = width * BALANCE_V2.track.bottomWidthRatio / 2
+    + (width * BALANCE_V2.track.topWidthRatio / 2 - width * BALANCE_V2.track.bottomWidthRatio / 2)
+      * (1 - fortschritt) ** kurvenExponent
   return {
-    leftX: kanten.topLeftX + (kanten.bottomLeftX - kanten.topLeftX) * fortschritt,
-    rightX: kanten.topRightX + (kanten.bottomRightX - kanten.topRightX) * fortschritt,
+    leftX: width / 2 - halbeBreite,
+    rightX: width / 2 + halbeBreite,
   }
+}
+
+/** Einziger Aufbaupfad fuer alle gekruemmten Brueckenflaechen und -kanten. */
+export function bahnKantenPunkte(width: number, height: number, schritte: number) {
+  const kanten = bahnKanten(width, height)
+  const anzahl = Math.max(1, Math.floor(schritte))
+  return Array.from({ length: anzahl + 1 }, (_, index) => {
+    const y = kanten.horizonY + (kanten.bottomY - kanten.horizonY) * index / anzahl
+    const { leftX, rightX } = bahnKantenBeiY(width, height, y)
+    return { leftX, rightX, y }
+  })
 }

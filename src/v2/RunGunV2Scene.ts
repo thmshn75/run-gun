@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { bahnKanten, bahnKantenBeiY, BALANCE_V2 } from './balanceV2'
+import { bahnKanten, bahnKantenBeiY, bahnKantenPunkte, BALANCE_V2 } from './balanceV2'
 import { bewegeStromFigur, figurenProSekunde, stromDarstellungsPosition, type StromFigur } from './strom'
 import { haufenHalbeBreite, haufenPlaetze, haufenPositionenX, type HaufenPlatz, truppeGrenzen, truppenAnzeige } from './truppe'
 import { frontStartZustand, mitAnkunft, type FrontZustand } from './front'
@@ -40,7 +40,7 @@ export class RunGunV2Scene extends Phaser.Scene {
   private bossZaehler?: Phaser.GameObjects.Text
   private frontPartikel: Phaser.GameObjects.Arc[] = []
   private wasserWellen: Phaser.GameObjects.Line[] = []
-  private wasserGeometrie?: Readonly<{ width: number, height: number, horizonY: number, topLeftX: number, topRightX: number, bottomLeftX: number, bottomRightX: number }>
+  private wasserGeometrie?: Readonly<{ width: number, height: number, horizonY: number }>
   private endeAusgeloest = false
 
   public constructor() {
@@ -86,27 +86,22 @@ export class RunGunV2Scene extends Phaser.Scene {
     const width = this.scale.width
     const height = this.scale.height
     const centerX = width / 2
-    const { horizonY, bottomY, topLeftX, topRightX, bottomLeftX, bottomRightX } = bahnKanten(width, height)
+    const { horizonY, bottomY } = bahnKanten(width, height)
+    // Die 24 Stützpunkte entstehen nur beim Aufbau; Straße, Wasser und Kanten teilen
+    // dieselbe Kurve, damit keine sichtbare Geometrie neben ihr wegdriften kann.
+    const kantenPunkte = bahnKantenPunkte(width, height, 24)
+    const linkeKante = kantenPunkte.flatMap(({ leftX, y }) => [leftX, y])
+    const rechteKante = kantenPunkte.flatMap(({ rightX, y }) => [rightX, y])
 
     this.add.rectangle(centerX, height / 2, width, height, BALANCE_V2.colors.sky)
     // Ruhiger Horizont: wenige feste Farbbaender statt einer harten Wasser-Himmel-Kante.
     for (let index = 0; index < 8; index += 1) this.add.rectangle(centerX, horizonY - 28 + index * 7, width, 8, Phaser.Display.Color.GetColor(128 - index * 7, 200 - index * 8, 238 - index * 9))
-    this.erstelleWasser(width, height, horizonY, topLeftX, topRightX, bottomLeftX, bottomRightX)
-    this.add.polygon(0, 0, [
-      topLeftX, horizonY,
-      topRightX, horizonY,
-      bottomRightX, bottomY,
-      bottomLeftX, bottomY,
-    ], BALANCE_V2.colors.road).setOrigin(0, 0)
-
-    this.add.polygon(0, 0, [0, horizonY, topLeftX, horizonY, bottomLeftX, bottomY, 0, bottomY], 0x246981).setOrigin(0, 0)
-    this.add.polygon(0, 0, [topRightX, horizonY, width, horizonY, width, bottomY, bottomRightX, bottomY], 0x246981).setOrigin(0, 0)
-    this.add.line(0, 0, topLeftX, horizonY, bottomLeftX, bottomY, BALANCE_V2.colors.wallEdge, 1)
-      .setOrigin(0, 0)
-      .setLineWidth(BALANCE_V2.track.wallWidthPx)
-    this.add.line(0, 0, topRightX, horizonY, bottomRightX, bottomY, BALANCE_V2.colors.wallEdge, 1)
-      .setOrigin(0, 0)
-      .setLineWidth(BALANCE_V2.track.wallWidthPx)
+    this.erstelleWasser(width, height, horizonY)
+    this.add.polygon(0, 0, [...linkeKante, ...[...rechteKante].reverse()], BALANCE_V2.colors.road).setOrigin(0, 0)
+    this.add.polygon(0, 0, [0, horizonY, ...linkeKante, 0, bottomY], 0x246981).setOrigin(0, 0)
+    this.add.polygon(0, 0, [...rechteKante, width, bottomY, width, horizonY], 0x246981).setOrigin(0, 0)
+    this.zeichneKante(linkeKante)
+    this.zeichneKante(rechteKante)
     this.erstelleGelaender(width, height)
 
     const menuButton = this.add.rectangle(52, 34, 84, 36, BALANCE_V2.colors.menuButton)
@@ -126,9 +121,16 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.aktiviereTruppenSteuerung(width, height)
   }
 
-  private erstelleWasser(width: number, height: number, horizonY: number, topLeftX: number, topRightX: number, bottomLeftX: number, bottomRightX: number): void {
+  private erstelleWasser(width: number, height: number, horizonY: number): void {
     this.wasserWellen = Array.from({ length: 22 }, (_, index) => this.add.line(0, 0, 0, 0, 22 + index % 4 * 8, 0, 0xa4d9e8, 0.42).setOrigin(0, 0).setDepth(-1))
-    this.wasserGeometrie = { width, height, horizonY, topLeftX, topRightX, bottomLeftX, bottomRightX }
+    this.wasserGeometrie = { width, height, horizonY }
+  }
+
+  private zeichneKante(punkte: readonly number[]): void {
+    const kante = this.add.graphics().lineStyle(BALANCE_V2.track.wallWidthPx, BALANCE_V2.colors.wallEdge, 1)
+    kante.beginPath().moveTo(punkte[0], punkte[1])
+    for (let index = 2; index < punkte.length; index += 2) kante.lineTo(punkte[index], punkte[index + 1])
+    kante.strokePath()
   }
 
   private erstelleGelaender(width: number, height: number): void {
@@ -282,13 +284,10 @@ export class RunGunV2Scene extends Phaser.Scene {
     const gegnerSchrittX = gegnerBreite * 0.9
     const gegnerSchrittY = gegnerHoehe * 0.9
     const zeilen = Math.max(1, Math.ceil((this.front.frontY - BALANCE_V2.track.horizonY) / gegnerSchrittY))
-    const kanten = bahnKanten(width, height)
     const gegnerPlaetze: Array<{ x: number, y: number }> = []
     for (let zeile = 0; zeile < zeilen; zeile += 1) {
       const y = BALANCE_V2.track.horizonY + (this.front.frontY - BALANCE_V2.track.horizonY) * (zeile + 0.5) / zeilen
-      const fortschritt = (y - kanten.horizonY) / (kanten.bottomY - kanten.horizonY)
-      const left = kanten.topLeftX + (kanten.bottomLeftX - kanten.topLeftX) * fortschritt
-      const right = kanten.topRightX + (kanten.bottomRightX - kanten.topRightX) * fortschritt
+      const { leftX: left, rightX: right } = bahnKantenBeiY(width, height, y)
       const spalten = Math.max(1, Math.ceil((right - left) / gegnerSchrittX))
       for (let spalte = 0; spalte < spalten; spalte += 1) {
         gegnerPlaetze.push({ x: left + (right - left) * ((spalte + 0.5) / spalten), y })
@@ -456,9 +455,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     const zeit = this.time.now / 1000
     this.wasserWellen.forEach((welle, index) => {
       const y = g.horizonY + 18 + (index % 11) * (g.height - g.horizonY - 28) / 11
-      const anteil = (g.height - y) / (g.height - g.horizonY)
-      const links = g.bottomLeftX + (g.topLeftX - g.bottomLeftX) * anteil
-      const rechts = g.bottomRightX + (g.topRightX - g.bottomRightX) * anteil
+      const { leftX: links, rightX: rechts } = bahnKantenBeiY(g.width, g.height, y)
       const x = index < 11 ? Math.max(4, links - 38 + Math.sin(zeit * 1.4 + index) * 12) : Math.min(g.width - 34, rechts + 12 + Math.sin(zeit * 1.4 + index) * 12)
       welle.setPosition(x, y + Math.sin(zeit * 2 + index) * 3)
     })

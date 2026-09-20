@@ -2,105 +2,96 @@
 
 Status: APPROVED
 
-## Aufgabe: V6/N8 — Optik nach dem Video und zwei Mechanik-Änderungen
+## Aufgabe: V6/N9 — Die Brücke bekommt eine gebogene Trichterform
 
 Thomas am 2026-09-20, wörtlich:
-- "die Optik gefällt mir noch gar nicht, ich möchte Brücke und Wasser"
-- "die Brücke hinten breiter machen, damit man hinten mehr Platz hat, und in einer
-  Kurve bzw. wie ein Trichter nach vorne kommen, links und rechts bewegtes Wasser und
-  einen schönen Horizontübergang zum Himmel"
-- "die eigene Armee nur als Helme darstellen und die anderen auch, nur die Heavy und
-  die Bosse als Figuren"
-- "die +1 Wände sollen schneller werden, wenn ich nach links fahre"
-- "das Tor in der Mitte nicht ×99, sondern nur ×2"
-- Zu den +99: "überlege dir selbst etwas Logisches, was wir brauchen können" —
-  festgelegt: **links gibt Menge, rechts gibt Stärke** (siehe Punkt 5).
+> "der trichter soll aber nicht gerade sein sondern eine kurve oben breit unten
+> schmal aber so breit es laut bildschirm geht"
 
-### 1. Brücke über Wasser, Trichterform
+Heute laufen die Bahnkanten als **gerade Linie** von der Horizontecke zur unteren
+Ecke — `bahnKantenBeiY` interpoliert linear. Das soll eine **Kurve** werden: am
+Horizont weit aufgefächert, nach vorn hin rasch schmaler, im unteren Drittel fast
+parallel. Und die Bahn soll die Bildschirmbreite ausnutzen.
 
-- Die Bahn ist eine **Brücke**: mit Geländern an beiden Seiten, links und rechts
-  daneben **bewegtes Wasser** (ruhige, wiederkehrende Wellenbewegung; kein Zufall je
-  Bild, sondern eine Sinusbewegung, damit es ruhig wirkt).
-- **Trichterform:** hinten (am Horizont) deutlich breiter als vorn. Heute ist es
-  umgekehrt. Die Bahnkanten-Funktion `bahnKanten` ist entsprechend umzustellen; alle
-  Stellen, die sie benutzen (Truppe, Ränder, Flächen), ziehen automatisch mit — genau
-  dafür gibt es sie. **Keine zweite Geometrie danebenbauen.**
-- **Horizontübergang:** weicher Verlauf zwischen Wasser/Bahn und Himmel statt der
-  heutigen harten Kante. Ein Farbverlauf über wenige Dutzend Pixel genügt.
+### 1. Gebogene Kante in `bahnKantenBeiY`
 
-### 2. Helme statt Figuren
+Die halbe Bahnbreite auf einer Höhe folgt nicht mehr `topHalf + (bottomHalf -
+topHalf) * f`, sondern:
 
-- Die **Masse** beider Seiten wird als **Helm** dargestellt, nicht als ganze Figur:
-  eigene Seite blaue Helme, Gegnerseite rote Helme. Das ist der Grund, warum die
-  Massen im Video so dicht wirken.
-- **Nur Heavy und Bosse bleiben ganze Figuren** und sind entsprechend größer.
-- Die Helm-Bilder **erzeugst du mit deinem Bildwerkzeug** und legst sie zu den übrigen
-  Bildern. Zwei Stück genügen (ein Helm blau, ein Helm rot), schlicht und von oben
-  gesehen, damit sie bei wenigen Pixeln Größe noch als Helm lesbar sind.
+```
+halbeBreite(f) = bottomHalf + (topHalf - bottomHalf) * (1 - f) ** kurvenExponent
+```
 
-### 3. Das Tor zeigt ×2
+mit `f` dem bisherigen, weiterhin auf 0..1 begrenzten Höhenfortschritt zwischen
+Horizont und Unterkante. Bei `kurvenExponent = 1` ergibt das exakt die heutige
+Gerade — der neue Wert kommt als `track.kurvenExponent` nach `balanceV2.ts`,
+**Startwert 1.8**, mit Rechenweg als Kommentar: bei halber Höhe ist die Bahn damit
+schon auf etwa 29 Prozent des Breitenüberschusses zurück, liegt also im unteren,
+bespielten Teil nahezu parallel, während die Auffächerung am Horizont sitzt.
 
-`tor.faktor` auf 2. Der Freischaltzähler bleibt, aber die Zahl ist an den kleineren
-Faktor anzupassen, damit die Freischaltung in ähnlicher Zeit gelingt — Rechenweg als
-Kommentar.
+`bahnKanten` liefert weiterhin dieselben vier Eckpunkte — die Kurve liegt
+ausschliesslich dazwischen, damit Horizont- und Unterkante unverändert bleiben.
 
-### 4. Die +1-Reihe wird schneller, je weiter links
+### 2. Breiter ausnutzen
 
-Heute laufen die Schilder mit festem Tempo vorbei. Neu: Das Tempo der **linken** Reihe
-steigt, je weiter links die Truppe steht — ganz links deutlich schneller, in der Mitte
-das Grundtempo. So lohnt sich das Hinfahren doppelt. Zwei Werte in `balanceV2.ts`
-(Grundtempo, Zuschlag ganz links) mit Rechenweg.
+- `topWidthRatio` von 0.90 auf **1.0**: die Brücke reicht am Horizont über die
+  volle Bildschirmbreite. Das Wasser bleibt sichtbar, weil die Kurve nach vorn
+  auseinandergeht — es füllt dann die unteren Ecken.
+- `bottomWidthRatio` von 0.54 auf **0.58**: vorn weiterhin deutlich schmaler,
+  aber nicht enger als nötig.
 
-### 5. Die +99-Reihe gibt STÄRKE statt Menge
+### 3. Alles Gezeichnete muss der Kurve folgen
 
-Bisher vergrößert sie wie die +1-Reihe die Truppe — das ist doppelt gemoppelt und war
-der Grund für Thomas' Einwand. Neu:
+Heute sind Straße, Wasserflächen und die beiden Kantenlinien **Vierecke bzw.
+gerade Linien aus den vier Ecken**. Mit einer gebogenen Kante stimmt das nicht
+mehr: die Fläche würde die Kurve abschneiden.
 
-- Ein eingesammeltes +99-Schild erhöht die **Schlagkraft** der eigenen Seite: Jede
-  eigene Einheit nimmt der Gegnerfläche mehr Vorrat ab.
-- Die Truppengröße bleibt davon **unberührt**.
-- Damit entsteht die Entscheidung: **links viele schwache, rechts wenige starke.**
-- Die Schlagkraft wird als eigener Wert geführt und ist **sichtbar** — eine zweite
-  Zahl neben der Truppengröße, klar beschriftet.
-- Werte so wählen, dass beide Wege zum Sieg führen können und keiner offensichtlich
-  besser ist. Der Rechenweg gehört als Kommentar dazu: Zustrom mal Schlagkraft gegen
-  Gegnervorrat, für beide Wege einmal durchgerechnet.
+Alle vier Gebilde sind deshalb aus **Stützpunkten entlang der Kurve** zu bauen —
+eine gemeinsame Hilfsfunktion in `balanceV2.ts`, die zu einer Schrittzahl die
+Punktliste einer Kante liefert (Vorschlag `bahnKantenPunkte(width, height,
+schritte)`), und **genau diese** benutzen Straßenpolygon, beide Wasserpolygone und
+die beiden Geländerkanten. 24 Schritte genügen für eine glatte Linie bei 844 px
+Höhe. **Keine zweite Geometrie danebenbauen** — was die Kurve nicht aus dieser
+Quelle holt, driftet später auseinander (so ist S1 schon einmal gebrochen).
+
+Die Kantenlinien (`add.line`) müssen dafür zu einem Polygon- oder Kurvenzug
+werden; die Geländerpfosten stehen weiterhin auf `bahnKantenBeiY` und ziehen
+automatisch mit.
 
 ### Grenzen
 
-- Alles in `src/v2/` (plus die neuen Bilddateien). Keine Importe aus `src/systems/`,
-  `src/config/balance`, `src/scenes/`. Kein Speicherzugriff.
-- Die Bilanzrechnung aus S4/S7 bleibt in ihrer Struktur; nur der Schlagkraft-Faktor
-  kommt hinzu.
-- Bildrate bleibt bei 60, auch mit Wasser und Helmen.
+- Nur `src/v2/`. Keine Importe aus `src/systems/`, `src/config/balance`,
+  `src/scenes/`. Kein Speicherzugriff.
+- Truppe, Ränder, Flächen, Tor und die Bilanzrechnung bleiben unverändert — sie
+  holen ihre Geometrie schon aus `bahnKantenBeiY` und ziehen von selbst mit.
+- Bildrate bleibt 60. Die Stützpunkte werden **einmal beim Aufbau** gerechnet,
+  nicht je Bild.
 
 ### Akzeptanzkriterien
 
-1. `npx tsc --noEmit`, `npm run build`, `npm test` sauber; bestehende V2-Tests grün.
-2. Tests:
-   - `bahnKanten` ist hinten breiter als vorn (Trichter), für mehrere Höhen geprüft.
-   - Das Tempo der linken Reihe steigt streng monoton, je weiter links die Truppe
-     steht; in der Mitte gilt das Grundtempo.
-   - Ein +99-Schild erhöht die Schlagkraft und **nicht** die Truppengröße.
-   - Beide Wege (nur links / nur rechts) führen rechnerisch zum Sieg — je einmal über
-     die Bilanzfunktion durchgerechnet, ohne Phaser.
-3. **Browser-Nachweis bei 390×844** (führt Claude selbst): Brücke mit Geländern über
-   bewegtem Wasser, hinten breiter, weicher Horizont; Massen als Helme, Heavy und Boss
-   als Figuren; Tor zeigt ×2; linke Reihe wird beim Linksfahren sichtbar schneller;
-   +99 erhöht die zweite Zahl, nicht die Truppengröße; 60 Bilder je Sekunde;
-   Doppelstart identisch.
-
-### Vorab: kleiner Rest aus der Torlauf-Entfernung
-
-In `src/systems/spawner.ts` steht bei `setData('bodyWidth', ...)` noch ein Kommentar,
-der auf den entfernten Modus verweist, und die Multiplikation `* 1` ist dadurch
-sinnlos geworden. Beides bereinigen — Kommentar auf die verbleibende Aussage kürzen
-(Kampfhöhen-Maße für Spurwahl, Schatten und Formationsbreite), `* 1` streichen. Der
-Test `tests/keinTorlauf.test.ts` wird damit grün. **Sonst nichts am Spawner ändern.**
+1. `npx tsc --noEmit`, `npm test`, `npm run build` sauber; alle bestehenden Tests
+   grün. Wo ein Test die alte gerade Interpolation nachrechnet, ist er auf die
+   Kurvenformel umzustellen — nicht zu löschen.
+2. Neue Tests:
+   - Die Bahn ist auf jeder Höhe symmetrisch zur Bildmitte.
+   - Die Breite nimmt von oben nach unten **streng monoton** ab.
+   - Die Kante ist **gebogen, nicht gerade**: auf halber Höhe ist die Bahn
+     schmaler als der Mittelwert aus oberer und unterer Breite — und zwar um mehr
+     als 5 Prozent der Bildbreite, damit die Krümmung auch sichtbar ist.
+   - Mit `kurvenExponent = 1` ergäbe die Formel wieder die lineare Gerade
+     (Formeltest, ohne den Balance-Wert zu ändern).
+3. **Browser-Nachweis bei 390×844** (führt Claude): sichtbar gebogene Kanten,
+   oben über die volle Breite, unten schmaler; Wasser in den unteren Ecken;
+   Geländer sitzen auf der Kurve; 60 Bilder je Sekunde; Doppelstart identisch.
 
 ## Implementation Summary
 
-- V2 zeichnet die trichterfoermige Bruecke mit Geländern, sinusbewegtem Wasser und weichem Horizont; beide neu erzeugten Helm-PNGs liegen in `src/assets/` und werden fuer Truppe, Strom und Massen verwendet, Heavy/Boss bleiben Figuren.
-- Tor ist ×2 mit proportional auf zwei reduzierten Treffern. Links beschleunigt die +1-Reihe von 120 auf 220 px/s, rechts erhöht +99 ausschliesslich die sichtbare Staerke (100 → 199).
-- Bilanz-, Geometrie- und Randtests decken beide Siegwege ab. Der einzelne verbliebene Spawner-Kommentar wurde gekuerzt und `* 1` entfernt.
-- Nachweise: `npx tsc --noEmit`, `npm test` (47 Dateien, 453 Tests) und `npm run build` erfolgreich; Browser- und 390×844-Doppelstart-Nachweis bleibt wie vereinbart bei Claude.
+- `bahnKantenBeiY` nutzt jetzt die kurvenfoermige Breitenformel mit Exponent 1,8;
+  die Bruecke ist oben bildschirmbreit und unten 58 Prozent breit.
+- Straße, beide Wasserflaechen, Kantenlinien und Wasserwellen beziehen ihre Lage aus
+  derselben 24-Punkte-Kurvenquelle; alle sonstigen V2-Elemente folgen weiter
+  `bahnKantenBeiY`.
+- Neue Geometrietests sichern Symmetrie, strikt abnehmende Breite, sichtbare Kruemmung
+  und die lineare Rueckfallformel bei Exponent 1. `npx tsc --noEmit`, `npm test`
+  (47 Dateien, 455 Tests), `npm run build` und `git diff --check` sind erfolgreich.
+- Browser-Nachweis bei 390×844 inklusive Doppelstart ist gemaess Aufgabe bei Claude offen.
