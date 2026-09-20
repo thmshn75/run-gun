@@ -121,12 +121,16 @@ export class RunGunV2Scene extends Phaser.Scene {
     for (let index = 0; index < verlaufBaender; index += 1) {
       this.add.rectangle(centerX, horizonY - verlaufHoehe / 2 + (index + 0.5) * verlaufHoehe / verlaufBaender, width, verlaufHoehe / verlaufBaender + 1, horizontFarbe(index, verlaufBaender)).setDepth(BALANCE_V2.ebenen.wasser)
     }
+    this.add.rectangle(centerX, (horizonY + bottomY) / 2, width, bottomY - horizonY, BALANCE_V2.colors.water)
+      .setDepth(BALANCE_V2.ebenen.wasser)
     this.erstelleWasser(width, height, horizonY)
     this.add.polygon(0, 0, [...linkeFahrbahnKante, ...[...rechteFahrbahnKante].reverse()], BALANCE_V2.colors.road).setOrigin(0, 0).setDepth(BALANCE_V2.ebenen.strasse)
     this.add.polygon(0, 0, [...linkeKante, ...[...linkeFahrbahnKante].reverse()], BALANCE_V2.colors.wall).setOrigin(0, 0).setDepth(BALANCE_V2.ebenen.gehsteig)
     this.add.polygon(0, 0, [...rechteFahrbahnKante, ...[...rechteKante].reverse()], BALANCE_V2.colors.wall).setOrigin(0, 0).setDepth(BALANCE_V2.ebenen.gehsteig)
-    this.add.polygon(0, 0, [0, horizonY, ...linkeKante, 0, bottomY], BALANCE_V2.colors.water).setOrigin(0, 0).setDepth(BALANCE_V2.ebenen.wasser)
-    this.add.polygon(0, 0, [...rechteKante, width, bottomY, width, horizonY], BALANCE_V2.colors.water).setOrigin(0, 0).setDepth(BALANCE_V2.ebenen.wasser)
+    // Eine durchgehende Wasserflaeche vom Horizont bis zur Unterkante, ueber die
+    // volle Breite. Die frueheren zwei Uferpolygone liefen nach unten spitz zu und
+    // lasen sich als schraeger Strich mit Farbwechsel; was davon in der Mitte
+    // sichtbar bliebe, deckt ohnehin die Bahn ab, die direkt darueber liegt.
     this.zeichneKante(linkeKante)
     this.zeichneKante(rechteKante)
     this.erstelleGelaender(width, height)
@@ -150,7 +154,7 @@ export class RunGunV2Scene extends Phaser.Scene {
   }
 
   private erstelleWasser(width: number, height: number, horizonY: number): void {
-    this.wasserWellen = Array.from({ length: 22 }, (_, index) => this.add.line(0, 0, 0, 0, 22 + index % 4 * 8, 0, BALANCE_V2.colors.waterWave, 0.72).setOrigin(0, 0).setDepth(BALANCE_V2.ebenen.wasser))
+    this.wasserWellen = Array.from({ length: 36 }, (_, index) => this.add.line(0, 0, 0, 0, 22 + index % 4 * 8, 0, BALANCE_V2.colors.waterWave, 0.85).setOrigin(0, 0).setDepth(BALANCE_V2.ebenen.wasserWelle))
     this.wasserGeometrie = { width, height, horizonY }
   }
 
@@ -515,14 +519,23 @@ export class RunGunV2Scene extends Phaser.Scene {
     const g = this.wasserGeometrie
     if (!g) return
     const zeit = this.time.now / 1000
+    const jeSeite = this.wasserWellen.length / 2
     this.wasserWellen.forEach((welle, index) => {
-      const y = g.horizonY + 18 + (index % 11) * BALANCE_V2.track.wasserWellenAbstandPx
+      const linkeSeite = index < jeSeite
+      const reihe = index % jeSeite
+      const y = g.horizonY + 14 + reihe * BALANCE_V2.track.wasserWellenAbstandPx
       const { leftX: links, rightX: rechts } = bahnKantenBeiY(g.width, g.height, y)
       const offset = wasserWellenOffset(zeit, index)
       const skala = tiefenSkala(g.height, y)
-      const laenge = (24 + index % 4 * 9) * skala
-      const x = index < 11 ? Math.max(4, links - 42 * skala + offset * 8) : Math.min(g.width - laenge - 4, rechts + 12 * skala + offset * 8)
-      welle.setTo(0, 0, laenge, 0).setPosition(x, y + offset * 4).setLineWidth(Math.max(1, 2 * skala), Math.max(1, 2 * skala))
+      // Der Strich fuellt den Uferstreifen fast aus, statt als kurzer Strich darin
+      // zu verschwinden - erst dadurch liest man die Bewegung als Wellengang.
+      const ufer = linkeSeite ? links : g.width - rechts
+      const laenge = Math.max(6, ufer * 0.62)
+      const x = linkeSeite
+        ? Math.max(2, (links - laenge) / 2 + offset * 5)
+        : Math.min(g.width - laenge - 2, rechts + (ufer - laenge) / 2 + offset * 5)
+      welle.setTo(0, 0, laenge, 0).setPosition(x, y + offset * 3)
+        .setLineWidth(Math.max(1, 2.4 * skala), Math.max(1, 2.4 * skala))
     })
   }
 }

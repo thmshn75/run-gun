@@ -68,8 +68,9 @@ export const BALANCE_V2 = {
     // (99 / 99 = 1 Treffer je Faktorpunkt), daher gleiche gefuehlte Freischaltdauer.
     faktor: 2,
     freischaltTreffer: 2,
-    // Das Tor steht unmittelbar vor der bei 752 px liegenden Starttruppe.
-    y: 700,
+    // 620 px: deutlich vor der bei 752 px stehenden Starttruppe, damit der Strom
+    // eine sichtbare Strecke bis zum Tor laeuft und das Tor nicht am Haufen klebt.
+    y: 620,
     hoehePx: 44,
   },
   raender: {
@@ -81,7 +82,10 @@ export const BALANCE_V2 = {
     // In der Mitte 120 px/s, ganz links +100 px/s: 220 px/s ist deutlich schneller,
     // ohne dass die Reihe bei 60 fps mehr als rund 4 px pro Bild springt.
     grundTempoPxProSek: 120,
-    zuschlagGanzLinksPxProSek: 100,
+    // Ganz links 120 + 280 = 400 px/s, also mehr als das Dreifache des Grundtempos.
+    // Bei 48 px Schildabstand faehrt man dort rund 8 Schilder je Sekunde ein statt
+    // 2,5 in der Mitte - das Hineinfahren in die Randspur lohnt sich deutlich.
+    zuschlagGanzLinksPxProSek: 280,
     // Der Mittelpunkt bleibt in der Mitte des Gehsteigs, nicht auf der Fahrbahn.
     randEinzugPx: 0,
     // Einsammeln ist reine Bildschirmgeometrie, keine Phaser-Physik.
@@ -165,6 +169,9 @@ export const BALANCE_V2 = {
   // Alle V2-Zeichenebenen, von hinten nach vorn. Szenencode kennt keine Zahlen.
   ebenen: {
     wasser: 0,
+    // Eigene Ebene: Lagen die Wellen auf derselben Ebene wie die Wasserflaeche,
+    // deckte die spaeter eingefuegte Flaeche sie vollstaendig zu.
+    wasserWelle: 5,
     strasse: 10,
     gehsteig: 20,
     mauer: 30,

@@ -1,4 +1,4 @@
-import { fahrbahnKantenBeiY, BALANCE_V2 } from './balanceV2'
+import { bahnKantenBeiY, BALANCE_V2 } from './balanceV2'
 
 export type HaufenPlatz = Readonly<{ dx: number, dy: number }>
 
@@ -40,12 +40,15 @@ export function haufenPositionenX(mittelpunktX: number, plaetze: readonly Haufen
 }
 
 /**
- * Der Mittelpunkt darf nur so weit fahren, dass der komplette Haufen auch an seiner
- * obersten (und damit im neuen Trichter schmalsten) Stelle innerhalb der Bahn bleibt.
+ * Der Mittelpunkt darf bis an die aeussere Bahnkante fahren - also auf die beiden
+ * Gehsteige, auf denen die Schilderreihen laufen. Das ist Absicht: Nur wer in die
+ * Randspur einfaehrt, sammelt die Schilder schnell ein. Begrenzt wird weiterhin
+ * an der obersten (und damit schmalsten) Stelle des Haufens, damit er nicht ueber
+ * die Mauer hinausragt.
  */
 export function truppeGrenzen(width: number, height: number, halbeBreiteDesHaufens: number): TruppeGrenzen {
   const obersteHaufenHoehe = height - BALANCE_V2.truppe.abstandVonUntenPx - BALANCE_V2.truppe.haufenRadiusMaxPx
-  const { leftX, rightX } = fahrbahnKantenBeiY(width, height, obersteHaufenHoehe)
+  const { leftX, rightX } = bahnKantenBeiY(width, height, obersteHaufenHoehe)
   const rand = Math.max(0, halbeBreiteDesHaufens)
   return { minX: leftX + rand, maxX: rightX - rand }
 }

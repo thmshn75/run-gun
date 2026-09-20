@@ -64,7 +64,11 @@ describe('Run Gun V2 — S4 die beiden Flaechen', () => {
     const unterkante = frontYAusVorrat(BALANCE_V2.front.gegnerStartVorrat)
     expect(unterkante).toBeLessThanOrEqual(BALANCE_V2.track.horizonY + bahnHoehe / 3)
     expect(unterkante).toBeLessThan(844 / 2)
-    expect(BALANCE_V2.tor.y - unterkante).toBeGreaterThanOrEqual(300)
+    // 220 px statt der urspruenglichen 300: Das Tor ist auf Wunsch weiter nach oben
+    // gerueckt (620 statt 700), der Abstand zur Gegnerfront schrumpft dadurch
+    // zwangslaeufig. Geprueft wird weiter, was dahintersteht - dass zwischen
+    // Gegnerflaeche und Tor eine deutlich sichtbare freie Strecke bleibt.
+    expect(BALANCE_V2.tor.y - unterkante).toBeGreaterThanOrEqual(220)
   })
 
   it('hat rechnerisch genug leicht ueberlappende Bilder fuer beide geschlossenen Flaechen', () => {
