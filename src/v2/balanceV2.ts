@@ -43,6 +43,36 @@ export const BALANCE_V2 = {
     // 0,14: die laufenden Figuren liegen optisch hinter der Starttruppe.
     figurTextureScale: 0.14,
   },
+  front: {
+    // 858 ist der aus dem Video abgelesene Startvorrat der roten Flaeche.
+    gegnerStartVorrat: 858,
+    // Die Front beginnt deutlich vor der blauen Starttruppe.
+    frontStartY: 610,
+    // 0,18 * 10 = 1,8; 0,0021 * 858 = 1,8018. Die Startseiten halten die
+    // Grenze damit praktisch, bis der Strom die blaue Flaeche vergroessert.
+    abbauProEigenerEinheitProSek: 0.18,
+    verlustProVorratProSek: 0.0021,
+    // Maximale rote Trapezflaeche (390 x 844): (202,8 px + 326,9 px) / 2 *
+    // 460 px = 121.831 px². Ein Zombie bei 0,105 ist 6,72 x 9,24 px; mit 10 %
+    // Ueberlappung bleiben 6,048 x 8,316 px = 50,29 px². ceil(121.831 / 50,29)
+    // = 2.423, daher 2.560 feste Bilder als kleine Reserve fuer die Randzeilen.
+    gegnerFigurenVorrat: 2560,
+    // Die eigene Flaeche endet bei 680 px, vor der bei 752 px zentrierten Starttruppe.
+    // Ihre maximale Trapezflaeche ist (326,9 px + 350,3 px) / 2 * 70 px = 23.702 px².
+    // Ein Player bei 0,105 deckt mit 10 % Ueberlappung 6,426 x 8,694 px = 55,86 px²;
+    // ceil(23.702 / 55,86) = 425, daher 512 feste Bilder als Zeilenreserve.
+    eigeneFigurenVorrat: 512,
+    // Kleine Figuren wie vor N3: 0,105 ergibt mehrere hundert sichtbare Punkte je
+    // Flaeche; die Anzahl statt einer vergroesserten Skalierung schliesst den Teppich.
+    gegnerFigurTextureScale: 0.105,
+    eigeneFigurTextureScale: 0.105,
+    // Untere Sichtgrenze der eigenen Flaeche: Die Starttruppe bleibt frei sichtbar.
+    eigeneFlaecheMaxUntenY: 680,
+    // Eigene Figuren bleiben klar blau. Der Gegner ist dunkles Rot; ein blauer
+    // Tint auf der roetlichen Zombie-Textur wuerde sie fast schwarz multiplizieren.
+    eigeneFigurTint: 0x75bfff,
+    gegnerFigurTint: 0x8f3038,
+  },
   colors: {
     // Eigene V2-Farben; keine Farbkonfiguration des bestehenden Spiels wird gelesen.
     sky: 0x80c8ee,

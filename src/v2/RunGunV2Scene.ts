@@ -1,7 +1,8 @@
 import Phaser from 'phaser'
-import { bahnKanten, BALANCE_V2 } from './balanceV2'
+import { bahnKanten, bahnKantenBeiY, BALANCE_V2 } from './balanceV2'
 import { bewegeStromFigur, figurenProSekunde, stromDarstellungsPosition, type StromFigur } from './strom'
 import { haufenHalbeBreite, haufenPlaetze, haufenPositionenX, type HaufenPlatz, truppeGrenzen, truppenAnzeige } from './truppe'
+import { aktualisiereFront, frontStartZustand, mitAnkunft, type FrontZustand } from './front'
 
 /** Das bewusst zustandslose Geruest fuer den isolierten Run-Gun-V2-Probelauf. */
 export class RunGunV2Scene extends Phaser.Scene {
@@ -15,6 +16,10 @@ export class RunGunV2Scene extends Phaser.Scene {
   private stromFiguren: StromFigur[] = []
   private stromBilder: Phaser.GameObjects.Image[] = []
   private stromRest = 0
+  private front: FrontZustand = frontStartZustand()
+  private gegnerBilder: Phaser.GameObjects.Image[] = []
+  private eigeneFrontBilder: Phaser.GameObjects.Image[] = []
+  private gegnerZaehler?: Phaser.GameObjects.Text
 
   public constructor() {
     super('RunGunV2Scene')
@@ -33,6 +38,10 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.stromBilder.forEach((bild) => bild.destroy())
     this.stromBilder = []
     this.stromRest = 0
+    this.front = frontStartZustand()
+    this.gegnerBilder = []
+    this.eigeneFrontBilder = []
+    this.gegnerZaehler = undefined
     const width = this.scale.width
     const height = this.scale.height
     const centerX = width / 2
@@ -65,6 +74,7 @@ export class RunGunV2Scene extends Phaser.Scene {
 
     this.erstelleTruppe(width, height)
     this.erstelleStromVorrat()
+    this.erstelleFlaechen(width, height)
     this.aktiviereTruppenSteuerung(width, height)
   }
 
@@ -98,6 +108,68 @@ export class RunGunV2Scene extends Phaser.Scene {
       .setScale(BALANCE_V2.strom.figurTextureScale).setDepth(1).setVisible(false))
   }
 
+  /** Beide Bildvorräte sind fest: Sichtbarkeit und Position kommen nur aus der Front-Bilanz. */
+  private erstelleFlaechen(width: number, height: number): void {
+    this.gegnerBilder = Array.from({ length: BALANCE_V2.front.gegnerFigurenVorrat }, () => this.add.image(0, 0, 'enemy-standard')
+      .setScale(BALANCE_V2.front.gegnerFigurTextureScale).setTint(BALANCE_V2.front.gegnerFigurTint).setDepth(0).setVisible(false))
+    this.eigeneFrontBilder = Array.from({ length: BALANCE_V2.front.eigeneFigurenVorrat }, () => this.add.image(0, 0, 'player')
+      .setScale(BALANCE_V2.front.eigeneFigurTextureScale).setTint(BALANCE_V2.front.eigeneFigurTint).setDepth(1).setVisible(false))
+    this.gegnerZaehler = this.add.text(width / 2, BALANCE_V2.track.horizonY + 24, '', {
+      fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: '#ffded9', stroke: '#421a1a', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(3)
+    this.zeichneFlaechen(width, height)
+  }
+
+  private zeichneFlaechen(width: number, height: number): void {
+    const sichtbareGegner = Math.round(BALANCE_V2.front.gegnerFigurenVorrat * this.front.vorrat / BALANCE_V2.front.gegnerStartVorrat)
+    const gegnerBreite = 64 * BALANCE_V2.front.gegnerFigurTextureScale
+    const gegnerHoehe = 88 * BALANCE_V2.front.gegnerFigurTextureScale
+    const gegnerSchrittX = gegnerBreite * 0.9
+    const gegnerSchrittY = gegnerHoehe * 0.9
+    const zeilen = Math.max(1, Math.ceil((this.front.frontY - BALANCE_V2.track.horizonY) / gegnerSchrittY))
+    const kanten = bahnKanten(width, height)
+    const gegnerPlaetze: Array<{ x: number, y: number }> = []
+    for (let zeile = 0; zeile < zeilen; zeile += 1) {
+      const y = BALANCE_V2.track.horizonY + (this.front.frontY - BALANCE_V2.track.horizonY) * (zeile + 0.5) / zeilen
+      const fortschritt = (y - kanten.horizonY) / (kanten.bottomY - kanten.horizonY)
+      const left = kanten.topLeftX + (kanten.bottomLeftX - kanten.topLeftX) * fortschritt
+      const right = kanten.topRightX + (kanten.bottomRightX - kanten.topRightX) * fortschritt
+      const spalten = Math.max(1, Math.ceil((right - left) / gegnerSchrittX))
+      for (let spalte = 0; spalte < spalten; spalte += 1) {
+        gegnerPlaetze.push({ x: left + (right - left) * ((spalte + 0.5) / spalten), y })
+      }
+    }
+    this.gegnerBilder.forEach((bild, index) => {
+      const platz = gegnerPlaetze[index]
+      const sichtbar = index < sichtbareGegner && platz !== undefined
+      bild.setVisible(sichtbar)
+      if (platz) bild.setPosition(platz.x, platz.y)
+    })
+    const sichtbareEigene = Math.min(BALANCE_V2.front.eigeneFigurenVorrat, Math.floor(this.front.eigenerWert))
+    const eigeneBreite = 68 * BALANCE_V2.front.eigeneFigurTextureScale
+    const eigeneSchrittX = eigeneBreite * 0.9
+    const eigeneStartY = this.front.frontY + eigeneBreite * 0.7
+    const eigeneKanten = bahnKantenBeiY(width, height, eigeneStartY)
+    const eigeneSpalten = Math.max(1, Math.ceil((eigeneKanten.rightX - eigeneKanten.leftX) / eigeneSchrittX))
+    this.eigeneFrontBilder.forEach((bild, index) => {
+      const sichtbar = index < sichtbareEigene
+      if (!sichtbar) {
+        bild.setVisible(false)
+        return
+      }
+      const zeile = Math.floor(index / eigeneSpalten)
+      const y = eigeneStartY + zeile * (92 * BALANCE_V2.front.eigeneFigurTextureScale * 0.9)
+      if (y > BALANCE_V2.front.eigeneFlaecheMaxUntenY) {
+        bild.setVisible(false)
+        return
+      }
+      const { leftX, rightX } = bahnKantenBeiY(width, height, y)
+      const spalten = Math.max(1, Math.ceil((rightX - leftX) / eigeneSchrittX))
+      bild.setVisible(true).setPosition(leftX + (rightX - leftX) * (((index % eigeneSpalten) % spalten + 0.5) / spalten), y)
+    })
+    this.gegnerZaehler?.setText(String(Math.round(this.front.vorrat)))
+  }
+
   public update(_time: number, delta: number): void {
     this.stromRest += figurenProSekunde(BALANCE_V2.truppe.startGroesse) * delta / 1000
     while (this.stromRest >= 1) {
@@ -107,7 +179,8 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.stromFiguren.forEach((figur, index) => {
       if (!figur.aktiv) return
       const bewegt = bewegeStromFigur(figur, delta)
-      const aktiv = bewegt.y > BALANCE_V2.track.horizonY
+      const aktiv = bewegt.y > this.front.frontY
+      if (!aktiv) this.front = mitAnkunft(this.front)
       this.stromFiguren[index] = { ...bewegt, aktiv }
       const bild = this.stromBilder[index]
       bild.setVisible(aktiv)
@@ -116,6 +189,8 @@ export class RunGunV2Scene extends Phaser.Scene {
         bild.setPosition(position.x, position.y)
       }
     })
+    this.front = aktualisiereFront(this.front, delta)
+    this.zeichneFlaechen(this.scale.width, this.scale.height)
   }
 
   private starteStromFigur(): void {
