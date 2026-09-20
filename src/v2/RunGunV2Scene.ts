@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { FELD, passeKameraAn } from '../config/feld'
 import { bahnKanten, bahnKantenBeiY, bahnKantenPunkte, BALANCE_V2, fahrbahnKantenBeiY, horizontFarbe, tiefenSkala, wasserWellenOffset } from './balanceV2'
 import { bewegeStromFigur, figurenProSekunde, stromDarstellungsPosition, type StromFigur } from './strom'
 import { sammeltLinks, haufenHalbeBreite, haufenPlaetze, haufenPositionenX, type HaufenPlatz, truppeGrenzen, truppenAnzeige } from './truppe'
@@ -86,6 +87,7 @@ export class RunGunV2Scene extends Phaser.Scene {
   }
 
   public create(): void {
+    passeKameraAn(this)
     // Phaser verwendet Szeneninstanzen wieder. Jeder Start beginnt deshalb ohne alte
     // Figuren, Zähler oder Ziehzustand.
     this.truppenFiguren = []
@@ -116,8 +118,8 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.wasserWellen = []
     this.wasserGeometrie = undefined
     this.endeAusgeloest = false
-    const width = this.scale.width
-    const height = this.scale.height
+    const width = FELD.breite
+    const height = FELD.hoehe
     const centerX = width / 2
     const { horizonY, bottomY } = bahnKanten(width, height)
     // Die 24 Stützpunkte entstehen nur beim Aufbau; Straße, Wasser und Kanten teilen
@@ -264,7 +266,7 @@ export class RunGunV2Scene extends Phaser.Scene {
   }
 
   private erstelleRaender(): void {
-    schildPositionen(this.scale.width, this.scale.height, 0, this.truppeX).forEach((schild) => {
+    schildPositionen(FELD.breite, FELD.hoehe, 0, this.truppeX).forEach((schild) => {
       // Wie im Vorbild sitzt jede Tafel auf einem dunklen Fuss - das gibt ihr
       // Halt auf dem Gehsteig, statt frei in der Luft zu schweben.
       const fuss = this.add.rectangle(0, 0, BALANCE_V2.raender.schildBreitePx, BALANCE_V2.raender.schildHoehePx,
@@ -279,7 +281,7 @@ export class RunGunV2Scene extends Phaser.Scene {
   }
 
   private aktualisiereRaender(): void {
-    schildPositionen(this.scale.width, this.scale.height, this.randZeitMs, this.truppeX).forEach((schild) => {
+    schildPositionen(FELD.breite, FELD.hoehe, this.randZeitMs, this.truppeX).forEach((schild) => {
       const bild = this.randSchilder.get(schild.id)
       if (!bild) return
       if (bild.umlauf !== schild.umlauf) {
@@ -299,7 +301,7 @@ export class RunGunV2Scene extends Phaser.Scene {
       // Rechts passiert bei Beruehrung durch den Haufen nichts: Die Waende werden
       // von den ausgesandten Figuren abgetragen, nicht vom Haufen selbst.
       const sichtbar = !bild.verbraucht
-      const skala = tiefenSkala(this.scale.height, schild.y)
+      const skala = tiefenSkala(FELD.hoehe, schild.y)
       bild.kasten.setVisible(sichtbar).setPosition(schild.x, schild.y)
         .setSize(BALANCE_V2.raender.schildBreitePx * skala, BALANCE_V2.raender.schildHoehePx * skala)
       // Der Fuss schaut unten und seitlich ein Stueck unter der Tafel hervor.
@@ -319,7 +321,7 @@ export class RunGunV2Scene extends Phaser.Scene {
   private zeichneTruppeNeu(): void {
     this.ende = { ...this.ende, truppenGroesse: this.truppenGroesse }
     const plaetze = haufenPlaetze(truppenAnzeige(this.truppenGroesse).sichtbareFiguren)
-    const grenzen = truppeGrenzen(this.scale.width, this.scale.height, haufenHalbeBreite(plaetze.length, this.truppenFigurBreite))
+    const grenzen = truppeGrenzen(FELD.breite, FELD.hoehe, haufenHalbeBreite(plaetze.length, this.truppenFigurBreite))
     this.truppeX = Phaser.Math.Clamp(this.truppeX, grenzen.minX, grenzen.maxX)
     this.truppenFiguren.forEach((figur) => figur.destroy())
     this.truppenPlaetze = plaetze
@@ -397,11 +399,11 @@ export class RunGunV2Scene extends Phaser.Scene {
     // Der Boss waechst mit dem eigenen Vorruecken, nicht mehr mit dem Gegnervorrat:
     // am Horizont Startgroesse, am Ende seines Wegs Endgroesse.
     const fortschritt = Math.min(1, Math.max(0, this.ende.bossAbstiegPx / BALANCE_V2.ende.bossMaxAbstiegPx))
-    const gewuenscht = (BALANCE_V2.ende.bossStartScale + fortschritt * (BALANCE_V2.ende.bossEndScale - BALANCE_V2.ende.bossStartScale)) * tiefenSkala(this.scale.height, y)
+    const gewuenscht = (BALANCE_V2.ende.bossStartScale + fortschritt * (BALANCE_V2.ende.bossEndScale - BALANCE_V2.ende.bossStartScale)) * tiefenSkala(FELD.hoehe, y)
     // Der Boss darf die Fahrbahn nie ueberragen: Er gehoert auf die Bahn, nicht
     // ueber Gehsteig und Wasser. Begrenzt wird an der Fahrbahnbreite auf seiner
     // eigenen Hoehe, nicht an der Bildbreite.
-    const kanten = fahrbahnKantenBeiY(width, this.scale.height, y)
+    const kanten = fahrbahnKantenBeiY(width, FELD.hoehe, y)
     const hoechsteSkala = (kanten.rightX - kanten.leftX) / Math.max(1, this.bossBild?.width ?? 1)
     const scale = Math.min(gewuenscht, hoechsteSkala)
     // Schwerer Gang wie im Vorbild: Der Boss stampft leicht auf und ab und
@@ -514,7 +516,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     // Wer links sammelt, schickt niemanden los: Die Truppe ist mit dem Aufnehmen
     // beschaeftigt. Das ist der Preis des Sammelns - waehrenddessen bekommt die
     // Front keinen Nachschub und die rote Flaeche kommt naeher.
-    const sammelt = sammeltLinks(this.scale.width, this.scale.height, this.truppeX, this.truppeY,
+    const sammelt = sammeltLinks(FELD.breite, FELD.hoehe, this.truppeX, this.truppeY,
       haufenHalbeBreite(this.truppenPlaetze.length, this.truppenFigurBreite))
     if (!sammelt) {
       this.stromRest += figurenProSekunde(this.truppenGroesse) * delta / 1000
@@ -535,7 +537,7 @@ export class RunGunV2Scene extends Phaser.Scene {
       if (durchgang && !figur.torPassiert) {
         // Hinter dem Tor marschiert die Truppe in voller Breite weiter, statt als
         // schmaler Faden: Jede Figur bekommt einen festen Platz auf der Fahrbahn.
-        const kanten = fahrbahnKantenBeiY(this.scale.width, this.scale.height, nachTor.y)
+        const kanten = fahrbahnKantenBeiY(FELD.breite, FELD.hoehe, nachTor.y)
         const rand = BALANCE_V2.strom.breiteRandPx
         nachTor = { ...nachTor, x: Phaser.Math.FloatBetween(kanten.leftX + rand, kanten.rightX - rand) }
       }
@@ -549,7 +551,7 @@ export class RunGunV2Scene extends Phaser.Scene {
       bild.setVisible(aktiv)
       if (aktiv) {
         const position = stromDarstellungsPosition(nachTor)
-        bild.setPosition(position.x, position.y).setScale(BALANCE_V2.front.helmTextureScale * 0.72 * tiefenSkala(this.scale.height, position.y))
+        bild.setPosition(position.x, position.y).setScale(BALANCE_V2.front.helmTextureScale * 0.72 * tiefenSkala(FELD.hoehe, position.y))
       }
     })
     this.ende = aktualisiereEnde({ ...this.ende, front: this.front }, delta)
@@ -557,7 +559,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.aktualisiereTruppenNachVerlust()
     const ausgang = ausgangEinmal(this.endeAusgeloest, this.ende)
     if (ausgang) this.loeseAusgangAus(ausgang)
-    this.zeichneFlaechen(this.scale.width, this.scale.height)
+    this.zeichneFlaechen(FELD.breite, FELD.hoehe)
     this.aktualisiereRaender()
   }
 
@@ -567,7 +569,7 @@ export class RunGunV2Scene extends Phaser.Scene {
    * selbst beruehrt die Wand nicht mehr.
    */
   private trifftWand(x: number, y: number): boolean {
-    for (const schild of schildPositionen(this.scale.width, this.scale.height, this.randZeitMs, this.truppeX)) {
+    for (const schild of schildPositionen(FELD.breite, FELD.hoehe, this.randZeitMs, this.truppeX)) {
       if (schild.seite !== 'rechts') continue
       const bild = this.randSchilder.get(schild.id)
       if (!bild || bild.verbraucht) continue
@@ -600,7 +602,7 @@ export class RunGunV2Scene extends Phaser.Scene {
 
   private loeseAusgangAus(ausgang: 'sieg' | 'niederlage'): void {
     this.endeAusgeloest = true
-    this.add.text(this.scale.width / 2, this.scale.height / 2, ausgang === 'sieg' ? 'GESCHAFFT' : 'VERLOREN', {
+    this.add.text(FELD.breite / 2, FELD.hoehe / 2, ausgang === 'sieg' ? 'GESCHAFFT' : 'VERLOREN', {
       fontFamily: 'system-ui', fontSize: '42px', fontStyle: 'bold', color: '#ffffff', stroke: '#17212a', strokeThickness: 7,
     }).setOrigin(0.5).setDepth(BALANCE_V2.ebenen.ergebnis)
     this.time.delayedCall(BALANCE_V2.ende.rueckkehrMs, () => this.scene.start('MenuScene'))
@@ -622,7 +624,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     if (index < 0) return
     // Die Kopien verteilen sich ueber die ganze Fahrbahn, nicht um die Mutterfigur
     // herum: Hinter dem Tor soll eine breite Front marschieren, kein Faden.
-    const kanten = fahrbahnKantenBeiY(this.scale.width, this.scale.height, y)
+    const kanten = fahrbahnKantenBeiY(FELD.breite, FELD.hoehe, y)
     const rand = BALANCE_V2.strom.breiteRandPx
     const gestreutX = Phaser.Math.FloatBetween(kanten.leftX + rand, kanten.rightX - rand)
     const gestreutY = y + Phaser.Math.FloatBetween(0, BALANCE_V2.strom.torStreuungPx)

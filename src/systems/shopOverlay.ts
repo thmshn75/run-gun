@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { FELD } from '../config/feld'
 import { BALANCE } from '../config/balance'
 import { HUD_COLORS, MENU_COLORS } from '../config/colors'
 import { computeWeaponRowLayout, type WeaponRowLayout } from './shopWeaponRow'
@@ -111,8 +112,8 @@ export class ShopOverlay {
     this.onWeiter = onWeiter
     this.onBeenden = onBeenden
     this.onWaffenwahl = onWaffenwahl
-    const breite = scene.scale.width
-    const hoehe = scene.scale.height
+    const breite = FELD.breite
+    const hoehe = FELD.hoehe
     const mitte = breite / 2
     const rand = BALANCE.shop.ui.sidePadding
     const knopfBreite = breite - 2 * rand - insets.left - insets.right

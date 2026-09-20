@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { FELD } from '../config/feld'
 import { BALANCE } from '../config/balance'
 import { HUD_COLORS } from '../config/colors'
 import { advanceAlongRoad, getRoadHalfWidth, getRoadScale, getRoadSegment } from './road'
@@ -318,16 +319,16 @@ export class VersuchBahnen implements BahnSystem {
     }
     for (const tor of this.tore) {
       if (!tor.aktiv) continue
-      tor.anchorY = advanceAlongRoad(this.scene.scale.width, this.scene.scale.height, tor.anchorY, movement)
-      const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, tor.anchorY, BALANCE.versuch.tor.hoehePx)
+      tor.anchorY = advanceAlongRoad(FELD.breite, FELD.hoehe, tor.anchorY, movement)
+      const segment = getRoadSegment(FELD.breite, FELD.hoehe, tor.anchorY, BALANCE.versuch.tor.hoehePx)
       const geometrie = this.torGeometrie(segment.centerY)
       tor.bild.setPosition(geometrie.x, segment.centerY).setDisplaySize(geometrie.breite, segment.height)
       ;(tor.bild.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       const alpha = Math.min(1, Math.max(0, (segment.centerY - segment.height / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
       tor.bild.setAlpha(alpha)
-      const massstab = getRoadScale(this.scene.scale.width, this.scene.scale.height, segment.centerY)
+      const massstab = getRoadScale(FELD.breite, FELD.hoehe, segment.centerY)
       tor.label.setPosition(geometrie.x, segment.centerY).setAlpha(alpha).setScale(massstab)
-      if (segment.centerY - segment.height / 2 > this.scene.scale.height) this.recycleTor(tor)
+      if (segment.centerY - segment.height / 2 > FELD.hoehe) this.recycleTor(tor)
     }
   }
 
@@ -338,7 +339,7 @@ export class VersuchBahnen implements BahnSystem {
     tor.anchorY = BALANCE.road.horizonY
     tor.startwert = this.regeln.torStartwert(this.rng(), this.kontext())
     tor.treffer = 0
-    const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, tor.anchorY, BALANCE.versuch.tor.hoehePx)
+    const segment = getRoadSegment(FELD.breite, FELD.hoehe, tor.anchorY, BALANCE.versuch.tor.hoehePx)
     const geometrie = this.torGeometrie(segment.centerY)
     tor.bild.enableBody(true, geometrie.x, segment.centerY, true, true)
     tor.bild.setDisplaySize(geometrie.breite, segment.height).setActive(true).setVisible(true).setAlpha(0)
@@ -407,13 +408,13 @@ export class VersuchBahnen implements BahnSystem {
     const wegAufDerStrasse = movement * (1 - tempoAnteil)
     for (const fass of this.faesser) {
       if (!fass.aktiv) continue
-      fass.anchorY = advanceAlongRoad(this.scene.scale.width, this.scene.scale.height, fass.anchorY, eigenerWeg)
+      fass.anchorY = advanceAlongRoad(FELD.breite, FELD.hoehe, fass.anchorY, eigenerWeg)
       fass.rollPx += wegAufDerStrasse
-      const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, fass.anchorY, BALANCE.versuch.fass.groessePx)
+      const segment = getRoadSegment(FELD.breite, FELD.hoehe, fass.anchorY, BALANCE.versuch.fass.groessePx)
       const groesse = segment.height
       const geometrie = this.fassGeometrie(segment.centerY, groesse)
       const alpha = Math.min(1, Math.max(0, (segment.centerY - groesse / 2 - BALANCE.road.horizonY) / BALANCE.road.entryFadePx))
-      const massstab = getRoadScale(this.scene.scale.width, this.scene.scale.height, segment.centerY)
+      const massstab = getRoadScale(FELD.breite, FELD.hoehe, segment.centerY)
       if (fass.bild.active) {
         fass.bild.setPosition(geometrie.x, segment.centerY).setDisplaySize(groesse, groesse).setAlpha(alpha)
         if (this.hatRollbilder) fass.bild.setTexture(`barrel-roll-${getRollBild(fass.rollPx, getRollUmfang(groesse)) + 1}`)
@@ -427,7 +428,7 @@ export class VersuchBahnen implements BahnSystem {
       }
       // Unten aus dem Bild: verpasst. Genau das ist der Sinn des Durchrollens - "damit
       // man nicht jedes Mal ein Upgrade erwischt".
-      if (segment.centerY - groesse / 2 > this.scene.scale.height) this.recycleFass(fass)
+      if (segment.centerY - groesse / 2 > FELD.hoehe) this.recycleFass(fass)
     }
   }
 
@@ -475,7 +476,7 @@ export class VersuchBahnen implements BahnSystem {
     fass.inhalt = inhalt
     fass.anchorY = BALANCE.road.horizonY
     fass.rollPx = 0
-    const segment = getRoadSegment(this.scene.scale.width, this.scene.scale.height, fass.anchorY, BALANCE.versuch.fass.groessePx)
+    const segment = getRoadSegment(FELD.breite, FELD.hoehe, fass.anchorY, BALANCE.versuch.fass.groessePx)
     const geometrie = this.fassGeometrie(segment.centerY, segment.height)
     fass.bild.enableBody(true, geometrie.x, segment.centerY, true, true)
     fass.bild.setActive(true).setVisible(true).setAlpha(0)
@@ -596,19 +597,19 @@ export class VersuchBahnen implements BahnSystem {
    * geerbte Sperre, die beide Bahnen unnoetig nach innen draengt.
    */
   private fassGeometrie(y: number, groesse: number): { x: number } {
-    const strasseHalb = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
-    const massstab = getRoadScale(this.scene.scale.width, this.scene.scale.height, y)
+    const strasseHalb = getRoadHalfWidth(FELD.breite, FELD.hoehe, y)
+    const massstab = getRoadScale(FELD.breite, FELD.hoehe, y)
     // Vom Rand her gerechnet: Aussenkante = Rand minus Spalt, daraus die Mitte.
     const spalt = BALANCE.versuch.fass.randSpaltPx * massstab
-    return { x: this.scene.scale.width / 2 - (strasseHalb - spalt - groesse / 2) }
+    return { x: FELD.breite / 2 - (strasseHalb - spalt - groesse / 2) }
   }
 
   private torGeometrie(y: number): { x: number; breite: number } {
-    const strasseHalb = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
-    const massstab = getRoadScale(this.scene.scale.width, this.scene.scale.height, y)
+    const strasseHalb = getRoadHalfWidth(FELD.breite, FELD.hoehe, y)
+    const massstab = getRoadScale(FELD.breite, FELD.hoehe, y)
     const spalt = BALANCE.versuch.tor.randSpaltPx * massstab
     const innen = strasseHalb * BALANCE.versuch.tor.innenkanteAnteil
     const aussen = strasseHalb - spalt
-    return { x: this.scene.scale.width / 2 + (innen + aussen) / 2, breite: Math.max(8, aussen - innen) }
+    return { x: FELD.breite / 2 + (innen + aussen) / 2, breite: Math.max(8, aussen - innen) }
   }
 }

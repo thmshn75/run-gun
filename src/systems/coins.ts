@@ -1,9 +1,9 @@
 import Phaser from 'phaser'
+import { FELD } from '../config/feld'
 import { BALANCE } from '../config/balance'
 import { getCurrentScrollSpeed } from './speed'
 
 export class Coins {
-  private readonly scene: Phaser.Scene
   private readonly coins!: Phaser.GameObjects.Image[]
   private readonly onCollected: () => void
   private collected!: number
@@ -11,7 +11,6 @@ export class Coins {
   private lastPoolWarningAtMs!: number
 
   public constructor(scene: Phaser.Scene, onCollected: () => void) {
-    this.scene = scene
     this.onCollected = onCollected
     this.coins = []
     this.collected = 0
@@ -57,7 +56,7 @@ export class Coins {
         this.collected += 1
         this.recycle(coin)
         this.onCollected()
-      } else if (coin.y - coin.displayHeight / 2 > this.scene.scale.height) {
+      } else if (coin.y - coin.displayHeight / 2 > FELD.hoehe) {
         this.recycle(coin)
       }
     }

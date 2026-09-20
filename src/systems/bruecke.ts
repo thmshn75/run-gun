@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { FELD } from '../config/feld'
 import { BALANCE } from '../config/balance'
 import { WORLD_COLORS } from '../config/colors'
 import { getPhaseOffset } from './gamefeel'
@@ -33,7 +34,6 @@ type Welle = {
  * schliessen.
  */
 export class Bruecke {
-  private readonly scene: Phaser.Scene
   private readonly gelaender: Phaser.GameObjects.Graphics
   private readonly wellen: Welle[]
   private readonly rng: () => number
@@ -46,7 +46,6 @@ export class Bruecke {
   private kraeuselMs: number
 
   public constructor(scene: Phaser.Scene, rng: () => number) {
-    this.scene = scene
     this.rng = rng
     this.aktiv = false
     this.pfostenProgress = 0
@@ -78,8 +77,8 @@ export class Bruecke {
 
   public update(dt: number): void {
     if (!this.aktiv) return
-    const width = this.scene.scale.width
-    const height = this.scene.scale.height
+    const width = FELD.breite
+    const height = FELD.hoehe
     const progressDelta = getScrollProgressDelta(height, dt)
 
     this.pfostenProgress = (this.pfostenProgress + progressDelta) % 1

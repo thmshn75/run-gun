@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import { FELD, passeKameraAn } from '../config/feld'
 import { HUD_COLORS, MENU_COLORS } from '../config/colors'
 import { readSafeAreaInsets } from '../systems/safeArea'
 import { kaufeWeiterspielen, loadSave, writeSave, type ScoreEntry } from '../systems/save'
@@ -24,11 +25,12 @@ export class GameOverScene extends Phaser.Scene {
   }
 
   public create(): void {
+    passeKameraAn(this)
     enableSharpText(this)
     this.elapsedMs = 0
     const insets = readSafeAreaInsets(this.game.canvas)
-    const centerX = this.scale.width / 2
-    const centerY = (this.scale.height + insets.top - insets.bottom) / 2
+    const centerX = FELD.breite / 2
+    const centerY = (FELD.hoehe + insets.top - insets.bottom) / 2
     const topY = centerY - 220
     this.cameras.main.setBackgroundColor('#10131d')
     this.add.text(centerX, topY, 'Game Over', {
@@ -60,7 +62,7 @@ export class GameOverScene extends Phaser.Scene {
       const preis = this.weiterspielenPreis
       const bezahlbar = loadSave().coins >= preis
       const knopfY = topY + 258
-      const breite = this.scale.width - 2 * BALANCE.shop.ui.sidePadding - insets.left - insets.right
+      const breite = FELD.breite - 2 * BALANCE.shop.ui.sidePadding - insets.left - insets.right
       const knopf = this.add.rectangle(centerX, knopfY, breite, 68, bezahlbar ? MENU_COLORS.button : MENU_COLORS.disabledButton)
         .setStrokeStyle(2, bezahlbar ? MENU_COLORS.buttonStroke : MENU_COLORS.disabledStroke)
       if (bezahlbar) knopf.setInteractive({ useHandCursor: true })

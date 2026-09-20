@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { FELD } from '../config/feld'
 import { BALANCE } from '../config/balance'
 import { getBossPhase, getBossPlan, type BossPlan } from './bossPlan'
 import { getBildVersatzPx } from './bildVersatz'
@@ -118,7 +119,7 @@ export class Boss {
     // das Sprite davon weg, und wuerde man sie danach aus enemy.x zurueckholen, addierte
     // sich der Ausgleich Bild fuer Bild auf. Beim gewoehnlichen Boss faellt das auf,
     // weil er seine x-Position sonst nie neu setzt.
-    this.logischeX = this.scene.scale.width / 2
+    this.logischeX = FELD.breite / 2
     this.enemy.enableBody(true, this.logischeX, y, true, true)
     this.enemy.setActive(true).setVisible(true).setAlpha(0).clearTint()
     const body = this.enemy.body as Phaser.Physics.Arcade.Body
@@ -247,7 +248,7 @@ export class Boss {
     // figureTextureScale halbiert die doppelt aufgeloeste Textur zurueck auf Spielgroesse.
     this.enemy.setScale(
       BALANCE.render.figureTextureScale
-      * getPerspectiveScale(this.scene.scale.width, this.scene.scale.height, this.enemy.y),
+      * getPerspectiveScale(FELD.breite, FELD.hoehe, this.enemy.y),
     )
   }
 
@@ -277,10 +278,10 @@ export class Boss {
     if (!plan.elite) return
     this.swingElapsedMs += dt
     const { swingAmplitudeShare, swingSeconds } = BALANCE.boss.elite
-    const halbeStrasse = getRoadHalfWidth(this.scene.scale.width, this.scene.scale.height, this.enemy.y)
+    const halbeStrasse = getRoadHalfWidth(FELD.breite, FELD.hoehe, this.enemy.y)
     const amplitude = halbeStrasse * swingAmplitudeShare
     const phase = (this.swingElapsedMs / 1000 / swingSeconds) * Math.PI * 2
-    this.logischeX = this.scene.scale.width / 2 + Math.sin(phase) * amplitude
+    this.logischeX = FELD.breite / 2 + Math.sin(phase) * amplitude
     this.enemy.x = this.logischeX
     // Neigung in die Bewegungsrichtung. Die Position folgt einem Sinus, die
     // GESCHWINDIGKEIT also einem Kosinus - der ist bereits auf -1..1 normiert und

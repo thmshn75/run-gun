@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { registerSW } from 'virtual:pwa-register'
 import './style.css'
 import { BALANCE } from './config/balance'
+import { berechneGeraeteFaktor, FELD } from './config/feld'
 import { BootScene } from './scenes/BootScene'
 import { GameOverScene } from './scenes/GameOverScene'
 import { GameScene } from './scenes/GameScene'
@@ -11,6 +12,8 @@ import { requestPersistentStorage } from './systems/storagePersistence'
 import { RunGunV2Scene } from './v2/RunGunV2Scene'
 
 requestPersistentStorage()
+
+const geraeteFaktor = berechneGeraeteFaktor(window.devicePixelRatio)
 
 const hadController = navigator.serviceWorker?.controller != null
 let pendingReload = false
@@ -50,8 +53,8 @@ registerSW({
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'app',
-  width: 390,
-  height: 844,
+  width: FELD.breite * geraeteFaktor,
+  height: FELD.hoehe * geraeteFaktor,
   backgroundColor: '#10131d',
   // KEIN Ton im Spiel (Thomas 2026-08-30: "nimm den ton, musik usw. komplett raus").
   // noAudio haelt Phaser davon ab, ueberhaupt einen Sound-Manager mit AudioContext
@@ -68,21 +71,8 @@ const game = new Phaser.Game({
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: 390,
-    height: 844,
-    // HINWEIS zur Schaerfe (Thomas 2026-09-20: "die schriften im menuebildschirm
-    // wirken sehr unscharf"): Der Zeichenbereich ist 390 x 844 echte Bildpunkte
-    // gross und wird auf einem iPhone auf die dreifache Groesse gestreckt. Die
-    // Schrift wird zwar ueber enableSharpText in dreifacher Aufloesung gerendert,
-    // aber auf diesen 390-Punkte-Puffer gezeichnet - feiner als der Puffer kann
-    // sie dort nicht werden.
-    //
-    // GEPRUEFT und VERWORFEN: scale.zoom aendert bei mode FIT nichts am Puffer
-    // (gemessen bei devicePixelRatio 3: Puffer bleibt 390 px). Der wirksame Weg
-    // waere, width/height mit dem Geraetefaktor zu multiplizieren und zoom auf
-    // den Kehrwert zu setzen - dann rechnen aber alle Szenen in einem anderen
-    // Koordinatensystem, und jede feste Position im Spiel muesste mitziehen.
-    // Das ist ein eigener Umbau, kein Nebenbei-Fix.
+    width: FELD.breite * geraeteFaktor,
+    height: FELD.hoehe * geraeteFaktor,
   },
   physics: {
     default: 'arcade',

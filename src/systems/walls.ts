@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { FELD } from '../config/feld'
 import { BALANCE } from '../config/balance'
 import { HUD_COLORS } from '../config/colors'
 import { getWallPlan } from './wallPlan'
@@ -276,9 +277,9 @@ export class Walls {
   }
 
   private rewardCollectX(pair: WallPair, y: number): number {
-    const playfieldHalf = getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
+    const playfieldHalf = getPlayfieldHalfWidth(FELD.breite, FELD.hoehe, y)
     const sign = pair.side === 'left' ? -1 : 1
-    return this.scene.scale.width / 2 + sign * (playfieldHalf - pair.reward.displayWidth / 2 - 4)
+    return FELD.breite / 2 + sign * (playfieldHalf - pair.reward.displayWidth / 2 - 4)
   }
 
   public collect(reward: Phaser.Physics.Arcade.Image): WeaponKey | undefined {
@@ -312,8 +313,8 @@ export class Walls {
     for (const pair of this.pairs) {
       if (!pair.active) continue
       this.movePair(pair, movement)
-      if (pair.wall.active && pair.wall.y - pair.wall.displayHeight / 2 > this.scene.scale.height) this.recycle(pair)
-      else if (pair.broken && pair.reward.y - pair.reward.displayHeight / 2 > this.scene.scale.height) this.recycle(pair)
+      if (pair.wall.active && pair.wall.y - pair.wall.displayHeight / 2 > FELD.hoehe) this.recycle(pair)
+      else if (pair.broken && pair.reward.y - pair.reward.displayHeight / 2 > FELD.hoehe) this.recycle(pair)
     }
   }
 
@@ -340,7 +341,7 @@ export class Walls {
   }
 
   private wallGeometry(side: WallSide, y: number): { x: number; width: number } {
-    return getWallGeometry(this.scene.scale.width, this.scene.scale.height, y, side)
+    return getWallGeometry(FELD.breite, FELD.hoehe, y, side)
   }
 
   /**
@@ -497,7 +498,7 @@ export class Walls {
   }
 
   private advance(y: number, worldPx: number): number {
-    return advanceAlongRoad(this.scene.scale.width, this.scene.scale.height, y, worldPx)
+    return advanceAlongRoad(FELD.breite, FELD.hoehe, y, worldPx)
   }
 
   /**
@@ -516,11 +517,11 @@ export class Walls {
 
   /** Wo die Kachel mit Weltanker y zu zeichnen ist und wie hoch - siehe getRoadSegment. */
   private segmentAt(anchorY: number, side: WallSide): { centerY: number; height: number } {
-    return getRoadSegment(this.scene.scale.width, this.scene.scale.height, anchorY, this.getSegmentHeight(side))
+    return getRoadSegment(FELD.breite, FELD.hoehe, anchorY, this.getSegmentHeight(side))
   }
 
   private roadScaleAt(y: number): number {
-    return getRoadScale(this.scene.scale.width, this.scene.scale.height, y)
+    return getRoadScale(FELD.breite, FELD.hoehe, y)
   }
 
   // Der Inhalt scheint durch die Wand und darf sie nie ueberragen: auf die aktuelle

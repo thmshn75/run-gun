@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { FELD } from '../config/feld'
 import { MENU_COLORS } from '../config/colors'
 import { WEAPON_DESCRIPTIONS, WEAPON_LABELS, type WeaponKey } from './weapons'
 import type { SafeAreaInsets } from './safeArea'
@@ -55,8 +56,8 @@ export class WeaponDetailPanel {
   ): void {
     this.verstecken()
     this.offeneWaffe = weapon
-    const breite = this.scene.scale.width
-    const hoehe = this.scene.scale.height
+    const breite = FELD.breite
+    const hoehe = FELD.hoehe
     const safeBreite = breite - insets.left - insets.right
     const mitteX = insets.left + safeBreite / 2
     // Zwischen den Safe-Area-Raendern zentriert, nicht auf der Bildmitte: Sonst waendert

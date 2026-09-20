@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { FELD } from '../config/feld'
 import { BALANCE } from '../config/balance'
 import { getEngageLineY, getLaneRatio, getLaneSlope, getRoadHalfWidth } from './roadGeometry'
 import type { RunStats } from './upgrades'
@@ -61,7 +62,6 @@ interface ProjectileSegment {
 }
 
 export class Weapons {
-  private readonly scene: Phaser.Scene
   private readonly projectileGroups: Record<WeaponKey, Phaser.Physics.Arcade.Group>
   private readonly projectileList: Phaser.Physics.Arcade.Image[]
   private readonly segments: Record<WeaponKey, ProjectileSegment>
@@ -79,7 +79,6 @@ export class Weapons {
     getSalvoPositions: (maxPerSalvo: number) => Array<{ x: number; y: number }>,
     runStats: RunStats,
   ) {
-    this.scene = scene
     this.getSalvoPositions = getSalvoPositions
     this.runStats = runStats
     this.projectileGroups = {
@@ -195,8 +194,8 @@ export class Weapons {
     }
 
     const seconds = dt / 1000
-    const width = this.scene.scale.width
-    const height = this.scene.scale.height
+    const width = FELD.breite
+    const height = FELD.hoehe
     for (const projectile of this.projectileList) {
       if (!projectile.active) continue
       const vx = projectile.getData('vx') as number
@@ -213,7 +212,7 @@ export class Weapons {
       projectile.setData('lateralPx', lateralPx)
       ;(projectile.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
       const config = this.getWeaponConfig(projectile.getData('weapon') as WeaponKey)
-      const leftOrRight = projectile.x + projectile.displayWidth / 2 < 0 || projectile.x - projectile.displayWidth / 2 > this.scene.scale.width
+      const leftOrRight = projectile.x + projectile.displayWidth / 2 < 0 || projectile.x - projectile.displayWidth / 2 > FELD.breite
       // Kampfzone statt Horizont: Der Schuss endet auf der Linie DIESER Waffe, damit
       // Gegner weiter oben ueberhaupt ankommen (BALANCE.weapon.<name>.engageShare).
       // In der Bossphase gilt keine Reichweite - der Boss steht auf battleY 300 und
@@ -234,8 +233,8 @@ export class Weapons {
     const weaponKey = this.activeWeapon
     const weapon = this.getWeaponConfig(weaponKey)
     const origins = this.getSalvoPositions(weapon.shootersPerSalvo)
-    const width = this.scene.scale.width
-    const height = this.scene.scale.height
+    const width = FELD.breite
+    const height = FELD.hoehe
     const laneFollow = BALANCE.projectile.laneFollow
     // Sprite-Neigung der spurtreuen Bahn: dx/dy ist konstant, weil die Strassenbreite
     // linear in y waechst. Einmal je Salve statt je Frame — die Bahn kruemmt sich nicht.

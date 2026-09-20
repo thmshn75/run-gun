@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import { FELD, passeKameraAn } from '../config/feld'
 import { MENU_COLORS } from '../config/colors'
 import { readSafeAreaInsets } from '../systems/safeArea'
 import { computeTitleLayout } from '../systems/titleLayout'
@@ -11,9 +12,10 @@ export class TitleScene extends Phaser.Scene {
   }
 
   public create(): void {
+    passeKameraAn(this)
     enableSharpText(this)
-    const width = this.scale.width
-    const height = this.scale.height
+    const width = FELD.breite
+    const height = FELD.hoehe
     const insets = readSafeAreaInsets(this.game.canvas)
     const safeWidth = width - insets.left - insets.right
     const centerX = insets.left + safeWidth / 2

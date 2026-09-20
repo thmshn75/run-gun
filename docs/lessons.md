@@ -1432,3 +1432,24 @@ durch die eigene Breite von der Grenze ferngehalten.
 
 **Prueffrage bei "die Regel greift nicht":** Kann die gepruefte Groesse den
 Schwellwert ueberhaupt erreichen? Einmal ausrechnen, bevor man die Logik sucht.
+
+## 2026-09-20 — Feine Schrift nuetzt nichts, wenn der Puffer grob ist
+
+**Befund:** Thomas: "die schriften im menuebildschirm wirken sehr unscharf" -
+obwohl `enableSharpText` die Schrift laengst in dreifacher Aufloesung rendert.
+
+**Ursache:** Der Zeichenbereich war 390 x 844 echte Bildpunkte gross und wurde
+vom Geraet auf die dreifache Groesse gestreckt. Eine feiner gerenderte
+Schrift-Textur wird auf diesen groben Puffer gezeichnet - **feiner als der
+Puffer kann nichts werden.**
+
+**Regel:** Bei Unschaerfe zuerst die Puffergroesse gegen die tatsaechliche
+Anzeigegroesse messen (`canvas.width` gegen `getBoundingClientRect().width` mal
+`devicePixelRatio`). Erst wenn der Puffer stimmt, lohnt jede Feinarbeit darin.
+
+**Was nicht funktioniert:** `scale.zoom` bei `mode: FIT` aendert den Puffer
+nicht (gemessen bei devicePixelRatio 3: unveraendert 390 px). Der Weg ist,
+width/height in Geraetepunkten anzulegen und die Kamera jeder Szene um denselben
+Faktor zu zoomen - dann rechnet das Spiel weiter im gewohnten Feld. Voraussetzung
+ist, dass keine Stelle mehr `scale.width` fuer Layout liest, sonst rechnet sie
+plotzlich mit der Puffergroesse.

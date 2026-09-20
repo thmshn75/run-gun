@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { FELD } from '../config/feld'
 import { BALANCE } from '../config/balance'
 import { canSpawnBossHorde } from './bossPlan'
 import { chooseEnemyType, getEnemyHp, getFigureHeight, getFigureWidth, getPlayerPower, type EnemyType, getEnemyTexture } from './enemyTypes'
@@ -233,7 +234,7 @@ export class Spawner {
     if (this.onBreakthrough === undefined) return
     if (this.levelPlan.level < BALANCE.enemy.breakthroughMinLevel) return
     if (enemy.getData('durchgebrochen') === true) return
-    const truppenhoehe = this.scene.scale.height - this.getAnchorBottomOffset()
+    const truppenhoehe = FELD.hoehe - this.getAnchorBottomOffset()
     if (enemy.y <= truppenhoehe) return
     enemy.setData('durchgebrochen', true)
     const contactDamage = enemy.getData('contactDamage') as number | undefined
@@ -388,7 +389,7 @@ export class Spawner {
       // Zielsuche: Die Spur wandert langsam zur Truppe, statt starr zu bleiben. Die
       // Bewegung sitzt auf der LANE, nicht auf x - sonst wuerde sie beim Naeherkommen
       // von der Perspektive wieder auseinandergezogen.
-      const halbeBreite = getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, enemy.y)
+      const halbeBreite = getPlayfieldHalfWidth(FELD.breite, FELD.hoehe, enemy.y)
       const zielLane = this.getTargetLane()
       const lane = enemy.getData('lane') as number
       const schritt = (BALANCE.enemy.seekSpeedPxPerSec * dt) / 1000 / Math.max(1, halbeBreite)
@@ -396,7 +397,7 @@ export class Spawner {
         ? zielLane
         : lane + Math.sign(zielLane - lane) * schritt
       enemy.setData('lane', neueLane)
-      enemy.x = this.scene.scale.width / 2 + neueLane * halbeBreite
+      enemy.x = FELD.breite / 2 + neueLane * halbeBreite
       this.applyHorizonReveal(enemy)
       this.updateShadow(poolIndex, enemy, logicalY, bob)
       ;(enemy.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
@@ -442,7 +443,7 @@ export class Spawner {
         enemy.setRotation(getStepSwayRadians(this.elapsedMs, bobCycleHz, phase, BALANCE.gamefeel.enemyStepSwayMaxDeg))
       }
       this.meldeDurchbruch(enemy)
-      if (enemy.y - enemy.displayHeight / 2 > this.scene.scale.height) this.recycle(enemy)
+      if (enemy.y - enemy.displayHeight / 2 > FELD.hoehe) this.recycle(enemy)
     }
   }
 
@@ -452,10 +453,10 @@ export class Spawner {
    */
   private getTargetLane(): number {
     if (this.getCrowdAnchorX === undefined) return 0
-    const anchorY = this.scene.scale.height - this.getAnchorBottomOffset()
-    const halbeBreite = getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, anchorY)
+    const anchorY = FELD.hoehe - this.getAnchorBottomOffset()
+    const halbeBreite = getPlayfieldHalfWidth(FELD.breite, FELD.hoehe, anchorY)
     if (halbeBreite <= 0) return 0
-    return (this.getCrowdAnchorX() - this.scene.scale.width / 2) / halbeBreite
+    return (this.getCrowdAnchorX() - FELD.breite / 2) / halbeBreite
   }
 
   private getSpawnIntervalMs(): number {
@@ -530,9 +531,9 @@ export class Spawner {
       { ...type, y, bodyWidth: type.bodyWidth * 1 },
       // Kampfhoehe als gemeinsames Bezugssystem aller Spurrechnungen (2026-08-22).
       getPlayfieldHalfWidth(
-        this.scene.scale.width,
-        this.scene.scale.height,
-        this.scene.scale.height - this.getAnchorBottomOffset(),
+        FELD.breite,
+        FELD.hoehe,
+        FELD.hoehe - this.getAnchorBottomOffset(),
       ),
       () => Phaser.Math.RND.frac(),
       BALANCE.enemy.spawnLaneSafetyGap,
@@ -540,7 +541,7 @@ export class Spawner {
       // Randabstand mit Perspektiv-Aufschlag: Weiter oben ist die Figur breiter, als
       // ihr Platz im Kampfhoehen-System hergibt (getFigureOverscanFactor). Ohne den
       // Aufschlag steht sie am Horizont mit der Schulter im Wandsegment.
-      getFigureWidth(type) * 1 * getFigureOverscanFactor(this.scene.scale.width, this.scene.scale.height),
+      getFigureWidth(type) * 1 * getFigureOverscanFactor(FELD.breite, FELD.hoehe),
     )
     if (lane === undefined) return 'no-lane'
     this.activateEnemy(enemy, type, this.ausBand(lane), y, bossCompanion)
@@ -554,9 +555,9 @@ export class Spawner {
     // Skalierung). Vorher wurde sie am Horizont eingepasst und dort gegen die volle,
     // ungeschrumpfte Figurenbreite gerechnet - deshalb passten nur zwei nebeneinander.
     const anchorHalfWidth = getPlayfieldHalfWidth(
-      this.scene.scale.width,
-      this.scene.scale.height,
-      this.scene.scale.height - this.getAnchorBottomOffset(),
+      FELD.breite,
+      FELD.hoehe,
+      FELD.hoehe - this.getAnchorBottomOffset(),
     )
     const maxWidthAnchor = Math.min(anchorHalfWidth * 2, BALANCE.walls.hordeMaxWidthPx)
     // Typen VOR dem Layout ziehen: Die Dichteregel staucht mit der echten breitesten
@@ -621,7 +622,7 @@ export class Spawner {
       // liegen bleibt und in update() auch jeden EINZELGEGNER blockiert - eine
       // unplatzierbare Horde legt den gesamten Nachschub still.
       getSquadWidth(offsets, widestBodyWidth) - widestBodyWidth
-        + widestBodyWidth * getFigureOverscanFactor(this.scene.scale.width, this.scene.scale.height),
+        + widestBodyWidth * getFigureOverscanFactor(FELD.breite, FELD.hoehe),
     )
     if (lane === undefined) return 'no-lane'
 
@@ -673,7 +674,7 @@ export class Spawner {
   }
 
   private activateEnemy(enemy: Phaser.Physics.Arcade.Image, type: EnemyType, lane: number, y: number, bossCompanion: boolean): void {
-    const x = this.scene.scale.width / 2 + lane * getPlayfieldHalfWidth(this.scene.scale.width, this.scene.scale.height, y)
+    const x = FELD.breite / 2 + lane * getPlayfieldHalfWidth(FELD.breite, FELD.hoehe, y)
     // Gestalt wie bisher levelabhaengig ziehen - sie bestimmt jetzt AUCH, welcher
     // Bewegungssatz gilt (Thomas 2026-09-04: "jede figur eine andere Bewegung").
     enemy.setTexture(getEnemyTexture(type.texture, this.levelPlan.level, Phaser.Math.RND.frac()))
@@ -737,13 +738,13 @@ export class Spawner {
     // figureTextureScale halbiert die doppelt aufgeloeste Textur zurueck auf Spielgroesse.
     const faktor = BALANCE.enemy.figureScale * BALANCE.render.figureTextureScale * 1
       * ((enemy.getData('groessenFaktor') as number | undefined) ?? 1)
-      * getPerspectiveScale(this.scene.scale.width, this.scene.scale.height, y)
+      * getPerspectiveScale(FELD.breite, FELD.hoehe, y)
     enemy.setScale(faktor)
     // Nachgefuehrte Groesse fuer alle, die mit der Figurenbreite rechnen (Schatten,
     // Spurreservierung). Die Rohbreite bleibt als bodyWidth erhalten.
     // bodyWidth ist bereits die Kampfhoehen-Breite - fuer die Bildschirmbreite fehlt
     // nur noch die Perspektive, nicht erneut figureScale.
-    enemy.setData('scaledWidth', (enemy.getData('bodyWidth') as number) * getPerspectiveScale(this.scene.scale.width, this.scene.scale.height, y))
+    enemy.setData('scaledWidth', (enemy.getData('bodyWidth') as number) * getPerspectiveScale(FELD.breite, FELD.hoehe, y))
   }
 
   // Gegner erscheinen wie die Haeuser: voll sichtbar, sobald die Unterkante die

@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { FELD, passeKameraAn } from '../config/feld'
 import enemyHeavyUrl from '../assets/enemy-heavy.png'
 import enemyBossUrl from '../assets/enemy-boss.png'
 import enemyLightUrl from '../assets/enemy-light.png'
@@ -530,6 +531,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   public create(): void {
+    passeKameraAn(this)
     enableSharpText(this)
     this.createProjectileTextures()
     this.createBackgroundTextures()
@@ -542,7 +544,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   private createBackgroundTextures(): void {
-    const width = this.scale.width
+    const width = FELD.breite
     const horizonY = BALANCE.road.horizonY
     const graphics = this.add.graphics()
     for (let y = 0; y < horizonY; y += 1) {
@@ -553,15 +555,15 @@ export class BootScene extends Phaser.Scene {
     graphics.generateTexture('sky', width, horizonY)
     graphics.clear()
     graphics.fillStyle(WORLD_COLORS.ground)
-    graphics.fillRect(0, 0, width, this.scale.height - horizonY)
-    graphics.generateTexture('ground', width, this.scale.height - horizonY)
+    graphics.fillRect(0, 0, width, FELD.hoehe - horizonY)
+    graphics.generateTexture('ground', width, FELD.hoehe - horizonY)
 
     // Wasser fuer das Weltthema "bruecke": dunkel im Vordergrund, zum Horizont heller.
     // Gestapelte Streifen statt Verlauf - fillGradientStyle wirkt nur im WebGL-Pfad und
     // wird von generateTexture stillschweigend auf die erste Farbe reduziert
     // (Lesson 2026-08-20).
     graphics.clear()
-    const wasserHoehe = this.scale.height - horizonY
+    const wasserHoehe = FELD.hoehe - horizonY
     for (let y = 0; y < wasserHoehe; y += 1) {
       const progress = y / Math.max(1, wasserHoehe - 1)
       graphics.fillStyle(mix(WORLD_COLORS.waterFar, WORLD_COLORS.waterNear, progress))
@@ -736,8 +738,8 @@ export class BootScene extends Phaser.Scene {
   }
 
   private createRoadTextures(): void {
-    const width = this.scale.width
-    const height = this.scale.height
+    const width = FELD.breite
+    const height = FELD.hoehe
     const centerX = width / 2
     const horizonY = BALANCE.road.horizonY
     const topHalfWidth = getRoadHalfWidth(width, height, horizonY)

@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
+import { FELD, passeKameraAn } from '../config/feld'
 import { WEAPON_DESCRIPTIONS, WEAPON_LABELS, type WeaponKey } from '../systems/weapons'
 import { HUD_COLORS, MENU_COLORS } from '../config/colors'
 import { computeMenuLayout } from '../systems/menuLayout'
@@ -42,6 +43,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   public create(): void {
+    passeKameraAn(this)
     enableSharpText(this)
     this.save = loadSave()
     // Nur anbieten, solange nichts Neues erspielt ist - sonst holt ein Tipp den alten
@@ -49,8 +51,8 @@ export class MenuScene extends Phaser.Scene {
     this.zurueckholbar = istUnberuehrt(this.save) ? getRestorableSave() : undefined
     this.insets = readSafeAreaInsets(this.game.canvas)
     this.input.setTopOnly(true)
-    const width = this.scale.width
-    const height = this.scale.height
+    const width = FELD.breite
+    const height = FELD.hoehe
     const safeWidth = width - this.insets.left - this.insets.right
     const safeLeft = this.insets.left
     const layout = this.layout()
@@ -176,7 +178,7 @@ export class MenuScene extends Phaser.Scene {
     this.shopObjects.splice(0).forEach((object) => object.destroy())
     this.balanceText.setText(`KONTO  ¢ ${this.save.coins}`)
     const safeLeft = this.insets.left
-    const safeWidth = this.scale.width - this.insets.left - this.insets.right
+    const safeWidth = FELD.breite - this.insets.left - this.insets.right
     const rowX = safeLeft + BALANCE.menu.sidePadding
     const rowWidth = safeWidth - 2 * BALANCE.menu.sidePadding
     const layout = this.layout()
@@ -236,8 +238,8 @@ export class MenuScene extends Phaser.Scene {
    */
   private zeigeStartwaffenwahl(kontext: Waffenwahl): void {
     const { wahl } = kontext
-    const width = this.scale.width
-    const height = this.scale.height
+    const width = FELD.breite
+    const height = FELD.hoehe
     const safeWidth = width - this.insets.left - this.insets.right
     const centerX = this.insets.left + safeWidth / 2
     const centerY = (height + this.insets.top - this.insets.bottom) / 2
@@ -487,8 +489,8 @@ export class MenuScene extends Phaser.Scene {
    */
   private zeigeProbelaufWahl(): void {
     if (this.confirmationObjects.length > 0) return
-    const width = this.scale.width
-    const height = this.scale.height
+    const width = FELD.breite
+    const height = FELD.hoehe
     const safeWidth = width - this.insets.left - this.insets.right
     const centerX = this.insets.left + safeWidth / 2
     const centerY = (height + this.insets.top - this.insets.bottom) / 2
@@ -539,8 +541,8 @@ export class MenuScene extends Phaser.Scene {
 
   private zeigeFrage(titel: string, erklaerung: string, jaText: string, onJa: () => void): void {
     if (this.confirmationObjects.length > 0) return
-    const width = this.scale.width
-    const height = this.scale.height
+    const width = FELD.breite
+    const height = FELD.hoehe
     const safeWidth = width - this.insets.left - this.insets.right
     const centerX = this.insets.left + safeWidth / 2
     const centerY = (height + this.insets.top - this.insets.bottom) / 2
@@ -566,8 +568,8 @@ export class MenuScene extends Phaser.Scene {
 
   private openResetConfirmation(): void {
     if (this.confirmationObjects.length > 0) return
-    const width = this.scale.width
-    const height = this.scale.height
+    const width = FELD.breite
+    const height = FELD.hoehe
     const safeWidth = width - this.insets.left - this.insets.right
     const centerX = this.insets.left + safeWidth / 2
     const centerY = (height + this.insets.top - this.insets.bottom) / 2
@@ -623,8 +625,8 @@ export class MenuScene extends Phaser.Scene {
    */
   private openShop(): void {
     if (this.confirmationObjects.length > 0) return
-    const width = this.scale.width
-    const height = this.scale.height
+    const width = FELD.breite
+    const height = FELD.hoehe
     const safeWidth = width - this.insets.left - this.insets.right
     const centerX = this.insets.left + safeWidth / 2
     const centerY = (height + this.insets.top - this.insets.bottom) / 2
@@ -819,8 +821,8 @@ export class MenuScene extends Phaser.Scene {
    * im Tor sieht.
    */
   private zeigeWaffenDetail(weapon: WeaponKey): void {
-    const width = this.scale.width
-    const height = this.scale.height
+    const width = FELD.breite
+    const height = FELD.hoehe
     const safeWidth = width - this.insets.left - this.insets.right
     const centerX = this.insets.left + safeWidth / 2
     const centerY = (height + this.insets.top - this.insets.bottom) / 2
@@ -934,8 +936,8 @@ export class MenuScene extends Phaser.Scene {
    * als die Stufen, die man in der Levelpause kauft und die mit dem Lauf enden.
    */
   private zeigeAufwertungDetail(line: 'firepower' | 'team'): void {
-    const width = this.scale.width
-    const height = this.scale.height
+    const width = FELD.breite
+    const height = FELD.hoehe
     const safeWidth = width - this.insets.left - this.insets.right
     const centerX = this.insets.left + safeWidth / 2
     const centerY = (height + this.insets.top - this.insets.bottom) / 2
@@ -1131,7 +1133,7 @@ export class MenuScene extends Phaser.Scene {
 
   private layout(): ReturnType<typeof computeMenuLayout> {
     return computeMenuLayout(
-      this.scale.height,
+      FELD.hoehe,
       this.insets,
       Math.min(BALANCE.menu.scoresShown, Math.max(1, this.save.scores.length)),
       this.save.run !== undefined,

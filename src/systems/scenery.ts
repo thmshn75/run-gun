@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { FELD } from '../config/feld'
 import { BALANCE } from '../config/balance'
 import { CityPlanner, type CitySpawnCommand } from './cityPlan'
 import { getSceneryPlacement, isSceneryOutsideViewport, type SceneryKind, type ScenerySide } from './sceneryLayout'
@@ -52,7 +53,7 @@ export class Scenery {
       right: this.lastBuildingTopY('right'),
     })
     for (const command of commands) this.spawn(command)
-    const height = this.scene.scale.height
+    const height = FELD.hoehe
     const progressDelta = getScrollProgressDelta(height, dt)
     for (const object of this.objects) {
       if (!object.active) continue
@@ -60,7 +61,7 @@ export class Scenery {
       object.image.y = getScrollY(height, object.progress)
       this.applyPlacement(object)
       if (isSceneryOutsideViewport(
-        this.scene.scale.width,
+        FELD.breite,
         height,
         object.image.x,
         object.image.y,
@@ -100,8 +101,8 @@ export class Scenery {
 
   private applyPlacement(object: SceneryObject): void {
     const placement = getSceneryPlacement(
-      this.scene.scale.width,
-      this.scene.scale.height,
+      FELD.breite,
+      FELD.hoehe,
       object.image.y,
       object.side,
       object.kind.baseWidthPx,

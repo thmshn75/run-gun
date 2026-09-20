@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { FELD } from '../config/feld'
 import { BALANCE } from '../config/balance'
 import { computeFormation } from './formation'
 import { approachAngle, createCrowdMotionProfiles, getBobOffsetPx, getLeanRadians, getStepCycleHz, getStepSquash, getStepSwayRadians, type CrowdMotionProfile } from './gamefeel'
@@ -30,7 +31,6 @@ export type FormationsProfil = Readonly<{
 }>
 
 export class Crowd {
-  private readonly scene: Phaser.Scene
   private readonly profil: FormationsProfil
   private readonly members: FormationMember[]
   private figuresAlpha: number
@@ -48,7 +48,6 @@ export class Crowd {
   private wallPresenceProvider: ((y: number, halfSpanPx: number) => Readonly<{ left: boolean; right: boolean }>) | null = null
 
   public constructor(scene: Phaser.Scene, anchorX: number, anchorY: number, profil: FormationsProfil) {
-    this.scene = scene
     this.profil = profil
     this.anchorX = anchorX
     this.lastAnchorX = anchorX
@@ -98,8 +97,8 @@ export class Crowd {
       rowSpacingY: this.profil.rowSpacingY,
       colSpacing: this.profil.colSpacing,
       minColSpacing: this.profil.minColSpacing,
-      maxWidth: this.scene.scale.width * this.profil.maxWidthRatio,
-      maxDepth: this.scene.scale.height - this.anchorY - this.figureHeight / 2 - this.profil.bottomMargin,
+      maxWidth: FELD.breite * this.profil.maxWidthRatio,
+      maxDepth: FELD.hoehe - this.anchorY - this.figureHeight / 2 - this.profil.bottomMargin,
     }
     const slots = computeFormation(size, options)
 
@@ -153,8 +152,8 @@ export class Crowd {
     // in der Wandzone steht und die HP-Herleitung aus der vollen Feuerkraft wieder
     // aufgeht. Die Strassenkante bleibt harte Grenze; Wandkontakt kostet nichts.
     const inset = this.figureWidth * BALANCE.player.dragClampFigures + BALANCE.player.dragClampMargin
-    const width = this.scene.scale.width
-    const height = this.scene.scale.height
+    const width = FELD.breite
+    const height = FELD.hoehe
     const presence = this.wallPresenceProvider === null ? undefined : this.wallPresenceProvider(this.anchorY, this.figureHeight / 2)
     const overlapPx = this.figureWidth * BALANCE.walls.driveIntoWallFigures
     const limit = (hasWall: boolean): number =>

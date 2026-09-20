@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { FELD } from '../config/feld'
 import { BALANCE } from '../config/balance'
 import { getRoadHalfWidth, getScrollProgressDelta, getScrollY } from './roadGeometry'
 import type { WeltThema } from './weltThema'
@@ -11,14 +12,12 @@ type CenterLineSegment = {
 }
 
 export class Road {
-  private readonly scene: Phaser.Scene
   private readonly centerLines: CenterLineSegment[]
   // Der Boden traegt das Weltthema: Gruenflaeche in der Stadt, Wasser auf der Bruecke.
   // Die Fahrbahn darueber ist in beiden Themen dieselbe.
   private readonly ground: Phaser.GameObjects.Image
 
   public constructor(scene: Phaser.Scene) {
-    this.scene = scene
     this.centerLines = []
     scene.add.image(0, 0, 'sky').setOrigin(0).setDepth(BALANCE.layers.background)
     this.ground = scene.add.image(0, BALANCE.road.horizonY, 'ground').setOrigin(0).setDepth(BALANCE.layers.background)
@@ -37,7 +36,7 @@ export class Road {
   }
 
   public update(dt: number): void {
-    const progressDelta = getScrollProgressDelta(this.scene.scale.height, dt)
+    const progressDelta = getScrollProgressDelta(FELD.hoehe, dt)
     for (const centerLine of this.centerLines) {
       centerLine.progress += progressDelta
       if (centerLine.progress >= 1) centerLine.progress -= 1
@@ -46,8 +45,8 @@ export class Road {
   }
 
   private updateCenterLines(): void {
-    const width = this.scene.scale.width
-    const height = this.scene.scale.height
+    const width = FELD.breite
+    const height = FELD.hoehe
     for (const centerLine of this.centerLines) {
       const y = getScrollY(height, centerLine.progress)
       const halfWidth = getRoadHalfWidth(width, height, y)

@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE, RUN_FORMATIONS_PROFIL } from '../config/balance'
+import { aktuellerGeraeteFaktor, FELD, passeKameraAn } from '../config/feld'
 import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
 import { Walls } from '../systems/walls'
 import { VersuchBahnen, type BahnSystem } from '../systems/versuchBahnen'
@@ -253,6 +254,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   public create(): void {
+    passeKameraAn(this)
     // Phaser verwendet dieselbe Szeneninstanz erneut: Collider aus dem vorigen Start
     // duerfen deshalb nie auf die alten Physik-Gruppen zeigen.
     this.projectileWallCollider = undefined
@@ -308,7 +310,7 @@ export class GameScene extends Phaser.Scene {
     this.road = new Road(this)
     this.scenery = new Scenery(this, () => Phaser.Math.RND.frac())
     this.bruecke = new Bruecke(this, () => Phaser.Math.RND.frac())
-    this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - this.getAnchorBottomOffset(), RUN_FORMATIONS_PROFIL)
+    this.crowd = new Crowd(this, FELD.breite / 2, FELD.hoehe - this.getAnchorBottomOffset(), RUN_FORMATIONS_PROFIL)
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
     this.sterbeeffekte = new Sterbeeffekte(this)
     this.spawner = new Spawner(this, this.runStats, () => this.crowd.getAnchorX(), () => this.getAnchorBottomOffset(), (contactDamage) => this.handleBreakthrough(contactDamage), (enemy) => {
@@ -413,7 +415,7 @@ export class GameScene extends Phaser.Scene {
     this.chainFlashes = new ChainFlashPool(this)
     const panelX = this.insets.left + BALANCE.hud.padding
     const panelY = this.insets.top + BALANCE.hud.padding
-    const panelW = this.scale.width - this.insets.left - this.insets.right - 2 * BALANCE.hud.padding
+    const panelW = FELD.breite - this.insets.left - this.insets.right - 2 * BALANCE.hud.padding
     const panelH = BALANCE.hud.panelHeight
     const panel = this.add.graphics()
     panel.fillStyle(HUD_COLORS.panel, BALANCE.hud.panelAlpha)
@@ -451,20 +453,20 @@ export class GameScene extends Phaser.Scene {
     }
     Object.values(this.hud).forEach((segment) => segment.setDepth(BALANCE.hud.depthText))
     const bossBarY = this.insets.top + BALANCE.hud.padding + BALANCE.hud.panelHeight + 8
-    this.bossBarWidth = getRoadHalfWidth(this.scale.width, this.scale.height, BALANCE.road.horizonY) * 2
-    const bossBarX = (this.scale.width - this.bossBarWidth) / 2
+    this.bossBarWidth = getRoadHalfWidth(FELD.breite, FELD.hoehe, BALANCE.road.horizonY) * 2
+    const bossBarX = (FELD.breite - this.bossBarWidth) / 2
     this.bossBarBackground = this.add.rectangle(bossBarX, bossBarY, this.bossBarWidth, 8, HUD_COLORS.bossBarBack).setOrigin(0, 0).setDepth(BALANCE.hud.depthText)
     this.bossBarFill = this.add.rectangle(bossBarX, bossBarY, 0, 8, HUD_COLORS.bossBarFill).setOrigin(0, 0).setDepth(BALANCE.hud.depthText + 1)
-    this.bossBarText = this.add.text(this.scale.width / 2, bossBarY + 4, '', {
+    this.bossBarText = this.add.text(FELD.breite / 2, bossBarY + 4, '', {
       fontFamily: 'system-ui', fontSize: '12px', fontStyle: 'bold', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 3,
     }).setOrigin(0.5).setDepth(BALANCE.hud.depthText + 2)
     this.bossBarBackground.setVisible(false)
     this.bossBarFill.setVisible(false)
     this.bossBarText.setVisible(false)
-    this.levelOverlayBackground = this.add.rectangle(this.scale.width / 2, this.scale.height / 2, this.scale.width, this.scale.height, HUD_COLORS.panel, 0.65)
+    this.levelOverlayBackground = this.add.rectangle(FELD.breite / 2, FELD.hoehe / 2, FELD.breite, FELD.hoehe, HUD_COLORS.panel, 0.65)
       .setDepth(BALANCE.hud.depthText + 2)
       .setVisible(false)
-    this.levelOverlay = this.add.text(this.scale.width / 2, this.scale.height / 2, '', {
+    this.levelOverlay = this.add.text(FELD.breite / 2, FELD.hoehe / 2, '', {
       fontFamily: 'system-ui', fontSize: '34px', fontStyle: 'bold', color: this.colorFor(HUD_COLORS.bossOverlayText), stroke: HUD_COLORS.textDark, strokeThickness: 5,
     }).setOrigin(0.5).setDepth(BALANCE.hud.depthText + 3).setVisible(false)
     this.crowd.setSize(this.runStats.get('hp'))
@@ -717,7 +719,7 @@ export class GameScene extends Phaser.Scene {
    */
   private baueTestgelaendeKnopf(): void {
     const y = this.insets.top + BALANCE.hud.padding + BALANCE.hud.panelHeight + 24
-    const mitte = this.scale.width / 2
+    const mitte = FELD.breite / 2
     const knopf = this.add.rectangle(mitte, y, 210, 38, HUD_COLORS.panel, 0.92)
       .setStrokeStyle(2, HUD_COLORS.panelStroke)
       .setDepth(BALANCE.hud.depthText + 1)
@@ -965,7 +967,7 @@ export class GameScene extends Phaser.Scene {
       const bossDy = bossEnemy.y - impactY
       if (bossEnemy.active && bossDx * bossDx + bossDy * bossDy <= radiusSquared) this.damageEnemy(bossEnemy, splashDamage)
       this.splashFlashes.spawn(impactX, impactY, config.splashRadiusPx)
-      this.cameras.main.shake(BALANCE.gamefeel.shakeSplashMs, BALANCE.gamefeel.shakeSplashIntensity)
+      this.cameras.main.shake(BALANCE.gamefeel.shakeSplashMs, BALANCE.gamefeel.shakeSplashIntensity / aktuellerGeraeteFaktor())
     }
     this.weapons.recycle(projectile)
   }
@@ -1158,8 +1160,8 @@ export class GameScene extends Phaser.Scene {
     const lastCoinX = x + coinOffsets[coinOffsets.length - 1]
     const groupOffsetX = firstCoinX < BALANCE.coins.edgeInset
       ? BALANCE.coins.edgeInset - firstCoinX
-      : lastCoinX > this.scale.width - BALANCE.coins.edgeInset
-        ? this.scale.width - BALANCE.coins.edgeInset - lastCoinX
+      : lastCoinX > FELD.breite - BALANCE.coins.edgeInset
+        ? FELD.breite - BALANCE.coins.edgeInset - lastCoinX
         : 0
     for (let index = 0; index < value; index += 1) {
       this.coins.spawnAt(x + coinOffsets[index] + groupOffsetX, y)
@@ -1254,7 +1256,7 @@ export class GameScene extends Phaser.Scene {
     this.enemyContactIframeUntilMs = this.elapsedMs + iframeMs
     this.blinkUntilMs = Math.max(this.blinkUntilMs, this.elapsedMs + iframeMs)
     this.nextBlinkAtMs = this.elapsedMs
-    this.cameras.main.shake(BALANCE.gamefeel.shakeDamageMs, BALANCE.gamefeel.shakeDamageIntensity)
+    this.cameras.main.shake(BALANCE.gamefeel.shakeDamageMs, BALANCE.gamefeel.shakeDamageIntensity / aktuellerGeraeteFaktor())
     this.updateHud()
     if (this.runStats.get('hp') <= 0) this.triggerGameOver()
   }
@@ -1704,8 +1706,8 @@ export class GameScene extends Phaser.Scene {
     frame.strokeRect(
       this.insets.left,
       this.insets.top,
-      this.scale.width - this.insets.left - this.insets.right,
-      this.scale.height - this.insets.top - this.insets.bottom,
+      FELD.breite - this.insets.left - this.insets.right,
+      FELD.hoehe - this.insets.top - this.insets.bottom,
     )
     this.add.text(
       BALANCE.hud.padding,
