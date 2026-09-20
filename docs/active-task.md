@@ -2,65 +2,61 @@
 
 Status: APPROVED
 
-## Aufgabe: V6/N11 — Der Endboss wird groß und sichtbar
+## Aufgabe: V6/N12 — Moderne Militärhelme statt Ritterhelme
 
-Die Silhouette ist behoben (`setTintFill` ist raus, danke). Beim Nachweis bei
-390×844 bleibt ein Rest: **Der Boss ist am Horizont so klein, dass man ihn kaum
-findet**, und er steht auf derselben Zeichenebene wie die Gegnermasse, verschwindet
-also teilweise dahinter. Thomas will einen Endboss, den man als Figur erkennt.
+Thomas am 2026-09-20, wörtlich:
+> "helme super, aber moderne militärhelme von oben hinten"
 
-### 1. Größer
+Die Helmdarstellung als solche bleibt — sie funktioniert. Nur die beiden Bilder
+`src/assets/v2-helm-blau.png` und `src/assets/v2-helm-rot.png` zeigen heute einen
+**mittelalterlichen Ritterhelm mit Visier**. Gebraucht wird ein **moderner
+Militärhelm**, gesehen **von schräg oben hinten** — also die Perspektive, die man
+auf einen Soldaten hat, der von einem wegmarschiert.
 
-In `balanceV2.ts`:
-- `ende.bossStartScale` von 0.48 auf **1.10**
-- `ende.bossEndScale` von 0.78 auf **1.80**
+### Die beiden Bilder neu erzeugen
 
-Rechenweg als Kommentar: Am Horizont greift zusätzlich `tiefenSkala` mit 0.45, der
-Boss steht dort also effektiv bei 0.50 — bei 256 px Bildbreite rund 128 px und
-damit etwa ein Drittel der Bildbreite. Am Ende seines Abstiegs steht er bei
-ungefähr 1.2 und füllt die Bahn sichtbar aus. Die Tiefenskala bleibt unangetastet.
+**Du erzeugst die Bilder mit deinem Bildwerkzeug** und ersetzt die beiden
+vorhandenen Dateien unter demselben Namen, damit im Code nichts anzupassen ist.
 
-### 2. Vor der Masse statt dahinter
+Anforderungen an das Bild:
 
-Boss und Bosszähler stehen heute auf Tiefe 2 bzw. 3 — dieselbe Ebene wie Mauern und
-Massen. Der Boss gehört **vor alles auf der Bahn**: Bild auf Tiefe **8**, Zähler auf
-**9**. Damit bleibt er sichtbar, auch wenn die Gegnerfläche bis an den Horizont
-reicht.
-
-### 3. Er soll sich bewegen wie eine Figur
-
-Heute wechselt er alle 700 ms zwischen zwei Standbildern. In `src/assets/` liegen
-`boss-elite-move-1.png` bis `boss-elite-move-12.png` — eine vollständige
-Laufbildfolge. Daraus eine echte Phaser-Animation bauen (rund 10 Bilder je Sekunde,
-endlos) und den Boss diese abspielen lassen. Falls diese Bilder in V2 noch nicht
-geladen werden, im Ladeteil der Szene ergänzen — **nur diese Bilddateien, keine
-Importe aus `src/systems/` oder `src/scenes/`.**
+- **Moderner Kampfhelm** in der Art heutiger Gefechtshelme: runde, glatte Schale,
+  die nach hinten und zu den Seiten herunterreicht, leicht kantige Silhouette,
+  keine Hörner, kein Visier, kein Kamm, kein Gitter.
+- **Blickwinkel von schräg oben hinten**: man sieht überwiegend die Helmschale von
+  oben, dahinter angedeutet den Nackenschutz. Kein Gesicht, keine Augen.
+- **Quadratisches Bild mit durchsichtigem Hintergrund** (PNG mit Alpha), in den
+  Maßen der heutigen Dateien, damit die Skalierung im Spiel unverändert bleibt.
+- Zwei Fassungen: eine in **Blau** (eigene Seite), eine in **Rot** (Gegnerseite).
+  Kräftige, klar unterscheidbare Farben.
+- **Bei sehr kleiner Darstellung noch lesbar:** Im Spiel ist ein Helm nur wenige
+  Pixel groß. Deshalb wenige, große Formen, deutlicher dunkler Rand, ein einziges
+  helles Glanzlicht oben. Keine feinen Details, keine dünnen Linien, keine
+  Beschriftung — das verschwindet ohnehin und macht die Fläche nur unruhig.
+- Stil passend zum übrigen Spiel: flächig und kräftig, keine Fotorealistik.
 
 ### Grenzen
 
-- Nur `src/v2/`. Keine Importe aus `src/systems/`, `src/config/balance`,
-  `src/scenes/`. Kein Speicherzugriff.
-- Bilanzrechnung, Steuerung, Sammellogik und die Tiefenskala bleiben unverändert.
-- Bildrate bleibt 60.
+- **Nur die beiden Bilddateien.** Kein Code, keine Balance-Werte, keine Tests
+  ändern — die Helme werden bereits an der richtigen Stelle in der richtigen Größe
+  gezeichnet.
+- Dateinamen und Bildmaße bleiben exakt gleich.
 
 ### Akzeptanzkriterien
 
-1. `npx tsc --noEmit`, `npm test`, `npm run build` sauber; alle Tests grün.
-2. Tests:
-   - Die Bossgröße am Horizont, also `bossStartScale * tiefenSkala(Horizont)`,
-     liegt über 0.45 — der Boss ist dort also mindestens so groß wie ein Helm im
-     Vordergrund.
-   - Boss und Bosszähler liegen auf einer höheren Zeichenebene als Massen und
-     Mauern (Textprüfung auf die gesetzten Tiefen genügt, wie `v2Geruest` es macht).
-3. **Browser-Nachweis bei 390×844** (führt Claude): Der Boss ist beim Start sofort
-   als Figur erkennbar, steht vor der Gegnermasse und bewegt sich; 60 Bilder je
-   Sekunde; Doppelstart identisch.
+1. Beide Dateien sind ersetzt, PNG mit durchsichtigem Hintergrund, gleiche Maße
+   wie vorher. `npx tsc --noEmit`, `npm test` und `npm run build` bleiben grün.
+2. `git diff --stat` zeigt **ausschliesslich** die beiden Bilddateien (plus diese
+   Task-Datei).
+3. **Sichtprüfung bei 390×844** (führt Claude): Die Massen lesen sich als moderne
+   Helme von oben, blau gegen rot klar unterscheidbar, auch am Horizont noch als
+   Helm erkennbar und nicht als Farbklecks.
 
 ## Implementation Summary
 
-- Boss-Skalierung auf 1,10 bis 1,80 mit dem verlangten Rechenweg erhöht.
-- Alle zwölf vorhandenen Elite-Laufbilder werden als endlose Phaser-Animation mit
-  zehn Bildern pro Sekunde geladen und gespielt; Boss und Zähler liegen auf Tiefe 8/9.
-- Neue Tests prüfen Horizontgröße, Zeichenebenen und Animationsvorrat.
-- `npx tsc --noEmit`, `npm test` (48 Dateien, 461 Tests), `npm run build` und
-  `git diff --check` sind grün. Browser-Nachweis/Doppelstart führt Claude aus.
+- `v2-helm-blau.png` und `v2-helm-rot.png` mit dem Bildwerkzeug als moderne,
+  von schräg oben hinten sichtbare Kampfhelme neu erzeugt; beide behalten 1254×1254
+  Pixel sowie RGBA-Alpha bei.
+- Kein Code, keine Balance-Werte und keine Tests geändert.
+- `npx tsc --noEmit`, `npm test` (48 Dateien, 461 Tests) und `npm run build`
+  sind grün; die Sichtprüfung bei 390×844 bleibt bei Claude.
