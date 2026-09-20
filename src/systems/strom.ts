@@ -100,7 +100,13 @@ export class Strom {
    * zu verschwinden. So staut sich der Strom an der Gegnermasse (Thomas 2026-09-19).
    */
   public bindeAnZiel(figure: Phaser.Physics.Arcade.Image, ziel: Phaser.Physics.Arcade.Image): void {
-    if (figure.getData('ziel') === ziel) return
+    const bisher = figure.getData('ziel') as Phaser.Physics.Arcade.Image | undefined
+    // EINMAL gebunden, bleibt die Figur bei ihrem Ziel, solange es lebt. In der dichten
+    // Masse ueberlappt sie mit mehreren Gegnern gleichzeitig; ein Zielwechsel je
+    // Beruehrung setzte die Kampfzeit staendig auf null zurueck. Die Figuren wurden
+    // dadurch nie aufgerieben und blieben fuer immer stehen (Thomas 2026-09-20: "meine
+    // ausgesendeten Truppen haben keine Wirkung und werden auch nicht dezimiert").
+    if (bisher !== undefined && bisher.active) return
     figure.setData('ziel', ziel)
     figure.setData('kampfSeitMs', 0)
   }

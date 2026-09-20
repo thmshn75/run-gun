@@ -145,6 +145,14 @@ export class Spawner {
   }
 
   /** Im Torlauf immer der Standardtyp, sonst nach der Leveltabelle gewichtet. */
+  private standardTyp(): EnemyType {
+    return BALANCE.enemy.types.find((type) => type.key === 'standard') ?? BALANCE.enemy.types[0]
+  }
+
+  private heavyTyp(): EnemyType {
+    return BALANCE.enemy.types.find((type) => type.key === 'heavy') ?? this.standardTyp()
+  }
+
   private waehleTyp(): EnemyType {
     if (!this.nurStandard) return chooseEnemyType(this.levelPlan.enemyWeights, () => Phaser.Math.RND.frac())
     // Ueberwiegend Standard, ab und zu ein Heavy dazwischen: Thomas hat in der reinen
@@ -567,14 +575,21 @@ export class Spawner {
    */
   private spawneTorlaufReihe(): SpawnResult {
     const anzahl: number = BALANCE.torlauf.reiheGroesse
-    const y = getEnemySpawnCenterY(getFigureHeight(this.waehleTyp()) * this.figurenMassstab)
+    const y = getEnemySpawnCenterY(getFigureHeight(this.standardTyp()) * this.figurenMassstab)
+    // HOECHSTENS EIN Heavy je Reihe, und auch das nur ab und zu: Thomas 2026-09-20
+    // "es sind zu viele Heavy auf einmal, sie sollen einzeln kommen mit der Horde mit".
+    // Vorher wurde je Platz einzeln gewuerfelt, was bei neun Plaetzen regelmaessig
+    // mehrere Heavys in derselben Reihe ergab.
+    const heavyPlatz = Phaser.Math.RND.frac() < BALANCE.torlauf.heavyAnteil
+      ? Math.floor(Phaser.Math.RND.frac() * anzahl)
+      : -1
     for (let platz = 0; platz < anzahl; platz += 1) {
       const enemy = this.enemies.getChildren().find((child) => !child.active) as Phaser.Physics.Arcade.Image | undefined
       if (enemy === undefined) {
         this.warnPoolExhausted()
         return 'pool-exhausted'
       }
-      const type = this.waehleTyp()
+      const type = platz === heavyPlatz ? this.heavyTyp() : this.standardTyp()
       // Gleichmaessig ueber die Bahn, mit etwas Streuung, damit keine Gitterlinie
       // entsteht. -1 ist der linke, +1 der rechte Bahnrand.
       const anteil = anzahl === 1 ? 0 : (platz / (anzahl - 1)) * 2 - 1

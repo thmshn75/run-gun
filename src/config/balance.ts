@@ -62,10 +62,11 @@ export const BALANCE = {
     spawnSpurAbstandPx: 2,
     // Figuren je Reihe. Der Gegner-Pool fasst 288, bei rund acht Sekunden Lebensdauer
     // und dem dichten Takt bleibt das die begrenzende Groesse.
-    reiheGroesse: 9,
+    reiheGroesse: 12,
     // Ab und zu ein Heavy zwischen den Standardfiguren - Thomas hat in der dichten
     // Masse keinen einzigen gesehen, weil der Torlauf nur noch Standard spawnte.
-    heavyAnteil: 0.12,
+    // Anteil der REIHEN mit genau einem Heavy (nicht mehr Anteil aller Figuren).
+    heavyAnteil: 0.25,
     // Gegner im Torlauf dreimal so zaeh und der Boss achtmal: Der Strom liefert
     // dauerhaft Nachschub, gegen Run-Werte faellt alles sofort um.
     gegnerLebenFaktor: 3,
