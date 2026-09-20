@@ -119,22 +119,29 @@ export const BALANCE_V2 = {
   front: {
     // 858 ist der aus dem Video abgelesene Startvorrat der roten Flaeche.
     gegnerStartVorrat: 858,
-    // Die Horde folgt ihrem Boss mit 35 Prozent seines Wegs, also hoechstens rund
-    // 210 px. Sie kommt sichtbar naeher, ohne ihn einzuholen - er bleibt die
-    // Spitze des Angriffs - und loest sich dabei nicht zu weit vom Horizont.
-    hordeFolgtBossAnteil: 0.35,
+    // Die Horde marschiert selbst, ohne ihren Boss: 6 px/s auf hoechstens 376 px,
+    // also rund 63 Sekunden von ihrem Startplatz bis zur Truppe. Das ist die Uhr
+    // des ersten Abschnitts - wer sie nicht vorher aufreibt, verliert. Gemessen:
+    // Bis 10 Sekunden Sammeln reicht der Zustrom nicht, ab 15 Sekunden schon.
+    hordeTempoPxProSek: 6,
+    // 376 px: von der Unterkante der vollen Horde (y=380) bis zur Truppe (y=752)
+    // minus einem kleinen Rest, damit sie die Truppe wirklich erreicht.
+    hordeMaxVorstossPx: 376,
+    // Obergrenze der eigenen Flaeche: Mehr als 180 Einheiten haben zwischen
+    // Frontlinie und Truppe keinen Platz. Ohne Deckel wuchs sie weiter, sobald
+    // die Horde aufgerieben war und niemand sie mehr verbrauchte.
+    eigenerWertMax: 180,
     // Bei 390 x 844 endet die volle rote Masse bei y=380: 230 px nach dem
     // Horizont und damit im oberen Drittel der 694 px hohen Bahn. Bis zum Tor
     // bei y=700 bleiben 320 px sichtbare freie Bahn fuer den Strom.
     frontStartY: 380,
-    // 0,8 Begegnungen je vorhandener Einheit und Sekunde. Dieser Wert bestimmt
+    // 1,6 Begegnungen je vorhandener Einheit und Sekunde. Dieser Wert bestimmt
     // NICHT, wie schnell der Gegner faellt: Im Gleichgewicht entspricht der Abbau
-    // immer genau dem Zustrom - eigene Einheiten sterben so schnell, wie sie
-    // nachkommen. Er bestimmt, wie GROSS die sichtbare eigene Flaeche wird:
-    // Gleichgewicht ist Zustrom geteilt durch diesen Wert, bei vollem Strom also
-    // 24/0,8 = 30 Einheiten. Mit 0,3 waren es 80, und die blaue Flaeche wuchs
-    // sichtbar immer weiter an, statt sich umzusetzen.
-    austauschProSek: 0.8,
+    // immer genau dem Zustrom. Er bestimmt, wie GROSS die sichtbare eigene
+    // Flaeche wird: Gleichgewicht ist Zustrom geteilt durch diesen Wert, bei
+    // vollem Strom und Tor x2,5 also 60/1,6 = knapp 38 Einheiten. Mit 0,8 waren
+    // es 75 und die blaue Flaeche wuchs weiter sichtbar an.
+    austauschProSek: 1.6,
     // Maximale rote Trapezflaeche (390 x 844): (202,8 px + 284,9 px) / 2 *
     // 230 px = 56.315 px². Der bestehende feste Bildvorrat bleibt absichtlich
     // unveraendert; er deckt den nun kleineren, kompakten Block mit Reserve ab.
@@ -168,6 +175,10 @@ export const BALANCE_V2 = {
     bossSchlagkraftProSek: 16,
     // Schwerer Gang: 0,8 Schritte je Sekunde, 7 px Stampfen, 5 px Schwanken.
     // Bewusst langsam - der Boss soll wuchtig wirken, nicht hektisch.
+    // Solange die Horde marschiert, geht der Boss an ihrem hinteren Ende mit,
+    // aber nur mit 65 Prozent ihres Wegs: Der Abstand zwischen ihm und der
+    // Frontlinie waechst dadurch sichtbar - die Masse zieht ihm voraus.
+    bossFolgtHordeAnteil: 0.65,
     bossSchrittTaktProSek: 0.8,
     bossStampfenPx: 7,
     bossSchwankenPx: 5,

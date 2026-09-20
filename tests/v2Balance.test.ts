@@ -72,16 +72,30 @@ describe('Run Gun V2 — die Balance geht nur knapp auf', () => {
   })
 
   it('laesst langes Sammeln gerade noch reichen', () => {
-    // Die Grenze liegt zwischen 10 und 15 Sekunden Sammeln: Ab da uebersteigt der
-    // Zustrom die Schlagkraft des Bosses, und er bleibt vor der Flaeche haengen.
+    // Die Grenze liegt zwischen 10 und 15 Sekunden Sammeln: Ab da reicht der
+    // Zustrom, um die Horde aufzureiben, bevor sie die Truppe erreicht.
     expect(spiele(10, 0).ausgang).toBe('niederlage')
     expect(spiele(15, 0).ausgang).toBe('sieg')
     expect(spiele(20, 0).ausgang).toBe('sieg')
   })
 
-  it('laesst die Horde mit ihrem Boss vorruecken, aber langsamer als er', () => {
-    expect(BALANCE_V2.front.hordeFolgtBossAnteil).toBeGreaterThan(0)
-    expect(BALANCE_V2.front.hordeFolgtBossAnteil).toBeLessThan(1)
+  it('laesst die Horde allein marschieren und den Boss erst danach kommen', () => {
+    // Abschnitt 1 gehoert der Horde: Sie braucht rund 63 s bis zur Truppe.
+    const hordeDauer = BALANCE_V2.front.hordeMaxVorstossPx / BALANCE_V2.front.hordeTempoPxProSek
+    expect(hordeDauer).toBeGreaterThan(50)
+    expect(hordeDauer).toBeLessThan(80)
+    // Wer nichts tut, verliert genau an dieser Uhr - nicht am Boss.
+    const passiv = spiele(0, 0)
+    expect(passiv.ausgang).toBe('niederlage')
+    expect(passiv.sekunden).toBeCloseTo(hordeDauer, 0)
+  })
+
+  it('deckelt die eigene Flaeche, damit sie nicht ins Uferlose waechst', () => {
+    // Ohne Deckel wuchs sie weiter, sobald die Horde aufgerieben war und
+    // niemand sie mehr verbrauchte - gemessen bis ueber 2000 Einheiten.
+    let front = frontStartZustand()
+    for (let bild = 0; bild < 60 * 120; bild += 1) front = mitAnkunft(front, 2)
+    expect(front.eigenerWert).toBeLessThanOrEqual(BALANCE_V2.front.eigenerWertMax)
   })
 
   it('macht eine einzige abgebaute Wand zum Unterschied zwischen Sieg und Niederlage', () => {
@@ -94,9 +108,8 @@ describe('Run Gun V2 — die Balance geht nur knapp auf', () => {
     for (const [sammeln, waende] of [[0, 0], [10, 0], [20, 0], [10, 1], [10, 2]] as const) {
       const e = spiele(sammeln, waende)
       expect(e.sekunden).toBeGreaterThan(20)
-      // Bis 130 s: Der Boss laeuft auf Wunsch betont langsam (6 px/s auf 602 px),
-      // dadurch dauert eine verlorene Runde rund 100 bis 110 Sekunden.
-      expect(e.sekunden).toBeLessThan(130)
+      // Gemessen dauern alle Spielweisen 41 bis 63 Sekunden.
+      expect(e.sekunden).toBeLessThan(80)
     }
   })
 

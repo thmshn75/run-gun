@@ -29,7 +29,16 @@ export function aktualisiereFront(
 ): FrontZustand {
   const sekunden = Math.max(0, dtMs) / 1000
   const staerke = zustand.staerke ?? BALANCE_V2.staerke.start
-  const begegnungen = Math.min(zustand.eigenerWert, zustand.vorrat) * raten.austauschProSek * sekunden
+  // Die dritte Grenze ist entscheidend: Ein Schritt darf nie mehr Begegnungen
+  // erzeugen, als ueberhaupt Einheiten da sind. Sonst verliert die kleinere Seite
+  // ihren ganzen Bestand, waehrend die groessere mehr abgibt - der Austausch waere
+  // dann nicht mehr eins zu eins. Bei kleiner Rate faellt das nicht auf, bei
+  // grosser sofort.
+  const begegnungen = Math.min(
+    zustand.eigenerWert,
+    zustand.vorrat,
+    Math.min(zustand.eigenerWert, zustand.vorrat) * raten.austauschProSek * sekunden,
+  )
   const eigenerVerlust = begegnungen
   const gegnerVerlust = begegnungen * (staerke / BALANCE_V2.staerke.start)
   // Eine Einheit ist unteilbar: Ohne diese Schwelle naehert sich der Rest der Null
@@ -49,7 +58,16 @@ function restOhneBruchteil(wert: number): number {
   return wert < 1 ? 0 : wert
 }
 
-/** Ankommende Stromfiguren erhoehen die blaue Flaeche ganzzahlig; die Bilanz bleibt fliessend. */
+/**
+ * Ankommende Stromfiguren erhoehen die blaue Flaeche; die Bilanz bleibt fliessend.
+ *
+ * Nach oben ist sie gedeckelt: Auf die Bahn passt nur eine begrenzte Masse. Ohne
+ * diesen Deckel waechst die Flaeche weiter, sobald ihr nichts mehr gegenuebersteht
+ * - sie hat dann keinen Verbraucher mehr und laeuft aus dem Bild.
+ */
 export function mitAnkunft(zustand: FrontZustand, anzahl = 1): FrontZustand {
-  return { ...zustand, eigenerWert: zustand.eigenerWert + Math.max(0, anzahl) }
+  return {
+    ...zustand,
+    eigenerWert: Math.min(BALANCE_V2.front.eigenerWertMax, zustand.eigenerWert + Math.max(0, anzahl)),
+  }
 }

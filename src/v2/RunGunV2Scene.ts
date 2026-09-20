@@ -410,7 +410,9 @@ export class RunGunV2Scene extends Phaser.Scene {
     const takt = this.time.now / 1000 * BALANCE_V2.ende.bossSchrittTaktProSek * Math.PI * 2
     const stampfen = Math.abs(Math.sin(takt)) * BALANCE_V2.ende.bossStampfenPx * scale
     const schwanken = Math.sin(takt / 2) * BALANCE_V2.ende.bossSchwankenPx * scale
-    this.bossBild?.setPosition(width / 2 + schwanken, y - stampfen).setScale(scale)
+    // Der Boss ist durchgehend zu sehen: Er geht am hinteren Ende der Horde mit
+    // nach unten und uebernimmt erst, wenn sie aufgerieben ist.
+    this.bossBild?.setVisible(true).setPosition(width / 2 + schwanken, y - stampfen).setScale(scale)
       .setRotation(Math.sin(takt / 2) * 0.03)
     // Der Bosszaehler haelt Abstand zum Massenzaehler: Beide sassen bei tiefem
     // Bossstand uebereinander und waren nicht mehr zu lesen.
@@ -431,8 +433,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     const gegnerPlaetze: Array<{ x: number, y: number }> = []
     // Die Oberkante wandert mit, damit die Masse als Block vorrueckt statt sich
     // nur nach vorn zu strecken - sonst wuerde sie beim Wandern immer duenner.
-    const hordeOben = BALANCE_V2.track.horizonY
-      + this.ende.bossAbstiegPx * BALANCE_V2.front.hordeFolgtBossAnteil
+    const hordeOben = BALANCE_V2.track.horizonY + this.ende.hordeVorstossPx
     for (let y = this.front.frontY; y > hordeOben; y -= rasterSchritt(y)) {
       const { leftX: left, rightX: right } = fahrbahnKantenBeiY(width, height, y)
       const spalten = Math.max(1, Math.ceil((right - left) / rasterSchritt(y)))

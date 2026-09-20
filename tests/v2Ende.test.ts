@@ -9,12 +9,20 @@ function zustand(vorrat: number, eigenerWert: number, bossVorrat = BALANCE_V2.en
 }
 
 describe('Run Gun V2 — S7 Boss und Spielende', () => {
-  it('baut mit vorhandenem roten Vorrat nur die rote Flaeche ab und bewegt den Boss', () => {
+  it('laesst den Boss am hinteren Ende der Horde mitwandern, aber langsamer', () => {
+    // Solange die Horde marschiert, geht der Boss an ihrem Ende mit nach unten -
+    // langsamer als sie, sodass die Masse ihm vorauszieht. Eingreifen tut er
+    // erst, wenn sie aufgerieben ist.
     const start = zustand(100, 20, 321)
     const ende = aktualisiereEnde(start, 1000)
     expect(ende.front.vorrat).toBeLessThan(start.front.vorrat)
     expect(ende.bossVorrat).toBe(321)
-    expect(ende.bossAbstiegPx).toBe(BALANCE_V2.ende.bossTempoPxProSek)
+    expect(ende.hordeVorstossPx).toBe(BALANCE_V2.front.hordeTempoPxProSek)
+    expect(ende.bossAbstiegPx).toBeCloseTo(
+      ende.hordeVorstossPx * BALANCE_V2.ende.bossFolgtHordeAnteil, 6,
+    )
+    // Langsamer als die Horde, sonst waere er ihre Spitze statt ihr Nachhut.
+    expect(ende.bossAbstiegPx).toBeLessThan(ende.hordeVorstossPx)
   })
 
   it('baut nach leerer Flaeche den Boss mit staerkegewichteter Austauschrate ab', () => {

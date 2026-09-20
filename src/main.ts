@@ -70,6 +70,19 @@ const game = new Phaser.Game({
     autoCenter: Phaser.Scale.CENTER_BOTH,
     width: 390,
     height: 844,
+    // HINWEIS zur Schaerfe (Thomas 2026-09-20: "die schriften im menuebildschirm
+    // wirken sehr unscharf"): Der Zeichenbereich ist 390 x 844 echte Bildpunkte
+    // gross und wird auf einem iPhone auf die dreifache Groesse gestreckt. Die
+    // Schrift wird zwar ueber enableSharpText in dreifacher Aufloesung gerendert,
+    // aber auf diesen 390-Punkte-Puffer gezeichnet - feiner als der Puffer kann
+    // sie dort nicht werden.
+    //
+    // GEPRUEFT und VERWORFEN: scale.zoom aendert bei mode FIT nichts am Puffer
+    // (gemessen bei devicePixelRatio 3: Puffer bleibt 390 px). Der wirksame Weg
+    // waere, width/height mit dem Geraetefaktor zu multiplizieren und zoom auf
+    // den Kehrwert zu setzen - dann rechnen aber alle Szenen in einem anderen
+    // Koordinatensystem, und jede feste Position im Spiel muesste mitziehen.
+    // Das ist ein eigener Umbau, kein Nebenbei-Fix.
   },
   physics: {
     default: 'arcade',
