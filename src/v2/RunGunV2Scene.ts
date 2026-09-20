@@ -2,9 +2,10 @@ import Phaser from 'phaser'
 import { bahnKanten, bahnKantenBeiY, BALANCE_V2 } from './balanceV2'
 import { bewegeStromFigur, figurenProSekunde, stromDarstellungsPosition, type StromFigur } from './strom'
 import { haufenHalbeBreite, haufenPlaetze, haufenPositionenX, type HaufenPlatz, truppeGrenzen, truppenAnzeige } from './truppe'
-import { aktualisiereFront, frontStartZustand, mitAnkunft, type FrontZustand } from './front'
-import { sammeltEin, schildPositionen, truppenGroesseNachSammeln } from './raender'
+import { frontStartZustand, mitAnkunft, type FrontZustand } from './front'
+import { sammeltEin, schildPositionen } from './raender'
 import { durchquertTor, torStartZustand, type TorZustand } from './tor'
+import { aktualisiereEnde, ausgangEinmal, endeStartZustand, type EndeZustand } from './ende'
 
 type SchildBild = { kasten: Phaser.GameObjects.Rectangle, text: Phaser.GameObjects.Text, umlauf: number, verbraucht: boolean }
 
@@ -29,6 +30,10 @@ export class RunGunV2Scene extends Phaser.Scene {
   private randSchilder = new Map<string, SchildBild>()
   private tor: TorZustand = torStartZustand()
   private torZaehler?: Phaser.GameObjects.Text
+  private ende: EndeZustand = endeStartZustand(frontStartZustand())
+  private bossBild?: Phaser.GameObjects.Image
+  private bossZaehler?: Phaser.GameObjects.Text
+  private endeAusgeloest = false
 
   public constructor() {
     super('RunGunV2Scene')
@@ -56,6 +61,10 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.randSchilder.clear()
     this.tor = torStartZustand()
     this.torZaehler = undefined
+    this.ende = endeStartZustand(this.front)
+    this.bossBild = undefined
+    this.bossZaehler = undefined
+    this.endeAusgeloest = false
     const width = this.scale.width
     const height = this.scale.height
     const centerX = width / 2
@@ -89,6 +98,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.erstelleTruppe(width, height)
     this.erstelleStromVorrat()
     this.erstelleFlaechen(width, height)
+    this.erstelleBoss(width)
     this.erstelleRaender()
     this.erstelleTor(width, height)
     this.aktiviereTruppenSteuerung(width, height)
@@ -150,7 +160,8 @@ export class RunGunV2Scene extends Phaser.Scene {
   }
 
   private erhoeheTruppe(wert: number): void {
-    this.truppenGroesse = truppenGroesseNachSammeln(this.truppenGroesse, wert)
+    this.truppenGroesse = Math.max(0, this.truppenGroesse) + Math.max(0, Math.floor(wert))
+    this.ende = { ...this.ende, truppenGroesse: this.truppenGroesse }
     const plaetze = haufenPlaetze(truppenAnzeige(this.truppenGroesse).sichtbareFiguren)
     const grenzen = truppeGrenzen(this.scale.width, this.scale.height, haufenHalbeBreite(plaetze.length, this.truppenFigurBreite))
     this.truppeX = Phaser.Math.Clamp(this.truppeX, grenzen.minX, grenzen.maxX)
@@ -193,6 +204,22 @@ export class RunGunV2Scene extends Phaser.Scene {
       fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: '#ffded9', stroke: '#421a1a', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(3)
     this.zeichneFlaechen(width, height)
+  }
+
+  private erstelleBoss(width: number): void {
+    this.bossBild = this.add.image(width / 2, BALANCE_V2.track.horizonY, 'enemy-boss').setDepth(2)
+    this.bossZaehler = this.add.text(width / 2, BALANCE_V2.track.horizonY - 44, '', {
+      fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: '#ffded9', stroke: '#421a1a', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(3)
+    this.zeichneBoss(width)
+  }
+
+  private zeichneBoss(width: number): void {
+    const fortschritt = 1 - Math.min(1, Math.max(0, this.front.vorrat / BALANCE_V2.front.gegnerStartVorrat))
+    const y = BALANCE_V2.track.horizonY + fortschritt * BALANCE_V2.ende.bossMaxAbstiegPx
+    const scale = BALANCE_V2.ende.bossStartScale + fortschritt * (BALANCE_V2.ende.bossEndScale - BALANCE_V2.ende.bossStartScale)
+    this.bossBild?.setPosition(width / 2, y).setScale(scale)
+    this.bossZaehler?.setPosition(width / 2, y - 44 * scale).setText(String(Math.round(this.ende.bossVorrat)))
   }
 
   private zeichneFlaechen(width: number, height: number): void {
@@ -243,9 +270,11 @@ export class RunGunV2Scene extends Phaser.Scene {
       bild.setVisible(true).setPosition(leftX + (rightX - leftX) * (((index % eigeneSpalten) % spalten + 0.5) / spalten), y)
     })
     this.gegnerZaehler?.setText(String(Math.round(this.front.vorrat)))
+    this.zeichneBoss(width)
   }
 
   public update(_time: number, delta: number): void {
+    if (this.endeAusgeloest) return
     this.randZeitMs += Math.max(0, delta)
     this.stromRest += figurenProSekunde(this.truppenGroesse) * delta / 1000
     while (this.stromRest >= 1) {
@@ -272,9 +301,34 @@ export class RunGunV2Scene extends Phaser.Scene {
         bild.setPosition(position.x, position.y)
       }
     })
-    this.front = aktualisiereFront(this.front, delta)
+    this.ende = aktualisiereEnde({ ...this.ende, front: this.front }, delta)
+    this.front = this.ende.front
+    this.aktualisiereTruppenNachVerlust()
+    const ausgang = ausgangEinmal(this.endeAusgeloest, this.ende)
+    if (ausgang) this.loeseAusgangAus(ausgang)
     this.zeichneFlaechen(this.scale.width, this.scale.height)
     this.aktualisiereRaender()
+  }
+
+  /** Die Anzeige rundet nur; die Ende-Bilanz behaelt die verlorenen Bruchteile. */
+  private aktualisiereTruppenNachVerlust(): void {
+    const neueGroesse = this.ende.truppenGroesse
+    if (Math.floor(neueGroesse) === Math.floor(this.truppenGroesse)) return
+    this.truppenGroesse = neueGroesse
+    const plaetze = haufenPlaetze(truppenAnzeige(neueGroesse).sichtbareFiguren)
+    this.truppenFiguren.forEach((figur) => figur.destroy())
+    this.truppenPlaetze = plaetze
+    this.truppenFiguren = plaetze.map((platz) => this.add.image(this.truppeX + platz.dx, this.truppeY + platz.dy, 'player')
+      .setScale(BALANCE_V2.truppe.figurTextureScale).setDepth(2))
+    this.truppenZaehler?.setText(truppenAnzeige(neueGroesse).zaehler)
+  }
+
+  private loeseAusgangAus(ausgang: 'sieg' | 'niederlage'): void {
+    this.endeAusgeloest = true
+    this.add.text(this.scale.width / 2, this.scale.height / 2, ausgang === 'sieg' ? 'GESCHAFFT' : 'VERLOREN', {
+      fontFamily: 'system-ui', fontSize: '42px', fontStyle: 'bold', color: '#ffffff', stroke: '#17212a', strokeThickness: 7,
+    }).setOrigin(0.5).setDepth(10)
+    this.time.delayedCall(BALANCE_V2.ende.rueckkehrMs, () => this.scene.start('MenuScene'))
   }
 
   private starteStromFigur(): void {

@@ -70,10 +70,15 @@ export const BALANCE_V2 = {
     gegnerStartVorrat: 858,
     // Die Front beginnt deutlich vor der blauen Starttruppe.
     frontStartY: 610,
-    // 0,18 * 10 = 1,8; 0,0021 * 858 = 1,8018. Die Startseiten halten die
-    // Grenze damit praktisch, bis der Strom die blaue Flaeche vergroessert.
-    abbauProEigenerEinheitProSek: 0.18,
-    verlustProVorratProSek: 0.0021,
+    // Bilanz pro Sekunde, die auch N5 festhaelt (jeweils ohne Phaser):
+    // ohne Eingabe: 10 * 0,05 + 1,6 Strom = 2,10 blauer Druck gegen
+    // 858 * 0,00285 = 2,445 roten Druck. Nach dem Aufreiben der Flaeche verliert
+    // die Truppe damit und der rechnerische Lauf endet nach rund 30 s. Nur links: die +1-Reihe erhoeht
+    // die Truppe um 2,5/s; ihr Strom dreht die anfaengliche Luecke knapp um.
+    // Rechts: jedes +99-Schild liefert sofort weit mehr als 2,445 Druck und das
+    // freigeschaltete x99-Tor macht daraus den deutlichen Sieg.
+    abbauProEigenerEinheitProSek: 0.05,
+    verlustProVorratProSek: 0.00285,
     // Maximale rote Trapezflaeche (390 x 844): (202,8 px + 326,9 px) / 2 *
     // 460 px = 121.831 px². Ein Zombie bei 0,105 ist 6,72 x 9,24 px; mit 10 %
     // Ueberlappung bleiben 6,048 x 8,316 px = 50,29 px². ceil(121.831 / 50,29)
@@ -94,6 +99,17 @@ export const BALANCE_V2 = {
     // Tint auf der roetlichen Zombie-Textur wuerde sie fast schwarz multiplizieren.
     eigeneFigurTint: 0x75bfff,
     gegnerFigurTint: 0x8f3038,
+  },
+  ende: {
+    // Der Boss hat den im ersten Video sichtbaren eigenen Vorrat 4.000. Nach der
+    // roten Flaeche wird er mit derselben eigenen Druckrate abgebaut.
+    bossStartVorrat: 4000,
+    bossStartScale: 0.48,
+    bossEndScale: 0.78,
+    // Der Boss folgt der schrumpfenden roten Masse sichtbar nach unten.
+    bossMaxAbstiegPx: 92,
+    // Die Ergebnisanzeige bleibt kurz lesbar, bevor der reine Probelauf ins Menue geht.
+    rueckkehrMs: 1800,
   },
   colors: {
     // Eigene V2-Farben; keine Farbkonfiguration des bestehenden Spiels wird gelesen.
