@@ -1453,3 +1453,21 @@ width/height in Geraetepunkten anzulegen und die Kamera jeder Szene um denselben
 Faktor zu zoomen - dann rechnet das Spiel weiter im gewohnten Feld. Voraussetzung
 ist, dass keine Stelle mehr `scale.width` fuer Layout liest, sonst rechnet sie
 plotzlich mit der Puffergroesse.
+
+## 2026-09-20 — Ein Kamerazoom verschiebt die Zeigerkoordinaten
+
+**Befund:** Thomas direkt nach dem Schaerfe-Umbau: "wenn ich auf den bildschirm
+tippe springen meine truppen immer auf rechts - kann kaum steuern".
+
+**Ursache:** `pointer.x` liefert die Position im Koordinatensystem des
+Scale-Managers. Seit der Puffer in Geraetepunkten angelegt wird, ist das 0 bis
+780 statt 0 bis 390. Ein Tipp in die Mitte kam als x=390 an - ausserhalb des
+Feldes, also am rechten Anschlag.
+
+**Regel:** Wer den Puffer vergroessert oder die Kamera zoomt, muss **jede**
+Eingabestelle auf `pointer.worldX`/`worldY` umstellen. Diese rechnen die Kamera
+heraus und liefern immer Feldkoordinaten.
+
+**Prueffrage nach jedem Eingriff an Puffer oder Kamera:** Einmal links, einmal
+mittig, einmal rechts tippen und nachsehen, wo die Figur landet. Das faengt den
+Fehler in dreissig Sekunden.

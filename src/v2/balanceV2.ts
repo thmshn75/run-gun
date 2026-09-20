@@ -64,6 +64,10 @@ export const BALANCE_V2 = {
     // Hinter dem Tor marschiert die Truppe ueber die volle Fahrbahnbreite; 10 px
     // Abstand zu beiden Kanten halten die Figuren auf der Fahrbahn.
     breiteRandPx: 10,
+    // 14 Plaetze nebeneinander: Bei rund 230 px Fahrbahnbreite stehen die Figuren
+    // damit etwa 16 px auseinander - dicht genug fuer eine geschlossene Linie,
+    // weit genug, dass man die einzelne Figur noch sieht.
+    reihenSpalten: 14,
     // 844 - 92 - 150 = 602 px auf dem verbindlichen iPhone-Hochformat.
     laufstreckePx: 602,
     // ceil(8 * 2 * (602 / 180)) + 2 = 56. Der Vorrat deckt den schlimmsten

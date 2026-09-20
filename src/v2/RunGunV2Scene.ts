@@ -63,6 +63,7 @@ export class RunGunV2Scene extends Phaser.Scene {
   private randSchilder = new Map<string, SchildBild>()
   private tor: TorZustand = torStartZustand()
   private torFaktorText?: Phaser.GameObjects.Text
+  private reihenZaehler = 0
   private ende: EndeZustand = endeStartZustand(frontStartZustand())
   private bossBild?: Phaser.GameObjects.Sprite
   private bossZaehler?: Phaser.GameObjects.Text
@@ -111,6 +112,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.randSchilder.clear()
     this.tor = torStartZustand()
     this.torFaktorText = undefined
+    this.reihenZaehler = 0
     this.ende = endeStartZustand(this.front)
     this.bossBild = undefined
     this.bossZaehler = undefined
@@ -535,11 +537,10 @@ export class RunGunV2Scene extends Phaser.Scene {
       }
       let nachTor = durchgang ? { ...bewegt, ...durchgang.figur } : bewegt
       if (durchgang && !figur.torPassiert) {
-        // Hinter dem Tor marschiert die Truppe in voller Breite weiter, statt als
-        // schmaler Faden: Jede Figur bekommt einen festen Platz auf der Fahrbahn.
-        const kanten = fahrbahnKantenBeiY(FELD.breite, FELD.hoehe, nachTor.y)
-        const rand = BALANCE_V2.strom.breiteRandPx
-        nachTor = { ...nachTor, x: Phaser.Math.FloatBetween(kanten.leftX + rand, kanten.rightX - rand) }
+        // Hinter dem Tor marschiert die Truppe als aufgefaedelte Reihe weiter:
+        // Platz fuer Platz von links nach rechts, dann wieder von vorn. Zufall
+        // waere hier falsch - er ergibt eine Wolke, keine Linie.
+        nachTor = { ...nachTor, x: this.naechsterReihenPlatz(nachTor.y) }
       }
       // Eine Figur, die in eine Wand laeuft, traegt sie ab und ist verbraucht.
       // Das ist zugleich der Preis: Diese Figuren kommen nie an der Front an.
@@ -622,20 +623,38 @@ export class RunGunV2Scene extends Phaser.Scene {
   private starteVervielfachteStromFigur(_x: number, y: number): void {
     const index = this.stromFiguren.findIndex((figur) => !figur.aktiv)
     if (index < 0) return
-    // Die Kopien verteilen sich ueber die ganze Fahrbahn, nicht um die Mutterfigur
-    // herum: Hinter dem Tor soll eine breite Front marschieren, kein Faden.
-    const kanten = fahrbahnKantenBeiY(FELD.breite, FELD.hoehe, y)
-    const rand = BALANCE_V2.strom.breiteRandPx
-    const gestreutX = Phaser.Math.FloatBetween(kanten.leftX + rand, kanten.rightX - rand)
+    // Auch die Kopien reihen sich auf demselben Raster ein, damit die Linie
+    // geschlossen bleibt statt als Wolke auseinanderzulaufen.
+    const gestreutX = this.naechsterReihenPlatz(y)
     const gestreutY = y + Phaser.Math.FloatBetween(0, BALANCE_V2.strom.torStreuungPx)
     this.stromFiguren[index] = { aktiv: true, x: gestreutX, y: gestreutY, torPassiert: true }
     this.stromBilder[index].setPosition(gestreutX, gestreutY).setVisible(true)
   }
 
+  /**
+   * Der naechste Platz in der Marschreihe hinter dem Tor. Die Plaetze liegen
+   * gleichmaessig ueber die Fahrbahnbreite und werden der Reihe nach vergeben -
+   * daraus entsteht die aufgefaedelte Linie von links nach rechts.
+   */
+  private naechsterReihenPlatz(y: number): number {
+    const kanten = fahrbahnKantenBeiY(FELD.breite, FELD.hoehe, y)
+    const rand = BALANCE_V2.strom.breiteRandPx
+    const links = kanten.leftX + rand
+    const rechts = kanten.rightX - rand
+    const spalten = BALANCE_V2.strom.reihenSpalten
+    const spalte = this.reihenZaehler % spalten
+    this.reihenZaehler = (this.reihenZaehler + 1) % (spalten * 1000)
+    return links + (rechts - links) * ((spalte + 0.5) / spalten)
+  }
+
   private aktiviereTruppenSteuerung(width: number, height: number): void {
     const bewegeTruppe = (pointer: Phaser.Input.Pointer): void => {
       const grenzen = truppeGrenzen(width, height, haufenHalbeBreite(this.truppenPlaetze.length, this.truppenFigurBreite))
-      const neueX = Phaser.Math.Clamp(pointer.x, grenzen.minX, grenzen.maxX)
+      // worldX statt x: Seit der Puffer in Geraetepunkten angelegt wird, liefert
+      // pointer.x Pufferkoordinaten (0 bis 780), nicht Feldkoordinaten (0 bis 390).
+      // Ein Tipp in die Mitte landete dadurch ganz rechts. worldX rechnet den
+      // Kamerazoom heraus und liefert immer Feldkoordinaten.
+      const neueX = Phaser.Math.Clamp(pointer.worldX, grenzen.minX, grenzen.maxX)
       this.truppeX = neueX
       const positionenX = haufenPositionenX(neueX, this.truppenPlaetze)
       this.truppenFiguren.forEach((figur, index) => { figur.x = positionenX[index] })
@@ -643,7 +662,7 @@ export class RunGunV2Scene extends Phaser.Scene {
       this.staerkeZaehler?.setX(neueX)
     }
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (pointer.y >= BALANCE_V2.track.horizonY) {
+      if (pointer.worldY >= BALANCE_V2.track.horizonY) {
         this.ziehtTruppe = true
         bewegeTruppe(pointer)
       }

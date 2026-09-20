@@ -537,12 +537,14 @@ export class GameScene extends Phaser.Scene {
 
   private enableRelativeDrag(): void {
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      this.lastPointerX = pointer.x
+      this.lastPointerX = pointer.worldX
     })
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (!pointer.isDown || this.lastPointerX === null) return
-      this.crowd.setAnchorX(this.crowd.getAnchorX() + pointer.x - this.lastPointerX)
-      this.lastPointerX = pointer.x
+      // worldX statt x - siehe Begruendung in RunGunV2Scene: pointer.x liefert
+      // seit dem Schaerfe-Umbau Pufferkoordinaten statt Feldkoordinaten.
+      this.crowd.setAnchorX(this.crowd.getAnchorX() + pointer.worldX - this.lastPointerX)
+      this.lastPointerX = pointer.worldX
     })
     this.input.on('pointerup', () => {
       this.lastPointerX = null
