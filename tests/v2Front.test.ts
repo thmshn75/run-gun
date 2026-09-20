@@ -3,7 +3,7 @@ import { aktualisiereFront, frontYAusVorrat, type FrontZustand } from '../src/v2
 import { BALANCE_V2 } from '../src/v2/balanceV2'
 
 function zustand(vorrat: number, eigenerWert: number): FrontZustand {
-  return { vorrat, eigenerWert, frontY: frontYAusVorrat(vorrat) }
+  return { vorrat, eigenerWert, staerke: BALANCE_V2.staerke.start, frontY: frontYAusVorrat(vorrat) }
 }
 
 describe('Run Gun V2 — S4 die beiden Flaechen', () => {
@@ -55,15 +55,13 @@ describe('Run Gun V2 — S4 die beiden Flaechen', () => {
     const oben = breite * BALANCE_V2.track.topWidthRatio
     const unten = oben + (breite * BALANCE_V2.track.bottomWidthRatio - oben) * rotHoehe / (844 - BALANCE_V2.track.horizonY)
     const roteFlaeche = (oben + unten) * rotHoehe / 2
-    const zombieFlaecheMitUeberlappung = (64 * BALANCE_V2.front.gegnerFigurTextureScale * 0.9)
-      * (88 * BALANCE_V2.front.gegnerFigurTextureScale * 0.9)
+    const zombieFlaecheMitUeberlappung = (256 * BALANCE_V2.front.helmTextureScale * 0.9) ** 2
     expect(BALANCE_V2.front.gegnerFigurenVorrat).toBeGreaterThanOrEqual(Math.ceil(roteFlaeche / zombieFlaecheMitUeberlappung))
 
     const blauHoehe = BALANCE_V2.front.eigeneFlaecheMaxUntenY - BALANCE_V2.front.frontStartY
     const blauUnten = unten + (breite * BALANCE_V2.track.bottomWidthRatio - unten) * blauHoehe / (844 - BALANCE_V2.track.horizonY)
     const blaueFlaeche = (unten + blauUnten) * blauHoehe / 2
-    const playerFlaecheMitUeberlappung = (68 * BALANCE_V2.front.eigeneFigurTextureScale * 0.9)
-      * (92 * BALANCE_V2.front.eigeneFigurTextureScale * 0.9)
+    const playerFlaecheMitUeberlappung = (256 * BALANCE_V2.front.helmTextureScale * 0.9) ** 2
     expect(BALANCE_V2.front.eigeneFigurenVorrat).toBeGreaterThanOrEqual(Math.ceil(blaueFlaeche / playerFlaecheMitUeberlappung))
   })
 
@@ -74,7 +72,7 @@ describe('Run Gun V2 — S4 die beiden Flaechen', () => {
   })
 
   it('zeigt bereits zum Start ein breites blaues Band unter der Grenzlinie', () => {
-    const schrittX = 68 * BALANCE_V2.front.eigeneFigurTextureScale * 0.9
+    const schrittX = 256 * BALANCE_V2.front.helmTextureScale * 0.9
     const kanten = 390 * (BALANCE_V2.track.topWidthRatio
       + (BALANCE_V2.track.bottomWidthRatio - BALANCE_V2.track.topWidthRatio)
         * (BALANCE_V2.front.frontStartY - BALANCE_V2.track.horizonY) / (844 - BALANCE_V2.track.horizonY))

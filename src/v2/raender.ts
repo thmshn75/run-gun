@@ -12,6 +12,12 @@ export type RandSchild = Readonly<{
 
 export type SammelReichweite = number | Readonly<{ seitlich: number, hoehe: number }>
 
+/** Die linke Reihe belohnt nur wirkliches Linksfahren; Mitte bleibt Grundtempo. */
+export function linkesReihenTempo(truppeX: number, width: number): number {
+  const linksAnteil = Math.min(1, Math.max(0, (width / 2 - truppeX) / (width / 2)))
+  return BALANCE_V2.raender.grundTempoPxProSek + linksAnteil * BALANCE_V2.raender.zuschlagGanzLinksPxProSek
+}
+
 /** Mittelpunkt eines Schilds: die gesamte Schildkante bleibt in der Bahn. */
 export function schildMitteX(seite: SchildSeite, width: number, height: number, y: number): number {
   const kanten = bahnKantenBeiY(width, height, y)
@@ -23,13 +29,14 @@ export function schildMitteX(seite: SchildSeite, width: number, height: number, 
  * Liefert beide endlosen Schilderreihen fuer einen Zeitpunkt. Die Umlaufnummer macht
  * aus einem wiederkehrenden Platz wieder dasselbe Schild mit frisch gesetztem Zustand.
  */
-export function schildPositionen(width: number, height: number, zeitMs: number): readonly RandSchild[] {
+export function schildPositionen(width: number, height: number, zeitMs: number, truppeX = width / 2): readonly RandSchild[] {
   const abstand = BALANCE_V2.raender.abstandPx
   const strecke = height - BALANCE_V2.track.horizonY + BALANCE_V2.raender.schildHoehePx
   const anzahl = Math.ceil(strecke / abstand) + 1
-  const verschiebung = Math.max(0, zeitMs) / 1000 * BALANCE_V2.raender.tempoPxProSek
+  const sekunden = Math.max(0, zeitMs) / 1000
   return (['links', 'rechts'] as const).flatMap((seite) => Array.from({ length: anzahl }, (_, index) => {
-    const rohY = BALANCE_V2.track.horizonY - BALANCE_V2.raender.schildHoehePx + index * abstand + verschiebung
+    const tempo = seite === 'links' ? linkesReihenTempo(truppeX, width) : BALANCE_V2.raender.grundTempoPxProSek
+    const rohY = BALANCE_V2.track.horizonY - BALANCE_V2.raender.schildHoehePx + index * abstand + sekunden * tempo
     const umlauf = Math.floor(rohY / strecke)
     const y = ((rohY % strecke) + strecke) % strecke
     return {
@@ -55,4 +62,11 @@ export function sammeltEin(schild: RandSchild, truppeX: number, truppeY: number,
 /** Der Spielstand waechst nur um den Wert eines bereits als einmalig markierten Schilds. */
 export function truppenGroesseNachSammeln(truppenGroesse: number, schildWert: number): number {
   return Math.max(0, Math.floor(truppenGroesse)) + Math.max(0, Math.floor(schildWert))
+}
+
+/** Rechts staerkt nur den Druck; die sichtbare Truppe darf dabei nie wachsen. */
+export function sammelAuswirkung(seite: SchildSeite, truppenGroesse: number, staerke: number) {
+  return seite === 'links'
+    ? { truppenGroesse: truppenGroesseNachSammeln(truppenGroesse, 1), staerke }
+    : { truppenGroesse, staerke: staerke + BALANCE_V2.staerke.plus99 }
 }

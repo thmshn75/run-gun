@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BALANCE_V2 } from '../src/v2/balanceV2'
-import { sammeltEin, schildMitteX, schildPositionen, truppenGroesseNachSammeln, type RandSchild } from '../src/v2/raender'
+import { linkesReihenTempo, sammelAuswirkung, sammeltEin, schildMitteX, schildPositionen, truppenGroesseNachSammeln, type RandSchild } from '../src/v2/raender'
 import { bahnKantenBeiY } from '../src/v2/balanceV2'
 
 const breite = 390
@@ -56,8 +56,17 @@ describe('Run Gun V2 — S5 die beiden Raender', () => {
     expect(sammeltEin(links, rechts.x, links.y, reichweite)).toBe(false)
   })
 
-  it('erhoeht die Truppengroesse exakt um die eingesammelte Summe', () => {
-    const gesammelt = [schild('links'), schild('rechts'), schild('links')]
-    expect(gesammelt.reduce((groesse, eintrag) => truppenGroesseNachSammeln(groesse, eintrag.wert), 10)).toBe(111)
+  it('macht die linke Reihe zum linken Rand hin strikt schneller, mit Grundtempo in der Mitte', () => {
+    const positionen = [breite / 2, breite * 0.35, breite * 0.15, 0].map((x) => linkesReihenTempo(x, breite))
+    expect(positionen[0]).toBe(BALANCE_V2.raender.grundTempoPxProSek)
+    expect(positionen[1]).toBeGreaterThan(positionen[0])
+    expect(positionen[2]).toBeGreaterThan(positionen[1])
+    expect(positionen[3]).toBeGreaterThan(positionen[2])
+  })
+
+  it('+99 erhoeht nur die Staerke, +1 nur die Truppengroesse', () => {
+    expect(sammelAuswirkung('rechts', 10, 100)).toEqual({ truppenGroesse: 10, staerke: 199 })
+    expect(sammelAuswirkung('links', 10, 100)).toEqual({ truppenGroesse: 11, staerke: 100 })
+    expect(truppenGroesseNachSammeln(10, 1)).toBe(11)
   })
 })

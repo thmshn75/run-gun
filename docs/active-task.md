@@ -2,86 +2,105 @@
 
 Status: APPROVED
 
-## Aufgabe: V6/N6 — Die Gegnerfläche sitzt falsch
+## Aufgabe: V6/N8 — Optik nach dem Video und zwei Mechanik-Änderungen
 
-Verbindlicher Plan: `docs/plan-v6.md`. Alle acht Schritte sind gebaut und committet.
-Thomas hat am Gerät getestet und drei Abweichungen gemeldet. Sie sind im Browser bei
-iPhone-Maßen (390×844) nachgestellt und bestätigt.
+Thomas am 2026-09-20, wörtlich:
+- "die Optik gefällt mir noch gar nicht, ich möchte Brücke und Wasser"
+- "die Brücke hinten breiter machen, damit man hinten mehr Platz hat, und in einer
+  Kurve bzw. wie ein Trichter nach vorne kommen, links und rechts bewegtes Wasser und
+  einen schönen Horizontübergang zum Himmel"
+- "die eigene Armee nur als Helme darstellen und die anderen auch, nur die Heavy und
+  die Bosse als Figuren"
+- "die +1 Wände sollen schneller werden, wenn ich nach links fahre"
+- "das Tor in der Mitte nicht ×99, sondern nur ×2"
+- Zu den +99: "überlege dir selbst etwas Logisches, was wir brauchen können" —
+  festgelegt: **links gibt Menge, rechts gibt Stärke** (siehe Punkt 5).
 
-## Befund 1 (der schwerste): Die Gegnerfläche wächst aus dem Tor heraus
+### 1. Brücke über Wasser, Trichterform
 
-Gemessen bei Spielstart: Die Gegnerfiguren stehen von y=154 bis y=606. Das Tor liegt
-bei y≈610. Die Fläche beginnt also unmittelbar über dem Tor und reicht bis zum
-Horizont — sie füllt fast die ganze Bahn.
+- Die Bahn ist eine **Brücke**: mit Geländern an beiden Seiten, links und rechts
+  daneben **bewegtes Wasser** (ruhige, wiederkehrende Wellenbewegung; kein Zufall je
+  Bild, sondern eine Sinusbewegung, damit es ruhig wirkt).
+- **Trichterform:** hinten (am Horizont) deutlich breiter als vorn. Heute ist es
+  umgekehrt. Die Bahnkanten-Funktion `bahnKanten` ist entsprechend umzustellen; alle
+  Stellen, die sie benutzen (Truppe, Ränder, Flächen), ziehen automatisch mit — genau
+  dafür gibt es sie. **Keine zweite Geometrie danebenbauen.**
+- **Horizontübergang:** weicher Verlauf zwischen Wasser/Bahn und Himmel statt der
+  heutigen harten Kante. Ein Farbverlauf über wenige Dutzend Pixel genügt.
 
-Thomas: "die Horde wächst aus dem Tor in der Mitte, statt von oben zu kommen ... es
-sieht in keiner Weise so aus, als wäre es ein Block wie am Bild."
+### 2. Helme statt Figuren
 
-**Im Video** (beide Aufnahmen) liegt die rote Masse im **oberen Drittel** der Bahn.
-Darunter folgt die blaue Fläche, darunter **freie Bahn**, auf der der Strom sichtbar
-läuft, und ganz unten das Tor mit der Truppe. Der Abstand zwischen Tor und Masse ist
-der Raum, in dem das Spiel stattfindet — bei uns fehlt er ganz.
+- Die **Masse** beider Seiten wird als **Helm** dargestellt, nicht als ganze Figur:
+  eigene Seite blaue Helme, Gegnerseite rote Helme. Das ist der Grund, warum die
+  Massen im Video so dicht wirken.
+- **Nur Heavy und Bosse bleiben ganze Figuren** und sind entsprechend größer.
+- Die Helm-Bilder **erzeugst du mit deinem Bildwerkzeug** und legst sie zu den übrigen
+  Bildern. Zwei Stück genügen (ein Helm blau, ein Helm rot), schlicht und von oben
+  gesehen, damit sie bei wenigen Pixeln Größe noch als Helm lesbar sind.
 
-**Zu tun:**
-- `front.frontStartY` so setzen, dass die Gegnerfläche bei vollem Vorrat **im oberen
-  Drittel endet** und zwischen ihr und dem Tor freie Bahn bleibt. Richtwert aus dem
-  Video: Die Unterkante der Masse liegt bei rund einem Drittel der Bahnhöhe, also
-  deutlich oberhalb der Bahnmitte.
-- Die Grenzlinie wandert weiterhin mit dem Vorrat: voller Vorrat = diese Startlinie,
-  Vorrat null = Horizont.
-- **Die eigene Fläche muss sichtbar sein.** Im Startbild ist von ihr nichts zu sehen;
-  im Video ist sie ein breites blaues Band unter der roten Masse. Sie wächst mit dem
-  Zustrom von der Grenzlinie nach unten.
-- Test: Bei vollem Vorrat liegt die Unterkante der Gegnerfläche oberhalb der Bahnmitte
-  und mit deutlichem Abstand über dem Tor. Rechnerisch prüfbar, ohne Phaser.
+### 3. Das Tor zeigt ×2
 
-## Befund 2: Die +99-Reihe steht halb außerhalb der Bahn
+`tor.faktor` auf 2. Der Freischaltzähler bleibt, aber die Zahl ist an den kleineren
+Faktor anzupassen, damit die Freischaltung in ähnlicher Zeit gelingt — Rechenweg als
+Kommentar.
 
-Im Bild bei 390×844 ragen die gelben Schilder über den rechten Bahnrand hinaus; auf
-Thomas' Gerät waren sie gar nicht zu sehen ("es gibt keine +99 Wände").
+### 4. Die +1-Reihe wird schneller, je weiter links
 
-**Zu tun:** Beide Schilderreihen sitzen **innerhalb** der Bahnkanten, mit demselben
-Abstand zum Rand wie im Video. Test: Für jede Schildhöhe liegt die äußere Kante des
-Schildes innerhalb der Bahnkante aus `bahnKanten` — bei allen Höhen von Horizont bis
-Bahnunterkante, nicht nur bei einer.
+Heute laufen die Schilder mit festem Tempo vorbei. Neu: Das Tempo der **linken** Reihe
+steigt, je weiter links die Truppe steht — ganz links deutlich schneller, in der Mitte
+das Grundtempo. So lohnt sich das Hinfahren doppelt. Zwei Werte in `balanceV2.ts`
+(Grundtempo, Zuschlag ganz links) mit Rechenweg.
 
-## Befund 3: Der Block wirkt nicht wie im Video
+### 5. Die +99-Reihe gibt STÄRKE statt Menge
 
-Die Masse ist ein Trapez, das sich nach unten verbreitert und unmittelbar am Tor
-endet. Im Video ist es ein kompakter Block mit klarer Unterkante. Ergibt sich
-größtenteils aus Befund 1; nach dessen Korrektur im Browser prüfen und, falls nötig,
-die Kanten der Fläche schärfen.
+Bisher vergrößert sie wie die +1-Reihe die Truppe — das ist doppelt gemoppelt und war
+der Grund für Thomas' Einwand. Neu:
 
-## Grenzen
+- Ein eingesammeltes +99-Schild erhöht die **Schlagkraft** der eigenen Seite: Jede
+  eigene Einheit nimmt der Gegnerfläche mehr Vorrat ab.
+- Die Truppengröße bleibt davon **unberührt**.
+- Damit entsteht die Entscheidung: **links viele schwache, rechts wenige starke.**
+- Die Schlagkraft wird als eigener Wert geführt und ist **sichtbar** — eine zweite
+  Zahl neben der Truppengröße, klar beschriftet.
+- Werte so wählen, dass beide Wege zum Sieg führen können und keiner offensichtlich
+  besser ist. Der Rechenweg gehört als Kommentar dazu: Zustrom mal Schlagkraft gegen
+  Gegnervorrat, für beide Wege einmal durchgerechnet.
 
-Unverändert: alles in `src/v2/`, keine Fremdimporte, kein Speicherzugriff, keine
-Physik. Die Bilanzrechnung aus S4/S7 bleibt unangetastet — es geht um Startlage und
-Platzierung, nicht um das Kräfteverhältnis.
+### Grenzen
 
-## Akzeptanzkriterien
+- Alles in `src/v2/` (plus die neuen Bilddateien). Keine Importe aus `src/systems/`,
+  `src/config/balance`, `src/scenes/`. Kein Speicherzugriff.
+- Die Bilanzrechnung aus S4/S7 bleibt in ihrer Struktur; nur der Schlagkraft-Faktor
+  kommt hinzu.
+- Bildrate bleibt bei 60, auch mit Wasser und Helmen.
 
-1. `npx tsc --noEmit`, `npm run build`, `npm test` sauber; 480 Tests bleiben grün.
-2. Die drei genannten Tests sind ergänzt.
-3. **Browser-Nachweis bei 390×844** (führe ich, Claude, selbst): Startbild zeigt die
-   Masse im oberen Drittel, freie Bahn darunter, beide Schilderreihen vollständig
-   innerhalb der Bahn; Doppelstart identisch.
+### Akzeptanzkriterien
 
-## Abschlussbericht
+1. `npx tsc --noEmit`, `npm run build`, `npm test` sauber; bestehende V2-Tests grün.
+2. Tests:
+   - `bahnKanten` ist hinten breiter als vorn (Trichter), für mehrere Höhen geprüft.
+   - Das Tempo der linken Reihe steigt streng monoton, je weiter links die Truppe
+     steht; in der Mitte gilt das Grundtempo.
+   - Ein +99-Schild erhöht die Schlagkraft und **nicht** die Truppengröße.
+   - Beide Wege (nur links / nur rechts) führen rechnerisch zum Sieg — je einmal über
+     die Bilanzfunktion durchgerechnet, ohne Phaser.
+3. **Browser-Nachweis bei 390×844** (führt Claude selbst): Brücke mit Geländern über
+   bewegtem Wasser, hinten breiter, weicher Horizont; Massen als Helme, Heavy und Boss
+   als Figuren; Tor zeigt ×2; linke Reihe wird beim Linksfahren sichtbar schneller;
+   +99 erhöht die zweite Zahl, nicht die Truppengröße; 60 Bilder je Sekunde;
+   Doppelstart identisch.
 
-Was geändert, Testergebnisse, was nicht ging und warum. Status am Ende auf
-`IMPL_DONE`.
+### Vorab: kleiner Rest aus der Torlauf-Entfernung
+
+In `src/systems/spawner.ts` steht bei `setData('bodyWidth', ...)` noch ein Kommentar,
+der auf den entfernten Modus verweist, und die Multiplikation `* 1` ist dadurch
+sinnlos geworden. Beides bereinigen — Kommentar auf die verbleibende Aussage kürzen
+(Kampfhöhen-Maße für Spurwahl, Schatten und Formationsbreite), `* 1` streichen. Der
+Test `tests/keinTorlauf.test.ts` wird damit grün. **Sonst nichts am Spawner ändern.**
 
 ## Implementation Summary
 
-- Die volle rote Gegnerfläche endet bei 390×844 jetzt auf y=380 im oberen
-  Bahndrittel; bis zum Tor bleiben 320 px freie Laufbahn. Die Bilanzrechnung und
-  die Bewegung der Grenzlinie bleiben unverändert.
-- Die blaue Fläche startet als dichtes, sichtbares Band direkt unter der Front und
-  wächst mit dem Zustrom nach unten; ihre untere Sichtgrenze lässt die Laufbahn vor
-  dem Tor frei.
-- Beide Schildreihen sind mit 42 px Einzug so platziert, dass ihre vollständigen
-  Außenkanten über die gesamte Bahnhöhe innerhalb der jeweiligen Bahnkante liegen.
-- Ergänzt: drei Regressionstests für Frontlage/Torabstand, sichtbares Startband und
-  beide Schildkanten auf jeder Bahnhohe. `npx tsc --noEmit`, `npm run build` und
-  `npm test` sind grün (483 Tests); der Browser-Nachweis bei 390×844 bleibt gemäß
-  Aufgabenbeschreibung bei Claude.
+- V2 zeichnet die trichterfoermige Bruecke mit Geländern, sinusbewegtem Wasser und weichem Horizont; beide neu erzeugten Helm-PNGs liegen in `src/assets/` und werden fuer Truppe, Strom und Massen verwendet, Heavy/Boss bleiben Figuren.
+- Tor ist ×2 mit proportional auf zwei reduzierten Treffern. Links beschleunigt die +1-Reihe von 120 auf 220 px/s, rechts erhöht +99 ausschliesslich die sichtbare Staerke (100 → 199).
+- Bilanz-, Geometrie- und Randtests decken beide Siegwege ab. Der einzelne verbliebene Spawner-Kommentar wurde gekuerzt und `* 1` entfernt.
+- Nachweise: `npx tsc --noEmit`, `npm test` (47 Dateien, 453 Tests) und `npm run build` erfolgreich; Browser- und 390×844-Doppelstart-Nachweis bleibt wie vereinbart bei Claude.

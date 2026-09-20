@@ -8,11 +8,6 @@ import { getRoadHalfWidth } from './roadGeometry'
 import type { WeaponKey } from './weapons'
 
 export class Boss {
-  /** Vervielfacht den Lebensvorrat; der Torlauf setzt ihn hoch. */
-  private lebensFaktor = 1
-  private schadenFaktor = 1
-  private groessenFaktor = 1
-  private tempoFaktor = 1
   private readonly scene: Phaser.Scene
   private readonly enemy: Phaser.Physics.Arcade.Image
   private readonly shadow: Phaser.GameObjects.Image
@@ -55,22 +50,6 @@ export class Boss {
   private phaseTwoStarted: boolean
   private phaseFlashRemainingMs: number
 
-
-  public setLebensFaktor(faktor: number): void {
-    this.lebensFaktor = faktor
-  }
-
-  public setSchadenFaktor(faktor: number): void {
-    this.schadenFaktor = faktor
-  }
-
-  public setGroessenFaktor(faktor: number): void {
-    this.groessenFaktor = faktor
-  }
-
-  public setTempoFaktor(faktor: number): void {
-    this.tempoFaktor = faktor
-  }
   public constructor(
     scene: Phaser.Scene,
     nextSpawnId: () => number,
@@ -148,12 +127,7 @@ export class Boss {
     body.moves = false
     this.applyPerspectiveScale()
     body.updateFromGameObject()
-    // Im Torlauf traegt der Boss ein Vielfaches: Dort steht ihm kein Schuetzentrupp
-    // gegenueber, sondern ein Dauerstrom aus bis zu 24 Figuren je Sekunde. Mit dem
-    // Run-Wert fiel er in unter drei Sekunden und war praktisch nicht zu sehen
-    // (Thomas 2026-09-19: "abgesehen davon habe ich keinen Heavy gesehen und einen
-    // Endboss").
-    const maxHp = this.plan.maxHp * this.lebensFaktor
+    const maxHp = this.plan.maxHp
     this.enemy.setData('hp', maxHp)
     this.enemy.setData('maxHp', maxHp)
     this.enemy.setData('contactDamage', 0)
@@ -272,20 +246,17 @@ export class Boss {
   private applyPerspectiveScale(): void {
     // figureTextureScale halbiert die doppelt aufgeloeste Textur zurueck auf Spielgroesse.
     this.enemy.setScale(
-      BALANCE.render.figureTextureScale * this.groessenFaktor
+      BALANCE.render.figureTextureScale
       * getPerspectiveScale(this.scene.scale.width, this.scene.scale.height, this.enemy.y),
     )
   }
 
   private advanceTowardsCrowd(dt: number, plan: BossPlan): void {
-    // Im Torlauf schlaegt der Boss ein Vielfaches: Dort steht ihm eine bis zu 150
-    // Figuren starke Truppe gegenueber (Thomas 2026-09-19: "und der Boss erst recht").
-    this.enemy.setData('contactDamage', plan.advanceContactDamage * this.schadenFaktor)
+    this.enemy.setData('contactDamage', plan.advanceContactDamage)
     const stopY = Math.max(BALANCE.boss.battleY, this.getAnchorY() - plan.advanceStopBeforeAnchorPx)
-    // Im Nahkampf mit dem Strom steht auch der Boss (haltMs wie bei den Gegnern).
     const haltMs = ((this.enemy.getData('haltMs') as number | undefined) ?? 0) - dt
     this.enemy.setData('haltMs', Math.max(0, haltMs))
-    const tempo = haltMs > 0 ? 0 : plan.advanceSpeed * this.tempoFaktor
+    const tempo = haltMs > 0 ? 0 : plan.advanceSpeed
     this.enemy.y = Math.min(this.enemy.y + (tempo * dt) / 1000, stopY)
     this.swingSideways(dt, plan)
   }

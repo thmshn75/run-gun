@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE } from '../config/balance'
-import { computeBlockFormation, computeFormation, computeTraubeFormation } from './formation'
+import { computeFormation } from './formation'
 import { approachAngle, createCrowdMotionProfiles, getBobOffsetPx, getLeanRadians, getStepCycleHz, getStepSquash, getStepSwayRadians, type CrowdMotionProfile } from './gamefeel'
 import { getDriveLimitHalfWidth } from './roadGeometry'
 import { overlapsVisibleFigure, type RectangleBounds } from './rectangles'
@@ -22,14 +22,11 @@ export type FormationsProfil = Readonly<{
   colSpacing: number
   minColSpacing: number
   maxWidthRatio: number
-  form: 'dreieck' | 'block' | 'traube'
-  plaetzeJeReihe: number
+  form: 'dreieck'
   huelleFolgtFormation: boolean
   bottomMargin: number
   hullWidthFigures: number
   hullHeightFigures: number
-  /** Nur der Torlauf faerbt seine Truppe (blau); im echten Run bleibt sie, wie sie ist. */
-  tint?: number
 }>
 
 export class Crowd {
@@ -64,7 +61,6 @@ export class Crowd {
     // stimmt displayWidth wieder mit der Spielgroesse ueberein, an der Formation,
     // Fahrbereich und Schatten haengen.
     const firstSprite = scene.add.image(anchorX, anchorY, 'player').setScale(BALANCE.render.figureTextureScale * profil.figureScale)
-    if (profil.tint !== undefined) firstSprite.setTint(profil.tint)
     this.figureWidth = firstSprite.displayWidth
     this.figureHeight = firstSprite.displayHeight
     const hullWidth = firstSprite.displayWidth * profil.hullWidthFigures
@@ -78,7 +74,6 @@ export class Crowd {
       const sprite = index === 0
         ? firstSprite
         : scene.add.image(anchorX, anchorY, 'player').setScale(BALANCE.render.figureTextureScale * profil.figureScale)
-      if (profil.tint !== undefined) sprite.setTint(profil.tint)
       sprite.setActive(false).setVisible(false)
       const shadow = scene.add.image(anchorX, anchorY, 'figure-shadow')
         .setDepth(BALANCE.layers.shadow)
@@ -106,11 +101,7 @@ export class Crowd {
       maxWidth: this.scene.scale.width * this.profil.maxWidthRatio,
       maxDepth: this.scene.scale.height - this.anchorY - this.figureHeight / 2 - this.profil.bottomMargin,
     }
-    const slots = this.profil.form === 'block'
-      ? computeBlockFormation(size, { ...options, plaetzeJeReihe: this.profil.plaetzeJeReihe })
-      : this.profil.form === 'traube'
-        ? computeTraubeFormation(size, { ...options, plaetzeJeReihe: this.profil.plaetzeJeReihe })
-        : computeFormation(size, options)
+    const slots = computeFormation(size, options)
 
     this.halfFormationWidth = slots.reduce((widest, slot) => Math.max(widest, Math.abs(slot.offsetX)), 0)
     this.formationstiefe = slots.reduce((deepest, slot) => Math.max(deepest, slot.offsetY), 0) + (slots.length > 0 ? this.figureHeight : 0)

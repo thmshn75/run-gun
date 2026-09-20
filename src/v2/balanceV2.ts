@@ -6,12 +6,12 @@ export const BALANCE_V2 = {
   track: {
     // 150 px: aus der bestehenden Bahn abgelesene Horizonthoehe bei 844 px Spielhoehe.
     horizonY: 150,
-    // 0,52 * 390 px = 202,8 px breite Bahn am Horizont, als eigene V2-Zahl kopiert.
-    topWidthRatio: 0.52,
-    // 1 * 390 px = volle Bildschirmbreite am unteren Rand, wie die bestehende Bahn.
-    bottomWidthRatio: 1,
-    // 2 px: sichtbare Kante zwischen Bahn und Mauer.
-    wallWidthPx: 2,
+    // 0,90 * 390 px: die Bruecke ist hinten sichtbar breiter als vorn.
+    topWidthRatio: 0.90,
+    // 0,54 * 390 px: die schmale Vorderkante macht die Bahn zum Trichter.
+    bottomWidthRatio: 0.54,
+    // 4 px: sichtbares Brueckengelaender statt einer blossen Mauerkante.
+    wallWidthPx: 4,
   },
   truppe: {
     // 10 Figuren: die im Video sichtbare kleine Starttruppe, bewusst ohne Spielstand.
@@ -35,8 +35,8 @@ export const BALANCE_V2 = {
     tempoPxProSek: 180,
     // 844 - 92 - 150 = 602 px auf dem verbindlichen iPhone-Hochformat.
     laufstreckePx: 602,
-    // ceil(8 * 99 * (602 / 180)) + 2 = 2.651. Der Vorrat deckt den schlimmsten
-    // Fall ab: maximale Rate, jeder Stromlaeufer hinter dem Tor mal 99 und die
+    // ceil(8 * 2 * (602 / 180)) + 2 = 56. Der Vorrat deckt den schlimmsten
+    // Fall ab: maximale Rate, jeder Stromlaeufer hinter dem Tor mal 2 und die
     // ganze Laufdauer. Zwei Reserveplaetze fangen die Frame-Grenze ab.
     vorratGroesse: 2651,
     // 18 px: leichte Streuung über die Truppenbreite statt Gänsemarsch.
@@ -45,9 +45,10 @@ export const BALANCE_V2 = {
     figurTextureScale: 0.14,
   },
   tor: {
-    // ×99 und 99 Treffer entsprechen dem festen Tor im zweiten Referenzvideo.
-    faktor: 99,
-    freischaltTreffer: 99,
+    // ×2 braucht 2 Treffer: Faktor und Freischaltzähler bleiben proportional
+    // (99 / 99 = 1 Treffer je Faktorpunkt), daher gleiche gefuehlte Freischaltdauer.
+    faktor: 2,
+    freischaltTreffer: 2,
     // Das Tor steht unmittelbar vor der bei 752 px liegenden Starttruppe.
     y: 700,
     hoehePx: 44,
@@ -58,7 +59,10 @@ export const BALANCE_V2 = {
     schildHoehePx: 56,
     schildBreitePx: 54,
     abstandPx: 48,
-    tempoPxProSek: 120,
+    // In der Mitte 120 px/s, ganz links +100 px/s: 220 px/s ist deutlich schneller,
+    // ohne dass die Reihe bei 60 fps mehr als rund 4 px pro Bild springt.
+    grundTempoPxProSek: 120,
+    zuschlagGanzLinksPxProSek: 100,
     // Mittelpunkt 42 px innerhalb der Bahnkante: bei 54 px Schildbreite bleiben
     // einschliesslich der Kontur sichtbar 14 px freie Bahn bis zur Aussenkante.
     randEinzugPx: 42,
@@ -78,8 +82,10 @@ export const BALANCE_V2 = {
     // 858 * 0,00285 = 2,445 roten Druck. Nach dem Aufreiben der Flaeche verliert
     // die Truppe damit und der rechnerische Lauf endet nach rund 30 s. Nur links: die +1-Reihe erhoeht
     // die Truppe um 2,5/s; ihr Strom dreht die anfaengliche Luecke knapp um.
-    // Rechts: jedes +99-Schild liefert sofort weit mehr als 2,445 Druck und das
-    // freigeschaltete x99-Tor macht daraus den deutlichen Sieg.
+    // Rechts: Start-Staerke 100, jedes +99 verdoppelt fast den Druck. Bei sechs
+    // Schildern in 15 s: 10 * (1 + 6*0,99) * 0,05 = 3,47 > 2,45. Links liefert
+    // in derselben Zeit 10 + 15*2,5 = 47,5 und 2,38 Druck; mit Stromankuenften
+    // ueber 2,45. Beide Wege gewinnen rechnerisch, ohne Mengenbonus rechts.
     abbauProEigenerEinheitProSek: 0.05,
     verlustProVorratProSek: 0.00285,
     // Maximale rote Trapezflaeche (390 x 844): (202,8 px + 284,9 px) / 2 *
@@ -95,6 +101,8 @@ export const BALANCE_V2 = {
     // Flaeche; die Anzahl statt einer vergroesserten Skalierung schliesst den Teppich.
     gegnerFigurTextureScale: 0.105,
     eigeneFigurTextureScale: 0.105,
+    helmTextureScale: 0.075,
+    heavyTextureScale: 0.20,
     // Untere Sichtgrenze der eigenen Flaeche: Die Starttruppe bleibt frei sichtbar.
     eigeneFlaecheMaxUntenY: 560,
   },
@@ -123,6 +131,12 @@ export const BALANCE_V2 = {
     // Die RGB-Werte sind bewusst pruefbar und klar voneinander getrennt.
     eigeneSeite: 0x3d9dff,
     gegnerSeite: 0xef4e58,
+  },
+  staerke: {
+    // 100 Punkte entsprechen dem Grundfaktor 1. +99 ist absichtlich fast ein
+    // weiterer Grundfaktor: sichtbar stark, aber nicht ein sofortiger Autowin.
+    start: 100,
+    plus99: 99,
   },
 } as const
 

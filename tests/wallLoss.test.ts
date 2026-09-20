@@ -128,13 +128,6 @@ describe('groessere Horden', () => {
     const pauseSec = (BALANCE.level.squads.pauseBaseMs + maxSize * BALANCE.level.squads.pausePerMemberMs) / 1000
     const spitze = Math.ceil(verweilSec / pauseSec) * maxSize
     expect(BALANCE.pools.enemies).toBeGreaterThan(spitze)
-    // Die obere Schranke bemisst sich seit 2026-09-20 am TORLAUF, nicht mehr am Run:
-    // Dort setzt jeder Takt eine ganze Reihe, und die Wand soll die Bahn fuellen.
-    // Hergeleitet: Reihe x Takte je Sekunde x Verweildauer bei Torlauf-Tempo.
-    const torlaufTaktSec = getLevelPlan(1).spawnIntervalMs / 1000 * BALANCE.torlauf.spawnTaktFaktor
-    const torlaufVerweilSec = streckePx / (BALANCE.stats.speed.floor * BALANCE.torlauf.gegnerTempoFaktor)
-    const torlaufSpitze = Math.ceil(torlaufVerweilSec / torlaufTaktSec) * BALANCE.torlauf.reiheGroesse
-    expect(BALANCE.pools.enemies).toBeLessThan(Math.max(spitze * 1.5, torlaufSpitze))
     // Und alle Typen laufen wirklich gleich schnell - sonst waere die Rechnung falsch.
     for (const type of BALANCE.enemy.types) expect(type.speedFactor, type.key).toBe(1)
   })

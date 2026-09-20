@@ -3,8 +3,6 @@ import { BALANCE, RUN_FORMATIONS_PROFIL } from '../config/balance'
 import { HUD_COLORS, STAT_COLORS, WORLD_COLORS } from '../config/colors'
 import { Walls } from '../systems/walls'
 import { VersuchBahnen, type BahnSystem } from '../systems/versuchBahnen'
-import { Torbahn } from '../systems/torbahn'
-import { Strom } from '../systems/strom'
 import { PROBELAUF_REGELN, TESTGELAENDE_REGELN, type BahnRegeln } from '../systems/versuchPlan'
 import { Popups } from '../systems/popups'
 import { Sterbeeffekte } from '../systems/sterbeeffekte'
@@ -53,7 +51,6 @@ interface GameSceneStartData {
   einstieg?: 'neu' | 'fortsetzen' | 'weiterspielen' | 'test' | 'probe'
   startwaffe?: WeaponKey
   probeStartLevel?: number
-  probeVariante?: 'bahnen' | 'torlauf'
 }
 
 type LevelPhase = 'normal' | 'warning' | 'boss' | 'cleared' | 'shop'
@@ -137,7 +134,6 @@ export class GameScene extends Phaser.Scene {
   private bruecke!: Bruecke
   private crowd!: Crowd
   private weapons!: Weapons
-  private strom: Strom | undefined
   private spawner!: Spawner
   private coins!: Coins
   private runStats!: RunStats
@@ -169,7 +165,6 @@ export class GameScene extends Phaser.Scene {
   private bossBarBackground!: Phaser.GameObjects.Rectangle
   private bossBarFill!: Phaser.GameObjects.Rectangle
   private bossBarText!: Phaser.GameObjects.Text
-  private torlaufZahl!: Phaser.GameObjects.Text
   private bossBarWidth!: number
   private levelOverlayBackground!: Phaser.GameObjects.Rectangle
   private levelOverlay!: Phaser.GameObjects.Text
@@ -202,9 +197,6 @@ export class GameScene extends Phaser.Scene {
   private crowdBossCollider: Phaser.Physics.Arcade.Collider | undefined
   private crowdRewardCollider: Phaser.Physics.Arcade.Collider | undefined
   private crowdPickupCollider: Phaser.Physics.Arcade.Collider | undefined
-  private stromWallCollider: Phaser.Physics.Arcade.Collider | undefined
-  private stromEnemyCollider: Phaser.Physics.Arcade.Collider | undefined
-  private stromBossCollider: Phaser.Physics.Arcade.Collider | undefined
 
   /** Wie dieser Run begonnen hat - frisch, fortgesetzt oder freigekauft. */
   private einstieg: 'neu' | 'fortsetzen' | 'weiterspielen' | 'test' | 'probe' = 'neu'
@@ -246,7 +238,7 @@ export class GameScene extends Phaser.Scene {
    * (ohne gesicherten Run wird aus FORTSETZEN ein 'neu'). Haengte der Probelauf daran,
    * waere der Speicher-Waechter ab diesem Moment still aus.
    */
-  private probe: { readonly startLevel: number; readonly variante: 'bahnen' | 'torlauf' } | undefined
+  private probe: { readonly startLevel: number } | undefined
 
   public constructor() {
     super('GameScene')
@@ -257,7 +249,7 @@ export class GameScene extends Phaser.Scene {
     this.startwaffe = data.startwaffe
     const startLevels: readonly number[] = BALANCE.versuch.probe.startLevels
     const startLevel = startLevels.includes(data.probeStartLevel ?? 1) ? (data.probeStartLevel ?? 1) : 1
-    this.probe = data.einstieg === 'probe' ? { startLevel, variante: data.probeVariante ?? 'bahnen' } : undefined
+    this.probe = data.einstieg === 'probe' ? { startLevel } : undefined
   }
 
   public create(): void {
@@ -266,9 +258,6 @@ export class GameScene extends Phaser.Scene {
     this.projectileWallCollider = undefined
     this.crowdRewardCollider = undefined
     this.crowdPickupCollider = undefined
-    this.stromWallCollider = undefined
-    this.stromEnemyCollider = undefined
-    this.stromBossCollider = undefined
     this.projectileBossCollider = undefined
     this.crowdBossCollider = undefined
     enableSharpText(this)
@@ -319,46 +308,19 @@ export class GameScene extends Phaser.Scene {
     this.road = new Road(this)
     this.scenery = new Scenery(this, () => Phaser.Math.RND.frac())
     this.bruecke = new Bruecke(this, () => Phaser.Math.RND.frac())
-    const formationsProfil = this.istTorlauf() ? BALANCE.torlauf.crowd : RUN_FORMATIONS_PROFIL
-    this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - this.getAnchorBottomOffset(), formationsProfil)
+    this.crowd = new Crowd(this, this.scale.width / 2, this.scale.height - this.getAnchorBottomOffset(), RUN_FORMATIONS_PROFIL)
     this.weapons = new Weapons(this, (maxPerSalvo) => this.crowd.getNextSalvoPositions(maxPerSalvo), this.runStats)
     this.sterbeeffekte = new Sterbeeffekte(this)
     this.spawner = new Spawner(this, this.runStats, () => this.crowd.getAnchorX(), () => this.getAnchorBottomOffset(), (contactDamage) => this.handleBreakthrough(contactDamage), (enemy) => {
       if (!this.boss.isEnemy(enemy)) this.sterbeeffekte.spawn(enemy.x, enemy.y, enemy.texture.key, enemy.scaleX, enemy.scaleY)
     })
     // Im Versuch kommen die Gegner von rechts - siehe Spawner.setVersuchsBahnen.
-    this.spawner.setVersuchsBahnen(this.nutztBahnen() && !this.istTorlauf())
-    this.spawner.setFigurenMassstab(this.istTorlauf() ? BALANCE.torlauf.gegnerMassstab : 1)
-    this.spawner.setNurStandard(this.istTorlauf())
+    this.spawner.setVersuchsBahnen(this.nutztBahnen())
     // DIE EINZIGE WEICHE DES VERSUCHS "ZWEI BAHNEN" (Thomas 2026-09-05: "wenn wir etwas
     // versuchen, dann NUR im Testgelaende, dort testen wir bis ich mein Go gebe").
     // Ausserhalb des Testgelaendes wird VersuchBahnen nie gebaut, und der echte Run
     // laeuft Zeile fuer Zeile wie zuvor.
-    if (this.istTorlauf()) {
-      this.walls = new Torbahn(
-        this,
-        () => this.runStats.get('hp'),
-        () => this.crowd.getAnchorX(),
-        () => Phaser.Math.RND.frac(),
-        (apply, multiplikator) => {
-          const before = this.runStats.get('hp')
-          this.runStats.set('hp', apply(before))
-          const after = this.runStats.get('hp')
-          const delta = Math.round(after - before)
-          if (delta !== 0) this.popups.spawn(this.crowd.getAnchorX(), this.crowd.getAnchorY() - this.crowd.getFigureHeight(), multiplikator === '' ? `${delta > 0 ? '+' : ''}${delta}` : `${multiplikator} → ${after}`, delta > 0 ? '#3ddc84' : '#ff6b6b')
-          this.syncCrowdSize()
-          this.updateHud()
-        },
-      )
-      this.strom = new Strom(
-        this,
-        (count) => this.crowd.getNextSalvoPositions(count),
-        () => this.runStats.get('hp'),
-        (ziel, schaden) => this.damageEnemy(ziel, schaden),
-        (figur) => this.sterbeeffekte.spawn(figur.x, figur.y, figur.texture.key, figur.scaleX, figur.scaleY),
-      )
-      this.weapons.setFeuerAktiv(false)
-    } else if (this.nutztBahnen()) {
+    if (this.nutztBahnen()) {
       this.walls = this.baueVersuchsBahnen()
     } else {
       this.walls = new Walls(
@@ -446,10 +408,6 @@ export class GameScene extends Phaser.Scene {
     )
     // Erst NACH der Konstruktion: Vorher gab es this.boss noch nicht (im Browser
     // brach create() genau hier ab).
-    this.boss.setLebensFaktor(this.istTorlauf() ? BALANCE.torlauf.bossLebenFaktor : 1)
-    this.boss.setSchadenFaktor(this.istTorlauf() ? BALANCE.torlauf.bossSchadenFaktor : 1)
-    this.boss.setGroessenFaktor(this.istTorlauf() ? BALANCE.torlauf.bossGroesse : 1)
-    this.boss.setTempoFaktor(this.istTorlauf() ? BALANCE.torlauf.bossTempoFaktor : 1)
     this.coins = new Coins(this, () => this.updateHud())
     this.splashFlashes = new SplashFlashPool(this)
     this.chainFlashes = new ChainFlashPool(this)
@@ -503,9 +461,6 @@ export class GameScene extends Phaser.Scene {
     this.bossBarBackground.setVisible(false)
     this.bossBarFill.setVisible(false)
     this.bossBarText.setVisible(false)
-    this.torlaufZahl = this.add.text(this.crowd.getAnchorX(), this.crowd.getAnchorY() - BALANCE.torlauf.zahlAbstandPx, '', {
-      fontFamily: 'system-ui', fontSize: `${BALANCE.torlauf.zahlFontPx}px`, fontStyle: 'bold', color: '#ffffff', stroke: HUD_COLORS.textDark, strokeThickness: 4,
-    }).setOrigin(0.5).setDepth(BALANCE.layers.gameplay + 1).setVisible(this.istTorlauf())
     this.levelOverlayBackground = this.add.rectangle(this.scale.width / 2, this.scale.height / 2, this.scale.width, this.scale.height, HUD_COLORS.panel, 0.65)
       .setDepth(BALANCE.hud.depthText + 2)
       .setVisible(false)
@@ -557,16 +512,11 @@ export class GameScene extends Phaser.Scene {
     // weiterlaufen, nur bei den Waenden keine kleinen Gegner wie vorher im Spiel"). Die
     // Bahnen laufen also durch; nur der Gegnernachschub haelt sich vom Tor fern - und
     // das schliesst die Horden ein, die der Boss ruft.
-    // NICHT im Torlauf: Dort steht das eine Tor FEST in der Bahnmitte, sein Fenster ist
-    // also dauerhaft offen - die Sperre haette den Gegnernachschub komplett unterbunden
-    // (im Browser gemessen: 0 Gegner ueber 20 s). Die Regel stammt von vorbeiziehenden
-    // Toren im Versuch; dort bleibt sie unveraendert.
-    if (this.nutztBahnen() && !this.istTorlauf()) {
+    if (this.nutztBahnen()) {
       // Vor E2 direkt: this.spawner.setSpawnSperre(this.walls.istTorFenster())
       this.spawner.setSpawnSperre(this.walls.istTorFenster?.() ?? false)
     }
     this.walls.update(dt)
-    this.strom?.update(dt)
     this.popups.update(dt)
     this.sterbeeffekte.update(dt)
     this.boss.update(dt)
@@ -576,7 +526,6 @@ export class GameScene extends Phaser.Scene {
     this.splashFlashes.update(dt)
     this.chainFlashes.update(dt)
     this.updateBossBar()
-    this.updateTorlaufZahl()
     if (this.runStats.get('hp') <= 0) {
       this.triggerGameOver()
       return
@@ -627,30 +576,15 @@ export class GameScene extends Phaser.Scene {
       }
       if (this.crowdBossCollider === undefined) {
         this.crowdBossCollider = this.addCombatOverlap(this.crowd.getHullBounds(), this.boss.getEnemy())
-      }
-      // Im Torlauf ist der Strom die einzige Waffe: Ohne diesen Collider stand der
-      // Lebensvorrat des Bosses im Browser 30 s lang unveraendert auf 393 und das
-      // Level konnte gar nicht enden.
-      if (this.strom !== undefined && this.stromBossCollider === undefined) {
-        this.stromBossCollider = this.addCombatOverlap(this.strom.getGroup(), this.boss.getEnemy())
-      }
-      return
+      }      return
     }
     this.projectileBossCollider?.destroy()
     this.crowdBossCollider?.destroy()
-    this.stromBossCollider?.destroy()
     this.projectileBossCollider = undefined
     this.crowdBossCollider = undefined
-    this.stromBossCollider = undefined
   }
 
   private syncWallColliders(): void {
-    if (this.strom !== undefined && this.stromEnemyCollider === undefined) {
-      this.stromEnemyCollider = this.addCombatOverlap(this.strom.getGroup(), this.spawner.getEnemies())
-    }
-    if (this.strom !== undefined && this.stromWallCollider === undefined) {
-      this.stromWallCollider = this.addCombatOverlap(this.strom.getGroup(), this.walls.getWalls())
-    }
     if (this.walls.hasActivePair()) {
       if (this.projectileWallCollider === undefined) {
         this.projectileWallCollider = this.addCombatOverlap(this.weapons.getProjectileGroup(), this.walls.getWalls())
@@ -669,17 +603,9 @@ export class GameScene extends Phaser.Scene {
     this.projectileWallCollider?.destroy()
     this.crowdRewardCollider?.destroy()
     this.crowdPickupCollider?.destroy()
-    this.stromWallCollider?.destroy()
     this.projectileWallCollider = undefined
     this.crowdRewardCollider = undefined
     this.crowdPickupCollider = undefined
-    this.stromWallCollider = undefined
-    // stromEnemyCollider und stromBossCollider werden hier NICHT abgebaut: Sie haengen
-    // nicht an den Waenden. Zerstoert man sie in diesem Zweig, ohne das Feld zu leeren,
-    // gilt der Collider als vorhanden und wird nie wieder gebaut - im Browser gemessen:
-    // 0 Treffer in 12 s bei 73 Stromfiguren und 37 Gegnern, die Gegner liefen einfach
-    // durch (Thomas 2026-09-19: "die Horden laufen einfach durch, ohne dass sie
-    // erschossen werden"). Derselbe Fehlertyp wie beim Collider-Reset am 2026-09-19.
   }
 
   private equipWeapon(weapon: WeaponKey): void {
@@ -705,7 +631,6 @@ export class GameScene extends Phaser.Scene {
     // darf nie in den Zweig fallen, der `einstieg` auf 'neu' umschreibt.
     const probe = this.probe
     if (probe !== undefined) {
-      if (this.istTorlauf()) this.runStats.setHpDeckelOverride(BALANCE.torlauf.crowd.max)
       this.currentLevel = probe.startLevel
       this.runStats.setLevel(this.currentLevel)
       // Level 1 beginnt wie ein neuer Lauf. Hoeher startet die Truppe wie beim bezahlten
@@ -714,9 +639,7 @@ export class GameScene extends Phaser.Scene {
       const truppe = this.currentLevel <= 1
         ? BALANCE.stats.hp.base
         : Math.round(getStatCap('hp', this.currentLevel, KEINE_STUFEN, this.runStats.getMeta()) * BALANCE.continueRun.teamShareOnContinue)
-      // Der Torlauf hat eine eigene Startgroesse: mit der 1 des echten Laufs kaeme der
-      // Strom nie in Gang (BALANCE.torlauf.startEinheiten erklaert den Rechenweg).
-      this.runStats.set('hp', this.istTorlauf() ? BALANCE.torlauf.startEinheiten : Math.max(BALANCE.stats.hp.base, truppe))
+      this.runStats.set('hp', Math.max(BALANCE.stats.hp.base, truppe))
       if (this.startwaffe !== undefined && this.gekaufteWaffen.includes(this.startwaffe)) {
         this.equipWeapon(this.startwaffe)
       }
@@ -835,10 +758,6 @@ export class GameScene extends Phaser.Scene {
     // 20 s sind auf den Waffenvergleich gerechnet und tragen kein Bahnurteil (rund
     // fuenf Tore und vier Faesser). BALANCE.testground.normalPhaseSec bleibt dabei
     // unangetastet - endet der Versuch, gilt die abgenommene halbe Laenge sofort wieder.
-    // Der Torlauf hat keine Einzelgegner, die eine 55-s-Phase fuellen koennten: dort
-    // zaehlt nur, wie weit die Quelle bis zur Horde waechst. Deshalb eine eigene, kurze
-    // Dauer (BALANCE.torlauf.laufphaseSec) - sonst sieht ein kurzer Test nie eine Horde.
-    if (this.istTorlauf()) return BALANCE.torlauf.laufphaseSec * 1000
     return this.istTestgelaende()
       ? BALANCE.versuch.gegnerphaseSec * 1000
       : getLevelPlan(this.currentLevel).normalPhaseSec * 1000
@@ -854,12 +773,8 @@ export class GameScene extends Phaser.Scene {
     return this.probe !== undefined
   }
 
-  private istTorlauf(): boolean {
-    return this.probe?.variante === 'torlauf'
-  }
-
   private getAnchorBottomOffset(): number {
-    return this.istTorlauf() ? BALANCE.torlauf.anchorBottomOffset : BALANCE.player.anchorBottomOffset
+    return BALANCE.player.anchorBottomOffset
   }
 
   /**
@@ -1114,13 +1029,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private handleCombatOverlap(first: Phaser.GameObjects.GameObject, second: Phaser.GameObjects.GameObject): void {
-    const stromFigur = this.findObjectWithData(first, second, 'strom')
-    if (stromFigur !== undefined) {
-      this.handleStromTreffer(stromFigur as Phaser.Physics.Arcade.Image, (stromFigur === first ? second : first) as Phaser.Physics.Arcade.Image)
-      return
-    }
-    const playerProjectile = this.findObjectWithData(first, second, 'weapon')
+  private handleCombatOverlap(first: Phaser.GameObjects.GameObject, second: Phaser.GameObjects.GameObject): void {    const playerProjectile = this.findObjectWithData(first, second, 'weapon')
     if (playerProjectile !== undefined) {
       const enemy = playerProjectile === first ? second : first
       if (this.walls.isWall(enemy)) {
@@ -1149,14 +1058,7 @@ export class GameScene extends Phaser.Scene {
           this.walls.collectPickup(target as Phaser.Physics.Arcade.Image)
         }
         return
-      }
-      if (this.walls.istKachel?.(target) ?? false) {
-        const kachel = target as Phaser.Physics.Arcade.Image
-        this.applyTorlaufReinforcement(1, kachel.x, kachel.y)
-        ;(this.walls as Torbahn).recycleKachelBild(kachel)
-        return
-      }
-      // Wandsegmente kosten bei Beruehrung NICHTS - das war seit W4 so und muss hier
+      }      // Wandsegmente kosten bei Beruehrung NICHTS - das war seit W4 so und muss hier
       // ausdruecklich stehen: Seit die Truppenhuelle gegen die ganze Wandgruppe prueft
       // (fuer die Sammelbahn), fiel eine beruehrte rechte Wand sonst bis zur
       // Gegnerbehandlung durch. Sie hat kein contactDamage, der Trupp wurde damit auf
@@ -1183,47 +1085,6 @@ export class GameScene extends Phaser.Scene {
       console.warn('Unhandled combat overlap: neither object identifies as a player projectile, boss projectile, or player hull.')
       this.lastUnknownCombatOverlapWarningAtMs = this.elapsedMs
     }
-  }
-
-  private handleStromTreffer(figur: Phaser.Physics.Arcade.Image, wall: Phaser.Physics.Arcade.Image): void {
-    if (!figur.active || !wall.active) return
-    // Gegner aus dem normalen Nachschub: Eine Figur nimmt genau einen Punkt mit und
-    // ist danach verbraucht - so wie im Vorbild, wo der Strom in die Masse laeuft.
-    if (wall.getData('hp') !== undefined) {
-      // Kein Verschwinden mehr beim ersten Treffer: Die Figur bleibt stehen und
-      // kaempft, bis das Ziel faellt oder sie selbst aufgerieben ist. Dadurch staut
-      // sich der Strom sichtbar an der Front (Thomas 2026-09-19).
-      this.strom?.bindeAnZiel(figur, wall)
-      return
-    }
-    if (!(this.walls instanceof Torbahn)) return
-    const torbahn = this.walls
-    if (torbahn.istKachel(wall)) return
-    const wirkung = torbahn.getTorWirkung(wall)
-    if (wirkung === undefined) return
-    const hitSpawnIds = figur.getData('hitSpawnIds') as Set<number>
-    const spawnId = wall.getData('spawnId') as number | undefined
-    if (spawnId !== undefined && hitSpawnIds.has(spawnId)) return
-    if (spawnId !== undefined) hitSpawnIds.add(spawnId)
-    // Gesperrtes Tor: Jede Figur, die es passiert, hackt den Zaehler um eins herunter
-    // (wie die Saeule im Video). Erst bei null vervielfacht es.
-    if (!torbahn.istTorScharf()) {
-      const rest = torbahn.hackeFreischaltung(wall)
-      if (rest === 0) this.popups.spawn(wall.x, wall.y, 'FREI', '#3ddc84')
-      return
-    }
-    // Die Figur laeuft hindurch und wird zu mehreren, die weiter auf die Gegner
-    // zulaufen. Das Tor bleibt stehen, damit die naechste Welle es ebenfalls nutzt.
-    this.strom?.vervielfache(figur, wirkung.faktor - 1)
-    this.popups.spawn(figur.x, figur.y, `×${wirkung.faktor}`, '#3ddc84')
-  }
-
-  private applyTorlaufReinforcement(amount: number, x: number, y: number): void {
-    const before = this.runStats.get('hp')
-    this.runStats.set('hp', Math.min(BALANCE.torlauf.crowd.max, before + amount))
-    const delta = Math.round(this.runStats.get('hp') - before)
-    if (delta > 0) this.popups.spawn(x, y, `+${delta}`, '#3ddc84')
-    this.updateHud()
   }
 
   /**
@@ -1409,7 +1270,7 @@ export class GameScene extends Phaser.Scene {
     this.spawner.setSpawningEnabled(false)
     this.physics.pause()
     this.levelOverlayBackground.setVisible(true)
-    this.levelOverlay.setText(`${this.istTorlauf() ? 'TORLAUF' : 'PROBELAUF'} VORBEI\nLEVEL ${this.currentLevel}`).setVisible(true)
+    this.levelOverlay.setText(`PROBELAUF VORBEI\nLEVEL ${this.currentLevel}`).setVisible(true)
     this.time.delayedCall(BALANCE.level.clearedMs, () => { this.scene.start('MenuScene') })
   }
 
@@ -1475,10 +1336,6 @@ export class GameScene extends Phaser.Scene {
     this.phaseRemainingMs -= dt
     if (this.phaseRemainingMs > 0) return
     if (this.levelPhase === 'normal') {
-      // Auch im Torlauf endet die Laufphase mit dem Boss: Waehrend sie laeuft, kommt
-      // ohne Pause Gegnernachschub von oben (Thomas 2026-09-19: "die Horde kommt von
-      // oben immer nach - immer und immer wieder, keine Pause ... und erst ganz zum
-      // Schluss der Boss, damit das Level ein Ende hat").
       this.levelPhase = 'warning'
       this.phaseRemainingMs = BALANCE.level.warningMs
       this.spawner.setSpawningEnabled(false)
@@ -1802,12 +1659,6 @@ export class GameScene extends Phaser.Scene {
     if (this.bossBarText.text !== label) this.bossBarText.setText(label)
   }
 
-  private updateTorlaufZahl(): void {
-    this.torlaufZahl.setPosition(this.crowd.getAnchorX(), this.crowd.getAnchorY() - BALANCE.torlauf.zahlAbstandPx)
-    const label = `${Math.round(this.runStats.get('hp'))}`
-    if (this.torlaufZahl.text !== label) this.torlaufZahl.setText(label)
-  }
-
   private updateIframes(): void {
     if (this.elapsedMs >= this.blinkUntilMs) {
       this.crowd.setFiguresAlpha(1)
@@ -1834,7 +1685,6 @@ export class GameScene extends Phaser.Scene {
     this.hud.damage.setText(`DMG ${damage}`)
     this.hud.rate.setText(`RATE ${shotsPerSec}`)
     this.hud.weapon.setTexture(`weapon-${this.weapons.getWeapon()}-hud`)
-    this.hud.weapon.setVisible(!this.istTorlauf())
   }
 
   private syncCrowdSize(): void {

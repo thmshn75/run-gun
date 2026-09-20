@@ -181,11 +181,6 @@ export class Weapons {
     this.engageLimitEnabled = enabled
   }
 
-  /** Im Torlauf bleiben vorhandene Projektile beweglich, es entstehen aber keine neuen. */
-  public setFeuerAktiv(aktiv: boolean): void {
-    this.feuerAktiv = aktiv
-  }
-
   /** Rueckgabe: Zahl der in diesem Bild abgefeuerten Salven. */
   public update(dt: number): number {
     this.elapsedMs += dt

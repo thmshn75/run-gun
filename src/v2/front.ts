@@ -1,6 +1,6 @@
 import { BALANCE_V2 } from './balanceV2'
 
-export type FrontZustand = Readonly<{ vorrat: number, eigenerWert: number, frontY: number }>
+export type FrontZustand = Readonly<{ vorrat: number, eigenerWert: number, staerke: number, frontY: number }>
 export type FrontRaten = Readonly<{ abbauProEigenerEinheitProSek: number, verlustProVorratProSek: number }>
 
 /** Die Grenzlinie kennt nur den roten Vorrat, nie einzelne Figuren oder Kollisionen. */
@@ -13,6 +13,7 @@ export function frontStartZustand(): FrontZustand {
   return {
     vorrat: BALANCE_V2.front.gegnerStartVorrat,
     eigenerWert: BALANCE_V2.truppe.startGroesse,
+    staerke: BALANCE_V2.staerke.start,
     frontY: frontYAusVorrat(BALANCE_V2.front.gegnerStartVorrat),
   }
 }
@@ -28,14 +29,15 @@ export function aktualisiereFront(
   raten: FrontRaten = BALANCE_V2.front,
 ): FrontZustand {
   const sekunden = Math.max(0, dtMs) / 1000
-  const eigenerDruck = zustand.eigenerWert * raten.abbauProEigenerEinheitProSek * sekunden
+  const staerke = zustand.staerke ?? BALANCE_V2.staerke.start
+  const eigenerDruck = zustand.eigenerWert * (staerke / BALANCE_V2.staerke.start) * raten.abbauProEigenerEinheitProSek * sekunden
   const gegnerDruck = zustand.vorrat * raten.verlustProVorratProSek * sekunden
   const vorrat = Math.min(
     BALANCE_V2.front.gegnerStartVorrat,
     Math.max(0, zustand.vorrat - eigenerDruck + gegnerDruck),
   )
   const eigenerWert = Math.max(0, zustand.eigenerWert + eigenerDruck - gegnerDruck)
-  return { vorrat, eigenerWert, frontY: frontYAusVorrat(vorrat) }
+  return { vorrat, eigenerWert, staerke, frontY: frontYAusVorrat(vorrat) }
 }
 
 /** Ankommende Stromfiguren erhoehen die blaue Flaeche ganzzahlig; die Bilanz bleibt fliessend. */

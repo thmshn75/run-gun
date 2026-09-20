@@ -28,10 +28,9 @@ describe('Run Gun V2 — S1 Geruest', () => {
     expect(source).not.toContain('indexedDB')
   })
 
-  it('laesst die drei bestehenden Modi und ihre Drei-Spalten-Breite unveraendert', () => {
+  it('laesst Testgelaende und Probelauf neben V2 bestehen', () => {
     const menu = readFileSync(new URL('../src/scenes/MenuScene.ts', import.meta.url), 'utf8')
-    for (const label of ['TESTGELÄNDE', 'PROBELAUF', 'TORLAUF']) expect(menu).toContain(`'${label}'`)
-    expect(menu).toContain('(safeWidth - 2 * BALANCE.menu.sidePadding - 16) / 3')
+    for (const label of ['TESTGELÄNDE', 'PROBELAUF']) expect(menu).toContain(`'${label}'`)
     expect(menu).toContain("this.scene.start('RunGunV2Scene')")
   })
 
