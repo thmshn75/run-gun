@@ -55,12 +55,15 @@ export const BALANCE_V2 = {
     rateJeTruppenfigur: 0.16,
     mindestRateProSek: 1,
     maximaleRateProSek: 24,
-    // 110 px/s statt 180: Der Lauf zur Front ist damit deutlich ruhiger zu
-    // verfolgen - man sieht die einzelne Figur laufen, statt nur einen Strich.
-    tempoPxProSek: 110,
+    // 75 px/s: Der Marsch zur Front ist ein ruhiges Vorruecken, kein Sprint -
+    // man sieht die Reihen wandern. Von 180 ueber 110 auf 75 zurueckgenommen.
+    tempoPxProSek: 75,
     // Beim Vervielfachen am Tor werden die Kopien um bis zu 14 px gestreut,
     // damit die Vermehrung ueberhaupt sichtbar wird.
     torStreuungPx: 14,
+    // Hinter dem Tor marschiert die Truppe ueber die volle Fahrbahnbreite; 10 px
+    // Abstand zu beiden Kanten halten die Figuren auf der Fahrbahn.
+    breiteRandPx: 10,
     // 844 - 92 - 150 = 602 px auf dem verbindlichen iPhone-Hochformat.
     laufstreckePx: 602,
     // ceil(8 * 2 * (602 / 180)) + 2 = 56. Der Vorrat deckt den schlimmsten

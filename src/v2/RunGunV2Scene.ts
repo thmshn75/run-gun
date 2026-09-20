@@ -531,7 +531,14 @@ export class RunGunV2Scene extends Phaser.Scene {
         this.tor = durchgang.tor
         for (let kopie = 1; kopie < durchgang.anzahl; kopie += 1) this.starteVervielfachteStromFigur(bewegt.x, bewegt.y)
       }
-      const nachTor = durchgang ? { ...bewegt, ...durchgang.figur } : bewegt
+      let nachTor = durchgang ? { ...bewegt, ...durchgang.figur } : bewegt
+      if (durchgang && !figur.torPassiert) {
+        // Hinter dem Tor marschiert die Truppe in voller Breite weiter, statt als
+        // schmaler Faden: Jede Figur bekommt einen festen Platz auf der Fahrbahn.
+        const kanten = fahrbahnKantenBeiY(this.scale.width, this.scale.height, nachTor.y)
+        const rand = BALANCE_V2.strom.breiteRandPx
+        nachTor = { ...nachTor, x: Phaser.Math.FloatBetween(kanten.leftX + rand, kanten.rightX - rand) }
+      }
       // Eine Figur, die in eine Wand laeuft, traegt sie ab und ist verbraucht.
       // Das ist zugleich der Preis: Diese Figuren kommen nie an der Front an.
       const wandTreffer = this.trifftWand(nachTor.x, nachTor.y)
@@ -609,14 +616,16 @@ export class RunGunV2Scene extends Phaser.Scene {
     bild.setPosition(figur.x, figur.y).setVisible(true)
   }
 
-  private starteVervielfachteStromFigur(x: number, y: number): void {
+  /** Die x-Position kommt nicht mehr von der Mutterfigur, sondern aus der Fahrbahnbreite. */
+  private starteVervielfachteStromFigur(_x: number, y: number): void {
     const index = this.stromFiguren.findIndex((figur) => !figur.aktiv)
     if (index < 0) return
-    // Gestreut, nicht exakt uebereinander: Sonst liegen die Kopien punktgenau auf
-    // dem Original und die Vermehrung am Tor ist ueberhaupt nicht zu sehen.
-    const streuung = BALANCE_V2.strom.torStreuungPx
-    const gestreutX = x + Phaser.Math.FloatBetween(-streuung, streuung)
-    const gestreutY = y + Phaser.Math.FloatBetween(0, streuung)
+    // Die Kopien verteilen sich ueber die ganze Fahrbahn, nicht um die Mutterfigur
+    // herum: Hinter dem Tor soll eine breite Front marschieren, kein Faden.
+    const kanten = fahrbahnKantenBeiY(this.scale.width, this.scale.height, y)
+    const rand = BALANCE_V2.strom.breiteRandPx
+    const gestreutX = Phaser.Math.FloatBetween(kanten.leftX + rand, kanten.rightX - rand)
+    const gestreutY = y + Phaser.Math.FloatBetween(0, BALANCE_V2.strom.torStreuungPx)
     this.stromFiguren[index] = { aktiv: true, x: gestreutX, y: gestreutY, torPassiert: true }
     this.stromBilder[index].setPosition(gestreutX, gestreutY).setVisible(true)
   }
