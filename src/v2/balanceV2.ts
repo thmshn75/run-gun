@@ -59,8 +59,9 @@ export const BALANCE_V2 = {
     schildBreitePx: 54,
     abstandPx: 48,
     tempoPxProSek: 120,
-    // Ein Schild liegt knapp innerhalb der jeweiligen Bahnkante.
-    randEinzugPx: 30,
+    // Mittelpunkt 42 px innerhalb der Bahnkante: bei 54 px Schildbreite bleiben
+    // einschliesslich der Kontur sichtbar 14 px freie Bahn bis zur Aussenkante.
+    randEinzugPx: 42,
     // Einsammeln ist reine Bildschirmgeometrie, keine Phaser-Physik.
     sammelSeitlichPx: 42,
     sammelHoehePx: 34,
@@ -68,8 +69,10 @@ export const BALANCE_V2 = {
   front: {
     // 858 ist der aus dem Video abgelesene Startvorrat der roten Flaeche.
     gegnerStartVorrat: 858,
-    // Die Front beginnt deutlich vor der blauen Starttruppe.
-    frontStartY: 610,
+    // Bei 390 x 844 endet die volle rote Masse bei y=380: 230 px nach dem
+    // Horizont und damit im oberen Drittel der 694 px hohen Bahn. Bis zum Tor
+    // bei y=700 bleiben 320 px sichtbare freie Bahn fuer den Strom.
+    frontStartY: 380,
     // Bilanz pro Sekunde, die auch N5 festhaelt (jeweils ohne Phaser):
     // ohne Eingabe: 10 * 0,05 + 1,6 Strom = 2,10 blauer Druck gegen
     // 858 * 0,00285 = 2,445 roten Druck. Nach dem Aufreiben der Flaeche verliert
@@ -79,22 +82,21 @@ export const BALANCE_V2 = {
     // freigeschaltete x99-Tor macht daraus den deutlichen Sieg.
     abbauProEigenerEinheitProSek: 0.05,
     verlustProVorratProSek: 0.00285,
-    // Maximale rote Trapezflaeche (390 x 844): (202,8 px + 326,9 px) / 2 *
-    // 460 px = 121.831 px². Ein Zombie bei 0,105 ist 6,72 x 9,24 px; mit 10 %
-    // Ueberlappung bleiben 6,048 x 8,316 px = 50,29 px². ceil(121.831 / 50,29)
-    // = 2.423, daher 2.560 feste Bilder als kleine Reserve fuer die Randzeilen.
+    // Maximale rote Trapezflaeche (390 x 844): (202,8 px + 284,9 px) / 2 *
+    // 230 px = 56.315 px². Der bestehende feste Bildvorrat bleibt absichtlich
+    // unveraendert; er deckt den nun kleineren, kompakten Block mit Reserve ab.
     gegnerFigurenVorrat: 2560,
-    // Die eigene Flaeche endet bei 680 px, vor der bei 752 px zentrierten Starttruppe.
-    // Ihre maximale Trapezflaeche ist (326,9 px + 350,3 px) / 2 * 70 px = 23.702 px².
-    // Ein Player bei 0,105 deckt mit 10 % Ueberlappung 6,426 x 8,694 px = 55,86 px²;
-    // ceil(23.702 / 55,86) = 425, daher 512 feste Bilder als Zeilenreserve.
-    eigeneFigurenVorrat: 512,
+    // Die eigene Flaeche endet bei 560 px. So ist sie als blaues Band unter der
+    // Front sichtbar und laesst bis zum Tor bei y=700 freie Laufbahn.
+    // 1.152 Bilder fuellen bei 50 Spalten bis zu 23 Reihen und decken damit das
+    // sichtbare Wachstum vom Startband bis zur unteren Sichtgrenze ab.
+    eigeneFigurenVorrat: 1152,
     // Kleine Figuren wie vor N3: 0,105 ergibt mehrere hundert sichtbare Punkte je
     // Flaeche; die Anzahl statt einer vergroesserten Skalierung schliesst den Teppich.
     gegnerFigurTextureScale: 0.105,
     eigeneFigurTextureScale: 0.105,
     // Untere Sichtgrenze der eigenen Flaeche: Die Starttruppe bleibt frei sichtbar.
-    eigeneFlaecheMaxUntenY: 680,
+    eigeneFlaecheMaxUntenY: 560,
   },
   ende: {
     // Der Boss hat den im ersten Video sichtbaren eigenen Vorrat 4.000. Nach der

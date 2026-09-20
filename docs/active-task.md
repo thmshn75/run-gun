@@ -2,60 +2,69 @@
 
 Status: APPROVED
 
-## Aufgabe: V6/S8 — Politur nach dem Videobild
+## Aufgabe: V6/N6 — Die Gegnerfläche sitzt falsch
 
-Verbindlicher Plan: `docs/plan-v6.md`, **zuerst lesen**, besonders den Abschnitt zum
-zweiten Video (112.mov). S1 bis S7 sind fertig und committet; die Mechanik steht und
-ist von Thomas freigegeben. **An der Mechanik wird nichts geändert** — dieser Schritt
-betrifft nur, wie es aussieht.
+Verbindlicher Plan: `docs/plan-v6.md`. Alle acht Schritte sind gebaut und committet.
+Thomas hat am Gerät getestet und drei Abweichungen gemeldet. Sie sind im Browser bei
+iPhone-Maßen (390×844) nachgestellt und bestätigt.
 
-## Was geändert wird
+## Befund 1 (der schwerste): Die Gegnerfläche wächst aus dem Tor heraus
 
-Der Bildvergleich mit dem Video zeigt vier Abweichungen:
+Gemessen bei Spielstart: Die Gegnerfiguren stehen von y=154 bis y=606. Das Tor liegt
+bei y≈610. Die Fläche beginnt also unmittelbar über dem Tor und reicht bis zum
+Horizont — sie füllt fast die ganze Bahn.
 
-1. **Farben.** Im Video ist die eigene Seite kräftig **blau**, die gegnerische kräftig
-   **rot**. Bei uns ist die Gegnerfläche so dunkel getönt, dass sie fast schwarz wirkt,
-   und die eigene Seite ist rötlich — beide Seiten sind kaum zu unterscheiden.
-   - Eigene Figuren (Truppe, Strom, eigene Fläche): deutlich blau.
-   - Gegnerfläche und Boss: deutlich rot, **nicht dunkel**.
-   - **Achtung:** Ein Tint wird mit der Bildfarbe multipliziert, er ersetzt sie nicht.
-     Auf einer rötlichen Vorlage ergibt ein blauer Tint Schwarz. Wo ein Tint nicht zum
-     Ziel führt, sind die Werte entsprechend heller zu wählen und das Ergebnis im
-     Browser zu prüfen — nicht nur rechnerisch.
+Thomas: "die Horde wächst aus dem Tor in der Mitte, statt von oben zu kommen ... es
+sieht in keiner Weise so aus, als wäre es ein Block wie am Bild."
 
-2. **Kampfeffekte an der Front.** Im Video sitzen an der Grenzlinie dauerhaft weiße
-   Partikelwolken, solange gekämpft wird. Ohne sie wirkt die Grenze wie eine
-   Trennlinie statt wie ein Kampf. Ein kleiner Partikeleffekt entlang der Grenze,
-   der nur läuft, wenn beide Seiten dort etwas verlieren.
+**Im Video** (beide Aufnahmen) liegt die rote Masse im **oberen Drittel** der Bahn.
+Darunter folgt die blaue Fläche, darunter **freie Bahn**, auf der der Strom sichtbar
+läuft, und ganz unten das Tor mit der Truppe. Der Abstand zwischen Tor und Masse ist
+der Raum, in dem das Spiel stattfindet — bei uns fehlt er ganz.
 
-3. **Zahlen.** Der Gegnerzähler sitzt im Video groß über der Masse, der Bosszähler
-   über dem Boss, die Truppengröße über der Truppe. Prüfen, dass sich nichts
-   überlagert und alle Zahlen auf dem iPhone-Hochformat lesbar sind.
+**Zu tun:**
+- `front.frontStartY` so setzen, dass die Gegnerfläche bei vollem Vorrat **im oberen
+  Drittel endet** und zwischen ihr und dem Tor freie Bahn bleibt. Richtwert aus dem
+  Video: Die Unterkante der Masse liegt bei rund einem Drittel der Bahnhöhe, also
+  deutlich oberhalb der Bahnmitte.
+- Die Grenzlinie wandert weiterhin mit dem Vorrat: voller Vorrat = diese Startlinie,
+  Vorrat null = Horizont.
+- **Die eigene Fläche muss sichtbar sein.** Im Startbild ist von ihr nichts zu sehen;
+  im Video ist sie ein breites blaues Band unter der roten Masse. Sie wächst mit dem
+  Zustrom von der Grenzlinie nach unten.
+- Test: Bei vollem Vorrat liegt die Unterkante der Gegnerfläche oberhalb der Bahnmitte
+  und mit deutlichem Abstand über dem Tor. Rechnerisch prüfbar, ohne Phaser.
 
-4. **Boss-Animation.** Im Video wechselt der Boss sichtbar die Pose. Falls im
-   Bildbestand mehrere Boss-Bilder vorliegen (`enemy-boss`, `enemy-boss-elite`),
-   zwischen ihnen in ruhigem Takt wechseln. Nur wenn vorhanden — keine neuen Bilder
-   erfinden.
+## Befund 2: Die +99-Reihe steht halb außerhalb der Bahn
+
+Im Bild bei 390×844 ragen die gelben Schilder über den rechten Bahnrand hinaus; auf
+Thomas' Gerät waren sie gar nicht zu sehen ("es gibt keine +99 Wände").
+
+**Zu tun:** Beide Schilderreihen sitzen **innerhalb** der Bahnkanten, mit demselben
+Abstand zum Rand wie im Video. Test: Für jede Schildhöhe liegt die äußere Kante des
+Schildes innerhalb der Bahnkante aus `bahnKanten` — bei allen Höhen von Horizont bis
+Bahnunterkante, nicht nur bei einer.
+
+## Befund 3: Der Block wirkt nicht wie im Video
+
+Die Masse ist ein Trapez, das sich nach unten verbreitert und unmittelbar am Tor
+endet. Im Video ist es ein kompakter Block mit klarer Unterkante. Ergibt sich
+größtenteils aus Befund 1; nach dessen Korrektur im Browser prüfen und, falls nötig,
+die Kanten der Fläche schärfen.
 
 ## Grenzen
 
-- Alles in `src/v2/`. Keine Fremdimporte, kein Speicherzugriff.
-- **Keine Änderung an der Bilanzrechnung, den Zahlen der Balance oder den Abläufen.**
-  Wenn ein Wert für die Optik angepasst werden muss (z. B. Figurengröße), gehört der
-  Rechenweg als Kommentar dazu.
-- Bildrate bleibt bei 60, auch mit Partikeln. Wird sie unterschritten, wird der Effekt
-  sparsamer gebaut — nicht die Menge der Figuren reduziert.
+Unverändert: alles in `src/v2/`, keine Fremdimporte, kein Speicherzugriff, keine
+Physik. Die Bilanzrechnung aus S4/S7 bleibt unangetastet — es geht um Startlage und
+Platzierung, nicht um das Kräfteverhältnis.
 
 ## Akzeptanzkriterien
 
-1. `npx tsc --noEmit`, `npm run build`, `npm test` sauber; bestehende Tests grün
-   (derzeit 479).
-2. Test in `tests/v2Optik.test.ts`: Die Farbwerte für eigene und gegnerische Seite
-   liegen in klar getrennten Bereichen (eigener Ton blaulastig, gegnerischer rotlastig)
-   — prüfbar über die Farbkanäle der Werte aus `balanceV2.ts`.
-3. **Browser-Nachweis** (führe ich, Claude, danach selbst): Bildvergleich mit dem
-   Video; blaue und rote Seite klar unterscheidbar; Partikel an der Front sichtbar;
-   60 Bilder je Sekunde; Doppelstart identisch.
+1. `npx tsc --noEmit`, `npm run build`, `npm test` sauber; 480 Tests bleiben grün.
+2. Die drei genannten Tests sind ergänzt.
+3. **Browser-Nachweis bei 390×844** (führe ich, Claude, selbst): Startbild zeigt die
+   Masse im oberen Drittel, freie Bahn darunter, beide Schilderreihen vollständig
+   innerhalb der Bahn; Doppelstart identisch.
 
 ## Abschlussbericht
 
@@ -64,10 +73,15 @@ Was geändert, Testergebnisse, was nicht ging und warum. Status am Ende auf
 
 ## Implementation Summary
 
-- Eigene Truppe, Strom und Front werden klar blau, Gegnerfläche und Boss klar rot
-  dargestellt; die Volltönung vermeidet die dunkle Mischfarbe der rötlichen Vorlage.
-- 24 wiederverwendete weisse Partikel bilden während eines laufenden Flächenkampfs
-  eine bewegte Wolke direkt an der Grenzlinie; Bilanz und Abläufe bleiben unverändert.
-- Der Boss wechselt alle 700 ms zwischen den vorhandenen Bossbildern; die drei Zähler
-  sind getrennt über Truppe, Gegnerfläche und Boss positioniert.
-- `tests/v2Optik.test.ts` prüft die klar getrennten Blau-/Rot-RGB-Bereiche.
+- Die volle rote Gegnerfläche endet bei 390×844 jetzt auf y=380 im oberen
+  Bahndrittel; bis zum Tor bleiben 320 px freie Laufbahn. Die Bilanzrechnung und
+  die Bewegung der Grenzlinie bleiben unverändert.
+- Die blaue Fläche startet als dichtes, sichtbares Band direkt unter der Front und
+  wächst mit dem Zustrom nach unten; ihre untere Sichtgrenze lässt die Laufbahn vor
+  dem Tor frei.
+- Beide Schildreihen sind mit 42 px Einzug so platziert, dass ihre vollständigen
+  Außenkanten über die gesamte Bahnhöhe innerhalb der jeweiligen Bahnkante liegen.
+- Ergänzt: drei Regressionstests für Frontlage/Torabstand, sichtbares Startband und
+  beide Schildkanten auf jeder Bahnhohe. `npx tsc --noEmit`, `npm run build` und
+  `npm test` sind grün (483 Tests); der Browser-Nachweis bei 390×844 bleibt gemäß
+  Aufgabenbeschreibung bei Claude.

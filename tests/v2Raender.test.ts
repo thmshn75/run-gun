@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BALANCE_V2 } from '../src/v2/balanceV2'
-import { sammeltEin, schildPositionen, truppenGroesseNachSammeln, type RandSchild } from '../src/v2/raender'
+import { sammeltEin, schildMitteX, schildPositionen, truppenGroesseNachSammeln, type RandSchild } from '../src/v2/raender'
+import { bahnKantenBeiY } from '../src/v2/balanceV2'
 
 const breite = 390
 const hoehe = 844
@@ -18,6 +19,15 @@ describe('Run Gun V2 — S5 die beiden Raender', () => {
           expect(reihe[index].y - reihe[index - 1].y).toBeLessThanOrEqual(BALANCE_V2.raender.schildHoehePx)
         }
       }
+    }
+  })
+
+  it('haelt beide Schildkanten auf jeder Bahnhoehe vollstaendig innerhalb der Bahn', () => {
+    const halbeSchildbreite = BALANCE_V2.raender.schildBreitePx / 2
+    for (let y = BALANCE_V2.track.horizonY; y <= hoehe; y += 1) {
+      const kanten = bahnKantenBeiY(breite, hoehe, y)
+      expect(schildMitteX('links', breite, hoehe, y) - halbeSchildbreite).toBeGreaterThanOrEqual(kanten.leftX)
+      expect(schildMitteX('rechts', breite, hoehe, y) + halbeSchildbreite).toBeLessThanOrEqual(kanten.rightX)
     }
   })
 

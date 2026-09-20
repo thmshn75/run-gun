@@ -41,6 +41,14 @@ describe('Run Gun V2 — S4 die beiden Flaechen', () => {
     )
   })
 
+  it('haelt die volle Gegnerflaeche im oberen Bahndrittel mit freier Bahn vor dem Tor', () => {
+    const bahnHoehe = 844 - BALANCE_V2.track.horizonY
+    const unterkante = frontYAusVorrat(BALANCE_V2.front.gegnerStartVorrat)
+    expect(unterkante).toBeLessThanOrEqual(BALANCE_V2.track.horizonY + bahnHoehe / 3)
+    expect(unterkante).toBeLessThan(844 / 2)
+    expect(BALANCE_V2.tor.y - unterkante).toBeGreaterThanOrEqual(300)
+  })
+
   it('hat rechnerisch genug leicht ueberlappende Bilder fuer beide geschlossenen Flaechen', () => {
     const breite = 390
     const rotHoehe = BALANCE_V2.front.frontStartY - BALANCE_V2.track.horizonY
@@ -63,5 +71,17 @@ describe('Run Gun V2 — S4 die beiden Flaechen', () => {
     expect(BALANCE_V2.front.eigeneFlaecheMaxUntenY).toBeLessThan(
       844 - BALANCE_V2.truppe.abstandVonUntenPx,
     )
+  })
+
+  it('zeigt bereits zum Start ein breites blaues Band unter der Grenzlinie', () => {
+    const schrittX = 68 * BALANCE_V2.front.eigeneFigurTextureScale * 0.9
+    const kanten = 390 * (BALANCE_V2.track.topWidthRatio
+      + (BALANCE_V2.track.bottomWidthRatio - BALANCE_V2.track.topWidthRatio)
+        * (BALANCE_V2.front.frontStartY - BALANCE_V2.track.horizonY) / (844 - BALANCE_V2.track.horizonY))
+    const spalten = Math.ceil(kanten / schrittX)
+    const startBandBilder = Math.ceil(BALANCE_V2.truppe.startGroesse / 3) * spalten
+    expect(startBandBilder).toBeGreaterThan(spalten)
+    expect(startBandBilder).toBeLessThanOrEqual(BALANCE_V2.front.eigeneFigurenVorrat)
+    expect(BALANCE_V2.front.eigeneFlaecheMaxUntenY).toBeLessThan(BALANCE_V2.tor.y)
   })
 })

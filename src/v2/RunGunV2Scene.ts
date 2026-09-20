@@ -256,12 +256,18 @@ export class RunGunV2Scene extends Phaser.Scene {
       bild.setVisible(sichtbar)
       if (platz) bild.setPosition(platz.x, platz.y)
     })
-    const sichtbareEigene = Math.min(BALANCE_V2.front.eigeneFigurenVorrat, Math.floor(this.front.eigenerWert))
     const eigeneBreite = 68 * BALANCE_V2.front.eigeneFigurTextureScale
     const eigeneSchrittX = eigeneBreite * 0.9
     const eigeneStartY = this.front.frontY + eigeneBreite * 0.7
     const eigeneKanten = bahnKantenBeiY(width, height, eigeneStartY)
     const eigeneSpalten = Math.max(1, Math.ceil((eigeneKanten.rightX - eigeneKanten.leftX) / eigeneSchrittX))
+    // Drei Bilanzpunkte fuellen eine dichte Frontzeile statt als einzelne, kaum
+    // sichtbare Pixel zu verschwinden. Die blaue Darstellung beginnt dadurch als
+    // breites Band direkt unter der roten Kante und waechst stetig nach unten.
+    const sichtbareEigene = Math.min(
+      BALANCE_V2.front.eigeneFigurenVorrat,
+      Math.ceil(this.front.eigenerWert / 3) * eigeneSpalten,
+    )
     this.eigeneFrontBilder.forEach((bild, index) => {
       const sichtbar = index < sichtbareEigene
       if (!sichtbar) {

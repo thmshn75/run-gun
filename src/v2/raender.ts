@@ -1,4 +1,4 @@
-import { BALANCE_V2 } from './balanceV2'
+import { bahnKantenBeiY, BALANCE_V2 } from './balanceV2'
 
 export type SchildSeite = 'links' | 'rechts'
 export type RandSchild = Readonly<{
@@ -12,12 +12,10 @@ export type RandSchild = Readonly<{
 
 export type SammelReichweite = number | Readonly<{ seitlich: number, hoehe: number }>
 
-function schildX(seite: SchildSeite, width: number, height: number, y: number): number {
-  const fortschritt = Math.min(1, Math.max(0, (y - BALANCE_V2.track.horizonY) / (height - BALANCE_V2.track.horizonY)))
-  const oben = width * BALANCE_V2.track.topWidthRatio / 2
-  const unten = width * BALANCE_V2.track.bottomWidthRatio / 2
-  const halbeBahn = oben + (unten - oben) * fortschritt
-  const rand = width / 2 + (seite === 'links' ? -halbeBahn : halbeBahn)
+/** Mittelpunkt eines Schilds: die gesamte Schildkante bleibt in der Bahn. */
+export function schildMitteX(seite: SchildSeite, width: number, height: number, y: number): number {
+  const kanten = bahnKantenBeiY(width, height, y)
+  const rand = seite === 'links' ? kanten.leftX : kanten.rightX
   return rand + (seite === 'links' ? BALANCE_V2.raender.randEinzugPx : -BALANCE_V2.raender.randEinzugPx)
 }
 
@@ -38,7 +36,7 @@ export function schildPositionen(width: number, height: number, zeitMs: number):
       id: `${seite}-${index}`,
       seite,
       wert: seite === 'links' ? 1 : 99,
-      x: schildX(seite, width, height, y),
+      x: schildMitteX(seite, width, height, y),
       y,
       umlauf,
     }
