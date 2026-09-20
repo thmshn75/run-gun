@@ -70,13 +70,20 @@ export const BALANCE = {
     heavyAnteil: 0.25,
     // Gegner im Torlauf dreimal so zaeh und der Boss achtmal: Der Strom liefert
     // dauerhaft Nachschub, gegen Run-Werte faellt alles sofort um.
-    gegnerLebenFaktor: 3,
+    gegnerLebenFaktor: 2,
     bossLebenFaktor: 20,
     // Heavys schlagen im Torlauf haerter: Sie reissen ein Vielfaches des normalen
     // Kontaktschadens aus der Truppe und halten laenger durch (Thomas 2026-09-19:
     // "natuerlich sollen die Heavy staerker sein und mehr meiner Truppen schlagen").
     heavySchadenFaktor: 4,
     heavyLebenFaktor: 2.5,
+    // Heavy groesser und langsamer, der Boss noch groesser und noch langsamer (Thomas
+    // 2026-09-20). Groesse als Faktor auf die Torlauf-Grundgroesse, Tempo als Faktor
+    // auf das Torlauf-Grundtempo.
+    heavyGroesse: 1.6,
+    heavyTempoFaktor: 0.6,
+    bossGroesse: 1.5,
+    bossTempoFaktor: 0.5,
     // Der Boss schlaegt noch haerter - "und der Boss erst recht".
     bossSchadenFaktor: 10,
     // 28 px: groesser als HUD-Text (22 px), aber unter der Boss-Overlay-Schrift (34 px).
@@ -202,10 +209,15 @@ export const BALANCE = {
       // NAHKAMPF AN DER FRONT: Eine Stromfigur verschwindet beim Treffer nicht mehr
       // sofort, sondern bleibt stehen und kaempft. Dadurch staut sich der Strom an der
       // Gegnermasse - genau das Bild, das Thomas am 2026-09-19 beschrieben hat.
-      kampfSchadenProSek: 6,
+      kampfSchadenProSek: 10,
       // Nach dieser Standzeit im Kampf ist die Figur aufgerieben ("von den Gegnern
       // auch zerstoert werden").
-      kampfStandzeitMs: 1400,
+      kampfStandzeitMs: 2200,
+      // Solange eine Figur an einem Gegner haengt, steht der Gegner (Wert in ms, wird
+      // je Bild vom Strom aufgefrischt). Ohne das lief der Gegner einfach weiter und
+      // schob die gebundene Figur vor sich her (Thomas 2026-09-20: "meine ausgesendeten
+      // Truppen werden einfach nach unten geschoben") - die Front hielt nichts auf.
+      haltNachfrischMs: 150,
       // OPTIK DER FRONT (Thomas 2026-09-20: "bleiben zwar haengen wie gewuenscht, sieht
       // aber komisch aus"): Die Figur steht knapp VOR ihrem Ziel statt darauf und
       // stoesst im Takt vor und zurueck, statt starr zu stehen. Beim Aufreiben gibt es

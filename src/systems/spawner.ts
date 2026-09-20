@@ -403,8 +403,12 @@ export class Spawner {
       // traegt die Optik. Je Staerke ist das Mittel der Gangarten 1,0, die Balance
       // bleibt also unberuehrt - ein Test haelt das fest.
       const gangartTempo = enemy.getData('gangartTempo') as number
-      const logicalY = enemy.y - previousBob - previousRueckstoss
-        + (enemySpeed * (enemy.getData('speedFactor') as number) * gangartTempo * dt) / 1000
+      // Festgehalten von einer Stromfigur im Nahkampf: kein Fortschritt, solange der
+      // vom Strom aufgefrischte Haltewert nicht abgelaufen ist.
+      const haltMs = ((enemy.getData('haltMs') as number | undefined) ?? 0) - dt
+      enemy.setData('haltMs', Math.max(0, haltMs))
+      const fortschritt = haltMs > 0 ? 0 : (enemySpeed * (enemy.getData('speedFactor') as number) * gangartTempo * dt) / 1000
+      const logicalY = enemy.y - previousBob - previousRueckstoss + fortschritt
       // Die Groesse gehoert zur Laufhoehe, nicht zur gewippten: Sonst pulsiert der
       // Gegner im Schritttakt.
       this.applyPerspectiveScale(enemy, logicalY)
@@ -797,7 +801,11 @@ export class Spawner {
     enemy.setData('hp', getEnemyHp(type, this.levelPlan.level, this.getPlayerPower()) * torlaufLeben)
     // Im Torlauf zaehlt nur EIN Tempo: Unterschiedlich schnelle Gegner zerfasern die
     // Masse, die dort als geschlossene Horde heranlaufen soll.
-    enemy.setData('speedFactor', this.nurStandard ? BALANCE.torlauf.gegnerTempoFaktor : type.speedFactor)
+    const torlaufTempo = BALANCE.torlauf.gegnerTempoFaktor * (type.key === 'heavy' ? BALANCE.torlauf.heavyTempoFaktor : 1)
+    enemy.setData('speedFactor', this.nurStandard ? torlaufTempo : type.speedFactor)
+    // Groessenfaktor je Typ (Heavy groesser); applyPerspectiveScale liest ihn jedes Bild.
+    enemy.setData('groessenFaktor', this.nurStandard && type.key === 'heavy' ? BALANCE.torlauf.heavyGroesse : 1)
+    enemy.setData('haltMs', 0)
     // Tempo aus der GEZOGENEN GESTALT - dieselbe Quelle wie der Bildtakt, damit die
     // Fuesse nicht ueber die Strasse rutschen. Grundgestalten ohne Eintrag: 1,0.
     enemy.setData('gangartTempo', BALANCE.enemy.bilder.gangarten[gestalt]?.tempo ?? 1)
@@ -840,6 +848,7 @@ export class Spawner {
     // Perspektivfaktor schrumpft sie mit der Entfernung.
     // figureTextureScale halbiert die doppelt aufgeloeste Textur zurueck auf Spielgroesse.
     const faktor = BALANCE.enemy.figureScale * BALANCE.render.figureTextureScale * this.figurenMassstab
+      * ((enemy.getData('groessenFaktor') as number | undefined) ?? 1)
       * getPerspectiveScale(this.scene.scale.width, this.scene.scale.height, y)
     enemy.setScale(faktor)
     // Nachgefuehrte Groesse fuer alle, die mit der Figurenbreite rechnen (Schatten,

@@ -78,6 +78,9 @@ export class Strom {
           const kampfSeitMs = (figure.getData('kampfSeitMs') as number) + dt
           figure.setData('kampfSeitMs', kampfSeitMs)
           this.verletzeZiel(ziel, BALANCE.torlauf.horde.kampfSchadenProSek * dt / 1000)
+          // Der Gegner steht, solange jemand an ihm haengt: Spawner und Boss lesen
+          // diesen Wert vor ihrer Bewegung und zaehlen ihn selbst herunter.
+          ziel.setData('haltMs', BALANCE.torlauf.horde.haltNachfrischMs)
           if (kampfSeitMs >= BALANCE.torlauf.horde.kampfStandzeitMs) {
             this.aufgerieben(figure)
             this.recycle(figure)

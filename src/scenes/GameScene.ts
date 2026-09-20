@@ -448,6 +448,8 @@ export class GameScene extends Phaser.Scene {
     // brach create() genau hier ab).
     this.boss.setLebensFaktor(this.istTorlauf() ? BALANCE.torlauf.bossLebenFaktor : 1)
     this.boss.setSchadenFaktor(this.istTorlauf() ? BALANCE.torlauf.bossSchadenFaktor : 1)
+    this.boss.setGroessenFaktor(this.istTorlauf() ? BALANCE.torlauf.bossGroesse : 1)
+    this.boss.setTempoFaktor(this.istTorlauf() ? BALANCE.torlauf.bossTempoFaktor : 1)
     this.coins = new Coins(this, () => this.updateHud())
     this.splashFlashes = new SplashFlashPool(this)
     this.chainFlashes = new ChainFlashPool(this)

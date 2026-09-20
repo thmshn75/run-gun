@@ -11,6 +11,8 @@ export class Boss {
   /** Vervielfacht den Lebensvorrat; der Torlauf setzt ihn hoch. */
   private lebensFaktor = 1
   private schadenFaktor = 1
+  private groessenFaktor = 1
+  private tempoFaktor = 1
   private readonly scene: Phaser.Scene
   private readonly enemy: Phaser.Physics.Arcade.Image
   private readonly shadow: Phaser.GameObjects.Image
@@ -60,6 +62,14 @@ export class Boss {
 
   public setSchadenFaktor(faktor: number): void {
     this.schadenFaktor = faktor
+  }
+
+  public setGroessenFaktor(faktor: number): void {
+    this.groessenFaktor = faktor
+  }
+
+  public setTempoFaktor(faktor: number): void {
+    this.tempoFaktor = faktor
   }
   public constructor(
     scene: Phaser.Scene,
@@ -262,7 +272,7 @@ export class Boss {
   private applyPerspectiveScale(): void {
     // figureTextureScale halbiert die doppelt aufgeloeste Textur zurueck auf Spielgroesse.
     this.enemy.setScale(
-      BALANCE.render.figureTextureScale
+      BALANCE.render.figureTextureScale * this.groessenFaktor
       * getPerspectiveScale(this.scene.scale.width, this.scene.scale.height, this.enemy.y),
     )
   }
@@ -272,7 +282,11 @@ export class Boss {
     // Figuren starke Truppe gegenueber (Thomas 2026-09-19: "und der Boss erst recht").
     this.enemy.setData('contactDamage', plan.advanceContactDamage * this.schadenFaktor)
     const stopY = Math.max(BALANCE.boss.battleY, this.getAnchorY() - plan.advanceStopBeforeAnchorPx)
-    this.enemy.y = Math.min(this.enemy.y + (plan.advanceSpeed * dt) / 1000, stopY)
+    // Im Nahkampf mit dem Strom steht auch der Boss (haltMs wie bei den Gegnern).
+    const haltMs = ((this.enemy.getData('haltMs') as number | undefined) ?? 0) - dt
+    this.enemy.setData('haltMs', Math.max(0, haltMs))
+    const tempo = haltMs > 0 ? 0 : plan.advanceSpeed * this.tempoFaktor
+    this.enemy.y = Math.min(this.enemy.y + (tempo * dt) / 1000, stopY)
     this.swingSideways(dt, plan)
   }
 
