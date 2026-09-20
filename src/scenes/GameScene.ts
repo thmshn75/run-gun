@@ -355,6 +355,7 @@ export class GameScene extends Phaser.Scene {
         (count) => this.crowd.getNextSalvoPositions(count),
         () => this.runStats.get('hp'),
         (ziel, schaden) => this.damageEnemy(ziel, schaden),
+        (figur) => this.sterbeeffekte.spawn(figur.x, figur.y, figur.texture.key, figur.scaleX, figur.scaleY),
       )
       this.weapons.setFeuerAktiv(false)
     } else if (this.nutztBahnen()) {
@@ -1202,9 +1203,13 @@ export class GameScene extends Phaser.Scene {
     const spawnId = wall.getData('spawnId') as number | undefined
     if (spawnId !== undefined && hitSpawnIds.has(spawnId)) return
     if (spawnId !== undefined) hitSpawnIds.add(spawnId)
-    // Erst ab der Freischaltgrenze vervielfacht das Tor. Davor laeuft der Strom
-    // hindurch, ohne sich zu vermehren.
-    if (!torbahn.istTorScharf()) return
+    // Gesperrtes Tor: Jede Figur, die es passiert, hackt den Zaehler um eins herunter
+    // (wie die Saeule im Video). Erst bei null vervielfacht es.
+    if (!torbahn.istTorScharf()) {
+      const rest = torbahn.hackeFreischaltung(wall)
+      if (rest === 0) this.popups.spawn(wall.x, wall.y, 'FREI', '#3ddc84')
+      return
+    }
     // Die Figur laeuft hindurch und wird zu mehreren, die weiter auf die Gegner
     // zulaufen. Das Tor bleibt stehen, damit die naechste Welle es ebenfalls nutzt.
     this.strom?.vervielfache(figur, wirkung.faktor - 1)

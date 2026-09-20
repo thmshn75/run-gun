@@ -42,10 +42,11 @@ export const BALANCE = {
     // Gegner im Torlauf auf Truppengroesse herunterskaliert: 0,78 (Truppe) geteilt
     // durch enemy.figureScale 1,25 ergibt 0,62.
     gegnerMassstab: 0.62,
-    // Einheitliches, langsames Tempo fuer ALLE Torlauf-Gegner. 0,55 des Normaltempos:
+    // Einheitliches, langsames Tempo fuer ALLE Torlauf-Gegner. 0,3 des Normaltempos
+    // (Thomas 2026-09-20: "die Horden kommen viel zu schnell"; 0,55 war noch zu flott):
     // Die Masse soll als geschlossene Horde heranschieben, nicht einzeln heranlaufen
     // (Thomas 2026-09-19: "gleich langsam alles viele als Horde, langsam").
-    gegnerTempoFaktor: 0.55,
+    gegnerTempoFaktor: 0.3,
     // 0,3 des normalen Spawntakts = gut dreimal so viele Gegner. Mit dem Normaltakt
     // standen nur acht gleichzeitig auf der Bahn, sobald der Strom sie wirklich traf -
     // das sieht nach Einzelgegnern aus, nicht nach einer Horde.
@@ -102,12 +103,13 @@ export const BALANCE = {
       // schon nach rund 130 px und laeuft die restlichen 270 px bereits vervielfacht
       // auf die Horde zu - der Kampf findet also fast vollstaendig hinter dem Tor statt.
       festY: 570,
-      // FREISCHALTUNG: Das Tor vervielfacht nicht von der ersten Sekunde an. Erst wenn
-      // die Truppe diese Groesse erreicht hat, wird es scharf (Thomas 2026-09-19: "am
-      // Anfang darf nicht sofort meine Truppen verdoppelt werden, wir muessen etwas
-      // einbauen, damit ich erst freischalten muss ... damit die Gegnerhorden auch mal
-      // ein wenig vorruecken koennen"). Bis dahin zeigt es die noetige Zahl.
-      freischaltAbTruppe: 60,
+      // FREISCHALTUNG WIE IM VIDEO: Dort steht die x-Saeule mit einem kleinen Zaehler
+      // ("9"), den der Strom erst abhackt - dann kippt sie und der Faktor gilt. Hier:
+      // so viele Stromfiguren muessen das Tor passieren, bis es scharf ist. Die erste
+      // Fassung (scharf ab 60 Einheiten Truppe) hat Thomas nicht verstanden: "das Tor
+      // in der Mitte zeigt 60, hat aber keine Wirkung" (2026-09-20). Ein Zaehler, der
+      // sichtbar sinkt, erklaert sich selbst.
+      freischaltTreffer: 40,
       // Anteil der vollen Bahnbreite auf Torhoehe. 0,72: noch einmal breiter (Thomas
       // 2026-09-19: "eher breiter"); links und rechts bleiben je 14 Prozent frei, also
       // gerade genug, um das Tor bewusst zu umfahren.
@@ -204,6 +206,13 @@ export const BALANCE = {
       // Nach dieser Standzeit im Kampf ist die Figur aufgerieben ("von den Gegnern
       // auch zerstoert werden").
       kampfStandzeitMs: 1400,
+      // OPTIK DER FRONT (Thomas 2026-09-20: "bleiben zwar haengen wie gewuenscht, sieht
+      // aber komisch aus"): Die Figur steht knapp VOR ihrem Ziel statt darauf und
+      // stoesst im Takt vor und zurueck, statt starr zu stehen. Beim Aufreiben gibt es
+      // denselben Zerplatz-Effekt wie bei Gegnern - vorher verschwand sie einfach.
+      kampfAbstandPx: 12,
+      kampfStossPx: 3,
+      kampfStossHz: 5,
       fressRateProSek: 8,
       // Die Horde ist eine MASSE AUS FIGUREN, keine rote Wand mit Zahl (Thomas
       // 2026-09-19: "die Horde sind keine Zombies sondern nur eine grosse Wand mit Zahl").
@@ -3738,8 +3747,11 @@ export const BALANCE = {
     figureTextureScale: 0.5,
   },
   pools: {
-    // Gemessen auf Level 5: ~0,8 s Flugzeit bei 24 Figuren/s (16-22 gleichzeitig); 200 bleibt grosse Reserve.
-    strom: 200,
+    // 400 seit dem Nahkampf an der Front (2026-09-20): Bis zu 140 Figuren stehen
+    // gleichzeitig im Kampf (1,4 s Standzeit), dazu laufen 24 Figuren/s mal 3
+    // (Torfaktor) rund 3 s bis zur Front = 216 unterwegs. 200 war zwanzigmal je Lauf
+    // erschoepft; 400 deckt 356 mit Reserve.
+    strom: 400,
     // Deckel aus torlauf.horde.maxFiguren; mehr Figuren kann die Horde nie zeigen.
     hordeFiguren: 80,
     // Durchgehende Reihe: 500 px Anflug / 60 px Abstand = rund neun gleichzeitig;
@@ -3840,7 +3852,11 @@ export const BALANCE = {
     // liegt der Bestand weit darunter, weil die Truppe raeumt - gemessen bei Level 12
     // mit realistischem Ausbau rund 20 gleichzeitig. Der Pool ist die Sicherung fuer
     // den schwachen Run, nicht der Erwartungswert.
-    enemies: 288,
+    // 420 seit der Gegnerwand im Torlauf (2026-09-20): Reihen zu 12 Figuren im
+    // 0,5-fachen Takt = rund 27 Gegner/s bei 8-10 s Lebensdauer auf der Bahn = bis zu
+    // 270 gleichzeitig, plus die Front, die nicht sofort faellt. 288 war achtmal je
+    // Lauf erschoepft. Der echte Run braucht davon weiterhin nur einen Bruchteil.
+    enemies: 420,
     // Must be >= crowd.max because all figures are created once and then only shown or hidden.
     crowd: 30,
     // Neu hergeleitet 2026-08-22, nachdem der Pool im Test 84-mal in Folge leerlief

@@ -39,7 +39,6 @@ export class Torbahn implements BahnSystem {
   private readonly kacheln: KachelZustand[] = []
   private readonly zuKachel = new Map<Phaser.GameObjects.GameObject, KachelZustand>()
   private readonly getCrowdAnchorX: () => number
-  private readonly getTeamSize: () => number
   private abstand = BALANCE.torlauf.tor.abstandPx
   private kachelAbstand: number = BALANCE.torlauf.kachel.abstandPx
   private nextSpawnId = 1
@@ -49,7 +48,7 @@ export class Torbahn implements BahnSystem {
 
   public constructor(
     scene: Phaser.Scene,
-    getTeamSize: () => number,
+    _getTeamSize: () => number,
     getCrowdAnchorX: () => number,
     zufall: () => number,
     _applyReinforcement: (apply: (current: number) => number, popup: string) => void,
@@ -57,7 +56,6 @@ export class Torbahn implements BahnSystem {
     this.scene = scene
     this.zufall = zufall
     this.getCrowdAnchorX = getCrowdAnchorX
-    this.getTeamSize = getTeamSize
     this.walls = scene.physics.add.group()
     this.rewards = scene.physics.add.group()
     for (let i = 0; i < 8; i += 1) {
@@ -82,20 +80,49 @@ export class Torbahn implements BahnSystem {
    * Boden (Thomas 2026-09-19).
    */
   public istTorScharf(): boolean {
-    return this.getTeamSize() >= BALANCE.torlauf.tor.freischaltAbTruppe
+    const tor = this.tore.find((kandidat) => kandidat.aktiv)
+    return tor !== undefined && tor.treffer >= BALANCE.torlauf.tor.freischaltTreffer
+  }
+
+  /**
+   * Pflicht aus BahnSystem (Projektil-Wandtreffer). Im Torlauf ist die Waffe aus, der
+   * Weg wird also nicht beschritten - falls doch, zaehlt ein Treffer wie eine
+   * Stromfigur am gesperrten Tor. Rueckgabe false: Ein Tor wird nie "zerstoert".
+   */
+  public damage(wall: Phaser.Physics.Arcade.Image, _damage: number): boolean {
+    this.hackeFreischaltung(wall)
+    return false
+  }
+
+  /** Eine Stromfigur hat das noch gesperrte Tor passiert: Zaehler um eins herunter. */
+  public hackeFreischaltung(wall: Phaser.Physics.Arcade.Image): number {
+    const tor = this.zuTor.get(wall)
+    if (tor === undefined || !tor.aktiv) return 0
+    tor.treffer = Math.min(BALANCE.torlauf.tor.freischaltTreffer, tor.treffer + 1)
+    this.beschrifte(tor)
+    return BALANCE.torlauf.tor.freischaltTreffer - tor.treffer
   }
 
   public hasActivePair(): boolean { return this.tore.some((tor) => tor.aktiv) || this.kacheln.some((kachel) => kachel.aktiv) }
 
   public resetForLevel(_level: number): void {
+    // Neues Level: alles raeumen, auch das Tor - es kommt mit frischem Zaehler zurueck.
+    for (const tor of this.tore) this.recycle(tor)
     this.deactivateAll()
     this.abstand = BALANCE.torlauf.tor.abstandPx
     this.kachelAbstand = BALANCE.torlauf.kachel.abstandPx
   }
 
   public deactivateAll(): void {
-    for (const tor of this.tore) this.recycle(tor)
+    // Das Mitteltor bleibt stehen: Es ist "dauerhaft da" (Thomas 2026-09-19). Der
+    // Phasenwechsel zum Boss rief frueher recycle fuer alle Tore, das Tor kam im
+    // naechsten Bild mit vollem Freischalt-Zaehler zurueck und war wieder gesperrt -
+    // im Browser als "7" unter dem x3 gesehen. Nur der Levelwechsel setzt es zurueck.
     for (const kachel of this.kacheln) this.recycleKachel(kachel)
+    for (const child of this.rewards.getChildren()) {
+      const reward = child as Phaser.Physics.Arcade.Image
+      if (reward.active) reward.disableBody(true, true).setActive(false).setVisible(false)
+    }
   }
 
   public istTorFenster(): boolean {
@@ -151,15 +178,6 @@ export class Torbahn implements BahnSystem {
     return 0
   }
 
-  /** Ein Treffer ist ein Restwert-Punkt, unabhängig von Schaden und Waffe. */
-  public damage(wall: Phaser.Physics.Arcade.Image, _damage: number): boolean {
-    const tor = this.zuTor.get(wall)
-    if (tor === undefined || !tor.aktiv) return false
-    tor.treffer += 1
-    this.beschrifte(tor)
-    return false
-  }
-
   public update(dt: number): void {
     const bewegung = getCurrentScrollSpeed() * dt / 1000
     this.abstand += bewegung
@@ -187,9 +205,9 @@ export class Torbahn implements BahnSystem {
       const geo = torGeometrieMitte(this.scene.scale.width, this.scene.scale.height, mitteY)
       tor.bild.setPosition(geo.x, mitteY).setDisplaySize(geo.breite, hoehe).setAlpha(1)
       ;(tor.bild.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
-      tor.label.setPosition(geo.x, mitteY).setScale(scale).setAlpha(1)
+      tor.label.setPosition(geo.x, mitteY - 9 * scale).setScale(scale).setAlpha(1)
+      tor.restLabel.setPosition(geo.x, mitteY + 16 * scale).setScale(scale * 0.8).setAlpha(1)
       this.beschrifte(tor)
-      tor.restLabel.setAlpha(0)
     }
     for (const kachel of this.kacheln) {
       if (!kachel.aktiv) continue
@@ -252,16 +270,18 @@ export class Torbahn implements BahnSystem {
   }
 
   private beschrifte(tor: TorZustand): void {
-    // Vor der Freischaltung steht die noetige Truppengroesse auf dem Tor, danach der
-    // Faktor. So ist von aussen sichtbar, worauf man hinarbeitet.
-    if (this.istTorScharf()) {
-      tor.label.setText(`×${tor.wirkung.faktor}`).setColor('#ffffff')
-      tor.bild.setTexture('wall-segment-right').clearTint()
-    } else {
-      tor.label.setText(`${BALANCE.torlauf.tor.freischaltAbTruppe}`).setColor('#ffd166')
+    // Der Faktor steht immer drauf. Solange das Tor gesperrt ist, zeigt die zweite
+    // Zeile den Restzaehler und das Tor bleibt grau - wie die Saeule im Video, deren
+    // Zahl der Strom sichtbar herunterhackt.
+    const rest = BALANCE.torlauf.tor.freischaltTreffer - tor.treffer
+    tor.label.setText(`×${tor.wirkung.faktor}`).setColor('#ffffff')
+    if (rest > 0) {
+      tor.restLabel.setText(`${rest}`).setColor('#ffd166').setActive(true).setVisible(true)
       tor.bild.setTexture('wall-segment-right').setTint(0x7a7a7a)
+    } else {
+      tor.restLabel.setText('').setActive(false).setVisible(false)
+      tor.bild.setTexture('wall-segment-right').clearTint()
     }
-    tor.restLabel.setText('')
   }
 
   private recycle(tor: TorZustand): void {

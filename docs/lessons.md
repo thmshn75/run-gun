@@ -1303,3 +1303,26 @@ er aufgefallen, hier nicht, weil niemand das Tempo nachgemessen hat.
 **Was das über die Arbeitsweise sagt:** Drei Sitzungen lang wurde an Balance-Werten
 gedreht, ohne je nachzusehen, ob der eingestellte Wert im Bild ankommt. Eine einzige
 Messung (Position über Zeit) hätte das sofort gezeigt.
+
+## 2026-09-20 — Eine Bindung darf nicht bei jeder Berührung neu gesetzt werden
+
+**Was passierte:** Die ausgesandten Figuren sollten an der Gegnerfront stehen bleiben,
+kämpfen und nach 1,4 s aufgerieben werden. Thomas' Befund: "haben keine Wirkung und
+werden auch nicht dezimiert" — die Gegner liefen durch alles durch.
+
+**Warum:** In der dichten Masse berührt eine Figur mehrere Gegner gleichzeitig. Jede
+Berührung band sie an ein neues Ziel und setzte dabei die Kampfzeit auf null. Sie
+wurde nie aufgerieben, stand für immer da und blockierte den Nachschub hinter sich.
+Der Schaden kam an (14 → 0,4 in einer Sekunde gemessen), aber die Figuren hingen ewig
+an den vordersten Gegnern, der Rest lief ungehindert vorbei.
+
+**Regel:** Eine Bindung (Ziel, Partner, Slot) wird einmal gesetzt und bleibt, bis das
+Gebundene verschwindet. Ein Überlappungs-Callback feuert jedes Bild für jedes Paar —
+er ist kein Ereignis "neuer Kontakt", sondern ein Zustand "berührt gerade". Wer dort
+Zustand zurücksetzt, baut einen Zähler, der nie abläuft. Gegenprobe: `kampfSeitMs` nach
+zwei Sekunden Kampf abfragen — steht er bei 17 ms, ist es dieser Fehler.
+
+**Zweiter Fund derselben Sitzung:** Das "dauerhafte" Tor wurde beim Phasenwechsel zum
+Boss von `deactivateAll` mit recycelt und kam im nächsten Bild mit vollem
+Freischalt-Zähler zurück. Was "dauerhaft" sein soll, darf nicht in einer Sammel-
+Aufräumfunktion hängen, die für alles andere zuständig ist.

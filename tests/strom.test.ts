@@ -18,7 +18,7 @@ describe('Torlauf Strom E2r', () => {
     expect(getStromFigurenProSek(10)).toBe(4)
     expect(getStromFigurenProSek(60)).toBe(24)
     expect(getStromFigurenProSek(150)).toBe(24)
-    expect(BALANCE.pools.strom).toBe(200)
+    expect(BALANCE.pools.strom).toBe(400)
     expect(BALANCE.pools.kacheln).toBe(16)
     expect(BALANCE.torlauf.strom.wellenIntervallMs).toBe(1200)
   })

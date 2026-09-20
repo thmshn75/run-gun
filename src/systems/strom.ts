@@ -11,6 +11,8 @@ export class Strom {
   private readonly getTeamSize: () => number
   /** Schaden an ein Ziel melden; der Strom kennt weder Gegner noch Boss. */
   private readonly verletzeZiel: (ziel: Phaser.Physics.Arcade.Image, schaden: number) => void
+  /** Zerplatz-Effekt, wenn eine Figur im Nahkampf aufgerieben wird. */
+  private readonly aufgerieben: (figur: Phaser.Physics.Arcade.Image) => void
   private readonly figures: Phaser.Physics.Arcade.Image[] = []
   private readonly group: Phaser.Physics.Arcade.Group
   private accumulatorFigures = 0
@@ -19,8 +21,9 @@ export class Strom {
   private lastPoolWarningAtMs = -BALANCE.feedback.poolWarningIntervalMs
   private nextIndex = 0
 
-  public constructor(scene: Phaser.Scene, getSalvoPositions: (count: number) => Array<{ x: number; y: number }>, getTeamSize: () => number, verletzeZiel: (ziel: Phaser.Physics.Arcade.Image, schaden: number) => void) {
+  public constructor(scene: Phaser.Scene, getSalvoPositions: (count: number) => Array<{ x: number; y: number }>, getTeamSize: () => number, verletzeZiel: (ziel: Phaser.Physics.Arcade.Image, schaden: number) => void, aufgerieben: (figur: Phaser.Physics.Arcade.Image) => void) {
     this.scene = scene
+    this.aufgerieben = aufgerieben
     this.getSalvoPositions = getSalvoPositions
     this.getTeamSize = getTeamSize
     this.verletzeZiel = verletzeZiel
@@ -75,7 +78,18 @@ export class Strom {
           const kampfSeitMs = (figure.getData('kampfSeitMs') as number) + dt
           figure.setData('kampfSeitMs', kampfSeitMs)
           this.verletzeZiel(ziel, BALANCE.torlauf.horde.kampfSchadenProSek * dt / 1000)
-          if (kampfSeitMs >= BALANCE.torlauf.horde.kampfStandzeitMs) this.recycle(figure)
+          if (kampfSeitMs >= BALANCE.torlauf.horde.kampfStandzeitMs) {
+            this.aufgerieben(figure)
+            this.recycle(figure)
+            continue
+          }
+          // Knapp VOR dem Ziel stehen und im Takt dagegen stossen - so liest sich der
+          // Stau als Kampf, nicht als eingefrorene Figuren auf den Gegnern.
+          const standY = ziel.y + BALANCE.torlauf.horde.kampfAbstandPx
+          const stoss = Math.max(0, Math.sin(this.elapsedMs / 1000 * Math.PI * 2 * BALANCE.torlauf.horde.kampfStossHz + (figure.getData('phaseOffset') as number))) * BALANCE.torlauf.horde.kampfStossPx
+          figure.setData('laufY', standY)
+          figure.setPosition(figure.x, standY - stoss)
+          ;(figure.body as Phaser.Physics.Arcade.Body).updateFromGameObject()
           continue
         }
       }
