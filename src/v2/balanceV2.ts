@@ -43,6 +43,19 @@ export const BALANCE_V2 = {
     // 0,14: die laufenden Figuren liegen optisch hinter der Starttruppe.
     figurTextureScale: 0.14,
   },
+  raender: {
+    // Die Schilder folgen der Bahn konstant von oben nach unten. 48 px Abstand bei
+    // 56 px Hoehe ueberlappt leicht und laesst auch zwischen zwei Umlaeufen keine Luecke.
+    schildHoehePx: 56,
+    schildBreitePx: 54,
+    abstandPx: 48,
+    tempoPxProSek: 120,
+    // Ein Schild liegt knapp innerhalb der jeweiligen Bahnkante.
+    randEinzugPx: 30,
+    // Einsammeln ist reine Bildschirmgeometrie, keine Phaser-Physik.
+    sammelSeitlichPx: 42,
+    sammelHoehePx: 34,
+  },
   front: {
     // 858 ist der aus dem Video abgelesene Startvorrat der roten Flaeche.
     gegnerStartVorrat: 858,

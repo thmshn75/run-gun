@@ -3,6 +3,9 @@ import { bahnKanten, bahnKantenBeiY, BALANCE_V2 } from './balanceV2'
 import { bewegeStromFigur, figurenProSekunde, stromDarstellungsPosition, type StromFigur } from './strom'
 import { haufenHalbeBreite, haufenPlaetze, haufenPositionenX, type HaufenPlatz, truppeGrenzen, truppenAnzeige } from './truppe'
 import { aktualisiereFront, frontStartZustand, mitAnkunft, type FrontZustand } from './front'
+import { sammeltEin, schildPositionen, truppenGroesseNachSammeln } from './raender'
+
+type SchildBild = { kasten: Phaser.GameObjects.Rectangle, text: Phaser.GameObjects.Text, umlauf: number, verbraucht: boolean }
 
 /** Das bewusst zustandslose Geruest fuer den isolierten Run-Gun-V2-Probelauf. */
 export class RunGunV2Scene extends Phaser.Scene {
@@ -20,6 +23,9 @@ export class RunGunV2Scene extends Phaser.Scene {
   private gegnerBilder: Phaser.GameObjects.Image[] = []
   private eigeneFrontBilder: Phaser.GameObjects.Image[] = []
   private gegnerZaehler?: Phaser.GameObjects.Text
+  private truppenGroesse: number = BALANCE_V2.truppe.startGroesse
+  private randZeitMs = 0
+  private randSchilder = new Map<string, SchildBild>()
 
   public constructor() {
     super('RunGunV2Scene')
@@ -42,6 +48,9 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.gegnerBilder = []
     this.eigeneFrontBilder = []
     this.gegnerZaehler = undefined
+    this.truppenGroesse = BALANCE_V2.truppe.startGroesse
+    this.randZeitMs = 0
+    this.randSchilder.clear()
     const width = this.scale.width
     const height = this.scale.height
     const centerX = width / 2
@@ -75,11 +84,12 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.erstelleTruppe(width, height)
     this.erstelleStromVorrat()
     this.erstelleFlaechen(width, height)
+    this.erstelleRaender()
     this.aktiviereTruppenSteuerung(width, height)
   }
 
   private erstelleTruppe(width: number, height: number): void {
-    const groesse = BALANCE_V2.truppe.startGroesse
+    const groesse = this.truppenGroesse
     const anzeige = truppenAnzeige(groesse)
     const plaetze = haufenPlaetze(anzeige.sichtbareFiguren)
     const probe = this.add.image(0, 0, 'player').setScale(BALANCE_V2.truppe.figurTextureScale).setVisible(false)
@@ -99,6 +109,51 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.truppenZaehler = this.add.text(this.truppeX, truppeY - BALANCE_V2.truppe.haufenRadiusMaxPx - 20, anzeige.zaehler, {
       fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: '#e8f4ff', stroke: '#16202a', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(3)
+  }
+
+  private erstelleRaender(): void {
+    schildPositionen(this.scale.width, this.scale.height, 0).forEach((schild) => {
+      const kasten = this.add.rectangle(0, 0, BALANCE_V2.raender.schildBreitePx, BALANCE_V2.raender.schildHoehePx,
+        schild.seite === 'links' ? 0x277bc0 : 0xe1b72f).setStrokeStyle(2, 0xf6fbff).setDepth(4)
+      const text = this.add.text(0, 0, '', { fontFamily: 'system-ui', fontSize: '20px', fontStyle: 'bold', color: '#ffffff', stroke: '#17212a', strokeThickness: 3 })
+        .setOrigin(0.5).setDepth(5)
+      this.randSchilder.set(schild.id, { kasten, text, umlauf: schild.umlauf, verbraucht: false })
+    })
+    this.aktualisiereRaender()
+  }
+
+  private aktualisiereRaender(): void {
+    schildPositionen(this.scale.width, this.scale.height, this.randZeitMs).forEach((schild) => {
+      const bild = this.randSchilder.get(schild.id)
+      if (!bild) return
+      if (bild.umlauf !== schild.umlauf) {
+        bild.umlauf = schild.umlauf
+        bild.verbraucht = false
+      }
+      if (!bild.verbraucht && sammeltEin(schild, this.truppeX, this.truppeY, {
+        seitlich: BALANCE_V2.raender.sammelSeitlichPx,
+        hoehe: BALANCE_V2.raender.sammelHoehePx,
+      })) {
+        bild.verbraucht = true
+        this.erhoeheTruppe(schild.wert)
+      }
+      const sichtbar = !bild.verbraucht
+      bild.kasten.setVisible(sichtbar).setPosition(schild.x, schild.y)
+      bild.text.setVisible(sichtbar).setPosition(schild.x, schild.y).setText(`+${schild.wert}`)
+    })
+  }
+
+  private erhoeheTruppe(wert: number): void {
+    this.truppenGroesse = truppenGroesseNachSammeln(this.truppenGroesse, wert)
+    const plaetze = haufenPlaetze(truppenAnzeige(this.truppenGroesse).sichtbareFiguren)
+    const grenzen = truppeGrenzen(this.scale.width, this.scale.height, haufenHalbeBreite(plaetze.length, this.truppenFigurBreite))
+    this.truppeX = Phaser.Math.Clamp(this.truppeX, grenzen.minX, grenzen.maxX)
+    this.truppenFiguren.forEach((figur) => figur.destroy())
+    this.truppenPlaetze = plaetze
+    this.truppenFiguren = plaetze.map((platz) => this.add.image(this.truppeX + platz.dx, this.truppeY + platz.dy, 'player')
+      .setScale(BALANCE_V2.truppe.figurTextureScale).setDepth(2))
+    this.truppenZaehler?.setText(truppenAnzeige(this.truppenGroesse).zaehler)
+    this.front = mitAnkunft(this.front, wert)
   }
 
   /** Der feste Vorrat ist aus maximaler Rate mal Laufzeit in balanceV2 hergeleitet. */
@@ -171,7 +226,8 @@ export class RunGunV2Scene extends Phaser.Scene {
   }
 
   public update(_time: number, delta: number): void {
-    this.stromRest += figurenProSekunde(BALANCE_V2.truppe.startGroesse) * delta / 1000
+    this.randZeitMs += Math.max(0, delta)
+    this.stromRest += figurenProSekunde(this.truppenGroesse) * delta / 1000
     while (this.stromRest >= 1) {
       this.stromRest -= 1
       this.starteStromFigur()
@@ -191,6 +247,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     })
     this.front = aktualisiereFront(this.front, delta)
     this.zeichneFlaechen(this.scale.width, this.scale.height)
+    this.aktualisiereRaender()
   }
 
   private starteStromFigur(): void {

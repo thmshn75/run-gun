@@ -103,6 +103,29 @@ werden. **In V2 gibt es diese Ebene nicht.** Es gibt eine Grenzlinie und zwei Za
 keine Einzelkämpfe"), wird gebaut. Trifft er nicht zu, ist der ganze Plan falsch und
 nicht nur ein Schritt davon — dann zurück zu Thomas, bevor weitergebaut wird.
 
+## Zweites Video (112.mov, 13 s) — bestätigt und ergänzt
+
+Thomas hat am 2026-09-20 ein zweites Video nachgereicht. Es zeigt dieselbe Mechanik,
+liefert aber Details für S5 bis S8:
+
+- **Der Aufbau ist bestätigt:** geschlossene rote Masse oben, blaue Fläche darunter,
+  Grenze dazwischen, eigene Truppe unten. Der Gegnerzähler sinkt stetig
+  (478 → 429 → 379 → 331 → 281 → 266 → 228 → 201 → 173 → 146 → 118 → 91).
+- **Beide Ränder sind durchgehend:** links die blaue +1-Reihe, rechts eine gelbe
+  +99-Reihe, beide ohne Lücke über die ganze Strecke.
+- **Das Tor** (hier ×99) steht fest quer über die Bahn, unmittelbar vor der eigenen
+  Truppe — nicht in der Bahnmitte, sondern am unteren Ende.
+- **Der Boss** sitzt am oberen Ende der roten Masse, ist groß und deutlich animiert
+  (wechselnde Posen und Waffen). Er wird im Verlauf sichtbar größer: Masse und Boss
+  rücken langsam nach unten, während die Masse schrumpft.
+- **Die Front hat sichtbare Kampfeffekte**: weiße Partikelwolken genau an der
+  Grenzlinie, dauerhaft, solange gekämpft wird. Das ist der optische Kern, der die
+  Grenze lebendig macht — ohne ihn sieht die Grenze nach einer Trennlinie aus.
+- **Die eigene Truppe unten** besteht aus klar erkennbaren Einzelfiguren in lockeren
+  Reihen, nicht aus einer Fläche. Nur die vorgeschobene Masse ab der Grenze ist Fläche.
+- **Am Ende** wird die blaue Fläche aufgerieben, übrig bleiben die Truppe unten und
+  die rote Masse mit dem Boss — so endet der Lauf, wenn man verliert.
+
 ## Schrittfolge (jeder Schritt = ein Commit, jeder Schritt im Browser belegt)
 
 **S1 — Gerüst und Knopf.** Menüknopf "RUN GUN V2" neben "TORLAUF"; neue Szene
