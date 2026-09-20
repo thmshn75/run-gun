@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { bahnKanten, BALANCE_V2 } from './balanceV2'
+import { bewegeStromFigur, figurenProSekunde, stromDarstellungsPosition, type StromFigur } from './strom'
 import { haufenHalbeBreite, haufenPlaetze, haufenPositionenX, type HaufenPlatz, truppeGrenzen, truppenAnzeige } from './truppe'
 
 /** Das bewusst zustandslose Geruest fuer den isolierten Run-Gun-V2-Probelauf. */
@@ -9,7 +10,11 @@ export class RunGunV2Scene extends Phaser.Scene {
   private truppenZaehler?: Phaser.GameObjects.Text
   private truppenFigurBreite = 0
   private truppeX = 0
+  private truppeY = 0
   private ziehtTruppe = false
+  private stromFiguren: StromFigur[] = []
+  private stromBilder: Phaser.GameObjects.Image[] = []
+  private stromRest = 0
 
   public constructor() {
     super('RunGunV2Scene')
@@ -22,7 +27,12 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.truppenPlaetze = []
     this.truppenZaehler = undefined
     this.truppenFigurBreite = 0
+    this.truppeY = 0
     this.ziehtTruppe = false
+    this.stromFiguren = []
+    this.stromBilder.forEach((bild) => bild.destroy())
+    this.stromBilder = []
+    this.stromRest = 0
     const width = this.scale.width
     const height = this.scale.height
     const centerX = width / 2
@@ -54,6 +64,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     menuButton.on('pointerdown', () => this.scene.start('MenuScene'))
 
     this.erstelleTruppe(width, height)
+    this.erstelleStromVorrat()
     this.aktiviereTruppenSteuerung(width, height)
   }
 
@@ -68,6 +79,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     const grenzen = truppeGrenzen(width, height, haufenHalbeBreite(plaetze.length, this.truppenFigurBreite))
     this.truppeX = Phaser.Math.Clamp(width / 2, grenzen.minX, grenzen.maxX)
     const truppeY = height - BALANCE_V2.truppe.abstandVonUntenPx
+    this.truppeY = truppeY
     this.truppenPlaetze = plaetze
     this.truppenFiguren = plaetze.map((platz) => this.add.image(
       this.truppeX + platz.dx,
@@ -77,6 +89,43 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.truppenZaehler = this.add.text(this.truppeX, truppeY - BALANCE_V2.truppe.haufenRadiusMaxPx - 20, anzeige.zaehler, {
       fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: '#e8f4ff', stroke: '#16202a', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(3)
+  }
+
+  /** Der feste Vorrat ist aus maximaler Rate mal Laufzeit in balanceV2 hergeleitet. */
+  private erstelleStromVorrat(): void {
+    this.stromFiguren = Array.from({ length: BALANCE_V2.strom.vorratGroesse }, () => ({ aktiv: false, x: 0, y: 0 }))
+    this.stromBilder = this.stromFiguren.map(() => this.add.image(0, 0, 'player')
+      .setScale(BALANCE_V2.strom.figurTextureScale).setDepth(1).setVisible(false))
+  }
+
+  public update(_time: number, delta: number): void {
+    this.stromRest += figurenProSekunde(BALANCE_V2.truppe.startGroesse) * delta / 1000
+    while (this.stromRest >= 1) {
+      this.stromRest -= 1
+      this.starteStromFigur()
+    }
+    this.stromFiguren.forEach((figur, index) => {
+      if (!figur.aktiv) return
+      const bewegt = bewegeStromFigur(figur, delta)
+      const aktiv = bewegt.y > BALANCE_V2.track.horizonY
+      this.stromFiguren[index] = { ...bewegt, aktiv }
+      const bild = this.stromBilder[index]
+      bild.setVisible(aktiv)
+      if (aktiv) {
+        const position = stromDarstellungsPosition(bewegt)
+        bild.setPosition(position.x, position.y)
+      }
+    })
+  }
+
+  private starteStromFigur(): void {
+    const index = this.stromFiguren.findIndex((figur) => !figur.aktiv)
+    if (index < 0) return
+    const x = this.truppeX + Phaser.Math.FloatBetween(-BALANCE_V2.strom.startStreuungPx, BALANCE_V2.strom.startStreuungPx)
+    const figur = { aktiv: true, x, y: this.truppeY }
+    this.stromFiguren[index] = figur
+    const bild = this.stromBilder[index]
+    bild.setPosition(figur.x, figur.y).setVisible(true)
   }
 
   private aktiviereTruppenSteuerung(width: number, height: number): void {

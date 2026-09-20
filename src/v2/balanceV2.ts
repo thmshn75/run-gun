@@ -25,6 +25,24 @@ export const BALANCE_V2 = {
     // 92 px ueber der Unterkante: genug Abstand fuer Figur und Bildschirmrand.
     abstandVonUntenPx: 92,
   },
+  strom: {
+    // 0,16 Figuren je Truppenfigur und Sekunde, mindestens eine; bei 10 startet
+    // der sichtbare Strom daher mit 1,6 Figuren pro Sekunde.
+    rateJeTruppenfigur: 0.16,
+    mindestRateProSek: 1,
+    maximaleRateProSek: 8,
+    // 180 px/s: klarer, gleichmässiger Lauf von der Truppe zum Horizont.
+    tempoPxProSek: 180,
+    // 844 - 92 - 150 = 602 px auf dem verbindlichen iPhone-Hochformat.
+    laufstreckePx: 602,
+    // floor(8 * (602 / 180)) + 2 = 28. Zwei Reserveplätze verhindern eine
+    // Warnung an der Frame-Grenze, ohne dass zur Laufzeit Bilder entstehen.
+    vorratGroesse: 28,
+    // 18 px: leichte Streuung über die Truppenbreite statt Gänsemarsch.
+    startStreuungPx: 18,
+    // 0,14: die laufenden Figuren liegen optisch hinter der Starttruppe.
+    figurTextureScale: 0.14,
+  },
   colors: {
     // Eigene V2-Farben; keine Farbkonfiguration des bestehenden Spiels wird gelesen.
     sky: 0x80c8ee,
