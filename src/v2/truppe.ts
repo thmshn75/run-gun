@@ -1,4 +1,4 @@
-import { bahnKantenBeiY, BALANCE_V2 } from './balanceV2'
+import { fahrbahnKantenBeiY, BALANCE_V2 } from './balanceV2'
 
 export type HaufenPlatz = Readonly<{ dx: number, dy: number }>
 
@@ -45,7 +45,7 @@ export function haufenPositionenX(mittelpunktX: number, plaetze: readonly Haufen
  */
 export function truppeGrenzen(width: number, height: number, halbeBreiteDesHaufens: number): TruppeGrenzen {
   const obersteHaufenHoehe = height - BALANCE_V2.truppe.abstandVonUntenPx - BALANCE_V2.truppe.haufenRadiusMaxPx
-  const { leftX, rightX } = bahnKantenBeiY(width, height, obersteHaufenHoehe)
+  const { leftX, rightX } = fahrbahnKantenBeiY(width, height, obersteHaufenHoehe)
   const rand = Math.max(0, halbeBreiteDesHaufens)
   return { minX: leftX + rand, maxX: rightX - rand }
 }

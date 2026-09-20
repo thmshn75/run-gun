@@ -1,4 +1,4 @@
-import { bahnKantenBeiY, BALANCE_V2 } from './balanceV2'
+import { gehsteigMitteBeiY, BALANCE_V2 } from './balanceV2'
 
 export type SchildSeite = 'links' | 'rechts'
 export type RandSchild = Readonly<{
@@ -20,9 +20,7 @@ export function linkesReihenTempo(truppeX: number, width: number): number {
 
 /** Mittelpunkt eines Schilds: die gesamte Schildkante bleibt in der Bahn. */
 export function schildMitteX(seite: SchildSeite, width: number, height: number, y: number): number {
-  const kanten = bahnKantenBeiY(width, height, y)
-  const rand = seite === 'links' ? kanten.leftX : kanten.rightX
-  return rand + (seite === 'links' ? BALANCE_V2.raender.randEinzugPx : -BALANCE_V2.raender.randEinzugPx)
+  return gehsteigMitteBeiY(seite, width, height, y)
 }
 
 /**

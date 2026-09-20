@@ -2,61 +2,149 @@
 
 Status: APPROVED
 
-## Aufgabe: V6/N12 — Moderne Militärhelme statt Ritterhelme
+## Aufgabe: V6/N14 — Kampf 1:1, keine wachsende Truppe, Boss rückt vor, Gehsteige, kleinere Helme
 
 Thomas am 2026-09-20, wörtlich:
-> "helme super, aber moderne militärhelme von oben hinten"
+> "wenn meine truppen auf die feinde treffen müssen sie 1:1 getötet werden, beide
+> seiten, es muss immer ausgewogen sein und nur durch stärke oder truppen anzahl
+> verschiebbar sein"
+> "meine truppen sollen nicht anwachsen, nur gerade soviel feinde wegräumen wie
+> nötig und der boss muss kommen, er darf nicht stehen bleiben"
+> "die wände sollen abgegrenzt von der fahrbahn laufen, sozusagen in eigenen
+> fahrbahnen (gehsteig)"
+> "helme kleiner"
 
-Die Helmdarstellung als solche bleibt — sie funktioniert. Nur die beiden Bilder
-`src/assets/v2-helm-blau.png` und `src/assets/v2-helm-rot.png` zeigen heute einen
-**mittelalterlichen Ritterhelm mit Visier**. Gebraucht wird ein **moderner
-Militärhelm**, gesehen **von schräg oben hinten** — also die Perspektive, die man
-auf einen Soldaten hat, der von einem wegmarschiert.
+### 1. Die Kampfbilanz wird ein echter 1:1-Austausch
 
-### Die beiden Bilder neu erzeugen
+In `src/v2/front.ts` steht heute:
 
-**Du erzeugst die Bilder mit deinem Bildwerkzeug** und ersetzt die beiden
-vorhandenen Dateien unter demselben Namen, damit im Code nichts anzupassen ist.
+```ts
+const eigenerDruck = zustand.eigenerWert * (staerke / start) * raten.abbauProEigenerEinheitProSek * sekunden
+const gegnerDruck  = zustand.vorrat * raten.verlustProVorratProSek * sekunden
+vorrat      = zustand.vorrat      - eigenerDruck + gegnerDruck
+eigenerWert = zustand.eigenerWert + eigenerDruck - gegnerDruck
+```
 
-Anforderungen an das Bild:
+Das ist die Ursache für beide Beschwerden: **Die eigene Seite wächst um ihren
+eigenen Druck** (Töten vermehrt die eigene Truppe), und der Gegnervorrat wächst
+um seinen. Beides ist zu ersetzen.
 
-- **Moderner Kampfhelm** in der Art heutiger Gefechtshelme: runde, glatte Schale,
-  die nach hinten und zu den Seiten herunterreicht, leicht kantige Silhouette,
-  keine Hörner, kein Visier, kein Kamm, kein Gitter.
-- **Blickwinkel von schräg oben hinten**: man sieht überwiegend die Helmschale von
-  oben, dahinter angedeutet den Nackenschutz. Kein Gesicht, keine Augen.
-- **Quadratisches Bild mit durchsichtigem Hintergrund** (PNG mit Alpha), in den
-  Maßen der heutigen Dateien, damit die Skalierung im Spiel unverändert bleibt.
-- Zwei Fassungen: eine in **Blau** (eigene Seite), eine in **Rot** (Gegnerseite).
-  Kräftige, klar unterscheidbare Farben.
-- **Bei sehr kleiner Darstellung noch lesbar:** Im Spiel ist ein Helm nur wenige
-  Pixel groß. Deshalb wenige, große Formen, deutlicher dunkler Rand, ein einziges
-  helles Glanzlicht oben. Keine feinen Details, keine dünnen Linien, keine
-  Beschriftung — das verschwindet ohnehin und macht die Fläche nur unruhig.
-- Stil passend zum übrigen Spiel: flächig und kräftig, keine Fotorealistik.
+Neue Rechnung — ein Austausch, zwei Verluste:
+
+```
+begegnungen   = min(eigenerWert, vorrat) * austauschProSek * sekunden
+eigenerVerlust = begegnungen
+gegnerVerlust  = begegnungen * (staerke / staerke.start)
+
+eigenerWert = max(0, eigenerWert - eigenerVerlust)
+vorrat      = max(0, vorrat      - gegnerVerlust)
+```
+
+Damit gilt:
+- Bei Stärke 100 (dem Grundwert) fällt **auf jeder Seite genau gleich viel** — der
+  reine 1:1-Austausch, den Thomas verlangt.
+- **Die eigene Seite wächst im Kampf nie.** Sie wächst ausschliesslich durch
+  ankommende Stromfiguren in `mitAnkunft` — das bleibt unverändert.
+- **Der Gegnervorrat wächst nie.** Er wird nur abgebaut.
+- Verschieben lässt sich das Ergebnis genau über die zwei Größen, die Thomas nennt:
+  **Menge** (mehr Nachschub durch die linke Reihe) und **Stärke** (rechte Reihe).
+
+`austauschProSek` kommt neu nach `balanceV2.ts` und ersetzt
+`abbauProEigenerEinheitProSek` und `verlustProVorratProSek`. Wert so wählen, dass
+ein Spiel weiterhin in etwa derselben Zeit entschieden ist wie bisher — Rechenweg
+als Kommentar, einmal für den passiven Fall (keine Eingabe → Niederlage), einmal
+für nur links und einmal für nur rechts.
+
+**Bleibt zwingend erhalten:** Ohne Eingabe muss der Spieler verlieren. Das war
+schon einmal kaputt (N5) und ist der schärfste Prüfstein dieser Änderung.
+
+### 2. Der Boss rückt vor
+
+Der Boss hängt heute allein am Gegnervorrat: Solange nichts passiert, steht er.
+Thomas will, dass er kommt. Neu: Der Boss rückt **mit der Zeit** vor, unabhängig
+vom Vorrat — ein fester Wert `ende.bossTempoPxProSek` (Richtwert 6, mit
+Rechenweg: bei rund 92 px Weg braucht er etwa 15 Sekunden bis nach vorn).
+
+Erreicht er die Truppe, ist das Spiel verloren — dieselbe Niederlage wie bisher.
+Damit entsteht der Zeitdruck, der dem Level ein Ende gibt. Die bestehende
+Siegbedingung über den Bossvorrat bleibt.
+
+### 3. Die Schilderreihen bekommen eigene Spuren (Gehsteige)
+
+Die beiden Schilderreihen laufen heute auf der Fahrbahn. Sie sollen **abgegrenzt**
+laufen, wie ein Gehsteig: links und rechts je ein eigener Streifen zwischen Mauer
+und Fahrbahn, mit einer sichtbaren Kante zur Fahrbahn und in einem anderen
+Grauton (heller als die Fahrbahn).
+
+- Breite des Streifens als Wert in `balanceV2.ts`, Richtwert 46 px im Vordergrund,
+  über `tiefenSkala` nach hinten schmaler.
+- Die Schilder stehen mittig auf ihrem Streifen; `randEinzugPx` entsprechend
+  anpassen, damit das aufgeht.
+- Die Fahrbahn ist danach entsprechend schmaler — **die Massen und die Truppe
+  bewegen sich weiterhin auf der Fahrbahn**, also auf dem Bereich zwischen den
+  beiden Gehsteigen. Die Sammelreichweite zur Seite bleibt so, dass die Schilder
+  vom Fahrbahnrand aus erreichbar sind.
+- Alles holt seine Geometrie aus derselben Kantenquelle wie bisher — **keine
+  zweite Geometrie danebenbauen.**
+
+### 4. Kleinere Helme
+
+`front.helmTextureScale` auf etwa **zwei Drittel** des heutigen Werts, damit die
+Massen dichter und feinkörniger wirken. Die Zahl der sichtbaren Helme entsprechend
+erhöhen, damit die Fläche nicht löchrig wird — die Bilanzrechnung bleibt davon
+unberührt, das ist reine Darstellung.
 
 ### Grenzen
 
-- **Nur die beiden Bilddateien.** Kein Code, keine Balance-Werte, keine Tests
-  ändern — die Helme werden bereits an der richtigen Stelle in der richtigen Größe
-  gezeichnet.
-- Dateinamen und Bildmaße bleiben exakt gleich.
+- Nur `src/v2/`. Keine Importe aus `src/systems/`, `src/config/balance`,
+  `src/scenes/`. Kein Speicherzugriff.
+- Steuerung, Sammellogik, Tiefenskala und Kurvenformel bleiben unverändert.
+- Bildrate bleibt 60.
 
 ### Akzeptanzkriterien
 
-1. Beide Dateien sind ersetzt, PNG mit durchsichtigem Hintergrund, gleiche Maße
-   wie vorher. `npx tsc --noEmit`, `npm test` und `npm run build` bleiben grün.
-2. `git diff --stat` zeigt **ausschliesslich** die beiden Bilddateien (plus diese
-   Task-Datei).
-3. **Sichtprüfung bei 390×844** (führt Claude): Die Massen lesen sich als moderne
-   Helme von oben, blau gegen rot klar unterscheidbar, auch am Horizont noch als
-   Helm erkennbar und nicht als Farbklecks.
+1. `npx tsc --noEmit`, `npm test`, `npm run build` sauber; alle Tests grün.
+   Bestehende Fronttests auf die neue Rechnung umstellen, nicht löschen.
+2. Tests über die Bilanzfunktion, ohne Phaser:
+   - Bei Stärke 100 verlieren **beide Seiten in jedem Schritt exakt gleich viel**.
+   - Die eigene Seite wird im Kampf **nie größer**, der Gegnervorrat **nie größer**.
+   - Höhere Stärke verschiebt das Ergebnis zugunsten des Spielers, mehr Menge
+     ebenfalls — je einmal durchgerechnet.
+   - **Ohne jede Eingabe verliert der Spieler** — über die Bilanz durchgerechnet.
+   - Der Boss kommt mit der Zeit näher, auch wenn sich am Vorrat nichts ändert.
+3. **Browser-Nachweis bei 390×844** (führt Claude): Die eigene Fläche wächst beim
+   Kämpfen nicht mehr; der Boss rückt sichtbar vor; die Schilder laufen auf eigenen
+   Streifen neben der Fahrbahn; Helme kleiner und dichter; 60 Bilder je Sekunde;
+   passiv verliert man, links und rechts führen beide zum Sieg.
 
-## Implementation Summary
+### 5. Dringend zuerst: die Zeichenebenen sind durcheinander
 
-- `v2-helm-blau.png` und `v2-helm-rot.png` mit dem Bildwerkzeug als moderne,
-  von schräg oben hinten sichtbare Kampfhelme neu erzeugt; beide behalten 1254×1254
-  Pixel sowie RGBA-Alpha bei.
-- Kein Code, keine Balance-Werte und keine Tests geändert.
-- `npx tsc --noEmit`, `npm test` (48 Dateien, 461 Tests) und `npm run build`
-  sind grün; die Sichtprüfung bei 390×844 bleibt bei Claude.
+Beim Nachweis bei 390×844 lag hinter der Gegnermasse ein **hellblauer Kasten**, und
+die Massen waren teils unsichtbar. Ursache: In `erstelleFlaechen` stehen die
+Gegnerbilder auf `setDepth(0)` und die eigenen auf `setDepth(1)` — die Fahrbahn
+liegt seit dem Umbau aber selbst auf `setDepth(1)`. Die Massen stecken damit hinter
+bzw. auf derselben Ebene wie die Straße.
+
+Die Zeichenebenen sind **einmal sauber festzulegen** und als benannte Werte nach
+`balanceV2.ts` zu legen (etwa `ebenen: { wasser, strasse, gehsteig, mauer,
+gelaender, massen, truppe, schilder, boss }`), statt weiter verstreute Zahlen zu
+setzen. Reihenfolge von hinten nach vorn:
+
+1. Wasser und Horizontbänder
+2. Fahrbahn
+3. Gehsteige
+4. Mauern, dann Geländer
+5. **Beide Massen und die Truppe** — immer über der Fahrbahn
+6. Schilder und deren Beschriftung
+7. Zähler
+8. Boss und Bosszähler ganz vorn
+
+Jede `setDepth`-Stelle in `src/v2/` zieht ihren Wert künftig aus dieser einen
+Quelle. **Keine nackten Zahlen mehr im Szenencode.**
+
+### Zusätzliches Akzeptanzkriterium
+
+- Test: In `src/v2/RunGunV2Scene.ts` steht kein `setDepth(` mit einer nackten Zahl
+  mehr — jeder Aufruf verweist auf die Ebenen-Tabelle (Textprüfung, wie
+  `v2Geruest` sie für Importe schon macht).
+- Im Browser ist hinter den Massen **die Fahrbahn** zu sehen, kein blauer Kasten.

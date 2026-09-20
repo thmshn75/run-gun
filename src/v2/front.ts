@@ -1,7 +1,7 @@
 import { BALANCE_V2 } from './balanceV2'
 
 export type FrontZustand = Readonly<{ vorrat: number, eigenerWert: number, staerke: number, frontY: number }>
-export type FrontRaten = Readonly<{ abbauProEigenerEinheitProSek: number, verlustProVorratProSek: number }>
+export type FrontRaten = Readonly<{ austauschProSek: number }>
 
 /** Die Grenzlinie kennt nur den roten Vorrat, nie einzelne Figuren oder Kollisionen. */
 export function frontYAusVorrat(vorrat: number): number {
@@ -19,9 +19,8 @@ export function frontStartZustand(): FrontZustand {
 }
 
 /**
- * Eine Rechnung fuer beide Flaechen: eigener Druck verschiebt einen Punkt von rot
- * nach blau, gegnerischer Druck denselben Punkt zurueck. Deshalb bleibt bei exakt
- * gleicher Staerke die Grenze stehen, ohne Ziele, Bindungen oder Collider.
+ * Jeder Kontakt verbraucht eine eigene Einheit. Bei Grundstaerke verbraucht er
+ * genau eine gegnerische Einheit; Staerke verschiebt nur den gegnerischen Verlust.
  */
 export function aktualisiereFront(
   zustand: FrontZustand,
@@ -30,14 +29,20 @@ export function aktualisiereFront(
 ): FrontZustand {
   const sekunden = Math.max(0, dtMs) / 1000
   const staerke = zustand.staerke ?? BALANCE_V2.staerke.start
-  const eigenerDruck = zustand.eigenerWert * (staerke / BALANCE_V2.staerke.start) * raten.abbauProEigenerEinheitProSek * sekunden
-  const gegnerDruck = zustand.vorrat * raten.verlustProVorratProSek * sekunden
-  const vorrat = Math.min(
-    BALANCE_V2.front.gegnerStartVorrat,
-    Math.max(0, zustand.vorrat - eigenerDruck + gegnerDruck),
-  )
-  const eigenerWert = Math.max(0, zustand.eigenerWert + eigenerDruck - gegnerDruck)
+  const begegnungen = Math.min(zustand.eigenerWert, zustand.vorrat) * raten.austauschProSek * sekunden
+  const eigenerVerlust = begegnungen
+  const gegnerVerlust = begegnungen * (staerke / BALANCE_V2.staerke.start)
+  // Eine Einheit ist unteilbar: Ohne diese Schwelle naehert sich der Rest der Null
+  // nur asymptotisch, weil der Umsatz selbst vom Restbestand abhaengt - das Spiel
+  // haengt dann am Ende ewig an einem Bruchteil einer Figur fest.
+  const vorrat = restOhneBruchteil(zustand.vorrat - gegnerVerlust)
+  const eigenerWert = restOhneBruchteil(zustand.eigenerWert - eigenerVerlust)
   return { vorrat, eigenerWert, staerke, frontY: frontYAusVorrat(vorrat) }
+}
+
+/** Unter einer ganzen Einheit ist die Flaeche leer; siehe Begruendung in aktualisiereFront. */
+function restOhneBruchteil(wert: number): number {
+  return wert < 1 ? 0 : wert
 }
 
 /** Ankommende Stromfiguren erhoehen die blaue Flaeche ganzzahlig; die Bilanz bleibt fliessend. */

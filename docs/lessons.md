@@ -1354,3 +1354,30 @@ Horizont etwa halb so gross wie eines vorn.
 **eine gemeinsame Tiefenskala**, die aus der Bildschirmhoehe einen Groessenfaktor
 macht und die **jedes** Objekt auf der Bahn benutzt. Eine Quelle, kein zweiter
 Rechenweg daneben — sonst driften die Dinge auseinander.
+
+## 2026-09-20 — Raster und Darstellung muessen dieselbe Skala benutzen
+
+**Befund:** Nach dem Einbau der Tiefenskala waren die Massen loechrig: einzelne
+Helme mit sichtbaren Luecken statt einer geschlossenen Flaeche.
+
+**Ursache:** Die Bilder wurden mit `helmTextureScale * tiefenSkala(y)` gezeichnet,
+der Rasterabstand dagegen mit `helmTextureScale` allein. Die Helme standen damit
+weiter auseinander, als sie gross waren - und zwar umso mehr, je weiter hinten.
+
+**Regel:** Wo eine Flaeche aus vielen Einzelbildern gefuellt wird, muessen
+Zeichengroesse und Rasterabstand **aus derselben Rechnung** kommen. Wird eine
+Skalierung eingefuehrt, ist jede Stelle zu pruefen, die eine Groesse als Abstand
+weiterverwendet.
+
+## 2026-09-20 — Ein Restbestand, der sich selbst bremst, erreicht nie null
+
+**Befund:** Nach dem Umbau auf den 1:1-Austausch blieben am Ende rund drei Gegner
+stehen; der Test auf "Flaeche geleert" schlug fehl.
+
+**Ursache:** Der Umsatz haengt vom Restbestand ab (`min(eigene, gegner) * rate`).
+Je weniger uebrig ist, desto langsamer geht es - der Wert naehert sich der Null
+nur asymptotisch.
+
+**Regel:** Bei jeder Bilanz, deren Tempo vom eigenen Bestand abhaengt, gehoert eine
+Schwelle dazu: unter einer ganzen Einheit ist der Bestand leer. Sonst haengt das
+Spielende an einem Bruchteil einer Figur fest.

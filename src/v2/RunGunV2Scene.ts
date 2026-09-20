@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { bahnKanten, bahnKantenBeiY, bahnKantenPunkte, BALANCE_V2, tiefenSkala } from './balanceV2'
+import { bahnKanten, bahnKantenBeiY, bahnKantenPunkte, BALANCE_V2, fahrbahnKantenBeiY, horizontFarbe, tiefenSkala, wasserWellenOffset } from './balanceV2'
 import { bewegeStromFigur, figurenProSekunde, stromDarstellungsPosition, type StromFigur } from './strom'
 import { haufenHalbeBreite, haufenPlaetze, haufenPositionenX, type HaufenPlatz, truppeGrenzen, truppenAnzeige } from './truppe'
 import { frontStartZustand, mitAnkunft, type FrontZustand } from './front'
@@ -110,24 +110,34 @@ export class RunGunV2Scene extends Phaser.Scene {
     const kantenPunkte = bahnKantenPunkte(width, height, 24)
     const linkeKante = kantenPunkte.flatMap(({ leftX, y }) => [leftX, y])
     const rechteKante = kantenPunkte.flatMap(({ rightX, y }) => [rightX, y])
+    const fahrbahnPunkte = kantenPunkte.map(({ y }) => ({ ...fahrbahnKantenBeiY(width, height, y), y }))
+    const linkeFahrbahnKante = fahrbahnPunkte.flatMap(({ leftX, y }) => [leftX, y])
+    const rechteFahrbahnKante = fahrbahnPunkte.flatMap(({ rightX, y }) => [rightX, y])
 
     this.add.rectangle(centerX, height / 2, width, height, BALANCE_V2.colors.sky)
-    // Ruhiger Horizont: wenige feste Farbbaender statt einer harten Wasser-Himmel-Kante.
-    for (let index = 0; index < 8; index += 1) this.add.rectangle(centerX, horizonY - 28 + index * 7, width, 8, Phaser.Display.Color.GetColor(128 - index * 7, 200 - index * 8, 238 - index * 9))
+    // Feine, exakt anschliessende Baender nehmen dem Wasser-Himmel-Uebergang die Kante.
+    const verlaufHoehe = BALANCE_V2.track.horizonVerlaufHoehePx
+    const verlaufBaender = BALANCE_V2.track.horizonVerlaufBaender
+    for (let index = 0; index < verlaufBaender; index += 1) {
+      this.add.rectangle(centerX, horizonY - verlaufHoehe / 2 + (index + 0.5) * verlaufHoehe / verlaufBaender, width, verlaufHoehe / verlaufBaender + 1, horizontFarbe(index, verlaufBaender)).setDepth(BALANCE_V2.ebenen.wasser)
+    }
     this.erstelleWasser(width, height, horizonY)
-    this.add.polygon(0, 0, [...linkeKante, ...[...rechteKante].reverse()], BALANCE_V2.colors.road).setOrigin(0, 0)
-    this.add.polygon(0, 0, [0, horizonY, ...linkeKante, 0, bottomY], 0x246981).setOrigin(0, 0)
-    this.add.polygon(0, 0, [...rechteKante, width, bottomY, width, horizonY], 0x246981).setOrigin(0, 0)
+    this.add.polygon(0, 0, [...linkeFahrbahnKante, ...[...rechteFahrbahnKante].reverse()], BALANCE_V2.colors.road).setOrigin(0, 0).setDepth(BALANCE_V2.ebenen.strasse)
+    this.add.polygon(0, 0, [...linkeKante, ...[...linkeFahrbahnKante].reverse()], BALANCE_V2.colors.wall).setOrigin(0, 0).setDepth(BALANCE_V2.ebenen.gehsteig)
+    this.add.polygon(0, 0, [...rechteFahrbahnKante, ...[...rechteKante].reverse()], BALANCE_V2.colors.wall).setOrigin(0, 0).setDepth(BALANCE_V2.ebenen.gehsteig)
+    this.add.polygon(0, 0, [0, horizonY, ...linkeKante, 0, bottomY], BALANCE_V2.colors.water).setOrigin(0, 0).setDepth(BALANCE_V2.ebenen.wasser)
+    this.add.polygon(0, 0, [...rechteKante, width, bottomY, width, horizonY], BALANCE_V2.colors.water).setOrigin(0, 0).setDepth(BALANCE_V2.ebenen.wasser)
     this.zeichneKante(linkeKante)
     this.zeichneKante(rechteKante)
     this.erstelleGelaender(width, height)
 
     const menuButton = this.add.rectangle(52, 34, 84, 36, BALANCE_V2.colors.menuButton)
       .setStrokeStyle(2, BALANCE_V2.colors.menuButtonEdge)
+      .setDepth(BALANCE_V2.ebenen.zaehler)
       .setInteractive({ useHandCursor: true })
     this.add.text(52, 34, 'MENÜ', {
       fontFamily: 'system-ui', fontSize: '16px', fontStyle: 'bold', color: BALANCE_V2.colors.menuText,
-    }).setOrigin(0.5)
+    }).setOrigin(0.5).setDepth(BALANCE_V2.ebenen.zaehler)
     menuButton.on('pointerdown', () => this.scene.start('MenuScene'))
 
     this.erstelleTruppe(width, height)
@@ -140,7 +150,7 @@ export class RunGunV2Scene extends Phaser.Scene {
   }
 
   private erstelleWasser(width: number, height: number, horizonY: number): void {
-    this.wasserWellen = Array.from({ length: 22 }, (_, index) => this.add.line(0, 0, 0, 0, 22 + index % 4 * 8, 0, 0xa4d9e8, 0.42).setOrigin(0, 0).setDepth(-1))
+    this.wasserWellen = Array.from({ length: 22 }, (_, index) => this.add.line(0, 0, 0, 0, 22 + index % 4 * 8, 0, BALANCE_V2.colors.waterWave, 0.72).setOrigin(0, 0).setDepth(BALANCE_V2.ebenen.wasser))
     this.wasserGeometrie = { width, height, horizonY }
   }
 
@@ -148,19 +158,30 @@ export class RunGunV2Scene extends Phaser.Scene {
     const kante = this.add.graphics().lineStyle(BALANCE_V2.track.wallWidthPx, BALANCE_V2.colors.wallEdge, 1)
     kante.beginPath().moveTo(punkte[0], punkte[1])
     for (let index = 2; index < punkte.length; index += 2) kante.lineTo(punkte[index], punkte[index + 1])
-    kante.strokePath()
+    kante.strokePath().setDepth(BALANCE_V2.ebenen.mauer)
   }
 
   private erstelleGelaender(width: number, height: number): void {
-    for (let y = BALANCE_V2.track.horizonY + 20; y < height; y += 48) {
+    const linkerHandlauf = this.add.graphics().lineStyle(3, BALANCE_V2.colors.wallEdge, 1)
+    const rechterHandlauf = this.add.graphics().lineStyle(3, BALANCE_V2.colors.wallEdge, 1)
+    bahnKantenPunkte(width, height, 24).forEach(({ leftX, rightX, y }, index) => {
+      const hoehe = BALANCE_V2.track.gelaenderHoehePx * tiefenSkala(height, y)
+      if (index === 0) { linkerHandlauf.beginPath().moveTo(leftX, y - hoehe); rechterHandlauf.beginPath().moveTo(rightX, y - hoehe) } else { linkerHandlauf.lineTo(leftX, y - hoehe); rechterHandlauf.lineTo(rightX, y - hoehe) }
+    })
+    linkerHandlauf.strokePath().setDepth(BALANCE_V2.ebenen.gelaender)
+    rechterHandlauf.strokePath().setDepth(BALANCE_V2.ebenen.gelaender)
+    for (let y = BALANCE_V2.track.horizonY + 20; y < height; y += BALANCE_V2.track.gelaenderPfostenAbstandPx) {
       const { leftX, rightX } = bahnKantenBeiY(width, height, y)
       const skala = tiefenSkala(height, y)
       const mauerHoehe = BALANCE_V2.track.mauerHoehePx * skala
       // Der helle Kamm sitzt auf der dunkleren Flanke und gibt der Kante Hoehe.
-      this.add.rectangle(leftX, y, 6 * skala, mauerHoehe, BALANCE_V2.colors.wall).setDepth(2)
-      this.add.rectangle(rightX, y, 6 * skala, mauerHoehe, BALANCE_V2.colors.wall).setDepth(2)
-      this.add.rectangle(leftX, y - mauerHoehe / 2, 8 * skala, 3 * skala, BALANCE_V2.colors.wallEdge).setDepth(3)
-      this.add.rectangle(rightX, y - mauerHoehe / 2, 8 * skala, 3 * skala, BALANCE_V2.colors.wallEdge).setDepth(3)
+      this.add.rectangle(leftX, y, 6 * skala, mauerHoehe, BALANCE_V2.colors.wall).setDepth(BALANCE_V2.ebenen.mauer)
+      this.add.rectangle(rightX, y, 6 * skala, mauerHoehe, BALANCE_V2.colors.wall).setDepth(BALANCE_V2.ebenen.mauer)
+      this.add.rectangle(leftX, y - mauerHoehe / 2, 8 * skala, 3 * skala, BALANCE_V2.colors.wallEdge).setDepth(BALANCE_V2.ebenen.gelaender)
+      this.add.rectangle(rightX, y - mauerHoehe / 2, 8 * skala, 3 * skala, BALANCE_V2.colors.wallEdge).setDepth(BALANCE_V2.ebenen.gelaender)
+      const gelaenderHoehe = BALANCE_V2.track.gelaenderHoehePx * skala
+      this.add.rectangle(leftX, y - mauerHoehe - gelaenderHoehe / 2, 3 * skala, gelaenderHoehe, BALANCE_V2.colors.wallEdge).setDepth(BALANCE_V2.ebenen.gelaender)
+      this.add.rectangle(rightX, y - mauerHoehe - gelaenderHoehe / 2, 3 * skala, gelaenderHoehe, BALANCE_V2.colors.wallEdge).setDepth(BALANCE_V2.ebenen.gelaender)
     }
   }
 
@@ -182,21 +203,21 @@ export class RunGunV2Scene extends Phaser.Scene {
       this.truppeX + platz.dx,
       truppeY + platz.dy,
       'v2-helm-blau',
-    ).setScale(truppenSkala).setDepth(2))
+    ).setScale(truppenSkala).setDepth(BALANCE_V2.ebenen.truppe))
     this.truppenZaehler = this.add.text(this.truppeX, truppeY - BALANCE_V2.truppe.haufenRadiusMaxPx - 20, anzeige.zaehler, {
       fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: '#e8f4ff', stroke: '#16202a', strokeThickness: 4,
-    }).setOrigin(0.5).setDepth(3)
+    }).setOrigin(0.5).setDepth(BALANCE_V2.ebenen.zaehler)
     this.staerkeZaehler = this.add.text(this.truppeX, truppeY - BALANCE_V2.truppe.haufenRadiusMaxPx - 46, `STÄRKE ${this.staerke}`, {
       fontFamily: 'system-ui', fontSize: '15px', fontStyle: 'bold', color: '#ffe7a5', stroke: '#16202a', strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(3)
+    }).setOrigin(0.5).setDepth(BALANCE_V2.ebenen.zaehler)
   }
 
   private erstelleRaender(): void {
     schildPositionen(this.scale.width, this.scale.height, 0, this.truppeX).forEach((schild) => {
       const kasten = this.add.rectangle(0, 0, BALANCE_V2.raender.schildBreitePx, BALANCE_V2.raender.schildHoehePx,
-        schild.seite === 'links' ? 0x277bc0 : 0xe1b72f).setStrokeStyle(2, 0xf6fbff).setDepth(4)
+        schild.seite === 'links' ? 0x277bc0 : 0xe1b72f).setStrokeStyle(2, 0xf6fbff).setDepth(BALANCE_V2.ebenen.schilder)
       const text = this.add.text(0, 0, '', { fontFamily: 'system-ui', fontSize: '20px', fontStyle: 'bold', color: '#ffffff', stroke: '#17212a', strokeThickness: 3 })
-        .setOrigin(0.5).setDepth(5)
+        .setOrigin(0.5).setDepth(BALANCE_V2.ebenen.zaehler)
       this.randSchilder.set(schild.id, { kasten, text, umlauf: schild.umlauf, verbraucht: false })
     })
     this.aktualisiereRaender()
@@ -221,7 +242,7 @@ export class RunGunV2Scene extends Phaser.Scene {
       const skala = tiefenSkala(this.scale.height, schild.y)
       bild.kasten.setVisible(sichtbar).setPosition(schild.x, schild.y)
         .setSize(BALANCE_V2.raender.schildBreitePx * skala, BALANCE_V2.raender.schildHoehePx * skala)
-      bild.text.setVisible(sichtbar).setPosition(schild.x, schild.y).setFontSize(`${20 * skala}px`).setText(schild.seite === 'links' ? '+1' : '+99\nSTÄRKE')
+      bild.text.setVisible(sichtbar).setPosition(schild.x, schild.y).setFontSize(`${20 * skala}px`).setText(schild.seite === 'links' ? '+1' : '+99')
     })
   }
 
@@ -234,7 +255,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.truppenFiguren.forEach((figur) => figur.destroy())
     this.truppenPlaetze = plaetze
     this.truppenFiguren = plaetze.map((platz) => this.add.image(this.truppeX + platz.dx, this.truppeY + platz.dy, 'v2-helm-blau')
-      .setScale(BALANCE_V2.front.helmTextureScale).setDepth(2))
+      .setScale(BALANCE_V2.front.helmTextureScale).setDepth(BALANCE_V2.ebenen.truppe))
     this.truppenZaehler?.setText(truppenAnzeige(this.truppenGroesse).zaehler)
     this.front = mitAnkunft(this.front, wert)
   }
@@ -251,36 +272,36 @@ export class RunGunV2Scene extends Phaser.Scene {
   private erstelleStromVorrat(): void {
     this.stromFiguren = Array.from({ length: BALANCE_V2.strom.vorratGroesse }, () => ({ aktiv: false, x: 0, y: 0, torPassiert: false }))
     this.stromBilder = this.stromFiguren.map(() => this.add.image(0, 0, 'v2-helm-blau')
-      .setScale(BALANCE_V2.front.helmTextureScale * 0.72).setDepth(1).setVisible(false))
+      .setScale(BALANCE_V2.front.helmTextureScale * 0.72).setDepth(BALANCE_V2.ebenen.truppe).setVisible(false))
   }
 
   private erstelleTor(width: number, height: number): void {
-    const kanten = bahnKantenBeiY(width, height, BALANCE_V2.tor.y)
+    const kanten = fahrbahnKantenBeiY(width, height, BALANCE_V2.tor.y)
     const breite = kanten.rightX - kanten.leftX
     const mitteX = (kanten.leftX + kanten.rightX) / 2
     const skala = tiefenSkala(height, BALANCE_V2.tor.y)
     this.add.rectangle(mitteX, BALANCE_V2.tor.y, breite, BALANCE_V2.tor.hoehePx * skala, 0xdeb83b)
-      .setStrokeStyle(3, 0xfff4bf).setDepth(3)
+      .setStrokeStyle(3, 0xfff4bf).setDepth(BALANCE_V2.ebenen.schilder)
     this.add.text(mitteX, BALANCE_V2.tor.y - 3, `×${BALANCE_V2.tor.faktor}`, {
       fontFamily: 'system-ui', fontSize: `${30 * skala}px`, fontStyle: 'bold', color: '#342500', stroke: '#fff4bf', strokeThickness: 2,
-    }).setOrigin(0.5).setDepth(4)
+    }).setOrigin(0.5).setDepth(BALANCE_V2.ebenen.zaehler)
     this.torZaehler = this.add.text(mitteX, BALANCE_V2.tor.y + 22, String(this.tor.restlicheTreffer), {
       fontFamily: 'system-ui', fontSize: `${16 * skala}px`, fontStyle: 'bold', color: '#fff4bf', stroke: '#342500', strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(4)
+    }).setOrigin(0.5).setDepth(BALANCE_V2.ebenen.zaehler)
   }
 
   /** Beide Bildvorräte sind fest: Sichtbarkeit und Position kommen nur aus der Front-Bilanz. */
   private erstelleFlaechen(width: number, height: number): void {
     this.gegnerBilder = Array.from({ length: BALANCE_V2.front.gegnerFigurenVorrat }, (_, index) => this.add.image(0, 0, index % 53 === 0 ? 'enemy-heavy' : 'v2-helm-rot')
-      .setScale(index % 53 === 0 ? BALANCE_V2.front.heavyTextureScale : BALANCE_V2.front.helmTextureScale).setDepth(0).setVisible(false))
+      .setScale(index % 53 === 0 ? BALANCE_V2.front.heavyTextureScale : BALANCE_V2.front.helmTextureScale).setDepth(BALANCE_V2.ebenen.massen).setVisible(false))
     this.eigeneFrontBilder = Array.from({ length: BALANCE_V2.front.eigeneFigurenVorrat }, () => this.add.image(0, 0, 'v2-helm-blau')
-      .setScale(BALANCE_V2.front.helmTextureScale).setDepth(1).setVisible(false))
+      .setScale(BALANCE_V2.front.helmTextureScale).setDepth(BALANCE_V2.ebenen.massen).setVisible(false))
     this.gegnerZaehler = this.add.text(width / 2, BALANCE_V2.track.horizonY + 24, '', {
       fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: '#ffded9', stroke: '#421a1a', strokeThickness: 4,
-    }).setOrigin(0.5).setDepth(3)
+    }).setOrigin(0.5).setDepth(BALANCE_V2.ebenen.zaehler)
     // Feste Zahl kleiner Kreise: dauerhaft an der Front sichtbar, ohne neue Objekte
     // pro Bild. Dadurch bleibt die Darstellung auch bei 60 Bildern/s sparsam.
-    this.frontPartikel = Array.from({ length: 24 }, () => this.add.circle(0, 0, 3, 0xffffff, 0).setDepth(4))
+    this.frontPartikel = Array.from({ length: 24 }, () => this.add.circle(0, 0, 3, 0xffffff, 0).setDepth(BALANCE_V2.ebenen.massen))
     this.zeichneFlaechen(width, height)
   }
 
@@ -295,16 +316,18 @@ export class RunGunV2Scene extends Phaser.Scene {
       })
     }
     this.bossBild = this.add.sprite(width / 2, BALANCE_V2.track.horizonY, 'v2-boss-elite-move-1')
-      .setDepth(8).play(animationKey)
+      .setDepth(BALANCE_V2.ebenen.boss).play(animationKey)
     this.bossZaehler = this.add.text(width / 2, BALANCE_V2.track.horizonY - 44, '', {
       fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: '#ffded9', stroke: '#421a1a', strokeThickness: 4,
-    }).setOrigin(0.5).setDepth(9)
+    }).setOrigin(0.5).setDepth(BALANCE_V2.ebenen.bossZaehler)
     this.zeichneBoss(width)
   }
 
   private zeichneBoss(width: number): void {
-    const fortschritt = 1 - Math.min(1, Math.max(0, this.front.vorrat / BALANCE_V2.front.gegnerStartVorrat))
-    const y = BALANCE_V2.track.horizonY + fortschritt * BALANCE_V2.ende.bossMaxAbstiegPx
+    const y = BALANCE_V2.track.horizonY + this.ende.bossAbstiegPx
+    // Der Boss waechst mit dem eigenen Vorruecken, nicht mehr mit dem Gegnervorrat:
+    // am Horizont Startgroesse, am Ende seines Wegs Endgroesse.
+    const fortschritt = Math.min(1, Math.max(0, this.ende.bossAbstiegPx / BALANCE_V2.ende.bossMaxAbstiegPx))
     const scale = (BALANCE_V2.ende.bossStartScale + fortschritt * (BALANCE_V2.ende.bossEndScale - BALANCE_V2.ende.bossStartScale)) * tiefenSkala(this.scale.height, y)
     this.bossBild?.setPosition(width / 2, y).setScale(scale)
     this.bossZaehler?.setPosition(width / 2, y - 120 * scale).setText(String(Math.round(this.ende.bossVorrat)))
@@ -312,20 +335,23 @@ export class RunGunV2Scene extends Phaser.Scene {
 
   private zeichneFlaechen(width: number, height: number): void {
     const sichtbareGegner = Math.round(BALANCE_V2.front.gegnerFigurenVorrat * this.front.vorrat / BALANCE_V2.front.gegnerStartVorrat)
-    const gegnerBreite = 256 * BALANCE_V2.front.helmTextureScale
-    const gegnerHoehe = 256 * BALANCE_V2.front.helmTextureScale
-    const gegnerSchrittX = gegnerBreite * 0.9
-    const gegnerSchrittY = gegnerHoehe * 0.9
-    const zeilen = Math.max(1, Math.ceil((this.front.frontY - BALANCE_V2.track.horizonY) / gegnerSchrittY))
+    // Das Raster muss dieselbe Tiefenskala benutzen wie die gezeichneten Helme.
+    // Mit festem Abstand und perspektivisch verkleinerten Bildern stehen die
+    // Helme weiter auseinander als sie gross sind - die Flaeche wird loechrig,
+    // und zwar umso mehr, je weiter hinten sie liegt.
+    const helmGrundmass = 256 * BALANCE_V2.front.helmTextureScale
+    const rasterSchritt = (y: number) => Math.max(1, helmGrundmass * tiefenSkala(height, y) * 0.9)
     const gegnerPlaetze: Array<{ x: number, y: number }> = []
-    for (let zeile = 0; zeile < zeilen; zeile += 1) {
-      const y = BALANCE_V2.track.horizonY + (this.front.frontY - BALANCE_V2.track.horizonY) * (zeile + 0.5) / zeilen
-      const { leftX: left, rightX: right } = bahnKantenBeiY(width, height, y)
-      const spalten = Math.max(1, Math.ceil((right - left) / gegnerSchrittX))
+    for (let y = this.front.frontY; y > BALANCE_V2.track.horizonY; y -= rasterSchritt(y)) {
+      const { leftX: left, rightX: right } = fahrbahnKantenBeiY(width, height, y)
+      const spalten = Math.max(1, Math.ceil((right - left) / rasterSchritt(y)))
       for (let spalte = 0; spalte < spalten; spalte += 1) {
         gegnerPlaetze.push({ x: left + (right - left) * ((spalte + 0.5) / spalten), y })
       }
     }
+    // Von oben nach unten sortiert, damit eine schrumpfende Flaeche wie bisher
+    // von der Front her zurueckweicht und nicht am Horizont ausfranst.
+    gegnerPlaetze.sort((a, b) => a.y - b.y)
     this.gegnerBilder.forEach((bild, index) => {
       const platz = gegnerPlaetze[index]
       const sichtbar = index < sichtbareGegner && platz !== undefined
@@ -333,9 +359,9 @@ export class RunGunV2Scene extends Phaser.Scene {
       if (platz) bild.setPosition(platz.x, platz.y).setScale((index % 53 === 0 ? BALANCE_V2.front.heavyTextureScale : BALANCE_V2.front.helmTextureScale) * tiefenSkala(height, platz.y))
     })
     const eigeneBreite = 256 * BALANCE_V2.front.helmTextureScale
-    const eigeneSchrittX = eigeneBreite * 0.9
+    const eigeneSchrittX = rasterSchritt(this.front.frontY)
     const eigeneStartY = this.front.frontY + eigeneBreite * 0.7
-    const eigeneKanten = bahnKantenBeiY(width, height, eigeneStartY)
+    const eigeneKanten = fahrbahnKantenBeiY(width, height, eigeneStartY)
     const eigeneSpalten = Math.max(1, Math.ceil((eigeneKanten.rightX - eigeneKanten.leftX) / eigeneSchrittX))
     // Drei Bilanzpunkte fuellen eine dichte Frontzeile statt als einzelne, kaum
     // sichtbare Pixel zu verschwinden. Die blaue Darstellung beginnt dadurch als
@@ -351,13 +377,15 @@ export class RunGunV2Scene extends Phaser.Scene {
         return
       }
       const zeile = Math.floor(index / eigeneSpalten)
-      const y = eigeneStartY + zeile * (92 * BALANCE_V2.front.eigeneFigurTextureScale * 0.9)
+      // Dieselbe Rasterrechnung wie bei der Gegnerflaeche: Zeilenabstand und
+      // Spaltenabstand folgen der Tiefenskala, sonst klafft die Flaeche auf.
+      const y = eigeneStartY + zeile * rasterSchritt(eigeneStartY)
       if (y > BALANCE_V2.front.eigeneFlaecheMaxUntenY) {
         bild.setVisible(false)
         return
       }
-      const { leftX, rightX } = bahnKantenBeiY(width, height, y)
-      const spalten = Math.max(1, Math.ceil((rightX - leftX) / eigeneSchrittX))
+      const { leftX, rightX } = fahrbahnKantenBeiY(width, height, y)
+      const spalten = Math.max(1, Math.ceil((rightX - leftX) / rasterSchritt(y)))
       bild.setVisible(true).setPosition(leftX + (rightX - leftX) * (((index % eigeneSpalten) % spalten + 0.5) / spalten), y)
         .setScale(BALANCE_V2.front.helmTextureScale * tiefenSkala(height, y))
     })
@@ -371,7 +399,7 @@ export class RunGunV2Scene extends Phaser.Scene {
   /** Reine Front-Optik: weisse Wolken nur, solange beide Flächen noch kämpfen. */
   private zeichneFrontPartikel(width: number, height: number): void {
     const aktiv = this.front.vorrat > 0 && this.front.eigenerWert > 0
-    const { leftX, rightX } = bahnKantenBeiY(width, height, this.front.frontY)
+    const { leftX, rightX } = fahrbahnKantenBeiY(width, height, this.front.frontY)
     this.frontPartikel.forEach((partikel, index) => {
       if (!aktiv) {
         partikel.setVisible(false)
@@ -432,7 +460,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.truppenFiguren.forEach((figur) => figur.destroy())
     this.truppenPlaetze = plaetze
     this.truppenFiguren = plaetze.map((platz) => this.add.image(this.truppeX + platz.dx, this.truppeY + platz.dy, 'v2-helm-blau')
-      .setScale(BALANCE_V2.front.helmTextureScale).setDepth(2))
+      .setScale(BALANCE_V2.front.helmTextureScale).setDepth(BALANCE_V2.ebenen.truppe))
     this.truppenZaehler?.setText(truppenAnzeige(neueGroesse).zaehler)
   }
 
@@ -440,7 +468,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.endeAusgeloest = true
     this.add.text(this.scale.width / 2, this.scale.height / 2, ausgang === 'sieg' ? 'GESCHAFFT' : 'VERLOREN', {
       fontFamily: 'system-ui', fontSize: '42px', fontStyle: 'bold', color: '#ffffff', stroke: '#17212a', strokeThickness: 7,
-    }).setOrigin(0.5).setDepth(10)
+    }).setOrigin(0.5).setDepth(BALANCE_V2.ebenen.ergebnis)
     this.time.delayedCall(BALANCE_V2.ende.rueckkehrMs, () => this.scene.start('MenuScene'))
   }
 
@@ -488,10 +516,13 @@ export class RunGunV2Scene extends Phaser.Scene {
     if (!g) return
     const zeit = this.time.now / 1000
     this.wasserWellen.forEach((welle, index) => {
-      const y = g.horizonY + 18 + (index % 11) * (g.height - g.horizonY - 28) / 11
+      const y = g.horizonY + 18 + (index % 11) * BALANCE_V2.track.wasserWellenAbstandPx
       const { leftX: links, rightX: rechts } = bahnKantenBeiY(g.width, g.height, y)
-      const x = index < 11 ? Math.max(4, links - 38 + Math.sin(zeit * 1.4 + index) * 12) : Math.min(g.width - 34, rechts + 12 + Math.sin(zeit * 1.4 + index) * 12)
-      welle.setPosition(x, y + Math.sin(zeit * 2 + index) * 3)
+      const offset = wasserWellenOffset(zeit, index)
+      const skala = tiefenSkala(g.height, y)
+      const laenge = (24 + index % 4 * 9) * skala
+      const x = index < 11 ? Math.max(4, links - 42 * skala + offset * 8) : Math.min(g.width - laenge - 4, rechts + 12 * skala + offset * 8)
+      welle.setTo(0, 0, laenge, 0).setPosition(x, y + offset * 4).setLineWidth(Math.max(1, 2 * skala), Math.max(1, 2 * skala))
     })
   }
 }

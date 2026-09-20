@@ -8,8 +8,9 @@ export const BALANCE_V2 = {
     horizonY: 150,
     // 0,62 * 390 px: die Bruecke ist am Horizont sichtbar schmaler.
     topWidthRatio: 0.62,
-    // 0,94 * 390 px: vorne bleibt trotz Mauern fast die ganze Breite frei.
-    bottomWidthRatio: 0.94,
+    // 0,82 * 390 px: links und rechts bleiben bei 390 px je 35,1 px Wasser.
+    // Das verhindert, dass die Ufer an der Unterkante zu einem Strich zusammenlaufen.
+    bottomWidthRatio: 0.82,
     // Bei f = 0,5 kommen erst 0,5^1,8 = 28,7 % des Breitenueberschusses dazu:
     // die Verjuengung bleibt am Horizont deutlich sichtbar.
     kurvenExponent: 1.8,
@@ -19,6 +20,17 @@ export const BALANCE_V2 = {
     mauerHoehePx: 26,
     // 4 px: sichtbare Brueckenkante.
     wallWidthPx: 4,
+    // 18 px vorn, skaliert mit der Tiefe: ein klares Geländer statt nur einer Kante.
+    gelaenderHoehePx: 18,
+    // 54 px vorn: gleichmässige Pfosten ohne die gekrümmte Brückenkante zu überladen.
+    gelaenderPfostenAbstandPx: 54,
+    // 60 px und 1,2 rad/s: etwa elf ruhige, sichtbare Kämme über 694 px Wasserhöhe.
+    wasserWellenAbstandPx: 60,
+    wasserWellenTempoRadProSek: 1.2,
+    horizonVerlaufHoehePx: 60,
+    horizonVerlaufBaender: 24,
+    // 46 px vorn: Schilder und Mauern erhalten je einen eigenen Gehsteig.
+    gehsteigBreitePx: 46,
   },
   truppe: {
     // 10 Figuren: die im Video sichtbare kleine Starttruppe, bewusst ohne Spielstand.
@@ -70,9 +82,8 @@ export const BALANCE_V2 = {
     // ohne dass die Reihe bei 60 fps mehr als rund 4 px pro Bild springt.
     grundTempoPxProSek: 120,
     zuschlagGanzLinksPxProSek: 100,
-    // Mittelpunkt 42 px innerhalb der Bahnkante: bei 54 px Schildbreite bleiben
-    // einschliesslich der Kontur sichtbar 14 px freie Bahn bis zur Aussenkante.
-    randEinzugPx: 30,
+    // Der Mittelpunkt bleibt in der Mitte des Gehsteigs, nicht auf der Fahrbahn.
+    randEinzugPx: 0,
     // Einsammeln ist reine Bildschirmgeometrie, keine Phaser-Physik.
     sammelSeitlichPx: 42,
     sammelHoehePx: 34,
@@ -84,17 +95,16 @@ export const BALANCE_V2 = {
     // Horizont und damit im oberen Drittel der 694 px hohen Bahn. Bis zum Tor
     // bei y=700 bleiben 320 px sichtbare freie Bahn fuer den Strom.
     frontStartY: 380,
-    // Bilanz pro Sekunde, die auch N5 festhaelt (jeweils ohne Phaser):
-    // ohne Eingabe: 10 * 0,05 + 1,6 Strom = 2,10 blauer Druck gegen
-    // 858 * 0,00285 = 2,445 roten Druck. Nach dem Aufreiben der Flaeche verliert
-    // die Truppe damit und der rechnerische Lauf endet nach rund 30 s. Nur links: die +1-Reihe erhoeht
-    // die Truppe um 2,5/s; ihr Strom dreht die anfaengliche Luecke knapp um.
-    // Rechts: Start-Staerke 100, jedes +99 verdoppelt fast den Druck. Bei sechs
-    // Schildern in 15 s: 10 * (1 + 6*0,99) * 0,05 = 3,47 > 2,45. Links liefert
-    // in derselben Zeit 10 + 15*2,5 = 47,5 und 2,38 Druck; mit Stromankuenften
-    // ueber 2,45. Beide Wege gewinnen rechnerisch, ohne Mengenbonus rechts.
-    abbauProEigenerEinheitProSek: 0.05,
-    verlustProVorratProSek: 0.00285,
+    // 0,3 Begegnungen je vorhandener Einheit und Sekunde. Dieser Wert bestimmt
+    // NICHT, wie schnell der Gegner faellt: im Gleichgewicht entspricht der Abbau
+    // immer genau dem Zustrom (eigene Einheiten sterben so schnell, wie sie
+    // nachkommen). Er bestimmt nur, wie traege An- und Auslauf sind und wie gross
+    // die sichtbare eigene Flaeche wird - Gleichgewicht ist Zustrom / 0,3, bei
+    // vollem Strom also rund 53 Einheiten. Mit 0,12 lief das Spielende zu zaeh
+    // aus: die letzten Gegner brauchten laenger, als der Boss Zeit laesst.
+    // Nur links erhoeht die Ankunftsrate, nur rechts macht jeden Austausch beim
+    // Gegner wirksamer. Beide Seiten wachsen im Kampf nie.
+    austauschProSek: 0.3,
     // Maximale rote Trapezflaeche (390 x 844): (202,8 px + 284,9 px) / 2 *
     // 230 px = 56.315 px². Der bestehende feste Bildvorrat bleibt absichtlich
     // unveraendert; er deckt den nun kleineren, kompakten Block mit Reserve ab.
@@ -108,7 +118,8 @@ export const BALANCE_V2 = {
     // Flaeche; die Anzahl statt einer vergroesserten Skalierung schliesst den Teppich.
     gegnerFigurTextureScale: 0.105,
     eigeneFigurTextureScale: 0.105,
-    helmTextureScale: 0.075,
+    // Zwei Drittel von 0,075; die dichter gesetzten Bilder halten den Teppich geschlossen.
+    helmTextureScale: 0.05,
     heavyTextureScale: 0.20,
     // Untere Sichtgrenze der eigenen Flaeche: Die Starttruppe bleibt frei sichtbar.
     eigeneFlaecheMaxUntenY: 560,
@@ -125,21 +136,46 @@ export const BALANCE_V2 = {
     bossEndScale: 1.80,
     // Der Boss folgt der schrumpfenden roten Masse sichtbar nach unten.
     bossMaxAbstiegPx: 92,
+    // 92 / 6 = 15,3 s bis zur Front: der Boss erzeugt auch ohne Eingabe Zeitdruck.
+    // 1,1 px/s: Der Boss braucht damit rund 84 s fuer seine 92 px. Rechenweg:
+    // Der Mengenweg schafft mit vollem Zustrom (8 Figuren/s mal Tor 2 = 16/s)
+    // rund 16 Gegner je Sekunde, braucht wegen der Anlaufphase aber laenger als
+    // die reinen 858/16 = 54 s - bei 61 s blieben noch 49 Gegner stehen. Passiv
+    // bleibt der Zustrom bei 1,6 mal 2 = 3,2/s und damit weit unter 858:
+    // ohne Eingabe ist die Niederlage sicher.
+    bossTempoPxProSek: 1.1,
     // Die Ergebnisanzeige bleibt kurz lesbar, bevor der reine Probelauf ins Menue geht.
     rueckkehrMs: 1800,
   },
   colors: {
     // Eigene V2-Farben; keine Farbkonfiguration des bestehenden Spiels wird gelesen.
     sky: 0x80c8ee,
-    road: 0x39434d,
+    road: 0x6e747a,
     wall: 0x697682,
     wallEdge: 0xb8c4cb,
+    water: 0x246981,
+    waterWave: 0x74bdd4,
     menuButton: 0x263d55,
     menuButtonEdge: 0xe8f4ff,
     menuText: '#f4fbff',
     // Die RGB-Werte sind bewusst pruefbar und klar voneinander getrennt.
     eigeneSeite: 0x3d9dff,
     gegnerSeite: 0xef4e58,
+  },
+  // Alle V2-Zeichenebenen, von hinten nach vorn. Szenencode kennt keine Zahlen.
+  ebenen: {
+    wasser: 0,
+    strasse: 10,
+    gehsteig: 20,
+    mauer: 30,
+    gelaender: 40,
+    massen: 50,
+    truppe: 60,
+    schilder: 70,
+    zaehler: 80,
+    boss: 90,
+    bossZaehler: 100,
+    ergebnis: 110,
   },
   staerke: {
     // 100 Punkte entsprechen dem Grundfaktor 1. +99 ist absichtlich fast ein
@@ -181,10 +217,39 @@ export function bahnKantenBeiY(width: number, height: number, y: number, kurvenE
   }
 }
 
+/** Die Fahrbahn liegt zwischen den Gehsteigen; Massen und Truppe bleiben darauf. */
+export function fahrbahnKantenBeiY(width: number, height: number, y: number) {
+  const aussen = bahnKantenBeiY(width, height, y)
+  const einzug = BALANCE_V2.track.gehsteigBreitePx * tiefenSkala(height, y)
+  return { leftX: aussen.leftX + einzug, rightX: aussen.rightX - einzug }
+}
+
+/** Schilder sitzen mittig auf dem Gehsteig zwischen Mauer und Fahrbahn. */
+export function gehsteigMitteBeiY(seite: 'links' | 'rechts', width: number, height: number, y: number): number {
+  const aussen = bahnKantenBeiY(width, height, y)
+  const fahrbahn = fahrbahnKantenBeiY(width, height, y)
+  return seite === 'links' ? (aussen.leftX + fahrbahn.leftX) / 2 : (aussen.rightX + fahrbahn.rightX) / 2
+}
+
 /** Eine Darstellungsquelle fuer die ganze Bahn: Horizont klein, Vordergrund echt. */
 export function tiefenSkala(height: number, y: number): number {
   const fortschritt = Math.min(1, Math.max(0, (y - BALANCE_V2.track.horizonY) / (height - BALANCE_V2.track.horizonY)))
   return BALANCE_V2.track.skalaHorizont + (1 - BALANCE_V2.track.skalaHorizont) * fortschritt
+}
+
+/** Reine, periodische Wellenbewegung: gleiches t bedeutet immer dieselbe Hoehe. */
+export function wasserWellenOffset(zeitSekunden: number, index: number): number {
+  return Math.sin(zeitSekunden * BALANCE_V2.track.wasserWellenTempoRadProSek + index * 1.71)
+}
+
+/** Horizontfarben schliessen exakt an Himmel und Wasser an; dazwischen fein interpoliert. */
+export function horizontFarbe(index: number, anzahl = BALANCE_V2.track.horizonVerlaufBaender): number {
+  const schritte = Math.max(1, anzahl - 1)
+  const fortschritt = Math.min(1, Math.max(0, index / schritte))
+  const von = BALANCE_V2.colors.sky
+  const nach = BALANCE_V2.colors.water
+  const kanal = (verschiebung: number) => Math.round(((von >> verschiebung) & 0xff) + (((nach >> verschiebung) & 0xff) - ((von >> verschiebung) & 0xff)) * fortschritt)
+  return (kanal(16) << 16) | (kanal(8) << 8) | kanal(0)
 }
 
 /** Einziger Aufbaupfad fuer alle gekruemmten Brueckenflaechen und -kanten. */

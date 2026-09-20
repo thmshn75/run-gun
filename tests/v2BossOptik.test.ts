@@ -11,8 +11,13 @@ describe('Run Gun V2 — N11 sichtbarer Endboss', () => {
   })
 
   it('liegt mit Bild und Zaehler vor Massen und Mauern', () => {
-    expect(scene).toContain('.setDepth(8).play(animationKey)')
-    expect(scene).toContain('}).setOrigin(0.5).setDepth(9)')
+    // Seit N14 kommen alle Ebenen aus einer Tabelle; der Test prueft die Ordnung
+    // dort und nicht mehr die nackten Zahlen im Szenencode.
+    expect(BALANCE_V2.ebenen.boss).toBeGreaterThan(BALANCE_V2.ebenen.massen)
+    expect(BALANCE_V2.ebenen.boss).toBeGreaterThan(BALANCE_V2.ebenen.mauer)
+    expect(BALANCE_V2.ebenen.bossZaehler).toBeGreaterThan(BALANCE_V2.ebenen.boss)
+    expect(scene).toContain('BALANCE_V2.ebenen.boss')
+    expect(scene).toContain('BALANCE_V2.ebenen.bossZaehler')
   })
 
   it('laedt alle Laufbilder und spielt sie als endlose Animation mit zehn Bildern pro Sekunde', () => {
