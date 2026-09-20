@@ -1418,3 +1418,17 @@ eine Falle - dann entweder Bruchteile zulassen oder einen Sammler fuehren.
 
 **Prueffrage:** Kann dieser Wert in Schritten wachsen, die kleiner sind als meine
 Schwelle? Dann darf die Schwelle dort nicht stehen.
+
+## 2026-09-20 — Eine Bedingung am Mittelpunkt greift nie, wenn das Objekt breit ist
+
+**Befund:** Die Regel "beim Sammeln links wird niemand losgeschickt" war
+eingebaut, wirkte aber nie. Gemessen: Der Haufen ist 58 px breit, seine Mitte
+kommt hoechstens auf x=106, die Fahrbahnkante liegt bei x=87. Die Bedingung
+`truppeX < kante` konnte also nie wahr werden.
+
+**Regel:** Wer eine Bereichsbedingung fuer ein ausgedehntes Objekt schreibt, muss
+sie an dessen RAND messen, nicht an seinem Mittelpunkt - der Mittelpunkt ist
+durch die eigene Breite von der Grenze ferngehalten.
+
+**Prueffrage bei "die Regel greift nicht":** Kann die gepruefte Groesse den
+Schwellwert ueberhaupt erreichen? Einmal ausrechnen, bevor man die Logik sucht.

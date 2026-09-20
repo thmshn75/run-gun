@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { bahnKanten, bahnKantenBeiY, bahnKantenPunkte, BALANCE_V2, fahrbahnKantenBeiY, horizontFarbe, tiefenSkala, wasserWellenOffset } from './balanceV2'
 import { bewegeStromFigur, figurenProSekunde, stromDarstellungsPosition, type StromFigur } from './strom'
-import { aufLinkemGehsteig, haufenHalbeBreite, haufenPlaetze, haufenPositionenX, type HaufenPlatz, truppeGrenzen, truppenAnzeige } from './truppe'
+import { sammeltLinks, haufenHalbeBreite, haufenPlaetze, haufenPositionenX, type HaufenPlatz, truppeGrenzen, truppenAnzeige } from './truppe'
 import { frontStartZustand, mitAnkunft, type FrontZustand } from './front'
 import { sammeltEin, schildPositionen } from './raender'
 import { sammelAuswirkung } from './raender'
@@ -390,7 +390,13 @@ export class RunGunV2Scene extends Phaser.Scene {
     // Der Boss waechst mit dem eigenen Vorruecken, nicht mehr mit dem Gegnervorrat:
     // am Horizont Startgroesse, am Ende seines Wegs Endgroesse.
     const fortschritt = Math.min(1, Math.max(0, this.ende.bossAbstiegPx / BALANCE_V2.ende.bossMaxAbstiegPx))
-    const scale = (BALANCE_V2.ende.bossStartScale + fortschritt * (BALANCE_V2.ende.bossEndScale - BALANCE_V2.ende.bossStartScale)) * tiefenSkala(this.scale.height, y)
+    const gewuenscht = (BALANCE_V2.ende.bossStartScale + fortschritt * (BALANCE_V2.ende.bossEndScale - BALANCE_V2.ende.bossStartScale)) * tiefenSkala(this.scale.height, y)
+    // Der Boss darf die Fahrbahn nie ueberragen: Er gehoert auf die Bahn, nicht
+    // ueber Gehsteig und Wasser. Begrenzt wird an der Fahrbahnbreite auf seiner
+    // eigenen Hoehe, nicht an der Bildbreite.
+    const kanten = fahrbahnKantenBeiY(width, this.scale.height, y)
+    const hoechsteSkala = (kanten.rightX - kanten.leftX) / Math.max(1, this.bossBild?.width ?? 1)
+    const scale = Math.min(gewuenscht, hoechsteSkala)
     this.bossBild?.setPosition(width / 2, y).setScale(scale)
     this.bossZaehler?.setPosition(width / 2, y - 120 * scale).setText(String(Math.round(this.ende.bossVorrat)))
   }
@@ -482,7 +488,8 @@ export class RunGunV2Scene extends Phaser.Scene {
     // Wer links sammelt, schickt niemanden los: Die Truppe ist mit dem Aufnehmen
     // beschaeftigt. Das ist der Preis des Sammelns - waehrenddessen bekommt die
     // Front keinen Nachschub und die rote Flaeche kommt naeher.
-    const sammelt = aufLinkemGehsteig(this.scale.width, this.scale.height, this.truppeX, this.truppeY)
+    const sammelt = sammeltLinks(this.scale.width, this.scale.height, this.truppeX, this.truppeY,
+      haufenHalbeBreite(this.truppenPlaetze.length, this.truppenFigurBreite))
     if (!sammelt) {
       this.stromRest += figurenProSekunde(this.truppenGroesse) * delta / 1000
       while (this.stromRest >= 1) {

@@ -38,7 +38,12 @@ export const BALANCE_V2 = {
     // 60 Figuren: genug fuer spaetere Zunahme, ohne den Haufen unlesbar zu machen.
     maxSichtbar: 60,
     // 52 px: dichter Haufen, der bei 60 Figuren noch klar als eine Gruppe lesbar bleibt.
-    haufenRadiusMaxPx: 52,
+    // 34 px statt 52: Der Haufen soll als eine Traube gelesen werden, nicht als
+    // lose Streuung. Zusammen mit dem Traubenexponenten sitzt die Masse dicht.
+    haufenRadiusMaxPx: 34,
+    // 0,85 statt der gleichmaessigen 0,5: Die Figuren draengen sich zur Mitte,
+    // aussen bleibt nur ein duenner Saum. Das ergibt die Traubenform.
+    traubenExponent: 0.85,
     // 0,22: die Player-Textur bleibt deutlich kleiner als die Bahnbreite.
     figurTextureScale: 0.22,
     // 92 px ueber der Unterkante: genug Abstand fuer Figur und Bildschirmrand.
@@ -114,16 +119,14 @@ export const BALANCE_V2 = {
     // Horizont und damit im oberen Drittel der 694 px hohen Bahn. Bis zum Tor
     // bei y=700 bleiben 320 px sichtbare freie Bahn fuer den Strom.
     frontStartY: 380,
-    // 0,3 Begegnungen je vorhandener Einheit und Sekunde. Dieser Wert bestimmt
-    // NICHT, wie schnell der Gegner faellt: im Gleichgewicht entspricht der Abbau
-    // immer genau dem Zustrom (eigene Einheiten sterben so schnell, wie sie
-    // nachkommen). Er bestimmt nur, wie traege An- und Auslauf sind und wie gross
-    // die sichtbare eigene Flaeche wird - Gleichgewicht ist Zustrom / 0,3, bei
-    // vollem Strom also rund 53 Einheiten. Mit 0,12 lief das Spielende zu zaeh
-    // aus: die letzten Gegner brauchten laenger, als der Boss Zeit laesst.
-    // Nur links erhoeht die Ankunftsrate, nur rechts macht jeden Austausch beim
-    // Gegner wirksamer. Beide Seiten wachsen im Kampf nie.
-    austauschProSek: 0.3,
+    // 0,8 Begegnungen je vorhandener Einheit und Sekunde. Dieser Wert bestimmt
+    // NICHT, wie schnell der Gegner faellt: Im Gleichgewicht entspricht der Abbau
+    // immer genau dem Zustrom - eigene Einheiten sterben so schnell, wie sie
+    // nachkommen. Er bestimmt, wie GROSS die sichtbare eigene Flaeche wird:
+    // Gleichgewicht ist Zustrom geteilt durch diesen Wert, bei vollem Strom also
+    // 24/0,8 = 30 Einheiten. Mit 0,3 waren es 80, und die blaue Flaeche wuchs
+    // sichtbar immer weiter an, statt sich umzusetzen.
+    austauschProSek: 0.8,
     // Maximale rote Trapezflaeche (390 x 844): (202,8 px + 284,9 px) / 2 *
     // 230 px = 56.315 px². Der bestehende feste Bildvorrat bleibt absichtlich
     // unveraendert; er deckt den nun kleineren, kompakten Block mit Reserve ab.
@@ -146,7 +149,15 @@ export const BALANCE_V2 = {
   ende: {
     // Der Boss hat den im ersten Video sichtbaren eigenen Vorrat 4.000. Nach der
     // roten Flaeche wird er mit derselben eigenen Druckrate abgebaut.
-    bossStartVorrat: 500,
+    bossStartVorrat: 350,
+    // 16 eigene Einheiten je Sekunde raeumt der Boss weg, solange etwas vor ihm
+    // steht. Dieser Wert ist die eigentliche Schwelle des Spiels, denn er wird
+    // gegen den Zustrom gerechnet: Nach 10 s Sammeln liefert die Truppe rund
+    // 15 Figuren/s - das reicht nicht, der Boss kommt durch. Eine abgebaute Wand
+    // hebt das Tor auf x1,5 und damit den Zustrom auf 22/s - das haelt ihn auf,
+    // und waehrend er haengt, nimmt ihm die Flaeche Vorrat ab. Wer die Werte
+    // aendert, prueft die Spanne mit v2Balance.test.ts.
+    bossSchlagkraftProSek: 16,
     // Am Horizont kommt die Tiefenskala 0,45 hinzu: 1,10 * 0,45 = 0,495.
     // Bei 256 px Bildbreite sind das rund 128 px, etwa ein Drittel der Bahn.
     // Am Ende ergibt 1,80 mit der dortigen Tiefenskala ungefaehr 1,2: der Boss

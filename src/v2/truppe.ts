@@ -16,8 +16,11 @@ export function haufenPlaetze(anzahl: number): readonly HaufenPlatz[] {
 
   const letzterIndex = Math.max(1, Math.min(sichtbareAnzahl, BALANCE_V2.truppe.maxSichtbar) - 1)
   return Array.from({ length: sichtbareAnzahl }, (_, index) => {
+    // Die Wurzel verteilt die Figuren gleichmaessig ueber die Kreisflaeche. Mit
+    // dem Traubenexponenten werden sie zur Mitte hin gedraengt: Bei 0,5 ist es
+    // die gleichmaessige Verteilung, darueber sitzt der Haufen dichter beisammen.
     const radius = BALANCE_V2.truppe.haufenRadiusMaxPx
-      * Math.sqrt(Math.min(index, letzterIndex) / letzterIndex)
+      * Math.pow(Math.min(index, letzterIndex) / letzterIndex, BALANCE_V2.truppe.traubenExponent)
       * (1 - Number.EPSILON)
     const winkel = index * GOLDENER_WINKEL
     return { dx: Math.cos(winkel) * radius, dy: Math.sin(winkel) * radius }
@@ -62,15 +65,11 @@ export function truppenAnzeige(truppenGroesse: number): Readonly<{ sichtbareFigu
 }
 
 /**
- * Steht der Haufen auf einem der beiden Gehsteige? Dort wird gesammelt
- * beziehungsweise geschossen - und genau dann ruht der Nachschub zur Front.
+ * Sammelt die Truppe gerade an der linken Reihe? Gemessen wird am LINKEN RAND des
+ * Haufens, nicht an seinem Mittelpunkt: Der Haufen ist rund 58 px breit, seine
+ * Mitte kann die Fahrbahnkante deshalb nie erreichen - mit dem Mittelpunkt als
+ * Kriterium loeste die Pause nie aus.
  */
-export function aufGehsteig(width: number, height: number, truppeX: number, truppeY: number): boolean {
-  const { leftX, rightX } = fahrbahnKantenBeiY(width, height, truppeY)
-  return truppeX < leftX || truppeX > rightX
-}
-
-/** Nur der linke Gehsteig: dort sammelt die Truppe und schickt niemanden los. */
-export function aufLinkemGehsteig(width: number, height: number, truppeX: number, truppeY: number): boolean {
-  return truppeX < fahrbahnKantenBeiY(width, height, truppeY).leftX
+export function sammeltLinks(width: number, height: number, truppeX: number, truppeY: number, halbeBreiteDesHaufens: number): boolean {
+  return truppeX - Math.max(0, halbeBreiteDesHaufens) < fahrbahnKantenBeiY(width, height, truppeY).leftX
 }

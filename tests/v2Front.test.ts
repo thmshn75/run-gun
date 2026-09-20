@@ -22,17 +22,17 @@ describe('Run Gun V2 — S4 die beiden Flaechen', () => {
     // Genauigkeit von acht Stellen - das misst Rundung, nicht Bildratentreue.
     // Die Schranke ist nicht frei gewaehlt: Der theoretische Fehler einer solchen
     // Schrittrechnung liegt bei doppelter Schrittweite in der Groessenordnung
-    // Rate mal Schrittweite, hier 0,3 * 0,032 = rund 1 Prozent. Die Schranke von
-    // 0,1 Prozent ist also zehnmal strenger als die Theorie zulaesst und faengt
+    // Rate mal Schrittweite, hier 0,8 * 0,032 = rund 2,6 Prozent. Die Schranke von
+    // 0,5 Prozent ist also fuenfmal strenger als die Theorie zulaesst und faengt
     // jeden echten Bildratenfehler, der sich in Faktoren statt Promille zeigt.
-    // Auf dem Bildschirm sind 0,1 Prozent von 300 px weniger als ein drittel Pixel.
+    // Auf dem Bildschirm sind 0,5 Prozent von 300 px anderthalb Pixel.
     const start = zustand(600, 30)
     const in16 = Array.from({ length: 20 }).reduce((wert) => aktualisiereFront(wert, 16), start)
     const in32 = Array.from({ length: 10 }).reduce((wert) => aktualisiereFront(wert, 32), start)
     const relativ = (a: number, b: number) => Math.abs(a - b) / Math.max(1, Math.abs(b))
-    expect(relativ(in16.vorrat, in32.vorrat)).toBeLessThan(1e-3)
-    expect(relativ(in16.eigenerWert, in32.eigenerWert)).toBeLessThan(1e-3)
-    expect(relativ(in16.frontY, in32.frontY)).toBeLessThan(1e-3)
+    expect(relativ(in16.vorrat, in32.vorrat)).toBeLessThan(5e-3)
+    expect(relativ(in16.eigenerWert, in32.eigenerWert)).toBeLessThan(5e-3)
+    expect(relativ(in16.frontY, in32.frontY)).toBeLessThan(5e-3)
   })
 
   it('laesst weder eigene Flaeche noch Gegner im Kampf wachsen', () => {
