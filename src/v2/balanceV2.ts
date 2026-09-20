@@ -119,6 +119,10 @@ export const BALANCE_V2 = {
   front: {
     // 858 ist der aus dem Video abgelesene Startvorrat der roten Flaeche.
     gegnerStartVorrat: 858,
+    // Die Horde folgt ihrem Boss mit 35 Prozent seines Wegs, also hoechstens rund
+    // 210 px. Sie kommt sichtbar naeher, ohne ihn einzuholen - er bleibt die
+    // Spitze des Angriffs - und loest sich dabei nicht zu weit vom Horizont.
+    hordeFolgtBossAnteil: 0.35,
     // Bei 390 x 844 endet die volle rote Masse bei y=380: 230 px nach dem
     // Horizont und damit im oberen Drittel der 694 px hohen Bahn. Bis zum Tor
     // bei y=700 bleiben 320 px sichtbare freie Bahn fuer den Strom.
@@ -183,7 +187,7 @@ export const BALANCE_V2 = {
     // eine hauchduenne Niederlage. Reines Mengensammeln reicht also nie ganz;
     // erst eine abgebaute Wand (Tor x1,5) bringt den Sieg nach 68 s, zwei Waende
     // nach 60 s. Wer diese Werte aendert, prueft die Spanne mit dem Balance-Test.
-    bossTempoPxProSek: 8.5,
+    bossTempoPxProSek: 6,
     // Die Ergebnisanzeige bleibt kurz lesbar, bevor der reine Probelauf ins Menue geht.
     rueckkehrMs: 1800,
   },

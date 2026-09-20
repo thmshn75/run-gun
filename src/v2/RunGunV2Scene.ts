@@ -429,7 +429,11 @@ export class RunGunV2Scene extends Phaser.Scene {
     const helmGrundmass = 256 * BALANCE_V2.front.helmTextureScale
     const rasterSchritt = (y: number) => Math.max(1, helmGrundmass * tiefenSkala(height, y) * 0.9)
     const gegnerPlaetze: Array<{ x: number, y: number }> = []
-    for (let y = this.front.frontY; y > BALANCE_V2.track.horizonY; y -= rasterSchritt(y)) {
+    // Die Oberkante wandert mit, damit die Masse als Block vorrueckt statt sich
+    // nur nach vorn zu strecken - sonst wuerde sie beim Wandern immer duenner.
+    const hordeOben = BALANCE_V2.track.horizonY
+      + this.ende.bossAbstiegPx * BALANCE_V2.front.hordeFolgtBossAnteil
+    for (let y = this.front.frontY; y > hordeOben; y -= rasterSchritt(y)) {
       const { leftX: left, rightX: right } = fahrbahnKantenBeiY(width, height, y)
       const spalten = Math.max(1, Math.ceil((right - left) / rasterSchritt(y)))
       for (let spalte = 0; spalte < spalten; spalte += 1) {

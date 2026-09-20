@@ -72,9 +72,16 @@ describe('Run Gun V2 — die Balance geht nur knapp auf', () => {
   })
 
   it('laesst langes Sammeln gerade noch reichen', () => {
-    // Die Grenze liegt zwischen 10 und 20 Sekunden Sammeln: Ab da uebersteigt der
+    // Die Grenze liegt zwischen 10 und 15 Sekunden Sammeln: Ab da uebersteigt der
     // Zustrom die Schlagkraft des Bosses, und er bleibt vor der Flaeche haengen.
+    expect(spiele(10, 0).ausgang).toBe('niederlage')
+    expect(spiele(15, 0).ausgang).toBe('sieg')
     expect(spiele(20, 0).ausgang).toBe('sieg')
+  })
+
+  it('laesst die Horde mit ihrem Boss vorruecken, aber langsamer als er', () => {
+    expect(BALANCE_V2.front.hordeFolgtBossAnteil).toBeGreaterThan(0)
+    expect(BALANCE_V2.front.hordeFolgtBossAnteil).toBeLessThan(1)
   })
 
   it('macht eine einzige abgebaute Wand zum Unterschied zwischen Sieg und Niederlage', () => {
@@ -87,7 +94,9 @@ describe('Run Gun V2 — die Balance geht nur knapp auf', () => {
     for (const [sammeln, waende] of [[0, 0], [10, 0], [20, 0], [10, 1], [10, 2]] as const) {
       const e = spiele(sammeln, waende)
       expect(e.sekunden).toBeGreaterThan(20)
-      expect(e.sekunden).toBeLessThan(100)
+      // Bis 130 s: Der Boss laeuft auf Wunsch betont langsam (6 px/s auf 602 px),
+      // dadurch dauert eine verlorene Runde rund 100 bis 110 Sekunden.
+      expect(e.sekunden).toBeLessThan(130)
     }
   })
 

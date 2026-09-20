@@ -25,7 +25,12 @@ export function bossY(bossAbstiegPx: number): number {
  */
 export function aktualisiereEnde(zustand: EndeZustand, dtMs: number): EndeZustand {
   const sekunden = Math.max(0, dtMs) / 1000
-  const front = zustand.front.vorrat > 0 ? aktualisiereFront(zustand.front, dtMs) : zustand.front
+  const gerechnet = zustand.front.vorrat > 0 ? aktualisiereFront(zustand.front, dtMs) : zustand.front
+  // Die Horde steht nicht still, waehrend ihr Boss vorlaeuft: Sie wandert als
+  // Block mit, nur langsamer als er. Dadurch ueberholt er seine eigene Masse und
+  // trifft zuerst auf die eigene Flaeche - so wie im Vorbild.
+  const hordeVorstossPx = zustand.bossAbstiegPx * BALANCE_V2.front.hordeFolgtBossAnteil
+  const front = { ...gerechnet, frontY: gerechnet.frontY + hordeVorstossPx }
   // Aufgehalten wird er nur von dem, was er in diesem Augenblick NICHT wegraeumen
   // kann. Ein winziger Rest, den er ohnehin mitnimmt, ist kein Hindernis - sonst
   // blockierte ihn schon ein Bruchteil einer Figur dauerhaft.
