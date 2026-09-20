@@ -22,6 +22,21 @@ import bossEliteMove10Url from '../assets/boss-elite-move-10.png'
 import bossEliteMove11Url from '../assets/boss-elite-move-11.png'
 import bossEliteMove12Url from '../assets/boss-elite-move-12.png'
 
+/**
+ * Kehrt eine flache Koordinatenliste [x0,y0,x1,y1,...] PAARWEISE um.
+ *
+ * Ein schlichtes reverse() auf diesem Array dreht die einzelnen Zahlen um und
+ * vertauscht damit x und y jedes Punktes. Genau das ist passiert: Die
+ * zurueckfuehrende Kante jeder Flaeche war dadurch verdreht, die Flaechen liefen
+ * schief ueber die Bahn - sichtbar als blaue Keile in der Bruecke und als
+ * fehlendes Wasser auf einer Seite.
+ */
+function rueckwaerts(punkte: readonly number[]): number[] {
+  const umgekehrt: number[] = []
+  for (let index = punkte.length - 2; index >= 0; index -= 2) umgekehrt.push(punkte[index], punkte[index + 1])
+  return umgekehrt
+}
+
 type SchildBild = { kasten: Phaser.GameObjects.Rectangle, text: Phaser.GameObjects.Text, umlauf: number, verbraucht: boolean, rest: number }
 
 /** Das bewusst zustandslose Geruest fuer den isolierten Run-Gun-V2-Probelauf. */
@@ -47,6 +62,7 @@ export class RunGunV2Scene extends Phaser.Scene {
   private randSchilder = new Map<string, SchildBild>()
   private tor: TorZustand = torStartZustand()
   private torFaktorText?: Phaser.GameObjects.Text
+  private wandVerbrauchRest = 0
   private ende: EndeZustand = endeStartZustand(frontStartZustand())
   private bossBild?: Phaser.GameObjects.Sprite
   private bossZaehler?: Phaser.GameObjects.Text
@@ -94,6 +110,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.randSchilder.clear()
     this.tor = torStartZustand()
     this.torFaktorText = undefined
+    this.wandVerbrauchRest = 0
     this.ende = endeStartZustand(this.front)
     this.bossBild = undefined
     this.bossZaehler = undefined
@@ -124,9 +141,15 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.add.rectangle(centerX, (horizonY + bottomY) / 2, width, bottomY - horizonY, BALANCE_V2.colors.water)
       .setDepth(BALANCE_V2.ebenen.wasser)
     this.erstelleWasser(width, height, horizonY)
-    this.add.polygon(0, 0, [...linkeFahrbahnKante, ...[...rechteFahrbahnKante].reverse()], BALANCE_V2.colors.road).setOrigin(0, 0).setDepth(BALANCE_V2.ebenen.strasse)
-    this.add.polygon(0, 0, [...linkeKante, ...[...linkeFahrbahnKante].reverse()], BALANCE_V2.colors.wall).setOrigin(0, 0).setDepth(BALANCE_V2.ebenen.gehsteig)
-    this.add.polygon(0, 0, [...rechteFahrbahnKante, ...[...rechteKante].reverse()], BALANCE_V2.colors.wall).setOrigin(0, 0).setDepth(BALANCE_V2.ebenen.gehsteig)
+    // Absichtlich Graphics statt add.polygon: Ein Polygon legt seinen Ursprung in
+    // die Mitte seiner eigenen Bounding-Box. Mit absoluten Kantenkoordinaten und
+    // setOrigin(0,0) verschiebt sich die Flaeche dadurch um die linke obere Ecke
+    // dieser Box - und zwar fuer jede Flaeche um einen anderen Betrag. Genau davon
+    // kamen die blauen Keile in der Bruecke und das fehlende Wasser auf der einen
+    // Seite. fillPoints zeichnet in echten Bildkoordinaten, ohne Ursprungsrechnung.
+    this.fuelleFlaeche([...linkeFahrbahnKante, ...rueckwaerts(rechteFahrbahnKante)], BALANCE_V2.colors.road, BALANCE_V2.ebenen.strasse)
+    this.fuelleFlaeche([...linkeKante, ...rueckwaerts(linkeFahrbahnKante)], BALANCE_V2.colors.wall, BALANCE_V2.ebenen.gehsteig)
+    this.fuelleFlaeche([...rechteFahrbahnKante, ...rueckwaerts(rechteKante)], BALANCE_V2.colors.wall, BALANCE_V2.ebenen.gehsteig)
     // Eine durchgehende Wasserflaeche vom Horizont bis zur Unterkante, ueber die
     // volle Breite. Die frueheren zwei Uferpolygone liefen nach unten spitz zu und
     // lasen sich als schraeger Strich mit Farbwechsel; was davon in der Mitte
@@ -156,6 +179,13 @@ export class RunGunV2Scene extends Phaser.Scene {
   private erstelleWasser(width: number, height: number, horizonY: number): void {
     this.wasserWellen = Array.from({ length: 36 }, (_, index) => this.add.line(0, 0, 0, 0, 22 + index % 4 * 8, 0, BALANCE_V2.colors.waterWave, 0.85).setOrigin(0, 0).setDepth(BALANCE_V2.ebenen.wasserWelle))
     this.wasserGeometrie = { width, height, horizonY }
+  }
+
+  /** Fuellt eine Flaeche in echten Bildkoordinaten; siehe Begruendung beim Aufruf. */
+  private fuelleFlaeche(punkte: readonly number[], farbe: number, ebene: number): void {
+    const paare: Phaser.Geom.Point[] = []
+    for (let index = 0; index < punkte.length; index += 2) paare.push(new Phaser.Geom.Point(punkte[index], punkte[index + 1]))
+    this.add.graphics().fillStyle(farbe, 1).fillPoints(paare, true).setDepth(ebene)
   }
 
   private zeichneKante(punkte: readonly number[]): void {
@@ -252,6 +282,7 @@ export class RunGunV2Scene extends Phaser.Scene {
         // herunter. Erst bei null faellt die Wand und schreibt ihre Zahl gut.
         const schritt = wandSchritt(bild.rest, this.truppenGroesse, dtMs)
         bild.rest = schritt.rest
+        if (schritt.verbrauch > 0) this.verringereTruppe(schritt.verbrauch)
         if (schritt.gutschrift > 0) {
           // Die gefallene Wand schenkt keine Truppen, sondern hebt den Torfaktor:
           // ab jetzt vervielfacht das Tor jede durchlaufende Figur staerker.
@@ -271,6 +302,26 @@ export class RunGunV2Scene extends Phaser.Scene {
 
   private erhoeheTruppe(wert: number): void {
     this.truppenGroesse = Math.max(0, this.truppenGroesse) + Math.max(0, Math.floor(wert))
+    this.zeichneTruppeNeu()
+    this.front = mitAnkunft(this.front, wert)
+  }
+
+  /**
+   * Der Abbau einer Wand kostet Truppe. Der Verbrauch je Bild ist ein Bruchteil;
+   * ohne Restsammler wuerde ihn das Abrunden jedes Mal verschlucken und die Wand
+   * waere umsonst - derselbe Rundungsfehler, der schon einmal einen ganzen Modus
+   * gekostet hat (siehe docs/lessons.md).
+   */
+  private verringereTruppe(wert: number): void {
+    this.wandVerbrauchRest += Math.max(0, wert)
+    const ganze = Math.floor(this.wandVerbrauchRest)
+    if (ganze <= 0) return
+    this.wandVerbrauchRest -= ganze
+    this.truppenGroesse = Math.max(0, this.truppenGroesse - ganze)
+    this.zeichneTruppeNeu()
+  }
+
+  private zeichneTruppeNeu(): void {
     this.ende = { ...this.ende, truppenGroesse: this.truppenGroesse }
     const plaetze = haufenPlaetze(truppenAnzeige(this.truppenGroesse).sichtbareFiguren)
     const grenzen = truppeGrenzen(this.scale.width, this.scale.height, haufenHalbeBreite(plaetze.length, this.truppenFigurBreite))
@@ -280,7 +331,6 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.truppenFiguren = plaetze.map((platz) => this.add.image(this.truppeX + platz.dx, this.truppeY + platz.dy, 'v2-helm-blau')
       .setScale(BALANCE_V2.front.helmTextureScale).setDepth(BALANCE_V2.ebenen.truppe))
     this.truppenZaehler?.setText(truppenAnzeige(this.truppenGroesse).zaehler)
-    this.front = mitAnkunft(this.front, wert)
   }
 
   private wendeSchildAn(seite: 'links' | 'rechts'): void {

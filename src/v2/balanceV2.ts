@@ -81,6 +81,10 @@ export const BALANCE_V2 = {
     schildHoehePx: 56,
     schildBreitePx: 38,
     abstandPx: 48,
+    // Die rechte Reihe ist keine durchgehende Kette wie die linke: Waende stehen
+    // einzeln und weit auseinander. 320 px Abstand bei 35 px/s heisst rund alle
+    // 9 Sekunden eine - genug Zeit, eine abzubauen, bevor die naechste kommt.
+    rechterAbstandPx: 320,
     // In der Mitte 120 px/s, ganz links +100 px/s: 220 px/s ist deutlich schneller,
     // ohne dass die Reihe bei 60 fps mehr als rund 4 px pro Bild springt.
     grundTempoPxProSek: 120,
@@ -202,8 +206,15 @@ export const BALANCE_V2 = {
     startRest: 99,
     abbauJeTruppenfigurProSek: 0.9,
     mindestAbbauProSek: 2,
-    // Gutschrift ist genau die Zahl auf der Wand: Man bekommt, was draufsteht.
-    gutschrift: 99,
+    // Jeder abgetragene Punkt kostet 0,25 eigene Einheiten. Eine ganze Wand von
+    // 99 Punkten kostet damit rund 25 Truppen. Rechenweg fuer die Schwelle: Eine
+    // volle Truppe (60) kann sich 240 Punkte leisten und schafft die Wand; eine
+    // Truppe von 20 kann nur 80 Punkte bezahlen und bleibt vor der 99 stehen -
+    // sie verliert dabei alles, was sie eingesetzt hat.
+    verbrauchJeAbbaupunkt: 0.25,
+    // Gutschrift ist kein Truppenzuwachs mehr, sondern der Zuwachs am Torfaktor
+    // (siehe tor.zuwachsJeWand). Der Wert markiert nur, dass die Wand gefallen ist.
+    gutschrift: 1,
   },
   staerke: {
     // 100 Punkte entsprechen dem Grundfaktor 1. +99 ist absichtlich fast ein

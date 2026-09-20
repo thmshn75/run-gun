@@ -7,17 +7,36 @@ const breite = 390
 const hoehe = 844
 
 function schild(seite: 'links' | 'rechts'): RandSchild {
-  return schildPositionen(breite, hoehe, 0).find((eintrag) => eintrag.seite === seite && eintrag.y > 650)!
+  // Das unterste Schild der Reihe. Frueher wurde eines unterhalb 650 px gesucht -
+  // seit die rechte Reihe nur noch aus wenigen Waenden besteht, gibt es dort nicht
+  // immer eines in diesem Bereich.
+  return schildPositionen(breite, hoehe, 0)
+    .filter((eintrag) => eintrag.seite === seite)
+    .sort((a, b) => b.y - a.y)[0]!
 }
 
 describe('Run Gun V2 — S5 die beiden Raender', () => {
-  it('staffelt jede Reihe lueckenlos ueber die ganze Bahn', () => {
+  it('staffelt die linke Reihe lueckenlos, die rechte dagegen als einzelne Waende', () => {
     for (const zeitMs of [0, 317, 9_999]) {
-      for (const seite of ['links', 'rechts'] as const) {
-        const reihe = schildPositionen(breite, hoehe, zeitMs).filter((eintrag) => eintrag.seite === seite).sort((a, b) => a.y - b.y)
-        for (let index = 1; index < reihe.length; index += 1) {
-          expect(reihe[index].y - reihe[index - 1].y).toBeLessThanOrEqual(BALANCE_V2.raender.schildHoehePx)
-        }
+      const links = schildPositionen(breite, hoehe, zeitMs).filter((e) => e.seite === 'links').sort((a, b) => a.y - b.y)
+      for (let index = 1; index < links.length; index += 1) {
+        expect(links[index].y - links[index - 1].y).toBeLessThanOrEqual(BALANCE_V2.raender.schildHoehePx)
+      }
+      // Rechts stehen seit N15 einzelne Waende: Zwischen ihnen gehoert Platz, sonst
+      // kaeme die naechste, bevor die vorige abgebaut ist.
+      const rechts = schildPositionen(breite, hoehe, zeitMs).filter((e) => e.seite === 'rechts').sort((a, b) => a.y - b.y)
+      for (let index = 1; index < rechts.length; index += 1) {
+        expect(rechts[index].y - rechts[index - 1].y).toBeGreaterThan(BALANCE_V2.raender.schildHoehePx * 2)
+      }
+    }
+  })
+
+  it('haelt alle Schilder zwischen Horizont und Unterkante', () => {
+    // Frueher lief der Umlauf ab null, wodurch Schilder oben im Himmel standen.
+    for (const zeitMs of [0, 500, 4_321]) {
+      for (const eintrag of schildPositionen(breite, hoehe, zeitMs)) {
+        expect(eintrag.y).toBeGreaterThanOrEqual(BALANCE_V2.track.horizonY)
+        expect(eintrag.y).toBeLessThanOrEqual(hoehe)
       }
     }
   })

@@ -28,24 +28,34 @@ export function schildMitteX(seite: SchildSeite, width: number, height: number, 
  * aus einem wiederkehrenden Platz wieder dasselbe Schild mit frisch gesetztem Zustand.
  */
 export function schildPositionen(width: number, height: number, zeitMs: number, truppeX = width / 2): readonly RandSchild[] {
-  const abstand = BALANCE_V2.raender.abstandPx
-  const strecke = height - BALANCE_V2.track.horizonY + BALANCE_V2.raender.schildHoehePx
-  const anzahl = Math.ceil(strecke / abstand) + 1
+  const horizont = BALANCE_V2.track.horizonY
+  // Gelaufen wird ausschliesslich zwischen Horizont und Unterkante. Frueher lief
+  // der Umlauf ab null, wodurch Schilder oberhalb des Horizonts im Himmel standen.
+  const strecke = height - horizont
   const sekunden = Math.max(0, zeitMs) / 1000
-  return (['links', 'rechts'] as const).flatMap((seite) => Array.from({ length: anzahl }, (_, index) => {
+  return (['links', 'rechts'] as const).flatMap((seite) => {
+    // Links eine dichte Kette, rechts einzelne Waende mit grossem Abstand.
+    const wunschAbstand = seite === 'links' ? BALANCE_V2.raender.abstandPx : BALANCE_V2.raender.rechterAbstandPx
     const tempo = seite === 'links' ? linkesReihenTempo(truppeX, width) : BALANCE_V2.raender.rechtesGrundTempoPxProSek
-    const rohY = BALANCE_V2.track.horizonY - BALANCE_V2.raender.schildHoehePx + index * abstand + sekunden * tempo
-    const umlauf = Math.floor(rohY / strecke)
-    const y = ((rohY % strecke) + strecke) % strecke
-    return {
-      id: `${seite}-${index}`,
-      seite,
-      wert: seite === 'links' ? 1 : 99,
-      x: schildMitteX(seite, width, height, y),
-      y,
-      umlauf,
-    }
-  }))
+    // Der Abstand muss die Strecke glatt teilen, sonst stehen beim Umlauf zwei
+    // Schilder dicht beieinander: Das letzte kommt oben wieder herein, waehrend
+    // das erste noch nicht weit genug gelaufen ist.
+    const anzahl = Math.max(1, Math.round(strecke / wunschAbstand))
+    const abstand = strecke / anzahl
+    return Array.from({ length: anzahl }, (_, index) => {
+      const rohY = index * abstand + sekunden * tempo
+      const umlauf = Math.floor(rohY / strecke)
+      const y = horizont + ((rohY % strecke) + strecke) % strecke
+      return {
+        id: `${seite}-${index}`,
+        seite,
+        wert: seite === 'links' ? 1 : 99,
+        x: schildMitteX(seite, width, height, y),
+        y,
+        umlauf,
+      }
+    })
+  })
 }
 
 /** Entscheidet ausschliesslich aus Hoehe und seitlichem Abstand, ob ein Schild gilt. */
@@ -76,13 +86,25 @@ export function wandAbbauProSek(truppenGroesse: number): number {
 }
 
 /**
- * Ein Abbauschritt an einer Wand. Liefert den neuen Rest und, wenn die Wand in
- * diesem Schritt faellt, die Gutschrift. Rein rechnerisch, ohne Phaser.
+ * Ein Abbauschritt an einer Wand. Das Abtragen kostet eigene Einheiten: Wer die
+ * Wand bricht, bezahlt sie mit Truppe. Dadurch wird der Abbau von selbst
+ * langsamer, je mehr man schon verloren hat - und eine zu kleine Truppe bleibt
+ * an der Wand haengen, statt sie umsonst zu knacken.
+ *
+ * Liefert den neuen Rest, den Truppenverbrauch und, wenn die Wand in diesem
+ * Schritt faellt, die Gutschrift. Rein rechnerisch, ohne Phaser.
  */
 export function wandSchritt(rest: number, truppenGroesse: number, dtMs: number) {
-  const abbau = wandAbbauProSek(truppenGroesse) * Math.max(0, dtMs) / 1000
+  const gewuenschterAbbau = wandAbbauProSek(truppenGroesse) * Math.max(0, dtMs) / 1000
+  // Mehr als der Rest ist nie abzutragen, und mehr als die Truppe hergibt auch nicht.
+  const bezahlbar = Math.max(0, truppenGroesse) / BALANCE_V2.wand.verbrauchJeAbbaupunkt
+  const abbau = Math.min(rest, gewuenschterAbbau, bezahlbar)
   const neuerRest = Math.max(0, rest - abbau)
-  return { rest: neuerRest, gutschrift: neuerRest <= 0 && rest > 0 ? BALANCE_V2.wand.gutschrift : 0 }
+  return {
+    rest: neuerRest,
+    verbrauch: abbau * BALANCE_V2.wand.verbrauchJeAbbaupunkt,
+    gutschrift: neuerRest <= 0 && rest > 0 ? BALANCE_V2.wand.gutschrift : 0,
+  }
 }
 
 /** Nur die linke Reihe wird eingesammelt; rechts steht eine Wand, die abgebaut wird. */

@@ -1381,3 +1381,22 @@ nur asymptotisch.
 **Regel:** Bei jeder Bilanz, deren Tempo vom eigenen Bestand abhaengt, gehoert eine
 Schwelle dazu: unter einer ganzen Einheit ist der Bestand leer. Sonst haengt das
 Spielende an einem Bruchteil einer Figur fest.
+
+## 2026-09-20 — reverse() auf einer flachen Koordinatenliste vertauscht x und y
+
+**Befund:** Thomas meldete dreimal dasselbe: "blaue Keile in der Bruecke",
+"rechts neben der Bruecke ist kein Wasser". Gemessen: rechts null Pixel Wasser
+zwischen y=200 und y=700, links 45-71 px.
+
+**Ursache:** Die Flaechen wurden aus einer Kante und der zurueckgefuehrten
+Gegenkante gebaut: `[...linkeKante, ...[...rechteKante].reverse()]`. Bei einer
+flachen Liste `[x0,y0,x1,y1,...]` dreht `reverse()` die **einzelnen Zahlen** um
+und macht daraus `[y1,x1,y0,x0]` - jeder Punkt hat danach x und y vertauscht.
+Die Flaeche lief schief ueber die Bahn.
+
+**Regel:** Eine flache Koordinatenliste wird **paarweise** umgekehrt, nie mit
+`reverse()`. Wer Punkte als `[x,y,x,y,...]` fuehrt, braucht dafuer eine eigene
+Funktion - und einen Test, der sie erzwingt.
+
+**Prueffrage bei "Flaeche sitzt schief":** Wird irgendwo eine Punktliste
+umgedreht? Dann zuerst dort nachsehen, bevor an Ursprung oder Origin gedreht wird.

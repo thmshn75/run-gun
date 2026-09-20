@@ -143,3 +143,15 @@ describe('Run Gun V2 — S8 Optik', () => {
   })
 
 })
+
+describe('Run Gun V2 — N16 Flaechen ohne Verdrehung', () => {
+  it('kehrt eine flache Koordinatenliste paarweise um, nicht elementweise', () => {
+    // Der Fehler, der dreimal als "blaue Keile in der Bruecke" und "rechts kein
+    // Wasser" gemeldet wurde: [x0,y0,x1,y1].reverse() ergibt [y1,x1,y0,x0] und
+    // vertauscht damit x und y jedes Punktes.
+    const source = readFileSync(new URL('../src/v2/RunGunV2Scene.ts', import.meta.url), 'utf8')
+    expect(source).toContain('function rueckwaerts(')
+    // Keine Flaeche darf ihre Gegenkante noch mit einem nackten reverse() zurueckfuehren.
+    expect(source).not.toMatch(/\.\.\.\[\.\.\.\w*Kante\]\.reverse\(\)/)
+  })
+})
