@@ -9,6 +9,7 @@ import { GameScene } from './scenes/GameScene'
 import { MenuScene } from './scenes/MenuScene'
 import { TitleScene } from './scenes/TitleScene'
 import { requestPersistentStorage } from './systems/storagePersistence'
+import { RunGunV2Scene } from './v2/RunGunV2Scene'
 
 requestPersistentStorage()
 
@@ -101,7 +102,7 @@ const game = new Phaser.Game({
       useTree: false,
     },
   },
-  scene: [BootScene, TitleScene, MenuScene, GameScene, GameOverScene],
+  scene: [BootScene, TitleScene, MenuScene, GameScene, GameOverScene, RunGunV2Scene],
 })
 
 if (import.meta.env.DEV) {

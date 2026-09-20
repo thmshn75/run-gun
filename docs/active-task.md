@@ -1,6 +1,6 @@
 # Aktive Aufgabe
 
-Status: SPEC_READY
+Status: APPROVED
 
 ## Aufgabe: V6/S1 — Gerüst und Menüknopf für "Run Gun V2"
 
@@ -87,3 +87,55 @@ Randbedingungen. Dieser Task ist **Schritt 1 von 8** und bewusst klein.
 
 Was geändert, Testergebnisse, was nicht ging und warum. Status am Ende auf
 `IMPL_DONE` setzen.
+
+## Implementation Summary
+
+- `src/v2/RunGunV2Scene.ts` und `src/v2/balanceV2.ts`: isoliertes S1-Geruest mit Himmel,
+  Bahn, Seitenmauern und MENÜ; keine bestehenden Systeme, Balance oder Speicherzugriffe.
+- `MenuScene.ts` hat ausschliesslich die zusaetzliche, volle V2-Knopfzeile in einer freien
+  Luecke erhalten; `main.ts` registriert die neue Szene additiv.
+- `tests/v2Geruest.test.ts` sichert Registrierung, Kopplungs- und Speicherverbote sowie die
+  unveraenderte Drei-Spalten-Rechnung der bestehenden Modusknopfreihe.
+- Terminal-Pruefung: `npx tsc --noEmit`, `npm run build` und `npm test` gruen
+  (43 Dateien, 447 Tests). Sicht- und Doppelstartpruefung im Browser nicht moeglich,
+  weil die Browseroberflaeche dieser Sitzung nicht freigegeben ist.
+
+
+---
+
+## NACHARBEIT N1 (Review 2026-09-20, 12:00) — Bahn wird falsch gezeichnet
+
+Der Browser-Nachweis, den Codex nicht führen konnte, zeigt einen Darstellungsfehler:
+Statt einer mittigen Bahn (schmal am Horizont, breit unten) erscheint ein schräges
+dunkles Dreieck links und ein schmaler grauer Keil rechts. Die drei Flächen stehen
+nicht zueinander.
+
+**Ursache:** `this.add.polygon(x, y, points, ...)` in `src/v2/RunGunV2Scene.ts` legt den
+Ursprung in die **Mitte der eigenen Bounding-Box** des Polygons, nicht auf `(x, y)`.
+Bahn, linke Mauer und rechte Mauer haben unterschiedlich große Bounding-Boxen und
+werden deshalb unterschiedlich weit verschoben — sie driften gegeneinander. Dasselbe
+gilt für `this.add.line(...)`.
+
+**Zu tun:**
+1. Auf allen Polygonen und Linien in `RunGunV2Scene.create()` den Ursprung explizit
+   setzen (`.setOrigin(0, 0)`), sodass die angegebenen Punkte als absolute
+   Bahnkoordinaten gelten — oder die Geometrie auf einen anderen, nachweislich
+   stabilen Weg umstellen (z. B. `Phaser.GameObjects.Graphics` mit `fillPoints`).
+2. **Nachweis, der den Fehler sichtbar gemacht hätte, ergänzen:** ein Test in
+   `tests/v2Geruest.test.ts`, der die Bahngeometrie aus `balanceV2.ts` rechnet und
+   prüft, dass die Bahn an beiden Kanten **symmetrisch zur Bildmitte** liegt — oben
+   `centerX ± topHalfWidth`, unten `centerX ± bottomHalfWidth`. Die Rechnung gehört in
+   eine eigene, exportierte Funktion in `src/v2/`, damit sie ohne Phaser prüfbar ist
+   (z. B. `bahnKanten(width, height)`), und die Szene nutzt genau diese Funktion.
+3. Die übrigen Akzeptanzkriterien bleiben unverändert gültig.
+
+**Was gut war und so bleiben soll:** Isolation (`src/v2/` ohne Fremdimporte), der
+additive Eintrag in `main.ts`, der Menüknopf in eigener Zeile ohne Eingriff in die
+Breitenrechnung der bestehenden Reihe, der Vertragstest.
+
+## N1 Implementation Summary
+
+- `bahnKanten(width, height)` liefert die gemeinsamen, symmetrischen Bahnkanten; die
+  Szene verwendet ausschliesslich diese absoluten Koordinaten.
+- Alle drei Polygone und beide Kantenlinien haben explizit `setOrigin(0, 0)`.
+- Der Vertragstest prüft Horizont- und Unterkante gegen die Bildmitte.

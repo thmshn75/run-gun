@@ -151,6 +151,19 @@ export class MenuScene extends Phaser.Scene {
       () => { this.zeigeProbelaufWahl('torlauf') },
       undefined, true,
     )
+    // V2 bekommt eine eigene Zeile in der freien Luecke ueber den drei bestehenden
+    // Modi. Steht FORTSCHRITT ZURUECKHOLEN da, beginnt die freie Luecke erst darueber.
+    const v2Top = (this.zurueckholbar === undefined ? layout.testButton.top : layout.restoreButton.top) - 12 - layout.testButton.height
+    this.addButton(
+      safeLeft + safeWidth / 2,
+      v2Top + layout.testButton.height / 2,
+      safeWidth - 2 * BALANCE.menu.sidePadding,
+      layout.testButton.height,
+      'RUN GUN V2',
+      true,
+      () => { this.scene.start('RunGunV2Scene') },
+      undefined, true,
+    )
     // FORTSCHRITT ZURUECKHOLEN - steht nur da, wenn es etwas zurueckzuholen gibt
     // (2026-08-26). Er sitzt an der Stelle, an der bis heute ZURUECKSETZEN stand.
     if (this.zurueckholbar !== undefined) {
