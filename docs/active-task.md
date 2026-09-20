@@ -1,44 +1,89 @@
 # Aktive Aufgabe
 
-Status: IDLE
+Status: SPEC_READY
 
-Zuletzt abgeschlossen: V5/E3 — Torlauf spielbar (2026-09-19, ohne Codex gebaut,
-weil dessen Kontingent erschöpft war; Notausgang RUNGUN_ALLOW_SRC_EDIT).
+## Aufgabe: V6/S1 — Gerüst und Menüknopf für "Run Gun V2"
 
-## Was in diesem Durchgang fertig wurde
+Verbindlicher Plan: `docs/plan-v6.md`. Diesen Plan zuerst lesen — besonders die
+Randbedingungen. Dieser Task ist **Schritt 1 von 8** und bewusst klein.
 
-- **Eigene Laufphase im Torlauf** (`torlauf.laufphaseSec` 25 s statt 55 s). Ohne
-  Einzelgegner füllte die Gegnerphase des echten Laufs nur Leerlauf — die Horde kam so
-  spät, dass ein kurzer Test sie nie sah.
-- **Startgröße der Quelle** (`torlauf.startEinheiten` 12). Der geerbte Startwert 1
-  ergab 0,4 Figuren/s; damit war kein Pfeiler aufzuhacken.
-- **Horde bleibt an der Truppe stehen** (`horde.grenzeBodenAbstandPx` 220). Vorher lief
-  sie unbegrenzt weiter (gemessen y=5032 bei 844 px Bildhöhe) und kam nie in Kontakt.
-- **Nahkampf zieht wirklich ab**: Bruchteil-Sammler `hordeFressRest`, weil `hp`
-  ganzzahlig ist (siehe lessons.md, 2026-09-19).
-- **Niederlage kehrt zurück**: Truppe auf 0 beendet den Lauf über `triggerGameOver`.
-- `horde.basis` 120 → 320, `strom.tempoPxPerSec` 260 → 150, `kachel.breiteAnteil`
-  0,14 → 0,22 und `hoeheAnteil` 0,5 → 0,7 (Thomas' iPhone-Befunde vom 18:17).
+## Was gebaut wird
 
-## Nachweis im Browser (localhost, 2026-09-19 19:05)
+1. **Neue Szene** `RunGunV2Scene` in `src/v2/RunGunV2Scene.ts`.
+   - Registrierung in `src/main.ts` in der Szenenliste (additiv, keine bestehende
+     Zeile ändern).
+   - Zeigt: Himmel, Bahn mit zwei Seitenmauern, sonst nichts.
+   - Oben links ein Knopf "MENÜ", der zurück zur `MenuScene` führt.
+   - Kein Physik-Setup, keine Gegner, keine Truppe — das kommt in S2 bis S7.
 
-Prüfkriterium vorab: Horde-y dauerhaft ≤ 624, Hordenzahl sinkt monoton im Kontakt,
-Truppenstärke sinkt gleichzeitig, Durchgang endet in Sieg oder Niederlage.
+2. **Menüknopf** in `src/scenes/MenuScene.ts`: ein zusätzlicher Knopf **"RUN GUN V2"**
+   im selben Bereich wie "TESTGELÄNDE / PROBELAUF / TORLAUF", aber in einer eigenen
+   Zeile (siehe Layout-Hinweis unten).
+   - Er startet `RunGunV2Scene` **direkt**, ohne Levelwahl und ohne Waffenwahl.
+   - **Die bestehenden drei Knöpfe und ihr Verhalten bleiben unverändert.**
+   - **Achtung Layout:** Die Knopfbreite wird in `MenuScene.ts` als
+     `(safeWidth - 2 * sidePadding - 16) / 3` gerechnet — sie ist auf DREI Knöpfe
+     festgelegt. Ein vierter Knopf in derselben Zeile macht alle vier zu schmal für
+     ihre Beschriftung. Deshalb: **eigene Zeile unter der bestehenden Reihe**, volle
+     Breite, mit demselben Abstand wie zwischen den anderen Elementen. Die Rechnung
+     für die drei bestehenden Knöpfe darf nicht verändert werden, und was darunter
+     liegt (Fortschritt-zurückholen, Shop, Fortsetzen, Spielen) darf nicht verdeckt
+     werden — die Reihe wandert entsprechend nach unten oder der neue Knopf setzt
+     sich in eine freie Lücke. Im Browser prüfen, dass jeder Knopf vollständig
+     sichtbar und antippbar ist.
 
-- **Niederlage:** Truppe 12 → 6 → 0, "TORLAUF VORBEI", zurück ins MenuScene.
-- **Sieg (zweiter Start derselben Sitzung, Truppe 120):** Horde 320 → 0 in 11 s,
-  "HORDE GESCHAFFT", Level 2, Truppe 120 → 89.
-- Horde-y erreicht in beiden Läufen genau 624 und bleibt dort. Keine Konsolenfehler.
-- 447 Tests grün, `tsc --noEmit` sauber.
+3. **Eigene Konfiguration** `src/v2/balanceV2.ts` mit den Werten dieses Schritts
+   (Bahnbreite, Mauerbreite, Himmelhöhe, Farben). Jeder Wert mit Rechenweg als
+   Kommentar, wie im Projekt üblich.
 
-## Offen für die nächste Sitzung
+## Harte Grenzen (Thomas 2026-09-20, wörtlich)
 
-1. **Thomas' iPhone-Test** — erst danach gilt Gamefeel als abgenommen (Projektregel).
-   Besonders: Sind die +1-Kacheln jetzt gross genug? Ist der Strom mit 150 px/s ruhig
-   genug? Reichen 25 s Laufphase?
-2. **Seitliche Steuerung prüfen.** Im passiven Messlauf wuchs die Quelle nie, weil die
-   Truppe mittig bleibt und Tore wie Kacheln am Rand liegen. Ob ein Spieler sie
-   erreichen kann, ist am Gerät zu prüfen — Thomas' Vorgabe: "die plus 1 Wände soll man
-   mit dem Team erreichen damit sie zählen".
-3. E4 Boss-Nahkampf, E5 Gestalten (Horde = `standard`, `heavy` zwischendurch, Bosse am
-   Ende, alle auf 0,6 skaliert), E2b/E3b Bilder durch Codex.
+- "die bestehenden logiken und spiele die es schon gibt dürfen aber nicht verändert
+  werden, auch der shop und das bereits erworbene nicht"
+- Erlaubte Änderungen außerhalb von `src/v2/`: **ausschließlich** die Knopfzeile in
+  `MenuScene.ts` und die Szenenregistrierung in `main.ts`. Sonst nichts.
+- `src/config/balance.ts` wird **nicht** angefasst.
+- Kein Zugriff auf Speicherstand, Konto, Upgrades, Waffen.
+- Keine Wiederverwendung von `src/systems/*` — auch nicht "nur die eine Funktion".
+  Geerbt werden nur Bildschlüssel (`player`, `enemy-*`), und in diesem Schritt noch
+  nicht einmal die.
+
+## Akzeptanzkriterien
+
+1. `npm run build` und `npx tsc --noEmit` laufen sauber.
+2. Alle bestehenden Tests bleiben grün (derzeit 443).
+3. Neuer Test `tests/v2Geruest.test.ts`:
+   - `RunGunV2Scene` ist registriert und hat den Schlüssel `RunGunV2Scene`.
+   - `src/v2/` importiert nichts aus `src/systems/` und nichts aus
+     `src/config/balance`. (Quelltextprüfung über die Import-Zeilen der Dateien in
+     `src/v2/` — hier ist sie zulässig, weil genau die Abwesenheit einer Kopplung
+     geprüft wird und es dafür kein Verhalten gibt.)
+   - **`src/v2/` enthält nirgends die Zeichenketten `localStorage` oder `indexedDB`.**
+     Die Import-Prüfung allein genügt nicht: Ein direkter Speicherzugriff unter
+     Umgehung von `src/systems/save.ts` käme durch sie hindurch, durch den Build und
+     durch jede Diff-Durchsicht — und könnte denselben Schlüssel treffen wie der
+     echte Spielstand. Genau das wäre der Bruch der Zusage "auch der Shop und das
+     bereits Erworbene nicht".
+   - `MenuScene.ts` enthält weiterhin die Starts für Testgelände, Probelauf und
+     Torlauf.
+   - **Die Breitenrechnung der bestehenden Knopfreihe steht unverändert im Quelltext**
+     (`(safeWidth - 2 * BALANCE.menu.sidePadding - 16) / 3`). Ohne dieses Kriterium
+     gälte ein vierter Knopf in derselben Reihe formal als "unverändert", obwohl die
+     drei bestehenden dadurch von rund 113 px auf 83 px schrumpfen — zu schmal für
+     "TESTGELÄNDE".
+4. Im Browser: Der Knopf "RUN GUN V2" startet die neue Szene; "MENÜ" führt zurück;
+   die drei bestehenden Knöpfe starten unverändert ihre Modi.
+5. **Doppelstart in derselben Sitzung:** Menü → RUN GUN V2 → MENÜ → RUN GUN V2 → MENÜ,
+   zweimal hintereinander, alle Übergänge fehlerfrei, keine Fehler in der Konsole.
+   Phaser-Szenen sind Singletons — `create()` läuft beim zweiten Start auf derselben
+   Instanz. Im Torlauf war genau deshalb beim zweiten Start ein Collider still kaputt,
+   während der erste Lauf und alle Tests sauber waren (`docs/lessons.md` 2026-09-19).
+   Das Muster wird hier schon im leeren Gerüst verankert, bevor Zustand dazukommt.
+6. **Sichtprüfung des Menüs:** Alle vier Knöpfe vollständig sichtbar, Beschriftung
+   nicht abgeschnitten, nichts verdeckt (Fortschritt-zurückholen, Shop, Fortsetzen,
+   Spielen).
+
+## Abschlussbericht
+
+Was geändert, Testergebnisse, was nicht ging und warum. Status am Ende auf
+`IMPL_DONE` setzen.
