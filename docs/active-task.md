@@ -2,140 +2,120 @@
 
 Status: APPROVED
 
-## Aufgabe: V6/S1 — Gerüst und Menüknopf für "Run Gun V2"
+## Aufgabe: V6/S2 — Die eigene Truppe
 
-Verbindlicher Plan: `docs/plan-v6.md`. Diesen Plan zuerst lesen — besonders die
-Randbedingungen. Dieser Task ist **Schritt 1 von 8** und bewusst klein.
+Verbindlicher Plan: `docs/plan-v6.md`. **Zuerst lesen**, besonders die
+unverhandelbaren Randbedingungen. Schritt 1 (Gerüst, Menüknopf, Bahn) ist fertig und
+committet — darauf wird aufgebaut, nichts davon wird umgebaut.
 
 ## Was gebaut wird
 
-1. **Neue Szene** `RunGunV2Scene` in `src/v2/RunGunV2Scene.ts`.
-   - Registrierung in `src/main.ts` in der Szenenliste (additiv, keine bestehende
-     Zeile ändern).
-   - Zeigt: Himmel, Bahn mit zwei Seitenmauern, sonst nichts.
-   - Oben links ein Knopf "MENÜ", der zurück zur `MenuScene` führt.
-   - Kein Physik-Setup, keine Gegner, keine Truppe — das kommt in S2 bis S7.
+Eine **Truppe am unteren Bahnende**, die der Spieler seitlich steuert.
 
-2. **Menüknopf** in `src/scenes/MenuScene.ts`: ein zusätzlicher Knopf **"RUN GUN V2"**
-   im selben Bereich wie "TESTGELÄNDE / PROBELAUF / TORLAUF", aber in einer eigenen
-   Zeile (siehe Layout-Hinweis unten).
-   - Er startet `RunGunV2Scene` **direkt**, ohne Levelwahl und ohne Waffenwahl.
-   - **Die bestehenden drei Knöpfe und ihr Verhalten bleiben unverändert.**
-   - **Achtung Layout:** Die Knopfbreite wird in `MenuScene.ts` als
-     `(safeWidth - 2 * sidePadding - 16) / 3` gerechnet — sie ist auf DREI Knöpfe
-     festgelegt. Ein vierter Knopf in derselben Zeile macht alle vier zu schmal für
-     ihre Beschriftung. Deshalb: **eigene Zeile unter der bestehenden Reihe**, volle
-     Breite, mit demselben Abstand wie zwischen den anderen Elementen. Die Rechnung
-     für die drei bestehenden Knöpfe darf nicht verändert werden, und was darunter
-     liegt (Fortschritt-zurückholen, Shop, Fortsetzen, Spielen) darf nicht verdeckt
-     werden — die Reihe wandert entsprechend nach unten oder der neue Knopf setzt
-     sich in eine freie Lücke. Im Browser prüfen, dass jeder Knopf vollständig
-     sichtbar und antippbar ist.
+1. **Darstellung**: Eine Gruppe einzelner Figuren, Bildschlüssel `player` (das einzige,
+   was V2 erbt). Sie stehen als gedrängter Haufen beieinander, nicht in Reih und
+   Glied. Die Zahl der sichtbaren Figuren entspricht der Truppengröße, gedeckelt auf
+   `BALANCE_V2.truppe.maxSichtbar`.
+2. **Zähler**: Die aktuelle Truppengröße als Zahl unmittelbar über der Gruppe.
+3. **Steuerung**: Der Spieler zieht mit dem Finger (bzw. der Maus) waagerecht; die
+   Gruppe folgt. Sie bleibt vollständig innerhalb der Bahnränder — auch die äußersten
+   Figuren des Haufens, nicht nur der Mittelpunkt.
+4. **Startgröße** aus `balanceV2.ts`, zunächst fest. Wachstum kommt in S5.
 
-3. **Eigene Konfiguration** `src/v2/balanceV2.ts` mit den Werten dieses Schritts
-   (Bahnbreite, Mauerbreite, Himmelhöhe, Farben). Jeder Wert mit Rechenweg als
-   Kommentar, wie im Projekt üblich.
+## Grenzen (unverändert aus S1)
 
-## Harte Grenzen (Thomas 2026-09-20, wörtlich)
-
-- "die bestehenden logiken und spiele die es schon gibt dürfen aber nicht verändert
-  werden, auch der shop und das bereits erworbene nicht"
-- Erlaubte Änderungen außerhalb von `src/v2/`: **ausschließlich** die Knopfzeile in
-  `MenuScene.ts` und die Szenenregistrierung in `main.ts`. Sonst nichts.
-- `src/config/balance.ts` wird **nicht** angefasst.
-- Kein Zugriff auf Speicherstand, Konto, Upgrades, Waffen.
-- Keine Wiederverwendung von `src/systems/*` — auch nicht "nur die eine Funktion".
-  Geerbt werden nur Bildschlüssel (`player`, `enemy-*`), und in diesem Schritt noch
-  nicht einmal die.
+- Alles Neue liegt in `src/v2/`. Keine Importe aus `src/systems/`, aus
+  `src/config/balance` oder aus `src/scenes/`. Kein `localStorage`, kein `indexedDB`.
+- **Die Formationsrechnung wird NICHT aus dem bestehenden Spiel übernommen**, auch
+  nicht abgeschrieben. V2 braucht einen Haufen, keine Formation mit Reihen — das ist
+  bewusst etwas anderes und einfacher.
+- Bestehende Dateien werden in diesem Schritt **gar nicht** angefasst.
 
 ## Akzeptanzkriterien
 
-1. `npm run build` und `npx tsc --noEmit` laufen sauber.
-2. Alle bestehenden Tests bleiben grün (derzeit 443).
-3. Neuer Test `tests/v2Geruest.test.ts`:
-   - `RunGunV2Scene` ist registriert und hat den Schlüssel `RunGunV2Scene`.
-   - `src/v2/` importiert nichts aus `src/systems/` und nichts aus
-     `src/config/balance`. (Quelltextprüfung über die Import-Zeilen der Dateien in
-     `src/v2/` — hier ist sie zulässig, weil genau die Abwesenheit einer Kopplung
-     geprüft wird und es dafür kein Verhalten gibt.)
-   - **`src/v2/` enthält nirgends die Zeichenketten `localStorage` oder `indexedDB`.**
-     Die Import-Prüfung allein genügt nicht: Ein direkter Speicherzugriff unter
-     Umgehung von `src/systems/save.ts` käme durch sie hindurch, durch den Build und
-     durch jede Diff-Durchsicht — und könnte denselben Schlüssel treffen wie der
-     echte Spielstand. Genau das wäre der Bruch der Zusage "auch der Shop und das
-     bereits Erworbene nicht".
-   - `MenuScene.ts` enthält weiterhin die Starts für Testgelände, Probelauf und
-     Torlauf.
-   - **Die Breitenrechnung der bestehenden Knopfreihe steht unverändert im Quelltext**
-     (`(safeWidth - 2 * BALANCE.menu.sidePadding - 16) / 3`). Ohne dieses Kriterium
-     gälte ein vierter Knopf in derselben Reihe formal als "unverändert", obwohl die
-     drei bestehenden dadurch von rund 113 px auf 83 px schrumpfen — zu schmal für
-     "TESTGELÄNDE".
-4. Im Browser: Der Knopf "RUN GUN V2" startet die neue Szene; "MENÜ" führt zurück;
-   die drei bestehenden Knöpfe starten unverändert ihre Modi.
-5. **Doppelstart in derselben Sitzung:** Menü → RUN GUN V2 → MENÜ → RUN GUN V2 → MENÜ,
-   zweimal hintereinander, alle Übergänge fehlerfrei, keine Fehler in der Konsole.
-   Phaser-Szenen sind Singletons — `create()` läuft beim zweiten Start auf derselben
-   Instanz. Im Torlauf war genau deshalb beim zweiten Start ein Collider still kaputt,
-   während der erste Lauf und alle Tests sauber waren (`docs/lessons.md` 2026-09-19).
-   Das Muster wird hier schon im leeren Gerüst verankert, bevor Zustand dazukommt.
-6. **Sichtprüfung des Menüs:** Alle vier Knöpfe vollständig sichtbar, Beschriftung
-   nicht abgeschnitten, nichts verdeckt (Fortschritt-zurückholen, Shop, Fortsetzen,
-   Spielen).
+1. `npx tsc --noEmit`, `npm run build`, `npm test` laufen sauber; bestehende Tests
+   bleiben grün (derzeit 447).
+2. **Reine Rechenfunktionen in eigenen Dateien**, ohne Phaser-Abhängigkeit, damit sie
+   prüfbar sind:
+   - `haufenPlaetze(anzahl)` → Liste von Versätzen `{ dx, dy }` um den Mittelpunkt.
+   - `truppeGrenzen(width, height, halbeBreiteDesHaufens)` → erlaubter Bereich für den
+     Mittelpunkt, damit der Haufen die Bahn nicht verlässt.
+3. Neue Tests in `tests/v2Truppe.test.ts`:
+   - `haufenPlaetze` liefert für 1, 5, 20, 60 Figuren genau so viele Plätze.
+   - Die Plätze liegen dicht beieinander: Der weiteste Platz ist bei 60 Figuren nicht
+     weiter als `BALANCE_V2.truppe.haufenRadiusMaxPx` vom Mittelpunkt entfernt.
+   - **Randtreue:** Für den ganz linken und ganz rechten erlaubten Mittelpunkt liegt
+     **jeder** Platz des Haufens noch innerhalb der Bahnkanten aus S1 (dieselbe
+     `bahnKanten`-Rechnung verwenden, nicht neu erfinden). Das ist der Test, der einen
+     halb außerhalb stehenden Haufen verhindert.
+   - Die Zahl der sichtbaren Figuren ist auf `maxSichtbar` gedeckelt, der Zähler zeigt
+     aber die echte Größe.
+4. **Browser-Nachweis** (führe ich, Claude, danach selbst):
+   - Gruppe sichtbar, Zahl stimmt mit der Figurenzahl überein.
+   - Ziehen nach ganz links und ganz rechts: Haufen bleibt vollständig auf der Bahn.
+   - **Doppelstart** Menü → V2 → Menü → V2: Truppe steht beim zweiten Start wieder
+     korrekt, Steuerung funktioniert weiterhin (Phaser-Szenen sind Singletons; alle
+     Felder in `create()` zurücksetzen).
 
 ## Abschlussbericht
 
 Was geändert, Testergebnisse, was nicht ging und warum. Status am Ende auf
-`IMPL_DONE` setzen.
+`IMPL_DONE`.
 
 ## Implementation Summary
 
-- `src/v2/RunGunV2Scene.ts` und `src/v2/balanceV2.ts`: isoliertes S1-Geruest mit Himmel,
-  Bahn, Seitenmauern und MENÜ; keine bestehenden Systeme, Balance oder Speicherzugriffe.
-- `MenuScene.ts` hat ausschliesslich die zusaetzliche, volle V2-Knopfzeile in einer freien
-  Luecke erhalten; `main.ts` registriert die neue Szene additiv.
-- `tests/v2Geruest.test.ts` sichert Registrierung, Kopplungs- und Speicherverbote sowie die
-  unveraenderte Drei-Spalten-Rechnung der bestehenden Modusknopfreihe.
-- Terminal-Pruefung: `npx tsc --noEmit`, `npm run build` und `npm test` gruen
-  (43 Dateien, 447 Tests). Sicht- und Doppelstartpruefung im Browser nicht moeglich,
-  weil die Browseroberflaeche dieser Sitzung nicht freigegeben ist.
-
+- `src/v2/truppe.ts` enthält die Phaser-freien Haufenplätze, die perspektivisch
+  bahntreuen Mittelpunktgrenzen und die getrennte Anzeige von sichtbaren Figuren und
+  echtem Truppenzähler.
+- `src/v2/balanceV2.ts` ergänzt ausschliesslich die feste S2-Startgröße sowie die
+  Haufen- und Darstellungswerte; die Bahnkanten werden aus der S1-Rechnung bis zur
+  jeweiligen Haufenhöhe interpoliert.
+- `src/v2/RunGunV2Scene.ts` zeichnet und steuert die Truppe per Finger oder Maus,
+  klemmt sie vollständig innerhalb der Bahn und setzt ihre Felder in `create()` für
+  den zweiten Szenenstart zurück.
+- `tests/v2Truppe.test.ts` prüft Anzahl, Radius, beide Bahnrand-Endpunkte sowie das
+  Sichtlimit bei unverändertem Zähler. N2 prüft zusätzlich zehn absolute
+  Truppenbewegungen ohne Positionsdrift; die halbe Haufenbreite wird nur aus festen
+  Haufenplätzen und Figurenbreite abgeleitet. `npx tsc --noEmit`, `npm run build` und
+  `npm test` sind grün (44 Dateien, 455 Tests). Browser- und Doppelstartnachweis
+  wurde im Review belegt.
 
 ---
 
-## NACHARBEIT N1 (Review 2026-09-20, 12:00) — Bahn wird falsch gezeichnet
+## NACHARBEIT N2 (Review 2026-09-20, 12:20)
 
-Der Browser-Nachweis, den Codex nicht führen konnte, zeigt einen Darstellungsfehler:
-Statt einer mittigen Bahn (schmal am Horizont, breit unten) erscheint ein schräges
-dunkles Dreieck links und ein schmaler grauer Keil rechts. Die drei Flächen stehen
-nicht zueinander.
+Die Umsetzung ist im Browser belegt: Truppe mittig mit Zähler, Steuerung hält beide
+Bahnränder ein (links 27–121, rechts 267–361 bei Bahn 0–390), Doppelstart zweimal
+sauber. **Ein Punkt muss vor dem Commit noch weg**, weil er ein bekanntes Fehlermuster
+dieses Projekts ist:
 
-**Ursache:** `this.add.polygon(x, y, points, ...)` in `src/v2/RunGunV2Scene.ts` legt den
-Ursprung in die **Mitte der eigenen Bounding-Box** des Polygons, nicht auf `(x, y)`.
-Bahn, linke Mauer und rechte Mauer haben unterschiedlich große Bounding-Boxen und
-werden deshalb unterschiedlich weit verschoben — sie driften gegeneinander. Dasselbe
-gilt für `this.add.line(...)`.
+In `RunGunV2Scene.aktiviereTruppenSteuerung()` wird die halbe Haufenbreite so
+gerechnet:
+
+```ts
+const halbeBreite = Math.max(...this.truppenFiguren.map(
+  (figur) => Math.abs(figur.x - this.truppeX) + figur.displayWidth / 2), 0)
+```
+
+Das liest einen **abgeleiteten Wert aus dem Zustand zurück**, den es selbst erzeugt
+hat: Die Figurenpositionen entstehen aus `truppeX`, und aus ihnen wird wieder eine
+Grenze für `truppeX` berechnet. Läuft das Paar einmal auseinander — durch einen
+Fehler, ein späteres Wachstum der Truppe (S5) oder einen Neustart mitten im Zug —,
+wächst `halbeBreite` unbegrenzt, die Grenzen fallen zusammen und **die Steuerung
+blockiert vollständig**. Genau das ist beim Messen passiert, als der Zustand einmal
+verschoben war: Die Truppe ließ sich danach nicht mehr bewegen.
+
+Dieselbe Fehlerklasse steht in `docs/lessons.md` unter 2026-09-20 ("Abgeleiteten Wert
+nie als Zustand zurücklesen") — dort hatte sie 3,5-fach zu schnelle Figuren zur Folge.
 
 **Zu tun:**
-1. Auf allen Polygonen und Linien in `RunGunV2Scene.create()` den Ursprung explizit
-   setzen (`.setOrigin(0, 0)`), sodass die angegebenen Punkte als absolute
-   Bahnkoordinaten gelten — oder die Geometrie auf einen anderen, nachweislich
-   stabilen Weg umstellen (z. B. `Phaser.GameObjects.Graphics` mit `fillPoints`).
-2. **Nachweis, der den Fehler sichtbar gemacht hätte, ergänzen:** ein Test in
-   `tests/v2Geruest.test.ts`, der die Bahngeometrie aus `balanceV2.ts` rechnet und
-   prüft, dass die Bahn an beiden Kanten **symmetrisch zur Bildmitte** liegt — oben
-   `centerX ± topHalfWidth`, unten `centerX ± bottomHalfWidth`. Die Rechnung gehört in
-   eine eigene, exportierte Funktion in `src/v2/`, damit sie ohne Phaser prüfbar ist
-   (z. B. `bahnKanten(width, height)`), und die Szene nutzt genau diese Funktion.
-3. Die übrigen Akzeptanzkriterien bleiben unverändert gültig.
+1. Die halbe Haufenbreite **aus `haufenPlaetze(anzahl)` und der Figurenbreite rechnen**,
+   nicht aus den aktuellen Positionen. Am besten als eigene, testbare Funktion in
+   `src/v2/truppe.ts`, z. B. `haufenHalbeBreite(anzahl, figurBreite)`.
+2. Die Figuren beim Bewegen **absolut setzen** (`truppeX + platz.dx`), statt sie um
+   eine Differenz zu verschieben. Dann kann nichts driften.
+3. Test in `tests/v2Truppe.test.ts`: Nach zehn aufeinanderfolgenden Bewegungen zu
+   zufälligen Zielen entspricht jede Figurenposition exakt `truppeX + platz.dx` —
+   kein Auseinanderlaufen.
 
-**Was gut war und so bleiben soll:** Isolation (`src/v2/` ohne Fremdimporte), der
-additive Eintrag in `main.ts`, der Menüknopf in eigener Zeile ohne Eingriff in die
-Breitenrechnung der bestehenden Reihe, der Vertragstest.
-
-## N1 Implementation Summary
-
-- `bahnKanten(width, height)` liefert die gemeinsamen, symmetrischen Bahnkanten; die
-  Szene verwendet ausschliesslich diese absoluten Koordinaten.
-- Alle drei Polygone und beide Kantenlinien haben explizit `setOrigin(0, 0)`.
-- Der Vertragstest prüft Horizont- und Unterkante gegen die Bildmitte.
+Alles andere aus S2 bleibt unverändert.

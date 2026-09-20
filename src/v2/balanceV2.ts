@@ -13,6 +13,18 @@ export const BALANCE_V2 = {
     // 2 px: sichtbare Kante zwischen Bahn und Mauer.
     wallWidthPx: 2,
   },
+  truppe: {
+    // 10 Figuren: die im Video sichtbare kleine Starttruppe, bewusst ohne Spielstand.
+    startGroesse: 10,
+    // 60 Figuren: genug fuer spaetere Zunahme, ohne den Haufen unlesbar zu machen.
+    maxSichtbar: 60,
+    // 52 px: dichter Haufen, der bei 60 Figuren noch klar als eine Gruppe lesbar bleibt.
+    haufenRadiusMaxPx: 52,
+    // 0,22: die Player-Textur bleibt deutlich kleiner als die Bahnbreite.
+    figurTextureScale: 0.22,
+    // 92 px ueber der Unterkante: genug Abstand fuer Figur und Bildschirmrand.
+    abstandVonUntenPx: 92,
+  },
   colors: {
     // Eigene V2-Farben; keine Farbkonfiguration des bestehenden Spiels wird gelesen.
     sky: 0x80c8ee,
@@ -41,5 +53,15 @@ export function bahnKanten(width: number, height: number) {
     topRightX: centerX + topHalfWidth,
     bottomLeftX: centerX - bottomHalfWidth,
     bottomRightX: centerX + bottomHalfWidth,
+  }
+}
+
+/** Ermittelt eine Bahnkante auf einer Höhe aus genau den vier S1-Eckpunkten. */
+export function bahnKantenBeiY(width: number, height: number, y: number) {
+  const kanten = bahnKanten(width, height)
+  const fortschritt = Math.min(1, Math.max(0, (y - kanten.horizonY) / (kanten.bottomY - kanten.horizonY)))
+  return {
+    leftX: kanten.topLeftX + (kanten.bottomLeftX - kanten.topLeftX) * fortschritt,
+    rightX: kanten.topRightX + (kanten.bottomRightX - kanten.topRightX) * fortschritt,
   }
 }
