@@ -9,6 +9,18 @@ import { durchquertTor, torStartZustand, type TorZustand } from './tor'
 import { aktualisiereEnde, ausgangEinmal, endeStartZustand, type EndeZustand } from './ende'
 import helmBlauUrl from '../assets/v2-helm-blau.png'
 import helmRotUrl from '../assets/v2-helm-rot.png'
+import bossEliteMove1Url from '../assets/boss-elite-move-1.png'
+import bossEliteMove2Url from '../assets/boss-elite-move-2.png'
+import bossEliteMove3Url from '../assets/boss-elite-move-3.png'
+import bossEliteMove4Url from '../assets/boss-elite-move-4.png'
+import bossEliteMove5Url from '../assets/boss-elite-move-5.png'
+import bossEliteMove6Url from '../assets/boss-elite-move-6.png'
+import bossEliteMove7Url from '../assets/boss-elite-move-7.png'
+import bossEliteMove8Url from '../assets/boss-elite-move-8.png'
+import bossEliteMove9Url from '../assets/boss-elite-move-9.png'
+import bossEliteMove10Url from '../assets/boss-elite-move-10.png'
+import bossEliteMove11Url from '../assets/boss-elite-move-11.png'
+import bossEliteMove12Url from '../assets/boss-elite-move-12.png'
 
 type SchildBild = { kasten: Phaser.GameObjects.Rectangle, text: Phaser.GameObjects.Text, umlauf: number, verbraucht: boolean }
 
@@ -36,7 +48,7 @@ export class RunGunV2Scene extends Phaser.Scene {
   private tor: TorZustand = torStartZustand()
   private torZaehler?: Phaser.GameObjects.Text
   private ende: EndeZustand = endeStartZustand(frontStartZustand())
-  private bossBild?: Phaser.GameObjects.Image
+  private bossBild?: Phaser.GameObjects.Sprite
   private bossZaehler?: Phaser.GameObjects.Text
   private frontPartikel: Phaser.GameObjects.Arc[] = []
   private wasserWellen: Phaser.GameObjects.Line[] = []
@@ -50,6 +62,12 @@ export class RunGunV2Scene extends Phaser.Scene {
   public preload(): void {
     this.load.image('v2-helm-blau', helmBlauUrl)
     this.load.image('v2-helm-rot', helmRotUrl)
+    const bossLaufbilder = [
+      bossEliteMove1Url, bossEliteMove2Url, bossEliteMove3Url, bossEliteMove4Url,
+      bossEliteMove5Url, bossEliteMove6Url, bossEliteMove7Url, bossEliteMove8Url,
+      bossEliteMove9Url, bossEliteMove10Url, bossEliteMove11Url, bossEliteMove12Url,
+    ]
+    bossLaufbilder.forEach((url, index) => this.load.image(`v2-boss-elite-move-${index + 1}`, url))
   }
 
   public create(): void {
@@ -267,11 +285,20 @@ export class RunGunV2Scene extends Phaser.Scene {
   }
 
   private erstelleBoss(width: number): void {
-    this.bossBild = this.add.image(width / 2, BALANCE_V2.track.horizonY, 'enemy-boss')
-      .setTint(0xffdddd).setDepth(2)
+    const animationKey = 'v2-boss-elite-lauf'
+    if (!this.anims.exists(animationKey)) {
+      this.anims.create({
+        key: animationKey,
+        frames: Array.from({ length: 12 }, (_, index) => ({ key: `v2-boss-elite-move-${index + 1}` })),
+        frameRate: 10,
+        repeat: -1,
+      })
+    }
+    this.bossBild = this.add.sprite(width / 2, BALANCE_V2.track.horizonY, 'v2-boss-elite-move-1')
+      .setDepth(8).play(animationKey)
     this.bossZaehler = this.add.text(width / 2, BALANCE_V2.track.horizonY - 44, '', {
       fontFamily: 'system-ui', fontSize: '24px', fontStyle: 'bold', color: '#ffded9', stroke: '#421a1a', strokeThickness: 4,
-    }).setOrigin(0.5).setDepth(3)
+    }).setOrigin(0.5).setDepth(9)
     this.zeichneBoss(width)
   }
 
@@ -279,10 +306,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     const fortschritt = 1 - Math.min(1, Math.max(0, this.front.vorrat / BALANCE_V2.front.gegnerStartVorrat))
     const y = BALANCE_V2.track.horizonY + fortschritt * BALANCE_V2.ende.bossMaxAbstiegPx
     const scale = (BALANCE_V2.ende.bossStartScale + fortschritt * (BALANCE_V2.ende.bossEndScale - BALANCE_V2.ende.bossStartScale)) * tiefenSkala(this.scale.height, y)
-    // Beide vorhandenen Bossbilder werden nur optisch in ruhigem Takt gewechselt.
-    const elitePose = Math.floor(this.time.now / 700) % 2 === 1
-    this.bossBild?.setTexture(elitePose ? 'enemy-boss-elite' : 'enemy-boss')
-      .setPosition(width / 2, y).setScale(scale)
+    this.bossBild?.setPosition(width / 2, y).setScale(scale)
     this.bossZaehler?.setPosition(width / 2, y - 120 * scale).setText(String(Math.round(this.ende.bossVorrat)))
   }
 

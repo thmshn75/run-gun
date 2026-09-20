@@ -117,8 +117,12 @@ export const BALANCE_V2 = {
     // Der Boss hat den im ersten Video sichtbaren eigenen Vorrat 4.000. Nach der
     // roten Flaeche wird er mit derselben eigenen Druckrate abgebaut.
     bossStartVorrat: 4000,
-    bossStartScale: 0.48,
-    bossEndScale: 0.78,
+    // Am Horizont kommt die Tiefenskala 0,45 hinzu: 1,10 * 0,45 = 0,495.
+    // Bei 256 px Bildbreite sind das rund 128 px, etwa ein Drittel der Bahn.
+    // Am Ende ergibt 1,80 mit der dortigen Tiefenskala ungefaehr 1,2: der Boss
+    // fuellt die Bahn sichtbar, ohne die Tiefenskala selbst zu veraendern.
+    bossStartScale: 1.10,
+    bossEndScale: 1.80,
     // Der Boss folgt der schrumpfenden roten Masse sichtbar nach unten.
     bossMaxAbstiegPx: 92,
     // Die Ergebnisanzeige bleibt kurz lesbar, bevor der reine Probelauf ins Menue geht.

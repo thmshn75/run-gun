@@ -1326,3 +1326,31 @@ zwei Sekunden Kampf abfragen — steht er bei 17 ms, ist es dieser Fehler.
 Boss von `deactivateAll` mit recycelt und kam im nächsten Bild mit vollem
 Freischalt-Zähler zurück. Was "dauerhaft" sein soll, darf nicht in einer Sammel-
 Aufräumfunktion hängen, die für alles andere zuständig ist.
+
+## 2026-09-20 — setTintFill macht aus jeder Figur eine Silhouette
+
+**Befund:** Thomas: "der endboss ist nur eine silhouette aber keine richtige figur".
+Ursache war nicht das Bild, sondern `.setTintFill(farbe)` in `erstelleBoss`.
+
+**Regel:** `setTintFill` ersetzt **jede** Pixelfarbe der Textur durch die eine
+Farbe — die Zeichnung ist danach weg, nur der Umriss bleibt. Wer eine Figur nur
+einer Seite zuordnen will, nimmt `setTint` (multiplikativ, Struktur bleibt) mit
+einem hellen Ton. `setTintFill` ist ausschliesslich fuer Dinge richtig, die als
+reine Farbflaeche gedacht sind.
+
+**Prueffrage bei "Figur sieht aus wie ein Schatten":** zuerst nach `setTintFill`
+greppen, bevor ueber Bilddateien nachgedacht wird.
+
+## 2026-09-20 — Tiefe entsteht durch Groessenstaffelung, nicht durch die Bahnform
+
+**Befund:** Thomas: "mehr 3d von hinten nach vorne als von oben nach unten". Die
+Bahn war ein sauberes Trapez, wirkte aber flach wie eine Draufsicht.
+
+**Ursache:** Alle Objekte auf der Bahn — Schilder, Helme, Figuren — waren
+unabhaengig von ihrer Hoehe gleich gross. Im Vorbildvideo ist ein Schild am
+Horizont etwa halb so gross wie eines vorn.
+
+**Regel:** Fuer Tiefenwirkung reicht die perspektivische Bahnform nicht. Es braucht
+**eine gemeinsame Tiefenskala**, die aus der Bildschirmhoehe einen Groessenfaktor
+macht und die **jedes** Objekt auf der Bahn benutzt. Eine Quelle, kein zweiter
+Rechenweg daneben — sonst driften die Dinge auseinander.
