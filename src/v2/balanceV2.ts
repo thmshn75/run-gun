@@ -35,13 +35,22 @@ export const BALANCE_V2 = {
     tempoPxProSek: 180,
     // 844 - 92 - 150 = 602 px auf dem verbindlichen iPhone-Hochformat.
     laufstreckePx: 602,
-    // floor(8 * (602 / 180)) + 2 = 28. Zwei Reserveplätze verhindern eine
-    // Warnung an der Frame-Grenze, ohne dass zur Laufzeit Bilder entstehen.
-    vorratGroesse: 28,
+    // ceil(8 * 99 * (602 / 180)) + 2 = 2.651. Der Vorrat deckt den schlimmsten
+    // Fall ab: maximale Rate, jeder Stromlaeufer hinter dem Tor mal 99 und die
+    // ganze Laufdauer. Zwei Reserveplaetze fangen die Frame-Grenze ab.
+    vorratGroesse: 2651,
     // 18 px: leichte Streuung über die Truppenbreite statt Gänsemarsch.
     startStreuungPx: 18,
     // 0,14: die laufenden Figuren liegen optisch hinter der Starttruppe.
     figurTextureScale: 0.14,
+  },
+  tor: {
+    // ×99 und 99 Treffer entsprechen dem festen Tor im zweiten Referenzvideo.
+    faktor: 99,
+    freischaltTreffer: 99,
+    // Das Tor steht unmittelbar vor der bei 752 px liegenden Starttruppe.
+    y: 700,
+    hoehePx: 44,
   },
   raender: {
     // Die Schilder folgen der Bahn konstant von oben nach unten. 48 px Abstand bei

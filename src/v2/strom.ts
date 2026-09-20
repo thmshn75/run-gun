@@ -1,6 +1,6 @@
 import { BALANCE_V2 } from './balanceV2'
 
-export type StromFigur = Readonly<{ aktiv: boolean, x: number, y: number }>
+export type StromFigur = Readonly<{ aktiv: boolean, x: number, y: number, torPassiert: boolean }>
 
 /** Die Rate bleibt Phaser-frei, damit Balance und Obergrenze direkt prüfbar sind. */
 export function figurenProSekunde(truppenGroesse: number): number {

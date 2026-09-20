@@ -4,6 +4,7 @@ import { bewegeStromFigur, figurenProSekunde, stromDarstellungsPosition, type St
 import { haufenHalbeBreite, haufenPlaetze, haufenPositionenX, type HaufenPlatz, truppeGrenzen, truppenAnzeige } from './truppe'
 import { aktualisiereFront, frontStartZustand, mitAnkunft, type FrontZustand } from './front'
 import { sammeltEin, schildPositionen, truppenGroesseNachSammeln } from './raender'
+import { durchquertTor, torStartZustand, type TorZustand } from './tor'
 
 type SchildBild = { kasten: Phaser.GameObjects.Rectangle, text: Phaser.GameObjects.Text, umlauf: number, verbraucht: boolean }
 
@@ -26,6 +27,8 @@ export class RunGunV2Scene extends Phaser.Scene {
   private truppenGroesse: number = BALANCE_V2.truppe.startGroesse
   private randZeitMs = 0
   private randSchilder = new Map<string, SchildBild>()
+  private tor: TorZustand = torStartZustand()
+  private torZaehler?: Phaser.GameObjects.Text
 
   public constructor() {
     super('RunGunV2Scene')
@@ -51,6 +54,8 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.truppenGroesse = BALANCE_V2.truppe.startGroesse
     this.randZeitMs = 0
     this.randSchilder.clear()
+    this.tor = torStartZustand()
+    this.torZaehler = undefined
     const width = this.scale.width
     const height = this.scale.height
     const centerX = width / 2
@@ -85,6 +90,7 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.erstelleStromVorrat()
     this.erstelleFlaechen(width, height)
     this.erstelleRaender()
+    this.erstelleTor(width, height)
     this.aktiviereTruppenSteuerung(width, height)
   }
 
@@ -158,9 +164,23 @@ export class RunGunV2Scene extends Phaser.Scene {
 
   /** Der feste Vorrat ist aus maximaler Rate mal Laufzeit in balanceV2 hergeleitet. */
   private erstelleStromVorrat(): void {
-    this.stromFiguren = Array.from({ length: BALANCE_V2.strom.vorratGroesse }, () => ({ aktiv: false, x: 0, y: 0 }))
+    this.stromFiguren = Array.from({ length: BALANCE_V2.strom.vorratGroesse }, () => ({ aktiv: false, x: 0, y: 0, torPassiert: false }))
     this.stromBilder = this.stromFiguren.map(() => this.add.image(0, 0, 'player')
       .setScale(BALANCE_V2.strom.figurTextureScale).setDepth(1).setVisible(false))
+  }
+
+  private erstelleTor(width: number, height: number): void {
+    const kanten = bahnKantenBeiY(width, height, BALANCE_V2.tor.y)
+    const breite = kanten.rightX - kanten.leftX
+    const mitteX = (kanten.leftX + kanten.rightX) / 2
+    this.add.rectangle(mitteX, BALANCE_V2.tor.y, breite, BALANCE_V2.tor.hoehePx, 0xdeb83b)
+      .setStrokeStyle(3, 0xfff4bf).setDepth(3)
+    this.add.text(mitteX, BALANCE_V2.tor.y - 3, `×${BALANCE_V2.tor.faktor}`, {
+      fontFamily: 'system-ui', fontSize: '30px', fontStyle: 'bold', color: '#342500', stroke: '#fff4bf', strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(4)
+    this.torZaehler = this.add.text(mitteX, BALANCE_V2.tor.y + 22, String(this.tor.restlicheTreffer), {
+      fontFamily: 'system-ui', fontSize: '16px', fontStyle: 'bold', color: '#fff4bf', stroke: '#342500', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(4)
   }
 
   /** Beide Bildvorräte sind fest: Sichtbarkeit und Position kommen nur aus der Front-Bilanz. */
@@ -235,13 +255,20 @@ export class RunGunV2Scene extends Phaser.Scene {
     this.stromFiguren.forEach((figur, index) => {
       if (!figur.aktiv) return
       const bewegt = bewegeStromFigur(figur, delta)
-      const aktiv = bewegt.y > this.front.frontY
+      const durchgang = bewegt.y <= BALANCE_V2.tor.y ? durchquertTor(bewegt, this.tor) : undefined
+      if (durchgang) {
+        this.tor = durchgang.tor
+        this.torZaehler?.setText(String(this.tor.restlicheTreffer))
+        for (let kopie = 1; kopie < durchgang.anzahl; kopie += 1) this.starteVervielfachteStromFigur(bewegt.x, bewegt.y)
+      }
+      const nachTor = durchgang ? { ...bewegt, ...durchgang.figur } : bewegt
+      const aktiv = nachTor.y > this.front.frontY
       if (!aktiv) this.front = mitAnkunft(this.front)
-      this.stromFiguren[index] = { ...bewegt, aktiv }
+      this.stromFiguren[index] = { ...nachTor, aktiv }
       const bild = this.stromBilder[index]
       bild.setVisible(aktiv)
       if (aktiv) {
-        const position = stromDarstellungsPosition(bewegt)
+        const position = stromDarstellungsPosition(nachTor)
         bild.setPosition(position.x, position.y)
       }
     })
@@ -254,10 +281,17 @@ export class RunGunV2Scene extends Phaser.Scene {
     const index = this.stromFiguren.findIndex((figur) => !figur.aktiv)
     if (index < 0) return
     const x = this.truppeX + Phaser.Math.FloatBetween(-BALANCE_V2.strom.startStreuungPx, BALANCE_V2.strom.startStreuungPx)
-    const figur = { aktiv: true, x, y: this.truppeY }
+    const figur = { aktiv: true, x, y: this.truppeY, torPassiert: false }
     this.stromFiguren[index] = figur
     const bild = this.stromBilder[index]
     bild.setPosition(figur.x, figur.y).setVisible(true)
+  }
+
+  private starteVervielfachteStromFigur(x: number, y: number): void {
+    const index = this.stromFiguren.findIndex((figur) => !figur.aktiv)
+    if (index < 0) return
+    this.stromFiguren[index] = { aktiv: true, x, y, torPassiert: true }
+    this.stromBilder[index].setPosition(x, y).setVisible(true)
   }
 
   private aktiviereTruppenSteuerung(width: number, height: number): void {
