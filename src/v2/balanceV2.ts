@@ -55,8 +55,12 @@ export const BALANCE_V2 = {
     rateJeTruppenfigur: 0.16,
     mindestRateProSek: 1,
     maximaleRateProSek: 24,
-    // 180 px/s: klarer, gleichmässiger Lauf von der Truppe zum Horizont.
-    tempoPxProSek: 180,
+    // 110 px/s statt 180: Der Lauf zur Front ist damit deutlich ruhiger zu
+    // verfolgen - man sieht die einzelne Figur laufen, statt nur einen Strich.
+    tempoPxProSek: 110,
+    // Beim Vervielfachen am Tor werden die Kopien um bis zu 14 px gestreut,
+    // damit die Vermehrung ueberhaupt sichtbar wird.
+    torStreuungPx: 14,
     // 844 - 92 - 150 = 602 px auf dem verbindlichen iPhone-Hochformat.
     laufstreckePx: 602,
     // ceil(8 * 2 * (602 / 180)) + 2 = 56. Der Vorrat deckt den schlimmsten
@@ -158,6 +162,11 @@ export const BALANCE_V2 = {
     // und waehrend er haengt, nimmt ihm die Flaeche Vorrat ab. Wer die Werte
     // aendert, prueft die Spanne mit v2Balance.test.ts.
     bossSchlagkraftProSek: 16,
+    // Schwerer Gang: 0,8 Schritte je Sekunde, 7 px Stampfen, 5 px Schwanken.
+    // Bewusst langsam - der Boss soll wuchtig wirken, nicht hektisch.
+    bossSchrittTaktProSek: 0.8,
+    bossStampfenPx: 7,
+    bossSchwankenPx: 5,
     // Am Horizont kommt die Tiefenskala 0,45 hinzu: 1,10 * 0,45 = 0,495.
     // Bei 256 px Bildbreite sind das rund 128 px, etwa ein Drittel der Bahn.
     // Am Ende ergibt 1,80 mit der dortigen Tiefenskala ungefaehr 1,2: der Boss

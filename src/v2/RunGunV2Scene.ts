@@ -37,7 +37,7 @@ function rueckwaerts(punkte: readonly number[]): number[] {
   return umgekehrt
 }
 
-type SchildBild = { kasten: Phaser.GameObjects.Rectangle, text: Phaser.GameObjects.Text, umlauf: number, verbraucht: boolean, rest: number }
+type SchildBild = { kasten: Phaser.GameObjects.Rectangle, fuss: Phaser.GameObjects.Rectangle, text: Phaser.GameObjects.Text, umlauf: number, verbraucht: boolean, rest: number }
 
 /** Das bewusst zustandslose Geruest fuer den isolierten Run-Gun-V2-Probelauf. */
 export class RunGunV2Scene extends Phaser.Scene {
@@ -265,11 +265,15 @@ export class RunGunV2Scene extends Phaser.Scene {
 
   private erstelleRaender(): void {
     schildPositionen(this.scale.width, this.scale.height, 0, this.truppeX).forEach((schild) => {
+      // Wie im Vorbild sitzt jede Tafel auf einem dunklen Fuss - das gibt ihr
+      // Halt auf dem Gehsteig, statt frei in der Luft zu schweben.
+      const fuss = this.add.rectangle(0, 0, BALANCE_V2.raender.schildBreitePx, BALANCE_V2.raender.schildHoehePx,
+        0x5a4326).setDepth(BALANCE_V2.ebenen.schilder - 1)
       const kasten = this.add.rectangle(0, 0, BALANCE_V2.raender.schildBreitePx, BALANCE_V2.raender.schildHoehePx,
         schild.seite === 'links' ? 0x277bc0 : 0xe1b72f).setStrokeStyle(2, 0xf6fbff).setDepth(BALANCE_V2.ebenen.schilder)
       const text = this.add.text(0, 0, '', { fontFamily: 'system-ui', fontSize: '20px', fontStyle: 'bold', color: '#ffffff', stroke: '#17212a', strokeThickness: 3 })
         .setOrigin(0.5).setDepth(BALANCE_V2.ebenen.zaehler)
-      this.randSchilder.set(schild.id, { kasten, text, umlauf: schild.umlauf, verbraucht: false, rest: BALANCE_V2.wand.startRest })
+      this.randSchilder.set(schild.id, { kasten, fuss, text, umlauf: schild.umlauf, verbraucht: false, rest: BALANCE_V2.wand.startRest })
     })
     this.aktualisiereRaender()
   }
@@ -298,6 +302,9 @@ export class RunGunV2Scene extends Phaser.Scene {
       const skala = tiefenSkala(this.scale.height, schild.y)
       bild.kasten.setVisible(sichtbar).setPosition(schild.x, schild.y)
         .setSize(BALANCE_V2.raender.schildBreitePx * skala, BALANCE_V2.raender.schildHoehePx * skala)
+      // Der Fuss schaut unten und seitlich ein Stueck unter der Tafel hervor.
+      bild.fuss.setVisible(sichtbar).setPosition(schild.x, schild.y + 4 * skala)
+        .setSize((BALANCE_V2.raender.schildBreitePx + 6) * skala, (BALANCE_V2.raender.schildHoehePx + 6) * skala)
       bild.text.setVisible(sichtbar).setPosition(schild.x, schild.y).setFontSize(`${20 * skala}px`)
         .setText(schild.seite === 'links' ? '+1' : String(Math.ceil(bild.rest)))
     })
@@ -397,8 +404,20 @@ export class RunGunV2Scene extends Phaser.Scene {
     const kanten = fahrbahnKantenBeiY(width, this.scale.height, y)
     const hoechsteSkala = (kanten.rightX - kanten.leftX) / Math.max(1, this.bossBild?.width ?? 1)
     const scale = Math.min(gewuenscht, hoechsteSkala)
-    this.bossBild?.setPosition(width / 2, y).setScale(scale)
-    this.bossZaehler?.setPosition(width / 2, y - 120 * scale).setText(String(Math.round(this.ende.bossVorrat)))
+    // Schwerer Gang wie im Vorbild: Der Boss stampft leicht auf und ab und
+    // verlagert dabei sein Gewicht zur Seite, statt gleichmaessig zu gleiten.
+    // Die Bewegung haengt allein an der Zeit, ist also ruhig und wiederholbar.
+    const takt = this.time.now / 1000 * BALANCE_V2.ende.bossSchrittTaktProSek * Math.PI * 2
+    const stampfen = Math.abs(Math.sin(takt)) * BALANCE_V2.ende.bossStampfenPx * scale
+    const schwanken = Math.sin(takt / 2) * BALANCE_V2.ende.bossSchwankenPx * scale
+    this.bossBild?.setPosition(width / 2 + schwanken, y - stampfen).setScale(scale)
+      .setRotation(Math.sin(takt / 2) * 0.03)
+    // Der Bosszaehler haelt Abstand zum Massenzaehler: Beide sassen bei tiefem
+    // Bossstand uebereinander und waren nicht mehr zu lesen.
+    const massenZaehlerY = this.gegnerZaehler?.y ?? 0
+    const gewuenschtY = y - 120 * scale
+    const bossZaehlerY = Math.abs(gewuenschtY - massenZaehlerY) < 30 ? massenZaehlerY - 34 : gewuenschtY
+    this.bossZaehler?.setPosition(width / 2, bossZaehlerY).setText(String(Math.round(this.ende.bossVorrat)))
   }
 
   private zeichneFlaechen(width: number, height: number): void {
@@ -477,7 +496,9 @@ export class RunGunV2Scene extends Phaser.Scene {
       const x = Phaser.Math.Linear(leftX + 6, rightX - 6, (index + 0.5) / this.frontPartikel.length)
         + Math.sin(phase) * 5
       const y = this.front.frontY + Math.cos(phase * 1.3) * 7
-      partikel.setVisible(true).setPosition(x, y).setRadius(2 + (index % 3)).setAlpha(0.38 + (Math.sin(phase) + 1) * 0.24)
+      // Deutlichere Wolke als zuvor: groessere Tropfen, hoehere Deckkraft - im
+      // Vorbild ist die Grenzlinie klar als weisse Gischt zu sehen.
+      partikel.setVisible(true).setPosition(x, y).setRadius(3 + (index % 4)).setAlpha(0.55 + (Math.sin(phase) + 1) * 0.22)
     })
   }
 
@@ -586,8 +607,13 @@ export class RunGunV2Scene extends Phaser.Scene {
   private starteVervielfachteStromFigur(x: number, y: number): void {
     const index = this.stromFiguren.findIndex((figur) => !figur.aktiv)
     if (index < 0) return
-    this.stromFiguren[index] = { aktiv: true, x, y, torPassiert: true }
-    this.stromBilder[index].setPosition(x, y).setVisible(true)
+    // Gestreut, nicht exakt uebereinander: Sonst liegen die Kopien punktgenau auf
+    // dem Original und die Vermehrung am Tor ist ueberhaupt nicht zu sehen.
+    const streuung = BALANCE_V2.strom.torStreuungPx
+    const gestreutX = x + Phaser.Math.FloatBetween(-streuung, streuung)
+    const gestreutY = y + Phaser.Math.FloatBetween(0, streuung)
+    this.stromFiguren[index] = { aktiv: true, x: gestreutX, y: gestreutY, torPassiert: true }
+    this.stromBilder[index].setPosition(gestreutX, gestreutY).setVisible(true)
   }
 
   private aktiviereTruppenSteuerung(width: number, height: number): void {
