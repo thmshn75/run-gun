@@ -1,34 +1,41 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-09-19 (**Plan V5 TORLAUF: Kernmechanik korrigiert — im Torlauf wird NICHT
-geschossen, die Figuren sind die Kugeln. E0/E1 abgenommen, E2r "Der Strom" gebaut,
-gemessen und nachgebessert — wartet auf Thomas' iPhone-Test.** Davor drei Gamefeel-Tasks nach Thomas' Genre-Video, alle
-abgenommen: TREFFERQUITTUNG, FLUESSIGERE BEWEGUNGEN, ABWECHSLUNG. Davor: PROBELAUF fertig, gemessen und am 2026-09-17 abgenommen; er bleibt
-im Testbereich, der echte Run ist unveraendert.)
+Stand: 2026-09-20 (**Plan V6 "Run Gun V2" ist verbindlich: das Video-Spiel wird
+eigenstaendig unter `src/v2/` nachgebaut, ohne gemeinsame Systeme mit dem bestehenden
+Spiel. Gebaut und gemessen. Thomas hat die Arbeit am Abend des 2026-09-20 unterbrochen
+— kein offener Auftrag.** Der Torlauf aus Plan V5 ist am 2026-09-20 aufgegeben: er
+bleibt als Modus im Spiel, wird aber nicht weitergebaut; seine Nacharbeiten N7/N8 sind
+hinfaellig. Davor drei Gamefeel-Tasks nach Thomas' Genre-Video, alle abgenommen:
+TREFFERQUITTUNG, FLUESSIGERE BEWEGUNGEN, ABWECHSLUNG. Davor: PROBELAUF fertig, gemessen
+und am 2026-09-17 abgenommen; er bleibt im Testbereich, der echte Run ist unveraendert.)
 
 **Das Naechste liegt in `## Offen`.**
 
 ## Offen — naechster Schritt zuerst
 
-0. **V5 / E3 HORDE — gebaut, aber UNFERTIG. Codex-Limit bis ca. 20:15 erreicht;
-   Nacharbeit N7 steht in `docs/active-task.md` und ist der naechste Schritt.**
-   Stand: Die Horde erscheint nach der Gegnerphase, ihre Punkte schmelzen unter dem
-   Strom, Sieg und Phasenwechsel laufen, 447 Tests gruen. **Was fehlt (im Browser
-   gemessen, vier Laeufe mit 12/15/40/60 Einheiten):** Die Horde schiebt sich durch die
-   Truppe hindurch statt an ihr stehen zu bleiben, laeuft endlos weiter (gemessen
-   y=5032 bei Bildschirmhoehe 844) und **frisst deshalb nie — die Quelle verlor in
-   keinem Lauf eine Einheit. Die Niederlage ist also noch nicht zurueck.**
-   N7 (fertig spezifiziert): Horde stoppt an der Huellen-Oberkante, Sicherheitsnetz
-   unten, Fress-Test ueber den echten Pfad, `basis` 120 → 320 (gemessen: der Strom baut
-   28 Punkte/s ab, eine 120er-Horde ist nach 5 s weg, bevor sie die Truppe erreicht).
-   **Nach N7 neu messen** — die 320 sind eine Schaetzung auf Messbasis.
-   **Dazu N8 (Thomas' iPhone-Test 18:17, in `docs/active-task.md` vorgemerkt):**
-   +1-Kacheln zu klein (N6 ueberschossen), Strom zu schnell (260 px/s), Horde kommt zu
-   spaet bzw. gar nicht, keine Gegner. **Erster Schritt dort: klaeren, welchen Stand
-   sein iPhone geladen hat** — "keine Horde, keine Gegner" passt genau auf E2r ohne den
-   nicht ausgelieferten E3-Zwischenstand.
+0. **Kein offener Auftrag.** `docs/active-task.md` steht auf `IDLE`. Thomas hat die
+   Arbeit an Run Gun V2 am 2026-09-20 abends unterbrochen: *"lassen wir es gut sein
+   fuers erste ... dauert alles zu lange und viel zu umstaendlich - und irgendwie wird
+   es nicht wie es sein soll"*. **Nicht eigenmaechtig weiterbauen** — erst wenn Thomas
+   den Faden wieder aufnimmt.
+   **Stand von Run Gun V2 (Commit `c542813`):** eigener Modus, vollstaendig getrennt vom
+   bestehenden Spiel (durch Test abgesichert). Zwei Abschnitte: Die Horde marschiert
+   allein auf die Truppe zu und erreicht sie nach 63 s; ist sie aufgerieben, uebernimmt
+   der Boss von ihrer letzten Stelle aus. Links sammelt man Menge (dabei ruht der
+   Nachschub), rechts baut man Waende ab, die den Torfaktor dauerhaft heben. Gemessene
+   Spanne: passiv, 5 s und 10 s Sammeln verlieren; ab 15 s Sammeln oder mit einer
+   abgebauten Wand gewinnt man nach 41 bis 60 s. Festgeschrieben in
+   `tests/v2Balance.test.ts`.
+   **Was Thomas offen benannt hat** (die Punkte hinter "wird nicht wie es sein soll"):
+   die Bahn ist gerade, im Vorbildvideo (112.mov) macht sie eine Kurve; die eigene
+   Truppe ist eine Traube (so gewuenscht), im Video stehen geordnete Reihen; der
+   Hintergrund ist Wasser (so gewuenscht), im Video eine Schneelandschaft; beim Sieg
+   bleibt ein Rest der roten Masse stehen, gewonnen wird ueber den Boss.
+   **Vor dem Weiterbauen `docs/lessons.md` lesen**, besonders die Eintraege vom
+   2026-09-20 — darunter zwei Fehler, die Thomas mehrfach melden musste.
 
-0. **V5 / E2r DER STROM — gebaut, reviewt, per Bot gemessen; offen ist A11 (Thomas am
+0. **V5 / E2r DER STROM — ARCHIV, der Torlauf wird nicht weitergebaut.** Der folgende
+   Stand ist nur noch Nachschlagewissen. — gebaut, reviewt, per Bot gemessen; offen ist A11 (Thomas am
    iPhone, mit N1.4 Wipptakt).** Messungen: ×2-Pfeiler faellt in 2,5 s, Quelle 10 → 61
    in 47 s, Bildzeit 16,7 ms Median bei Quelle 60. **Bug gefunden und behoben (N4):** beim
    zweiten Torlauf-Start in derselben Sitzung traf der Strom nichts, weil
@@ -311,7 +318,9 @@ echten Runs. Beides sollte nach Bennis Test nachgezogen werden.
 - Versuche nur im Testbereich (Testgelaende/Probelauf), bis Thomas sein Go gibt.
 
 ## Wichtige Dateien und Befehle
-- Plan `docs/plan-v4.md` (enthaelt die Befunde beider Gegenpruefungen) ·
+- Plan `docs/plan-v6.md` (verbindlich, "Run Gun V2") · Archiv: `docs/plan-v5.md`
+  (Torlauf, aufgegeben) und `docs/plan-v4.md` (enthaelt die Befunde beider
+  Gegenpruefungen) ·
   Endlos-Regler: `BALANCE.level.endless`, `enemy.endlessHpGrowthPerLevel`,
   `stats.endless` — jeder mit Rechenweg und Messbeleg im Kommentar ·
   Task `docs/active-task.md` · **Lessons `docs/lessons.md`** (zu Sitzungsbeginn lesen)
@@ -321,9 +330,11 @@ echten Runs. Beides sollte nach Bennis Test nachgezogen werden.
 - Deploy: `gh run watch $(gh run list --limit 1 --json databaseId --jq '.[0].databaseId') --exit-status`
 
 ## Einstiegssatz
-"Lies `docs/UEBERGABE.md`, `docs/lessons.md` und `docs/plan-v4.md` und arbeite dort weiter.
+"Lies `docs/UEBERGABE.md`, `docs/lessons.md` und `docs/plan-v6.md` und arbeite dort weiter.
 **Nichts neu aufsetzen** — V1/V2/V3 sind abgenommen und getaggt, V4 ist gebaut und
-gemessen, die zehn Gangarten sind seit dem 2026-09-05 fertig und im Spiel.
+gemessen, V5 (Torlauf) ist aufgegeben, V6 "Run Gun V2" ist gebaut und gemessen und
+liegt seit dem 2026-09-20 auf Eis; die zehn Gangarten sind seit dem 2026-09-05 fertig
+und im Spiel.
 Die Wandlogik aus dem Genre-Vorbild Last Z: Survival Shooter und der PROBELAUF sind
 erledigt - beide liegen im Testbereich und bleiben vorerst dort; ohne Thomas' Go wandert
 nichts davon in den echten Run. **Es laeuft gerade nichts, `docs/active-task.md` ist

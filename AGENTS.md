@@ -14,7 +14,7 @@ Architekturentscheidungen trifft Claude — du setzt sie um.
 ## Projekt
 
 Privates, komplett kostenloses iPhone-PWA-Spiel: Auto-Runner-Shooter im Hochformat
-(Phaser 3 + TypeScript + Vite). Verbindlicher Plan: `docs/plan.md`. Harte Grenzen:
+(Phaser 3 + TypeScript + Vite). Verbindlicher Plan: `docs/plan-v6.md` (V1-V5 sind Archiv). Harte Grenzen:
 keine kostenpflichtigen Dienste, keine API-Keys, keine externen Requests zur Laufzeit,
 keine Telemetrie, keine zusaetzlichen Dependencies ohne Spec-Freigabe.
 

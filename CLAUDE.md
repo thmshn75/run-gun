@@ -17,16 +17,20 @@ laufenden Kosten.
 schon steht:**
 1. `docs/UEBERGABE.md` — wo die Arbeit steht und was als Naechstes drankommt.
 2. `docs/lessons.md` — die teuer bezahlten Regeln.
-3. `docs/plan-v4.md` — **der aktuell verbindliche Plan.**
+3. `docs/plan-v6.md` — **der aktuell verbindliche Plan** ("Run Gun V2", seit
+   2026-09-20).
 
-`docs/plan.md` (V1), `docs/plan-v2.md` (V2) und `docs/plan-v3.md` (V3) sind ARCHIV. V1
-ist am 2026-08-22 abgenommen, V3 am 2026-08-24, V4 ist gebaut und gemessen; gesichert als
-Git-Tags `v1.0` bis `v4.0`. Die Etappen E9/E10 aus `plan.md` sind ersetzt bzw. entfallen.
+`docs/plan.md` (V1), `docs/plan-v2.md` (V2), `docs/plan-v3.md` (V3), `docs/plan-v4.md`
+(V4) und `docs/plan-v5.md` (V5) sind ARCHIV. V1 ist am 2026-08-22 abgenommen, V3 am
+2026-08-24, V4 ist gebaut und gemessen; gesichert als Git-Tags `v1.0` bis `v4.0`. Die
+Etappen E9/E10 aus `plan.md` sind ersetzt bzw. entfallen. V5 (Torlauf) ist am 2026-09-20
+aufgegeben — der Torlauf bleibt als Modus im Spiel, wird aber nicht weitergebaut; die
+dort offenen Nacharbeiten N7/N8 sind damit hinfaellig.
 Wer den Projektstand aus einer Archivdatei beantwortet, antwortet falsch (siehe
 `docs/lessons.md`, Eintrag vom 2026-08-22). Bei mehreren Plandateien gilt immer die
 hoechste Version, und `git tag -l` zeigt, was bereits abgenommen ist.
 
-Scope-Deckel: die Etappen aus `docs/plan-v4.md`; keine Features darueber hinaus, bevor
+Scope-Deckel: die Etappen aus `docs/plan-v6.md`; keine Features darueber hinaus, bevor
 die offenen Etappen fertig sind.
 
 ## Deine Rolle: Denken & Entscheiden
