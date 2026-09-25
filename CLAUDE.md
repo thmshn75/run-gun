@@ -51,16 +51,11 @@ Context7 (`find-docs` skill) ist aktiv — Nutzungsregel in `~/Claude/CLAUDE.md`
 Nur wenn der Task ein Deliverable erzeugt, auf dem danach weitergebaut wird, und die
 Akzeptanzkriterien stehen. Bei kleinen, klar umrissenen Tasks entfällt der Schritt.
 
-1. Zwei Gegenprüfungen parallel als Subagents: `premortem` und `angriffssicht`
-   (liegen als benannte Agents in `.claude/agents/`, laufen auf `model: sonnet`).
-   Genau zwei, nicht mehr. Die Agent-Dateien sind die Quelle der Prüffragen —
-   nicht jedes Mal neu formulieren, sondern bei Bedarf dort schärfen.
-2. Befunde **in** die betroffenen Abschnitte von `docs/active-task.md` einarbeiten,
-   nicht als Liste anhängen — angehängte Befunde werden beim Bauen überlesen.
-3. Maximal zwei Runden. Runde 2 nur, wenn Runde 1 einen strukturändernden Befund
-   lieferte. Kein „bis alle überzeugt sind" — das hat kein natürliches Ende.
-4. Reißleine mit Zeitbudget an der riskantesten Stelle in die Spec schreiben,
-   z. B. „läuft Etappe 1 nach 2–3 Tagen nicht, Ansatz wechseln statt weiterbohren".
+Dann `/haerten` auf `docs/active-task.md` (globaler Skill `~/.claude/skills/haerten/SKILL.md`:
+drei Blickwinkel, max. zwei Runden, Befunde einarbeiten statt anhängen, Reißleine).
+Premortem und Angriffssicht laufen über die projekteigenen Agents `premortem` und
+`angriffssicht` in `.claude/agents/` — deren Dateien sind die Quelle der Prüffragen,
+bei Bedarf dort schärfen. Der dritte Blickwinkel (Umsetzersicht) kommt aus dem Skill.
 
 ## Handoff → Codex
 Wenn ein Task bereit zur Umsetzung ist:
