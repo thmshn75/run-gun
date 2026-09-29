@@ -1,17 +1,42 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-09-20 (**Plan V6 "Run Gun V2" ist verbindlich: das Video-Spiel wird
-eigenstaendig unter `src/v2/` nachgebaut, ohne gemeinsame Systeme mit dem bestehenden
-Spiel. Gebaut und gemessen. Thomas hat die Arbeit am Abend des 2026-09-20 unterbrochen
-— kein offener Auftrag.** Der Torlauf aus Plan V5 ist am 2026-09-20 aufgegeben: er
-bleibt als Modus im Spiel, wird aber nicht weitergebaut; seine Nacharbeiten N7/N8 sind
-hinfaellig. Davor drei Gamefeel-Tasks nach Thomas' Genre-Video, alle abgenommen:
-TREFFERQUITTUNG, FLUESSIGERE BEWEGUNGEN, ABWECHSLUNG. Davor: PROBELAUF fertig, gemessen
-und am 2026-09-17 abgenommen; er bleibt im Testbereich, der echte Run ist unveraendert.)
+Stand: 2026-09-29 abends (**Plan V7 "Run Gun 3D" ist verbindlich**, `docs/plan-v7.md`.
+Thomas hat um 20:25 eine Pause gemacht, weil das Codex-5h-Kontingent bei 93 % stand.)
 
 **Das Naechste liegt in `## Offen`.**
 
 ## Offen — naechster Schritt zuerst
+
+0. **D3 (Steuerung, Aussenden, linker Rand) ist spezifiziert und gehaertet, aber NICHT an
+   Codex gegeben** — `docs/active-task.md` steht absichtlich auf `ENTWURF`. Erst auf
+   Thomas' Go (und nach Ruecksetzung des Codex-Kontingents) Status auf `SPEC_READY` setzen
+   und starten.
+   - **Codex-Start:** Der Companion-Weg (`codex-companion.mjs task`) hing am 2026-09-29
+     nach einem Abbruch dauerhaft bei "Starting Codex task thread". Funktionierender
+     Rueckfallweg: `.command` mit `codex exec "<Auftrag>" < /dev/null > codex.out 2>&1`
+     (siehe `docs/lessons.md`, Eintrag vom 2026-09-29). Warteschleife immer mit
+     Stillstandswaechter (8 min ohne Aenderung an `codex.out` → selbst pruefen).
+   - Danach laut Plan: D4 (Horde und Front, Kampfbild) → R2 (Vervielfacher waechst,
+     Variante B; Spezialeinheiten im Rechenkern) → D5a–c (Saeulen/Fahrzeuge; Fahrzeuge
+     waehlt Thomas vorher) → D6 → D7 → D8 (Politurliste im Plan vorgemerkt).
+1. **Abgenommen und online (2026-09-29):** D0, R1, D1, D2a/b/c. Worst Case am iPhone
+   (390×844, 600 Zombies + 120 Soldaten + 2 Bosse + Wasser 1): 55,2–55,8 fps, 24–25 ms,
+   Dauertest 3 min bestanden — **das Budget ist ausgereizt**, alles Weitere muss sparsam
+   sein und wird mit der neuen Messstufe "Lauf (Bot)" (D3) nachgewiesen.
+2. Wichtige Festlegungen des Tages stehen im Plan (Thomas' Entscheidungen): Strasse in drei
+   Streifen, Horde nur in der Mitte, Figuren 1,5×, +1-Schilder schweben (4 m), Glas-Saeule,
+   blaue flache ×2-Wand, Soldat komplett Coyote mit M4 (1,5×, schwarz), Kamera 7 m vor
+   (App laeuft am iPhone im Vollbild 390×844, nicht 390×659), Vervielfacher waechst (B).
+   Thomas hat erwogen, die V1-Waffenlogik zu uebernehmen, und entschieden: **Plan bleibt**.
+3. Testseiten liegen unter `archiv/probe-3d/` (nicht mehr online). Rohdateien der Modelle
+   unter `~/Downloads/rungun-roh/`; kleine vorbereitete Quellen in `modelle-quelle/`;
+   Bewegungsbibliothek fuer das Skript als Kopie unter `tmp/UAL1_Standard.glb` (ignoriert).
+
+---
+
+## Archiv: Stand bis 2026-09-20 (V6, ueberholt)
+
+### (alt) Offen
 
 0. **Kein offener Auftrag.** `docs/active-task.md` steht auf `IDLE`. Thomas hat die
    Arbeit an Run Gun V2 am 2026-09-20 abends unterbrochen: *"lassen wir es gut sein
