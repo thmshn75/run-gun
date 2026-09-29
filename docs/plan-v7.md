@@ -1,9 +1,8 @@
 # Plan V7 — "Run Gun 3D": V2 in echtem 3D neu bauen
 
-**Status: ENTWURF, gehärtet (2026-09-29: /loopcheck Gelb, Lücken geschlossen; /haerten
-zwei Runden mit je drei Gegenlesern). Verbindlich erst nach Thomas' Freigabe.** Danach ist
-`docs/plan-v6.md` Archiv; das 2D-V2 verschwindet aus dem Menü, sein Code bleibt bis zu
-Thomas' Löschfreigabe liegen.
+**Status: VERBINDLICH seit 2026-09-29 (Thomas: "Freigabe").** Gehärtet mit /loopcheck und
+/haerten (zwei Runden, je drei Gegenleser). `docs/plan-v6.md` ist Archiv; das 2D-V2
+verschwindet aus dem Menü, sein Code bleibt bis zu Thomas' Löschfreigabe liegen.
 
 ## Warum es diesen Plan gibt
 
