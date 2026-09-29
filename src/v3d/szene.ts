@@ -50,12 +50,12 @@ function platzhalter(scene: THREE.Scene): void {
   gruppe.name = 'platzhalter'
   gruppe.visible = new URLSearchParams(location.search).get('platzhalter') !== '0'
   scene.add(gruppe)
-  box(gruppe, 'vervielfacher', [12, 2.4, 0.18], [0, 1.2, -5], '#8e36c0')
-  schild(gruppe, 'vervielfacher-zahl', 4.4, 2, 0, 1.2, -4.88, textBild('×2', '#8e36c0'))
+  box(gruppe, 'vervielfacher', [2 * BUEHNE.MITTE_HALB, BUEHNE.WAND_HOEHE, 0.18], [0, BUEHNE.WAND_HOEHE / 2, -5], '#8e36c0')
+  schild(gruppe, 'vervielfacher-zahl', BUEHNE.WAND_SCHILD_BREITE, 2, 0, 1.2, -4.88, textBild('×2', '#8e36c0'))
   const plus = textBild('+1', '#168bd2')
-  for (let z = 6; z >= -60; z -= 7) schild(gruppe, 'plus-eins', 2.4, 1.6, -6 + 0.15 + 1.2, 1.6, z, plus)
-  box(gruppe, 'saeule', [1.6, 4, 1.6], [4.6, 2, -12], '#aaaeb3')
-  schild(gruppe, 'saeule-zahl', 1.4, 0.7, 4.6, 3.4, -11.18, textBild('150', '#777c82'))
+  for (let z = 6; z >= -60; z -= 7) schild(gruppe, 'plus-eins', BUEHNE.PLUS_BREITE, BUEHNE.PLUS_HOEHE, BUEHNE.PLUS_X, 1.6, z, plus)
+  box(gruppe, 'saeule', [1.6, 4, 1.6], [BUEHNE.SAEULE_X, 2, -12], '#aaaeb3')
+  schild(gruppe, 'saeule-zahl', 1.4, 0.7, BUEHNE.SAEULE_X, 3.4, -11.18, textBild('150', '#777c82'))
   box(gruppe, 'truppe', [6, 0.9, 3], [0, 0.45, 1.5], '#2875bd', 1)
 }
 
@@ -99,14 +99,20 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
     scene.add(decke)
     for (const x of [-6, 6]) {
       box(scene, 'dammwand', [0.1, 0.6, 240], [x, -0.3, -100], '#b9bdbe')
-      box(scene, 'randmauer', [0.3, 0.35, 240], [x, 0.175, -100], '#c9cbca')
+      box(scene, 'randmauer', [0.3, 0.35, 240], [x, 0.175, -100], BUEHNE.RANDMAUER_FARBE)
+    }
+    const kantenLaenge = BUEHNE.KANTE_Z_VORNE - BUEHNE.KANTE_Z_HINTEN
+    const kantenMitte = (BUEHNE.KANTE_Z_VORNE + BUEHNE.KANTE_Z_HINTEN) / 2
+    for (const x of [-BUEHNE.MITTE_HALB, BUEHNE.MITTE_HALB]) {
+      box(scene, 'streifenkante', [BUEHNE.KANTE_BREITE, BUEHNE.KANTE_HOEHE, kantenLaenge],
+        [x, BUEHNE.KANTE_HOEHE / 2, kantenMitte], BUEHNE.RANDMAUER_FARBE)
     }
     // Der Boden des Damms schließt die Seiten bis y = -0,6.
     const damm = new THREE.Mesh(new THREE.PlaneGeometry(12, 240), beton)
     damm.rotation.x = Math.PI / 2; damm.position.set(0, -0.6, -100); damm.name = 'damm-unterseite'; scene.add(damm)
     platzhalter(scene)
     const nahaufnahme = new URLSearchParams(location.search).get('nahaufnahme') === '1'
-    const buehnenAnzahl = FIGUREN.ZOMBIES_SICHTBAR_MAX / 2
+    const buehnenAnzahl = FIGUREN.ZOMBIES_BUEHNE
     const zombieMasse = new ZombieMasse(zombieBau, zombieBau.materialien, buehnenAnzahl)
     zombieMasse.setze(nahaufnahme ? [-0.85, 0, 0.85].map((x, i) => ({ x, z: 0, dreh: 0, variante: i, groesse: 1 })) : zombieAufstellung(buehnenAnzahl, -35))
     scene.add(zombieMasse.gruppe)

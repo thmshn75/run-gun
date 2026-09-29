@@ -48,7 +48,8 @@ absichtlich geschwärzten Figuren gegengeprüft (82 % statt 0 %).
    Reliefbild; keine Glanz-, Spiegel- oder Verdeckungskarten. Der Messmodus zeigt den
    geschätzten Grafikspeicher an.
 3. **Keine Echtzeit-Schatten.** Wo nötig: dunkler Fleck unter der Figur.
-4. **Sichtbar höchstens 800 Zombies und 120 Soldaten** (Stand D2a: Figuren 1,5× größer, echte
+4. **Sichtbar höchstens 600 Zombies und 120 Soldaten** (Straße in drei Streifen, Horde nur in der
+   Mitte 6,8 m; davor 800: (Stand D2a: Figuren 1,5× größer, echte
    Zombies 1200 = 52–53 fps am iPhone; davor: (gesenkt nach D0: Platzhalter-
    Vollast 1500 + 150 im echten Spiel mit schlafendem Phaser 53,8 fps / 25 ms, knapp
    unter der Grenze); alles darüber läuft nur als Zahl im Rechenkern. D2c prüft mit echten
@@ -76,6 +77,7 @@ absichtlich geschwärzten Figuren gegengeprüft (82 % statt 0 %).
 | Spezialeinheiten | Panzer (walzt eine Schneise), Haubitze (Flächenschlag), Hubschrauber (kreist und feuert, v. a. gegen Bosse), Humvee mit MG (fährt mit, länger, schwächer). Modelle: Sketchfab CC-BY (Abrams, Panzerhaubitze 2000, Apache/Hind, Humvee) — Auswahl vor D5 mit Thomas |
 | Ende | Mini-Bosse unterwegs, am Ende Elite-Endboss |
 | Umfang | Mehrere Level mit steigender Schwierigkeit |
+| Straße (nach D2a) | Drei Streifen mit niedriger Betonkante ab der ×2-Wand: links +1, Mitte Kampffeld (Horde nur hier), rechts Säulen. ×2-Wand nur über die Mitte. **Vervielfacher wächst im Lauf (Thomas 2026-09-29, Variante B):** die Wand zählt die durchlaufenden Soldaten und steigt stufenweise (Richtwert alle 100 Soldaten +1) bis zu einer Obergrenze; Stufe und Obergrenze kalibriert Claude in R2 mit den Bots |
 | Größen (nach D2a) | Zombies 1,5× (≈ 1,95 m), +1-Schilder und ×2-Wand 2×. **Eigene Soldaten mindestens so groß wie die Zombies** — auch wenn die Horde nach vorne kommt, wirken Zombies nie größer als die Truppe |
 
 ## Modellbeschaffung und Lizenzen

@@ -182,6 +182,8 @@ Soldaten (D2b), Bosse (D2c), Bewegung nach vorn, Wellen, Front, Treffer, Umfalle
 
 ## Implementation Summary
 
+- Nacharbeit 3: Straße in drei Streifen mit zwei 0,3 × 0,25 m Betonkanten von z = −5,5 bis −220 geteilt. Die 400 Bühnen-Zombies stehen nur in der Mitte (zehn Spalten, x = −3,05 bis 3,05); die Vollast zeigt 600 Zombies ab z = −15, mit berechnetem Schwarz-Messpunkt in der Tiefe der Masse. +1-Schilder, ×2-Wand und Säule liegen vollständig in ihrem jeweiligen Streifen; Truppe und Soldaten-Aufstellung bleiben vor der Wand.
+- Nacharbeit-3-Prüfung: gezielte Tests 2 Dateien/9 Tests, volle Suite 57 Dateien/511 Tests, `npx tsc --noEmit`, `npm run build`, `git diff --check` und der Offline-Isolationstest grün. Hauptbündel 1.467.937 Byte (Grenze 1.475.425), GLB im Precache. Die Tests liefen direkt im Projekt, weil die vorgeschriebene Terminal-App in dieser Umgebung nicht startbar ist (`kLSNoExecutableErr`). Browser-Sichtprüfung, WebGL-Zähler beim Zweitstart und iPhone-Messung der 600er-Vollast bleiben Claude und Thomas vorbehalten; kein Gerätewert für diese Nacharbeit behauptet.
 - Nacharbeit 2: Zombie-Höhe 1,95 m; Aufstellung mit 0,63 m Spaltenabstand, 0,83 m Reihenabstand, ±0,12 m Versatz und 16 Spalten aus der Straßenbreite. Bühnenblock 400, Mess-Vollast 800 Zombies; Schwarz-Messpunkt aus der tatsächlichen Tiefe der Vollast berechnet. +1-Schilder 2,4 × 1,6 m links an der Mauer in 7-m-Abständen, ×2-Wand 2,4 m hoch und Schrift-Schild 4,4 × 2 m. Nahaufnahme für die größeren Figuren neu ausgerichtet.
 - Nacharbeit-2-Prüfung: gezielter Figurentest 4/4, `npm test` 57 Dateien/510 Tests, `npx tsc --noEmit`, `npm run build`, `git diff --check` grün; kein `http` in `src/v3d/`. Build enthält die GLB weiter im Precache. Browser-Sichtprüfung, WebGL-Zähler beim Zweitstart und iPhone-Messung der neuen 800er-Vollast bleiben wie in A5/A6 Claude und Thomas vorbehalten; hier kein Gerätewert behauptet.
 - Zombie zunächst aus der Rohquelle aufbereitet (906 Dreiecke); der Browser-Review zeigte dabei Löcher und schwebende Hosenteile. Nacharbeit 1 nutzt deshalb die eingecheckte, am iPhone geprüfte Referenz `modelle-quelle/zombie-vereinfacht.glb` ohne `weld` oder `simplify`: 1009 Dreiecke, 189564 Byte, 512er-WebP, UV-Spannen 0,972/0,965. Die Referenz ist bytegleich mit `public/probe-3d/modelle/sf_zombie_m.glb` (339412 Byte); alle vier Teilnetze behalten ihre Dreieckszahlen.
@@ -239,3 +241,34 @@ iPhone-Messung mit 1200 echten Zombies: Wasser 0 = 53,4 fps / 26 ms, Wasser 1 = 
 - Nahaufnahme: Kamera so anpassen, dass die drei Zombies wieder gut ins Bild passen.
 - Tests auf die neuen Konstanten anpassen (Aufstellung innerhalb der Straße, Anzahl je
   Reihe aus Breite). Status am Ende `IMPL_DONE`, Nachtrag im Implementation Summary.
+
+## Nacharbeit 3 (Thomas 2026-09-29) — Straße in drei Streifen, Horde nur in der Mitte
+
+Thomas: Die Horde darf nicht in Schilder, Säulen oder Wand ragen; die Straße bekommt
+eine kleine Abgrenzung; die ×2-Wand ebenso nur im eigenen Bereich. Umsetzung (alle Werte
+als Konstanten in `BUEHNE`, Kommentar zur Streifen-Aufteilung dazu):
+- **Drei Streifen:** links **+1-Streifen** `x ∈ [−6, −3.4]`, **Mitte (Kampffeld)**
+  `x ∈ [−3.4, 3.4]`, rechts **Säulen-Streifen** `x ∈ [3.4, 6]`
+  (`MITTE_HALB = 3.4`).
+- **Abgrenzung:** zwei niedrige Betonkanten bei `x = ±3.4`, 0,3 m breit, 0,25 m hoch,
+  Farbe wie die Randmauern, von `z = −5.5` (direkt hinter der ×2-Wand) bis `z = −220`.
+  Vor der Wand (Bereich der Truppe, `z > −5.5`) keine Kante — dort steuert die Truppe
+  frei über die ganze Breite.
+- **Horde nur in der Mitte:** `FIGUREN.ZOMBIE_X_MIN/MAX` = `−(MITTE_HALB − 0.35)` bzw.
+  `+…` (Rand zur Kante, damit Arme nicht in die Kante ragen); Spaltenzahl weiter aus der
+  Breite abgeleitet (ergibt ~10 je Reihe). `zombieAufstellung` klemmt auf diese Grenzen
+  (inkl. Zufallsversatz und Reihen-Versatz).
+- **Sichtgrenze neu: `ZOMBIES_SICHTBAR_MAX = 600`** (≈ 60 Reihen × 10 füllen die Mitte
+  von der Front bis zum oberen Bildrand). Vollast im Messmodus = 600 echte Zombies ab
+  `z = −15`; Bühnen-Block = 400 ab `z = −35`. Schwarz-Messpunkt wieder berechnet in der
+  Mitte der Vollast.
+- **+1-Schilder** nur im linken Streifen: Breite 2,2 m, Mitte `x = −4.7`, Höhe 1,6 m.
+- **×2-Wand** nur über die Mitte: Breite `2 · MITTE_HALB` (6,8 m), Mitte `x = 0`, Höhe
+  2,4 m wie bisher; Schrift-Schild passend (bis 4,4 m breit).
+- **Säulen-Platzhalter** Mitte `x = 4.7` (Breite 1,6 m bleibt, liegt ganz im rechten
+  Streifen).
+- Truppen-Platzhalter (6 m breit, `z = +1.5`) und Soldaten-Vollast (10 je Reihe, 0,6 m)
+  bleiben; beide liegen vor der Wand.
+- Tests: Aufstellung liegt vollständig in `[ZOMBIE_X_MIN, ZOMBIE_X_MAX]`; Schilder,
+  Säule und Wand liegen je vollständig in ihrem Streifen (reine Rechnung aus den
+  Konstanten). Status am Ende `IMPL_DONE`, Nachtrag im Implementation Summary.

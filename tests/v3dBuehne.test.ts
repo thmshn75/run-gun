@@ -22,6 +22,23 @@ function breite(camera: THREE.PerspectiveCamera, z: number) {
 }
 
 describe('3D-Bühne', () => {
+  it('trennt Schilder, Kampffeld und Säule geometrisch', () => {
+    const aussen = BUEHNE.BAHN_BREITE / 2
+    expect(BUEHNE.MITTE_HALB).toBe(3.4)
+    expect(BUEHNE.PLUS_X - BUEHNE.PLUS_BREITE / 2).toBeGreaterThanOrEqual(-aussen)
+    expect(BUEHNE.PLUS_X + BUEHNE.PLUS_BREITE / 2).toBeLessThanOrEqual(-BUEHNE.MITTE_HALB)
+    expect(BUEHNE.PLUS_HOEHE).toBe(1.6)
+    expect(BUEHNE.SAEULE_X - 1.6 / 2).toBeGreaterThanOrEqual(BUEHNE.MITTE_HALB)
+    expect(BUEHNE.SAEULE_X + 1.6 / 2).toBeLessThanOrEqual(aussen)
+    expect(BUEHNE.WAND_HOEHE).toBe(2.4)
+    expect(BUEHNE.WAND_SCHILD_BREITE).toBeLessThanOrEqual(2 * BUEHNE.MITTE_HALB)
+    expect(BUEHNE.KANTE_BREITE).toBe(.3)
+    expect(BUEHNE.KANTE_HOEHE).toBe(.25)
+    expect(BUEHNE.KANTE_Z_VORNE).toBe(-5.5)
+    expect(BUEHNE.KANTE_Z_HINTEN).toBe(-220)
+    expect(BUEHNE.KANTE_Z_VORNE).toBeLessThan(-5)
+    expect(BUEHNE.RANDMAUER_FARBE).toBe('#c9cbca')
+  })
   it('hält die vorgegebenen Kamerawerte und Bildmaße in drei Formaten', () => {
     for (const [w, h] of [[390, 659], [375, 812], [390, 844]]) {
       const camera = baueKamera(w, h)

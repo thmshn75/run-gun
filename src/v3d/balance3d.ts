@@ -45,6 +45,19 @@ export const LEVELS: Level[] = [{
 // Aussendelinie z = 0, Rechenposition pos bzw. Frontlage y wird z = -pos bzw. -y.
 export const BUEHNE = {
   BAHN_BREITE: 12,
+  // Links +1 [-6, -3.4], Mitte Kampffeld [-3.4, 3.4], rechts Säulen [3.4, 6].
+  MITTE_HALB: 3.4,
+  KANTE_BREITE: 0.3,
+  KANTE_HOEHE: 0.25,
+  KANTE_Z_VORNE: -5.5,
+  KANTE_Z_HINTEN: -220,
+  RANDMAUER_FARBE: '#c9cbca',
+  PLUS_BREITE: 2.2,
+  PLUS_HOEHE: 1.6,
+  PLUS_X: -4.7,
+  WAND_HOEHE: 2.4,
+  WAND_SCHILD_BREITE: 4.4,
+  SAEULE_X: 4.7,
   KAMERA_SICHTFELD: 22,
   KAMERA_POSITION: [0, 28.5, 52.7] as const,
   KAMERA_NEIGUNG: 23.5,
@@ -60,7 +73,8 @@ export const BUEHNE = {
 
 export const FIGUREN = {
   ZOMBIE_FORMEN: 12, ZOMBIE_ZYKLUS_S: 1.1, ZOMBIE_HOEHE: 1.95, PHASENGRUPPEN: 8,
-  ZOMBIES_SICHTBAR_MAX: 800,
-  ZOMBIE_X_MIN: -5, ZOMBIE_X_MAX: 5,
+  ZOMBIES_SICHTBAR_MAX: 600,
+  ZOMBIES_BUEHNE: 400,
+  ZOMBIE_X_MIN: -(BUEHNE.MITTE_HALB - 0.35), ZOMBIE_X_MAX: BUEHNE.MITTE_HALB - 0.35,
   ZOMBIE_SPALTENABSTAND: 0.63, ZOMBIE_REIHENABSTAND: 0.83, ZOMBIE_ZUFALLSVERSATZ: 0.12,
 } as const

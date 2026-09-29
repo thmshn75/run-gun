@@ -120,7 +120,7 @@ function groessen(l: Lauf) {
 export function starteMessung(welt: Welt, renderer: THREE.WebGLRenderer, game: Phaser.Game, anzeige: HTMLElement, knopf: HTMLButtonElement): void {
   if (lauf) return
   const vollast = new ZombieMasse(welt.zombieBau, welt.zombieBau.materialien, FIGUREN.ZOMBIES_SICHTBAR_MAX)
-  const aufstellung = zombieAufstellung(FIGUREN.ZOMBIES_SICHTBAR_MAX, -22, 49183)
+  const aufstellung = zombieAufstellung(FIGUREN.ZOMBIES_SICHTBAR_MAX, -15, 49183)
   vollast.setze(aufstellung)
   const messpunktZ = (Math.min(...aufstellung.map(z => z.z)) + Math.max(...aufstellung.map(z => z.z))) / 2
   const soldaten = baueSoldaten()

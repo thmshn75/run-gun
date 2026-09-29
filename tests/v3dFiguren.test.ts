@@ -4,7 +4,7 @@ import { NodeIO } from '@gltf-transform/core'
 import { EXTTextureWebP } from '@gltf-transform/extensions'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { backe, bildFuer, zombieAufstellung } from '../src/v3d/figuren'
-import { FIGUREN } from '../src/v3d/balance3d'
+import { BUEHNE, FIGUREN } from '../src/v3d/balance3d'
 
 const pfad = 'src/v3d/modelle/v3d-zombie.glb'
 const daten = readFileSync(pfad)
@@ -69,14 +69,17 @@ describe('Zombie-Figur', () => {
     expect(abstand(schwerpunkt[11],schwerpunkt[0])).toBeLessThanOrEqual(Math.max(...spruenge)+1e-5)
     formen.forEach(f=>f.dispose())
   })
-  it('verteilt Gruppen und 400 Figuren deterministisch in 16 Spalten auf der Straße',()=>{
+  it('verteilt Gruppen und 400 Figuren deterministisch im mittleren Streifen',()=>{
     expect(bildFuer(0,0)).toBe(0);expect(bildFuer(1,0)).toBe(2);expect(bildFuer(7,0)).toBe(11)
     expect(bildFuer(0,1.1)).toBe(0);expect(bildFuer(1,.55)).toBe(8)
     expect(FIGUREN.ZOMBIE_HOEHE).toBe(1.95)
-    expect(FIGUREN.ZOMBIES_SICHTBAR_MAX).toBe(800)
+    expect(FIGUREN.ZOMBIES_SICHTBAR_MAX).toBe(600)
+    expect(FIGUREN.ZOMBIES_BUEHNE).toBe(400)
+    expect(FIGUREN.ZOMBIE_X_MIN).toBeCloseTo(-(BUEHNE.MITTE_HALB - .35))
+    expect(FIGUREN.ZOMBIE_X_MAX).toBeCloseTo(BUEHNE.MITTE_HALB - .35)
     const spalten = Math.floor((FIGUREN.ZOMBIE_X_MAX - FIGUREN.ZOMBIE_X_MIN) / FIGUREN.ZOMBIE_SPALTENABSTAND) + 1
-    expect(spalten).toBe(16)
-    const a=zombieAufstellung(FIGUREN.ZOMBIES_SICHTBAR_MAX / 2,-35)
+    expect(spalten).toBe(10)
+    const a=zombieAufstellung(FIGUREN.ZOMBIES_BUEHNE,-35)
     expect(a).toEqual(zombieAufstellung(400,-35));expect(a).toHaveLength(400)
     for(const [i,v] of a.entries()){
       expect(v.x).toBeGreaterThanOrEqual(FIGUREN.ZOMBIE_X_MIN);expect(v.x).toBeLessThanOrEqual(FIGUREN.ZOMBIE_X_MAX)
@@ -85,6 +88,13 @@ describe('Zombie-Figur', () => {
       expect(v.z).toBeLessThanOrEqual(-35-reihe*FIGUREN.ZOMBIE_REIHENABSTAND+FIGUREN.ZOMBIE_ZUFALLSVERSATZ)
       expect(v.groesse).toBeGreaterThanOrEqual(.92);expect(v.groesse).toBeLessThanOrEqual(1.08)
       expect(v.variante).toBeGreaterThanOrEqual(0);expect(v.variante).toBeLessThan(3)
+    }
+    const vollast=zombieAufstellung(FIGUREN.ZOMBIES_SICHTBAR_MAX,-15,49183)
+    expect(vollast).toHaveLength(600)
+    expect(vollast).toEqual(zombieAufstellung(600,-15,49183))
+    for(const v of vollast){
+      expect(v.x).toBeGreaterThanOrEqual(FIGUREN.ZOMBIE_X_MIN)
+      expect(v.x).toBeLessThanOrEqual(FIGUREN.ZOMBIE_X_MAX)
     }
     const lizenz=readFileSync('docs/lizenzen.md','utf8');expect(lizenz).toContain('Zombie Walk Test');expect(lizenz).toContain('OSCAR CREATIVO')
   })
