@@ -20,6 +20,7 @@ describe.skipIf(!hasBuild)('production precache', () => {
   const precacheFiles = distFiles
     .map((path) => relative(distDir, path).split(sep).join('/'))
     .filter((path) => /\.(?:js|css|html|png|webmanifest)$/.test(path))
+    .filter((path) => !path.startsWith('probe-3d/'))
     .filter((path) => path !== 'sw.js' && !/(?:^|\/)workbox-.*\.js$/.test(path))
 
   it('includes every emitted offline asset in the service-worker precache', () => {

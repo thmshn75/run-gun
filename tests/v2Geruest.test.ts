@@ -31,7 +31,9 @@ describe('Run Gun V2 — S1 Geruest', () => {
   it('laesst Testgelaende und Probelauf neben V2 bestehen', () => {
     const menu = readFileSync(new URL('../src/scenes/MenuScene.ts', import.meta.url), 'utf8')
     for (const label of ['TESTGELÄNDE', 'PROBELAUF']) expect(menu).toContain(`'${label}'`)
-    expect(menu).toContain("this.scene.start('RunGunV2Scene')")
+    expect(menu).toContain("'RUN GUN 3D'")
+    expect(menu).toContain("import('../v3d/einstieg')")
+    expect(menu).not.toContain("this.scene.start('RunGunV2Scene')")
   })
 
   it('berechnet die Bahn an Horizont und Unterkante symmetrisch zur Bildmitte', () => {

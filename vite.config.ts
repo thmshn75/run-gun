@@ -5,6 +5,12 @@ export default defineConfig({
   base: '/run-gun/',
   build: {
     sourcemap: false,
+    rolldownOptions: {
+      output: {
+        chunkFileNames: (chunk) => chunk.moduleIds.some(id => /[\\/]src[\\/]v3d[\\/]|[\\/]node_modules[\\/]three[\\/]/.test(id))
+          ? 'assets/v3d-[name]-[hash].js' : 'assets/[name]-[hash].js',
+      },
+    },
   },
   plugins: [
     VitePWA({
@@ -27,7 +33,9 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
-        globPatterns: ['**/*.{js,css,html,png,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,png,webmanifest,glb,webp}'],
+        globIgnores: ['probe-3d/**'],
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
       },
     }),
   ],
