@@ -4,14 +4,15 @@ import { glaetteX, kernX } from './steuerung'
 import { bossFreieAufstellung } from './bosse'
 import type { Welt } from './szene'
 import type { SoldatEintrag } from './soldaten'
-import { Muendungsblitze, ZahlAnzeige } from './anzeigen'
+import { BossBalken, Muendungsblitze, ZahlAnzeige } from './anzeigen'
 import { setzeSchildText } from './schilder'
 import { setzeEinheitenBanner } from './oberflaeche'
 import * as THREE from 'three'
 
 const SPUR_FOLGE = [4, 7, 1, 9, 2, 5, 0, 8, 3, 6] as const
-type Sicht = { x: number; soldaten: { spur: number; phase: number; startX: number }[]; vervielfachtUm?: number }
-export interface LaufSoldat { pos: number; x: number; ziel: Trupp['ziel']; vervielfacht: boolean; k: number; spur: number; phase: number; aufklappen: number; startX?: number }
+export const ZAHL_HOEHEN = { front: 2.8, horde: 4.6 } as const
+type Sicht = { x: number; soldaten: { nummer: number; spur: number; phase: number; startX: number }[]; vervielfachtUm?: number }
+export interface LaufSoldat { nummer: number; pos: number; x: number; ziel: Trupp['ziel']; vervielfacht: boolean; k: number; spur: number; phase: number; aufklappen: number; startX?: number }
 
 export function formationsFiguren(T: number, bewegung: SoldatEintrag['bewegung'] = 'stehen'): SoldatEintrag[] {
   return Array.from({ length: Math.min(DARSTELLUNG.FORMATION_MAX, Math.max(0, Math.floor(T))) }, (_, i) => ({
@@ -20,7 +21,9 @@ export function formationsFiguren(T: number, bewegung: SoldatEintrag['bewegung']
 }
 
 export function saeulenBlick(x: number, figurX: number, figurZ: number): number {
-  return -Math.atan2(BUEHNE.SAEULE_X - x - figurX, -12 - figurZ)
+  const dx = BUEHNE.SAEULE_X - x - figurX
+  const dz = -12 - figurZ
+  return Math.atan2(-dx, -dz)
 }
 
 export function formationsBewegung(ereignisse: readonly Ereignis[]): SoldatEintrag['bewegung'] {
@@ -52,15 +55,17 @@ export function baueLaufSpuren(soldaten: readonly LaufSoldat[], faktor: number, 
   const gewicht = Math.max(1, Math.floor(faktor))
   // Bei voller Sichtgrenze fallen die ältesten Läufer zuerst weg; Paare bleiben ganz.
   for (let i = soldaten.length - 1; i >= 0; i--) {
-    if (i % gewicht !== 0) continue
+    if (soldaten[i].nummer % gewicht !== 0) continue
     const s = soldaten[i], kopien = s.vervielfacht ? s.k : 1
     if (anzahl + kopien > max) break
     const spuren = 10
     const spur = s.spur
     const spurX = s.x + (spur - (spuren - 1) / 2) * .6
+    const startX = s.startX ?? spurX
+    const seitweg = THREE.MathUtils.clamp(spurX - startX, -s.pos * .5, s.pos * .5)
     const gruppe: SoldatEintrag[] = []
     for (let j = 0; j < kopien; j++) gruppe.push({
-      x: THREE.MathUtils.lerp(s.startX ?? spurX, spurX, Math.min(1, s.pos / 1.5)) + (j - (kopien - 1) / 2) * .35 * s.aufklappen,
+      x: startX + seitweg + (j - (kopien - 1) / 2) * .35 * s.aufklappen,
       z: -s.pos, dreh: 0, bewegung: 'laufen',
       phase: (s.phase + j) % FIGUREN.SOLDAT_PHASENGRUPPEN,
     })
@@ -72,7 +77,7 @@ export function baueLaufSpuren(soldaten: readonly LaufSoldat[], faktor: number, 
 
 export function spurFaktor(soldaten: readonly LaufSoldat[], max = DARSTELLUNG.TRUPPS_MAX): number {
   let faktor = 1
-  while (soldaten.reduce((n, s, i) => n + (i % faktor === 0 ? s.vervielfacht ? s.k : 1 : 0), 0) > max) faktor++
+  while (soldaten.reduce((n, s) => n + (s.nummer % faktor === 0 ? s.vervielfacht ? s.k : 1 : 0), 0) > max) faktor++
   return faktor
 }
 export interface LaufDarstellung { zeige(z: Zustand, trupps: ReadonlyMap<Trupp, Sicht>, ereignisse: Ereignis[], dt: number, x: number): void; gibFrei?(): void }
@@ -94,7 +99,7 @@ export class SpielLauf {
     for (const trupp of this.zustand.trupps) {
       if (!alt.has(trupp)) this.sichten.set(trupp, { x: this.x, soldaten: Array.from({length: trupp.anzahl / trupp.k}, () => {
         const nummer = this.soldatNummer++
-        return { spur: SPUR_FOLGE[nummer % SPUR_FOLGE.length], phase: nummer % FIGUREN.SOLDAT_PHASENGRUPPEN,
+        return { nummer, spur: SPUR_FOLGE[nummer % SPUR_FOLGE.length], phase: nummer % FIGUREN.SOLDAT_PHASENGRUPPEN,
           startX: this.x + (nummer % Math.min(10, Math.max(1, Math.floor(vorherT))) - 4.5) * .6 }
       }) })
       else if (trupp.vervielfacht && this.sichten.get(trupp)?.vervielfachtUm === undefined) this.sichten.get(trupp)!.vervielfachtUm = this.zustand.t
@@ -113,6 +118,9 @@ export class WeltDarstellung implements LaufDarstellung {
   private letzterStand?: { z: Zustand; trupps: ReadonlyMap<Trupp, Sicht>; x: number }
   private truppeZahl = new ZahlAnzeige()
   private frontZahl = new ZahlAnzeige()
+  private hordeZahl = new ZahlAnzeige(1.8, 'ceil', '#6e1414')
+  private miniBalken: BossBalken
+  private eliteBalken: BossBalken
   private saeuleZahl = new ZahlAnzeige(1.3)
   private letzteHorde = -1
   private hordeZeit = -Infinity
@@ -144,6 +152,8 @@ export class WeltDarstellung implements LaufDarstellung {
   private glasFarbe: THREE.Color | null
   constructor(welt: Welt) {
     this.welt=welt
+    this.miniBalken = new BossBalken(LEVELS[0].B_mini)
+    this.eliteBalken = new BossBalken(LEVELS[0].B_elite)
     this.vorgaenger = weltDarstellungen.get(welt)
     weltDarstellungen.set(welt, this)
     const glas = welt.saeule.getObjectByName('saeule')
@@ -157,9 +167,9 @@ export class WeltDarstellung implements LaufDarstellung {
     this.aufblendTextur = new THREE.CanvasTexture(canvas)
     this.aufblendMaterial = new THREE.SpriteMaterial({map:this.aufblendTextur,transparent:true,depthTest:false})
     this.aufblenden = Array.from({length:8},()=>{const s=new THREE.Sprite(this.aufblendMaterial);s.visible=false;s.scale.set(1.5,.75,1);s.renderOrder=11;welt.scene.add(s);return s})
-    welt.scene.add(this.truppeZahl.objekt, this.frontZahl.objekt, this.saeuleZahl.objekt)
+    welt.scene.add(this.truppeZahl.objekt, this.frontZahl.objekt, this.hordeZahl.objekt, this.miniBalken.objekt, this.eliteBalken.objekt, this.saeuleZahl.objekt)
     welt.scene.add(this.blitze.objekt)
-    welt.laufGruppen.push(this.truppeZahl.objekt, this.frontZahl.objekt, this.saeuleZahl.objekt,this.blitze.objekt,...this.aufblenden)
+    welt.laufGruppen.push(this.truppeZahl.objekt, this.frontZahl.objekt, this.hordeZahl.objekt, this.miniBalken.objekt, this.eliteBalken.objekt, this.saeuleZahl.objekt,this.blitze.objekt,...this.aufblenden)
   }
   zeige(z: Zustand, trupps: ReadonlyMap<Trupp, Sicht>, ereignisse: Ereignis[], dt: number, x: number): void {
     this.letzterStand = { z, trupps, x }
@@ -186,7 +196,7 @@ export class WeltDarstellung implements LaufDarstellung {
       schild.scale.setScalar(gesammelt && schild.position.z > -1 ? 1.1 : 1)
     })
     this.truppeZahl.setze(z.T,t); this.truppeZahl.objekt.position.set(x, 2.8, 1)
-    this.frontZahl.setze(z.F,t); this.frontZahl.objekt.position.set(0, 2.8, Math.min(-1, -z.y+2.5))
+    this.frontZahl.setze(z.F,t); this.frontZahl.objekt.position.set(0, ZAHL_HOEHEN.front, Math.min(-1, -z.y+2.5))
     const formation = Math.min(DARSTELLUNG.FORMATION_MAX, Math.floor(z.T))
     const schiesst = formationsBewegung(ereignisse) === 'schiessen'
     this.drehAnteil = THREE.MathUtils.clamp(this.drehAnteil + (schiesst ? 1 : -1) * dt / .3, 0, 1)
@@ -223,7 +233,7 @@ export class WeltDarstellung implements LaufDarstellung {
       if (trupp.ziel === 'front') sicht.x = Math.max(-2.8, Math.min(2.8, sicht.x))
       const pos = Math.min(trupp.pos,Math.max(1,z.y-1.5))
       if (trupp.pos >= Math.max(1,z.y-1.5)) continue
-      for (const soldat of sicht.soldaten) laufSoldaten.push({pos, x:sicht.x, ziel:trupp.ziel, vervielfacht:trupp.vervielfacht,
+      for (const soldat of sicht.soldaten) laufSoldaten.push({nummer:soldat.nummer, pos, x:sicht.x, ziel:trupp.ziel, vervielfacht:trupp.vervielfacht,
         k:trupp.k, spur:soldat.spur, phase:soldat.phase, startX:soldat.startX,
         aufklappen:sicht.vervielfachtUm === undefined ? 1 : Math.min(1, Math.max(0, (t-sicht.vervielfachtUm)/.3))})
     }
@@ -242,11 +252,20 @@ export class WeltDarstellung implements LaufDarstellung {
       this.letzteHorde=zombies;this.hordeZeit=t
     }
     w.zombieMasse.gruppe.position.z=-z.y
+    this.hordeZahl.objekt.visible=z.y>0&&z.Z>0
+    if (this.hordeZahl.objekt.visible) this.hordeZahl.setze(z.Z,t)
+    this.hordeZahl.objekt.position.set(0,ZAHL_HOEHEN.horde,-z.y+1)
     w.miniboss.objekt.visible=z.y>0&&z.miniBoss.imFeld&&z.miniBoss.B>0
     w.miniboss.objekt.position.z=-z.y-1
+    this.miniBalken.objekt.visible=w.miniboss.objekt.visible
+    if (this.miniBalken.objekt.visible) this.miniBalken.setze(z.miniBoss.B,t)
+    this.miniBalken.objekt.position.set(w.miniboss.objekt.position.x,FIGUREN.MINIBOSS_HOEHE+.5,w.miniboss.objekt.position.z)
     w.eliteboss.objekt.visible=z.y>0&&z.eliteBoss.imFeld&&z.eliteBoss.B>0
     const spalten=Math.floor((FIGUREN.ZOMBIE_X_MAX-FIGUREN.ZOMBIE_X_MIN)/FIGUREN.ZOMBIE_SPALTENABSTAND)+1
     w.eliteboss.objekt.position.z=-z.y-(zombies?Math.ceil(zombies/spalten)*FIGUREN.ZOMBIE_REIHENABSTAND+2:0)
+    this.eliteBalken.objekt.visible=w.eliteboss.objekt.visible
+    if (this.eliteBalken.objekt.visible) this.eliteBalken.setze(z.eliteBoss.B,t)
+    this.eliteBalken.objekt.position.set(w.eliteboss.objekt.position.x,FIGUREN.ELITEBOSS_HOEHE+.5,w.eliteboss.objekt.position.z)
     w.saeule.visible=z.P!==null
     if (ereignisse.some(e => e.art === 'saeuleTreffer') && t - this.letzterGlasBlitz >= .2) { this.letzterGlasBlitz = t; this.glasBlitzBis = t + .08 }
     if (this.glasMaterial && this.glasFarbe) {
@@ -262,15 +281,15 @@ export class WeltDarstellung implements LaufDarstellung {
     setzeEinheitenBanner(z.aktiv)
   }
   gibFrei():void {
-    this.truppeZahl.gibFrei(); this.frontZahl.gibFrei(); this.saeuleZahl.gibFrei()
+    this.truppeZahl.gibFrei(); this.frontZahl.gibFrei(); this.hordeZahl.gibFrei(); this.miniBalken.gibFrei(); this.eliteBalken.gibFrei(); this.saeuleZahl.gibFrei()
     this.aufblenden.forEach(s=>s.removeFromParent())
     this.aufblendMaterial.dispose(); this.aufblendTextur.dispose()
     this.blitze.gibFrei()
     setzeEinheitenBanner([])
     this.welt.wand.scale.setScalar(1)
     if (this.glasMaterial && this.glasFarbe) { this.glasMaterial.color.copy(this.glasFarbe); this.glasMaterial.opacity = .3 }
-    this.welt.scene.remove(this.truppeZahl.objekt, this.frontZahl.objekt, this.saeuleZahl.objekt)
-    this.welt.laufGruppen = this.welt.laufGruppen.filter(obj => obj !== this.truppeZahl.objekt && obj !== this.frontZahl.objekt && obj !== this.saeuleZahl.objekt && obj !== this.blitze.objekt && !this.aufblenden.includes(obj as THREE.Sprite))
+    this.welt.scene.remove(this.truppeZahl.objekt, this.frontZahl.objekt, this.hordeZahl.objekt, this.miniBalken.objekt, this.eliteBalken.objekt, this.saeuleZahl.objekt)
+    this.welt.laufGruppen = this.welt.laufGruppen.filter(obj => obj !== this.truppeZahl.objekt && obj !== this.frontZahl.objekt && obj !== this.hordeZahl.objekt && obj !== this.miniBalken.objekt && obj !== this.eliteBalken.objekt && obj !== this.saeuleZahl.objekt && obj !== this.blitze.objekt && !this.aufblenden.includes(obj as THREE.Sprite))
     if (weltDarstellungen.get(this.welt) === this) {
       if (this.vorgaenger) {
         weltDarstellungen.set(this.welt, this.vorgaenger)

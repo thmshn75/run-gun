@@ -5,7 +5,7 @@ import { baueSzene, gibSzeneFrei } from './szene'
 import { DATEIEN_FEHLER, type Welt } from './szene'
 import { passeKameraAn } from './kamera'
 import { leseWasserStufe } from './wasser'
-import { zeigeOberflaeche, versteckeOberflaeche } from './oberflaeche'
+import { statusZeile, zeigeOberflaeche, versteckeOberflaeche } from './oberflaeche'
 import { ladeFortschritt } from './speicher'
 import { bricheAb, messBild, messungLaeuft, starteMessung } from './messung'
 import { FingerSteuerung } from './steuerung'
@@ -74,7 +74,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
       welt?.eliteboss.aktualisiere(sek)
       if (lauf && !welt?.nahaufnahme) {
         const ereignisse = lauf.schritt(sek, finger?.ziel ?? null)
-        ui.zahlen.textContent = `Level 1 · ${lauf.zustand.t.toFixed(1)} s · T ${Math.floor(lauf.zustand.T)} · F ${Math.floor(lauf.zustand.F)}`
+        ui.zahlen.textContent = statusZeile(1, lauf.zustand.t, lauf.zustand.T, lauf.zustand.F, lauf.zustand.gestarteteWellen, lauf.zustand.level.wellen.length)
         if (ereignisse.some(e=>e.art==='sieg'||e.art==='niederlage')) {
           finger?.gibFrei(); finger=null; ui.ende.style.display='block'
           ui.endeText.textContent=`${lauf.zustand.ergebnis==='sieg'?'SIEG':'NIEDERLAGE'} · ${lauf.zustand.t.toFixed(1)} s`

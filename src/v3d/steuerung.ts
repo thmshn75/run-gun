@@ -40,15 +40,19 @@ export class FingerSteuerung {
     canvas.addEventListener('pointermove', this.move)
     canvas.addEventListener('pointerup', this.weg)
     canvas.addEventListener('pointercancel', this.weg)
-    canvas.addEventListener('lostpointercapture', this.weg)
+    canvas.addEventListener('lostpointercapture', this.captureVerloren)
+    window.addEventListener('pointermove', this.move)
+    window.addEventListener('pointerup', this.weg)
+    window.addEventListener('pointercancel', this.weg)
     window.addEventListener('blur', this.verwerfe)
     document.addEventListener('visibilitychange', this.sichtbar)
   }
   get aktiv(): boolean { return this.id !== null }
-  private down = (e: PointerEvent) => { if (this.id !== null) return; this.id = e.pointerId; this.canvas.setPointerCapture(e.pointerId); this.move(e) }
+  private down = (e: PointerEvent) => { const alt = this.id; this.id = e.pointerId; if (alt !== null && alt !== e.pointerId && this.canvas.hasPointerCapture(alt)) this.canvas.releasePointerCapture(alt); this.canvas.setPointerCapture(e.pointerId); this.move(e) }
   private move = (e: PointerEvent) => { if (e.pointerId === this.id) this.ziel = fingerWeltX(e.clientX, e.clientY, this.canvas.getBoundingClientRect(), this.camera) }
   private weg = (e: PointerEvent) => { if (e.pointerId === this.id) this.verwerfe() }
+  private captureVerloren = (e: PointerEvent) => { if (e.pointerId === this.id) { try { this.canvas.setPointerCapture(e.pointerId) } catch { /* Pointer kann inzwischen beendet sein; der nächste down übernimmt. */ } } }
   private sichtbar = () => { if (document.hidden) this.verwerfe() }
-  verwerfe = () => { if (this.id !== null && this.canvas.hasPointerCapture(this.id)) this.canvas.releasePointerCapture(this.id); this.id = null; this.ziel = null }
-  gibFrei(): void { this.verwerfe(); this.canvas.removeEventListener('pointerdown', this.down); this.canvas.removeEventListener('pointermove', this.move); this.canvas.removeEventListener('pointerup', this.weg); this.canvas.removeEventListener('pointercancel', this.weg); this.canvas.removeEventListener('lostpointercapture', this.weg); window.removeEventListener('blur', this.verwerfe); document.removeEventListener('visibilitychange', this.sichtbar) }
+  verwerfe = () => { const alt = this.id; this.id = null; this.ziel = null; if (alt !== null && this.canvas.hasPointerCapture(alt)) this.canvas.releasePointerCapture(alt) }
+  gibFrei(): void { this.verwerfe(); this.canvas.removeEventListener('pointerdown', this.down); this.canvas.removeEventListener('pointermove', this.move); this.canvas.removeEventListener('pointerup', this.weg); this.canvas.removeEventListener('pointercancel', this.weg); this.canvas.removeEventListener('lostpointercapture', this.captureVerloren); window.removeEventListener('pointermove', this.move); window.removeEventListener('pointerup', this.weg); window.removeEventListener('pointercancel', this.weg); window.removeEventListener('blur', this.verwerfe); document.removeEventListener('visibilitychange', this.sichtbar) }
 }

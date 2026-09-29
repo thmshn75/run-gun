@@ -76,3 +76,104 @@ Frontkampf-Bild (Schießen an der Front, fallende Zombies/Soldaten: D4), Fahrzeu
 `src/v3d/messung.ts` ist für A5 **freigegeben** (nur: Mess-Bot der Stufe "Lauf (Bot)" auf
 Rhythmus-mit-Säule, S = 60, und was dafür nötig ist). Dann Tests/`tsc`/Build, Status
 `IMPL_DONE`, Nachtrag.
+
+## Nacharbeit 1 (Thomas 2026-09-29 22:02, iPhone-Spieltest) — 4 Punkte
+
+**1. Truppe nie unter 1 (Rechenkern, Regel 2 ändern — ausdrücklich erlaubt):** Beim
+Aussenden bleibt immer mindestens 1 Soldat: `g = min(floor(sendeRest), floor(T) − 1)`,
+gesendet wird nur bei `T ≥ 2`; bei `T < 2` ist `sendeRest = 0`. `rechnung.ts`,
+`tests/v3dRechnung.test.ts` (Randfall: Mitte mit `T = 1` sendet nichts, `T` bleibt 1) und
+Bots (`rhythmus*`: zurück nach links bei `T < 2` statt `< 1`) anpassen; `npm run bots3d`
+ausführen und die Tabelle in den Bericht (Erwartung: praktisch unverändert).
+
+**2. Finger verliert den Kontakt (`steuerung.ts`) — Befund Claude:** `down` ignoriert jede
+neue Berührung, solange `id !== null`. Verschluckt iOS einmal `pointerup`/`pointercancel`
+(oder feuert `lostpointercapture` unerwartet), bleibt die alte `id` hängen und **alle
+weiteren Berührungen werden ignoriert** → "Finger verliert den Kontakt". Änderung:
+- `pointerdown` übernimmt **immer** den neuen Finger (alte `id` verwerfen, Capture neu).
+- `pointerup`/`pointercancel` zusätzlich auf `window` hören (nur für die aktive `id`).
+- `lostpointercapture` **nicht** mehr als Loslassen werten (nur Capture neu setzen, solange
+  kein `pointerup` kam).
+- `pointermove` akzeptiert auch Bewegungen der aktiven `id`, die am `window` ankommen.
+- Test (reine Logik mit simulierten Ereignissen): hängende `id` + neues `pointerdown` →
+  Steuerung folgt dem neuen Finger; `lostpointercapture` allein beendet nicht.
+
+**3. Drehung rechts falsch (`lauf.ts`, `saeulenBlick`) — Befund Claude:** Die Figur schaut
+bei Drehung 0 nach −z; der Drehwinkel für Blickrichtung `(dx, dz)` ist
+`θ = atan2(−dx, −dz)`. Aktuell `−atan2(dx, dz)` → bei der Säule vorn (dz ≈ −12) ergibt das
+fast 180°, die Truppe schaut zur Kamera. Formel korrigieren; Mündungsblitze mit derselben
+Drehung. **Test:** Vorwärtsvektor `(0,0,−1)` um θ gedreht zeigt zur Säule
+(Skalarprodukt > 0,95) für mehrere Truppenlagen.
+
+**4. Zähler für Horde und Bosse:**
+- Über der Hordenvorderkante eine Zahl **`ceil(Z)`** (gleiche Anzeige-Technik, ≤ 4×/s neu
+  gemalt), dazu oben in der Statuszeile "Welle n/3".
+- Über jedem sichtbaren Boss ein **Lebensbalken** (Canvas-Sprite, ~2,5 m breit, rot auf
+  dunkel) mit Zahl `ceil(B)`; verschwindet mit dem Boss.
+- Tests: Anzeige folgt `Z`/`B` (Drosselung), Welle-Zähler folgt `welle`-Ereignissen.
+
+Alles andere unverändert. `npm test`, `tsc`, `build`, `bots3d` grün; Status `IMPL_DONE`,
+Nachtrag.
+
+## Nachtrag zur Implementation (Codex 2026-09-29)
+
+- Der Rechenkern lässt beim Aussenden mindestens einen Soldaten stehen und löscht bei
+  `T < 2` den Sendrest. Beide Rhythmus-Bots wechseln dann zurück nach links.
+- Die Fingersteuerung übernimmt neue Berührungen auch bei hängender alter ID; Bewegungen
+  und Ende werden zusätzlich am Fenster empfangen. Verlorener Pointer-Capture beendet
+  die aktive Berührung nicht. Die Säulendrehung zeigt nun zur Säule.
+- Die Horde trägt `ceil(Z)` über ihrer Vorderkante, sichtbare Bosse einen roten
+  Lebensbalken mit `ceil(B)`, und die Statuszeile zeigt `Welle n/3`. Anzeigen werden
+  höchstens viermal pro Sekunde neu gemalt.
+- Prüfung nach letztem Code-Stand: `npm test` 62 Dateien, 549 Tests grün;
+  `npm run check`, `npm run build`, `npm run bots3d`, `git diff --check` Exit 0.
+  Hauptbündel 1.468.039 Byte unverändert; kein `http` in `src/v3d/`.
+- Botwerte (`Siege/20`, mittlere Dauer, mittlere gefallene Säulen): passiv
+  `0, 115,6 s, 0,00`; nurLinks `0, 75,0 s, 0,00`; rhythmus(40)
+  `20, 123,1 s, 0,00`; rhythmusSaeule(60) `20, 108,0 s, 2,05`;
+  rhythmusSaeule(15) `0, 118,9 s, 2,00`; rhythmusSaeule(25)
+  `0, 124,8 s, 3,00`.
+- iPhone-Sichtprüfung und Zweitstart-Zähler wurden hier nicht erneut ausgeführt;
+  letzterer bleibt laut Akzeptanzkriterium beim Claude-Review.
+
+## Nacharbeit 2 (Claude-Review 2026-09-29 22:25) — nur ein Punkt
+
+Browserbefund: Die Hordenzahl (`hordeZahl`, `y = 2.8`, `z = −y + 1`) liegt fast auf der
+Frontzahl (`frontZahl`, `y = 2.8`, `z = min(−1, −y + 2.5)`) → am Bildschirm übereinander
+("236" über "7"), unlesbar. Änderung nur in `src/v3d/lauf.ts`: Hordenzahl auf **`y = 4.6`**
+(über dem Mini-Boss-Balken) und Schrift/Hintergrund **dunkelrot** (`#6e1414`, weiße Zahl),
+damit sie klar zur Horde gehört; Frontzahl bleibt. Falls `ZahlAnzeige` dafür eine Farboption
+braucht: optionaler Konstruktor-Parameter in `anzeigen.ts` (Standard unverändert). Test:
+Hordenzahl und Frontzahl haben ≥ 1,5 m Höhenabstand. `npm test`, `tsc`, `build` grün;
+Status `IMPL_DONE`, Nachtrag.
+
+**Punkt B (Thomas 22:12: "ausgesendete Truppen springen manchmal komisch hin und her") —
+Befund Claude:** `baueLaufSpuren` dünnt bei vollem Bild (`faktor ≥ 2`) über den
+**Listenindex** aus (`i % gewicht`). Erreicht der älteste Trupp die Front und fällt aus der
+Liste, verschieben sich alle Indizes → die Auswahl kippt auf die jeweils andere Hälfte
+der Soldaten, jede sichtbare Figur springt auf die Nachbarspur. Änderung (`lauf.ts`):
+- Jeder Kernsoldat bekommt beim Anlegen eine **feste Nummer** (`nummer`, schon vorhanden in
+  `SpielLauf.schritt`), wird in `Sicht.soldaten` und `LaufSoldat` mitgeführt; Ausdünnen über
+  `s.nummer % gewicht` statt Index (gilt auch in `spurFaktor`).
+- Test: Liste mit `faktor = 2`; ältesten Trupp entfernen → alle weiterhin sichtbaren
+  Figuren behalten ihr `x` exakt (keine Figur wechselt die Spur).
+- Prüfe beim Umsetzen, ob es **weitere Sprungquellen** gibt (z. B. `startX`-Übergang,
+  `sicht.x`-Klemme, Wechsel `figurFaktor`), und nenne sie im Bericht; beheben nur, wenn es
+  eindeutig ein Sprung ist (Positionsänderung > 0,3 m in einem Bild ohne Spielgrund).
+
+## Nachtrag zur Nacharbeit 2 (Codex 2026-09-29)
+
+- Hordenzahl auf 4,6 m gesetzt (1,8 m über der Frontzahl), mit dunkelrotem Hintergrund
+  `#6e1414` und weißer Zahl. Die übrigen Zahlen behalten ihre bisherige Farbe.
+- Jeder Läufer trägt seine feste Nummer bis in die Darstellung. Sichtauswahl und
+  Sichtfaktor verwenden diese Nummer, sodass das Ausscheiden des ältesten Läufers
+  die Spuren der übrigen Figuren nicht wechselt.
+- Zusätzliche Sprungquelle `startX` behoben: Die seitliche Bewegung vom Startplatz
+  zur Spur ist nun auf 0,3 m pro 0,1 s begrenzt. Die `sicht.x`-Klemme betrifft
+  nur Trupps mit Frontziel und begrenzt auf ±2,8 m; der Wechsel des Sichtfaktors
+  kann Figuren ein- oder ausblenden, versetzt aber keine weiter sichtbare Figur.
+- Prüfung nach letztem Code-Stand: `npm test` 62 Dateien, 552 Tests grün;
+  `npm run check`, `npm run build`, `git diff --check` Exit 0.
+  Hauptbündel 1.468.039 Byte unverändert; kein `http` in `src/v3d/`.
+  Browser-/iPhone-Sichtprüfung und Zweitstart-Zähler wurden hier nicht erneut
+  ausgeführt; letzterer bleibt laut Akzeptanzkriterium beim Claude-Review.

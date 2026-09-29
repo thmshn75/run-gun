@@ -78,16 +78,17 @@ export function schritt(z: Zustand, eingabe: { x: number }, dt: number): Ereigni
     z.T += menge
     melde('eingesammelt', menge)
   }
-  if (eingabe.x >= l.schwelleLinks && eingabe.x <= l.schwelleRechts && z.T >= 1) {
+  if (eingabe.x >= l.schwelleLinks && eingabe.x <= l.schwelleRechts && z.T >= 2) {
     z.sendeRest += l.senden * dt
   } else z.sendeRest = 0
-  const gesendet = Math.min(Math.floor(z.sendeRest), Math.floor(z.T))
+  const gesendet = Math.min(Math.floor(z.sendeRest), Math.max(0, Math.floor(z.T) - 1))
   if (gesendet > 0) {
     z.sendeRest -= gesendet
     z.T -= gesendet
     z.trupps.push({ ziel: 'front', pos: 0, anzahl: gesendet, vervielfacht: false, k: 1 })
     melde('ausgesandt', gesendet)
   }
+  if (z.T < 2) z.sendeRest = 0
   if (eingabe.x > l.schwelleRechts && z.P !== null) {
     const schaden = l.saeuleSchaden * z.T * dt
     const treffer = Math.min(schaden, z.P)

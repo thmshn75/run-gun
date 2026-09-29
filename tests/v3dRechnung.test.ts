@@ -159,6 +159,14 @@ describe('3D-Spielrechnung', () => {
     z.T = .9
     schritt(z, { x: 0 }, .1)
     expect(z.sendeRest).toBe(0)
+    z.T = 1
+    expect(summe(schritt(z, { x: 0 }, .2), 'ausgesandt')).toBe(0)
+    expect(z.T).toBe(1)
+    expect(z.sendeRest).toBe(0)
+    z.T = 2
+    expect(summe(schritt(z, { x: 0 }, .2), 'ausgesandt')).toBe(1)
+    expect(z.T).toBe(1)
+    expect(z.sendeRest).toBe(0)
   })
 
   it('steigert die Wand exakt nach 100 und 200 ursprünglichen Soldaten', () => {

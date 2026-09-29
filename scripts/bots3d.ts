@@ -24,7 +24,7 @@ for (const bot of bots) {
           vorratNummer++
           phase = bot.art === 'rhythmusSaeule' && vorratNummer % 2 === 0 && z.P !== null ? 'rechts' : 'mitte'
           saeulenIndex = z.saeulenIndex
-        } else if (phase === 'mitte' && z.T < 1) phase = 'links'
+        } else if (phase === 'mitte' && z.T < 2) phase = 'links'
         else if (phase === 'rechts' && z.saeulenIndex !== saeulenIndex) phase = 'mitte'
       }
       const x = bot.art === 'passiv' ? 0 : bot.art === 'nurLinks' ? -1 : phase === 'links' ? -1 : phase === 'rechts' ? 1 : 0

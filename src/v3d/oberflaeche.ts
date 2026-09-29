@@ -7,6 +7,10 @@ export function bannerEintraege(aktiv: readonly { einheit: string; rest: number 
   return aktiv.map(({ einheit, rest }) => `${einheit.toLocaleUpperCase('de-DE')} · ${Math.ceil(rest)} s`)
 }
 
+export function statusZeile(level: number, zeit: number, T: number, F: number, welle: number, wellen: number): string {
+  return `Level ${level} · ${zeit.toFixed(1)} s · T ${Math.floor(T)} · F ${Math.floor(F)} · Welle ${welle}/${wellen}`
+}
+
 export function setzeEinheitenBanner(aktiv: readonly { einheit: string; rest: number }[]): void {
   if (!container) return
   if (!einheiten) {

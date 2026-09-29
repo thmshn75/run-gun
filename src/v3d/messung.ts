@@ -53,7 +53,7 @@ export class MessBotSteuerung {
       this.vorratNummer++
       this.phase = this.vorratNummer % 2 === 0 && z.P !== null ? 'rechts' : 'mitte'
       this.saeulenIndex = z.saeulenIndex
-    } else if (this.phase === 'mitte' && z.T < 1) this.phase = 'links'
+    } else if (this.phase === 'mitte' && z.T < 2) this.phase = 'links'
     else if (this.phase === 'rechts' && z.saeulenIndex !== this.saeulenIndex) this.phase = 'mitte'
     return this.phase === 'links' ? -3 : this.phase === 'rechts' ? 3 : 0
   }
