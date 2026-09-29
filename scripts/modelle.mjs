@@ -12,6 +12,11 @@ const QUELLE_BEWEGUNG = 'tmp/UAL1_Standard.glb'
 // Die Quell-Skin-Bindung hat eigene Einheiten; 3,6 ergibt nach dem Backen etwa 0,84 m M4-Länge.
 const M4_SKALIERUNG = 3.6
 const REIHENFOLGE = ['Mark_HeadMasked','Mark_Helmet1','Mark_Plate_1','Mark_Gloves_1','Mark_Pouches_1','Mark_SunGlusses_Glus','Mark_Boots_2','Mark_Kitel_1','Mark_Pants_1','Mark_Eye','M4']
+const COYOTE_FARBEN = new Map([
+  ['Mark_Kitel_1','#8a7456'], ['Mark_Pants_1','#8a7456'],
+  ['Mark_Plate_1','#7a6549'], ['Mark_Pouches_1','#7a6549'],
+  ['Mark_Helmet1','#a58a64'], ['Mark_Boots_2','#6e5a42'],
+])
 const CLIPS = ['Jog_Fwd_Loop','Pistol_Aim_Neutral','Pistol_Idle_Loop','Pistol_Shoot','Death01']
 // Aus der Handdrehung in Pistol_Aim_Neutral Form 0: lokale M4-Achse nach -z.
 const M4_AUSRICHTUNG = new Quaternion().setFromUnitVectors(new Vector3(0,0,-1),new Vector3(-0.1142726665,-0.9932726705,-0.0187393550))
@@ -27,13 +32,6 @@ function maske(p, size) {
     for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const q=[(x+.5)/size,(y+.5)/size];if(edge(b,c,q)/area>=-1e-6&&edge(c,a,q)/area>=-1e-6&&edge(a,b,q)/area>=-1e-6)out[y*size+x]=1}
   }
   return out
-}
-async function tarnmuster() {
-  const {data,info}=await sharp('modelle-quelle/tarnmuster.png').removeAlpha().resize(512,512).raw().toBuffer({resolveWithObject:true})
-  if(info.width!==512||info.height!==512)throw new Error('Tarnmuster muss 512² sein')
-  let sum=0;for(let i=0;i<512;i++)for(let c=0;c<3;c++)sum+=Math.abs(data[(i*512)*3+c]-data[(i*512+511)*3+c])+Math.abs(data[i*3+c]-data[(511*512+i)*3+c])
-  const randDifferenz=sum/(512*6);if(randDifferenz>8)throw new Error(`Tarnmuster nicht nahtlos: ${randDifferenz.toFixed(1)}`)
-  return sharp(data,{raw:{width:512,height:512,channels:3}}).resize(KACHEL-2*RAND,KACHEL-2*RAND).raw().toBuffer()
 }
 function accessor(doc, name, array, type) {return doc.createAccessor(name).setType(type).setArray(array)}
 function addPrimitive(doc, mesh, arrays, material) {
@@ -74,7 +72,7 @@ async function soldat() {
   const doc=await io.read('modelle-quelle/soldat-vereinfacht.glb'),root=doc.getRoot(),mats=root.listMaterials(),skin=root.listSkins()[0]
   const nodes=root.listNodes().filter(n=>n.getMesh()),teile=nodes.flatMap(n=>n.getMesh().listPrimitives().map(p=>({p,n})))
   if(teile.length!==23||!skin)throw new Error('Soldatenquelle unerwartet')
-  const camo=await tarnmuster(), tileSize=KACHEL-2*RAND,atlas=Buffer.alloc(ATLAS*ATLAS*4), kacheln=new Map()
+  const tileSize=KACHEL-2*RAND,atlas=Buffer.alloc(ATLAS*ATLAS*4), kacheln=new Map()
   for(let k=0;k<REIHENFOLGE.length;k++){
     const name=REIHENFOLGE[k],tile=Buffer.alloc(tileSize*tileSize*4),material=mats.find(m=>m.getName()===name)
     if(name==='M4') {for(let y=0;y<tileSize;y++)for(let x=0;x<tileSize;x++){let c=rgb('#2b2d2f'),i=(y*tileSize+x)*4,delta=Math.round((1-y/tileSize)*12);for(let z=0;z<3;z++)tile[i+z]=c[z]+delta;tile[i+3]=255}}
@@ -82,12 +80,12 @@ async function soldat() {
     else {
       const src=await sharp(material.getBaseColorTexture().getImage()).ensureAlpha().resize(tileSize,tileSize).raw().toBuffer()
       src.copy(tile)
-      if(['Mark_Kitel_1','Mark_Pants_1','Mark_Helmet1'].includes(name)){
+      if(COYOTE_FARBEN.has(name)){
         const marks=new Uint8Array(tileSize*tileSize)
         for(const {p} of teile.filter(t=>t.p.getMaterial()===material)){const m=maske(p,tileSize);for(let i=0;i<m.length;i++)marks[i]|=m[i]}
         let sum=0,count=0;for(let i=0;i<marks.length;i++)if(marks[i]){let o=i*4;sum+=(tile[o]+tile[o+1]+tile[o+2])/3;count++}
-        const mean=sum/Math.max(1,count),tan=rgb('#a58a64')
-        for(let i=0;i<marks.length;i++)if(marks[i]){let o=i*4,lum=(tile[o]+tile[o+1]+tile[o+2])/3,shade=lum/Math.max(1,mean);for(let c=0;c<3;c++)tile[o+c]=Math.min(255,Math.round((name==='Mark_Helmet1'?tan[c]:camo[i*3+c])*shade))}
+        const mean=sum/Math.max(1,count),col=rgb(COYOTE_FARBEN.get(name))
+        for(let i=0;i<marks.length;i++)if(marks[i]){let o=i*4,lum=(tile[o]+tile[o+1]+tile[o+2])/3,shade=lum/Math.max(1,mean);for(let c=0;c<3;c++)tile[o+c]=Math.min(255,Math.round(col[c]*shade))}
       }
     }
     const ox=(k%4)*KACHEL,oy=Math.floor(k/4)*KACHEL

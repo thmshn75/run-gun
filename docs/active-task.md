@@ -284,3 +284,37 @@ beide neuen GLB im Precache, `probe-3d` nicht darin. Hauptbündel 1 467,93 kB.
 Browser-Zweitstart, Netzprotokoll, Sichtprüfung und iPhone-Messung bleiben
 ungetestet; die lokale Umgebung hat keine Terminal.app, daher liefen die
 Prüfungen in einer direkten Terminal-Sitzung.
+
+## Nacharbeit 3 (Thomas 2026-09-29) — komplett Coyote statt Tarnmuster
+
+iPhone-Messung D2b: Wasser 0 = 55,6 fps / 24 ms, Wasser 1 = 55,8 fps / 24 ms →
+**im Budget, Leistung abgenommen.** Thomas gibt Soldat und Bewegungen frei, möchte die
+Ausrüstung aber **komplett in Coyote-Farbe** statt Tarnmuster.
+- `scripts/modelle.mjs` (Ziel `soldat`): Kacheln `Mark_Kitel_1`, `Mark_Pants_1`,
+  `Mark_Plate_1`, `Mark_Pouches_1`, `Mark_Helmet1`, `Mark_Boots_2` einfarbig umfärben mit
+  der vorhandenen Formel (Farbe × Originalhelligkeit / mittlere Helligkeit, nur in der
+  Maske). Farben als Konstanten: Kleidung (Jacke/Hose) Coyote `#8a7456`, Weste/Taschen
+  eine Spur dunkler `#7a6549`, Helm `#a58a64` (wie bisher), Stiefel `#6e5a42`.
+  `Mark_HeadMasked`, `Mark_SunGlusses_Glus`, `Mark_Gloves_1`, `Mark_Eye`, M4 unverändert.
+- Das Tarnmuster wird nicht mehr verwendet; `modelle-quelle/tarnmuster.png` und die
+  Nahtlos-Prüfung bleiben liegen, aber das Skript liest das Muster nicht mehr (Funktion
+  entfernen oder unbenutzt lassen — `tsc`/Lint dürfen nicht meckern).
+- `v3d-soldat.glb` neu erzeugen, Kontrollbild `tmp/soldat-atlas.png`. `docs/lizenzen.md`:
+  Änderungsvermerk Soldat "neu bemalt (Coyote)" statt Tarnmuster.
+- Tests grün, Status `IMPL_DONE`, Nachtrag im Implementation Summary.
+
+## Implementation Summary — Nacharbeit 3 (Codex, 2026-09-29)
+
+Die sechs festgelegten Kacheln für Kleidung, Weste, Taschen, Helm und Stiefel werden
+mit ihren Coyote-Farben und der vorhandenen Helligkeitsformel nur innerhalb ihrer
+UV-Masken neu bemalt. Das Skript liest das Tarnmuster nicht mehr; die Quelldatei
+und ihre Nahtlos-Prüfung bleiben erhalten. Soldaten-GLB und Kontrollbild wurden neu
+erzeugt; der Lizenzvermerk und sein Test nennen jetzt Coyote.
+
+Ergebnis des Modell-Skripts: 5.388 Dreiecke (M4: 584), ein 1024²-Atlas,
+421.652 Byte GLB. `npm test -- --run tests/v3dSoldaten.test.ts`: 7/7;
+`npm test`: 520/520 in 59 Testdateien; `npm run check`, `npm run build` und
+`git diff --check`: erfolgreich. Beide Soldaten-Dateien stehen im Build-Precache;
+das Hauptbündel bleibt bei 1.467,93 kB. Die iPhone-Leistung und die Bewegungen
+hat Thomas in Nacharbeit 3 bereits abgenommen. Einen Browser-Zweitstart oder
+erneuten iPhone-Sichttest für die neue Farbgebung habe ich nicht durchgeführt.

@@ -2,7 +2,7 @@
 
 Stand der API-Prüfung (`api.sketchfab.com/v3/models/<uid>`): 2026-09-29.
 Änderungen an allen Sketchfab-Modellen: vereinfacht, Bemalung verkleinert und in WebP
-umgewandelt, Material umgewandelt; beim Zombie Bemalung in zwei Farbvarianten umgefärbt, Laufbild in feste Formen gebacken, Bewegung auf der Stelle; beim Soldaten zusätzlich Tarnmuster und übertragene
+umgewandelt, Material umgewandelt; beim Zombie Bemalung in zwei Farbvarianten umgefärbt, Laufbild in feste Formen gebacken, Bewegung auf der Stelle; beim Soldaten zusätzlich neu bemalt (Coyote) und übertragene
 Bewegungen; beim M4 Netz vereint, vereinfacht, neu gefärbt und starr an die rechte Hand gebunden.
 
 | Modell | Urheber | Quelle | Lizenz |

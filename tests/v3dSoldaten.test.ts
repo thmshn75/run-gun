@@ -54,7 +54,7 @@ describe('3D-Soldat',()=>{
   })
   it('führt die drei Urheber und Änderungen auf',()=>{
     const text=readFileSync('docs/lizenzen.md','utf8')
-    for(const token of ['DanlyVostok','Low-Poly M4a1','TastyTony','Quaternius','Tarnmuster','gebunden'])expect(text).toContain(token)
+    for(const token of ['DanlyVostok','Low-Poly M4a1','TastyTony','Quaternius','neu bemalt (Coyote)','gebunden'])expect(text).toContain(token)
   })
   it('hat ein 512er nahtloses Tarnmuster',async()=>{
     const path='modelle-quelle/tarnmuster.png',m=await sharp(path).metadata();expect([m.width,m.height]).toEqual([512,512]);expect(statSync(path).size).toBeGreaterThan(0)

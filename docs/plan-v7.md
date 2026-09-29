@@ -61,7 +61,7 @@ absichtlich geschwärzten Figuren gegengeprüft (82 % statt 0 %).
 | Frage | Entscheidung |
 |---|---|
 | Technik | Echtes 3D mit Three.js |
-| Soldat | "Soldier Full Tactical Gear" (Sketchfab, DanlyVostok, CC-BY 4.0), einheitlich mit **Tarnmuster** (Codex malt es auf die Bemalung von Jacke und Hose) und SOCOM-Helm |
+| Soldat | "Soldier Full Tactical Gear" (Sketchfab, DanlyVostok, CC-BY 4.0), einheitlich **komplett in Coyote-Farbe** (Thomas nach D2b; Kleidung, Weste, Taschen, Helm, Stiefel) mit SOCOM-Helm |
 | Bewaffnung | Alle Soldaten dasselbe Gewehr: **M4** (Sketchfab "Assault rifle M4A1", CC-BY), an der rechten Hand befestigt. Keine Waffenwechsel, keine Stärke-Upgrades. |
 | Zombie | "Zombie Walk Test" (Sketchfab, OSCAR CREATIVO, CC-BY 4.0), realistisch. Abwechslung über von Codex gemalte Bemalungs-Varianten und leicht verschiedene Größen. |
 | Mini-Boss | "Nightmare Creature 1#" (Sketchfab, Rodolfoisreal1423, CC-BY 4.0), 22 eigene Bewegungen |
