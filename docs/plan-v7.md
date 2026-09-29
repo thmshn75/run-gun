@@ -27,6 +27,10 @@ Alle Testseiten liegen unter `public/probe-3d/` und sind online
 | **`diagnose7.html` — Bemalung 512 px, Massenfiguren nur Farbbild, Bosse Farb- + Reliefbild (17 Bemalungen ≈ 19 MB)** | **1000 Zombies + 60 Soldaten + 2 Bosse: 57 fps, 22 ms, 0 % schwarz, kein Absturz**; 1500: 55 fps; 2000: 52 fps |
 | `bewegung.html` — Bewegungsübertragung auf den Soldaten | funktioniert (Joggen, Gehen, Zielen, Schießen, Umfallen), 13 ms Umrechnung |
 
+**D0 abgenommen (2026-09-29):** im echten Spiel am iPhone leere Szene 59,9 fps / 17 ms;
+Platzhalter-Vollast (1500 × ~1000 + 150 × ~5000 Dreiecke) 53,8 fps / 25 ms; Renderflächen
+9,77 MB, Phaser-Rest 18,65 MB (Schätzungen); Offline-Start im Flugmodus geht.
+
 **Befund, der alles erklärt:** Die schwarzen Figuren in Diagnose 3–6 waren kein
 Darstellungsfehler, sondern der **volle Grafikspeicher** des iPhones: Safari wirft zuerst
 Bemalungen hinaus (Figuren werden dunkel) und beendet dann die Seite. Die Seite prüft seit
@@ -44,8 +48,10 @@ absichtlich geschwärzten Figuren gegengeprüft (82 % statt 0 %).
    Reliefbild; keine Glanz-, Spiegel- oder Verdeckungskarten. Der Messmodus zeigt den
    geschätzten Grafikspeicher an.
 3. **Keine Echtzeit-Schatten.** Wo nötig: dunkler Fleck unter der Figur.
-4. **Sichtbar höchstens 1500 Zombies und 150 Soldaten**; alles darüber läuft nur als
-   Zahl im Rechenkern.
+4. **Sichtbar höchstens 1200 Zombies und 120 Soldaten** (gesenkt nach D0: Platzhalter-
+   Vollast 1500 + 150 im echten Spiel mit schlafendem Phaser 53,8 fps / 25 ms, knapp
+   unter der Grenze); alles darüber läuft nur als Zahl im Rechenkern. D2c prüft mit echten
+   Figuren; Reserve: Schärfe 1,5× fest beim Start (gemessen +3 fps).
 5. **Leistungsbudget** gilt für jeden Schritt (Randbedingung 7), inklusive Schwarz-Prüfung.
 
 ## Thomas' Entscheidungen (2026-09-29)
@@ -208,7 +214,8 @@ gewachsen.
 Standbilder aus dem Vorbildvideo (`~/Downloads/111.mov`, `112.mov`) mit Zeitmarke unter
 `docs/vorbild/` ab und schreibt die Kamera als Zahlen in die Spec (Höhe, Neigung,
 Sichtfeld, Abstand) sowie Zielmaße (Horizonthöhe, Straßenbreite unten/oben in Bildpunkten).
-Wasser als Schalter `?wasser=0|1`, Messung mit und ohne; **Stufe 1:** Normalkarte ohne
+**Thomas 2026-09-29: Die Straße darf hinten deutlich breiter sein – Perspektive bleibt,
+aber breiter** (Zielmaß Straßenbreite oben entsprechend setzen). Wasser als Schalter `?wasser=0|1`, Messung mit und ohne; **Stufe 1:** Normalkarte ohne
 Spiegelung (billig), **Stufe 2:** mit Spiegelung in halber Auflösung — Stufe 2 nur, wenn
 sie im Budget bleibt. Nachweise: Maße gegen Zielmaße; Bildvergleich neben den Standbildern
 (Freigabe durch Thomas); Leistung mit Wasser im Budget.
@@ -235,7 +242,7 @@ aus, kein Weiterbohren — Rückfall auf einen Soldaten in fester Anschlag-Pose 
 Schrittwippen, und Thomas entscheidet.
 
 **D2c — Bosse und Gesamtmessung.** Mini-Boss und Elite-Boss als Skelett-Figuren (Kosten
-einzeln gemessen), dann **Worst Case:** 1500 Zombies + 150 Soldaten + 2 Bosse + Wasser.
+einzeln gemessen), dann **Worst Case:** 1200 Zombies + 120 Soldaten + 2 Bosse + Wasser.
 Nachweise: Budget, Dauertest 3 Minuten. Danach `public/probe-3d/` aus dem Deploy nehmen.
 
 **D3 — Steuerung, Aussenden, linker Rand.** Steuerung absolut zum Finger (Truppe folgt
