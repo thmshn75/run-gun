@@ -1,8 +1,11 @@
 import * as THREE from 'three'
 import type Phaser from 'phaser'
 import { auswerten, pmremPufferBytes, speicherMB, spiegelPufferBytes, urteil, type Bildgroesse } from './rechnen'
+import { ZombieMasse, zombieAufstellung } from './figuren'
 import type { Welt } from './szene'
 import type { WasserStufe } from './wasser'
+
+const MESSSTUFEN: WasserStufe[] = [0, 1]
 
 type Phase = 'warm' | 'messen' | 'umbau'
 interface Lauf {
@@ -18,7 +21,8 @@ interface Lauf {
   bilder: number[]
   ergebnisse: string[]
   schwarz: number | null
-  vollast: THREE.Group
+  vollast: ZombieMasse
+  soldaten: THREE.Group
   verborgenePlatzhalter: THREE.Object3D[]
 }
 let lauf: Lauf | null = null
@@ -36,29 +40,23 @@ function testbemalung(): THREE.CanvasTexture {
   return textur
 }
 
-function baueVollast(): THREE.Group {
+function baueSoldaten(): THREE.Group {
   const gruppe = new THREE.Group()
-  gruppe.name = 'vollast'
+  gruppe.name = 'vollast-soldaten'
   const material = new THREE.MeshStandardMaterial({ map: testbemalung() })
+  const geo = new THREE.SphereGeometry(0.25, 52, 48)
+  geo.scale(1, 1.4, 1)
+  const netz = new THREE.InstancedMesh(geo, material, 120)
+  netz.layers.set(1)
+  netz.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+  netz.frustumCulled = false
   const dummy = new THREE.Object3D()
-  for (const [anzahl, breite, hoehe, soldat] of [[1200, 24, 21, 0], [120, 52, 48, 1]]) {
-    const geo = new THREE.SphereGeometry(0.25, breite, hoehe)
-    geo.scale(1, 1.4, 1)
-    const netz = new THREE.InstancedMesh(geo, material, anzahl)
-    netz.layers.set(1)
-    netz.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
-    netz.frustumCulled = false
-    netz.userData.soldat = !!soldat
-    for (let i = 0; i < anzahl; i++) {
-      const spalte = soldat ? i % 10 : i % 24
-      const reihe = soldat ? Math.floor(i / 10) : Math.floor(i / 24)
-      dummy.position.set(soldat ? (spalte - 4.5) * 0.6 : (spalte - 11.5) * 0.45, 0.35, soldat ? reihe * 0.6 : -22 - reihe * 0.55)
-      dummy.updateMatrix()
-      netz.setMatrixAt(i, dummy.matrix)
-    }
-    netz.instanceMatrix.needsUpdate = true
-    gruppe.add(netz)
+  for (let i = 0; i < 120; i++) {
+    dummy.position.set((i % 10 - 4.5) * 0.6, 0.35, Math.floor(i / 10) * 0.6)
+    dummy.updateMatrix(); netz.setMatrixAt(i, dummy.matrix)
   }
+  netz.instanceMatrix.needsUpdate = true
+  gruppe.add(netz)
   return gruppe
 }
 
@@ -119,18 +117,20 @@ function groessen(l: Lauf) {
 
 export function starteMessung(welt: Welt, renderer: THREE.WebGLRenderer, game: Phaser.Game, anzeige: HTMLElement, knopf: HTMLButtonElement): void {
   if (lauf) return
-  const vollast = baueVollast()
-  welt.scene.add(vollast)
+  const vollast = new ZombieMasse(welt.zombieBau, welt.zombieBau.materialien, 1200)
+  vollast.setze(zombieAufstellung(1200, -22, 49183))
+  const soldaten = baueSoldaten()
+  welt.scene.add(vollast.gruppe, soldaten)
   const verborgenePlatzhalter: THREE.Object3D[] = []
   welt.scene.traverse(obj => {
-    if (obj.name === 'horde' || obj.name === 'truppe') {
+    if (obj === welt.zombieMasse.gruppe || obj.name === 'truppe') {
       if (obj.visible) verborgenePlatzhalter.push(obj)
       obj.visible = false
     }
   })
   const original = welt.wasser.stufe
   welt.wasser.wechsle(0)
-  lauf = { welt, renderer, game, anzeige, knopf, original, stufe: 0, phase: 'warm', zeit: 0, bilder: [], ergebnisse: [], schwarz: null, vollast, verborgenePlatzhalter }
+  lauf = { welt, renderer, game, anzeige, knopf, original, stufe: 0, phase: 'warm', zeit: 0, bilder: [], ergebnisse: [], schwarz: null, vollast, soldaten, verborgenePlatzhalter }
   knopf.disabled = true
   anzeige.style.display = 'block'
   anzeige.textContent = 'Aufwärmen · Wasser 0 · 5 s'
@@ -139,7 +139,8 @@ export function starteMessung(welt: Welt, renderer: THREE.WebGLRenderer, game: P
 export function messBild(dt: number, jetzt: number): void {
   const l = lauf
   if (!l) return
-  wippe(l.vollast, jetzt)
+  wippe(l.soldaten, jetzt)
+  l.vollast.aktualisiere(jetzt / 1000)
   // Der Aufrufer zeichnet unmittelbar vor dieser Funktion: Probe am gerenderten Bild bei 15 s.
   if (l.phase === 'messen' && l.schwarz === null && l.zeit >= 15000) l.schwarz = schwarzAnteil(l)
   l.zeit += Math.max(0, dt)
@@ -153,13 +154,13 @@ export function messBild(dt: number, jetzt: number): void {
   }
   const a = auswerten(l.bilder)
   const mb = groessen(l)
-  l.ergebnisse.push(`Wasser ${l.stufe} · Platzhalter-Vollast: ${a.fps?.toFixed(1) ?? '–'} fps · langsamste 5 % ${a.p95?.toFixed(1) ?? '–'} ms · Schwarz ${l.schwarz === null ? '–' : `${l.schwarz.toFixed(1)} %`} · >250 ms: ${a.verworfen}\nBemalung ${mb.bemalungen.toFixed(2)} MB · Wasserpuffer ${mb.zusatz.toFixed(2)} MB · Renderflächen ${mb.renderflaechen.toFixed(2)} MB · Phaser-Rest ${mb.phaserRest.toFixed(2)} MB · Geometrien ${l.renderer.info.memory.geometries} · Texturen ${l.renderer.info.memory.textures}\n${urteil(a, l.schwarz, mb.gesamt)}`)
-  if (l.stufe === 2) {
+  l.ergebnisse.push(`Wasser ${l.stufe} · Zombie-Vollast: ${a.fps?.toFixed(1) ?? '–'} fps · langsamste 5 % ${a.p95?.toFixed(1) ?? '–'} ms · Schwarz ${l.schwarz === null ? '–' : `${l.schwarz.toFixed(1)} %`} · >250 ms: ${a.verworfen}\nBemalung ${mb.bemalungen.toFixed(2)} MB · Wasserpuffer ${mb.zusatz.toFixed(2)} MB · Renderflächen ${mb.renderflaechen.toFixed(2)} MB · Phaser-Rest ${mb.phaserRest.toFixed(2)} MB · Geometrien ${l.renderer.info.memory.geometries} · Texturen ${l.renderer.info.memory.textures}\n${urteil(a, l.schwarz, mb.gesamt)}`)
+  if (l.stufe === MESSSTUFEN[MESSSTUFEN.length - 1]) {
     l.anzeige.textContent = l.ergebnisse.join('\n\n')
     bricheAb()
     return
   }
-  l.stufe = (l.stufe + 1) as WasserStufe
+  l.stufe = MESSSTUFEN[MESSSTUFEN.indexOf(l.stufe) + 1]
   l.welt.wasser.wechsle(l.stufe)
   l.phase = 'umbau'; l.zeit = 0; l.bilder = []; l.schwarz = null
   l.anzeige.textContent = `${l.ergebnisse.join('\n\n')}\nWasser ${l.stufe} · Umbau · 2 s`
@@ -169,13 +170,12 @@ export function bricheAb(grund?: string, wiederherstellen = true): void {
   if (!lauf) return
   const l = lauf
   lauf = null
-  l.welt.scene.remove(l.vollast)
-  const material = (l.vollast.children[0] as THREE.Mesh).material as THREE.MeshStandardMaterial
-  material.map?.dispose(); material.dispose()
-  for (const child of l.vollast.children) {
+  l.welt.scene.remove(l.vollast.gruppe, l.soldaten)
+  l.vollast.gibNetzeFrei()
+  for (const child of l.soldaten.children) {
     const netz = child as THREE.InstancedMesh
-    netz.dispose()
-    netz.geometry.dispose()
+    const material = netz.material as THREE.MeshStandardMaterial
+    material.map?.dispose(); material.dispose(); netz.dispose(); netz.geometry.dispose()
   }
   l.verborgenePlatzhalter.forEach(obj => { obj.visible = true })
   if (wiederherstellen) l.welt.wasser.wechsle(l.original)

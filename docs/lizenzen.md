@@ -2,7 +2,7 @@
 
 Stand der API-Prüfung (`api.sketchfab.com/v3/models/<uid>`): 2026-09-29.
 Änderungen an allen Sketchfab-Modellen: vereinfacht, Bemalung verkleinert und in WebP
-umgewandelt, Material umgewandelt; beim Soldaten zusätzlich Tarnmuster und übertragene
+umgewandelt, Material umgewandelt; beim Zombie Bemalung in zwei Farbvarianten umgefärbt, Laufbild in feste Formen gebacken, Bewegung auf der Stelle; beim Soldaten zusätzlich Tarnmuster und übertragene
 Bewegungen.
 
 | Modell | Urheber | Quelle | Lizenz |

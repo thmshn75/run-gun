@@ -98,7 +98,8 @@ absichtlich geschwärzten Figuren gegengeprüft (82 % statt 0 %).
 1. **Bestehendes Spiel bleibt unverändert** — Run, Probelauf, Torlauf, Testgelände, Shop,
    Erworbenes, Spielstand. **Erlaubte Änderungen außerhalb von `src/v3d/`, abschließend:**
    Menüknopf "RUN GUN V2" → "RUN GUN 3D" (Thomas: "wir ersetzen V2"); Nachlade-Einstieg
-   in `MenuScene`; `package.json`/Lockfile (`three`); `vite.config.ts` (Service-Worker-
+   in `MenuScene`; `package.json`/Lockfile (`three`; ab D2a zusätzlich reine Werkzeug-`devDependencies` für
+   `scripts/modelle.mjs`: `@gltf-transform/*`, `meshoptimizer`, `sharp` — nie im Spiel-Code); `vite.config.ts` (Service-Worker-
    Regeln, s. 4). Jede dieser Änderungen braucht einen Regressionsnachweis: Offline-Start
    des bestehenden Spiels im Flugmodus, Größe des Hauptbündels vorher/nachher (darf nicht
    wachsen), bestehende Tests grün.
@@ -231,7 +232,7 @@ Seeds, Strategie gewinnt in ≥ 15/20.
 
 **D2a — Zombie-Masse.** Aufbereitungs-Skript, Lade-/Backmodul, Instanz-Zeichnung,
 Bemalungs-Varianten. Nachweise: Nahaufnahme-Bild der vereinfachten Figur (Thomas gibt
-frei); 1500 sichtbare Zombies im Budget.
+frei); 1200 sichtbare Zombies im Budget (Grenze nach D0).
 
 **D2b — Soldat.** Bewegungsübertragung (Verfahren aus `bewegung.html`, plus Hüfthöhe),
 M4 an der rechten Hand, Tarnmuster, Truppe in Reihen. Nachweise: M4-Griffpunkt höchstens

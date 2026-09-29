@@ -57,3 +57,5 @@ export const BUEHNE = {
   DUNST_FARBE: '#9fc6d0',
   SONNE: [-6, 14, 4] as const,
 } as const
+
+export const FIGUREN = { ZOMBIE_FORMEN: 12, ZOMBIE_ZYKLUS_S: 1.1, ZOMBIE_HOEHE: 1.3, PHASENGRUPPEN: 8 } as const

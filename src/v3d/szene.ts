@@ -3,6 +3,7 @@ import strassenUrl from './bilder/v3d-strasse.webp?url'
 import normalenUrl from './bilder/v3d-wasser-normalen.webp?url'
 import { BUEHNE } from './balance3d'
 import { baueKamera } from './kamera'
+import { ladeZombie, ZombieMasse, zombieAufstellung, type ZombieBau } from './figuren'
 import { baueWasser, type WasserHalter, type WasserStufe } from './wasser'
 
 export const DATEIEN_FEHLER = '3D-Dateien nicht ladbar – App neu öffnen'
@@ -11,6 +12,9 @@ export interface Welt {
   camera: THREE.PerspectiveCamera
   bemalungen: [THREE.Texture, THREE.Texture]
   wasser: WasserHalter
+  zombieBau: ZombieBau
+  zombieMasse: ZombieMasse
+  nahaufnahme: boolean
 }
 
 function textBild(text: string, farbe: string): THREE.CanvasTexture {
@@ -53,9 +57,6 @@ function platzhalter(scene: THREE.Scene): void {
   schild(gruppe, 'plus-eins', 1.2, 0.8, -5.2, 0.8, -60, plus)
   box(gruppe, 'saeule', [1.6, 4, 1.6], [4.6, 2, -12], '#aaaeb3')
   schild(gruppe, 'saeule-zahl', 1.4, 0.7, 4.6, 3.4, -11.18, textBild('150', '#777c82'))
-  const horde = box(gruppe, 'horde', [10, 0.06, 30], [0, 0.5, -50], '#b93d43', 1)
-  ;(horde.material as THREE.Material).dispose()
-  horde.material = new THREE.MeshStandardMaterial({ color: '#bf3740', transparent: true, opacity: 0.8 })
   box(gruppe, 'truppe', [6, 0.9, 3], [0, 0.45, 1.5], '#2875bd', 1)
 }
 
@@ -63,6 +64,8 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
   const loader = new THREE.TextureLoader()
   const geladen: THREE.Texture[] = []
   let vorbei = false
+  let geladenesZombieBau: ZombieBau | null = null
+  const freigabeZombie = () => { if (geladenesZombieBau) { geladenesZombieBau.formen.forEach(g => g.dispose()); geladenesZombieBau.materialien.forEach(m => m.dispose()); geladenesZombieBau.bemalungen.forEach(t => t.dispose()); geladenesZombieBau = null } }
   const lade = (url: string) => loader.loadAsync(url).then(textur => {
     if (vorbei || abgebrochen()) textur.dispose()
     else geladen.push(textur)
@@ -70,10 +73,12 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
   })
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    const beide = Promise.all([lade(strassenUrl), lade(normalenUrl)])
+    const beide = Promise.all([lade(strassenUrl), lade(normalenUrl), ladeZombie(renderer, () => vorbei || abgebrochen()).then(bau => { if (bau && (vorbei || abgebrochen())) { bau.formen.forEach(g => g.dispose()); bau.materialien.forEach(m => m.dispose()); bau.bemalungen.forEach(t => t.dispose()); return null } return bau })])
     const zeitlimit = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(DATEIEN_FEHLER)), 8000) })
-    const [strasse, normalen] = await Promise.race([beide, zeitlimit])
-    if (abgebrochen()) { geladen.forEach(t => t.dispose()); return null }
+    const [strasse, normalen, zombieBau] = await Promise.race([beide, zeitlimit])
+    if (!zombieBau) { geladen.forEach(t => t.dispose()); return null }
+    geladenesZombieBau = zombieBau
+    if (abgebrochen()) { geladen.forEach(t => t.dispose()); freigabeZombie(); return null }
     strasse.colorSpace = THREE.SRGBColorSpace
     strasse.wrapS = THREE.ClampToEdgeWrapping
     strasse.wrapT = THREE.RepeatWrapping
@@ -101,10 +106,22 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
     const damm = new THREE.Mesh(new THREE.PlaneGeometry(12, 240), beton)
     damm.rotation.x = Math.PI / 2; damm.position.set(0, -0.6, -100); damm.name = 'damm-unterseite'; scene.add(damm)
     platzhalter(scene)
+    const nahaufnahme = new URLSearchParams(location.search).get('nahaufnahme') === '1'
+    const zombieMasse = new ZombieMasse(zombieBau, zombieBau.materialien, 600)
+    zombieMasse.setze(nahaufnahme ? [-0.65, 0, 0.65].map((x, i) => ({ x, z: 0, dreh: 0, variante: i, groesse: 1 })) : zombieAufstellung(600, -35))
+    scene.add(zombieMasse.gruppe)
+    if (nahaufnahme) {
+      scene.background = new THREE.Color('#777c7e'); scene.fog = null
+      scene.traverse(obj => { if (obj instanceof THREE.Mesh && !zombieMasse.gruppe.children.includes(obj)) obj.visible = false })
+      camera.position.set(0, 1.35, Math.max(3.8, 2.7 / (2 * Math.tan(THREE.MathUtils.degToRad(17.5)) * innerWidth / innerHeight))); camera.lookAt(0, 0.65, 0); camera.near = 0.1; camera.fov = 35; camera.updateProjectionMatrix()
+    }
     const wasser = baueWasser(scene, renderer, normalen, stufe)
-    return { scene, camera, bemalungen: [strasse, normalen], wasser }
+    if (nahaufnahme) scene.children.filter(o => o instanceof THREE.Mesh).forEach(o => { o.visible = false })
+    geladenesZombieBau = null
+    return { scene, camera, bemalungen: [strasse, normalen], wasser, zombieBau, zombieMasse, nahaufnahme }
   } catch {
     geladen.forEach(t => t.dispose())
+    freigabeZombie()
     if (!abgebrochen()) beiLadeFehler(DATEIEN_FEHLER)
     return null
   } finally {
@@ -115,6 +132,8 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
 
 export function gibSzeneFrei(welt: Welt): void {
   welt.wasser.gibFrei()
+  welt.zombieMasse.gibFrei()
+  welt.scene.remove(welt.zombieMasse.gruppe)
   const geometrien = new Set<THREE.BufferGeometry>()
   const materialien = new Set<THREE.Material>()
   const texturen = new Set<THREE.Texture>(welt.bemalungen)
