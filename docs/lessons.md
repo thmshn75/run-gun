@@ -1480,6 +1480,12 @@ testen, deployen) kamen Zwischenmeldungen und die Hauptantwort auf Englisch.
 **Regel:** Vor jeder Antwort an Thomas pruefen: Ist der Text Deutsch mit Umlauten?
 Gilt besonders fuer kurze Zwischenmeldungen zwischen Tool-Aufrufen.
 
+**Nachtrag (am selben Tag erneut passiert):** Wieder nach einer langen Kette aus
+Browser-Pruefungen, diesmal in der Abschlussmeldung eines Bauschritts. Die Regel allein
+haelt nicht: Gerade die wichtigste Meldung (Ergebnis + Handgriff fuer Thomas) wird
+nach vielen englischen Tool-Ausgaben englisch. Vor jeder Abschlussmeldung den ersten
+Satz bewusst auf Deutsch pruefen.
+
 ## 2026-09-29 — Schwarze Figuren am iPhone waren voller Grafikspeicher
 
 **Befund:** In drei Messseiten waren die Zombies am iPhone schwarz, am Mac bemalt. Drei
