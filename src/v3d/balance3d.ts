@@ -1,12 +1,13 @@
 export interface Level {
   T0: number
-  k: number
+  kStart: number
+  wandStufe: number
+  kMax: number
   wand: number
-  saeule: number
   laufgeschwindigkeit: number
-  sendenBasis: number
-  sendenProT: number
+  senden: number
   einsammeln: number
+  saeuleSchaden: number
   schwelleLinks: number
   schwelleRechts: number
   wellen: { t: number; groesse: number }[]
@@ -29,10 +30,10 @@ export interface Level {
 }
 
 export const LEVELS: Level[] = [{
-  T0: 10, k: 2, wand: 5, saeule: 12, laufgeschwindigkeit: 6,
-  sendenBasis: 2, sendenProT: 0.1, einsammeln: 2,
+  T0: 10, kStart: 2, wandStufe: 100, kMax: 4, wand: 5, laufgeschwindigkeit: 6,
+  senden: 8, einsammeln: 6, saeuleSchaden: 0.3,
   schwelleLinks: -0.6, schwelleRechts: 0.6,
-  wellen: [{ t: 0, groesse: 200 }, { t: 20, groesse: 200 }, { t: 40, groesse: 200 }],
+  wellen: [{ t: 0, groesse: 250 }, { t: 20, groesse: 250 }, { t: 40, groesse: 250 }],
   streuung: 0.1, miniBossWelle: 1, eliteBossZeit: 60,
   B_mini: 400, B_elite: 3000, P: 150,
   saeulen: ['humvee', 'panzer', 'haubitze', 'hubschrauber'],
@@ -40,6 +41,14 @@ export const LEVELS: Level[] = [{
   gegnerProSoldat: 2, frontVerschiebung: 0.5, bossSchaden: 25,
   marsch: 0.8, startY: 60,
 }]
+
+export const SPEZIAL = {
+  humvee: { dauer: 30, zombiesProSekunde: 4 },
+  panzer: { dauer: 4, zombiesProSekunde: 40 },
+  haubitze: { dauer: 3, einschlaege: 3, abstand: 1, zombiesProEinschlag: 60 },
+  hubschrauber: { dauer: 12, zombiesProSekunde: 15, bossPunkteProSekunde: 25 },
+} as const
+export type SpezialName = keyof typeof SPEZIAL
 
 // 1 Einheit = 1 Meter. x quer, y oben, vorwärts = negatives z;
 // Aussendelinie z = 0, Rechenposition pos bzw. Frontlage y wird z = -pos bzw. -y.

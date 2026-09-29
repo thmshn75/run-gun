@@ -19,6 +19,7 @@ describe('3D-Spielrechnung', () => {
     for (let lauf = 1; lauf <= 1000; lauf++) {
       const z = neuerLauf(LEVELS[0], lauf)
       let unterwegs = 0
+      let letzterK = 2
       let eingabe = 0
       let wechsel = 0
       // Separater Test-Zufall: keine Math.random-Abhängigkeit und wiederholbarer Test.
@@ -27,32 +28,35 @@ describe('3D-Spielrechnung', () => {
       while (z.ergebnis === 'laeuft' && z.t < 300) {
         if (z.t >= wechsel) {
           eingabe = [-1, 0, 1][Math.floor(zufall() * 3)]
-          wechsel = z.t + 0.5 + 2.5 * zufall()
+          wechsel = z.t + 0.5 + 4.5 * zufall()
         }
         const vor = { T: z.T, F: z.F, Z: z.Z, P: z.P,
           miniBoss: z.miniBoss.B, eliteBoss: z.eliteBoss.B,
           miniImFeld: z.miniBoss.imFeld, eliteImFeld: z.eliteBoss.imFeld }
         const e = schritt(z, { x: eingabe }, dt)
         schritte++
-        nah(z.T - vor.T, summe(e, 'eingesammelt'))
+        nah(z.T - vor.T, summe(e, 'eingesammelt') - summe(e, 'ausgesandt'))
         const deltaUnterwegs = summe(e, 'ausgesandt') + summe(e, 'vervielfacht')
-          - summe(e, 'angekommenFront') - summe(e, 'angekommenSaeule')
+          - summe(e, 'angekommenFront')
         unterwegs += deltaUnterwegs
         // Die Summe wird nur aus Ereignissen fortgeschrieben, nie je Schritt neu berechnet.
         nah(summe(e, 'ausgesandt') + summe(e, 'vervielfacht'),
-          summe(e, 'angekommenFront') + summe(e, 'angekommenSaeule') + deltaUnterwegs)
+          summe(e, 'angekommenFront') + deltaUnterwegs)
         nah(z.F - vor.F, summe(e, 'angekommenFront') - summe(e, 'soldatGefallen'))
-        nah(z.Z - vor.Z, summe(e, 'welle') - summe(e, 'zombieGefallen'))
+        nah(z.Z - vor.Z, summe(e, 'welle') - summe(e, 'zombieGefallen') - summe(e, 'spezialTreffer'))
         if (vor.miniImFeld) nah(z.miniBoss.B - vor.miniBoss,
           -e.filter(x => x.art === 'bossTreffer' && x.boss === 'miniBoss').reduce((s, x) => s + x.menge, 0))
         if (vor.eliteImFeld) nah(z.eliteBoss.B - vor.eliteBoss,
           -e.filter(x => x.art === 'bossTreffer' && x.boss === 'eliteBoss').reduce((s, x) => s + x.menge, 0))
         if (vor.P !== null && z.P !== null && !e.some(x => x.art === 'einheitFrei'))
-          nah(z.P - vor.P, -summe(e, 'angekommenSaeule'))
+          nah(z.P - vor.P, -summe(e, 'saeuleTreffer'))
         for (const wert of [z.t, z.T, z.F, z.Z, z.y, z.P, z.sendeRest, z.seedZustand,
-          z.miniBoss.B, z.eliteBoss.B, z.gestarteteWellen, z.saeulenIndex, unterwegs]) {
+          z.miniBoss.B, z.eliteBoss.B, z.gestarteteWellen, z.saeulenIndex, unterwegs, z.durchWand, z.kAktuell, ...z.aktiv.map(a => a.rest)]) {
           if (wert !== null && Number.isNaN(wert)) throw new Error('NaN im Zustand')
         }
+        expect(z.kAktuell).toBeGreaterThanOrEqual(letzterK)
+        expect(z.kAktuell).toBeLessThanOrEqual(4)
+        letzterK = z.kAktuell
         for (const trupp of z.trupps) {
           if (Number.isNaN(trupp.pos) || Number.isNaN(trupp.anzahl)) throw new Error('NaN im Trupp')
         }
@@ -75,8 +79,9 @@ describe('3D-Spielrechnung', () => {
       miniBossWelle: null, eliteBossZeit: 60, B_elite: 30,
       startY: 60, C: 100, zombieTreffer: 10, soldatenVerlust: 0 })
     const z = neuerLauf(level, 7)
-    while (z.Z > 0 || z.t < 40) schritt(z, { x: -1 }, dt)
-    expect(z.Z).toBe(0)
+    schritt(z, { x: -1 }, dt)
+    z.Z = 0
+    z.F = 5
     const pauseY = z.y
     while (z.t < 59) schritt(z, { x: -1 }, dt)
     nah(z.y, pauseY)
@@ -87,8 +92,8 @@ describe('3D-Spielrechnung', () => {
     expect(z.y).toBeLessThan(pauseY)
     expect(z.ergebnis).toBe('laeuft')
     while (z.ergebnis === 'laeuft' && z.t < 200) schritt(z, { x: -1 }, dt)
-    expect(z.ergebnis).toBe('sieg')
-    expect(z.eliteBoss.B).toBe(0)
+    expect(z.ergebnis).toBe('niederlage')
+    expect(z.eliteBoss.B).toBeGreaterThan(0)
   })
 
   it('befreit genau vier Einheiten in Reihenfolge', () => {
@@ -110,7 +115,7 @@ describe('3D-Spielrechnung', () => {
     const T = z.T
     for (let i = 0; i < 30; i++) schritt(z, { x: -1 }, dt)
     nah(z.y, y - 0.8)
-    nah(z.T, T + 2)
+    nah(z.T, T + 6)
   })
 
   it('friert nach Sieg und Niederlage vollständig ein', () => {
@@ -136,5 +141,85 @@ describe('3D-Spielrechnung', () => {
       expect(schritt(a, { x }, dt)).toEqual(schritt(b, { x }, dt))
       expect(a).toEqual(b)
     }
+  })
+
+  it('begrenzt das Senden auf die Mitte und den Vorrat und verwirft den Sendrest', () => {
+    const z = neuerLauf(testLevel({ wellen: [], eliteBossZeit: 999 }), 1)
+    z.T = 0
+    expect(summe(schritt(z, { x: 0 }, .1), 'ausgesandt')).toBe(0)
+    z.T = 10
+    schritt(z, { x: 0 }, .1)
+    expect(z.sendeRest).toBeCloseTo(.8)
+    expect(summe(schritt(z, { x: -1 }, .1), 'ausgesandt')).toBe(0)
+    expect(z.sendeRest).toBe(0)
+    const T = z.T
+    expect(summe(schritt(z, { x: 1 }, .1), 'ausgesandt')).toBe(0)
+    expect(z.T).toBe(T)
+    expect(z.P).toBeLessThan(150)
+    z.T = .9
+    schritt(z, { x: 0 }, .1)
+    expect(z.sendeRest).toBe(0)
+  })
+
+  it('steigert die Wand exakt nach 100 und 200 ursprünglichen Soldaten', () => {
+    const z = neuerLauf(testLevel({ wellen: [], eliteBossZeit: 999, startY: 1000 }), 1)
+    const durch = (anzahl: number) => {
+      z.trupps.push({ ziel: 'front', pos: 4.9, anzahl, vervielfacht: false, k: 1 })
+      return schritt(z, { x: -1 }, .1)
+    }
+    expect(summe(durch(99), 'wandStufe')).toBe(0)
+    expect(z.kAktuell).toBe(2)
+    expect(summe(durch(1), 'wandStufe')).toBe(3)
+    expect(z.kAktuell).toBe(3)
+    expect(summe(durch(100), 'wandStufe')).toBe(4)
+    expect(z.kAktuell).toBe(4)
+    expect(summe(durch(100), 'wandStufe')).toBe(0)
+    expect(z.durchWand).toBe(300)
+  })
+
+  it('lässt bei Säulenfall Überschuss verfallen und startet die Einheit sofort', () => {
+    const z = neuerLauf(testLevel({ P: 1, wellen: [{ t: 0, groesse: 100 }], streuung: 0,
+      miniBossWelle: null, eliteBossZeit: 999 }), 1)
+    z.T = 100
+    const e = schritt(z, { x: 1 }, 1)
+    expect(summe(e, 'saeuleTreffer')).toBe(1)
+    expect(z.P).toBe(1)
+    expect(z.saeulenIndex).toBe(1)
+    expect(z.T).toBe(100)
+    expect(e.some(x => x.art === 'einheitAktiv' && x.einheit === 'humvee')).toBe(true)
+    expect(summe(e, 'spezialTreffer')).toBe(4)
+  })
+
+  it('lässt die Haubitze genau dreimal und zwei Einheiten gemeinsam wirken', () => {
+    const z = neuerLauf(testLevel({ wellen: [{ t: 0, groesse: 1000 }], streuung: 0,
+      miniBossWelle: null, eliteBossZeit: 999 }), 1)
+    z.aktiv.push({ einheit: 'haubitze', rest: 3, einschlaege: 0 },
+      { einheit: 'humvee', rest: 30, einschlaege: 0 })
+    let haubitze = 0, humvee = 0, ende = 0
+    for (let i = 0; i < 4; i++) {
+      const e = schritt(z, { x: -1 }, 1)
+      haubitze += e.filter(x => x.art === 'spezialTreffer' && x.einheit === 'haubitze').length
+      humvee += e.filter(x => x.art === 'spezialTreffer' && x.einheit === 'humvee').length
+      ende += e.filter(x => x.art === 'einheitEnde' && x.einheit === 'haubitze').length
+    }
+    expect(haubitze).toBe(3)
+    expect(humvee).toBe(4)
+    expect(ende).toBe(1)
+  })
+
+  it('lässt den Hubschrauber zuerst den Mini-Boss treffen', () => {
+    const z = neuerLauf(testLevel({ wellen: [], eliteBossZeit: 999 }), 1)
+    z.miniBoss.imFeld = true
+    z.eliteBoss.imFeld = true
+    z.aktiv.push({ einheit: 'hubschrauber', rest: 12, einschlaege: 0 })
+    const e = schritt(z, { x: -1 }, 1)
+    expect(e.filter(x => x.art === 'bossTreffer').map(x => x.boss)).toEqual(['miniBoss'])
+    expect(z.miniBoss.B).toBe(375)
+    expect(z.eliteBoss.B).toBe(3000)
+  })
+
+  it('weist ungültige Schrittzeiten zurück', () => {
+    const z = neuerLauf(LEVELS[0], 1)
+    for (const dt of [0, -1, NaN, Infinity]) expect(() => schritt(z, { x: 0 }, dt)).toThrow(RangeError)
   })
 })

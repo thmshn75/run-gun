@@ -22,8 +22,8 @@ export function baueLaufSpuren(soldaten: readonly LaufSoldat[], faktor: number, 
     if (i % gewicht !== 0) continue
     const s = soldaten[i], kopien = s.vervielfacht ? s.k : 1
     if (anzahl + kopien > max) break
-    const spuren = s.vervielfacht && s.ziel === 'saeule' ? 3 : 10
-    const spur = spuren === 3 ? s.spur % 3 : s.spur
+    const spuren = 10
+    const spur = s.spur
     const spurX = s.x + (spur - (spuren - 1) / 2) * .6
     const gruppe: SoldatEintrag[] = []
     for (let j = 0; j < kopien; j++) gruppe.push({
@@ -57,7 +57,7 @@ export class SpielLauf {
     const alt = new Set(this.zustand.trupps)
     const ereignisse = schritt(this.zustand, { x: kernX(this.x) }, dt)
     for (const trupp of this.zustand.trupps) {
-      if (!alt.has(trupp)) this.sichten.set(trupp, { x: this.x, soldaten: Array.from({length: trupp.anzahl / (trupp.vervielfacht ? this.zustand.level.k : 1)}, () => {
+      if (!alt.has(trupp)) this.sichten.set(trupp, { x: this.x, soldaten: Array.from({length: trupp.anzahl / trupp.k}, () => {
         const nummer = this.soldatNummer++
         return { spur: SPUR_FOLGE[nummer % SPUR_FOLGE.length], phase: nummer % FIGUREN.SOLDAT_PHASENGRUPPEN }
       }) })
@@ -97,7 +97,7 @@ export class WeltDarstellung implements LaufDarstellung {
     canvas.width = 128; canvas.height = 64
     const ctx = canvas.getContext('2d')!
     ctx.fillStyle = '#fff'; ctx.font = 'bold 48px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-    ctx.fillText(`×${LEVELS[0].k}`, 64, 32)
+    ctx.fillText(`×${LEVELS[0].kStart}`, 64, 32)
     this.aufblendTextur = new THREE.CanvasTexture(canvas)
     this.aufblendMaterial = new THREE.SpriteMaterial({map:this.aufblendTextur,transparent:true,depthTest:false})
     this.aufblenden = Array.from({length:8},()=>{const s=new THREE.Sprite(this.aufblendMaterial);s.visible=false;s.scale.set(1.5,.75,1);s.renderOrder=11;welt.scene.add(s);return s})
@@ -107,9 +107,9 @@ export class WeltDarstellung implements LaufDarstellung {
   zeige(z: Zustand, trupps: ReadonlyMap<Trupp, Sicht>, ereignisse: Ereignis[], dt: number, x: number): void {
     const w = this.welt
     const t = z.t
-    if (z.level.k !== this.letzterFaktor) {
-      this.letzterFaktor = z.level.k
-      setzeSchildText(w.wand, { breite: 2 * BUEHNE.MITTE_HALB, hoehe: BUEHNE.WAND_HOEHE, text: `×${z.level.k}`, farbe: BUEHNE.WAND_FARBE })
+    if (z.kAktuell !== this.letzterFaktor) {
+      this.letzterFaktor = z.kAktuell
+      setzeSchildText(w.wand, { breite: 2 * BUEHNE.MITTE_HALB, hoehe: BUEHNE.WAND_HOEHE, text: `×${z.kAktuell}`, farbe: BUEHNE.WAND_FARBE })
     }
     const gesammelt = ereignisse.some(e => e.art === 'eingesammelt')
     const soll = gesammelt ? DARSTELLUNG.SCHILDER_TEMPO_SCHNELL : DARSTELLUNG.SCHILDER_TEMPO_LANGSAM
@@ -136,13 +136,13 @@ export class WeltDarstellung implements LaufDarstellung {
     w.front.gruppe.position.z = Math.min(-3.1,-z.y+1.5)
     const laufSoldaten: LaufSoldat[] = []
     for (const [trupp,sicht] of trupps) {
-      const zielX = trupp.pos < z.level.wand ? sicht.x : trupp.ziel === 'saeule' ? BUEHNE.SAEULE_X : 0
+      const zielX = trupp.pos < z.level.wand ? sicht.x : 0
       sicht.x += Math.max(-8*dt,Math.min(8*dt,zielX-sicht.x))
       if (trupp.ziel === 'front') sicht.x = Math.max(-2.8, Math.min(2.8, sicht.x))
-      const pos = trupp.ziel === 'front' ? Math.min(trupp.pos,Math.max(1,z.y-1.5)) : trupp.pos
-      if (trupp.ziel === 'front' && trupp.pos >= Math.max(1,z.y-1.5)) continue
+      const pos = Math.min(trupp.pos,Math.max(1,z.y-1.5))
+      if (trupp.pos >= Math.max(1,z.y-1.5)) continue
       for (const soldat of sicht.soldaten) laufSoldaten.push({pos, x:sicht.x, ziel:trupp.ziel, vervielfacht:trupp.vervielfacht,
-        k:z.level.k, spur:soldat.spur, phase:soldat.phase,
+        k:trupp.k, spur:soldat.spur, phase:soldat.phase,
         aufklappen:sicht.vervielfachtUm === undefined ? 1 : Math.min(1, Math.max(0, (t-sicht.vervielfachtUm)/.3))})
     }
     if (t-this.faktorZeit >= 2) {

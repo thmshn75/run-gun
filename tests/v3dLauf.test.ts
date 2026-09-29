@@ -7,6 +7,7 @@ function laufe(ziel: number, dauer=10) {
   let gezeigt=0, ausgesandt=0, einheiten=0
   const bild: LaufDarstellung={zeige(z:Zustand, s, events){gezeigt=s.size;ausgesandt+=events.filter(e=>e.art==='ausgesandt').reduce((n,e)=>n+e.menge,0);einheiten+=events.filter(e=>e.art==='einheitFrei').length}}
   const lauf=new SpielLauf(undefined,42,bild)
+  lauf.x=ziel
   for(let i=0;i<dauer*10;i++) lauf.schritt(.1,ziel)
   return {lauf,gezeigt,ausgesandt,einheiten}
 }
@@ -24,6 +25,7 @@ describe('3D-Lauf',()=>{
     let spuren:number[]=[]
     const bild:LaufDarstellung={zeige(_z,sichten){spuren=[...sichten.values()].flatMap(s=>s.soldaten.map(e=>e.spur))}}
     const lauf=new SpielLauf(undefined,42,bild)
+    lauf.zustand.T=20
     for(let i=0;i<50;i++) lauf.schritt(.1,0)
     expect(spuren.slice(0,10)).toEqual([4,7,1,9,2,5,0,8,3,6])
     expect(spuren[10]).toBe(4)
@@ -32,7 +34,6 @@ describe('3D-Lauf',()=>{
     const basis:LaufSoldat={pos:5.1,x:0,ziel:'front',vervielfacht:true,k:2,spur:4,phase:2,aufklappen:0}
     expect(baueLaufSpuren([basis],1).map(s=>s.x)).toEqual([-.3,-.3])
     expect(baueLaufSpuren([{...basis,aufklappen:1}],1).map(s=>s.x)).toEqual([-.475,-.125])
-    expect(baueLaufSpuren([{...basis,ziel:'saeule',x:4.7,aufklappen:1}],1)).toHaveLength(2)
     const soldaten:LaufSoldat[]=Array.from({length:80},(_,i)=>({...basis,pos:5+i*.2,spur:i%10,phase:i%8,aufklappen:1}))
     const faktor=spurFaktor(soldaten)
     expect(Number.isInteger(faktor)).toBe(true)
@@ -52,8 +53,7 @@ describe('3D-Lauf',()=>{
   })
   it('sendet 10 Sekunden nach Kernformel und hält Sichtgrenzen',()=>{
     const {lauf,gezeigt,ausgesandt}=laufe(0)
-    expect(ausgesandt).toBeGreaterThanOrEqual(27)
-    expect(ausgesandt).toBeLessThanOrEqual(33)
+    expect(ausgesandt).toBe(10)
     expect(gezeigt).toBe(lauf.zustand.trupps.length)
     expect(lauf.sichtzahlen.formation).toBeLessThanOrEqual(30)
     expect(lauf.sichtzahlen.trupps).toBeLessThanOrEqual(50)
@@ -63,14 +63,15 @@ describe('3D-Lauf',()=>{
   it('sammelt links, aber nicht in der Mitte',()=>{
     const links=laufe(-3).lauf
     const mitte=laufe(0).lauf
-    expect(links.zustand.T).toBeGreaterThanOrEqual(29)
-    expect(links.zustand.T).toBeLessThanOrEqual(31)
-    expect(mitte.zustand.T).toBe(10)
+    expect(links.zustand.T).toBeGreaterThanOrEqual(69)
+    expect(links.zustand.T).toBeLessThanOrEqual(71)
+    expect(mitte.zustand.T).toBe(0)
+    expect(links.zustand.trupps).toHaveLength(0)
   })
-  it('schickt rechts zur Säule und wechselt nach Freigabe',()=>{
-    const {lauf,einheiten}=laufe(3,80)
-    expect(einheiten).toBeGreaterThan(0)
-    expect(lauf.zustand.saeulenIndex).toBeGreaterThan(0)
+  it('beschießt rechts die Säule ohne Aussenden',()=>{
+    const {lauf,ausgesandt}=laufe(3,10)
+    expect(ausgesandt).toBe(0)
+    expect(lauf.zustand.T).toBe(10)
     expect(lauf.zustand.P).toBeLessThan(150)
   })
   it('stellt 600 Zombies mit Loch vor dem Mini-Boss auf',()=>{
