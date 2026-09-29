@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Farb-Prüfung 2</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #6f7a86; overflow: hidden; font-family: -apple-system, sans-serif; }
+  canvas { display: block; }
+  #kopf { position: fixed; left: 8px; right: 8px; top: calc(env(safe-area-inset-top) + 8px); color: #fff;
+          background: rgba(0,0,0,.55); border-radius: 10px; padding: 8px 12px; font-size: 15px; line-height: 1.35; }
+</style>
+<script type="importmap">{ "imports": { "three": "./three.module.mjs" } }</script>
+</head>
+<body>
+<div id="kopf">Laden …</div>
+<script type="module">
+import * as THREE from 'three'
+import { GLTFLoader } from './addons/loaders/GLTFLoader.js'
+import { mergeGeometries } from './addons/utils/BufferGeometryUtils.js'
+
+// Welche Oberflaeche wird am iPhone schwarz? Dieselbe gebackene Figur (wie in Diagnose 4)
+// in vier Material-Varianten, Zombie oben, Soldat unten.
+const kopf = document.getElementById('kopf')
+const renderer = new THREE.WebGLRenderer({ antialias: true })
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2))
+renderer.setSize(innerWidth, innerHeight)
+document.body.appendChild(renderer.domElement)
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x87c6ee)
+const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 100)
+camera.position.set(0, 1.4, 8.5); camera.lookAt(0, 1.1, 0)
+scene.add(new THREE.HemisphereLight(0xffffff, 0x556070, 2.2))
+const sonne = new THREE.DirectionalLight(0xffffff, 2.2); sonne.position.set(-3, 8, 6); scene.add(sonne)
+
+function backe(gltf, hoehe) {
+  const root = gltf.scene, mixer = new THREE.AnimationMixer(root)
+  mixer.clipAction(gltf.animations[0]).play(); mixer.setTime(0); root.updateMatrixWorld(true)
+  const teile = new Map(); root.traverse(o => { if (o.isMesh) { if (!teile.has(o.material)) teile.set(o.material, []); teile.get(o.material).push(o) } })
+  const v = new THREE.Vector3(), out = []
+  for (const [material, netze] of teile) {
+    const g = mergeGeometries(netze.map(m => {
+      const s = m.geometry, n = s.attributes.position.count, pos = new Float32Array(n * 3)
+      if (m.isSkinnedMesh) m.skeleton.update()
+      for (let i = 0; i < n; i++) { if (m.isSkinnedMesh) m.getVertexPosition(i, v); else v.fromBufferAttribute(s.attributes.position, i); v.applyMatrix4(m.matrixWorld); pos.set([v.x, v.y, v.z], i * 3) }
+      const neu = new THREE.BufferGeometry(); neu.setAttribute('position', new THREE.BufferAttribute(pos, 3)); neu.setAttribute('uv', s.attributes.uv); if (s.index) neu.setIndex(s.index); return neu
+    }))
+    g.computeVertexNormals(); out.push({ material, g })
+  }
+  const box = new THREE.Box3(); out.forEach(t => box.union(new THREE.Box3().setFromBufferAttribute(t.g.attributes.position)))
+  const s = hoehe / (box.max.y - box.min.y); out.forEach(t => { t.g.translate(0, -box.min.y, 0); t.g.scale(s, s, s) })
+  return out
+}
+// Farb-Pruefung 2: dieselben Figuren als Massen-Instanzen (je 3 nebeneinander).
+// E: Instanzen, einfache Oberflaeche von Anfang an
+// F: Instanzen, erst wie geliefert, nach 3 s Wechsel auf einfache Oberflaeche (wie in Diagnose 3-5)
+// G: Instanzen, wie geliefert
+const [zG, sG] = await Promise.all(['sf_zombie_lo', 'sf_soldat_lo'].map(n => new GLTFLoader().loadAsync('./modelle/' + n + '.glb')))
+const zombie = backe(zG, 1.1), soldat = backe(sG, 1.1)
+function schild(text, x, y) {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128
+  const g = c.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, 128, 128); g.fillStyle = '#fff'; g.font = 'bold 96px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 64, 70)
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c) })); s.scale.set(0.3, 0.3, 1); s.position.set(x, y, 0); scene.add(s)
+}
+const geliefert = m => { const c = m.clone(); c.side = THREE.FrontSide; return c }
+const einfach = m => new THREE.MeshStandardMaterial({ map: m.map, roughness: 0.85, metalness: 0 })
+const wechsel = []
+;[['E', einfach], ['F', geliefert], ['G', geliefert]].forEach(([b, mat], i) => {
+  const x = (i - 1) * 0.95
+  for (const [bau, y] of [[zombie, 1.3], [soldat, 0]]) for (const t of bau) {
+    const n = new THREE.InstancedMesh(t.g, mat(t.material), 3)
+    for (let k = 0; k < 3; k++) n.setMatrixAt(k, new THREE.Matrix4().makeTranslation(x + (k - 1) * 0.28, y, -k * 0.3))
+    n.frustumCulled = false; scene.add(n)
+    if (b === 'F') wechsel.push([n, einfach(t.material)])
+  }
+  schild(b, x, 2.65)
+})
+const zMat = zombie[0].material
+const text = '<b>Welche Buchstaben sind schwarz?</b><br>E: Masse, einfache Oberfläche von Anfang an · F: Masse, nach 3 s Wechsel auf einfache Oberfläche · G: Masse, wie geliefert'
+kopf.innerHTML = text + '<br><small>F wechselt in 3 s …</small>'
+setTimeout(() => { wechsel.forEach(([n, m]) => { n.material = m }); kopf.innerHTML = text + '<br><small>F hat gewechselt.</small>' }, 3000)
+renderer.setAnimationLoop(() => renderer.render(scene, camera))
+</script>
+</body>
+</html>
