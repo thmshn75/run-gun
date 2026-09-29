@@ -32,6 +32,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
   let lauf: SpielLauf | null = null
   let infoOffen = false
   let endeTimer: ReturnType<typeof setTimeout> | undefined
+  let offlineTimer: ReturnType<typeof setTimeout> | undefined
   let ui: ReturnType<typeof zeigeOberflaeche>
   const canvas = game.canvas
   const groesse = () => {
@@ -99,6 +100,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     try {
       bricheAb(undefined, false)
       if (endeTimer) clearTimeout(endeTimer)
+      if (offlineTimer) clearTimeout(offlineTimer)
       finger?.gibFrei(); finger=null
       lauf?.gibLaufFrei(); lauf=null
       renderer?.setAnimationLoop(null)
@@ -153,6 +155,9 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
         if (!gewahrt && !beendet) {
           ui.ergebnisse.style.display = 'block'
           ui.ergebnisse.textContent = 'Offline-Speicher nicht dauerhaft zugesagt'
+          offlineTimer = setTimeout(() => {
+            if (ui.ergebnisse.textContent === 'Offline-Speicher nicht dauerhaft zugesagt') ui.ergebnisse.style.display = 'none'
+          }, 4000)
         }
       }).catch(() => { /* Offline-Start bleibt auch ohne Zusage möglich. */ })
     }

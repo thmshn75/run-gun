@@ -207,3 +207,77 @@ neue Dateien lesen, den Stand gegen die Spec (H1–H10, A1–A6) prüfen, dann *
 - D3-Lauf mit Kernschritten, Fingersteuerung, Formations-, Trupp-, Front- und Hordenansicht, Zahlen, +1-Schilderring, Säule und Ende-Tafel umgesetzt. H1–H10 einschließlich Pausen, Messung mit 60-s-Strategie-Bot und aufgeschobenem Service-Worker-Neuladen berücksichtigt; `rechnung.ts` und `LEVELS` unverändert.
 - Nachweise: `npm test` 62 Dateien/530 Tests grün; `npm run check` und `npm run build` grün; `git diff --check` sauber; kein `http` in `src/v3d/`. Hauptbündel 1.467.937 → 1.468.039 Byte (+102, Grenze ±200).
 - Offen für Abnahme: Browser/WebGL-Zähler beim Zweitstart und nach NOCHMAL sowie iPhone-Steuergefühl und 60-s-Bot-Messbudget. Die verfügbare Browseroberfläche verweigerte den Zugriff; ein iPhone ist in dieser Session nicht erreichbar. Kein Commit/Push (Projektregel).
+
+## Nacharbeit 1 (Thomas 2026-09-29) — Trupps in der Breite, sichtbare Verdopplung
+
+Befund (Browser): Weil der Kern fast jedes Bild einen kleinen Trupp (1–3 Soldaten)
+aussendet, laufen die Soldaten als **lange Einerkolonne** hintereinander. Thomas: Sie sollen
+**der Breite nach** auf die Horde zulaufen und sich an der ×2-Wand **sichtbar vermehren**.
+- **Bänder statt Einzeltrupps:** Laufende Soldaten werden nach ihrer Kern-Position `pos` in
+  Bänder von **1,2 m** Tiefe gruppiert; alle Soldaten eines Bandes stehen **nebeneinander in
+  einer Reihe** (Abstand 0,6 m, zentriert), höchstens **10 je Reihe**, darüber eine zweite
+  Reihe im selben Band. Reihenmitte: vor der Wand die Truppenlage beim Aussenden (geglättet),
+  nach der Wand die Mitte (`front`) bzw. `SAEULE_X` (`saeule`).
+- **Verdopplung sichtbar:** Beim Durchlaufen der Wand (`vervielfacht`) wird die Reihe eines
+  Bandes auf die k-fache Figurenzahl gebracht; die neuen Figuren **fächern in 0,3 s aus der
+  Mitte seitlich auf** (gleiche Reihe, dann breiter), kurzes "×2" über dem Band (vorhanden).
+- **Gewicht je Figur:** Sichtgrenze Trupps bleibt **50 Figuren**. Reicht sie nicht, steht eine
+  Figur für mehrere Soldaten (ganzzahliger Faktor, für alle Bänder gleich, nur nach oben
+  angepasst, höchstens alle 2 s geändert) — die Verdopplung bleibt dabei sichtbar (Reihe
+  wird breiter). Die gezeigten Zahlen (`T`, `F`, `P`) bleiben die Kernwerte.
+- Phasen stabil (H3 gilt weiter: feste Phase je Figur, kein Beinposen-Springen).
+- **Offline-Hinweis:** "Offline-Speicher nicht dauerhaft zugesagt" nach **4 s** ausblenden
+  (verdeckt sonst die Statuszeile).
+- Tests: Bänder-Abbildung als reine Funktion (Soldaten eines Bandes nebeneinander, ≤ 10 je
+  Reihe, nach `vervielfacht` k-fache Breite bis zur Grenze, Summe ≤ 50). Status am Ende
+  `IMPL_DONE`, Nachtrag.
+
+## Nachtrag zur Nacharbeit 1 (Codex 2026-09-29)
+
+- Laufende Soldaten werden in 1,2-m-Bändern mit 0,6 m Querabstand und maximal zwei Reihen
+  dargestellt. Ein gemeinsamer, nur steigender Gewichtungsfaktor begrenzt sie auf 50 Figuren;
+  neue Figuren fächern nach der Wand in 0,3 s auf. Die ×2-Aufblende nutzt wiederverwendete
+  Sprites. Feste Phasen je dargestellter Figur; Anzeigen werden bei NOCHMAL freigegeben.
+- Der Hinweis zum Offline-Speicher verschwindet nach 4 s. Reiner Bändertest ergänzt.
+- `npm test`: 62 Dateien, 532 Tests grün; `npm run check`, `npm run build` und
+  `git diff --check` grün. Hauptbündel 1.468.039 Byte, gegenüber D3 unverändert.
+- Browser/WebGL-Zähler und iPhone-Steuergefühl samt 60-s-Bot-Budget bleiben als
+  Geräteabnahme offen: Der Browserzugriff wurde in dieser Session verweigert; ein iPhone
+  war nicht erreichbar. Terminal.app war für den Teststart nicht auffindbar, daher liefen
+  die Tests in einer direkten Terminal-PTY. Kein Commit/Push (Projektregel).
+
+## Nacharbeit 2 (Claude 2026-09-29 21:08) — Breite über feste Spuren statt Bänder
+
+Befund (Browser, 390×844): weiterhin **Einerkolonne**. Ursache (Claude, Rechnung): Der Kern
+schickt ~4 Soldaten/s einzeln los, sie laufen 6 m/s → Abstand ~1,5 m je Soldat; ein
+1,2-m-Band enthält fast nie mehr als einen. Der Band-Ansatz aus Nacharbeit 1 war falsch.
+Neu (ersetzt die Bänder):
+- **Feste Spur je Soldat:** Jeder sichtbare laufende Soldat bekommt beim Entstehen eine
+  **Spur 0…9** (reihum in gemischter, fester Reihenfolge, z. B. 4,7,1,9,2,5,0,8,3,6), Spur-
+  abstand 0,6 m, Spurenfeld zentriert auf die Laufmitte (vor der Wand: Truppenlage, nach der
+  Wand: Mitte bzw. `SAEULE_X` mit 3 Spuren). z kommt weiter aus der Kern-Position.
+  → Der Strom läuft als **breite Welle** über die Mitte, nicht hintereinander.
+- **Verdopplung sichtbar:** Ab `vervielfacht` wird jeder Soldat als **k Figuren
+  nebeneinander** (Abstand 0,35 m, k=2 → links/rechts der Spur) gezeigt, in 0,3 s aus der
+  Spurmitte auseinander gefächert. Bleibt die Summe über 50, gilt der Figuren-Faktor aus
+  Nacharbeit 1 (für alle gleich), die Paar-Darstellung bleibt.
+- Phasen stabil (H3). Tests: Spurverteilung (10 aufeinanderfolgende Soldaten belegen 10
+  verschiedene Spuren; x-Spanne ≥ 5 m in der Mitte), Verdopplung (k Figuren je Soldat nach
+  der Wand), Summe ≤ 50. Status `IMPL_DONE`, Nachtrag.
+
+## Nachtrag zur Nacharbeit 2 (Codex 2026-09-29)
+
+- Die Bänder-Abbildung wurde durch zehn feste, gemischt vergebene Spuren je Kernsoldat
+  ersetzt. Die Spuren liegen 0,6 m auseinander und spannen 5,4 m auf; hinter der Wand
+  nutzt der Säulenweg drei Spuren. Die Position in Laufrichtung bleibt die Kern-Position.
+- An der Wand zeigt jeder sichtbare Kernsoldat zwei Figuren, die sich in 0,3 s um
+  0,35 m trennen. Die Phasen bleiben fest. Der gemeinsame Gewichtungsfaktor steigt
+  höchstens alle 2 s; bei mehr als 50 Figuren entfallen zuerst die ältesten Läufer.
+- Tests für feste Spurvergabe, Breite, Verdopplung und Sichtgrenze ergänzt.
+  `npm test`: 62 Dateien, 533 Tests grün; `npm run check`, `npm run build` und
+  `git diff --check` grün. Hauptbündel: 1.468.039 Byte, unverändert. Kein `http`
+  in `src/v3d/`.
+- Browser/WebGL-Zähler, sichtbare Prüfung bei 390×844 und iPhone-Steuergefühl samt
+  60-s-Bot-Budget bleiben Geräteabnahme: Der Browserzugriff wurde verweigert; ein iPhone
+  ist hier nicht erreichbar. Terminal.app ließ sich nicht über `open` starten; die
+  Tests liefen in einer direkten Terminal-PTY. Kein Commit/Push (Projektregel).
