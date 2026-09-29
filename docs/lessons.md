@@ -1498,3 +1498,17 @@ die Seite ab" zeigte die Ursache: 62 Bemalungen à 1024 px plus Zusatzkarten, ge
 4 × 4/3 je gezeichneter Bemalung) und unter 60 MB halten. Messseiten prüfen das Ergebnis
 selbst (Bildpunkte auslesen, Schwarz-Anteil), statt Thomas für jeden Verdacht draufschauen
 zu lassen — und diese Prüfung vorher mit absichtlich falschem Bild gegenprüfen.
+
+## 2026-09-29 — Codex-Lauf hing 28 Minuten unbemerkt
+
+**Was passiert ist:** Der D2b-Lauf blieb nach einem fehlgeschlagenen Test stehen
+(Prozess lebte, keine Datei, kein Befehl). Claude wartete nur auf `codex.done` und sah
+erst nach, als Thomas nach dem Stand fragte.
+**Regel:** Beim Warten auf einen Codex-Lauf nicht nur das Ende abfragen, sondern auch
+Stillstand: Die Warteschleife bricht ab und meldet, wenn `codex.out` länger als 8 Minuten
+unverändert ist. Dann Stand selbst prüfen (Tests/Skript ausführen), Lauf beenden und
+gezielt fortsetzen lassen.
+**Nachtrag:** Nach dem Abbruch hing jeder neue Start über `codex-companion.mjs` bei
+"Starting Codex task thread", auch nach Neustart des geteilten Dienstes; `codex exec`
+direkt lief sofort. Rückfallweg: `.command` mit `codex exec "<Auftrag>" < /dev/null >
+codex.out 2>&1` statt Companion.

@@ -21,6 +21,8 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
   let welt: Welt | null = null
   let beendet = false
   let letzterFrame = 0
+  let spielzeit = 0
+  let fallRunde = -1
   const canvas = game.canvas
   const groesse = () => {
     if (!aktiv || !renderer || !camera) return
@@ -48,11 +50,19 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     if (!renderer || !scene || !camera || beendet) return
     const dt = letzterFrame ? Math.max(0, jetzt - letzterFrame) : 0
     letzterFrame = jetzt
+    spielzeit += Math.min(100,dt)/1000
     welt?.wasser.aktualisiere(Math.min(0.1, dt / 1000))
-    welt?.zombieMasse.aktualisiere(jetzt / 1000)
-    if (welt?.nahaufnahme) welt.zombieMasse.setze([-0.85, 0, 0.85].map((x, i) => ({ x, z: 0, dreh: jetzt / 1000 * Math.PI / 4, variante: i, groesse: 1 })))
+    welt?.zombieMasse.aktualisiere(spielzeit)
+    welt?.truppe.aktualisiere(spielzeit)
+    welt?.laufTrupp.aktualisiere(spielzeit)
+    if (welt?.nahaufnahme && !welt.soldatNahaufnahme) welt.zombieMasse.setze([-0.85, 0, 0.85].map((x, i) => ({ x, z: 0, dreh: spielzeit * Math.PI / 4, variante: i, groesse: 1 })))
+    if (welt?.soldatNahaufnahme) {
+      const runde=Math.floor(spielzeit/3)
+      if(runde!==fallRunde){welt.truppe.setze([]);fallRunde=runde}
+      welt.truppe.setze([-1.5,-.5,.5,1.5].map((x,i)=>({x,z:0,dreh:spielzeit*Math.PI/4,bewegung:(['laufen','stehen','schiessen','fallen'] as const)[i]})))
+    }
     renderer.render(scene, camera)
-    messBild(dt, jetzt)
+    messBild(dt, spielzeit)
   }
   const verlasse = (hinweis?: string) => {
     if (beendet) return
@@ -94,6 +104,10 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     camera = welt.camera
     ui.messen.disabled = false
     ui.ergebnisse.style.display = 'none'
+    if(new URLSearchParams(location.search).get('pruefung')==='soldat'){
+      ui.ergebnisse.style.display='block'
+      ui.ergebnisse.textContent=`Backen Soldat: ${welt.soldatBau.backzeitMs.toFixed(1)} ms\n${Object.entries(welt.soldatBau.pruefung).map(([k,v])=>`${k}: ${Array.isArray(v)?v.join(', '):Number(v).toFixed(2)}`).join('\n')}`
+    }
     if (!dauerhaftAngefragt && navigator.storage?.persist) {
       dauerhaftAngefragt = true
       void navigator.storage.persist().then(gewahrt => {

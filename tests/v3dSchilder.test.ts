@@ -19,8 +19,8 @@ vi.stubGlobal('document', {
 afterEach(() => { gibSchilderFrei(); bildMasse.length = 0 })
 
 describe('3D-Schilder', () => {
-  it('teilt die +1-Bemalung und hält Platte samt Pfosten im linken Streifen', () => {
-    const daten = { breite: BUEHNE.PLUS_BREITE, hoehe: BUEHNE.PLUS_HOEHE, text: '+1', farbe: '#168bd2', unterkante: 0.5, neigungGrad: -10 }
+  it('teilt die +1-Bemalung und lässt die Schilder ohne Pfosten schweben', () => {
+    const daten = { breite: BUEHNE.PLUS_BREITE, hoehe: BUEHNE.PLUS_HOEHE, text: '+1', farbe: '#168bd2', unterkante: 0.5, neigungGrad: -10, pfosten: false }
     const erstes = baueSchild(daten)
     const zweites = baueSchild(daten)
     expect(bildMasse).toHaveLength(1)
@@ -31,9 +31,8 @@ describe('3D-Schilder', () => {
     expect((zweiteFront.material as THREE.MeshBasicMaterial).map).toBe(textur)
     expect((front.parent as THREE.Group).rotation.x).toBeCloseTo(THREE.MathUtils.degToRad(-10))
     const pfosten = erstes.children.filter(obj => obj.name === 'schild-pfosten') as THREE.Mesh[]
-    expect(pfosten).toHaveLength(2)
-    expect(pfosten[0].geometry).toBeInstanceOf(THREE.BoxGeometry)
-    expect(pfosten[0].scale.y * (pfosten[0].geometry as THREE.BoxGeometry).parameters.height).toBeCloseTo(1.8)
+    expect(pfosten).toHaveLength(0)
+    expect(BUEHNE.PLUS_ABSTAND).toBe(4)
     expect(BUEHNE.PLUS_X - daten.breite / 2).toBeGreaterThanOrEqual(-BUEHNE.BAHN_BREITE / 2)
     expect(BUEHNE.PLUS_X + daten.breite / 2).toBeLessThanOrEqual(-BUEHNE.MITTE_HALB)
     let freigaben = 0

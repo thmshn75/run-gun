@@ -7,6 +7,7 @@ export interface SchildDaten {
   farbe: string
   unterkante?: number
   neigungGrad?: number
+  pfosten?: boolean
 }
 
 const bemalungen = new Map<string, THREE.CanvasTexture>()
@@ -57,7 +58,7 @@ function bemalung({ breite, hoehe, text, farbe }: SchildDaten): THREE.CanvasText
 }
 
 export function baueSchild(daten: SchildDaten): THREE.Group {
-  const { breite, hoehe, farbe, unterkante = 0, neigungGrad = 0 } = daten
+  const { breite, hoehe, farbe, unterkante = 0, neigungGrad = 0, pfosten = true } = daten
   const gruppe = new THREE.Group()
   const tafel = new THREE.Group()
   tafel.position.y = unterkante + hoehe / 2
@@ -76,10 +77,12 @@ export function baueSchild(daten: SchildDaten): THREE.Group {
     kasten(tafel, 'schild-rahmen', [rand, hoehe, rand], [x, 0, vor], hell)
   for (const y of [-hoehe / 2 + rand / 2, hoehe / 2 - rand / 2])
     kasten(tafel, 'schild-rahmen', [breite - 2 * rand, rand, rand], [0, y, vor], hell)
-  const pfostenHoehe = unterkante + hoehe + 0.1
-  const holz = new THREE.MeshStandardMaterial({ color: '#c9793a', roughness: 0.9 })
-  for (const x of [-breite / 2 + 0.07, breite / 2 - 0.07])
-    kasten(gruppe, 'schild-pfosten', [0.14, pfostenHoehe, 0.14], [x, pfostenHoehe / 2, -0.11], holz)
+  if (pfosten) {
+    const pfostenHoehe = unterkante + hoehe + 0.1
+    const holz = new THREE.MeshStandardMaterial({ color: '#c9793a', roughness: 0.9 })
+    for (const x of [-breite / 2 + 0.07, breite / 2 - 0.07])
+      kasten(gruppe, 'schild-pfosten', [0.14, pfostenHoehe, 0.14], [x, pfostenHoehe / 2, -0.11], holz)
+  }
   return gruppe
 }
 

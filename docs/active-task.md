@@ -2,341 +2,285 @@
 
 Status: APPROVED
 
-## Aufgabe: D2a — Zombie-Masse (Run Gun 3D)
+## Aufgabe: D2b — Soldat (Run Gun 3D)
 
-Verbindlicher Plan: `docs/plan-v7.md`, Abschnitte "Machbarkeit → Folgerungen",
-"Unverhandelbare Randbedingungen" (v. a. 3, 4, 5, 7, 8) und "Schrittfolge → D2a".
-Dieser Schritt bringt die **echten Zombies** in den 3D-Modus: Modell aufbereiten, Laufbild
-backen, als Instanzen zeichnen, drei Bemalungs-Varianten. Die Zombies stehen als Block
-auf der Straße und laufen **auf der Stelle** (Vorwärtsbewegung, Wellen, Front: D4).
-Vorlage für das Backen und Zeichnen: `public/probe-3d/diagnose7.html` (Funktionen
-`aufDerStelle`, `backe`, `netze`, `fuelle`) — am iPhone bewiesen (1000 Zombies 57 fps).
-Koordinaten wie in D1 (`balance3d.ts`, Block `BUEHNE`): 1 Einheit = 1 m, vorwärts = −z.
+Verbindlicher Plan: `docs/plan-v7.md`, Abschnitte "Thomas' Entscheidungen" (Soldat,
+Bewaffnung, Größen), "Machbarkeit → Folgerungen", Randbedingungen 3–5, 7–9 und
+"Schrittfolge → D2b" inkl. **Reißleine D2b**. Dieser Schritt bringt den **echten
+Soldaten** in den 3D-Modus: Modell aufbereiten (eine Bemalung, Tarnmuster, Helm),
+Bewegungen aus der Quaternius-Bibliothek übertragen, M4 an die rechte Hand, gebackene
+Formen als Instanzen, Truppe in Reihen. Keine Spiellogik (Aussenden, Front: D3/D4).
+Vorlagen: `public/probe-3d/bewegung.html` (Übertragung, am iPhone bewiesen, 13 ms),
+`src/v3d/figuren.ts` (Backen/Zeichnen der Zombies aus D2a — gleiche Technik).
 
 ## Erlaubte Änderungen (abschließend)
 
-- Neu: `scripts/modelle.mjs`, `src/v3d/figuren.ts`, `src/v3d/modelle/` (Ausgabe),
-  Bemalungs-Varianten unter `src/v3d/bilder/`, `scripts/zombie-varianten.py`,
-  Test `tests/v3dFiguren.test.ts`.
-- Geändert: `src/v3d/szene.ts` (Horde-Platzhalter → echte Zombies, Lade-Gate),
-  `src/v3d/messung.ts` (Vollast-Zombies → echte Zombies, Messstufen),
-  `src/v3d/balance3d.ts` (neue Konstanten im Block `BUEHNE` oder neuer Block `FIGUREN`),
-  `src/v3d/einstieg.ts` (nur Bildtakt-Aufruf der Zombie-Aktualisierung),
-  `tests/v3dBuild.test.ts` (`.glb` wie `.webp` prüfen), bestehende v3d-Tests nur wo
-  Werte gewollt geändert werden (im Bericht nennen).
-- `modelle-quelle/zombie/` ist die eingecheckte Rohquelle (Sketchfab "Zombie Walk Test",
-  CC-BY 4.0, Lizenz liegt bei) — nur lesen.
-- `package.json`: Claude hat bereits installiert (**nicht erneut installieren**, kein
-  Netz nötig) — **nur `devDependencies`**, exakt gepinnt:
-  `@gltf-transform/core`, `@gltf-transform/functions`, `@gltf-transform/extensions`,
-  `meshoptimizer`, `sharp` (für Verkleinern/WebP) — nur für `scripts/modelle.mjs`, nie
-  im Spiel-Code importiert (Hauptbündel-Test und Isolationstest bleiben grün). Kein
-  `npx` im Skript. (Bewusste, von Claude entschiedene Erweiterung von Plan-
-  Randbedingung 1: reine Werkzeug-Pakete, kein Einfluss aufs Spiel.)
-- `docs/lizenzen.md`: Änderungsvermerk Zombie ergänzen: "Bemalung in zwei
-  Farbvarianten umgefärbt, Laufbild in feste Formen gebacken, Bewegung auf der Stelle".
+- Neu: `src/v3d/soldaten.ts` (Laden, Übertragen, Backen, `SoldatenMasse`),
+  `src/v3d/modelle/v3d-soldat.glb`, `src/v3d/modelle/v3d-bewegung.glb`,
+  `scripts/soldat-tarnung.py` (falls Pixelarbeit in Python einfacher), Test
+  `tests/v3dSoldaten.test.ts`.
+- Geändert: `scripts/modelle.mjs` (neue Ziele `soldat` und `bewegung`),
+  `src/v3d/szene.ts` (Truppen-Platzhalter → echte Truppe, Lade-Gate),
+  `src/v3d/messung.ts` (Soldaten-Kugeln → echte Soldaten), `src/v3d/balance3d.ts`
+  (Block `FIGUREN`), `src/v3d/einstieg.ts` (nur Bildtakt), `docs/lizenzen.md`
+  (Soldat: Änderungen ergänzen; **M4 neu**; Quaternius-Bewegungen), bestehende Tests nur
+  wo Werte gewollt geändert werden.
+- Quellen (nur lesen): `modelle-quelle/soldat-vereinfacht.glb` (= am iPhone geprüfter
+  Soldat, 5130 Dreiecke, 10 Materialien, 24 Bilder), `modelle-quelle/m4/` (Sketchfab
+  "Low-Poly M4a1", TastyTony, CC-BY 4.0, 10 680 Dreiecke, ohne Bilder, nur
+  Materialfarben), Bewegungen aus
+  `~/Downloads/rungun-roh/ual/ual1/Universal Animation Library[Standard]/Unreal-Godot/UAL1_Standard.glb`
+  (Quaternius, CC0; liegt bewusst außerhalb des Repos). **Claude hat eine Kopie nach
+  `tmp/UAL1_Standard.glb` gelegt (ignoriert von Git) — das Skript liest diesen Pfad**
+  (Konstante), mit verständlicher Fehlermeldung, falls die Datei fehlt.
+- Keine neuen Pakete (die Werkzeug-Pakete aus D2a sind da).
 
 ## Akzeptanzkriterien
 
-### A1 Aufbereitung (`scripts/modelle.mjs`, Plan Randbedingung 8)
+### A0 Vorab-Korrektur +1-Schilder (Thomas 2026-09-29)
 
-Aufruf `node scripts/modelle.mjs zombie`. Eingabe `modelle-quelle/zombie/scene.gltf`,
-Ausgabe `src/v3d/modelle/v3d-zombie.glb`. Umsetzung mit der `@gltf-transform`-API im
-Skript (nicht CLI), in dieser Reihenfolge:
-1. Spec-Gloss → Metal-Rough (`metalRough()` aus functions), danach am Material
-   `normalTexture`, `metallicRoughnessTexture`, `occlusionTexture`, `emissiveTexture`
-   auf `null`, Faktoren: `baseColorFactor = [1,1,1,1]`, `metallicFactor = 0`,
-   `roughnessFactor = 0.85`; Erweiterungen für Specular/Glossiness entfernen.
-2. **UV-Fläche zuschneiden:** Die UVs belegen nur ca. `u 0,003–0,749`, `v 0,505–0,999`
-   (37 % des Bildes). Genutzte UV-Hülle (mit 8 px Rand) aus dem Farbbild ausschneiden,
-   UVs auf die neue Fläche umrechnen, dann auf **512 × 512** verkleinern (Seitenverhältnis
-   darf verzerrt werden, UVs sind entsprechend umgerechnet). Ergebnis: UVs füllen ≥ 90 %
-   von [0,1]².
-3. `weld` nur mit Toleranz, die UV-Nähte erhält (Attribute mitvergleichen, Standard der
-   API), danach **`simplify` mit `lockBorder: true`** und festem `error`; das Verhältnis
-   wird per Bisektion gesucht (höchstens 8 Läufe), bis **900 – 1100 Dreiecke** erreicht
-   sind.
-4. Tangenten entfernen, `resample`, `prune`, `dedup`, Farbbild als WebP (Qualität 90).
-5. **Prüfung am Ende** (Abbruch mit Fehlercode, wenn verletzt): Dreiecke 900 – 1100,
-   genau ein Bild, 512 × 512, Material wie in 1., mindestens eine Animation,
-   Dateigröße ≤ 1 MB, UV-Spanne ≥ 90 %.
-6. **Qualitäts-Rückfall:** Sieht die Nahaufnahme (A5) schlechter aus als die am iPhone
-   geprüfte Referenz `public/probe-3d/modelle/sf_zombie_m.glb` (1009 Dreiecke), entscheidet
-   Claude; Codex nennt im Bericht nur die Werte beider Dateien.
-Das Skript ist wiederholbar (gleiche Eingabe → gleiche Werte, Versionen gepinnt); die
-Ausgabe-Datei wird eingecheckt, der Build braucht das Skript nicht.
+- `baueSchild` bekommt die Option `pfosten: boolean` (Standard `true`). **+1-Schilder
+  ohne Pfosten** — sie schweben (Unterkante 0,5 m über der Straße bleibt). Die ×2-Wand
+  behält ihre Pfosten.
+- Abstand der +1-Schilder längs **4 m** statt 7 m (Konstante in `BUEHNE`).
 
-### A2 Bemalungs-Varianten (`scripts/zombie-varianten.py`)
+### A1 Aufbereitung Soldat (`node scripts/modelle.mjs soldat`)
 
-Drei Varianten derselben UV-Bemalung, damit die Masse nicht wie Klone aussieht:
-`a` = Original (steckt in der `.glb`), `b` und `c` als `src/v3d/bilder/v3d-zombie-b.webp`,
-`-c.webp` (512 × 512, WebP Qualität 90).
-- **Nur Pixel-Umfärbung mit PIL**, kein Bildgenerator auf der UV-Bemalung (er würde die
-  UV-Anordnung zerstören — bewusste Abweichung von Randbedingung 9, hier begründet):
-  Farbbereiche erkennen (Kleidung vs. Haut über Farbton/Sättigung, nur innerhalb der
-  von UV-Dreiecken belegten Fläche — Maske aus den UVs der fertigen `.glb`) und
-  getrennt verschieben; Arbeit auf der fertigen 512er-Bemalung aus A1. `b`: Kleidung deutlich andere Farbe (z. B. verwaschenes Blau/Grau),
-  Haut etwas grünlicher. `c`: Kleidung dunkel/erdig (Braun/Olive), Haut fahler,
-  einige dunkelrote Flecken (Blut) in der Kleidung. **Mittlere Helligkeit jeder
-  Variante ≥ 45 (0–255)** über die belegte Fläche — das Skript prüft das, sonst
-  schlägt die Schwarz-Erkennung des Messmodus falsch an.
-- Kontrollbild `tmp/zombie-varianten.png` (drei Bemalungen nebeneinander) im Bericht
-  nennen (Ordner `tmp/` ist in `.gitignore`).
+Ausgabe `src/v3d/modelle/v3d-soldat.glb`, Skelett und Skin bleiben erhalten:
+- **Eine einzige Bemalung (Atlas) 1024 × 1024:** die 10 Farbbilder (nur Basisfarbe;
+  Relief-/Glanz-/Rauheitsbilder entfernen) je auf 256 × 256 verkleinern und in ein
+  4 × 4-Raster legen (Rand 4 px je Kachel, Kanten ausgeblutet gegen Säume), UVs jedes
+  Teilnetzes auf seine Kachel umrechnen, **alle Teilnetze auf ein Material** mit dem
+  Atlas (Faktoren wie Zombie: Basisfarbe [1,1,1,1], Metall 0, Rauheit 0,85). Eine freie
+  Kachel wird **Waffenfarbe** (s. A3).
+- **Tarnmuster** (Plan: Codex malt es): **Codex erzeugt mit dem Bildwerkzeug** ein
+  nahtloses Woodland-/Multicam-artiges Tarnmuster (Grün-, Braun-, Sandtöne, 512 px,
+  kachelbar). Es wird auf die Kacheln **Jacke (`Mark_Kitel_1`) und Hose
+  (`Mark_Pants_1`)** gelegt: `neu = tarn × (Helligkeit_original / mittlere
+  Helligkeit_original)` innerhalb der UV-belegten Fläche (Maske aus den UV-Dreiecken
+  dieses Teilnetzes, wie Zombie-Varianten), damit Falten und Schattierung bleiben.
+  Kacheln werden **nur innerhalb der Maske** verändert.
+- **Helm (`Mark_Helmet1`) = SOCOM-Stil:** einfarbig Coyote-Tan (`#a58a64`) mit der
+  Originalschattierung (gleiche Formel), keine Tarnung.
+- Handschuhe, Weste, Taschen, Stiefel: unverändert (dunkel, taktisch).
+- Prüfungen am Skriptende (Abbruch bei Verletzung): genau ein Bild, 1024², ein Material,
+  Dreiecke 4900–5400, Skelett vorhanden, Datei ≤ 2 MB. Kontrollbild des Atlas nach
+  `tmp/soldat-atlas.png`.
 
-### A3 Laden und Backen (`src/v3d/figuren.ts`)
+### A2 Bewegungen (`node scripts/modelle.mjs bewegung`)
 
-- `ladeZombie(renderer)`: lädt `v3d-zombie.glb` (Import `?url`) und beide Varianten-
-  Bemalungen; gehört zum **Lade-Gate** aus D1 (gleiches `Promise.all`, gleiches 8-s-Limit,
-  gleiche Fehlermeldung, Freigabe halb geladener Teile).
-- Backen erst, wenn glb **und** beide Bemalungen geladen sind; vorher `abgebrochen()`
-  prüfen. Teilergebnisse, die nach Zeitlimit oder Abbruch eintreffen, beim Eintreffen
-  sofort freigeben (wie `vorbei` in D1).
-- **Laufzyklus:** Der Clip `ANIMATION ZOMBIE` ist 4,03 s lang, die Hüfte legt dabei
-  ca. 1,3 m zurück. Codex bestimmt aus der Fußhöhe (tiefster Punkt linker/rechter Fuß
-  je Zeit), wie viele Schritte der Clip enthält, und **backt genau einen Gangzyklus
-  (zwei Schritte)** in **`ZOMBIE_FORMEN = 12`** feste Formen. Abgespielt wird ein
-  Zyklus in **`ZOMBIE_ZYKLUS_S = 1.1` s** (Konstanten in `balance3d.ts`). Im Bericht:
-  Clip-Dauer, Schrittzahl, gewählter Zeitabschnitt.
-- `backe(gltf, hoehe)` nach `diagnose7.html`: Wurzelbewegung entfernen (`aufDerStelle`),
-  Formen per `getVertexPosition`, alle Teilnetze zu **einer** Geometrie je Form. Nur
-  Form 0 per `mergeGeometries`; Formen 1–11 sind `clone()` davon mit neuem `position`
-  und `normal`, **`uv` und `index` bleiben dasselbe Objekt** (Test). Höhe
-  **`ZOMBIE_HOEHE = 1.3` m**, gemessen über **alle** Formen (größte Höhe), Füße: in
-  jeder Form liegt der tiefste Punkt bei `y = 0 ± 0,03`.
-- Rutschen/Ruckeln (Test): waagrechte Schwerpunkt-Verschiebung zwischen den Formen
-  < 0,05 m; der Unterschied Form 11 → Form 0 ist nicht größer als der größte Unterschied
-  zweier benachbarter Formen (Zyklus schließt).
-- Material je Variante: `MeshStandardMaterial({ map, roughness: 0.85, metalness: 0,
-  side: FrontSide })`, `map.colorSpace = SRGB`; Varianten-Bilder mit denselben
-  Einstellungen wie das glTF-Bild (`flipY = false`, gleiche `wrapS/wrapT`, gleiche
-  Filter).
-- Blickrichtung: Die Zombies schauen **zur Kamera (+z)**. Stimmt die Modellrichtung nicht,
-  beim Backen drehen (im Bericht sagen, um wie viel).
+Ausgabe `src/v3d/modelle/v3d-bewegung.glb`: **nur Skelett + diese Clips** aus UAL1
+(Netze, Bilder, Materialien entfernen): `Jog_Fwd_Loop`, `Pistol_Aim_Neutral`,
+`Pistol_Idle_Loop`, `Pistol_Shoot`, `Death01`. Prüfung: Clips vorhanden, Datei ≤ 1 MB.
 
-### A4 Zeichnen (`ZombieMasse` in `figuren.ts`)
+### A3 M4 (im Skript `soldat`, als Teil derselben glb)
 
-- `new ZombieMasse(bau, materialien[3], max)` legt je Variante × Phasengruppe ein
-  `InstancedMesh` an (3 Varianten × **8 Gruppen** = 24 Netze), **jedes mit Kapazität
-  `max`**, Layer 1, `frustumCulled = false`, `DynamicDrawUsage`. `count` je Netz wird
-  aus der Liste gezählt.
-- `setze(liste)` mit Einträgen `{ x, z, dreh, variante, groesse }`; Figur `i` gehört zur
-  Gruppe `i % 8` (Phasenversatz). `aktualisiere(zeitSekunden)`: je Gruppe
-  `geometry = form[(g · 12/8 gerundet + bild) % 12]` mit
-  `bild = floor(zeit / ZOMBIE_ZYKLUS_S · 12) % 12` — keine Matrix-Neuberechnung pro
-  Bild, solange sich Positionen nicht ändern.
-- Reine Hilfsfunktion `bildFuer(gruppe, zeit, dauer)` (getestet).
-- `gibFrei()` gibt **alle 12 Formen**, die Varianten-Bemalungen, die Materialien und die
-  `InstancedMesh`-Objekte (`.dispose()`) frei — auch Formen, die gerade an keinem Netz
-  hängen. Die glb-Bemalung ebenfalls.
+- M4 aus `modelle-quelle/m4/` auf **350 – 600 Dreiecke** vereinfachen (Bisektion wie
+  D2a, `lockBorder`), Länge real ~0,84 m relativ zur Soldatengröße skalieren.
+- UVs aller M4-Punkte auf die **Waffenfarbe-Kachel** im Atlas (dunkles Grau
+  `#2b2d2f` mit leichtem Verlauf; alle Punkte auf die Kachelmitte ist erlaubt).
+- M4 wird als eigenes Teilnetz **starr an den Knochen `CC_Base_R_Hand_081` gebunden**
+  (Skin-Gewicht 1,0 auf diesen Knochen), Griff in der Hand, Lauf nach vorn entlang der
+  Zielrichtung der Pose `Pistol_Aim_Neutral`. Lage/Drehung als Konstanten im Skript,
+  von Codex an der Pose ermittelt.
 
-### A5 Bühne und Messmodus
+### A4 Übertragen und Backen (`src/v3d/soldaten.ts`)
 
-- `szene.ts`: Der rote Horde-Platzhalter entfällt. Stattdessen **600 Zombies** im Block
-  `x ∈ [−5, 5]`, ab `z = −35` nach hinten, 24 je Reihe, Reihenabstand 0,55 m, jede zweite
-  Reihe um halben Abstand versetzt, Zufallsversatz ±0,08 m, Drehung ±15°, Größe
-  0,92 – 1,08, Variante zufällig gleichverteilt — alles mit festem Seed (kein
-  `Math.random`). Sie laufen auf der Stelle. Die übrigen Platzhalter bleiben.
-- `messung.ts`: Die 1200 Kugel-Zombies der Vollast werden **1200 echte Zombies**
-  (gleiche Aufstellung wie bisher, ab `z = −22`, Varianten mit festem Seed gleich
-  verteilt) — als **zweite `ZombieMasse` mit denselben Formen und Materialien** (kein
-  zweites Laden). `wippe()` gilt nur noch für die Soldaten-Platzhalter. `bricheAb()`
-  gibt nur die Netze der Vollast-`ZombieMasse` frei (`InstancedMesh.dispose()`), **nie
-  Formen oder Materialien**, die der Bühnen-Block nutzt. Die 120 Soldaten-Platzhalter
-  bleiben bis D2b. Während der Messung wird der 600er-Block ausgeblendet.
-  **Messstufen nur noch Wasser 0 und Wasser 1** (Wasser 2 ist am iPhone außerhalb des
-  Budgets: 54,5 fps) — Liste als Konstante, Code bleibt allgemein. `schwarzAnteil()`
-  und `urteil()` bleiben unverändert.
-- **Reißleine Leistung:** Codex misst nicht selbst am Gerät und „optimiert“ nichts auf
-  Verdacht (keine weniger Zombies, kein gröberes Modell). Rückfälle (weniger Formen,
-  Referenzmodell, Schärfe 1,5×) entscheiden Claude und Thomas nach der iPhone-Messung.
-- Speicherplan zählt die Zombie-Bemalungen (glb + 2 Varianten) mit.
-- **Nahaufnahme** `?nahaufnahme=1`: statt der Bühne drei Zombies (Varianten a/b/c)
-  nebeneinander groß vor neutralem Grund, Kamera nah (Figur füllt ~60 % der
-  Bildhöhe), laufen auf der Stelle, drehen sich langsam (eine Umdrehung in 8 s). Dient
-  Claude und Thomas zur Prüfung auf Löcher (Plan Folgerung 1).
-- Zweitstart (Randbedingung 5): `renderer.info.memory` gleich nach dem zweiten Start,
-  auch nach einem Messlauf (Claude prüft zusätzlich mit WebGL-Zählern).
+- Übertragung wie `bewegung.html` (`PAARE`, `richtungen`, `uebertrage`), zusätzlich
+  **Hüfthöhe**: die Höhe des Beckens der Vorlage je Bild relativ zu ihrer Ruhehöhe,
+  skaliert mit Soldatengröße / Vorlagengröße, als Positionsspur auf `CC_Base_Hip_01`
+  (nur y; x/z fest — auf der Stelle).
+- Vier Bewegungen, je als feste Formen gebacken (alle Teilnetze inkl. M4 zu einer
+  Geometrie je Form, `uv`/`index` gemeinsam wie D2a):
+  - `laufen` = Beine `Jog_Fwd_Loop` + Oberkörper `Pistol_Aim_Neutral`, **12 Formen**,
+    Zyklus `SOLDAT_LAUF_ZYKLUS_S = 0.7`;
+  - `stehen` = `Pistol_Idle_Loop` (ganzer Körper), **8 Formen**, Zyklus aus dem Clip;
+  - `schiessen` = Beine `Pistol_Idle_Loop` + Oberkörper `Pistol_Shoot`, **8 Formen**,
+    Zyklus aus dem Clip;
+  - `fallen` = `Death01`, **10 Formen**, nicht wiederholend (letzte Form bleibt).
+- Größe **`SOLDAT_HOEHE = 2.0` m** (Thomas: Soldaten mindestens so groß wie die
+  Zombies, 1,95 m), gemessen in der Ruhe-/Stehpose; Füße auf `y = 0`. Blick nach
+  **−z** (zur Horde).
+- Material: `MeshStandardMaterial({ map: atlas, roughness: 0.85, metalness: 0,
+  side: FrontSide })`.
+- Laden im gemeinsamen **Lade-Gate** (glb Soldat + glb Bewegung, Zeitlimit, Abbruch-
+  Freigabe wie D2a). Übertragung + Backen gemessen und im Messmodus angezeigt ("Backen
+  Soldat: x ms").
+
+### A5 Zeichnen und Bühne
+
+- `SoldatenMasse` analog `ZombieMasse`: je Bewegung × 8 Phasengruppen ein
+  `InstancedMesh` (Kapazität `SOLDATEN_SICHTBAR_MAX = 120`), Layer 1; `setze(liste)`
+  mit `{ x, z, dreh, bewegung }`; `fallen` spielt je Eintrag ab einer Startzeit einmal
+  ab (für D4 vorbereitet, hier nur in der Nahaufnahme gezeigt). `gibFrei()` wie D2a
+  (alle Formen, Material, Atlas, Netze).
+- **Bühne:** Der blaue Truppen-Platzhalter entfällt. Stattdessen **30 Soldaten in
+  Reihen** (3 Reihen × 10, Abstand quer 0,6 m, längs 0,9 m) mittig vor der Wand ab
+  `z = +0.5` Richtung Kamera, Bewegung `stehen`, Blick −z. Dazu **ein laufender Trupp**
+  von 10 Soldaten (2 × 5) zwischen Wand und Horde bei `z ≈ −15` mit `laufen` (auf der
+  Stelle), damit man die Laufbewegung sieht.
+- **Messmodus:** Die 120 Soldaten-Kugeln werden **120 echte Soldaten** (gleiche
+  Aufstellung wie bisher, `z = 0 … +7`), Bewegung `laufen` (teuerste Dauerbewegung);
+  die Bühnen-Truppe und der Trupp werden während der Messung ausgeblendet. Zombie-Vollast
+  bleibt 600.
+- **Nahaufnahme** `?nahaufnahme=soldat`: vier Soldaten nebeneinander (laufen, stehen,
+  schiessen, fallen — fallen wiederholt alle 3 s), drehen langsam, Kamera wie
+  Zombie-Nahaufnahme; Zombie-Nahaufnahme bleibt `?nahaufnahme=1`.
+- **Prüfanzeige** `?pruefung=soldat` (für Claude): zeigt als Text
+  (a) Abstand M4-Griffpunkt ↔ Handwurzel (Ursprung `CC_Base_R_Hand_081`) in cm in den
+  Formen 0 von `laufen`, `stehen`, `schiessen` (Plan: **höchstens 3 cm**),
+  (b) Höhe der Hüfte über dem Boden in der letzten `fallen`-Form in cm (Plan:
+  **höchstens 15 cm**), (c) tiefster Punkt je Form (Füße auf 0 ± 3 cm) für `laufen`,
+  `stehen`, `schiessen`, (d) Backzeit in ms. Den Griffpunkt legt das Skript als
+  Konstante fest (Punkt am Pistolengriff des M4 in Modellkoordinaten).
 
 ### A6 Tests und Nachweise
 
-- `tests/v3dFiguren.test.ts`: liest `src/v3d/modelle/v3d-zombie.glb` direkt (glb-Kopf +
-  JSON-Block, ohne Loader): Dreiecke 900 – 1100, genau ein Bild, mindestens eine
-  Animation, Dateigröße ≤ 1 MB, Material-Faktoren wie A1, keine weiteren Bild-Slots;
-  Backen in Node mit der glb (GLTFLoader `parse` ohne Bilder, falls möglich — sonst
-  die Geometrie-Prüfungen aus A3 als eigene reine Funktion auf den gebackenen
-  Positionen testen): Füße, Rutschen, Zyklusschluss, gemeinsame `uv`/`index`;
-  `docs/lizenzen.md` enthält "Zombie Walk Test" und "OSCAR CREATIVO"; `bildFuer` für mehrere Zeiten/Gruppen; Aufstellung des
-  600er-Blocks mit festem Seed deterministisch und innerhalb der Straße.
-- `tests/v3dBuild.test.ts`: jede `.glb` in `dist/assets` trägt `v3d`, steht im
-  Precache, zählt in die 25-MB-Summe.
-- `npm test`, `npx tsc --noEmit`, `npm run build` grün; Hauptbündel nicht gewachsen.
-- Isolationstest grün (kein `http` in `src/v3d/`).
-- Im Bericht: erreichte Dreieckszahl, Dateigrößen, Drehung (falls nötig), Kontrollbild.
-- Sichtprüfung (Nahaufnahme, Masse) macht Claude im Browser, Freigabe der Figur und
-  iPhone-Messung macht Thomas.
+- `tests/v3dSoldaten.test.ts`: glb-JSON-Prüfungen für beide Dateien (A1/A2-Grenzen,
+  ein Material, ein Bild, Clips), M4-Teilnetz vorhanden und nur an `CC_Base_R_Hand_081`
+  gebunden, Aufstellung der Bühnen-Truppe mittig und vor der Wand,
+  `docs/lizenzen.md` enthält Soldat, "Low-Poly M4a1"/"TastyTony" und Quaternius.
+- Build-Test: beide glb im Precache, Summe 3D-Dateien ≤ 25 MB, Hauptbündel unverändert.
+- `npm test`, `tsc`, `build` grün. Zweitstart-Zähler prüft Claude im Browser.
+- **Reißleine (Plan D2b):** Sieht die übertragene Bewegung nach diesem einen Anlauf
+  nicht überzeugend aus, wird **nicht nachgebohrt** — Claude und Thomas entscheiden über
+  den Rückfall (feste Anschlag-Pose mit Schrittwippen). Codex meldet nur, was auffiel.
+
+## Härtung (Claude, 2026-09-29) — gilt vorrangig vor A1–A6
+
+1. **Ein Netz, ein Attributsatz:** Im Skript je Primitive alle Attribute außer
+   `POSITION`, `NORMAL`, `TEXCOORD_0`, `JOINTS_0`, `WEIGHTS_0` löschen (die Quelle hat
+   drei verschiedene Sätze, u. a. `TEXCOORD_1/2`, `TANGENT`), dann **alle 23 Teilnetze
+   plus M4 zu einem Primitive mit einem Skin** verschmelzen. Prüfung: genau ein
+   Primitive. So liefert `backe()` eine Geometrie je Form.
+2. **Kacheln:** 9 Materialien haben ein Bild, `Mark_SunGlusses_Glus` nur eine Farbe →
+   eigene Kachel `#111111`. Kachel-Reihenfolge als feste Konstante. **Ausbluten 8 px**
+   je Kachel. Atlas als **WebP** (Qualität als Konstante) in der glb; begründete
+   Abweichung von Randbedingung 8 (512 px) im Skriptkopf: 1024² ersetzt 10 Einzelbilder
+   à 512 und ist kleiner. Speicherplan zählt den Atlas mit.
+3. **Tarnmuster:** Codex legt das erzeugte Muster als **`modelle-quelle/tarnmuster.png`**
+   (512², eingecheckt) ab; es ist Eingabe von `soldat`. Nahtlos-Prüfung im Skript
+   (mittlere Farbdifferenz linke↔rechte Randspalte und obere↔untere Randzeile unter einer
+   Schwelle, sonst Kanten per Überblendung angleichen). Abbildung: Muster auf 256
+   verkleinern und **in UV-Raum 1:1 kachelnd** über die Kachel legen; Helligkeitsformel
+   im 256er-Raum. Pixel außerhalb der Maske bleiben unverändert (Test).
+4. **M4:** alle 11 Primitives zu einem Netz verschmelzen, **eigenes Skin/Gelenke
+   verwerfen**, Knotentransformationen einbacken, verschweißen, dann vereinfachen
+   (Fehlerschranke statt harter Randsperre). Bindung über Gewicht 1,0 auf
+   `CC_Base_R_Hand_081` im Soldaten-Skin, Lage im Bindraum des Knochens.
+5. **Backen ohne Neu-Ausrichtung je Form:** Bodenhöhe und x/z-Bezug werden **einmal**
+   aus Form 0 von `stehen` (ohne M4) bestimmt und für alle Formen aller Bewegungen gleich
+   verwendet — **kein `minY`/Schwerpunkt je Form** (sonst verschwinden Hüftwippen und
+   Fallen). Prüfung (c): tiefster Punkt über alle Formen einer Bewegung = 0 ± 3 cm, keine
+   Form unter −3 cm.
+6. **Prüfanzeige zusätzlich:** (i) Winkel Lauf-Achse des M4 ↔ −z in `schiessen` Form 0
+   **≤ 15°**, (ii) Abstand Mündung ↔ Brustmitte **≥ 0,4 m** (Waffe ragt nicht durch den
+   Körper). Griffpunkt und Laufachse aus der Pose berechnet, nicht geschätzt. Soweit
+   in Node ohne Renderer machbar, rechnet `tests/v3dSoldaten.test.ts` dieselben Zahlen mit
+   denselben Funktionen und prüft die Grenzen; sonst im Bericht sagen, warum nicht.
+7. **Tests zusätzlich:** alle Formen einer Bewegung haben gleiche Punktzahl und dasselbe
+   `index`/`uv`-Objekt.
+8. **Lade-Gate:** Das 8-s-Zeitlimit gilt **nur für das Laden der Dateien**; Übertragen
+   und Backen laufen danach ohne Limit. Bei Abbruch/Zeitüberschreitung werden alle
+   Zwischenstände (Formen, Material, Atlas) freigegeben (`vorbei`-Flag wie D2a).
+9. **Zeit:** Die Animationszeit von `SoldatenMasse` (auch `fallen`-Startzeiten) kommt
+   aus der pausierbaren Zeit des Einstiegs (Parameter), nicht aus `performance.now()`.
+10. **Bewegungsquelle:** nur `tmp/UAL1_Standard.glb`, **nie** die `_RM`-Variante.
+11. **Leistungs-Reißleine:** Codex senkt nichts selbst. Verfehlt Thomas' iPhone-Messung
+    die Grenze, entscheiden Claude/Thomas in dieser Reihenfolge: Phasengruppen Soldat
+    8 → 4, Formen `laufen` 12 → 8, `SOLDATEN_SICHTBAR_MAX` 120 → 80.
+12. `modelle-quelle/tarnmuster.png` ist erlaubte neue Datei.
 
 ## Nicht in diesem Schritt
 
-Soldaten (D2b), Bosse (D2c), Bewegung nach vorn, Wellen, Front, Treffer, Umfallen
-(D4). `public/probe-3d/` nicht anfassen.
+Aussenden, Steuerung, Front, Treffer, Mündungsfeuer (D3/D4), Bosse (D2c).
 
 ## Implementation Summary
 
-- Nacharbeit 6: Kamera um 7 m nach vorn auf `(0, 28.5, 45.7)` gesetzt; Neigung, Sichtfeld und Formatanpassung unverändert. Der Bühnentest prüft die neuen Grenzen für 390 × 844, 375 × 812 und 390 × 659 einschließlich `z = −60`, Horizont, Straßenende und Breite am oberen Bildrand.
-- Nacharbeit-6-Prüfung: gezielter Bühnentest 5/5, volle Suite 58 Dateien/513 Tests, `tsc --noEmit`, `npm run build`, `git diff --check` und statische Offline-Isolation grün. Terminal.app ließ sich nicht öffnen (`Unable to find application named 'Terminal'`); Tests liefen direkt. Browser-/iPhone-Sichtprüfung und Zweitstart-Zähler bleiben für Claude/Thomas offen; keine neue Gerätemessung.
-- Nacharbeit 5: `src/v3d/schilder.ts` baut +1 und ×2 als 3D-Tafeln mit 0,2-m-Platte, hellem Frontrahmen, zwei Holzpfosten und Farbverlaufs-Bemalung. Die Canvas-Größe folgt dem Plattenformat; alle +1-Tafeln teilen dieselbe Textur. +1: 2,0 × 1,2 m, Unterkante 0,5 m, −10°; ×2: 6,8 × 1,2 m über die ganze Mitte. Textur-Cache und Szene-Ressourcen werden beim Verlassen und Ladefehler freigegeben.
-- Nacharbeit-5-Prüfung: gezielt 2 Dateien/7 Tests, volle Suite 58 Dateien/513 Tests, `tsc --noEmit`, `npm run build`, `git diff --check` und Offline-Isolationstest grün. Hauptbündel unverändert 1.467.937 Byte; sechs 3D-Dateien (1.244.618 Byte) im Precache. Terminal.app ließ sich hier nicht starten (`Unable to find application named 'Terminal'`); die Tests liefen deshalb direkt im Projekt. Browser-Sichtprüfung der Schilder und WebGL-Zähler beim Zweitstart bleiben für Claude/Thomas offen; die bereits gemessenen iPhone-Werte aus Nacharbeit 5 wurden nicht erneut erhoben.
-- Nacharbeit 4: Asphalt mit einer gestrichelten Leitlinie bei x = 0 und vier Reifenspuren nur im mittleren Kampffeld neu erzeugt; alter Grundbelag und Randlinien bleiben. Die alten Leitlinien bei x = ±2 wurden aus der eingecheckten Kachel entfernt. Kontrollbild: `tmp/strasse-asphalt-2x2.png`.
-- Die rechte Säule hat hellblau-weißes Glas (30 % Deckkraft, Rauheit 0,1), zwölf helle Rahmenkanten und einen dunkelgrünen Innenplatzhalter 1,0 × 0,6 × 1,2 m. Die ×2-Wand ist blau (`#1f6fd6`), 1,2 m hoch; ihr Schild misst 4,4 × 1 m. `tests/v3dBuehne.test.ts` erwartet die neuen Wandwerte.
-- Nacharbeit-4-Prüfung: gezielt 1 Datei/5 Tests, volle Suite 57 Dateien/511 Tests, `npx tsc --noEmit`, `npm run build`, `git diff --check` und Offline-Isolationstest grün. Sechs 3D-Dateien (1.242.906 Byte) sind im Precache; Hauptbündel 1.467.937 Byte (Grenze 1.475.425). Terminal.app konnte hier nicht gestartet werden (`Unable to find application named 'Terminal'`); die Tests liefen deshalb direkt im Projekt. Browser-Sichtprüfung, WebGL-Zähler beim Zweitstart und iPhone-Leistungsmessung bleiben Claude und Thomas vorbehalten; für diese Nacharbeit wurde kein Gerätewert gemessen.
-- Nacharbeit 3: Straße in drei Streifen mit zwei 0,3 × 0,25 m Betonkanten von z = −5,5 bis −220 geteilt. Die 400 Bühnen-Zombies stehen nur in der Mitte (zehn Spalten, x = −3,05 bis 3,05); die Vollast zeigt 600 Zombies ab z = −15, mit berechnetem Schwarz-Messpunkt in der Tiefe der Masse. +1-Schilder, ×2-Wand und Säule liegen vollständig in ihrem jeweiligen Streifen; Truppe und Soldaten-Aufstellung bleiben vor der Wand.
-- Nacharbeit-3-Prüfung: gezielte Tests 2 Dateien/9 Tests, volle Suite 57 Dateien/511 Tests, `npx tsc --noEmit`, `npm run build`, `git diff --check` und der Offline-Isolationstest grün. Hauptbündel 1.467.937 Byte (Grenze 1.475.425), GLB im Precache. Die Tests liefen direkt im Projekt, weil die vorgeschriebene Terminal-App in dieser Umgebung nicht startbar ist (`kLSNoExecutableErr`). Browser-Sichtprüfung, WebGL-Zähler beim Zweitstart und iPhone-Messung der 600er-Vollast bleiben Claude und Thomas vorbehalten; kein Gerätewert für diese Nacharbeit behauptet.
-- Nacharbeit 2: Zombie-Höhe 1,95 m; Aufstellung mit 0,63 m Spaltenabstand, 0,83 m Reihenabstand, ±0,12 m Versatz und 16 Spalten aus der Straßenbreite. Bühnenblock 400, Mess-Vollast 800 Zombies; Schwarz-Messpunkt aus der tatsächlichen Tiefe der Vollast berechnet. +1-Schilder 2,4 × 1,6 m links an der Mauer in 7-m-Abständen, ×2-Wand 2,4 m hoch und Schrift-Schild 4,4 × 2 m. Nahaufnahme für die größeren Figuren neu ausgerichtet.
-- Nacharbeit-2-Prüfung: gezielter Figurentest 4/4, `npm test` 57 Dateien/510 Tests, `npx tsc --noEmit`, `npm run build`, `git diff --check` grün; kein `http` in `src/v3d/`. Build enthält die GLB weiter im Precache. Browser-Sichtprüfung, WebGL-Zähler beim Zweitstart und iPhone-Messung der neuen 800er-Vollast bleiben wie in A5/A6 Claude und Thomas vorbehalten; hier kein Gerätewert behauptet.
-- Zombie zunächst aus der Rohquelle aufbereitet (906 Dreiecke); der Browser-Review zeigte dabei Löcher und schwebende Hosenteile. Nacharbeit 1 nutzt deshalb die eingecheckte, am iPhone geprüfte Referenz `modelle-quelle/zombie-vereinfacht.glb` ohne `weld` oder `simplify`: 1009 Dreiecke, 189564 Byte, 512er-WebP, UV-Spannen 0,972/0,965. Die Referenz ist bytegleich mit `public/probe-3d/modelle/sf_zombie_m.glb` (339412 Byte); alle vier Teilnetze behalten ihre Dreieckszahlen.
-- `scripts/zombie-varianten.py` färbt Hose und Haut anhand der UV-Dreiecke von `Bottoms` und `Body` vollflächig getrennt; `Eyelashes` und `default` bleiben unangetastet. Variante C hat kleine weiche Blutflecken auf Körper und Hose. B/C: 26378/26674 Byte, mittlere Helligkeit 141,8/141,0. Kontrollbild: `tmp/zombie-varianten.png`. Wiederholtes Erzeugen lieferte bytegleiche GLB und Varianten.
-- `src/v3d/figuren.ts` lädt im gemeinsamen 8-s-Lade-Gate, backt zwölf Formen und zeichnet 600 Zombies auf der Bühne sowie 1200 in der Vollast als Instanzen mit je drei Bemalungen und acht Phasengruppen. Der 4,033-s-Clip enthält anhand der Fußhöhen einen linken und einen rechten Schritt; verwendet wird der ganze Abschnitt 0–4,033 s. Die Referenz zeichnet ohne Drehung; hier ebenfalls 0° Korrektur. Die 120 Soldaten-Platzhalter bleiben. Messstufen 0/1, Nahaufnahme und Freigabe bei Abbruch/Zweitstart sind eingebunden. Lizenz-Änderungsvermerk ergänzt.
-- Nach finalem Build: `npm test` 57 Dateien/510 Tests grün, `npx tsc --noEmit` grün, `npm run build` grün; sechs 3D-Dateien (1242499 Byte) im Precache, GLB im Build, Hauptbündel-Grenze und Isolationstest grün, `git diff --check` grün. Der zusätzliche Test vergleicht die Teilnetz-Dreieckszahlen mit der Referenz.
-- Offen für Claude/Thomas: Browser-Sichtprüfung von Nahaufnahme/Masse, Messlauf und Zweitstart mit WebGL-Zählern sowie iPhone-Leistungsfreigabe. Die Nahaufnahme zeigt drei vollständige Figuren; im schmalen iPhone-Hochformat müssen sie wegen des Modell-Seitenverhältnisses kleiner als etwa 60 % Bildhöhe sein. Automatischer Chromium-Start scheiterte in dieser Umgebung an verweigerter macOS-MachPort-Registrierung; Terminal.app ist hier nicht verfügbar. Daher keine behaupteten Browser- oder Gerätewerte.
+Die D2b-Dateien und die A0-Schilder-Korrektur wurden im begonnenen Lauf erstellt. In
+der Fortsetzung wurde die M4-Bindung auf den tatsächlichen Bindraum des Handknochens
+umgestellt und ein Griff- sowie Mündungs-Prüfpunkt eingebaut: Griffabstand in den drei
+Posen etwa 0,002 cm, Laufwinkel in Schießen-Form 0 etwa 5,4°, Abstand Mündung–Brust
+etwa 0,56 m. Das bestehende Ziel `zombie` in `scripts/modelle.mjs` ist wieder verfügbar.
 
-## Nacharbeit 1 (Claude-Review 2026-09-29) — Modell und Varianten
+**Abnahme offen:** Die Übertragung des Joggens senkt die Formen 1, 2, 7 und 8 bis
+7,8 cm unter den Boden; `Death01` sinkt ab Form 6, in der letzten Form liegen
+Soldatenpunkte 32,8 cm unter dem Boden (v. a. Taschen am Rumpf; Rumpfpunkte 22 cm).
+Die Grenze von −3 cm blieb unverändert; ein Versuch, die Hüftspur des Joggens zu
+begrenzen, reichte nicht und wurde zurückgenommen. Der iPhone-Sichttest und
+Zweitstart-Zähler sind durch Claude/Thomas im Browser zu prüfen. `IMPL_DONE` benennt
+hier den abgeschlossenen Codex-Lauf, nicht eine bestandene Abnahme.
 
-Abgenommen: Laden/Backen/Zeichnen, Bühnen-Block, Messmodus-Umbau, Tests (509 grün).
-Befund im Browser (Vergleich Original / Referenz `sf_zombie_m.glb` / neue glb, gleiche
-Pose): **Die neue Vereinfachung ist kaputt** — die Hose (Teilnetz `Bottoms`) ist in
-schwebende Fetzen zerfallen, zwischen Oberkörper und Beinen klafft ein Loch, Kopf und
-Oberkörper sind kantig. Die Referenz (1009 Dreiecke) ist sauber. Außerdem sind die
-Varianten nach Farbton umgefärbt: Haut hat blaue/grüne bzw. braune Flecken (wirkt wie
-Tarnmuster).
+Abschlussprüfung: `npm test` 519/520 grün (genau der Boden-Test schlägt mit zwei
+Grenzverletzungen fehl), `npm run check` und `npm run build` erfolgreich. Beide GLB
+stehen im Precache; alle acht 3D-Dateien zusammen 2 007 718 Byte (< 25 MB),
+`probe-3d` nicht im Precache. Hauptbündel 1 467,93 kB wie im ersten Build dieses
+Laufs. Browser-Zweitstart, Netzprotokoll und iPhone-Messung wurden nicht ausgeführt;
+das eigentliche Bewegungskriterium ist bereits im Node-Test verletzt.
 
-Entscheidung Claude (A1.6 Rückfall):
-1. **Neue Eingabe für `scripts/modelle.mjs zombie`:** `modelle-quelle/zombie-vereinfacht.glb`
-   (= die am iPhone geprüfte Referenz, jetzt eingecheckt). **Kein `simplify`, kein
-   `weld`** mehr. Das Skript macht nur noch: Material bereinigen (A1.1, falls noch
-   nötig), UV-Zuschnitt + 512er-WebP (A1.2), Tangenten entfernen, `prune`, `dedup`,
-   Prüfungen (A1.5; Dreiecke dann ~1009, Grenze 900–1100 passt). Die Rohquelle
-   `modelle-quelle/zombie/` bleibt als Herkunftsnachweis liegen.
-2. **Varianten nach Körperteil, nicht nach Farbton:** Die Masken kommen aus den
-   UV-Dreiecken **je Teilnetz** der fertigen glb: `Bottoms` = Hose, `Body` = Haut,
-   `Eyelashes`/`default` unverändert. Hose und Haut getrennt umfärben, ganzflächig
-   innerhalb der jeweiligen Maske (keine Flecken durch Farbton-Schwellen):
-   - `b`: Hose dunkles verwaschenes Jeansblau, Haut leicht grünlich-grau.
-   - `c`: Hose dunkles Oliv/Braun, Haut fahl gelblich-grau, ein paar dunkelrote
-     Blutflecken auf Oberkörper und Hose (weich, klein).
-   Helligkeitsprüfung (≥ 45) bleibt. Kontrollbild wie gehabt plus
-   `tmp/zombie-varianten-3d.png` ist nicht nötig (Claude prüft im Browser).
-3. Tests anpassen, falls sie die alte Eingabe/Dreieckszahl festschreiben. Rest bleibt.
+## Fortsetzung (Claude 2026-09-29 18:25) — Lauf hing, gezielt abschließen
+
+Der erste Lauf hing ab 17:54 nach `node scripts/modelle.mjs soldat && npm test -- --run
+tests/v3dSoldaten.test.ts` (Exit 1) und wurde abgebrochen. Stand: Aufbereitung läuft
+(5388 Dreiecke, M4 584, Atlas 1024², 414 656 Byte), 6/7 Soldaten-Tests grün.
+**Fehlschlag:** `backt alle Formen … prüft die Pose`: tiefster Punkt −0,078 m (Grenze
+−0,03). Aufgabe:
+1. Herausfinden, **welche Bewegung/Form** unter den Boden geht (im Bericht nennen) und
+   die **Ursache** beheben (z. B. Hüfthöhe falsch skaliert/bezogen, Ruhehöhe der Vorlage
+   falsch, Boden-Bezug), **nicht die Grenze lockern**. Bei `fallen` darf der Körper
+   liegen, aber nicht einsinken (gleiche Grenze).
+2. Danach die übrigen Punkte der Spec prüfen und fertigstellen (Härtung 1–12, A0–A6),
+   volle Suite, `tsc`, Build.
+3. Keine langen Denkpausen ohne Befehl: ist ein Punkt nach zwei Versuchen nicht lösbar,
+   im Bericht beschreiben und weitermachen.
+Status am Ende `IMPL_DONE`, Implementation Summary ausfüllen.
+
+## Nacharbeit 2 (Claude 2026-09-29 18:55) — Einsinken beheben (letzter Anlauf)
+
+Befund Claude im Code (`src/v3d/soldaten.ts` Z. 67–99): Die Hüftverschiebung wird als
+Welt-y-Differenz gerechnet und direkt in `hip.position.y` geschrieben, nur durch
+`parentScale.y` geteilt. Das Elternobjekt des Knochens `CC_Base_Hip_01` ist in solchen
+Exporten **gedreht** (und skaliert) — lokales y ist dann nicht Welt-oben. Außerdem wird
+`basisHip` in der Bindpose der Vorlage gemessen.
+1. **Hüfte im Elternraum setzen:** gewünschte Welt-Position der Hüfte = Ruhe-Weltposition
+   + (0, Δy, 0); per `hip.parent.worldToLocal(...)` in lokale Koordinaten umrechnen und
+   `hip.position` komplett setzen (nicht nur `.y`). `Δy` = (Beckenhöhe Vorlage im Bild −
+   Beckenhöhe Vorlage in **`Pistol_Idle_Loop` Bild 0**) × (Beinlänge Soldat / Beinlänge
+   Vorlage), Beinlänge = Hüfte→Fußknöchel in der jeweiligen Ruhe-/Stehpose.
+2. **Bodenklemme je Form (Absicherung):** Nach dem Posieren liegt der tiefste Punkt des
+   **Körpers** (ohne M4) unter dem Boden-Bezug → ganze Form um genau diesen Betrag
+   **anheben**. Nie absenken (Wippen und Flugphase beim Laufen bleiben). Die M4 darf beim
+   Fallen den Boden berühren, aber nicht tiefer als −3 cm; sonst ebenfalls anheben.
+3. Test unverändert streng (`expect`, nicht `expect.soft`): tiefster Punkt je Bewegung
+   ≥ −3 cm, `fallenHuefteCm ≤ 15`, übrige Grenzen wie Härtung 6. Im Bericht je Bewegung:
+   tiefster Punkt vor und nach der Klemme (zeigt, ob 1. die Ursache war).
+4. Gelingt es nicht: nichts lockern, Bericht mit Zahlen — Claude entscheidet über die
+   Reißleine (feste Pose).
 Status am Ende `IMPL_DONE`, Nachtrag im Implementation Summary.
 
-## Nacharbeit 2 (Thomas 2026-09-29) — Größen und Sichtgrenze
+## Implementation Summary — Nacharbeit 2 (Codex, 2026-09-29)
 
-iPhone-Messung mit 1200 echten Zombies: Wasser 0 = 53,4 fps / 26 ms, Wasser 1 = 52,4 fps
-/ 27 ms → außerhalb des Budgets. Thomas: Figuren und +1-Schilder zu klein. Entscheidung
-(Thomas + Claude, Plan aktualisiert):
-- `FIGUREN.ZOMBIE_HOEHE` 1,3 → **1,95** (1,5×). In `zombieAufstellung` die festen Werte
-  als Konstanten in `FIGUREN` führen und mitskalieren: Spaltenabstand 0,42 → **0,63**,
-  Reihenabstand 0,55 → **0,83**, Versatz jeder zweiten Reihe = halber Spaltenabstand,
-  Zufallsversatz ±0,12; Spaltenzahl aus der Breite ableiten (`x ∈ [−5, 5]` → 16 je
-  Reihe), keine feste 24 mehr.
-- **Sichtgrenze 800 Zombies:** Konstante `FIGUREN.ZOMBIES_SICHTBAR_MAX = 800`. Vollast
-  im Messmodus = 800 echte Zombies (ab `z = −22`), Bühnen-Block = **400** Zombies ab
-  `z = −35`. Messpunkt Schwarz-Anteil so legen, dass er in der Vollast-Masse liegt
-  (Mitte der Vollast: `z = −22 − halbe Tiefe`), als berechneter Wert, nicht fest −30.
-- **+1-Schilder 2×:** 2,4 × 1,6 m, Mittelhöhe 1,6 m, Spalte an die linke Randmauer gerückt
-  (`x = −6 + 0,15 + 1,2`), Abstand längs 7 m (statt 3,5). **×2-Wand 2× hoch:** 2,4 m
-  (Mitte `y = 1,2`), Schrift-Schild ebenfalls 2× (4,4 × 2 m). Säulen-Platzhalter bleibt.
-- Nahaufnahme: Kamera so anpassen, dass die drei Zombies wieder gut ins Bild passen.
-- Tests auf die neuen Konstanten anpassen (Aufstellung innerhalb der Straße, Anzahl je
-  Reihe aus Breite). Status am Ende `IMPL_DONE`, Nachtrag im Implementation Summary.
+Die Hüftspur verwendet jetzt die Beckenhöhe von `Pistol_Idle_Loop` Bild 0 und das
+Verhältnis der Beinlängen; die gewünschte Weltposition wird vollständig in den
+Elternraum von `CC_Base_Hip_01` umgerechnet. Jede Form wird nur angehoben, wenn
+Körper oder M4 die Bodengrenze unterschreiten. Griff-, Brust- und Hüft-Prüfpunkte
+werden um denselben Betrag versetzt. Das Lade-Gate gibt bei Abbruch auch dann alle
+bereits geladenen Soldaten- oder Zombie-Dateien frei, wenn nur eine Quelle fehlt.
 
-## Nacharbeit 3 (Thomas 2026-09-29) — Straße in drei Streifen, Horde nur in der Mitte
+Tiefster Punkt vor → nach Bodenklemme, je Bewegung: `laufen` −5,51 → 0 cm
+(Formen 1, 2 und 7 unter −3 cm; Form 8 bei −2,61 cm), `stehen` 0 → 0 cm,
+`schiessen` 0 → 0 cm, `fallen` −18,28 → 0 cm (Formen 3–9 unter −3 cm;
+Formzählung ab 0). Griffabstand in drei Posen rund 0,002 cm, Laufwinkel 5,38°,
+Mündung–Brust 0,56 m. **Offen bleibt die Fall-Hüfte: 30,01 cm statt höchstens
+15 cm.** Die Bodenklemme hebt den Körper in der letzten Fallform um 18,09 cm;
+ohne sie sinken Körperpunkte ein. Ein Versuch mit dem tatsächlichen Clip-Endpunkt
+verschlechterte die Hüfthöhe auf 106,55 cm und wurde zurückgenommen. Grenze und
+strenge `expect`-Prüfung blieben unverändert; die Reißleine erfordert nun eine
+Entscheidung von Claude/Thomas über die feste Pose.
 
-Thomas: Die Horde darf nicht in Schilder, Säulen oder Wand ragen; die Straße bekommt
-eine kleine Abgrenzung; die ×2-Wand ebenso nur im eigenen Bereich. Umsetzung (alle Werte
-als Konstanten in `BUEHNE`, Kommentar zur Streifen-Aufteilung dazu):
-- **Drei Streifen:** links **+1-Streifen** `x ∈ [−6, −3.4]`, **Mitte (Kampffeld)**
-  `x ∈ [−3.4, 3.4]`, rechts **Säulen-Streifen** `x ∈ [3.4, 6]`
-  (`MITTE_HALB = 3.4`).
-- **Abgrenzung:** zwei niedrige Betonkanten bei `x = ±3.4`, 0,3 m breit, 0,25 m hoch,
-  Farbe wie die Randmauern, von `z = −5.5` (direkt hinter der ×2-Wand) bis `z = −220`.
-  Vor der Wand (Bereich der Truppe, `z > −5.5`) keine Kante — dort steuert die Truppe
-  frei über die ganze Breite.
-- **Horde nur in der Mitte:** `FIGUREN.ZOMBIE_X_MIN/MAX` = `−(MITTE_HALB − 0.35)` bzw.
-  `+…` (Rand zur Kante, damit Arme nicht in die Kante ragen); Spaltenzahl weiter aus der
-  Breite abgeleitet (ergibt ~10 je Reihe). `zombieAufstellung` klemmt auf diese Grenzen
-  (inkl. Zufallsversatz und Reihen-Versatz).
-- **Sichtgrenze neu: `ZOMBIES_SICHTBAR_MAX = 600`** (≈ 60 Reihen × 10 füllen die Mitte
-  von der Front bis zum oberen Bildrand). Vollast im Messmodus = 600 echte Zombies ab
-  `z = −15`; Bühnen-Block = 400 ab `z = −35`. Schwarz-Messpunkt wieder berechnet in der
-  Mitte der Vollast.
-- **+1-Schilder** nur im linken Streifen: Breite 2,2 m, Mitte `x = −4.7`, Höhe 1,6 m.
-- **×2-Wand** nur über die Mitte: Breite `2 · MITTE_HALB` (6,8 m), Mitte `x = 0`, Höhe
-  2,4 m wie bisher; Schrift-Schild passend (bis 4,4 m breit).
-- **Säulen-Platzhalter** Mitte `x = 4.7` (Breite 1,6 m bleibt, liegt ganz im rechten
-  Streifen).
-- Truppen-Platzhalter (6 m breit, `z = +1.5`) und Soldaten-Vollast (10 je Reihe, 0,6 m)
-  bleiben; beide liegen vor der Wand.
-- Tests: Aufstellung liegt vollständig in `[ZOMBIE_X_MIN, ZOMBIE_X_MAX]`; Schilder,
-  Säule und Wand liegen je vollständig in ihrem Streifen (reine Rechnung aus den
-  Konstanten). Status am Ende `IMPL_DONE`, Nachtrag im Implementation Summary.
-
-## Nacharbeit 4 (Thomas 2026-09-29) — Leitstreifen, Glas-Säule, blaue Wand
-
-- **Leitstreifen:** nur noch **eine** gestrichelte Linie in der Mitte des Kampffelds
-  (`x = 0`), die beiden Linien bei `x = ±2` entfallen. Randlinien bleiben.
-  `scripts/strasse-asphalt.py` anpassen und `v3d-strasse.webp` neu erzeugen (gleicher
-  Grundbelag, gleiche Maße, Reifenspuren an die neue Aufteilung anpassen: je zwei in den
-  beiden Hälften der Mitte, keine in den Seitenstreifen).
-- **Säule rechts durchsichtig:** Glas-Optik — `MeshStandardMaterial` hellblau-weiß,
-  `transparent: true`, `opacity 0.3`, `depthWrite: false`, Rauheit 0,1, dazu ein heller
-  Rahmen (die 12 Kanten als dünne Kästen 0,06 m oder `EdgesGeometry` + `LineSegments`).
-  **Innen** ein Platzhalter für die Spezialeinheit: dunkelgrüner Kasten 1,0 × 0,6 × 1,2 m
-  auf dem Säulenboden (wird in D5 durch das Fahrzeug ersetzt), sichtbar durch das Glas.
-  Zahl "150" bleibt oben. Zeichenreihenfolge so, dass der Inhalt durchs Glas sichtbar ist
-  (Inhalt undurchsichtig zuerst, Glas danach; `renderOrder`).
-- **×2-Wand:** Farbe **blau** (`#1f6fd6`, Schrift-Schild passend blau mit weißer
-  Schrift), **halb so hoch: 1,2 m** (Mitte `y = 0.6`), Schrift-Schild 4,4 × 1 m.
-- Tests weiter grün, Status am Ende `IMPL_DONE`, Nachtrag im Implementation Summary.
-
-## Nacharbeit 5 (Thomas 2026-09-29) — Schilder in 3D, ×2-Schrift
-
-iPhone-Messung nach Nacharbeit 4: Wasser 0 = 56,3 fps / 23 ms, Wasser 1 = 56,2 fps /
-23 ms → **im Budget, D2a-Leistung abgenommen.** Thomas: ×2-Schrift zu breit (verzerrt),
-+1-Schilder sollen "cool 3D" sein. Vorbild: `docs/vorbild/vorbild-111-8s.jpg`
-(blaue Tafeln mit Pfosten links/rechts, weiße fette Schrift).
-- Neuer Baustein **`src/v3d/schilder.ts`** (D3 übernimmt ihn später):
-  `baueSchild({ breite, hoehe, text, farbe })` → `THREE.Group` aus
-  - **Platte** als Kasten mit Tiefe 0,2 m, leicht abgerundet wirkend durch einen
-    hellen Rahmen (vier schmale Kästen 0,08 m, eine Stufe heller als `farbe`) vorn;
-  - **Vorderseite** mit Canvas-Bemalung **im Seitenverhältnis der Platte** (z. B.
-    512 × 256 für 2 : 1; nie quadratisch gestreckt): Farbverlauf von `farbe` (oben
-    heller) nach dunkler, Text weiß, fett, mit dunkler Kontur (`strokeText`, ~8 % der
-    Schrifthöhe) und leichtem Schlagschatten, Schrifthöhe ~60 % der Platte, zentriert;
-    Rückseite und Seiten einfarbig `farbe` (dunkler);
-  - **zwei Pfosten** links und rechts (0,14 m quadratisch, Holz-Orange `#c9793a`),
-    vom Boden bis Oberkante Platte + 0,1 m.
-  Eine Canvas-Bemalung **je Text** wird geteilt (alle +1-Schilder nutzen dieselbe);
-  Freigabe über `gibSzeneFrei` bzw. eigene `gibFrei()` — Zweitstart-Zähler bleiben gleich.
-- **+1-Schilder** (linker Streifen) mit `baueSchild`: Platte 2,0 × 1,2 m, Unterkante
-  0,5 m über der Straße, Farbe `#168bd2`, leicht zur Kamera geneigt (Drehung um x
-  −10°), Abstand längs 7 m wie bisher.
-- **×2-Wand** mit `baueSchild`: Platte 6,8 × 1,2 m (volle Mittenbreite), Unterkante auf
-  der Straße, Farbe `#1f6fd6`, Text "×2" — Schrift im richtigen Seitenverhältnis (Canvas
-  z. B. 1024 × 180), also nicht verzerrt; Pfosten an beiden Enden.
-- Tests weiter grün (inkl. Streifen-Prüfung: Schilder und Wand bleiben in ihren
-  Streifen). Status am Ende `IMPL_DONE`, Nachtrag im Implementation Summary.
-
-## Nacharbeit 6 (Thomas 2026-09-29) — Truppe tiefer ins Bild (Kamera)
-
-Thomas: "mein Team kann noch weiter unten stehen". Befund Claude: Die App läuft am
-iPhone im Vollbild **390 × 844** (Fotos 1170 × 2532), nicht 390 × 659 (Safari mit
-Leisten) — dort lag die Linie `z = 0` bei 67 %. Änderung nur an der Kamera:
-- `BUEHNE.KAMERA_POSITION` → **(0, 28.5, 45.7)** (7 m nach vorn), Neigung, Sichtfeld,
-  Referenz-Seitenverhältnis und `passeKameraAn` unverändert.
-- Zielmaße im Test (`tests/v3dBuehne.test.ts`) neu, von Claude nachgerechnet:
-  - 390 × 844 und 375 × 812: `z = 0` bei **78 – 82 %** von oben, unten ≥ 1,00,
-    `(0,0,−60)` im Bild (≥ 2 % unter dem Rand), Straßenende `(±6,0,−220)` über dem Rand,
-    Horizont über dem Rand.
-  - 390 × 659: `z = 0` bei **86 – 90 %**, Breite auf 5 % Höhe **0,40 – 0,47**, unten ≥ 1,00,
-    Rest wie oben.
-- Nahaufnahme und Messmodus unverändert. Tests grün, Status `IMPL_DONE`, Nachtrag.
+Abschlussprüfung: `npm test` 519/520 grün (einziger Fehlschlag Fall-Hüfte),
+`npm run check` und `npm run build` erfolgreich. Acht 3D-Dateien: 2 008 537 Byte;
+beide neuen GLB im Precache, `probe-3d` nicht darin. Hauptbündel 1 467,93 kB.
+Browser-Zweitstart, Netzprotokoll, Sichtprüfung und iPhone-Messung bleiben
+ungetestet; die lokale Umgebung hat keine Terminal.app, daher liefen die
+Prüfungen in einer direkten Terminal-Sitzung.

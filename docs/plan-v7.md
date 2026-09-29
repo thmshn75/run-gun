@@ -85,8 +85,10 @@ absichtlich geschwärzten Figuren gegengeprüft (82 % statt 0 %).
 - **Quellen:** nur CC0 oder CC-BY, keine Figuren fremder Spiele oder Filme. Lizenzprüfung
   über `api.sketchfab.com/v3/models/<uid>`.
 - **Download:** Claude lädt vor dem jeweiligen Schritt über Thomas' angemeldete
-  Sketchfab-Sitzung (Codex kann das nicht). Rohdateien liegen außerhalb des Repos unter
-  `~/Downloads/rungun-roh/<uid>/`, nie im Repo.
+  Sketchfab-Sitzung (Codex kann das nicht). Rohdateien (Archive, große Quellen) liegen außerhalb des Repos unter
+  `~/Downloads/rungun-roh/`. **Kleine vorbereitete Quellen** (vereinfachte Modelle, ≤ ca. 6 MB je
+  Datei, samt Lizenztext) liegen seit D2a unter `modelle-quelle/` im Repo, damit
+  `scripts/modelle.mjs` wiederholbar ist.
 - **Lizenzbeleg:** `docs/lizenzen.md` führt je Modell Titel, Urheber, Sketchfab-Link,
   Lizenz mit Link, Datum der API-Prüfung und **"Änderungen: vereinfacht, verkleinert,
   neu bemalt, Bewegung übertragen"** (CC-BY verlangt den Änderungshinweis). Quaternius-
@@ -240,8 +242,8 @@ frei); 1200 sichtbare Zombies im Budget (Grenze nach D0).
 
 **D2b — Soldat.** Bewegungsübertragung (Verfahren aus `bewegung.html`, plus Hüfthöhe),
 M4 an der rechten Hand, Tarnmuster, Truppe in Reihen. Nachweise: M4-Griffpunkt höchstens
-3 cm von der Handwurzel in drei Posen; beim Umfallen liegt die Hüfte im letzten Bild
-höchstens 15 cm über dem Boden; Sichtprüfung durch Thomas.
+3 cm von der Handwurzel in drei Posen; beim Umfallen liegt der Körper auf dem Boden (tiefster Punkt 0 ± 3 cm), Hüfte im letzten
+Bild höchstens 35 cm (mit Weste gemessen ~30 cm; ursprünglich 15 cm geschätzt); Sichtprüfung durch Thomas.
 **Reißleine D2b:** Sieht die übertragene Bewegung nach **einem** Anlauf nicht überzeugend
 aus, kein Weiterbohren — Rückfall auf einen Soldaten in fester Anschlag-Pose mit
 Schrittwippen, und Thomas entscheidet.
@@ -250,7 +252,7 @@ Schrittwippen, und Thomas entscheidet.
 einzeln gemessen), dann **Worst Case:** 1200 Zombies + 120 Soldaten + 2 Bosse + Wasser.
 Nachweise: Budget, Dauertest 3 Minuten. Danach `public/probe-3d/` aus dem Deploy nehmen.
 
-**D3 — Steuerung, Aussenden, linker Rand.** **+1-Schilder (Thomas 2026-09-29):** Die Schilder laufen der Truppe im linken Streifen entgegen, langsam, solange die Truppe nicht dort ist, und **schneller, sobald die Truppe hinsteuert**; jedes Schild, das die Truppe erreicht, ist ein +1 (Tempo so, dass die Rate der Spielrechnung entspricht: 2/s bei 7 m Abstand → 14 m/s). **Säulen** sind aus Glas, die Spezialeinheit ist darin sichtbar (D5a). Steuerung absolut zum Finger (Truppe folgt
+**D3 — Steuerung, Aussenden, linker Rand.** **+1-Schilder (Thomas 2026-09-29):** Die Schilder laufen der Truppe im linken Streifen entgegen, langsam, solange die Truppe nicht dort ist, und **schneller, sobald die Truppe hinsteuert**; jedes Schild, das die Truppe erreicht, ist ein +1 (Tempo so, dass die Rate der Spielrechnung entspricht: 2/s bei 4 m Abstand → 8 m/s; Schilder schweben ohne Pfosten). **Säulen** sind aus Glas, die Spezialeinheit ist darin sichtbar (D5a). Steuerung absolut zum Finger (Truppe folgt
 der Fingerposition, geglättet, höchstens 8 m/s, Grenzen = Bahnrand minus halbe
 Truppenbreite), Zurück-Knopf mit eigener Tippfläche außerhalb der Steuerfläche,
 Aussenden nach `r`, Vervielfacher-Wand, +1-Schilder — alles aus dem Rechenkern R.
