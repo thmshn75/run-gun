@@ -98,4 +98,4 @@ export const FIGUREN = {
 // Aus src/style.css (env(safe-area-inset-*), touch-action: none) und
 // src/systems/safeArea.ts (CSS-Pixel); die Randgeste braucht 24 pt Reserve.
 export const STEUERUNG = { RANDRESERVE_PT: 24, MIN_X: -3, MAX_X: 3, MAX_M_PRO_S: 8 } as const
-export const DARSTELLUNG = { FORMATION_MAX: 30, TRUPPS_MAX: 50, FRONT_MAX: 40, HORDE_MAX: 600, SCHILDER_TEMPO_LANGSAM: 2, SCHILDER_TEMPO_SCHNELL: 8 } as const
+export const DARSTELLUNG = { FORMATION_MAX: 30, TRUPPS_MAX: 50, FRONT_MAX: 40, HORDE_MAX: 600, SCHILDER_TEMPO_LANGSAM: 2, SCHILDER_TEMPO_SCHNELL: 8, BLITZE_MAX: 12, BLITZE_PRO_SEKUNDE: 10, BLITZ_DAUER: .06 } as const

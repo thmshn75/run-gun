@@ -1,5 +1,35 @@
 import * as THREE from 'three'
 
+export class Muendungsblitze {
+  readonly objekt: THREE.InstancedMesh
+  private textur: THREE.CanvasTexture
+  private material: THREE.MeshBasicMaterial
+  private dummy = new THREE.Object3D()
+  constructor(max: number) {
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 64
+    const ctx = canvas.getContext('2d')!
+    const glow = ctx.createRadialGradient(32, 32, 1, 32, 32, 32)
+    glow.addColorStop(0, '#fff'); glow.addColorStop(.18, '#fff8c7'); glow.addColorStop(.45, '#ffb434aa'); glow.addColorStop(1, '#ff980000')
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, 64, 64)
+    this.textur = new THREE.CanvasTexture(canvas)
+    this.material = new THREE.MeshBasicMaterial({ map: this.textur, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
+    this.objekt = new THREE.InstancedMesh(new THREE.PlaneGeometry(.45, .45), this.material, max)
+    this.objekt.count = 0
+    this.objekt.frustumCulled = false
+    this.objekt.renderOrder = 12
+  }
+  setze(punkte: readonly THREE.Vector3[], kamera: THREE.Camera): void {
+    this.objekt.count = Math.min(punkte.length, this.objekt.instanceMatrix.count)
+    for (let i = 0; i < this.objekt.count; i++) {
+      this.dummy.position.copy(punkte[i]); this.dummy.quaternion.copy(kamera.quaternion)
+      this.dummy.updateMatrix(); this.objekt.setMatrixAt(i, this.dummy.matrix)
+    }
+    this.objekt.instanceMatrix.needsUpdate = true
+  }
+  gibFrei(): void { this.objekt.removeFromParent(); this.objekt.geometry.dispose(); this.objekt.dispose(); this.material.dispose(); this.textur.dispose() }
+}
+
 export class ZahlAnzeige {
   readonly objekt: THREE.Mesh
   private canvas = document.createElement('canvas')

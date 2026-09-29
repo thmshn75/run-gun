@@ -7,7 +7,8 @@ import { FIGUREN } from './balance3d'
 import { bossFreieAufstellung } from './bosse'
 import type { Welt } from './szene'
 import type { WasserStufe } from './wasser'
-import { neuerLauf, schritt } from './rechnung'
+import { SpielLauf, WeltDarstellung } from './lauf'
+import type { Zustand } from './rechnung'
 import { LEVELS } from './balance3d'
 
 export const MESSSTUFEN = [
@@ -37,10 +38,34 @@ interface Lauf {
   soldaten: SoldatenMasse
   sichtbarkeiten: Map<THREE.Object3D, boolean>
   bossSichtbar: [boolean,boolean]
-  bot: ReturnType<typeof neuerLauf>
-  botErsteSaeule: boolean
+  bot: SpielLauf | null
+  botSteuerung: MessBotSteuerung
 }
 let lauf: Lauf | null = null
+
+// Gleiche Zustandsfolge wie rhythmusSaeule(60) in scripts/bots3d.ts.
+export class MessBotSteuerung {
+  private phase: 'links' | 'mitte' | 'rechts' = 'links'
+  private vorratNummer = 0
+  private saeulenIndex = 0
+  ziel(z: Zustand): number {
+    if (this.phase === 'links' && z.T >= 60) {
+      this.vorratNummer++
+      this.phase = this.vorratNummer % 2 === 0 && z.P !== null ? 'rechts' : 'mitte'
+      this.saeulenIndex = z.saeulenIndex
+    } else if (this.phase === 'mitte' && z.T < 1) this.phase = 'links'
+    else if (this.phase === 'rechts' && z.saeulenIndex !== this.saeulenIndex) this.phase = 'mitte'
+    return this.phase === 'links' ? -3 : this.phase === 'rechts' ? 3 : 0
+  }
+}
+
+function starteBot(l: Lauf): void {
+  l.vollast.gruppe.visible = false
+  l.soldaten.gruppe.visible = false
+  for (const gruppe of [l.welt.truppe.gruppe, l.welt.laufTrupp.gruppe, l.welt.front.gruppe, l.welt.zombieMasse.gruppe, l.welt.wand.parent]) if (gruppe) gruppe.visible = true
+  l.botSteuerung = new MessBotSteuerung()
+  l.bot = new SpielLauf(LEVELS[0], 12345, new WeltDarstellung(l.welt))
+}
 
 function schwarzAnteil(l: Lauf): number | null {
   const gl = l.renderer.getContext()
@@ -98,7 +123,7 @@ export function starteMessung(welt: Welt, renderer: THREE.WebGLRenderer, game: P
   const bossSichtbar:[boolean,boolean]=[welt.miniboss.objekt.visible,welt.eliteboss.objekt.visible]
   welt.miniboss.objekt.visible=false;welt.eliteboss.objekt.visible=false
   welt.wasser.wechsle(1)
-  lauf = { welt, renderer, game, anzeige, knopf, original, stufe: 0, phase: 'warm', zeit: 0, bilder: [], ergebnisse: [], schwarz: null, messpunktZ, vollast, soldaten, sichtbarkeiten,bossSichtbar,bot:neuerLauf(LEVELS[0],12345),botErsteSaeule:false }
+  lauf = { welt, renderer, game, anzeige, knopf, original, stufe: 0, phase: 'warm', zeit: 0, bilder: [], ergebnisse: [], schwarz: null, messpunktZ, vollast, soldaten, sichtbarkeiten,bossSichtbar,bot:null,botSteuerung:new MessBotSteuerung() }
   knopf.disabled = true
   anzeige.style.display = 'block'
   anzeige.style.overflowY='auto'
@@ -111,12 +136,13 @@ export function messBild(dt: number, jetzt: number): void {
   if (!l) return
   l.soldaten.aktualisiere(jetzt)
   l.vollast.aktualisiere(jetzt)
-  if (l.phase === 'messen' && MESSSTUFEN[l.stufe].name === 'Lauf (Bot)' && l.bot.ergebnis === 'laeuft') {
-    const x = l.bot.T < 30 ? -1 : l.botErsteSaeule ? 0 : 1
-    if (Number.isFinite(dt) && dt > 0) {
-      const events = schritt(l.bot,{x},Math.min(.1,dt/1000))
-      if (events.some(e=>e.art==='einheitFrei')) l.botErsteSaeule=true
-    }
+  if (l.phase === 'messen' && l.bot && Number.isFinite(dt) && dt > 0) {
+    const sek = Math.min(.1, dt / 1000)
+    if (l.bot.zustand.ergebnis === 'laeuft') l.bot.schritt(sek, l.botSteuerung.ziel(l.bot.zustand))
+    l.welt.truppe.aktualisiere(l.bot.zustand.t)
+    l.welt.laufTrupp.aktualisiere(l.bot.zustand.t)
+    l.welt.front.aktualisiere(l.bot.zustand.t)
+    l.welt.zombieMasse.aktualisiere(l.bot.zustand.t)
   }
   // Der Aufrufer zeichnet unmittelbar vor dieser Funktion: Probe am Ende jeder Stufe/Minute.
   if (l.phase === 'messen' && l.schwarz === null && l.zeit >= MESSSTUFEN[l.stufe].dauer-1000) l.schwarz = schwarzAnteil(l)
@@ -126,6 +152,7 @@ export function messBild(dt: number, jetzt: number): void {
   if (l.zeit < dauer) return
   if (l.phase === 'warm' || l.phase === 'umbau') {
     l.phase = 'messen'; l.zeit = 0; l.bilder = []; l.schwarz = null
+    if (MESSSTUFEN[l.stufe].name === 'Lauf (Bot)') starteBot(l)
     l.anzeige.textContent = `${l.ergebnisse.join('\n\n')}\n${MESSSTUFEN[l.stufe].name} · ${dauer===5000?30:MESSSTUFEN[l.stufe].dauer/1000} s`
     return
   }
@@ -148,6 +175,7 @@ export function bricheAb(grund?: string, wiederherstellen = true): void {
   if (!lauf) return
   const l = lauf
   lauf = null
+  l.bot?.gibLaufFrei()
   l.welt.scene.remove(l.vollast.gruppe, l.soldaten.gruppe)
   l.vollast.gibNetzeFrei()
   l.soldaten.gibNetzeFrei()

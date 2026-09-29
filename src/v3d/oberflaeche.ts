@@ -1,6 +1,25 @@
 import { baueInfo } from './info'
 
 let container: HTMLDivElement | null = null
+let einheiten: HTMLDivElement | null = null
+
+export function bannerEintraege(aktiv: readonly { einheit: string; rest: number }[]): string[] {
+  return aktiv.map(({ einheit, rest }) => `${einheit.toLocaleUpperCase('de-DE')} · ${Math.ceil(rest)} s`)
+}
+
+export function setzeEinheitenBanner(aktiv: readonly { einheit: string; rest: number }[]): void {
+  if (!container) return
+  if (!einheiten) {
+    einheiten = document.createElement('div')
+    Object.assign(einheiten.style, { position: 'absolute', top: 'calc(env(safe-area-inset-top) + 50px)', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', fontWeight: 'bold', fontSize: '13px', textShadow: '0 1px 4px #000', whiteSpace: 'nowrap' })
+    container.appendChild(einheiten)
+  }
+  einheiten.replaceChildren(...bannerEintraege(aktiv).map(text => {
+    const zeile = document.createElement('div')
+    zeile.textContent = text
+    return zeile
+  }))
+}
 
 function knopf(text: string, position: Partial<CSSStyleDeclaration>): HTMLButtonElement {
   const button = document.createElement('button')
@@ -16,6 +35,7 @@ export function zeigeOberflaeche(zurueck: () => void, messen: () => void, level:
     document.body.appendChild(container)
   }
   container.replaceChildren()
+  einheiten = null
   container.style.display = 'block'
   const back = knopf('ZURÜCK', { top: 'calc(env(safe-area-inset-top) + 8px)', left: 'calc(env(safe-area-inset-left) + 8px)' })
   const infoButton = knopf('INFO', { top: 'calc(env(safe-area-inset-top) + 8px)', right: 'calc(env(safe-area-inset-right) + 8px)' })
@@ -42,4 +62,4 @@ export function zeigeOberflaeche(zurueck: () => void, messen: () => void, level:
   return { messen: measure, ergebnisse: results, info, zahlen, ende, endeText, nochmal, endeZurueck }
 }
 
-export function versteckeOberflaeche(): void { if (container) container.style.display = 'none' }
+export function versteckeOberflaeche(): void { if (container) container.style.display = 'none'; einheiten = null }
