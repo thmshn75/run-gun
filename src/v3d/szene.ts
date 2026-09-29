@@ -4,6 +4,7 @@ import normalenUrl from './bilder/v3d-wasser-normalen.webp?url'
 import { BUEHNE, FIGUREN } from './balance3d'
 import { baueKamera } from './kamera'
 import { ladeZombie, ZombieMasse, zombieAufstellung, type ZombieBau } from './figuren'
+import { baueSchild, gibSchilderFrei } from './schilder'
 import { baueWasser, type WasserHalter, type WasserStufe } from './wasser'
 
 export const DATEIEN_FEHLER = '3D-Dateien nicht ladbar – App neu öffnen'
@@ -38,22 +39,17 @@ function box(gruppe: THREE.Group | THREE.Scene, name: string, groesse: [number, 
   return mesh
 }
 
-function schild(gruppe: THREE.Group, name: string, breite: number, hoehe: number, x: number, y: number, z: number, textur: THREE.Texture): void {
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(breite, hoehe), new THREE.MeshBasicMaterial({ map: textur, side: THREE.DoubleSide, transparent: true }))
-  mesh.name = name
-  mesh.position.set(x, y, z)
-  gruppe.add(mesh)
-}
-
 function platzhalter(scene: THREE.Scene): void {
   const gruppe = new THREE.Group()
   gruppe.name = 'platzhalter'
   gruppe.visible = new URLSearchParams(location.search).get('platzhalter') !== '0'
   scene.add(gruppe)
-  box(gruppe, 'vervielfacher', [2 * BUEHNE.MITTE_HALB, BUEHNE.WAND_HOEHE, 0.18], [0, BUEHNE.WAND_HOEHE / 2, -5], BUEHNE.WAND_FARBE)
-  schild(gruppe, 'vervielfacher-zahl', BUEHNE.WAND_SCHILD_BREITE, BUEHNE.WAND_SCHILD_HOEHE, 0, BUEHNE.WAND_HOEHE / 2, -4.88, textBild('×2', BUEHNE.WAND_FARBE))
-  const plus = textBild('+1', '#168bd2')
-  for (let z = 6; z >= -60; z -= 7) schild(gruppe, 'plus-eins', BUEHNE.PLUS_BREITE, BUEHNE.PLUS_HOEHE, BUEHNE.PLUS_X, 1.6, z, plus)
+  const wand = baueSchild({ breite: 2 * BUEHNE.MITTE_HALB, hoehe: BUEHNE.WAND_HOEHE, text: '×2', farbe: BUEHNE.WAND_FARBE })
+  wand.name = 'vervielfacher'; wand.position.z = -5; gruppe.add(wand)
+  for (let z = 6; z >= -60; z -= 7) {
+    const plus = baueSchild({ breite: BUEHNE.PLUS_BREITE, hoehe: BUEHNE.PLUS_HOEHE, text: '+1', farbe: '#168bd2', unterkante: 0.5, neigungGrad: -10 })
+    plus.name = 'plus-eins'; plus.position.set(BUEHNE.PLUS_X, 0, z); gruppe.add(plus)
+  }
   const innen = box(gruppe, 'spezialeinheit-platzhalter', [1, 0.6, 1.2], [BUEHNE.SAEULE_X, 0.3, -12], '#244a32')
   innen.renderOrder = 1
   const glas = new THREE.Mesh(new THREE.BoxGeometry(1.6, 4, 1.6), new THREE.MeshStandardMaterial({
@@ -69,8 +65,8 @@ function platzhalter(scene: THREE.Scene): void {
     for (const x of [-0.8, 0.8])
       box(rahmen, 'saeule-kante', [0.06, 0.06, 1.6], [BUEHNE.SAEULE_X + x, y, -12], '#e5f6fa').renderOrder = 3
   }
-  schild(gruppe, 'saeule-zahl', 1.4, 0.7, BUEHNE.SAEULE_X, 3.4, -11.18, textBild('150', '#777c82'))
-  gruppe.children.find(obj => obj.name === 'saeule-zahl')!.renderOrder = 4
+  const saeulenZahl = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.7), new THREE.MeshBasicMaterial({ map: textBild('150', '#777c82'), side: THREE.DoubleSide }))
+  saeulenZahl.name = 'saeule-zahl'; saeulenZahl.position.set(BUEHNE.SAEULE_X, 3.4, -11.18); saeulenZahl.renderOrder = 4; gruppe.add(saeulenZahl)
   box(gruppe, 'truppe', [6, 0.9, 3], [0, 0.45, 1.5], '#2875bd', 1)
 }
 
@@ -143,6 +139,7 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
   } catch {
     geladen.forEach(t => t.dispose())
     freigabeZombie()
+    gibSchilderFrei()
     if (!abgebrochen()) beiLadeFehler(DATEIEN_FEHLER)
     return null
   } finally {
@@ -176,6 +173,7 @@ export function gibSzeneFrei(welt: Welt): void {
   if (welt.scene.background instanceof THREE.Texture) texturen.add(welt.scene.background)
   welt.scene.environment = null; welt.scene.background = null
   texturen.forEach(t => t.dispose())
+  gibSchilderFrei()
   materialien.forEach(m => m.dispose())
   geometrien.forEach(g => g.dispose())
   welt.scene.clear()

@@ -182,6 +182,10 @@ Soldaten (D2b), Bosse (D2c), Bewegung nach vorn, Wellen, Front, Treffer, Umfalle
 
 ## Implementation Summary
 
+- Nacharbeit 6: Kamera um 7 m nach vorn auf `(0, 28.5, 45.7)` gesetzt; Neigung, Sichtfeld und Formatanpassung unverändert. Der Bühnentest prüft die neuen Grenzen für 390 × 844, 375 × 812 und 390 × 659 einschließlich `z = −60`, Horizont, Straßenende und Breite am oberen Bildrand.
+- Nacharbeit-6-Prüfung: gezielter Bühnentest 5/5, volle Suite 58 Dateien/513 Tests, `tsc --noEmit`, `npm run build`, `git diff --check` und statische Offline-Isolation grün. Terminal.app ließ sich nicht öffnen (`Unable to find application named 'Terminal'`); Tests liefen direkt. Browser-/iPhone-Sichtprüfung und Zweitstart-Zähler bleiben für Claude/Thomas offen; keine neue Gerätemessung.
+- Nacharbeit 5: `src/v3d/schilder.ts` baut +1 und ×2 als 3D-Tafeln mit 0,2-m-Platte, hellem Frontrahmen, zwei Holzpfosten und Farbverlaufs-Bemalung. Die Canvas-Größe folgt dem Plattenformat; alle +1-Tafeln teilen dieselbe Textur. +1: 2,0 × 1,2 m, Unterkante 0,5 m, −10°; ×2: 6,8 × 1,2 m über die ganze Mitte. Textur-Cache und Szene-Ressourcen werden beim Verlassen und Ladefehler freigegeben.
+- Nacharbeit-5-Prüfung: gezielt 2 Dateien/7 Tests, volle Suite 58 Dateien/513 Tests, `tsc --noEmit`, `npm run build`, `git diff --check` und Offline-Isolationstest grün. Hauptbündel unverändert 1.467.937 Byte; sechs 3D-Dateien (1.244.618 Byte) im Precache. Terminal.app ließ sich hier nicht starten (`Unable to find application named 'Terminal'`); die Tests liefen deshalb direkt im Projekt. Browser-Sichtprüfung der Schilder und WebGL-Zähler beim Zweitstart bleiben für Claude/Thomas offen; die bereits gemessenen iPhone-Werte aus Nacharbeit 5 wurden nicht erneut erhoben.
 - Nacharbeit 4: Asphalt mit einer gestrichelten Leitlinie bei x = 0 und vier Reifenspuren nur im mittleren Kampffeld neu erzeugt; alter Grundbelag und Randlinien bleiben. Die alten Leitlinien bei x = ±2 wurden aus der eingecheckten Kachel entfernt. Kontrollbild: `tmp/strasse-asphalt-2x2.png`.
 - Die rechte Säule hat hellblau-weißes Glas (30 % Deckkraft, Rauheit 0,1), zwölf helle Rahmenkanten und einen dunkelgrünen Innenplatzhalter 1,0 × 0,6 × 1,2 m. Die ×2-Wand ist blau (`#1f6fd6`), 1,2 m hoch; ihr Schild misst 4,4 × 1 m. `tests/v3dBuehne.test.ts` erwartet die neuen Wandwerte.
 - Nacharbeit-4-Prüfung: gezielt 1 Datei/5 Tests, volle Suite 57 Dateien/511 Tests, `npx tsc --noEmit`, `npm run build`, `git diff --check` und Offline-Isolationstest grün. Sechs 3D-Dateien (1.242.906 Byte) sind im Precache; Hauptbündel 1.467.937 Byte (Grenze 1.475.425). Terminal.app konnte hier nicht gestartet werden (`Unable to find application named 'Terminal'`); die Tests liefen deshalb direkt im Projekt. Browser-Sichtprüfung, WebGL-Zähler beim Zweitstart und iPhone-Leistungsmessung bleiben Claude und Thomas vorbehalten; für diese Nacharbeit wurde kein Gerätewert gemessen.
@@ -293,3 +297,46 @@ als Konstanten in `BUEHNE`, Kommentar zur Streifen-Aufteilung dazu):
 - **×2-Wand:** Farbe **blau** (`#1f6fd6`, Schrift-Schild passend blau mit weißer
   Schrift), **halb so hoch: 1,2 m** (Mitte `y = 0.6`), Schrift-Schild 4,4 × 1 m.
 - Tests weiter grün, Status am Ende `IMPL_DONE`, Nachtrag im Implementation Summary.
+
+## Nacharbeit 5 (Thomas 2026-09-29) — Schilder in 3D, ×2-Schrift
+
+iPhone-Messung nach Nacharbeit 4: Wasser 0 = 56,3 fps / 23 ms, Wasser 1 = 56,2 fps /
+23 ms → **im Budget, D2a-Leistung abgenommen.** Thomas: ×2-Schrift zu breit (verzerrt),
++1-Schilder sollen "cool 3D" sein. Vorbild: `docs/vorbild/vorbild-111-8s.jpg`
+(blaue Tafeln mit Pfosten links/rechts, weiße fette Schrift).
+- Neuer Baustein **`src/v3d/schilder.ts`** (D3 übernimmt ihn später):
+  `baueSchild({ breite, hoehe, text, farbe })` → `THREE.Group` aus
+  - **Platte** als Kasten mit Tiefe 0,2 m, leicht abgerundet wirkend durch einen
+    hellen Rahmen (vier schmale Kästen 0,08 m, eine Stufe heller als `farbe`) vorn;
+  - **Vorderseite** mit Canvas-Bemalung **im Seitenverhältnis der Platte** (z. B.
+    512 × 256 für 2 : 1; nie quadratisch gestreckt): Farbverlauf von `farbe` (oben
+    heller) nach dunkler, Text weiß, fett, mit dunkler Kontur (`strokeText`, ~8 % der
+    Schrifthöhe) und leichtem Schlagschatten, Schrifthöhe ~60 % der Platte, zentriert;
+    Rückseite und Seiten einfarbig `farbe` (dunkler);
+  - **zwei Pfosten** links und rechts (0,14 m quadratisch, Holz-Orange `#c9793a`),
+    vom Boden bis Oberkante Platte + 0,1 m.
+  Eine Canvas-Bemalung **je Text** wird geteilt (alle +1-Schilder nutzen dieselbe);
+  Freigabe über `gibSzeneFrei` bzw. eigene `gibFrei()` — Zweitstart-Zähler bleiben gleich.
+- **+1-Schilder** (linker Streifen) mit `baueSchild`: Platte 2,0 × 1,2 m, Unterkante
+  0,5 m über der Straße, Farbe `#168bd2`, leicht zur Kamera geneigt (Drehung um x
+  −10°), Abstand längs 7 m wie bisher.
+- **×2-Wand** mit `baueSchild`: Platte 6,8 × 1,2 m (volle Mittenbreite), Unterkante auf
+  der Straße, Farbe `#1f6fd6`, Text "×2" — Schrift im richtigen Seitenverhältnis (Canvas
+  z. B. 1024 × 180), also nicht verzerrt; Pfosten an beiden Enden.
+- Tests weiter grün (inkl. Streifen-Prüfung: Schilder und Wand bleiben in ihren
+  Streifen). Status am Ende `IMPL_DONE`, Nachtrag im Implementation Summary.
+
+## Nacharbeit 6 (Thomas 2026-09-29) — Truppe tiefer ins Bild (Kamera)
+
+Thomas: "mein Team kann noch weiter unten stehen". Befund Claude: Die App läuft am
+iPhone im Vollbild **390 × 844** (Fotos 1170 × 2532), nicht 390 × 659 (Safari mit
+Leisten) — dort lag die Linie `z = 0` bei 67 %. Änderung nur an der Kamera:
+- `BUEHNE.KAMERA_POSITION` → **(0, 28.5, 45.7)** (7 m nach vorn), Neigung, Sichtfeld,
+  Referenz-Seitenverhältnis und `passeKameraAn` unverändert.
+- Zielmaße im Test (`tests/v3dBuehne.test.ts`) neu, von Claude nachgerechnet:
+  - 390 × 844 und 375 × 812: `z = 0` bei **78 – 82 %** von oben, unten ≥ 1,00,
+    `(0,0,−60)` im Bild (≥ 2 % unter dem Rand), Straßenende `(±6,0,−220)` über dem Rand,
+    Horizont über dem Rand.
+  - 390 × 659: `z = 0` bei **86 – 90 %**, Breite auf 5 % Höhe **0,40 – 0,47**, unten ≥ 1,00,
+    Rest wie oben.
+- Nahaufnahme und Messmodus unverändert. Tests grün, Status `IMPL_DONE`, Nachtrag.
