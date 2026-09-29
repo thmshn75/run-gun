@@ -10,7 +10,8 @@
     "check": "tsc --noEmit",
     "test": "vitest run",
     "test:dist": "npm run build && vitest run",
-    "make-icons": "python3 scripts/make-icons.py"
+    "make-icons": "python3 scripts/make-icons.py",
+    "bots3d": "node --experimental-strip-types scripts/bots3d.ts"
   },
   "dependencies": {
     "phaser": "3.90.0",

@@ -177,7 +177,7 @@ Boss-Lebenspunkte `B_mini`, `B_elite`. Bahnkoordinate `x` der Truppe von −1 (l
 | Laufen | 6 m/s; Ankunft an der Front nach `(y − 5)/6` s → `U` wird zu `F`; Ankunft an der Säule (feste Lage 12 m) → `P −= 1`, Soldat verschwindet |
 | +1 (links) | Truppe bei `x < −0,6`: `T` steigt um 2/s. Die Schilder sind Darstellung, gezählt wird im Rechenkern |
 | Horde | Level 1: 600 Zombies in 3 Wellen à 200, Abstand 20 s, Start bei `y = 60 m`, Marsch 0,8 m/s. Mini-Boss mit Welle 2, Elite-Boss nach der letzten Welle |
-| Front | `Zk` = Zombies in Kontakt, höchstens 40; Bosse zählen mit Gewicht 25. Zombies fallen mit `0,5·F`/s, Soldaten mit `0,3·Zk`/s (gefallene Soldaten sind weg, `T` unverändert). **Nach Kontakt ersetzt die Verschiebung den Marsch:** `dy/dt = 0,5·(F−Zk)/(F+Zk)` m/s; bei `F + Zk = 0` marschiert die Horde weiter |
+| Front | **Korrigiert nach Nachrechnung (2026-09-29):** Soldaten im Kontakt `K = min(F, 40)`, Zombie-Druck `Zk = min(Z, 40) + 25·Bosse`. Zombies fallen `0,5·K`/s, Soldaten `0,4·min(Zk, 2·K)`/s (gefallene Soldaten sind weg, `T` unverändert). **Nach Kontakt ersetzt die Verschiebung den Marsch:** `dy/dt = 0,5·(K−Zk)/(K+Zk)` m/s; ohne Soldaten an der Front marschiert die Horde. Vorab-Simulation: passiv verliert 20/20, Strategie gewinnt 20/20, je ~140 s |
 | Bosse | nehmen Schaden wie 25 Zombies (`B −= 25` je "gefallenem" Anteil); Mini 400, Elite 3000 |
 | Niederlage | `y ≤ 0` (Horde erreicht die Truppe) |
 | Sieg | `B_elite = 0`; sind vorher alle Zombies gefallen, marschiert der Elite-Boss allein |

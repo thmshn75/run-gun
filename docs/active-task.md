@@ -2,226 +2,225 @@
 
 Status: APPROVED
 
-## Aufgabe: D0 — Fundament "Run Gun 3D"
+## Aufgabe: R1 — Rechenkern Grundspiel "Run Gun 3D" (ohne Grafik)
 
-Verbindlicher Plan: `docs/plan-v7.md` (lesen: "Machbarkeit", "Folgerungen",
-"Unverhandelbare Randbedingungen", "Schrittfolge → D0"). Dieser Schritt baut **nur das
-Gerüst**: Menüknopf, Umschalten Phaser ↔ Three.js, leere 3D-Szene, Zurück, Messmodus mit
-Platzhalter-Vollast, Info-Bildschirm, Level-Speicher, Service-Worker-Regeln, Tests.
-**Kein Spielinhalt** (keine Bahn-Gestaltung, keine echten Figuren, keine Spielrechnung).
-
-Vorlagen (lesen, **nicht** importieren): `public/probe-3d/diagnose7.html` (Messmodus,
-`helligkeit()`, `grafikMB()`, `auswerten()`, Aufwärmphase, Anordnung der Masse),
-`public/probe-3d/index.html` (Instanz-Zeichnung einfacher Körper).
+Verbindlicher Plan: `docs/plan-v7.md`, Abschnitt **"Spielrechnung"** (lesen) und
+"Schrittfolge → R1". Dieser Schritt baut die **reine Spiellogik** als TypeScript ohne
+Three.js, ohne DOM, ohne Phaser. Die Grafik (D3/D4) stellt diesen Kern später nur dar.
+**Keine Spezialeinheiten-Wirkung** (kommt in R2) — eine gefallene Säule meldet nur, welche
+Einheit frei wird.
 
 ## Erlaubte Änderungen (abschließend)
 
-- Neu: alles unter `src/v3d/`, neue Tests unter `tests/`.
-- `package.json` + Lockfile: `three` (aktuelle Version, derzeit 0.186.x) und `@types/three`
-  (devDependency). Keine weiteren Pakete.
-- `src/scenes/MenuScene.ts`: nur der bisherige V2-Knopf (um `'RUN GUN V2'`) und die dafür
-  nötigen Hinweis-Texte.
-- `vite.config.ts`: nur die Regeln aus A6.
-- Bestehende Tests: zuerst `grep -rn "RunGunV2Scene\|RUN GUN V2" tests/` ausführen. **Nur
-  die Prüfungen, die den Menüknopf bzw. `this.scene.start('RunGunV2Scene')` in
-  `MenuScene.ts` erwarten**, auf den 3D-Knopf umstellen (bekannt: `tests/v2Geruest.test.ts`
-  Menü-Teil, `tests/keinTorlauf.test.ts` Zeile ~20). Prüfungen der V2-Szene selbst
-  (z. B. in `v2Optik`, `v2BossOptik`) bleiben unverändert.
-- `tests/precache.test.ts`: nur der Filter `precacheFiles` schließt Pfade unter `probe-3d/`
-  aus (sonst verlangt er deren Precache und widerspricht A6); der Test bleibt sonst gleich.
-- **Nicht** ändern: `src/main.ts`, `index.html`, `src/style.css`, `src/systems/`,
-  `src/config/`, `src/v2/` (die `RunGunV2Scene` bleibt registriert, nur nicht mehr im Menü
-  erreichbar), alle anderen Szenen, `docs/lizenzen.md`.
+- Neu: `src/v3d/rechnung.ts`, `src/v3d/balance3d.ts`, `scripts/bots3d.ts` (oder `.mjs`),
+  neuer Test `tests/v3dRechnung.test.ts`.
+- `package.json`: nur ein Skript `"bots3d"` (Bot-Auswertung, s. A4). Keine neuen Pakete.
+- Nichts sonst. `tests/v3dIsolation.test.ts` muss weiter grün sein; `rechnung.ts` und
+  `balance3d.ts` importieren weder `three` noch DOM noch `renderer.ts`.
 
-## Dateien und Schnittstellen (verbindlich)
+## Modell (verbindlich; Zahlen in `balance3d.ts`, Formeln in `rechnung.ts`)
 
-| Datei | Inhalt |
-|---|---|
-| `src/v3d/einstieg.ts` | `export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: string) => void): Promise<void>` — einziger Einstieg, von `MenuScene` per `import()` geladen |
-| `src/v3d/renderer.ts` | der eine `THREE.WebGLRenderer` (Modul-Variable), Anlegen, Größe, Kontextverlust |
-| `src/v3d/szene.ts` | leere Szene, Kamera, Freigabe |
-| `src/v3d/oberflaeche.ts` | DOM-Container und Knöpfe (ZURÜCK, INFO, MESSEN, Level-Anzeige) |
-| `src/v3d/info.ts` | Info-Tafel aus `docs/lizenzen.md` |
-| `src/v3d/messung.ts` | Messablauf, Platzhalter, Bildpunkt-Auslesung (mit three/DOM) |
-| `src/v3d/rechnen.ts` | **reine Rechnung ohne `three` und ohne DOM**: `auswerten(bildzeitenMs)`, `speicherMB(...)`, `urteil(...)` |
-| `src/v3d/speicher.ts` | Level-Speicher, **ohne `three`, ohne `renderer.ts`** |
+Alle Mengen sind **Kommazahlen** (keine Rundung im Kern; die Anzeige rundet später ab).
+Zeit in Sekunden, Strecken in Metern. `schritt()` wird mit festem `dt` aufgerufen
+(Tests: `dt = 1/30`).
 
-In `src/v3d/` ist Phaser nur als Typ erlaubt (`import type Phaser from 'phaser'`).
+**Zustand** (`Zustand`): Zeit `t`; Truppe `T`; Liste `trupps` unterwegs
+(`{ ziel: 'front' | 'saeule', pos: number, anzahl: number, vervielfacht: boolean }`);
+`F` Soldaten an der Front; `Z` gewöhnliche Zombies in der Horde; `y` Frontlage (Meter vor
+der Truppe); `P` Zähler der aktuellen Säule und `saeulenIndex`; `miniBoss` und
+`eliteBoss` (`{ imFeld: boolean, B: number }`); gestartete Wellen;
+`ergebnis: 'laeuft' | 'sieg' | 'niederlage'`; Kommarest fürs Aussenden; Seed-Zustand.
+
+**Level-Tabelle** (`balance3d.ts`, Level 1 = Startwerte aus dem Plan):
+`T0 = 10`, `k = 2`, Wand bei 5 m, Säule bei 12 m, Laufgeschwindigkeit 6 m/s,
+Aussenden `r = 2 + 0,1·T` pro s, Einsammeln 2/s, Schwelle links `x < −0,6`,
+rechts `x > +0,6`, Horde 600 in 3 Wellen à 200 im Abstand 20 s (Welle 1 bei t = 0),
+Start `y = 60`, Marsch 0,8 m/s, Mini-Boss mit Welle 2 (`B = 400`), Elite-Boss 20 s nach
+der letzten Welle (`B = 3000`), Säulen `P = 150` je Säule, Reihenfolge
+`['humvee', 'panzer', 'haubitze', 'hubschrauber']`, Frontbreite `C = 40`,
+**Kontaktmodell (korrigiert nach Nachrechnung 2026-09-29):** Soldaten im Kontakt
+`K = min(F, C)`, Zombie-Druck `Zk = min(Z, C) + 25·(Anzahl Bosse im Feld)`;
+Zombies fallen `0,5·K` pro s; Soldaten fallen `0,4·min(Zk, 2·K)` pro s (jeder Soldat wird
+von höchstens zwei Gegnern zugleich bedrängt); Verschiebung `0,5·(K−Zk)/(K+Zk)` m/s;
+Boss-Treffer 25 Punkte je "Zombie-Treffer".
+(Claudes Vorab-Simulation mit diesen Werten: passiv verliert 20/20 nach ~140 s,
+Strategie gewinnt 20/20 nach ~140 s.)
+
+**`Level` ist vollständig parametrisiert** (für Test-Level): Wellenliste
+`[{ t, groesse }]`, Streuung, Welle mit Mini-Boss, Zeitpunkt Elite-Boss, `B_mini`,
+`B_elite`, `T0`, `k`, Wand-/Säulenlage, `P`, Säulen-Reihenfolge, `C`, alle Raten und
+Faktoren, Start-`y`. Level 1 enthält genau die Werte oben.
+
+**Ablauf je `schritt(zustand, eingabe: { x: number }, dt)`** (in dieser Reihenfolge):
+1. **Wellen:** Erreicht `t` den Startzeitpunkt einer Welle: `Z += Wellengröße`
+   (Seed-Streuung ±10 %), Ereignis `welle` mit der Menge. Mit Welle 2: Mini-Boss ins Feld.
+   20 s nach der letzten Welle: Elite-Boss ins Feld.
+2. **Einsammeln:** `x < −0,6` → `T += 2·dt` (Ereignis `eingesammelt`).
+3. **Aussenden:** Rate `r = 2 + 0,1·T`; der Kommarest sammelt sich, ganze Soldaten werden
+   als ein Trupp an `pos = 0` angelegt; Ziel `saeule` wenn `x > +0,6`, sonst `front`
+   (Ereignis `ausgesandt`). `T` bleibt unverändert (die Truppe ist die Quelle).
+4. **Laufen:** jeder Trupp `pos += 6·dt`. Passiert er 5 m und ist noch nicht vervielfacht:
+   `anzahl *= k` (Ereignis `vervielfacht`, Menge `(k−1)·anzahl vorher`).
+   Ziel `front` und `pos ≥ y` → `F += anzahl`, Trupp weg (Ereignis `angekommenFront`).
+   Ziel `saeule` und `pos ≥ 12` → Trupp weg (Ereignis `angekommenSaeule` mit der Menge);
+   gibt es noch eine Säule: `P −= anzahl`; `P ≤ 0` → Ereignis `einheitFrei` mit der
+   nächsten Einheit der Reihenfolge, `saeulenIndex += 1`, `P = 150` (Überschuss verfällt).
+   Nach der letzten Säule wirken Soldaten zur Säule nicht mehr (Ereignis bleibt).
+5. **Front:** "Feind im Feld" = `Z > 0` oder ein Boss im Feld mit `B > 0`. Zu Beginn
+   von Schritt 5 werden `F`, `Z`, Bosse einmal gelesen; `K`, `Zk`, Treffer, Verluste und
+   Verschiebung rechnen alle mit dieser Momentaufnahme.
+   - **Kontakt** = `F > 0` und Feind im Feld: Treffer `h = 0,5·K·dt`, zuerst an
+     gewöhnliche Zombies (`d = min(h, Z)`, `Z −= d`, Ereignis `zombieGefallen` mit `d`),
+     der Rest `h −= d` an den Mini-Boss, dann an den Elite-Boss: je Boss
+     `u = min(h, B/25)`, `B −= 25·u`, `h −= u`, Ereignis `bossTreffer` mit
+     **Menge = 25·u (B-Punkte)** und `boss`; ein Boss mit `B ≤ 0` verlässt das Feld.
+     Verluste `v = min(F, 0,4·min(Zk, 2·K)·dt)`, `F −= v` (Ereignis `soldatGefallen`).
+     Frontlage `y += 0,5·(K−Zk)/(K+Zk)·dt`.
+   - **Kein Kontakt**, aber Feind im Feld: `y −= 0,8·dt` (Marsch).
+   - Kein Feind im Feld: `y` bleibt.
+   - `y` höchstens 60.
+6. **Ende:** `y ≤ 0` → `niederlage`; sonst: Elite-Boss war im Feld und hat `B ≤ 0` →
+   `sieg` (Niederlage hat Vorrang). Danach ändert `schritt()` nichts mehr.
+7. **Zeit:** `t += dt` am **Ende** von `schritt()`. Wellen- und Bosszeitpunkte gelten als
+   erreicht bei `t ≥ Zeitpunkt − 1e-9`.
+
+Hinweis: Fällt `y` unter 5 m, erreichen neue Trupps die Front vor der Wand und werden
+nicht vervielfacht — gewollt.
+
+**Ereignisse** (`{ art, menge, t, … }`), Rückgabewert von `schritt()`: `welle`,
+`eingesammelt`, `ausgesandt`, `vervielfacht`, `angekommenFront`, `angekommenSaeule`,
+`einheitFrei` (mit `einheit`), `zombieGefallen`, `bossTreffer` (mit `boss`),
+`soldatGefallen`, `sieg`, `niederlage`.
+
+**Zufall** nur über einen Seed (z. B. Mulberry32 in `rechnung.ts`), kein `Math.random`.
+Gleicher Seed + gleiche Eingaben → exakt gleicher Verlauf.
 
 ## Akzeptanzkriterien
 
-### A1 Menüknopf
-- Der Knopf an der Stelle von "RUN GUN V2" heißt **"RUN GUN 3D"** (gleiche Lage, Größe).
-- Antippen: Sperr-Flag `startet` (weitere Taps werden ignoriert, bis `import()` fertig oder
-  gescheitert ist), dann `import('../v3d/einstieg')` und `starte3D(this.game, hinweis => …)`.
-  Der Rückruf zeigt einen übergebenen Hinweis 4 s als Phaser-Text mittig über dem Knopf.
-- Schlägt `import()` fehl: **einmalig** `location.reload()`, geschützt durch das
-  `sessionStorage`-Flag `rg3d_neuladen` (nach Erfolg gelöscht). Scheitert es danach
-  erneut: Hinweis **"3D-Dateien nicht ladbar – App neu öffnen"**, Menü bleibt bedienbar.
-  (Hintergrund: Nach einem Service-Worker-Update verweist das alte Menü auf einen gelöschten
-  Baustein; ein Neuladen behebt das.)
+### A1 Schnittstelle
+`export function neuerLauf(level: Level, seed: number): Zustand`,
+`export function schritt(z: Zustand, eingabe: { x: number }, dt: number): Ereignis[]`
+(verändert `z`), `export const LEVELS: Level[]` in `balance3d.ts` (mindestens Level 1).
 
-### A2 Umschalten Phaser ↔ Three.js
-- **Start:** `game.input.enabled = false`, `game.loop.sleep()`, Phaser-Zeichenfläche
-  `style.visibility = 'hidden'`.
-- **Verlassen ist ein einziger Pfad `verlasse(hinweis?)`**, idempotent (zweiter Aufruf tut
-  nichts). Er gibt die Szene frei (alle Geometrien, Materialien, Texturen `dispose()`),
-  bricht als **ersten Schritt** eine laufende Messung ab (`bricheAb()`, s. A3),
-  stoppt die Zeichenschleife (`setAnimationLoop(null)`), blendet Three-Zeichenfläche und
-  DOM-Container aus und führt **im `finally`** aus: Phaser-Zeichenfläche sichtbar,
-  `game.loop.wake()`, `game.input.enabled = true`, alle Phaser-Pointer zurücksetzen
-  (`game.input.pointers.forEach(p => p.reset())` und `game.input.mousePointer?.reset()`), dann `beimSchliessen(hinweis)`.
-  ZURÜCK und Kontextverlust rufen beide `verlasse()`.
-- **Genau ein** `THREE.WebGLRenderer` (`renderer.ts`), beim ersten Start angelegt und bei
-  jedem weiteren Start wiederverwendet. Zeichenfläche an `document.body`, Inline-Style
-  `position: fixed; inset: 0; z-index: 10; touch-action: none`; beim Verlassen ausgeblendet.
-  `setPixelRatio(Math.min(devicePixelRatio, 2))`, `antialias: true`.
-- **Größe:** bei jedem Start und bei `resize`/`orientationchange` (nur solange 3D aktiv):
-  `renderer.setSize(innerWidth, innerHeight, false)` plus Zeichenfläche per CSS 100 %,
-  `camera.aspect` anpassen, `updateProjectionMatrix()`.
-- **Kontextverlust** (`webglcontextlost` auf der Three-Zeichenfläche): `preventDefault()`,
-  `verlasse('Grafik wurde zurückgesetzt')`, dann Renderer `dispose()`, Zeichenfläche per
-  `remove()` aus dem DOM, Modul-Variable `null` → beim nächsten Start neu angelegt. **Nie
-  mehr als eine Three-Zeichenfläche im DOM.**
-- **Unterbrechung:** `visibilitychange` → bei `hidden` Zeichenschleife anhalten, bei
-  `visible` fortsetzen (nur solange 3D aktiv). Läuft gerade eine Messung: abbrechen (s. A3).
-  Hinweis für Claude/Thomas, kein Codex-Auftrag: `src/main.ts` kann bei `visible` nach einem
-  Service-Worker-Update neu laden — das ist erwartet; D0 hat dabei nichts zu verlieren.
-- **DOM-Oberfläche** (`oberflaeche.ts`): ein Container (`z-index: 11`), einmal angelegt,
-  beim Verlassen ausgeblendet und wiederverwendet. Abstände über
-  `env(safe-area-inset-*)` im Inline-Style. Knöpfe **ZURÜCK** (oben links), **INFO**
-  (oben rechts), **MESSEN** (unten mittig), Anzeige **"Level N"** (oben mittig). Alle Knöpfe
-  mind. 44 × 44 px, `touch-action: manipulation; user-select: none;
-  -webkit-touch-callout: none`.
-- **Leere Szene:** Himmelfarbe `#87c6ee`, graue Bahn (Ebene 7 × 80, `#3b4450`,
-  Mitte bei z = −30), blaue Fläche daneben (80 × 80, `#2f6f96`, 2 cm tiefer),
-  `HemisphereLight(0xffffff, 0x556070, 2.2)` + `DirectionalLight(0xffffff, 2.2)` bei
-  `(−6, 14, 4)`, Kamera `PerspectiveCamera(50)` bei `(0, 9, 10)`, Blick auf `(0, 0, −12)`.
+### A2 Bilanz-Invariante (Test)
+In **1000 Läufen** mit zufälligen Seeds und zufälligen Eingabefolgen (`x` springt
+zufällig zwischen −1, 0, +1 alle 0,5–3 s), je bis Ende oder 300 s, gilt in **jedem
+Schritt** (Toleranz 1e-6):
+- `ΔT = Σ eingesammelt`
+- `Σ ausgesandt + Σ vervielfacht = Σ angekommenFront + Σ angekommenSaeule +
+  Δ(Summe anzahl aller Trupps unterwegs)`
+- `ΔF = Σ angekommenFront − Σ soldatGefallen`
+- `ΔZ = Σ welle − Σ zombieGefallen`
+- je Boss, solange er im Feld ist: `ΔB = −Σ bossTreffer` dieses Bosses
+- Säule: `ΔP = −Σ angekommenSaeule` in Schritten ohne `einheitFrei` (solange es eine
+  Säule gibt; nach der letzten ist `P = null`)
+- kein Feld ist `NaN`.
+Test-Timeout ausdrücklich 120 s; Summen je Schritt aus den Ereignissen mitzählen, nicht
+jedes Mal über alle Trupps neu summieren.
 
-### A3 Messmodus (`messung.ts` + `rechnen.ts`)
-- Knopf **MESSEN** startet: Aufwärmen 5 s (nicht gewertet), dann zwei Stufen à 30 s.
-  **Zeitfenster laufen über aufsummierte Bildzeit, nicht über die Wanduhr.** Bilder mit
-  Dauer > 250 ms zählen nie in die Statistik.
-  1. **"Leere Szene"**
-  2. **"Platzhalter-Vollast"**: `InstancedMesh` mit 1500 Instanzen eines Körpers mit
-     ~1000 Dreiecken (z. B. `SphereGeometry(0.25, 24, 21)`, gestreckt auf 0,7 m Höhe) und
-     150 Instanzen eines Körpers mit ~5000 Dreiecken (z. B. `SphereGeometry(0.25, 52, 48)`).
-     Anordnung wie diagnose7: Zombies ab z = −6 in Reihen mit Abstand 0,42 m über die Bahn
-     (x von −3,1 bis +3,1), Soldaten ab z = +4,5 in 6er-Reihen (Abstand 0,6 m / 0,55 m);
-     leichtes Wippen je Bild über `setMatrixAt`. Material `MeshStandardMaterial({ map })`
-     mit einer **512 × 512-Testbemalung** (im Code erzeugte `CanvasTexture`, helles
-     Schachbrett). Platzhalter existieren nur während der Messung und werden danach
-     freigegeben.
-- **Abbruch:** `messung.ts` exportiert `bricheAb(grund)` (idempotent): stoppt die
-  Messung, gibt Platzhalter und Testbemalung frei, kein Ergebnis. Aufrufer:
-  `visibilitychange` → `hidden` (Anzeige **"Abgebrochen – Unterbrechung, bitte neu
-  starten"**) und `verlasse()`. Während einer Messung ist MESSEN deaktiviert (`disabled`).
-- **Bildzeiten:** Bilder > 250 ms zählen zur Fensterzeit, aber nicht in die Statistik; ihre
-  Anzahl wird je Stufe angezeigt.
-- Anzeige (DOM-Tabelle oben) je Stufe: Schnitt-fps, langsamste 5 % in ms
-  (`auswerten()`: sortieren, Wert an Index `floor(n · 0,95)`, fps = 1000 / Mittelwert),
-  **Schwarz-Anteil** (Bildpunkt-Auslesung wie diagnose7 `helligkeit()`: 41 × 41 Bildpunkte
-  um den projizierten Weltpunkt `(0, 0.35, −10)`, Anteil mit mittlerer Helligkeit < 30;
-  **einmal 3 s nach Stufenbeginn, im selben Bildschritt direkt nach `render()`**;
-  in Stufe 1: "entfällt"), **Speicherplan** (`speicherMB()`):
-  - Bemalungen Three: Σ Breite × Höhe × 4 × 4/3 über alle von gezeichneten Materialien
-    benutzten Texturen (`map`, `normalMap`), jede Textur nur einmal
-  - Renderflächen: je Zeichenfläche `drawingBufferWidth × drawingBufferHeight × 4`
-    (Three und Phaser, aus den echten Zeichenflächen gelesen)
-  - Phaser-Rest: Σ Breite × Höhe × 4 über alle Quellbilder in `game.textures`
-  - alle Werte in MB (1 MB = 1 048 576 Byte). **Budget-relevant ist nur die Bemalung
-    Three (≤ 60 MB, Plan-Definition).** Renderflächen und Phaser-Rest werden als
-    "Schätzung, ohne Tiefen- und Glättungspuffer" nur angezeigt.
-  - `renderer.info.memory.geometries` / `.textures`
-- Abschlusszeile (`urteil()`): **"✅ im Budget"**, wenn Stufe 2: Schnitt ≥ 55 fps,
-  langsamste 5 % ≤ 25 ms, Schwarz ≤ 10 %, Bemalung ≤ 60 MB — sonst **"❌ außerhalb: <Wert>"**.
-  Leere Bildliste oder > 10 % verworfene Bilder → **"❌ außerhalb: zu wenig gültige
-  Bilder"** (nie ✅ bei fehlenden Werten).
+### A3 Randfälle (Tests, je fester Seed; eigene **Test-Level** über die Parameter)
+- Test-Level mit kleiner Horde (z. B. eine Welle à 50, kein Mini-Boss) und Elite-Boss bei
+  t = 60, Truppe links: alle Zombies fallen vor t = 60; `y` bleibt danach stehen, bis der
+  Elite-Boss erscheint; danach marschiert er; Sieg erst bei `B_elite ≤ 0`.
+- Test-Level mit `P = 20` und großem Start-`y`, Truppe dauerhaft rechts: alle vier Säulen
+  fallen der Reihe nach (vier `einheitFrei` in Tabellen-Reihenfolge), danach keine weitere.
+- `F = 0` mit Feind im Feld: `y` sinkt um genau `0,8·dt` je Schritt.
+- Truppe dauerhaft links: `T` wächst um genau 2 je Sekunde.
+- Nach `sieg`/`niederlage` verändert `schritt()` den Zustand nicht mehr.
+- Determinismus: zwei Läufe mit gleichem Seed und gleicher Eingabe sind identisch.
 
-### A4 Info-Bildschirm (`info.ts`)
-- Knopf **INFO** zeigt eine DOM-Tafel mit dem Inhalt von `docs/lizenzen.md`
-  (`import text from '../../docs/lizenzen.md?raw'`). Absätze als `<p>`, Tabellenzeilen:
-  Zeilen mit `|` aufteilen, Kopf- und Trennzeile weglassen, je Zeile ein `<li>`.
-  **Nur `textContent`, nie `innerHTML`, keine `<a>`** (Links bleiben reiner Text; ein
-  Antippen darf die App nicht verlassen). Tafel: `overflow-y: auto; touch-action: pan-y;
-  overscroll-behavior: contain`, Schließen-Knopf. Falls `tsc` den `?raw`-Import nicht kennt:
-  `src/v3d/raw.d.ts` mit `declare module '*.md?raw'`.
+### A4 Bots (`npm run bots3d`)
+- **passiv:** `x = 0` immer.
+- **Strategie:** `x = −1` bis `T ≥ botSchwelleT` (Parameter im Bot-Skript, Standard 30),
+  dann `x = +1` bis zum ersten `einheitFrei`, dann `x = 0`.
+- Je Bot **20 Seeds** (1…20) auf Level 1, Laufende spätestens bei 300 s; Ausgabe als
+  Tabelle: Seed, Ergebnis, Dauer, `T`, `F`, `Z` am Ende, gefallene Säulen; dazu die
+  Siegquote je Bot.
+- **Kein Test verlangt Quoten.** Die Kalibrierung macht Claude danach anhand der Ausgabe.
+  Codex ändert keine Zahl in `balance3d.ts`, um Bot-Ziele zu erreichen, und meldet die
+  Quoten nur im Bericht.
 
-### A5 Level-Speicher (`speicher.ts`)
-- Schlüssel **`rg3d.v1`**, Inhalt JSON `{ "version": 1, "hoechstesLevel": <Zahl ≥ 1> }`.
-- `ladeFortschritt()`: `try/catch`; fehlend, kaputt, falsche Version, Zahl < 1 oder
-  `localStorage` wirft → `{ version: 1, hoechstesLevel: 1 }`, nie ein Fehler nach außen.
-- `speichereFortschritt(level)`: `try/catch`, schreibt nur `rg3d.v1`.
-- D0 ruft beim Start `ladeFortschritt()` auf und zeigt "Level N".
-- Berührt **nie** `rungun_save_v1`, `rungun_save_v1_backup`, `rungun_save_v1_vorReset`.
-
-### A6 Service Worker und Build (`vite.config.ts`)
-- `workbox.globPatterns`: um `glb` und `webp` ergänzen.
-- `workbox.globIgnores: ['probe-3d/**']`.
-- `workbox.maximumFileSizeToCacheInBytes: 10 * 1024 * 1024`.
-- Chunk-Benennung (Vite 8 / rolldown, `build.rolldownOptions.output.chunkFileNames` —
-  falls in dieser Version nur `rollupOptions` wirkt, dieses):
-  `(chunk) => chunk.moduleIds.some(id => /[\\/]src[\\/]v3d[\\/]|[\\/]node_modules[\\/]three[\\/]/.test(id)) ? 'assets/v3d-[name]-[hash].js' : 'assets/[name]-[hash].js'`
-- Alles Übrige in `vite.config.ts` bleibt unverändert.
-
-### A7 Tests (Vitest, Node-Umgebung; laufen mit `npm test`)
-- **`tests/v3dIsolation.test.ts`**: Keine `.ts`-Datei unter `src/v3d/` importiert aus
-  `src/systems`, `src/config`, `src/v2` oder `src/scenes` (erlaubt: `import type Phaser`).
-  Kein `http://` / `https://` im Quelltext unter `src/v3d/**/*.ts` (die Links in
-  `docs/lizenzen.md` sind davon nicht betroffen). `rechnen.ts` und `speicher.ts`
-  importieren weder `three` noch `renderer.ts`.
-- **`tests/v3dRechnen.test.ts`**: `speicherMB` — eine Textur 512 × 512 = 1,333 MB; dieselbe
-  Textur zweimal übergeben = einmal gezählt; `auswerten` — feste Bildzeitenliste ergibt
-  erwartete fps und langsamste 5 %; Bilder > 250 ms werden verworfen; `urteil` — genau an
-  den Grenzen (55 fps, 25 ms, 10 %, 60 MB) ✅, knapp darüber/darunter ❌; leere Liste und
-  > 10 % verworfene Bilder ❌ "zu wenig gültige Bilder"; `auswerten([])` liefert kein NaN
-  nach außen.
-- **`tests/v3dSpeicher.test.ts`** (nachgebauter `localStorage`): fehlend, kaputtes JSON,
-  falsche Version, Level 0, werfender `localStorage` → Level 1; Speichern schreibt nur
-  `rg3d.v1`; ein vorab gesetzter Wert unter `rungun_save_v1` ist nach Laden und Speichern
-  **byte-gleich**.
-- **`tests/v3dBuild.test.ts`** (überspringt wie `precache.test.ts`, wenn `dist/sw.js`
-  fehlt; Precache-URLs wie dort per Regex `url:"…"` aus `dist/sw.js`):
-  - Das Hauptbündel = die in `dist/index.html` per `<script type="module" src=…>`
-    eingebundene Datei. Es ist **≤ 1 475 425 Byte** (Stand vor D0: 1 467 233 Byte +
-    8 KB für Menü-Code) und enthält den Text **`__THREE__` nicht** (Three-eigener
-    Kennzeichner; `WebGLRenderer` taugt nicht, Phaser hat eine gleichnamige Klasse).
-  - Es gibt mindestens eine Datei `assets/v3d-*.js`, und eine davon enthält `__THREE__`.
-  - Jede JS-Datei in `dist/assets/` außer dem Hauptbündel und `workbox-*` trägt `v3d` im
-    Namen (Three rutscht nicht in einen unbenannten Baustein).
-  - Alle `v3d`-Dateien stehen im Precache; zusammen ≤ 25 MB.
-  - Keine Precache-URL enthält `probe-3d`.
-- `tests/precache.test.ts` bleibt bis auf den `probe-3d`-Filter unverändert grün.
-- Umgestellte bestehende Tests (siehe "Erlaubte Änderungen"): Menü enthält
-  `'RUN GUN 3D'` und `import('../v3d/einstieg')`, nicht mehr `scene.start('RunGunV2Scene')`.
-- `npm run build`, `npm test` und `npx tsc --noEmit` ohne Fehler.
-
-## Nachweise, die Claude nach dem Codex-Lauf selbst prüft (nicht Codex)
-
-- Desktop-Browser (Playwright, 390 × 844): Menü → 3D → ZURÜCK → 3D → ZURÜCK;
-  `renderer.info.memory` nach Start 1 und Start 2 exakt gleich; im 3D-Modus genau zwei
-  `<canvas>` im Dokument; Doppeltipp auf den Knopf startet nur einmal; alle Netzanfragen nur
-  an die eigene Adresse; ZURÜCK mitten in einer Messung → `memory.geometries/textures`
-  wie vor der Messung; MESSEN liefert Werte; Menü → 3D → Menü → Run spielbar → Menü → 3D.
-- iPhone (Thomas, ein Foto): MESSEN im installierten Spiel, Offline-Start im Flugmodus.
+### A5 Qualität
+`npm test`, `npx tsc --noEmit`, `npm run build` ohne Fehler; `npm run bots3d` läuft durch.
+Laufzeit eines 300-s-Laufs mit `dt = 1/30` im Test messen und ausgeben (keine harte Grenze).
 
 ## Nicht tun
 
-- Keine Spielinhalte aus späteren Schritten (Bahn-Gestaltung, Wasser, Figuren, Rechenkern).
-- Keine Dateien aus `public/probe-3d/` importieren oder verschieben.
-- Keine Änderungen außerhalb der Liste "Erlaubte Änderungen".
-- Keine Anfragen nach außen, keine neuen Pakete außer `three` / `@types/three`.
-- Keine Commits (macht Claude nach dem Review).
+- Keine Grafik, keine Änderung an anderen Dateien unter `src/v3d/`.
+- Keine Spezialeinheiten-Wirkung (R2), keine weiteren Level nötig.
+- Keine Formel ändern; bei Widersprüchen in der Spec: im Bericht benennen und die
+  naheliegende Lesart umsetzen, nicht eigenmächtig Zahlen drehen.
+- Keine Commits.
 
 ## Implementation Summary
 
-- Neu: `src/v3d/` mit Einstieg, wiederverwendetem Renderer, leerer Szene, DOM-Oberfläche,
-  Lizenz-Info, Messung, reiner Messrechnung und getrenntem Level-Speicher.
-- Geändert: `src/scenes/MenuScene.ts` (3D-Knopf und Ladefehler), `vite.config.ts`
-  (3D-Chunk und Precache), `package.json`/`package-lock.json` (`three`, `@types/three`),
-  erlaubte Menü-/Precache-Tests; neu vier `tests/v3d*.test.ts`.
-- Nach finaler Codeänderung: `npm run build` Exit 0; Hauptbündel 1.467.937 Byte
-  (Grenze 1.475.425), 3D-Chunk ca. 543 KB; `npm test` 54/54 Dateien und 495/495
-  Tests grün; `npx tsc --noEmit` Exit 0; `git diff --check` Exit 0.
-- Nicht hier geprüft: Desktop-Browserabläufe und iPhone-Messung/Flugmodus aus dem
-  ausdrücklich Claude/Thomas zugewiesenen Nachweisblock. Kein Commit oder Push gemäß Spec.
+- Dateien: `src/v3d/balance3d.ts` (vollständig parametrisierte Level-1-Werte),
+  `src/v3d/rechnung.ts` (Zustand, feste Schrittfolge, Ereignisse und Seed-Zufall),
+  `scripts/bots3d.ts` (beide Bots), `tests/v3dRechnung.test.ts` (Bilanz und Randfälle),
+  `package.json` (nur `bots3d`-Skript).
+- Nachweise: `npm test`: 55 Dateien, 502 Tests bestanden; `npx tsc --noEmit`:
+  Exit 0; `npm run build`: Exit 0; `npm run bots3d`: Exit 0.
+  Im Test: 1000 Seed-Läufe, 3.680.935 Schritte in 2,42 s; ein 300-s-Lauf
+  mit `dt = 1/30` in 0,005 s (Messung eines Laufs ohne Feinde, kein Grenzwert).
+  `tests/v3dIsolation.test.ts` ist im vollen Testlauf grün.
+- Bot-Läufe: je Seed 1–20, `dt = 1/30`, Ende spätestens 300 s. T/F/Z sind
+  Endwerte, Säulen = gefallene Säulen. Passiv: 0/20 Siege. Strategie: 20/20 Siege.
+  Alle Passiv-Läufe endeten als Niederlage, alle Strategie-Läufe als Sieg.
+  Quoten dienten nur der Auswertung; Balancewerte wurden nicht nachjustiert.
+
+**Passiv**
+
+| Seed | Ergebnis | Dauer (s) | T | F | Z | Säulen |
+|---:|---|---:|---:|---:|---:|---:|
+| 1 | niederlage | 138.7 | 10 | 4.34 | 91.5 | 0 |
+| 2 | niederlage | 138.7 | 10 | 4.34 | 98.99 | 0 |
+| 3 | niederlage | 138.7 | 10 | 4.34 | 93.82 | 0 |
+| 4 | niederlage | 138.7 | 10 | 4.34 | 104.35 | 0 |
+| 5 | niederlage | 138.7 | 10 | 4.34 | 112.5 | 0 |
+| 6 | niederlage | 138.7 | 10 | 4.34 | 92.86 | 0 |
+| 7 | niederlage | 138.7 | 10 | 4.34 | 87.24 | 0 |
+| 8 | niederlage | 138.7 | 10 | 4.34 | 88.5 | 0 |
+| 9 | niederlage | 138.7 | 10 | 4.34 | 92.88 | 0 |
+| 10 | niederlage | 138.7 | 10 | 4.34 | 129.64 | 0 |
+| 11 | niederlage | 138.7 | 10 | 4.34 | 111.2 | 0 |
+| 12 | niederlage | 138.7 | 10 | 4.34 | 82.97 | 0 |
+| 13 | niederlage | 138.7 | 10 | 4.34 | 85.09 | 0 |
+| 14 | niederlage | 138.7 | 10 | 4.34 | 100.59 | 0 |
+| 15 | niederlage | 138.7 | 10 | 4.34 | 87 | 0 |
+| 16 | niederlage | 138.7 | 10 | 4.34 | 106.34 | 0 |
+| 17 | niederlage | 138.7 | 10 | 4.34 | 101.26 | 0 |
+| 18 | niederlage | 138.7 | 10 | 4.34 | 106.33 | 0 |
+| 19 | niederlage | 138.7 | 10 | 4.34 | 78.73 | 0 |
+| 20 | niederlage | 138.7 | 10 | 4.34 | 114.62 | 0 |
+
+**Strategie**
+
+| Seed | Ergebnis | Dauer (s) | T | F | Z | Säulen |
+|---:|---|---:|---:|---:|---:|---:|
+| 1 | sieg | 134.63 | 30.07 | 15.97 | 0 | 1 |
+| 2 | sieg | 135.73 | 30.07 | 16.26 | 0 | 1 |
+| 3 | sieg | 134.97 | 30.07 | 16.42 | 0 | 1 |
+| 4 | sieg | 136.53 | 30.07 | 15.77 | 0 | 1 |
+| 5 | sieg | 137.73 | 30.07 | 17 | 0 | 1 |
+| 6 | sieg | 134.83 | 30.07 | 15.84 | 0 | 1 |
+| 7 | sieg | 134 | 30.07 | 16.68 | 0 | 1 |
+| 8 | sieg | 134.2 | 30.07 | 16.55 | 0 | 1 |
+| 9 | sieg | 134.83 | 30.07 | 15.84 | 0 | 1 |
+| 10 | sieg | 140.27 | 30.07 | 16.05 | 0 | 1 |
+| 11 | sieg | 137.53 | 30.07 | 17.13 | 0 | 1 |
+| 12 | sieg | 133.37 | 30.07 | 17.42 | 0 | 1 |
+| 13 | sieg | 133.67 | 30.07 | 16.22 | 0 | 1 |
+| 14 | sieg | 135.97 | 30.07 | 15.76 | 0 | 1 |
+| 15 | sieg | 133.97 | 30.07 | 17.03 | 0 | 1 |
+| 16 | sieg | 136.8 | 30.07 | 16.9 | 0 | 1 |
+| 17 | sieg | 136.07 | 30.07 | 16.7 | 0 | 1 |
+| 18 | sieg | 136.8 | 30.07 | 16.9 | 0 | 1 |
+| 19 | sieg | 132.73 | 30.07 | 16.14 | 0 | 1 |
+| 20 | sieg | 138.1 | 30.07 | 17.12 | 0 | 1 |
+
+- Spezifikationskonflikt: R1 nennt `y` höchstens 60 und fordert Test-Level
+  mit großem Start-`y`; die Obergrenze ist deshalb der parametrisierte Startwert
+  (Level 1 genau 60). Beim Elite-Boss gilt der explizite Zeitpunkt 60 s aus R1.
+- Nicht durchgeführt: grafische/iPhone-Abnahme und Claude-Review (außerhalb R1).
+  Die Terminal-App war in dieser Umgebung nicht verfügbar; Tests liefen direkt
+  über die Projekt-Shell. Keine Commits oder Pushes.
