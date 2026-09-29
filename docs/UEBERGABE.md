@@ -1,24 +1,26 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-09-29 abends (**Plan V7 "Run Gun 3D" ist verbindlich**, `docs/plan-v7.md`.
-Thomas hat um 20:25 eine Pause gemacht, weil das Codex-5h-Kontingent bei 93 % stand.)
+Stand: 2026-09-29 22:30 (**Plan V7 "Run Gun 3D" ist verbindlich**, `docs/plan-v7.md`.
+Thomas schlaeft; letzter Commit 99b81fe, online.)
 
 **Das Naechste liegt in `## Offen`.**
 
 ## Offen — naechster Schritt zuerst
 
-0. **D3 (Steuerung, Aussenden, linker Rand) ist spezifiziert und gehaertet, aber NICHT an
-   Codex gegeben** — `docs/active-task.md` steht absichtlich auf `ENTWURF`. Erst auf
-   Thomas' Go (und nach Ruecksetzung des Codex-Kontingents) Status auf `SPEC_READY` setzen
-   und starten.
-   - **Codex-Start:** Der Companion-Weg (`codex-companion.mjs task`) hing am 2026-09-29
-     nach einem Abbruch dauerhaft bei "Starting Codex task thread". Funktionierender
-     Rueckfallweg: `.command` mit `codex exec "<Auftrag>" < /dev/null > codex.out 2>&1`
-     (siehe `docs/lessons.md`, Eintrag vom 2026-09-29). Warteschleife immer mit
-     Stillstandswaechter (8 min ohne Aenderung an `codex.out` → selbst pruefen).
-   - Danach laut Plan: D4 (Horde und Front, Kampfbild) → R2 (Vervielfacher waechst,
-     Variante B; Spezialeinheiten im Rechenkern) → D5a–c (Saeulen/Fahrzeuge; Fahrzeuge
-     waehlt Thomas vorher) → D6 → D7 → D8 (Politurliste im Plan vorgemerkt).
+0. **D3, R2, D3-Anpassung und D3-Nacharbeit sind gebaut, geprueft und online (99b81fe).**
+   Nacharbeit nach Thomas' iPhone-Test 22:02/22:12: Truppe faellt nie unter 1 (Aussenden
+   nur ab T >= 2), Finger-Steuerung uebernimmt immer den neuen Finger, Formation blickt
+   rechts zur Saeule, rote Hordenzahl + Boss-Lebensbalken + "Welle n/3", Laeufer springen
+   nicht mehr (Ausduennen ueber feste Soldatennummer, schraeger Einlauf in die Spur).
+   - **Offen bei Thomas:** iPhone-Spieltest dieses Stands.
+   - **Danach laut Plan:** D4 (Frontkampf-Bild: Schiessen nach der Wand, fallende
+     Zombies/Soldaten, Horde und Bosse marschieren) → D5a (Fahrzeuge waehlt Thomas) →
+     D5b/c → D6 → D7 → D8 (Politurliste im Plan).
+   - Beobachtung Claude (noch nicht beauftragt): rechts ragt die 30er-Formation am
+     Bildrand leicht aus dem Bild.
+   - **Codex-Start:** `.command` mit `codex exec "<Auftrag>" < /dev/null > codex.out 2>&1`
+     (Companion-Weg haengt, siehe `docs/lessons.md` 2026-09-29), Warteschleife mit
+     Stillstandswaechter.
 1. **Abgenommen und online (2026-09-29):** D0, R1, D1, D2a/b/c. Worst Case am iPhone
    (390×844, 600 Zombies + 120 Soldaten + 2 Bosse + Wasser 1): 55,2–55,8 fps, 24–25 ms,
    Dauertest 3 min bestanden — **das Budget ist ausgereizt**, alles Weitere muss sparsam
