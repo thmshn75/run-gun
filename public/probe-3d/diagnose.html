@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>3D-Probe Diagnose</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #6f7a86; overflow: hidden; font-family: -apple-system, sans-serif; }
+  canvas { display: block; }
+  #hud { position: fixed; left: 8px; right: 8px; top: calc(env(safe-area-inset-top) + 8px); color: #fff;
+         background: rgba(0,0,0,.55); border-radius: 10px; padding: 10px 12px; font-size: 15px; line-height: 1.4; }
+  #hud b { font-size: 18px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 6px; }
+  td, th { text-align: left; padding: 2px 4px; font-size: 14px; }
+  #urteil { font-size: 20px; font-weight: 700; margin-top: 6px; }
+</style>
+<script type="importmap">{ "imports": { "three": "./three.module.mjs" } }</script>
+</head>
+<body>
+<div id="hud">Zombies laden …</div>
+<script type="module">
+import * as THREE from 'three'
+import { GLTFLoader } from './addons/loaders/GLTFLoader.js'
+import { mergeGeometries } from './addons/utils/BufferGeometryUtils.js'
+
+// Diagnose: trennt feste Kosten (Truppe, Boss), Dreieckszahl und beidseitiges Zeichnen.
+// Pruefkriterium (vor dem Lauf festgelegt): die letzte Stufe "Spielszene" muss im Schnitt
+// >= 55 fps schaffen und darf bei den langsamsten 5 % der Bilder nicht ueber 25 ms liegen.
+const STUFEN = [
+  { name: 'Nur Truppe + Boss', z: 0, lo: false, truppe: true, boss: true, doppelt: true },
+  { name: '1000 Zombies allein', z: 1000, lo: false, truppe: false, boss: false, doppelt: true },
+  { name: '1000 allein, einseitig', z: 1000, lo: false, truppe: false, boss: false, doppelt: false },
+  { name: '1000 einfache Zombies', z: 1000, lo: true, truppe: false, boss: false, doppelt: false },
+  { name: '2000 einfache Zombies', z: 2000, lo: true, truppe: false, boss: false, doppelt: false },
+  { name: 'Spielszene (1000 einfach + Truppe + Boss)', z: 1000, lo: true, truppe: true, boss: true, doppelt: false },
+]
+const MAX = 2000, SOLDATEN = 60, BILDER = 8, STUFE_S = 6, EINLAUF_S = 1.5
+const hud = document.getElementById('hud')
+const ladeStart = performance.now()
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
+const dpr = Math.min(window.devicePixelRatio || 1, 2)
+renderer.setPixelRatio(dpr)
+renderer.setSize(innerWidth, innerHeight)
+document.body.appendChild(renderer.domElement)
+
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(0x87c6ee)
+scene.fog = new THREE.Fog(0x87c6ee, 40, 75)
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 120)
+camera.position.set(0, 9, 10)
+camera.lookAt(0, 0, -12)
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight) })
+scene.add(new THREE.HemisphereLight(0xffffff, 0x556070, 1.8))
+const sonne = new THREE.DirectionalLight(0xffffff, 2.0); sonne.position.set(-6, 14, 4); scene.add(sonne)
+
+const BAHN = 7
+const boden = new THREE.Mesh(new THREE.PlaneGeometry(BAHN, 80), new THREE.MeshStandardMaterial({ color: 0x3b4450 }))
+boden.rotation.x = -Math.PI / 2; boden.position.z = -30; scene.add(boden)
+const aussen = new THREE.Mesh(new THREE.PlaneGeometry(40, 80), new THREE.MeshStandardMaterial({ color: 0x2f6f96 }))
+aussen.rotation.x = -Math.PI / 2; aussen.position.set(0, -0.02, -30); scene.add(aussen)
+for (const s of [-1, 1]) {
+  const mauer = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, 80), new THREE.MeshStandardMaterial({ color: 0x9aa3ad }))
+  mauer.position.set(s * (BAHN / 2 + 0.15), 0.3, -30); scene.add(mauer)
+}
+
+// Backt eine Animation in BILDER feste Formen: je Bild alle Knochen stellen, Eckpunkte
+// ausrechnen, zu einer einzigen Form verschmelzen. Danach ist jede Figur nur noch ein
+// Instanz-Eintrag - das ist der Weg, der Tausende Figuren am Handy traegt.
+async function backe(datei, clipName, hoehe, mitNode) {
+  const gltf = await new GLTFLoader().loadAsync(datei)
+  const root = gltf.scene
+  const mixer = new THREE.AnimationMixer(root)
+  const clip = gltf.animations.find(a => a.name === clipName)
+  mixer.clipAction(clip).play()
+  const teile = []
+  let material = null
+  root.traverse(o => {
+    if (!o.isMesh) return
+    if (o.isSkinnedMesh || o.name === mitNode) { teile.push(o); material ??= o.material }
+  })
+  const v = new THREE.Vector3(), formen = []
+  for (let f = 0; f < BILDER; f++) {
+    mixer.setTime(clip.duration * f / BILDER)
+    root.updateMatrixWorld(true)
+    const stuecke = teile.map(m => {
+      const g = m.geometry, n = g.attributes.position.count, pos = new Float32Array(n * 3)
+      if (m.isSkinnedMesh) m.skeleton.update()
+      for (let i = 0; i < n; i++) {
+        if (m.isSkinnedMesh) m.getVertexPosition(i, v); else v.fromBufferAttribute(g.attributes.position, i)
+        v.applyMatrix4(m.matrixWorld); pos.set([v.x, v.y, v.z], i * 3)
+      }
+      const neu = new THREE.BufferGeometry()
+      neu.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+      neu.setAttribute('uv', g.attributes.uv)
+      neu.setIndex(g.index)
+      return neu
+    })
+    const form = mergeGeometries(stuecke)
+    form.computeVertexNormals()
+    formen.push(form)
+  }
+  const box = new THREE.Box3().setFromBufferAttribute(formen[0].attributes.position)
+  const s = hoehe / (box.max.y - box.min.y)
+  for (const f of formen) { f.translate(0, -box.min.y, 0); f.scale(s, s, s) }
+  const dreiecke = formen[0].index.count / 3
+  const mat = material.clone(); mat.skinning = false
+  return { formen, material: mat, dreiecke, dauer: clip.duration, gltf }
+}
+
+hud.textContent = 'Zombies laden und Laufbilder backen …'
+const [zombie, soldat, zombieLo, soldatLo, bossGltf] = await Promise.all([
+  backe('./modelle/Zombie_Basic.gltf', 'Walk', 0.7),
+  backe('./modelle/Characters_Matt.gltf', 'Run_Gun', 0.7, 'Rifle'),
+  backe('./modelle/Zombie_Basic_lo.glb', 'Walk', 0.7),
+  backe('./modelle/Characters_Matt_lo.glb', 'Run_Gun', 0.7, 'Rifle'),
+  new GLTFLoader().loadAsync('./modelle/Zombie_Chubby.gltf'),
+])
+const ladeZeit = (performance.now() - ladeStart) / 1000
+// Beidseitig (Werkseinstellung des Pakets) gegen einseitig: je Bauform ein eigenes Material.
+for (const b of [zombie, soldat, zombieLo, soldatLo]) { b.einseitig = b.material.clone(); b.einseitig.side = THREE.FrontSide }
+
+// Zombie i gehoert zu Bildgruppe i % BILDER; jede Gruppe zeigt ihr Laufbild versetzt.
+function gruppen(bau, anzahl) {
+  const je = Math.ceil(anzahl / BILDER)
+  return Array.from({ length: BILDER }, (_, g) => {
+    const n = new THREE.InstancedMesh(bau.formen[g], bau.material, je)
+    n.instanceMatrix.setUsage(THREE.DynamicDrawUsage); n.frustumCulled = false; scene.add(n); return n
+  })
+}
+const zGruppen = gruppen(zombie, MAX), sGruppen = gruppen(soldat, SOLDATEN)
+const zLoGruppen = gruppen(zombieLo, MAX), sLoGruppen = gruppen(soldatLo, SOLDATEN)
+let cfg = STUFEN[0]
+
+const ABSTAND = 0.42, SPALTEN = Math.floor((BAHN - 0.4) / ABSTAND)
+const zPlatz = Array.from({ length: MAX }, (_, i) => {
+  const r = Math.floor(i / SPALTEN), c = i % SPALTEN
+  return { x: -BAHN / 2 + 0.4 + c * ABSTAND + (r % 2) * 0.15 + (Math.random() - 0.5) * 0.1, z: -6 - r * ABSTAND, dreh: (Math.random() - 0.5) * 0.5 }
+})
+// Eigene Truppe in geordneten Reihen, Blick nach vorn (weg von der Kamera).
+const sPlatz = Array.from({ length: SOLDATEN }, (_, i) => ({ x: -1.5 + (i % 6) * 0.6, z: 4.5 - Math.floor(i / 6) * 0.55 }))
+
+const boss = bossGltf.scene; boss.scale.setScalar(2.4); scene.add(boss)
+const bossMixer = new THREE.AnimationMixer(boss)
+bossMixer.clipAction(bossGltf.animations.find(a => a.name === 'Punch')).play()
+
+const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), eins = new THREE.Vector3(1, 1, 1)
+let aktiv = 0
+function fuelle(bau, gruppenListe, anzahl, platz, dreh, t, an) {
+  const bild = Math.floor(t / bau.dauer * BILDER), zaehler = new Array(BILDER).fill(0)
+  if (an) for (let i = 0; i < anzahl; i++) { const g = i % BILDER; platz(i, v); q.setFromEuler(e.set(0, dreh(i), 0)); m4.compose(v, q, eins); gruppenListe[g].setMatrixAt(zaehler[g]++, m4) }
+  gruppenListe.forEach((n, g) => {
+    n.geometry = bau.formen[(g + bild) % BILDER]; n.material = cfg.doppelt ? bau.material : bau.einseitig
+    n.count = an ? zaehler[g] : 0; n.visible = an; n.instanceMatrix.needsUpdate = true
+  })
+}
+function stelle(t, dt) {
+  const marsch = (t * 0.25) % (ABSTAND * 2), seitlich = Math.sin(t * 0.8) * 1.2
+  const zPos = (i, ziel) => ziel.set(zPlatz[i].x, 0, zPlatz[i].z + marsch)
+  const sPos = (i, ziel) => ziel.set(sPlatz[i].x + seitlich, 0, sPlatz[i].z)
+  fuelle(zombie, zGruppen, cfg.z, zPos, i => zPlatz[i].dreh, t, !cfg.lo && cfg.z > 0)
+  fuelle(zombieLo, zLoGruppen, cfg.z, zPos, i => zPlatz[i].dreh, t, cfg.lo && cfg.z > 0)
+  fuelle(soldat, sGruppen, SOLDATEN, sPos, () => Math.PI, t, cfg.truppe && !cfg.lo)
+  fuelle(soldatLo, sLoGruppen, SOLDATEN, sPos, () => Math.PI, t, cfg.truppe && cfg.lo)
+  boss.visible = cfg.boss
+  boss.position.set(0, 0, -6 - Math.ceil(cfg.z / SPALTEN) * ABSTAND - 1.5)
+  bossMixer.update(dt / 1000)
+}
+
+const ergebnisse = []
+let stufe = -1, stufeStart = 0, frames = []
+function naechsteStufe(jetzt) { stufe++; frames = []; stufeStart = jetzt; if (stufe < STUFEN.length) cfg = STUFEN[stufe] }
+function auswerten() {
+  const ms = frames.slice().sort((a, b) => a - b)
+  return { fps: 1000 / (ms.reduce((a, b) => a + b, 0) / ms.length), p95: ms[Math.floor(ms.length * 0.95)] }
+}
+function zeigeHud() {
+  const info = `Bildschirm ${innerWidth}×${innerHeight}, Schärfe ${dpr}× (Gerät ${window.devicePixelRatio})<br>` +
+    `Zombie ${zombie.dreiecke} / einfach ${zombieLo.dreiecke} Dreiecke, Soldat ${soldat.dreiecke} / ${soldatLo.dreiecke}`
+  const zeilen = ergebnisse.map(r => `<tr><td>${r.n}</td><td>${r.fps.toFixed(0)} fps</td><td>${r.p95.toFixed(1)} ms</td></tr>`).join('')
+  const tabelle = `<table><tr><th>Stufe</th><th>Schnitt</th><th>langsamste 5 %</th></tr>${zeilen}</table>`
+  if (stufe < STUFEN.length) {
+    hud.innerHTML = `<b>Messung läuft – Handy ruhig halten</b><br>Stufe ${stufe + 1}/${STUFEN.length}: ${STUFEN[stufe].name}<br>${info}${tabelle}`
+  } else {
+    const k = ergebnisse[ergebnisse.length - 1], ok = k.fps >= 55 && k.p95 <= 25, mittel = !ok && k.fps >= 40
+    hud.innerHTML = `<b>Fertig – bitte Bildschirmfoto an Oscar</b><br>${info}${tabelle}<div id="urteil">${ok ? '✅ Spielszene trägt' : mittel ? '⚠️ geht mit Abstrichen' : '❌ zu langsam'}</div>`
+  }
+}
+
+let letzte = performance.now(), letzteHud = 0
+naechsteStufe(letzte)
+renderer.setAnimationLoop(() => {
+  const jetzt = performance.now(), dt = jetzt - letzte; letzte = jetzt
+  stelle(jetzt / 1000, dt)
+  renderer.render(scene, camera)
+  if (stufe < STUFEN.length) {
+    const seit = (jetzt - stufeStart) / 1000
+    if (seit > EINLAUF_S) frames.push(dt)
+    if (seit > STUFE_S) { ergebnisse.push({ n: STUFEN[stufe].name, ...auswerten() }); naechsteStufe(jetzt); zeigeHud() }
+  }
+  if (jetzt - letzteHud > 500) { letzteHud = jetzt; zeigeHud() }
+})
+</script>
+</body>
+</html>
