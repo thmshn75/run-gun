@@ -182,6 +182,9 @@ Soldaten (D2b), Bosse (D2c), Bewegung nach vorn, Wellen, Front, Treffer, Umfalle
 
 ## Implementation Summary
 
+- Nacharbeit 4: Asphalt mit einer gestrichelten Leitlinie bei x = 0 und vier Reifenspuren nur im mittleren Kampffeld neu erzeugt; alter Grundbelag und Randlinien bleiben. Die alten Leitlinien bei x = ±2 wurden aus der eingecheckten Kachel entfernt. Kontrollbild: `tmp/strasse-asphalt-2x2.png`.
+- Die rechte Säule hat hellblau-weißes Glas (30 % Deckkraft, Rauheit 0,1), zwölf helle Rahmenkanten und einen dunkelgrünen Innenplatzhalter 1,0 × 0,6 × 1,2 m. Die ×2-Wand ist blau (`#1f6fd6`), 1,2 m hoch; ihr Schild misst 4,4 × 1 m. `tests/v3dBuehne.test.ts` erwartet die neuen Wandwerte.
+- Nacharbeit-4-Prüfung: gezielt 1 Datei/5 Tests, volle Suite 57 Dateien/511 Tests, `npx tsc --noEmit`, `npm run build`, `git diff --check` und Offline-Isolationstest grün. Sechs 3D-Dateien (1.242.906 Byte) sind im Precache; Hauptbündel 1.467.937 Byte (Grenze 1.475.425). Terminal.app konnte hier nicht gestartet werden (`Unable to find application named 'Terminal'`); die Tests liefen deshalb direkt im Projekt. Browser-Sichtprüfung, WebGL-Zähler beim Zweitstart und iPhone-Leistungsmessung bleiben Claude und Thomas vorbehalten; für diese Nacharbeit wurde kein Gerätewert gemessen.
 - Nacharbeit 3: Straße in drei Streifen mit zwei 0,3 × 0,25 m Betonkanten von z = −5,5 bis −220 geteilt. Die 400 Bühnen-Zombies stehen nur in der Mitte (zehn Spalten, x = −3,05 bis 3,05); die Vollast zeigt 600 Zombies ab z = −15, mit berechnetem Schwarz-Messpunkt in der Tiefe der Masse. +1-Schilder, ×2-Wand und Säule liegen vollständig in ihrem jeweiligen Streifen; Truppe und Soldaten-Aufstellung bleiben vor der Wand.
 - Nacharbeit-3-Prüfung: gezielte Tests 2 Dateien/9 Tests, volle Suite 57 Dateien/511 Tests, `npx tsc --noEmit`, `npm run build`, `git diff --check` und der Offline-Isolationstest grün. Hauptbündel 1.467.937 Byte (Grenze 1.475.425), GLB im Precache. Die Tests liefen direkt im Projekt, weil die vorgeschriebene Terminal-App in dieser Umgebung nicht startbar ist (`kLSNoExecutableErr`). Browser-Sichtprüfung, WebGL-Zähler beim Zweitstart und iPhone-Messung der 600er-Vollast bleiben Claude und Thomas vorbehalten; kein Gerätewert für diese Nacharbeit behauptet.
 - Nacharbeit 2: Zombie-Höhe 1,95 m; Aufstellung mit 0,63 m Spaltenabstand, 0,83 m Reihenabstand, ±0,12 m Versatz und 16 Spalten aus der Straßenbreite. Bühnenblock 400, Mess-Vollast 800 Zombies; Schwarz-Messpunkt aus der tatsächlichen Tiefe der Vollast berechnet. +1-Schilder 2,4 × 1,6 m links an der Mauer in 7-m-Abständen, ×2-Wand 2,4 m hoch und Schrift-Schild 4,4 × 2 m. Nahaufnahme für die größeren Figuren neu ausgerichtet.
@@ -272,3 +275,21 @@ als Konstanten in `BUEHNE`, Kommentar zur Streifen-Aufteilung dazu):
 - Tests: Aufstellung liegt vollständig in `[ZOMBIE_X_MIN, ZOMBIE_X_MAX]`; Schilder,
   Säule und Wand liegen je vollständig in ihrem Streifen (reine Rechnung aus den
   Konstanten). Status am Ende `IMPL_DONE`, Nachtrag im Implementation Summary.
+
+## Nacharbeit 4 (Thomas 2026-09-29) — Leitstreifen, Glas-Säule, blaue Wand
+
+- **Leitstreifen:** nur noch **eine** gestrichelte Linie in der Mitte des Kampffelds
+  (`x = 0`), die beiden Linien bei `x = ±2` entfallen. Randlinien bleiben.
+  `scripts/strasse-asphalt.py` anpassen und `v3d-strasse.webp` neu erzeugen (gleicher
+  Grundbelag, gleiche Maße, Reifenspuren an die neue Aufteilung anpassen: je zwei in den
+  beiden Hälften der Mitte, keine in den Seitenstreifen).
+- **Säule rechts durchsichtig:** Glas-Optik — `MeshStandardMaterial` hellblau-weiß,
+  `transparent: true`, `opacity 0.3`, `depthWrite: false`, Rauheit 0,1, dazu ein heller
+  Rahmen (die 12 Kanten als dünne Kästen 0,06 m oder `EdgesGeometry` + `LineSegments`).
+  **Innen** ein Platzhalter für die Spezialeinheit: dunkelgrüner Kasten 1,0 × 0,6 × 1,2 m
+  auf dem Säulenboden (wird in D5 durch das Fahrzeug ersetzt), sichtbar durch das Glas.
+  Zahl "150" bleibt oben. Zeichenreihenfolge so, dass der Inhalt durchs Glas sichtbar ist
+  (Inhalt undurchsichtig zuerst, Glas danach; `renderOrder`).
+- **×2-Wand:** Farbe **blau** (`#1f6fd6`, Schrift-Schild passend blau mit weißer
+  Schrift), **halb so hoch: 1,2 m** (Mitte `y = 0.6`), Schrift-Schild 4,4 × 1 m.
+- Tests weiter grün, Status am Ende `IMPL_DONE`, Nachtrag im Implementation Summary.

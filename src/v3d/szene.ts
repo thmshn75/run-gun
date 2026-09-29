@@ -50,12 +50,27 @@ function platzhalter(scene: THREE.Scene): void {
   gruppe.name = 'platzhalter'
   gruppe.visible = new URLSearchParams(location.search).get('platzhalter') !== '0'
   scene.add(gruppe)
-  box(gruppe, 'vervielfacher', [2 * BUEHNE.MITTE_HALB, BUEHNE.WAND_HOEHE, 0.18], [0, BUEHNE.WAND_HOEHE / 2, -5], '#8e36c0')
-  schild(gruppe, 'vervielfacher-zahl', BUEHNE.WAND_SCHILD_BREITE, 2, 0, 1.2, -4.88, textBild('×2', '#8e36c0'))
+  box(gruppe, 'vervielfacher', [2 * BUEHNE.MITTE_HALB, BUEHNE.WAND_HOEHE, 0.18], [0, BUEHNE.WAND_HOEHE / 2, -5], BUEHNE.WAND_FARBE)
+  schild(gruppe, 'vervielfacher-zahl', BUEHNE.WAND_SCHILD_BREITE, BUEHNE.WAND_SCHILD_HOEHE, 0, BUEHNE.WAND_HOEHE / 2, -4.88, textBild('×2', BUEHNE.WAND_FARBE))
   const plus = textBild('+1', '#168bd2')
   for (let z = 6; z >= -60; z -= 7) schild(gruppe, 'plus-eins', BUEHNE.PLUS_BREITE, BUEHNE.PLUS_HOEHE, BUEHNE.PLUS_X, 1.6, z, plus)
-  box(gruppe, 'saeule', [1.6, 4, 1.6], [BUEHNE.SAEULE_X, 2, -12], '#aaaeb3')
+  const innen = box(gruppe, 'spezialeinheit-platzhalter', [1, 0.6, 1.2], [BUEHNE.SAEULE_X, 0.3, -12], '#244a32')
+  innen.renderOrder = 1
+  const glas = new THREE.Mesh(new THREE.BoxGeometry(1.6, 4, 1.6), new THREE.MeshStandardMaterial({
+    color: '#c8ecf7', transparent: true, opacity: 0.3, depthWrite: false, roughness: 0.1,
+  }))
+  glas.name = 'saeule'; glas.position.set(BUEHNE.SAEULE_X, 2, -12); glas.renderOrder = 2; gruppe.add(glas)
+  const rahmen = new THREE.Group(); rahmen.name = 'saeule-rahmen'; gruppe.add(rahmen)
+  for (const x of [-0.8, 0.8]) for (const z of [-0.8, 0.8])
+    box(rahmen, 'saeule-kante', [0.06, 4, 0.06], [BUEHNE.SAEULE_X + x, 2, -12 + z], '#e5f6fa').renderOrder = 3
+  for (const y of [0, 4]) {
+    for (const z of [-0.8, 0.8])
+      box(rahmen, 'saeule-kante', [1.6, 0.06, 0.06], [BUEHNE.SAEULE_X, y, -12 + z], '#e5f6fa').renderOrder = 3
+    for (const x of [-0.8, 0.8])
+      box(rahmen, 'saeule-kante', [0.06, 0.06, 1.6], [BUEHNE.SAEULE_X + x, y, -12], '#e5f6fa').renderOrder = 3
+  }
   schild(gruppe, 'saeule-zahl', 1.4, 0.7, BUEHNE.SAEULE_X, 3.4, -11.18, textBild('150', '#777c82'))
+  gruppe.children.find(obj => obj.name === 'saeule-zahl')!.renderOrder = 4
   box(gruppe, 'truppe', [6, 0.9, 3], [0, 0.45, 1.5], '#2875bd', 1)
 }
 

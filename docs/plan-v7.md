@@ -250,7 +250,7 @@ Schrittwippen, und Thomas entscheidet.
 einzeln gemessen), dann **Worst Case:** 1200 Zombies + 120 Soldaten + 2 Bosse + Wasser.
 Nachweise: Budget, Dauertest 3 Minuten. Danach `public/probe-3d/` aus dem Deploy nehmen.
 
-**D3 — Steuerung, Aussenden, linker Rand.** Steuerung absolut zum Finger (Truppe folgt
+**D3 — Steuerung, Aussenden, linker Rand.** **+1-Schilder (Thomas 2026-09-29):** Die Schilder laufen der Truppe im linken Streifen entgegen, langsam, solange die Truppe nicht dort ist, und **schneller, sobald die Truppe hinsteuert**; jedes Schild, das die Truppe erreicht, ist ein +1 (Tempo so, dass die Rate der Spielrechnung entspricht: 2/s bei 7 m Abstand → 14 m/s). **Säulen** sind aus Glas, die Spezialeinheit ist darin sichtbar (D5a). Steuerung absolut zum Finger (Truppe folgt
 der Fingerposition, geglättet, höchstens 8 m/s, Grenzen = Bahnrand minus halbe
 Truppenbreite), Zurück-Knopf mit eigener Tippfläche außerhalb der Steuerfläche,
 Aussenden nach `r`, Vervielfacher-Wand, +1-Schilder — alles aus dem Rechenkern R.
