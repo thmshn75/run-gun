@@ -318,3 +318,69 @@ Ergebnis des Modell-Skripts: 5.388 Dreiecke (M4: 584), ein 1024²-Atlas,
 das Hauptbündel bleibt bei 1.467,93 kB. Die iPhone-Leistung und die Bewegungen
 hat Thomas in Nacharbeit 3 bereits abgenommen. Einen Browser-Zweitstart oder
 erneuten iPhone-Sichttest für die neue Farbgebung habe ich nicht durchgeführt.
+
+## Nacharbeit 4 (Thomas 2026-09-29) — Soldaten schauen in die falsche Richtung
+
+Befund (Claude, Screenshot 3× Auflösung, Thomas bestätigt): In der Bühne sieht man
+Gesichtsmasken, Brillen und Westentaschen — die Soldaten schauen **zur Kamera (+z)**
+statt zur Horde (**−z**, A4). Auch die M4 zeigen damit nach hinten.
+- Blickrichtung korrigieren (Drehung um y beim Backen bzw. im Bezug, so dass Gesicht und
+  M4-Lauf nach −z zeigen) — für alle Bewegungen, Bühne, laufenden Trupp und Messmodus.
+- Die Nahaufnahme `?nahaufnahme=soldat` darf die Figuren weiter zur Kamera drehen
+  (Prüfansicht), die Spielszene nicht.
+- **Neuer Test:** In Form 0 von `laufen`, `stehen`, `schiessen` liegt die M4-Mündung
+  bei kleinerem z als die Brustmitte (mind. 0,3 m) und das Gesicht (Kopfknochen-Vorderseite
+  bzw. Nase/Maske) bei kleinerem z als der Hinterkopf. Prüfanzeige `?pruefung=soldat`
+  zeigt "Blick: −z ✓/✗".
+- Tests grün, Status `IMPL_DONE`, kurzer Nachtrag.
+
+## Implementation Summary — Nacharbeit 4 (Codex, 2026-09-29)
+
+Alle gebackenen Soldatenformen sind um die y-Achse zur Horde gedreht; die M4 bleibt
+am Handgriff und zeigt ebenfalls nach −z. Die Nahaufnahme dreht die Figuren weiter
+zur Kamera. Die Prüfanzeige ergänzt „Blick: −z ✓/✗“. Der Test prüft in Form 0 von
+Laufen, Stehen und Schießen Mündung vor Brust (1,22–1,24 m, Grenze 0,3 m) und
+Augen vor Kopfknochen (8,3–8,5 cm). Griffabstand bleibt unter 0,002 cm,
+Laufwinkel 5,38°; die übrigen Pose-Grenzen bleiben erfüllt.
+
+`npm test -- --run tests/v3dSoldaten.test.ts`: 7/7; `npm test`: 520/520 in 59
+Dateien; `npm run check`, `npm run build`, `git diff --check`: erfolgreich.
+Beide Soldaten-GLB stehen im Precache; acht 3D-Dateien zusammen 2 016 020 Byte
+(< 25 MB), keine `probe-3d`-Datei. Hauptbündel 1 467,93 kB wie zuvor.
+Browser-Zweitstart und erneuter iPhone-Sichttest wurden hier nicht ausgeführt;
+die lokale Prüfung hatte keinen Zugriff auf Thomas' iPhone. Die iPhone-Leistung
+und Bewegungen hatte Thomas in Nacharbeit 3 bereits abgenommen.
+
+## Nacharbeit 5 (Thomas 2026-09-29) — Gewehr und Arme sichtbar machen
+
+Thomas: "ich sehe keine Waffen, nur Soldaten ohne Arme". Bei ~1,5 cm Figurenhöhe gehen
+das dunkelgraue M4 vor der Brust und die Coyote-Ärmel im Körper unter. Aus der D8-Liste
+vorgezogen:
+- **M4 1,5× größer** (Spielgrafik-Übertreibung, Länge ~1,26 m relativ), Griff bleibt in
+  der Hand (Griffabstand ≤ 3 cm bleibt Test), **Farbe tiefschwarz** `#111214` mit leichtem
+  hellerem Verlauf an der Oberkante (Kachel Waffenfarbe), damit es gegen Coyote und Asphalt
+  steht. Mündungs-/Winkeltests bleiben (Mündung ↔ Brust dann ≥ 0,5 m).
+- **Arme absetzen:** Jacke (`Mark_Kitel_1`) — Ärmel und Oberteil — heller Sand-Coyote
+  `#b39a74`; Weste/Taschen bleiben dunkler `#7a6549`; **Handschuhe schwarz** `#141414`
+  (nur Helligkeit anpassen, Maske wie bisher). Hose `#8a7456` bleibt.
+- `v3d-soldat.glb` neu erzeugen, Kontrollbild aktualisieren. Tests grün, Status
+  `IMPL_DONE`, kurzer Nachtrag.
+
+## Implementation Summary — Nacharbeit 5 (Codex, 2026-09-29)
+
+Das M4 ist um den Faktor 1,5 auf etwa 1,26 m verlängert; der Griff bleibt am
+Handknochen. Die Waffenkachel ist tiefschwarz (`#111214`) mit hellem Verlauf an der
+Oberkante. Die Jacke samt Ärmeln ist heller Sand-Coyote (`#b39a74`), die Handschuhe
+sind schwarz (`#141414`); Hose, Weste und Taschen behalten ihre Farben. Soldaten-GLB
+und `tmp/soldat-atlas.png` wurden neu erzeugt. Der Test prüft zusätzlich die
+Gewehrlänge in der Stehform und mindestens 0,5 m Mündung–Brust-Abstand in den drei
+aktiven Posen.
+
+Modell-Skript: 5.388 Dreiecke (M4: 584), ein 1024²-Atlas, 424.460 Byte GLB.
+Soldaten-Test 7/7, volle Suite 520/520 in 59 Dateien, `npm run check`,
+`npm run build` und `git diff --check` erfolgreich. Beide Soldaten-GLB stehen im
+Precache, `probe-3d` nicht; acht 3D-Dateien zusammen 2.018.828 Byte (< 25 MB),
+Hauptbündel weiterhin 1.467,93 kB. Terminal.app ließ sich in dieser Umgebung
+nicht starten ("Unable to find application named 'Terminal'"); die Tests liefen
+in einer direkten Terminal-Sitzung. Erneuter iPhone-Sichttest und Browser-
+Zweitstart bleiben offen, weil diese Geräte-/Browserprüfung hier nicht vorlag.

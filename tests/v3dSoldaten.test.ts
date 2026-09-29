@@ -70,15 +70,25 @@ describe('3D-Soldat',()=>{
     const bau=backeSoldaten(soldatG,quelleG)
     expect(Object.fromEntries(Object.entries(bau.formen).map(([k,v])=>[k,v.length]))).toEqual({laufen:12,stehen:8,schiessen:8,fallen:10})
     for(const row of Object.values(bau.formen))for(const form of row){expect(form.attributes.position.count).toBe(row[0].attributes.position.count);expect(form.index).toBe(row[0].index);expect(form.attributes.uv).toBe(row[0].attributes.uv)}
+    const {m4VertexStart,m4VertexCount}=glb(soldat).json.meshes[0].extras
+    const punkte=bau.formen.stehen[0].attributes.position
+    let minZ=Infinity,maxZ=-Infinity
+    for(let i=m4VertexStart;i<m4VertexStart+m4VertexCount;i++){
+      const z=punkte.getZ(i);minZ=Math.min(minZ,z);maxZ=Math.max(maxZ,z)
+    }
+    expect(maxZ-minZ).toBeGreaterThanOrEqual(1.15)
+    expect(maxZ-minZ).toBeLessThanOrEqual(1.4)
     for(const name of ['laufen','stehen','schiessen']){
       expect(bau.pruefung[`${name}GriffCm`]).toBeLessThanOrEqual(3)
       expect(bau.pruefung[`${name}MinY`]).toBeGreaterThanOrEqual(-.03)
+      expect(bau.pruefung[`${name}MuendungVorBrustM`]).toBeGreaterThanOrEqual(.5)
+      expect(bau.pruefung[`${name}GesichtVorKopfM`]).toBeGreaterThan(0)
     }
     // Claude 2026-09-29: 15 cm war geschaetzt; mit Weste liegt die Huefte sichtbar flach bei ~30 cm (Nahaufnahme geprueft).
     expect(bau.pruefung.fallenHuefteCm).toBeLessThanOrEqual(35)
     expect(bau.pruefung.fallenMinY).toBeGreaterThanOrEqual(-.03)
     expect(bau.pruefung.laufWinkelGrad).toBeLessThanOrEqual(15)
-    expect(bau.pruefung.muendungBrustM).toBeGreaterThanOrEqual(.4)
+    expect(bau.pruefung.muendungBrustM).toBeGreaterThanOrEqual(.5)
     for(const row of Object.values(bau.formen))row.forEach(g=>g.dispose());bau.material.dispose();bau.atlas.dispose()
     vi.unstubAllGlobals()
   },30000)

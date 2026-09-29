@@ -280,7 +280,7 @@ Säulen-Reihenfolge) in `balance3d.ts`, Level-Speicher. Nachweis je Level: passi
 20/20 Seeds, Strategie gewinnt ≥ 15/20, Schwierigkeit steigt (Strategie-Gewinnquote
 fällt von Level zu Level).
 
-**D8 — Politur.** Nur mit vorab von Thomas bestätigter Liste (Treffer-Feedback, Zahlen,
+**D8 — Politur.** **Vorgemerkt (Thomas 2026-09-29):** Soldat — Ärmel heller als Weste (Arme im Coyote sichtbar), echte Gewehr-Anschlagpose statt Pistolenhaltung; Gesichtsmaske ggf. Coyote. Nur mit vorab von Thomas bestätigter Liste (Treffer-Feedback, Zahlen,
 Klang …); ohne Liste kein Codex-Auftrag.
 
 ## Reißleine

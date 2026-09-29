@@ -9,13 +9,14 @@ import { Matrix4, Vector3, Quaternion } from 'three'
 // 1024² ersetzt zehn Einzelbilder à 512² und spart gegenüber ihnen GPU-Speicher.
 const ATLAS = 1024, KACHEL = 256, RAND = 8, WEBP_QUALITAET = 85
 const QUELLE_BEWEGUNG = 'tmp/UAL1_Standard.glb'
-// Die Quell-Skin-Bindung hat eigene Einheiten; 3,6 ergibt nach dem Backen etwa 0,84 m M4-Länge.
-const M4_SKALIERUNG = 3.6
+// Die Quell-Skin-Bindung hat eigene Einheiten; 5,4 ergibt nach dem Backen etwa 1,26 m M4-Länge.
+const M4_SKALIERUNG = 5.4
 const REIHENFOLGE = ['Mark_HeadMasked','Mark_Helmet1','Mark_Plate_1','Mark_Gloves_1','Mark_Pouches_1','Mark_SunGlusses_Glus','Mark_Boots_2','Mark_Kitel_1','Mark_Pants_1','Mark_Eye','M4']
 const COYOTE_FARBEN = new Map([
-  ['Mark_Kitel_1','#8a7456'], ['Mark_Pants_1','#8a7456'],
+  ['Mark_Kitel_1','#b39a74'], ['Mark_Pants_1','#8a7456'],
   ['Mark_Plate_1','#7a6549'], ['Mark_Pouches_1','#7a6549'],
   ['Mark_Helmet1','#a58a64'], ['Mark_Boots_2','#6e5a42'],
+  ['Mark_Gloves_1','#141414'],
 ])
 const CLIPS = ['Jog_Fwd_Loop','Pistol_Aim_Neutral','Pistol_Idle_Loop','Pistol_Shoot','Death01']
 // Aus der Handdrehung in Pistol_Aim_Neutral Form 0: lokale M4-Achse nach -z.
@@ -75,7 +76,7 @@ async function soldat() {
   const tileSize=KACHEL-2*RAND,atlas=Buffer.alloc(ATLAS*ATLAS*4), kacheln=new Map()
   for(let k=0;k<REIHENFOLGE.length;k++){
     const name=REIHENFOLGE[k],tile=Buffer.alloc(tileSize*tileSize*4),material=mats.find(m=>m.getName()===name)
-    if(name==='M4') {for(let y=0;y<tileSize;y++)for(let x=0;x<tileSize;x++){let c=rgb('#2b2d2f'),i=(y*tileSize+x)*4,delta=Math.round((1-y/tileSize)*12);for(let z=0;z<3;z++)tile[i+z]=c[z]+delta;tile[i+3]=255}}
+    if(name==='M4') {for(let y=0;y<tileSize;y++)for(let x=0;x<tileSize;x++){let c=rgb('#111214'),i=(y*tileSize+x)*4,delta=Math.round((1-y/tileSize)*12);for(let z=0;z<3;z++)tile[i+z]=c[z]+delta;tile[i+3]=255}}
     else if(!material?.getBaseColorTexture())farbe(tile,rgb('#111111'))
     else {
       const src=await sharp(material.getBaseColorTexture().getImage()).ensureAlpha().resize(tileSize,tileSize).raw().toBuffer()

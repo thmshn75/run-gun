@@ -112,10 +112,11 @@ export function backeSoldaten(soldat: GLTF, quelle: GLTF): SoldatenBau {
   const handpunkte={} as Record<SoldatenBewegung,THREE.Vector3[]>,brustpunkte={} as Record<SoldatenBewegung,THREE.Vector3[]>
   const handDrehung={} as Record<SoldatenBewegung,THREE.Quaternion[]>
   const hueftpunkte={} as Record<SoldatenBewegung,THREE.Vector3[]>
+  const kopfpunkte={} as Record<SoldatenBewegung,THREE.Vector3[]>,augenpunkte={} as Record<SoldatenBewegung,THREE.Vector3[]>
   for(const bewegung of ['stehen','laufen','schiessen','fallen'] as SoldatenBewegung[]){
     const cfg=BEWEGUNGEN[bewegung],unterClip=clips.get(cfg.unten)!;dauer[bewegung]=cfg.zyklus??unterClip.duration
     const unten=richtungen(cfg.unten,cfg.bilder,unterClip.duration),oben=cfg.oben===cfg.unten?unten:richtungen(cfg.oben,cfg.bilder,unterClip.duration)
-    raw[bewegung]=[];handpunkte[bewegung]=[];brustpunkte[bewegung]=[];handDrehung[bewegung]=[];hueftpunkte[bewegung]=[]
+    raw[bewegung]=[];handpunkte[bewegung]=[];brustpunkte[bewegung]=[];handDrehung[bewegung]=[];hueftpunkte[bewegung]=[];kopfpunkte[bewegung]=[];augenpunkte[bewegung]=[]
     for(let f=0;f<cfg.bilder;f++){
       stellen(unten,oben,f);const p=new Float32Array(vertexCount*3)
       for(let i=0;i<vertexCount;i++){netz.getVertexPosition(i,v);v.applyMatrix4(netz.matrixWorld);p.set([v.x,v.y,v.z],i*3)}
@@ -124,17 +125,23 @@ export function backeSoldaten(soldat: GLTF, quelle: GLTF): SoldatenBau {
       handDrehung[bewegung].push(z('CC_Base_R_Hand_081').getWorldQuaternion(new THREE.Quaternion()))
       brustpunkte[bewegung].push(weltpunkt(z('CC_Base_Spine02_035'),new THREE.Vector3()).clone())
       hueftpunkte[bewegung].push(weltpunkt(hip,new THREE.Vector3()).clone())
+      kopfpunkte[bewegung].push(weltpunkt(z('CC_Base_Head_038'),new THREE.Vector3()).clone())
+      augenpunkte[bewegung].push(weltpunkt(z('CC_Base_R_Eye_045'),new THREE.Vector3()).add(weltpunkt(z('CC_Base_L_Eye_046'),new THREE.Vector3())).multiplyScalar(.5))
     }
   }
   const stand=raw.stehen[0],refMin=minYTeil(stand,0,m4Start>=0?m4Start:vertexCount),box=new THREE.Box3();for(let i=0;i<stand.length;i+=3)box.expandByPoint(new THREE.Vector3(stand[i],stand[i+1],stand[i+2]))
   const scale=FIGUREN.SOLDAT_HOEHE/(box.max.y-box.min.y),refX=(box.min.x+box.max.x)/2,refZ=(box.min.z+box.max.z)/2
-  const umrechne=(p:THREE.Vector3)=>p.sub(new THREE.Vector3(refX,refMin,refZ)).multiplyScalar(scale)
+  const umrechne=(p:THREE.Vector3)=>new THREE.Vector3((refX-p.x)*scale,(p.y-refMin)*scale,(refZ-p.z)*scale)
   for(const bewegung of ['laufen','stehen','schiessen','fallen'] as SoldatenBewegung[]){
     formen[bewegung]=[]
     let vorKlemme=Infinity,nachKlemme=Infinity
     const vorFormen:number[]=[],nachFormen:number[]=[]
     raw[bewegung].forEach((p,f)=>{
-      for(let i=0;i<p.length;i+=3){p[i]=(p[i]-refX)*scale;p[i+1]=(p[i+1]-refMin)*scale;p[i+2]=(p[i+2]-refZ)*scale}
+      for(let i=0;i<p.length;i+=3){p[i]=(refX-p[i])*scale;p[i+1]=(p[i+1]-refMin)*scale;p[i+2]=(refZ-p[i+2])*scale}
+      // Die importierte Körperfront liegt bei +z. Die M4 war bereits nach -z
+      // ausgerichtet; nach der Körperdrehung bleibt ihr Griff an der Hand und
+      // ihr Lauf wird um die Handwurzel wieder zur Horde gedreht.
+      if(m4Start>=0){const hand=umrechne(handpunkte[bewegung][f]);for(let i=m4Start*3;i<p.length;i+=3){p[i]=2*hand.x-p[i];p[i+2]=2*hand.z-p[i+2]}}
       const tiefsterKoerper=minYTeil(p,0,m4Start>=0?m4Start:vertexCount)
       const tiefsteWaffe=m4Start>=0?minYTeil(p,m4Start,vertexCount):Infinity
       const vorher=Math.min(tiefsterKoerper,tiefsteWaffe)
@@ -170,9 +177,12 @@ export function backeSoldaten(soldat: GLTF, quelle: GLTF): SoldatenBau {
       if(gripIndex===undefined||muzzleIndex===undefined)throw new Error('M4-Prüfpunkte fehlen')
       const griff=marker(gripIndex),muzzle=marker(muzzleIndex)
       pruefung[`${bewegung}GriffCm`]=griff.distanceTo(hand)*100
+      const brust=umrechne(brustpunkte[bewegung][0]),kopf=umrechne(kopfpunkte[bewegung][0]),augen=umrechne(augenpunkte[bewegung][0])
+      pruefung[`${bewegung}MuendungVorBrustM`]=brust.z-muzzle.z
+      pruefung[`${bewegung}GesichtVorKopfM`]=kopf.z-augen.z
       if(bewegung==='schiessen'){
         const achse=muzzle.clone().sub(hand).normalize();pruefung.laufWinkelGrad=THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(achse.dot(new THREE.Vector3(0,0,-1)),-1,1)))
-        pruefung.muendungBrustM=muzzle.distanceTo(umrechne(brustpunkte[bewegung][0]))
+        pruefung.muendungBrustM=muzzle.distanceTo(brust)
         pruefung.debugHandQuaternion=handDrehung[bewegung][0].toArray()
         pruefung.debugHand=hand.toArray()
         pruefung.debugMuzzle=muzzle.toArray()

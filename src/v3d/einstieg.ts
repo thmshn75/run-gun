@@ -106,7 +106,9 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     ui.ergebnisse.style.display = 'none'
     if(new URLSearchParams(location.search).get('pruefung')==='soldat'){
       ui.ergebnisse.style.display='block'
-      ui.ergebnisse.textContent=`Backen Soldat: ${welt.soldatBau.backzeitMs.toFixed(1)} ms\n${Object.entries(welt.soldatBau.pruefung).map(([k,v])=>`${k}: ${Array.isArray(v)?v.join(', '):Number(v).toFixed(2)}`).join('\n')}`
+      const pruefung=welt.soldatBau.pruefung
+      const blick=['laufen','stehen','schiessen'].every(name=>Number(pruefung[`${name}MuendungVorBrustM`])>=.3&&Number(pruefung[`${name}GesichtVorKopfM`])>0)
+      ui.ergebnisse.textContent=`Backen Soldat: ${welt.soldatBau.backzeitMs.toFixed(1)} ms\nBlick: −z ${blick?'✓':'✗'}\n${Object.entries(pruefung).map(([k,v])=>`${k}: ${Array.isArray(v)?v.join(', '):Number(v).toFixed(2)}`).join('\n')}`
     }
     if (!dauerhaftAngefragt && navigator.storage?.persist) {
       dauerhaftAngefragt = true
