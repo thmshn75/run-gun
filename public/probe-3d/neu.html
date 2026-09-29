@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Figuren-Schau Neu</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #6f7a86; overflow: hidden; font-family: -apple-system, sans-serif; }
+  canvas { display: block; }
+  #kopf { position: fixed; left: 8px; right: 8px; top: calc(env(safe-area-inset-top) + 8px); color: #fff;
+          background: rgba(0,0,0,.55); border-radius: 10px; padding: 8px 12px; font-size: 15px; line-height: 1.35; }
+  #kopf b { font-size: 18px; }
+  #leiste { position: fixed; left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom) + 10px);
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  button { font: 600 14px -apple-system, sans-serif; padding: 12px 2px; border-radius: 10px; border: 0;
+           background: rgba(0,0,0,.6); color: #fff; }
+  button.an { background: #2f7de1; }
+  #credits { position: fixed; right: 8px; bottom: calc(env(safe-area-inset-bottom) + 64px); color: #fff; font-size: 10px; opacity: .8; text-align: right; }
+</style>
+<script type="importmap">{ "imports": { "three": "./three.module.mjs" } }</script>
+</head>
+<body>
+<div id="kopf">Figuren laden …</div>
+<div id="credits">Soldat: DanlyVostok · Zombie: OSCAR CREATIVO · Mini-Boss: Rodolfoisreal1423 · Elite-Boss: Vasian-Digital3D · alle CC-BY 4.0 (Sketchfab)</div>
+<div id="leiste">
+  <button data-t="soldat">Soldat</button><button data-t="zombie">Zombie</button>
+  <button data-t="boss">Bosse</button><button data-t="spiel">Im Spiel</button>
+</div>
+<script type="module">
+import * as THREE from 'three'
+import { GLTFLoader } from './addons/loaders/GLTFLoader.js'
+import { clone } from './addons/utils/SkeletonUtils.js'
+
+// Ansichtsseite fuer die von Thomas gewaehlten Sketchfab-Modelle (vereinfacht, Texturen 1024 px).
+const kopf = document.getElementById('kopf')
+const renderer = new THREE.WebGLRenderer({ antialias: true })
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2))
+renderer.setSize(innerWidth, innerHeight)
+renderer.toneMapping = THREE.ACESFilmicToneMapping
+document.body.appendChild(renderer.domElement)
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(0x87c6ee)
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.05, 200)
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight) })
+scene.add(new THREE.HemisphereLight(0xffffff, 0x556070, 2.2))
+const sonne = new THREE.DirectionalLight(0xffffff, 2.5); sonne.position.set(-4, 10, 8); scene.add(sonne)
+const boden = new THREE.Mesh(new THREE.PlaneGeometry(7, 80), new THREE.MeshStandardMaterial({ color: 0x3b4450 }))
+boden.rotation.x = -Math.PI / 2; boden.position.z = -20; scene.add(boden)
+const wasser = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: 0x2f6f96 }))
+wasser.rotation.x = -Math.PI / 2; wasser.position.set(0, -0.02, -20); scene.add(wasser)
+
+const [soldatG, zombieG, miniG, eliteG] = await Promise.all(['sf_soldat', 'sf_zombie', 'sf_miniboss', 'sf_eliteboss'].map(n => new GLTFLoader().loadAsync('./modelle/' + n + '.glb')))
+
+// Groesse aus dem gestellten Skelett messen und auf 1,7 m bringen.
+function normiere(g) {
+  const o = g.scene; o.updateMatrixWorld(true)
+  const b = new THREE.Box3().setFromObject(o, true), h = b.max.y - b.min.y
+  return { faktor: 1.7 / h, boden: -b.min.y * 1.7 / h }
+}
+const nS = normiere(soldatG), nZ = normiere(zombieG), nM = normiere(miniG), nE = normiere(eliteG)
+// Gehbewegungen schieben die Figur nach vorn (Wurzelbewegung). In der Schau und im Spiel
+// laufen alle auf der Stelle: bei der Spur mit der groessten waagrechten Strecke (Huefte)
+// die x- und z-Werte festhalten.
+function aufDerStelle(clip) {
+  let beste = null, weite = 0
+  for (const t of clip.tracks) {
+    if (!t.name.endsWith('.position')) continue
+    let a = Infinity, b = -Infinity, c = Infinity, d = -Infinity
+    for (let i = 0; i < t.values.length; i += 3) { a = Math.min(a, t.values[i]); b = Math.max(b, t.values[i]); c = Math.min(c, t.values[i + 2]); d = Math.max(d, t.values[i + 2]) }
+    if (b - a + d - c > weite) { weite = b - a + d - c; beste = t }
+  }
+  if (beste) for (let i = 0; i < beste.values.length; i += 3) { beste.values[i] = beste.values[0]; beste.values[i + 2] = beste.values[2] }
+}
+for (const g of [zombieG, miniG, eliteG]) g.animations.forEach(aufDerStelle)
+function boss(g, n, clipTeil, groesse) {
+  const o = clone(g.scene)
+  o.traverse(k => { if (k.isMesh) k.frustumCulled = false })
+  o.scale.setScalar(n.faktor * groesse); o.position.y = n.boden * groesse
+  const halter = new THREE.Group(); halter.add(o)
+  const clip = g.animations.find(a => a.name.toLowerCase().includes(clipTeil)) ?? g.animations[0]
+  const mx = new THREE.AnimationMixer(o); mx.clipAction(clip).play(); mischer.push(mx)
+  return halter
+}
+
+// Grobe Tarnmuster-Vorschau: Flecken per Ueberlagerung auf Jacke und Hose gemalt.
+// Nur zur Anschauung - die echte Bemalung wuerde Codex anfertigen.
+function tarnTextur(bild, saat) {
+  const c = document.createElement('canvas'); c.width = bild.width; c.height = bild.height
+  const g = c.getContext('2d'); g.drawImage(bild, 0, 0)
+  let s = saat; const zufall = () => (s = (s * 16807) % 2147483647) / 2147483647
+  g.globalCompositeOperation = 'overlay'
+  const farben = ['#2e3a1c', '#6b5a34', '#1c1c16', '#8c8a5a']
+  for (let i = 0; i < 260; i++) {
+    g.fillStyle = farben[i % farben.length]; g.globalAlpha = 0.9
+    g.beginPath(); const x = zufall() * c.width, y = zufall() * c.height, r = c.width * (0.02 + zufall() * 0.05)
+    for (let k = 0; k < 7; k++) { const w = k / 7 * Math.PI * 2, rr = r * (0.6 + zufall() * 0.7); g.lineTo(x + Math.cos(w) * rr * 1.6, y + Math.sin(w) * rr) }
+    g.closePath(); g.fill()
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; return t
+}
+const tarnMaps = new Map()
+let tarnung = true
+function soldat(groesse = 1) {
+  const o = clone(soldatG.scene)
+  o.traverse(k => {
+    if (!k.isMesh) return
+    k.frustumCulled = false
+    const n = k.material.name
+    if (tarnung && (n === 'Mark_Kitel_1' || n === 'Mark_Pants_1') && k.material.map) {
+      if (!tarnMaps.has(n)) tarnMaps.set(n, tarnTextur(k.material.map.image, n.length * 977))
+      k.material = k.material.clone(); k.material.map = tarnMaps.get(n)
+    }
+  })
+  o.scale.setScalar(nS.faktor * groesse); o.position.y = nS.boden * groesse
+  const halter = new THREE.Group(); halter.add(o)
+  const mx = new THREE.AnimationMixer(o); mx.clipAction(soldatG.animations[0]).play(); mischer.push(mx)
+  return halter
+}
+function zombie(groesse = 1, farbe) {
+  const o = clone(zombieG.scene)
+  o.traverse(k => { if (k.isMesh) { k.frustumCulled = false; if (farbe) { k.material = k.material.clone(); k.material.color.set(farbe) } } })
+  o.scale.setScalar(nZ.faktor * groesse); o.position.y = nZ.boden * groesse
+  const halter = new THREE.Group(); halter.add(o)
+  const mx = new THREE.AnimationMixer(o); const clip = zombieG.animations[0]
+  mx.clipAction(clip).play(); mx.setTime(Math.random() * clip.duration); mischer.push(mx)
+  return halter
+}
+
+let mischer = [], gruppe = new THREE.Group(), drehen = true
+scene.add(gruppe)
+function kamera(fov, pos, ziel) { camera.fov = fov; camera.updateProjectionMatrix(); camera.position.set(...pos); camera.lookAt(...ziel) }
+const ANSICHTEN = {
+  soldat() {
+    kamera(35, [0, 1.3, 4.2], [0, 1.0, 0])
+    const s = soldat(); s.userData.dreh = true; gruppe.add(s)
+    return '<b>Soldat</b> – Tarnmuster: grobe Vorschau (Tippen auf „Soldat“ schaltet an/aus). Die echte Bemalung würde Codex malen. Das Gewehr fehlt im Modell und käme als eigenes Teil dazu.'
+  },
+  zombie() {
+    kamera(35, [0, 1.3, 4.2], [0, 1.0, 0])
+    const z = zombie(); z.userData.dreh = true; gruppe.add(z)
+    return '<b>Zombie</b> – realistisch, mit eigener Gehbewegung. Für Abwechslung in der Horde würde Codex Varianten der Bemalung malen.'
+  },
+  boss() {
+    kamera(40, [0, 3.2, 15], [0, 2.0, 0])
+    const m = boss(miniG, nM, 'walk', 1.3); m.position.set(-1.2, 0, 1.2); m.userData.dreh = true; gruppe.add(m)
+    const e = boss(eliteG, nE, 'motion', 2.4); e.position.set(0.8, 0, -1.5); e.userData.dreh = true; gruppe.add(e)
+    const z = zombie(1); z.position.set(-2.2, 0, 2.2); gruppe.add(z)
+    return '<b>Bosse</b> – links vorn der Mini-Boss (Nightmare Creature, 22 Bewegungen), hinten der Elite-Boss (Mutant Golem, eine lange Bewegungsaufnahme), ganz links ein normaler Zombie zum Größenvergleich.'
+  },
+  spiel() {
+    drehen = false
+    kamera(50, [0, 9, 10], [0, 0, -12])
+    for (let i = 0; i < 120; i++) { const z = zombie(0.42); z.position.set(-3 + (i % 12) * 0.54, 0, -8 - Math.floor(i / 12) * 0.55); gruppe.add(z) }
+    for (let i = 0; i < 24; i++) { const s = soldat(0.42); s.rotation.y = Math.PI; s.position.set(-1.5 + (i % 6) * 0.6, 0, 1.8 - Math.floor(i / 6) * 0.6); gruppe.add(s) }
+    const m = boss(miniG, nM, 'walk', 0.8); m.position.set(-1.8, 0, -7.2); gruppe.add(m)
+    const e = boss(eliteG, nE, 'motion', 1.6); e.position.set(0, 0, -15); gruppe.add(e)
+    return '<b>Im Spiel</b> – Spielkamera, Größe wie im Spiel. Die Soldaten stehen hier noch in Ruhepose; die Laufbewegung müsste übertragen werden. Leistung hier nicht aussagekräftig.'
+  },
+}
+let aktuell = ''
+function zeige(t) {
+  if (t === 'soldat' && aktuell === 'soldat') tarnung = !tarnung
+  aktuell = t
+  scene.remove(gruppe); gruppe = new THREE.Group(); scene.add(gruppe); mischer = []; drehen = true
+  kopf.innerHTML = ANSICHTEN[t]()
+  document.querySelectorAll('button').forEach(b => b.classList.toggle('an', b.dataset.t === t))
+}
+document.querySelectorAll('button').forEach(b => b.addEventListener('click', () => zeige(b.dataset.t)))
+zeige('soldat')
+
+let letzte = performance.now()
+renderer.setAnimationLoop(() => {
+  const jetzt = performance.now(), dt = (jetzt - letzte) / 1000; letzte = jetzt
+  mischer.forEach(m => m.update(dt))
+  if (drehen) gruppe.children.forEach(o => { if (o.userData.dreh) o.rotation.y += dt * 0.5 })
+  renderer.render(scene, camera)
+})
+</script>
+</body>
+</html>
