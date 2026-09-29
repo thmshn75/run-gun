@@ -1,22 +1,25 @@
 import * as THREE from 'three'
 import type Phaser from 'phaser'
-import { auswerten, speicherMB, urteil, type Bildgroesse } from './rechnen'
-import { gibSzeneFrei } from './szene'
+import { auswerten, pmremPufferBytes, speicherMB, spiegelPufferBytes, urteil, type Bildgroesse } from './rechnen'
+import type { Welt } from './szene'
+import type { WasserStufe } from './wasser'
 
+type Phase = 'warm' | 'messen' | 'umbau'
 interface Lauf {
-  scene: THREE.Scene
-  camera: THREE.Camera
+  welt: Welt
   renderer: THREE.WebGLRenderer
   game: Phaser.Game
   anzeige: HTMLElement
   knopf: HTMLButtonElement
-  stufe: number
+  original: WasserStufe
+  stufe: WasserStufe
+  phase: Phase
   zeit: number
   bilder: number[]
   ergebnisse: string[]
   schwarz: number | null
-  vollast: THREE.Group | null
-  letzterMB: number
+  vollast: THREE.Group
+  verborgenePlatzhalter: THREE.Object3D[]
 }
 let lauf: Lauf | null = null
 
@@ -35,21 +38,21 @@ function testbemalung(): THREE.CanvasTexture {
 
 function baueVollast(): THREE.Group {
   const gruppe = new THREE.Group()
-  const textur = testbemalung()
-  const material = new THREE.MeshStandardMaterial({ map: textur })
+  gruppe.name = 'vollast'
+  const material = new THREE.MeshStandardMaterial({ map: testbemalung() })
   const dummy = new THREE.Object3D()
-  for (const [anzahl, breite, hoehe, soldat] of [[1500, 24, 21, 0], [150, 52, 48, 1]]) {
+  for (const [anzahl, breite, hoehe, soldat] of [[1200, 24, 21, 0], [120, 52, 48, 1]]) {
     const geo = new THREE.SphereGeometry(0.25, breite, hoehe)
     geo.scale(1, 1.4, 1)
     const netz = new THREE.InstancedMesh(geo, material, anzahl)
+    netz.layers.set(1)
     netz.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     netz.frustumCulled = false
     netz.userData.soldat = !!soldat
     for (let i = 0; i < anzahl; i++) {
-      const spalte = soldat ? i % 6 : i % 15
-      const reihe = soldat ? Math.floor(i / 6) : Math.floor(i / 15)
-      dummy.position.set(soldat ? -1.5 + spalte * 0.6 : -3.1 + spalte * 0.42, 0.35, soldat ? 4.5 - reihe * 0.55 : -6 - reihe * 0.42)
-      dummy.userData.basisY = 0.35
+      const spalte = soldat ? i % 10 : i % 24
+      const reihe = soldat ? Math.floor(i / 10) : Math.floor(i / 24)
+      dummy.position.set(soldat ? (spalte - 4.5) * 0.6 : (spalte - 11.5) * 0.45, 0.35, soldat ? reihe * 0.6 : -22 - reihe * 0.55)
       dummy.updateMatrix()
       netz.setMatrixAt(i, dummy.matrix)
     }
@@ -76,7 +79,7 @@ function wippe(gruppe: THREE.Group, zeit: number): void {
 
 function schwarzAnteil(l: Lauf): number | null {
   const gl = l.renderer.getContext()
-  const p = new THREE.Vector3(0, 0.35, -10).project(l.camera)
+  const p = new THREE.Vector3(0, 0.35, -30).project(l.welt.camera)
   const x = Math.round((p.x + 1) / 2 * gl.drawingBufferWidth) - 20
   const y = Math.round((p.y + 1) / 2 * gl.drawingBufferHeight) - 20
   if (x < 0 || y < 0 || x + 41 > gl.drawingBufferWidth || y + 41 > gl.drawingBufferHeight) return null
@@ -88,71 +91,94 @@ function schwarzAnteil(l: Lauf): number | null {
 }
 
 function groessen(l: Lauf) {
-  const texturen = new Set<THREE.Texture>()
-  l.scene.traverse(obj => {
+  const texturen = new Set<THREE.Texture>(l.welt.bemalungen)
+  const add = (wert: unknown) => { if (wert instanceof THREE.Texture) texturen.add(wert) }
+  l.welt.scene.traverse(obj => {
     if (!(obj instanceof THREE.Mesh)) return
     for (const mat of Array.isArray(obj.material) ? obj.material : [obj.material]) {
-      if (!(mat instanceof THREE.MeshStandardMaterial)) continue
-      if (mat.map) texturen.add(mat.map)
-      if (mat.normalMap) texturen.add(mat.normalMap)
+      Object.values(mat).forEach(add)
+      if (mat instanceof THREE.ShaderMaterial) Object.values(mat.uniforms).forEach(u => add(u.value))
     }
   })
+  if (l.welt.wasser.pmremZiel) texturen.delete(l.welt.wasser.pmremZiel.texture)
+  if (l.welt.wasser.spiegelZiel) texturen.delete(l.welt.wasser.spiegelZiel.texture)
   const bilder: Bildgroesse[] = [...texturen].map(t => {
     const bild = t.image as { width?: number; height?: number } | undefined
     return { width: bild?.width || 0, height: bild?.height || 0 }
   })
-  const threeCanvas = l.renderer.domElement
-  const phaserCanvas = l.game.canvas
-  const renderflaechen = [{ width: threeCanvas.width, height: threeCanvas.height }, { width: phaserCanvas.width, height: phaserCanvas.height }]
+  const renderflaechen = [l.renderer.domElement, l.game.canvas].map(c => ({ width: c.width, height: c.height }))
   const phaserBilder: Bildgroesse[] = []
-  l.game.textures.list && Object.values(l.game.textures.list).forEach(texture => {
+  if (l.game.textures.list) Object.values(l.game.textures.list).forEach(texture => {
     for (const source of texture.source) phaserBilder.push({ width: source.width, height: source.height })
   })
-  return speicherMB(bilder, renderflaechen, phaserBilder)
+  const grund = speicherMB(bilder, renderflaechen, phaserBilder)
+  const zusatz = ((l.welt.wasser.pmremZiel ? pmremPufferBytes(l.welt.wasser.pmremZiel) : 0)
+    + (l.welt.wasser.spiegelZiel ? spiegelPufferBytes(l.welt.wasser.spiegelZiel) : 0)) / 1048576
+  return { ...grund, zusatz, gesamt: grund.bemalungen + zusatz }
 }
 
-export function starteMessung(scene: THREE.Scene, camera: THREE.Camera, renderer: THREE.WebGLRenderer, game: Phaser.Game, anzeige: HTMLElement, knopf: HTMLButtonElement): void {
+export function starteMessung(welt: Welt, renderer: THREE.WebGLRenderer, game: Phaser.Game, anzeige: HTMLElement, knopf: HTMLButtonElement): void {
   if (lauf) return
-  lauf = { scene, camera, renderer, game, anzeige, knopf, stufe: 0, zeit: 0, bilder: [], ergebnisse: [], schwarz: null, vollast: null, letzterMB: 0 }
+  const vollast = baueVollast()
+  welt.scene.add(vollast)
+  const verborgenePlatzhalter: THREE.Object3D[] = []
+  welt.scene.traverse(obj => {
+    if (obj.name === 'horde' || obj.name === 'truppe') {
+      if (obj.visible) verborgenePlatzhalter.push(obj)
+      obj.visible = false
+    }
+  })
+  const original = welt.wasser.stufe
+  welt.wasser.wechsle(0)
+  lauf = { welt, renderer, game, anzeige, knopf, original, stufe: 0, phase: 'warm', zeit: 0, bilder: [], ergebnisse: [], schwarz: null, vollast, verborgenePlatzhalter }
   knopf.disabled = true
   anzeige.style.display = 'block'
-  anzeige.textContent = 'Aufwärmen · 5 s'
+  anzeige.textContent = 'Aufwärmen · Wasser 0 · 5 s'
 }
 
 export function messBild(dt: number, jetzt: number): void {
   const l = lauf
   if (!l) return
-  if (l.vollast) wippe(l.vollast, jetzt)
-  // Der Aufrufer zeichnet unmittelbar vor dieser Funktion. Die Bildpunktprobe gehört zu genau diesem Bild.
-  if (l.stufe === 2 && l.schwarz === null && l.zeit >= 3000) l.schwarz = schwarzAnteil(l)
+  wippe(l.vollast, jetzt)
+  // Der Aufrufer zeichnet unmittelbar vor dieser Funktion: Probe am gerenderten Bild bei 15 s.
+  if (l.phase === 'messen' && l.schwarz === null && l.zeit >= 15000) l.schwarz = schwarzAnteil(l)
   l.zeit += Math.max(0, dt)
-  if (l.stufe > 0) l.bilder.push(dt)
-  const dauer = l.stufe === 0 ? 5000 : 30000
+  if (l.phase === 'messen') l.bilder.push(dt)
+  const dauer = l.phase === 'warm' ? 5000 : l.phase === 'umbau' ? 2000 : 30000
   if (l.zeit < dauer) return
-  if (l.stufe > 0) {
-    const a = auswerten(l.bilder)
-    const mb = groessen(l)
-    l.letzterMB = mb.bemalungen
-    const zeile = `${l.stufe === 1 ? 'Leere Szene' : 'Platzhalter-Vollast'}: ${a.fps?.toFixed(1) ?? '–'} fps · langsamste 5 % ${a.p95?.toFixed(1) ?? '–'} ms · Schwarz ${l.stufe === 1 ? 'entfällt' : l.schwarz === null ? '–' : `${l.schwarz.toFixed(1)} %`} · >250 ms: ${a.verworfen}\nBemalung ${mb.bemalungen.toFixed(2)} MB · Renderflächen ${mb.renderflaechen.toFixed(2)} MB · Phaser-Rest ${mb.phaserRest.toFixed(2)} MB (Schätzung, ohne Tiefen- und Glättungspuffer) · Geometrien ${l.renderer.info.memory.geometries} · Texturen ${l.renderer.info.memory.textures}`
-    l.ergebnisse.push(zeile)
-    if (l.stufe === 2) {
-      l.anzeige.textContent = `${l.ergebnisse.join('\n\n')}\n${urteil(a, l.schwarz, mb.bemalungen)}`
-      bricheAb()
-      return
-    }
+  if (l.phase === 'warm' || l.phase === 'umbau') {
+    l.phase = 'messen'; l.zeit = 0; l.bilder = []; l.schwarz = null
+    l.anzeige.textContent = `${l.ergebnisse.join('\n\n')}\nWasser ${l.stufe} · 30 s`
+    return
   }
-  l.stufe++
-  l.zeit = 0
-  l.bilder = []
-  if (l.stufe === 2) { l.vollast = baueVollast(); l.scene.add(l.vollast) }
-  l.anzeige.textContent = `${l.ergebnisse.join('\n\n')}\n${l.stufe === 1 ? 'Leere Szene' : 'Platzhalter-Vollast'} · 30 s`
+  const a = auswerten(l.bilder)
+  const mb = groessen(l)
+  l.ergebnisse.push(`Wasser ${l.stufe} · Platzhalter-Vollast: ${a.fps?.toFixed(1) ?? '–'} fps · langsamste 5 % ${a.p95?.toFixed(1) ?? '–'} ms · Schwarz ${l.schwarz === null ? '–' : `${l.schwarz.toFixed(1)} %`} · >250 ms: ${a.verworfen}\nBemalung ${mb.bemalungen.toFixed(2)} MB · Wasserpuffer ${mb.zusatz.toFixed(2)} MB · Renderflächen ${mb.renderflaechen.toFixed(2)} MB · Phaser-Rest ${mb.phaserRest.toFixed(2)} MB · Geometrien ${l.renderer.info.memory.geometries} · Texturen ${l.renderer.info.memory.textures}\n${urteil(a, l.schwarz, mb.gesamt)}`)
+  if (l.stufe === 2) {
+    l.anzeige.textContent = l.ergebnisse.join('\n\n')
+    bricheAb()
+    return
+  }
+  l.stufe = (l.stufe + 1) as WasserStufe
+  l.welt.wasser.wechsle(l.stufe)
+  l.phase = 'umbau'; l.zeit = 0; l.bilder = []; l.schwarz = null
+  l.anzeige.textContent = `${l.ergebnisse.join('\n\n')}\nWasser ${l.stufe} · Umbau · 2 s`
 }
 
-export function bricheAb(grund?: string): void {
+export function bricheAb(grund?: string, wiederherstellen = true): void {
   if (!lauf) return
   const l = lauf
   lauf = null
-  if (l.vollast) { l.scene.remove(l.vollast); gibSzeneFrei(new THREE.Scene().add(l.vollast)) }
+  l.welt.scene.remove(l.vollast)
+  const material = (l.vollast.children[0] as THREE.Mesh).material as THREE.MeshStandardMaterial
+  material.map?.dispose(); material.dispose()
+  for (const child of l.vollast.children) {
+    const netz = child as THREE.InstancedMesh
+    netz.dispose()
+    netz.geometry.dispose()
+  }
+  l.verborgenePlatzhalter.forEach(obj => { obj.visible = true })
+  if (wiederherstellen) l.welt.wasser.wechsle(l.original)
   l.knopf.disabled = false
   if (grund) { l.anzeige.style.display = 'block'; l.anzeige.textContent = grund }
 }

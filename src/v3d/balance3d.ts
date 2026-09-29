@@ -40,3 +40,20 @@ export const LEVELS: Level[] = [{
   gegnerProSoldat: 2, frontVerschiebung: 0.5, bossSchaden: 25,
   marsch: 0.8, startY: 60,
 }]
+
+// 1 Einheit = 1 Meter. x quer, y oben, vorwärts = negatives z;
+// Aussendelinie z = 0, Rechenposition pos bzw. Frontlage y wird z = -pos bzw. -y.
+export const BUEHNE = {
+  BAHN_BREITE: 12,
+  KAMERA_SICHTFELD: 22,
+  KAMERA_POSITION: [0, 28.5, 52.7] as const,
+  KAMERA_NEIGUNG: 23.5,
+  KAMERA_NAH: 5,
+  KAMERA_FERN: 250,
+  REFERENZ_ASPEKT: 390 / 659,
+  WASSER_HOEHE: -0.35,
+  DUNST_NAH: 90,
+  DUNST_FERN: 220,
+  DUNST_FARBE: '#9fc6d0',
+  SONNE: [-6, 14, 4] as const,
+} as const

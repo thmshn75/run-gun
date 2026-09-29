@@ -11,6 +11,12 @@ export function auswerten(bildzeitenMs: readonly number[]): BildAuswertung {
 }
 
 export interface Bildgroesse { width: number; height: number }
+export function pmremPufferBytes(ziel: Bildgroesse): number {
+  return Math.max(0, ziel.width) * Math.max(0, ziel.height) * 4 * 4 / 3
+}
+export function spiegelPufferBytes(ziel: Bildgroesse): number {
+  return Math.max(0, ziel.width) * Math.max(0, ziel.height) * (8 + 4)
+}
 export function speicherMB(texturen: readonly Bildgroesse[], renderflaechen: readonly Bildgroesse[] = [], phaserBilder: readonly Bildgroesse[] = []) {
   const mb = (bytes: number) => bytes / 1048576
   const pixels = (bild: Bildgroesse) => Math.max(0, bild.width) * Math.max(0, bild.height)

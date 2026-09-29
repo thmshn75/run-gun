@@ -2,225 +2,233 @@
 
 Status: APPROVED
 
-## Aufgabe: R1 — Rechenkern Grundspiel "Run Gun 3D" (ohne Grafik)
+## Aufgabe: D1 — Bahn, Kamera, Wasser (Run Gun 3D, visueller Schlüsselschritt)
 
-Verbindlicher Plan: `docs/plan-v7.md`, Abschnitt **"Spielrechnung"** (lesen) und
-"Schrittfolge → R1". Dieser Schritt baut die **reine Spiellogik** als TypeScript ohne
-Three.js, ohne DOM, ohne Phaser. Die Grafik (D3/D4) stellt diesen Kern später nur dar.
-**Keine Spezialeinheiten-Wirkung** (kommt in R2) — eine gefallene Säule meldet nur, welche
-Einheit frei wird.
+Verbindlicher Plan: `docs/plan-v7.md`, Abschnitte "Unverhandelbare Randbedingungen" und
+"Schrittfolge → D1". Dieser Schritt baut die **feste Bühne** des 3D-Modus: Straße als
+Damm durch Wasser, Kamera, Licht, Wasser in drei Stufen und Maßstabs-Platzhalter. Keine
+Figuren, keine Steuerung, keine Spiellogik (die kommen in D2–D4). Vorbild-Standbilder
+ansehen: `docs/vorbild/vorbild-111-8s.jpg` (Hauptvorbild), `vorbild-111-2s.jpg`,
+`vorbild-111-20s.jpg`, `vorbild-112-3s.jpg`, `vorbild-112-9s.jpg`. Statt Schnee wie im
+Vorbild: Wasser (Thomas' Wunsch, "viel realistischer").
 
 ## Erlaubte Änderungen (abschließend)
 
-- Neu: `src/v3d/rechnung.ts`, `src/v3d/balance3d.ts`, `scripts/bots3d.ts` (oder `.mjs`),
-  neuer Test `tests/v3dRechnung.test.ts`.
-- `package.json`: nur ein Skript `"bots3d"` (Bot-Auswertung, s. A4). Keine neuen Pakete.
-- Nichts sonst. `tests/v3dIsolation.test.ts` muss weiter grün sein; `rechnung.ts` und
-  `balance3d.ts` importieren weder `three` noch DOM noch `renderer.ts`.
+- `src/v3d/szene.ts` (neu aufbauen), `src/v3d/messung.ts` (Stufen und Speicherplan, s. A5),
+  `src/v3d/einstieg.ts` (nur: Lade-Gate für die Bemalungen, Kamera-Anpassung bei
+  Größenänderung, Wasser-Aktualisierung im Bildtakt, Freigabe beim Verlassen),
+  `src/v3d/balance3d.ts` (neue Konstanten in einem eigenen Block `BUEHNE`, bestehende
+  Werte unverändert), `src/v3d/rechnen.ts` (nur erweitern: neue reine Funktionen für
+  PMREM- und Spiegelpuffer-Größe, bestehende Signaturen und `tests/v3dRechnen.test.ts`
+  bleiben gültig), `tests/v3dBuild.test.ts` (erweitern, s. A6).
+- Neu: `src/v3d/kamera.ts`, `src/v3d/wasser.ts`, `src/v3d/wasserSpiegel.ts` (s. A4), `src/v3d/bilder/` (Bemalungen, s. A3),
+  `scripts/wasser-normalen.py` (oder `.mjs` + Python-Umwandlung), Test `tests/v3dBuehne.test.ts`.
+- Bestehende Tests nur anpassen, wo sie Werte aus D0 fest prüfen, die sich hier gewollt
+  ändern (z. B. Vollast 1500/150 → 1200/120, Messstufen); jede Anpassung im Bericht nennen.
+- Nichts außerhalb von `src/v3d/`, `scripts/`, `tests/` und dieser Datei. Kein neues Paket.
+  `rechnung.ts` bleibt unberührt.
 
-## Modell (verbindlich; Zahlen in `balance3d.ts`, Formeln in `rechnung.ts`)
+## Koordinaten (verbindlich, gilt für alle späteren Schritte)
 
-Alle Mengen sind **Kommazahlen** (keine Rundung im Kern; die Anzeige rundet später ab).
-Zeit in Sekunden, Strecken in Metern. `schritt()` wird mit festem `dt` aufgerufen
-(Tests: `dt = 1/30`).
-
-**Zustand** (`Zustand`): Zeit `t`; Truppe `T`; Liste `trupps` unterwegs
-(`{ ziel: 'front' | 'saeule', pos: number, anzahl: number, vervielfacht: boolean }`);
-`F` Soldaten an der Front; `Z` gewöhnliche Zombies in der Horde; `y` Frontlage (Meter vor
-der Truppe); `P` Zähler der aktuellen Säule und `saeulenIndex`; `miniBoss` und
-`eliteBoss` (`{ imFeld: boolean, B: number }`); gestartete Wellen;
-`ergebnis: 'laeuft' | 'sieg' | 'niederlage'`; Kommarest fürs Aussenden; Seed-Zustand.
-
-**Level-Tabelle** (`balance3d.ts`, Level 1 = Startwerte aus dem Plan):
-`T0 = 10`, `k = 2`, Wand bei 5 m, Säule bei 12 m, Laufgeschwindigkeit 6 m/s,
-Aussenden `r = 2 + 0,1·T` pro s, Einsammeln 2/s, Schwelle links `x < −0,6`,
-rechts `x > +0,6`, Horde 600 in 3 Wellen à 200 im Abstand 20 s (Welle 1 bei t = 0),
-Start `y = 60`, Marsch 0,8 m/s, Mini-Boss mit Welle 2 (`B = 400`), Elite-Boss 20 s nach
-der letzten Welle (`B = 3000`), Säulen `P = 150` je Säule, Reihenfolge
-`['humvee', 'panzer', 'haubitze', 'hubschrauber']`, Frontbreite `C = 40`,
-**Kontaktmodell (korrigiert nach Nachrechnung 2026-09-29):** Soldaten im Kontakt
-`K = min(F, C)`, Zombie-Druck `Zk = min(Z, C) + 25·(Anzahl Bosse im Feld)`;
-Zombies fallen `0,5·K` pro s; Soldaten fallen `0,4·min(Zk, 2·K)` pro s (jeder Soldat wird
-von höchstens zwei Gegnern zugleich bedrängt); Verschiebung `0,5·(K−Zk)/(K+Zk)` m/s;
-Boss-Treffer 25 Punkte je "Zombie-Treffer".
-(Claudes Vorab-Simulation mit diesen Werten: passiv verliert 20/20 nach ~140 s,
-Strategie gewinnt 20/20 nach ~140 s.)
-
-**`Level` ist vollständig parametrisiert** (für Test-Level): Wellenliste
-`[{ t, groesse }]`, Streuung, Welle mit Mini-Boss, Zeitpunkt Elite-Boss, `B_mini`,
-`B_elite`, `T0`, `k`, Wand-/Säulenlage, `P`, Säulen-Reihenfolge, `C`, alle Raten und
-Faktoren, Start-`y`. Level 1 enthält genau die Werte oben.
-
-**Ablauf je `schritt(zustand, eingabe: { x: number }, dt)`** (in dieser Reihenfolge):
-1. **Wellen:** Erreicht `t` den Startzeitpunkt einer Welle: `Z += Wellengröße`
-   (Seed-Streuung ±10 %), Ereignis `welle` mit der Menge. Mit Welle 2: Mini-Boss ins Feld.
-   20 s nach der letzten Welle: Elite-Boss ins Feld.
-2. **Einsammeln:** `x < −0,6` → `T += 2·dt` (Ereignis `eingesammelt`).
-3. **Aussenden:** Rate `r = 2 + 0,1·T`; der Kommarest sammelt sich, ganze Soldaten werden
-   als ein Trupp an `pos = 0` angelegt; Ziel `saeule` wenn `x > +0,6`, sonst `front`
-   (Ereignis `ausgesandt`). `T` bleibt unverändert (die Truppe ist die Quelle).
-4. **Laufen:** jeder Trupp `pos += 6·dt`. Passiert er 5 m und ist noch nicht vervielfacht:
-   `anzahl *= k` (Ereignis `vervielfacht`, Menge `(k−1)·anzahl vorher`).
-   Ziel `front` und `pos ≥ y` → `F += anzahl`, Trupp weg (Ereignis `angekommenFront`).
-   Ziel `saeule` und `pos ≥ 12` → Trupp weg (Ereignis `angekommenSaeule` mit der Menge);
-   gibt es noch eine Säule: `P −= anzahl`; `P ≤ 0` → Ereignis `einheitFrei` mit der
-   nächsten Einheit der Reihenfolge, `saeulenIndex += 1`, `P = 150` (Überschuss verfällt).
-   Nach der letzten Säule wirken Soldaten zur Säule nicht mehr (Ereignis bleibt).
-5. **Front:** "Feind im Feld" = `Z > 0` oder ein Boss im Feld mit `B > 0`. Zu Beginn
-   von Schritt 5 werden `F`, `Z`, Bosse einmal gelesen; `K`, `Zk`, Treffer, Verluste und
-   Verschiebung rechnen alle mit dieser Momentaufnahme.
-   - **Kontakt** = `F > 0` und Feind im Feld: Treffer `h = 0,5·K·dt`, zuerst an
-     gewöhnliche Zombies (`d = min(h, Z)`, `Z −= d`, Ereignis `zombieGefallen` mit `d`),
-     der Rest `h −= d` an den Mini-Boss, dann an den Elite-Boss: je Boss
-     `u = min(h, B/25)`, `B −= 25·u`, `h −= u`, Ereignis `bossTreffer` mit
-     **Menge = 25·u (B-Punkte)** und `boss`; ein Boss mit `B ≤ 0` verlässt das Feld.
-     Verluste `v = min(F, 0,4·min(Zk, 2·K)·dt)`, `F −= v` (Ereignis `soldatGefallen`).
-     Frontlage `y += 0,5·(K−Zk)/(K+Zk)·dt`.
-   - **Kein Kontakt**, aber Feind im Feld: `y −= 0,8·dt` (Marsch).
-   - Kein Feind im Feld: `y` bleibt.
-   - `y` höchstens 60.
-6. **Ende:** `y ≤ 0` → `niederlage`; sonst: Elite-Boss war im Feld und hat `B ≤ 0` →
-   `sieg` (Niederlage hat Vorrang). Danach ändert `schritt()` nichts mehr.
-7. **Zeit:** `t += dt` am **Ende** von `schritt()`. Wellen- und Bosszeitpunkte gelten als
-   erreicht bei `t ≥ Zeitpunkt − 1e-9`.
-
-Hinweis: Fällt `y` unter 5 m, erreichen neue Trupps die Front vor der Wand und werden
-nicht vervielfacht — gewollt.
-
-**Ereignisse** (`{ art, menge, t, … }`), Rückgabewert von `schritt()`: `welle`,
-`eingesammelt`, `ausgesandt`, `vervielfacht`, `angekommenFront`, `angekommenSaeule`,
-`einheitFrei` (mit `einheit`), `zombieGefallen`, `bossTreffer` (mit `boss`),
-`soldatGefallen`, `sieg`, `niederlage`.
-
-**Zufall** nur über einen Seed (z. B. Mulberry32 in `rechnung.ts`), kein `Math.random`.
-Gleicher Seed + gleiche Eingaben → exakt gleicher Verlauf.
+1 Einheit = 1 Meter der Spielrechnung. `x` quer (links negativ), `y` oben, **vorwärts =
+negatives `z`**. Die Aussendelinie der Truppe liegt bei `z = 0`. Eine Position `pos`
+bzw. Frontlage `y` aus `rechnung.ts` liegt bei `z = −pos` bzw. `z = −y`. Straße
+`x ∈ [−6, +6]` (Konstante `BAHN_BREITE = 12`). Diese Festlegung als Kommentar in den
+Block `BUEHNE` schreiben.
 
 ## Akzeptanzkriterien
 
-### A1 Schnittstelle
-`export function neuerLauf(level: Level, seed: number): Zustand`,
-`export function schritt(z: Zustand, eingabe: { x: number }, dt: number): Ereignis[]`
-(verändert `z`), `export const LEVELS: Level[]` in `balance3d.ts` (mindestens Level 1).
+### A1 Kamera (`src/v3d/kamera.ts`, Werte in `balance3d.ts` Block `BUEHNE`)
 
-### A2 Bilanz-Invariante (Test)
-In **1000 Läufen** mit zufälligen Seeds und zufälligen Eingabefolgen (`x` springt
-zufällig zwischen −1, 0, +1 alle 0,5–3 s), je bis Ende oder 300 s, gilt in **jedem
-Schritt** (Toleranz 1e-6):
-- `ΔT = Σ eingesammelt`
-- `Σ ausgesandt + Σ vervielfacht = Σ angekommenFront + Σ angekommenSaeule +
-  Δ(Summe anzahl aller Trupps unterwegs)`
-- `ΔF = Σ angekommenFront − Σ soldatGefallen`
-- `ΔZ = Σ welle − Σ zombieGefallen`
-- je Boss, solange er im Feld ist: `ΔB = −Σ bossTreffer` dieses Bosses
-- Säule: `ΔP = −Σ angekommenSaeule` in Schritten ohne `einheitFrei` (solange es eine
-  Säule gibt; nach der letzten ist `P = null`)
-- kein Feld ist `NaN`.
-Test-Timeout ausdrücklich 120 s; Summen je Schritt aus den Ereignissen mitzählen, nicht
-jedes Mal über alle Trupps neu summieren.
+Von Claude aus dem Vorbild errechnet (Straße unten bildfüllend, oben breiter als im
+Vorbild — Thomas' Wunsch):
+- `PerspectiveCamera`, vertikales Sichtfeld **22°**, Position **(0, 28.5, 52.7)**, nach
+  unten geneigt um **23.5°** (`rotation.x = −23.5°` in Bogenmaß, kein `lookAt`),
+  `near = 5`, `far = 250`.
+- Referenz-Seitenverhältnis `390/659`. Ist der Bildschirm **schmaler** (Breite/Höhe
+  kleiner), wird das vertikale Sichtfeld so vergrößert, dass das **horizontale**
+  Sichtfeld gleich bleibt (Straße bleibt bildfüllend); ist er breiter, bleibt es bei 22°.
+  Reine Funktion `passeKameraAn(camera, breite, hoehe)`, aufgerufen bei jeder
+  Größenänderung (ersetzt die bisherige Aspect-Anpassung im Einstieg).
+- **Zielmaße als Test** (`tests/v3dBuehne.test.ts`, reine Projektionsrechnung mit
+  `Vector3.project`, Bildschirm 390×659; Anteile der Bildbreite bzw. von oben gemessen):
+  - Straßenbreite (`x = ±6`) am unteren Bildrand ≥ 1,00 (reicht über den Rand).
+  - Straßenbreite auf Höhe 5 % von oben: **0,40 – 0,50** (Vorbild 0,35).
+  - Linie `z = 0` liegt bei **70 – 74 %** von oben.
+  - Punkt `(0, 0, −60)` (Hordenstart) liegt im Bild, mindestens 2 % unter dem oberen Rand.
+  - Die Kamerawerte oben sind vorgegeben; kippt ein Zielmaß, **nicht** die Kamera
+    ändern, sondern im Bericht melden.
+  - Bei 375×812 und 390×844 (schmaler): unten ≥ 1,00, `z = 0` bei 66 – 78 %.
+  - Für alle drei Formate: der Horizont liegt oberhalb des Bildes, und die Punkte
+    `(±6, 0, −220)` (Straßenende) projizieren über den oberen Bildrand (Straßenende nie
+    sichtbar).
 
-### A3 Randfälle (Tests, je fester Seed; eigene **Test-Level** über die Parameter)
-- Test-Level mit kleiner Horde (z. B. eine Welle à 50, kein Mini-Boss) und Elite-Boss bei
-  t = 60, Truppe links: alle Zombies fallen vor t = 60; `y` bleibt danach stehen, bis der
-  Elite-Boss erscheint; danach marschiert er; Sieg erst bei `B_elite ≤ 0`.
-- Test-Level mit `P = 20` und großem Start-`y`, Truppe dauerhaft rechts: alle vier Säulen
-  fallen der Reihe nach (vier `einheitFrei` in Tabellen-Reihenfolge), danach keine weitere.
-- `F = 0` mit Feind im Feld: `y` sinkt um genau `0,8·dt` je Schritt.
-- Truppe dauerhaft links: `T` wächst um genau 2 je Sekunde.
-- Nach `sieg`/`niederlage` verändert `schritt()` den Zustand nicht mehr.
-- Determinismus: zwei Läufe mit gleichem Seed und gleicher Eingabe sind identisch.
+### A2 Bühne (`src/v3d/szene.ts`)
 
-### A4 Bots (`npm run bots3d`)
-- **passiv:** `x = 0` immer.
-- **Strategie:** `x = −1` bis `T ≥ botSchwelleT` (Parameter im Bot-Skript, Standard 30),
-  dann `x = +1` bis zum ersten `einheitFrei`, dann `x = 0`.
-- Je Bot **20 Seeds** (1…20) auf Level 1, Laufende spätestens bei 300 s; Ausgabe als
-  Tabelle: Seed, Ergebnis, Dauer, `T`, `F`, `Z` am Ende, gefallene Säulen; dazu die
-  Siegquote je Bot.
-- **Kein Test verlangt Quoten.** Die Kalibrierung macht Claude danach anhand der Ausgabe.
-  Codex ändert keine Zahl in `balance3d.ts`, um Bot-Ziele zu erreichen, und meldet die
-  Quoten nur im Bericht.
+- **Straße als Damm** von `z = +20` bis `z = −220`, 12 m breit, Oberkante `y = 0`,
+  Seitenwände bis `y = −0,6`; Wasser bei `y = −0,35`, der Damm ragt also heraus.
+  Belag: Bemalung `v3d-strasse` (A3), gekachelt etwa alle 4 m, `MeshStandardMaterial`,
+  Rauheit ~0,9, ohne Reliefkarte. Seitenwände heller Beton ohne Bemalung.
+- **Randmauern** links und rechts auf der Straßenkante, 0,35 m hoch, 0,3 m breit,
+  heller Beton, über die ganze Länge.
+- **Maßstabs-Platzhalter** (einfarbige Kästen/Flächen, halbtransparent erlaubt; werden in
+  D3/D4/D5a ersetzt; alle in einer Gruppe `platzhalter`, mit `?platzhalter=0`
+  abschaltbar):
+  - Vervielfacher-Wand quer bei `z = −5`: 12 × 1,2 m, violett, Schrift "×2"
+    (Canvas-Bemalung 256 px).
+  - +1-Schilder: Spalte bei `x = −5,2`, ab `z = +6` alle 3,5 m bis `z = −60`, je
+    1,2 × 0,8 m, aufrecht, blau mit weißer Schrift "+1" (eine gemeinsame Canvas-Bemalung).
+  - Säule rechts bei `x = +4,6`, `z = −12`: 1,6 × 4 × 1,6 m, grau, Zahl "150" oben.
+  - Horde: rote Fläche `x ∈ [−5, 5]`, `z ∈ [−65, −35]`, 0,5 m über der Straße.
+  - Truppe: blauer Block 6 × 0,9 × 3 m, Mitte bei `z = +1,5`.
+- **Licht:** Halbkugel-Licht + eine Sonne von links oben hinten (warmes Weiß), keine
+  Echtzeit-Schatten. **Dunst:** `scene.fog` linear 90 → 220 m (Abstand zur Kamera) in
+  der Farbe des fernen Wassers; Hintergrund = Dunst-Farbe.
 
-### A5 Qualität
-`npm test`, `npx tsc --noEmit`, `npm run build` ohne Fehler; `npm run bots3d` läuft durch.
-Laufzeit eines 300-s-Laufs mit `dt = 1/30` im Test messen und ausgeben (keine harte Grenze).
+### A3 Bemalungen (`src/v3d/bilder/`)
 
-## Nicht tun
+- `v3d-strasse.webp`, 512×512, nahtlos kachelbar, heller grauer Beton-/Asphaltbelag mit
+  feiner Körnung, ohne Markierungen. **Codex erzeugt ihn mit seinem Bildwerkzeug**
+  (Plan Randbedingung 9), verkleinert auf 512 px und prüft die Kachelbarkeit (2×2
+  nebeneinander ohne sichtbare Naht; nötigenfalls Kanten per Skript überblenden).
+- `v3d-wasser-normalen.webp`, 512×512, **kachelbare Normalkarte**, erzeugt von
+  `scripts/wasser-normalen.mjs` aus kachelbarem Rauschen (mehrere Oktaven, feste
+  Seed-Zahl, Ableitung → Normalen, RGB = n·0,5+0,5). Grund: Ein Bildmodell liefert keine
+  gültige Normalkarte. **WebP-Umwandlung nur mit `python3` + PIL** (auf dieser Maschine
+  vorhanden, WebP geprüft; `cwebp` fehlt, `ffmpeg` hat keinen WebP-Encoder): Normalkarte
+  `save(..., lossless=True)`, Straße Qualität 85. Fehlt der Encoder: abbrechen und
+  melden, nie still ein anderes Format einchecken. Beide `.webp` werden eingecheckt;
+  2×2-Kachelbild beider Bemalungen als PNG ins Scratchpad legen und im Bericht nennen.
+- Einbindung über `import url from './bilder/v3d-….webp?url'`, damit Vite sie als
+  `assets/v3d-…-<hash>.webp` ausgibt (bestehender Build-Test: jede Nicht-Haupt-Datei
+  enthält `v3d`, Summe ≤ 25 MB, im Precache).
+- **Lade-Gate:** `baueSzene()` wird `async` und lädt beide Bemalungen mit `Promise.all`
+  vor dem ersten Bild, **Zeitlimit 8 s**. `zeigeOberflaeche` (mit Zurück-Knopf) wird
+  **vor** dem `await` aufgerufen, dazu der Text "Lädt …". Bei Fehler oder Zeitüberschreitung:
+  bereits geladene Bemalungen freigeben, `verlasse('3D-Dateien nicht ladbar – App neu
+  öffnen')` (Text als Konstante), kein `throw`. Nach dem `await` prüfen, ob der Nutzer
+  inzwischen zurück ist (`beendet`) — dann alles sofort freigeben, nichts anzeigen.
+  Kein Nachladen im Lauf. Straße `colorSpace` sRGB, Normalkarte linear (Standard).
+- **Besitz:** `baueSzene()` liefert `{ scene, camera, bemalungen, wasser }`; `wasser` ist
+  ein Halter mit `stufe`, `wechsle(stufe)` (alte Stufe freigeben, neue bauen),
+  `aktualisiere(dtSekunden)`, `gibFrei()`. `einstieg.ts` und `messung.ts` greifen nur über
+  diesen Halter aufs Wasser zu. Die beiden Datei-Bemalungen gehören der Szene und werden
+  einmal in `gibSzeneFrei()` freigegeben, nie von einer Wasserstufe.
 
-- Keine Grafik, keine Änderung an anderen Dateien unter `src/v3d/`.
-- Keine Spezialeinheiten-Wirkung (R2), keine weiteren Level nötig.
-- Keine Formel ändern; bei Widersprüchen in der Spec: im Bericht benennen und die
-  naheliegende Lesart umsetzen, nicht eigenmächtig Zahlen drehen.
-- Keine Commits.
+### A4 Wasser (`src/v3d/wasser.ts`), Stufe per `?wasser=0|1|2`, Standard **1**
+
+Wasserfläche 800 × 800 m, Mitte bei `(0, −0,35, −150)`, beidseits und nach vorne bis
+in den Dunst (Rand nie sichtbar).
+Jede Stufe bekommt die Normalkarte als Parameter und gibt nur selbst Erzeugtes frei.
+**Zeit:** `aktualisiere(dtSekunden)` in Sekunden; `einstieg.ts` rechnet `dt/1000` um und
+begrenzt auf höchstens 0,1 s.
+- **Stufe 0:** einfarbige Fläche (tiefes Blaugrün), `MeshStandardMaterial`.
+- **Stufe 1 (billig):** `MeshStandardMaterial`, `normalMap` = `v3d-wasser-normalen`,
+  `repeat` ≈ 60, Verschiebung im Bildtakt (etwa 0,02 bzw. 0,013 Kacheln/s in x/y der
+  Karte), `normalScale` ~0,6, Rauheit ~0,12, Metall 0. Dazu eine **Himmels-Umgebung**
+  für Glanz: Canvas-Verlauf 256×128 (oben hellblau, Horizont fast weiß) als
+  äquirektangulares Bild → `PMREMGenerator.fromEquirectangular` → **nur als `envMap` des
+  Wasser-Materials** (nicht `scene.environment`: Straße, Platzhalter und Vollast sehen in
+  allen Stufen gleich aus). Direkt danach `pmrem.dispose()` und die Canvas-Textur
+  freigeben; das PMREM-Ergebnis gibt `gibFrei()` frei. Kein Bild von außen.
+- **Stufe 2 (Spiegelung):** `src/v3d/wasserSpiegel.ts` = **Kopie** von
+  `three/addons/objects/Water.js` (three 0.186, MIT; Lizenzvermerk als Kommentar ohne
+  URL behalten — der Isolationstest verbietet `http` in `src/v3d/` auch in Kommentaren),
+  einzige Änderungen: der Spiegel-Zielpuffer wird als Feld gehalten und eine Methode
+  `dispose()` gibt Zielpuffer, Material und Geometrie frei. `waterNormals` = dieselbe
+  lokale Normalkarte (`wrapS/T = RepeatWrapping`), Spiegel-Auflösung **halbe**
+  Zeichenpuffer-Größe, `sunDirection` = Richtung der Sonne aus A2, `distortionScale` ~2,
+  `fog: true`, `uniforms.time` in Sekunden. **Die Spiegelung zeichnet keine Figuren:**
+  Figuren und Figuren-Platzhalter (Horde, Truppe, Vollast) kommen auf **Layer 1**; die
+  Hauptkamera sieht Layer 0 und 1; die Spiegel-Kamera bleibt auf Standard-Layer 0
+  (Claude hat nachgesehen: sie wird als eigene `PerspectiveCamera` angelegt und kopiert
+  keine Layer). Lichter bleiben auf Layer 0.
+- **Freigabe und Zweitstart** (Randbedingung 5): `gibSzeneFrei()` setzt
+  `scene.environment`/`background`-Texturen zurück, sammelt Texturen auch aus
+  `ShaderMaterial.uniforms`, ruft vorher `wasser.gibFrei()`. `renderer.info.memory.
+  geometries` und `.textures` sind nach dem zweiten Start exakt gleich wie nach dem
+  ersten — geprüft für jede Stufe und nach der Folge Wasser 1 → 2 → 0 → 1.
+
+### A5 Messmodus (`src/v3d/messung.ts`)
+
+- Vollast-Platzhalter auf die Plan-Grenze: **1200 Zombie-Körper (~1000 Dreiecke) und 120
+  Soldaten-Körper (~5000 Dreiecke)**, auf der Straße verteilt: Zombies 24 je Reihe
+  (Abstand 0,45 m, `x` mittig) ab `z = −22` nach hinten; Soldaten 10 je Reihe (0,6 m)
+  ab `z = −1` nach vorne. Beide auf Layer 1. Das Wippen bleibt.
+- **Ablauf:** Vollast bauen, Wasser 0, 5 s Aufwärmen (zählt nicht); dann für Wasser
+  0, 1, 2: 30 s messen, danach Wasser über den Halter umbauen und 2 s ohne Zählung. Die
+  Stufe "Leere Szene" entfällt (in D0 gemessen). Nach der Messung gilt wieder die Stufe
+  aus `?wasser=`. Soldaten-Platzhalter stehen bei `z = 0 … +7` (Truppe), Zombies ab
+  `z = −22` nach hinten (Richtung −z).
+- Schwarz-Anteil: Messpunkt `(0, 0.35, −30)` (Mitte der Zombie-Masse), je Stufe bei
+  15 s.
+- **Speicherplan** (Formeln als reine Funktionen in `rechnen.ts`, mit Zahlenbeispiel
+  getestet) zählt zusätzlich alle Bemalungen der Szene (Straße, Normalkarte,
+  Canvas-Bemalungen, auch aus `ShaderMaterial`-Uniforms von `Water`), das PMREM-Ergebnis
+  (Größe des Zielpuffers ×4/3) und in Stufe 2 den Spiegel-Zielpuffer (`Water.js` nutzt
+  `HalfFloatType`: Breite×Höhe×8 plus Tiefenpuffer ×4). Keine Doppelzählung derselben Bemalung.
+- Ergebniszeile je Stufe im bestehenden Format, mit Wasserstufe im Zeilenkopf und
+  Urteil gegen die Grenze (≥ 55 fps, ≤ 25 ms, Schwarz ≤ 10 %, ≤ 60 MB).
+
+### A6 Tests und Nachweise
+
+- `tests/v3dBuehne.test.ts`: alle A1-Zielmaße; Lesen von `?wasser=` (nur 0/1/2 gültig,
+  sonst 1) als reine Funktion getestet.
+- `npm test`, `npx tsc --noEmit`, `npm run build` grün; bestehende Tests für
+  Hauptbündel-Größe, Isolation und Build weiter grün (neue `.webp` enthalten `v3d`, sind
+  im Precache).
+- `tests/v3dBuild.test.ts` erweitern: jede `.webp` in `dist/assets` trägt `v3d` im
+  Namen, steht im Precache-Manifest von `sw.js` und zählt in die 25-MB-Summe; kein
+  `data:image/webp` im gebauten JavaScript (kein Inlining).
+- Isolationstest (kein `http` in `src/v3d/`) bleibt grün.
+- Desktop-Vorprüfung (Randbedingung 7) durch Codex, soweit ohne Browser möglich; im
+  Bericht sagen, was davon nicht ging.
+- Desktop-Sichtprüfung macht Claude (Screenshot 390×659 neben dem Vorbild); iPhone-
+  Messung macht Thomas.
+
+## Nicht in diesem Schritt
+
+Figuren, Bewegung, Steuerung, Aussenden, Rechenkern-Anbindung, Säulen-Logik, Klang.
+`public/probe-3d/` nicht anfassen.
 
 ## Implementation Summary
 
-- Dateien: `src/v3d/balance3d.ts` (vollständig parametrisierte Level-1-Werte),
-  `src/v3d/rechnung.ts` (Zustand, feste Schrittfolge, Ereignisse und Seed-Zufall),
-  `scripts/bots3d.ts` (beide Bots), `tests/v3dRechnung.test.ts` (Bilanz und Randfälle),
-  `package.json` (nur `bots3d`-Skript).
-- Nachweise: `npm test`: 55 Dateien, 502 Tests bestanden; `npx tsc --noEmit`:
-  Exit 0; `npm run build`: Exit 0; `npm run bots3d`: Exit 0.
-  Im Test: 1000 Seed-Läufe, 3.680.935 Schritte in 2,42 s; ein 300-s-Lauf
-  mit `dt = 1/30` in 0,005 s (Messung eines Laufs ohne Feinde, kein Grenzwert).
-  `tests/v3dIsolation.test.ts` ist im vollen Testlauf grün.
-- Bot-Läufe: je Seed 1–20, `dt = 1/30`, Ende spätestens 300 s. T/F/Z sind
-  Endwerte, Säulen = gefallene Säulen. Passiv: 0/20 Siege. Strategie: 20/20 Siege.
-  Alle Passiv-Läufe endeten als Niederlage, alle Strategie-Läufe als Sieg.
-  Quoten dienten nur der Auswertung; Balancewerte wurden nicht nachjustiert.
+- Implementiert: `kamera.ts` mit festem Blickwinkel und schmalformatiger Sichtfeld-Anpassung; `szene.ts` mit Damm, Randmauern, Licht, Dunst, Maßstabs-Platzhaltern und 8-s-Lade-Gate; `wasser.ts` mit Stufen 0/1/2 und Ressourcenbesitz; lokale MIT-Kopie von Three 0.186 `Water.js` in `wasserSpiegel.ts` mit `dispose()`; `einstieg.ts` mit Ladeanzeige, Größenwechsel, Zeitaktualisierung und Freigabe; `messung.ts` mit Vollast 1200/120, drei Wasserstufen und Speicherplan; `balance3d.ts` nur um `BUEHNE` erweitert, `rechnen.ts` nur um Pufferformeln.
+- Bemalungen: Straße mit eingebautem Bildwerkzeug erzeugt (Prompt: nahtloser, hellgrauer, fein gekörnter Beton/Asphalt ohne Markierungen, Objekte, Schatten oder Perspektive), per Python/PIL auf 512×512 WebP Qualität 85 verkleinert und an Kanten überblendet. Normalkarte mit `node scripts/wasser-normalen.mjs /private/tmp/v3d-wasser-normalen.ppm` aus periodischem Mehr-Oktaven-Rauschen mit Seed 31729 erzeugt, per Python/PIL als lossless WebP gespeichert. Beide Kachelproben: `/private/tmp/run-gun-d1-kacheln/strasse-2x2.png` und `wasser-normalen-2x2.png`; visuell ohne auffällige Naht. PIL-WebP-Encoder vorhanden.
+- Nachweise: `npx tsc --noEmit` Exit 0; `npm run build` Exit 0; `npm test` 56 Testdateien, 506 Tests bestanden. `tests/v3dBuehne.test.ts` neu (drei Formate, Projektion, Wasserparameter, Pufferformeln), `tests/v3dBuild.test.ts` um WebP/Precache/25-MB/Inlinesperre erweitert. Keine bestehenden Tests angepasst. Build: beide WebP in `dist/assets` und Vorab-Cache; 3D-Dateien zusammen 755946 Bytes. `git diff --check` ohne Befund.
+- Noch ausstehende Fremd-/Gerätenachweise: Desktop-Sichtvergleich durch Claude und iPhone-Messung durch Thomas laut A6. Die echte Zweitstart-Speicherprüfung je Wasserstufe und 1→2→0→1 konnte hier nicht gemessen werden: Die Browsersteuerung für Google Chrome wurde von der Umgebung nicht freigegeben. Der Terminal-Start über `open -a Terminal` war ebenfalls nicht verfügbar; die Prüfungen liefen direkt in der Projekt-Shell. Keine Commits oder Pushes.
+- Nacharbeit 1: Nur `src/v3d/wasser.ts` geändert: beide einfachen Wasserstufen mit Grundfarbe `#0b3440`, Stufe 1 mit Rauheit 0,2, Normalstärke 0,9, Wiederholung 40, Umgebung 0,7 und dem vorgegebenen vierstufigen Himmelsverlauf; Stufe 2 mit Wasserfarbe `0x0e3a46` und Verzerrung 2,5. Werte als Konstanten benannt. Gezielter Test: 4/4; `npx tsc --noEmit` und `npm run build` Exit 0; `npm test`: 56 Testdateien, 506/506 Tests. Browser-Sichtprüfung und iPhone-Messung bleiben bei Claude bzw. Thomas. `open -a Terminal` scheiterte in dieser Umgebung mit „Unable to find application named 'Terminal'“, daher liefen die Prüfungen in der Projekt-Shell.
+- Nacharbeit 2: `Water.dispose()` gibt Spiegel-Zielpuffer, Geometrie und Material frei; `bricheAb()` gibt zusätzlich die beiden Vollast-`InstancedMesh` frei. `npx tsc --noEmit` und `npm run build` Exit 0; `npm test`: 56 Testdateien, 506/506 Tests; `git diff --check` ohne Befund. Die erneute WebGL-Zählerprüfung nach vollständigem Messlauf und Zurück führt Claude laut Nacharbeit im Browser durch. `open -a Terminal` war hier erneut nicht verfügbar; die Prüfungen liefen direkt in der Projekt-Shell. Keine Commits oder Pushes.
 
-**Passiv**
+## Nacharbeit 1 (Claude-Review 2026-09-29) — nur Wasserwerte
 
-| Seed | Ergebnis | Dauer (s) | T | F | Z | Säulen |
-|---:|---|---:|---:|---:|---:|---:|
-| 1 | niederlage | 138.7 | 10 | 4.34 | 91.5 | 0 |
-| 2 | niederlage | 138.7 | 10 | 4.34 | 98.99 | 0 |
-| 3 | niederlage | 138.7 | 10 | 4.34 | 93.82 | 0 |
-| 4 | niederlage | 138.7 | 10 | 4.34 | 104.35 | 0 |
-| 5 | niederlage | 138.7 | 10 | 4.34 | 112.5 | 0 |
-| 6 | niederlage | 138.7 | 10 | 4.34 | 92.86 | 0 |
-| 7 | niederlage | 138.7 | 10 | 4.34 | 87.24 | 0 |
-| 8 | niederlage | 138.7 | 10 | 4.34 | 88.5 | 0 |
-| 9 | niederlage | 138.7 | 10 | 4.34 | 92.88 | 0 |
-| 10 | niederlage | 138.7 | 10 | 4.34 | 129.64 | 0 |
-| 11 | niederlage | 138.7 | 10 | 4.34 | 111.2 | 0 |
-| 12 | niederlage | 138.7 | 10 | 4.34 | 82.97 | 0 |
-| 13 | niederlage | 138.7 | 10 | 4.34 | 85.09 | 0 |
-| 14 | niederlage | 138.7 | 10 | 4.34 | 100.59 | 0 |
-| 15 | niederlage | 138.7 | 10 | 4.34 | 87 | 0 |
-| 16 | niederlage | 138.7 | 10 | 4.34 | 106.34 | 0 |
-| 17 | niederlage | 138.7 | 10 | 4.34 | 101.26 | 0 |
-| 18 | niederlage | 138.7 | 10 | 4.34 | 106.33 | 0 |
-| 19 | niederlage | 138.7 | 10 | 4.34 | 78.73 | 0 |
-| 20 | niederlage | 138.7 | 10 | 4.34 | 114.62 | 0 |
+Kamera, Straße, Lade-Gate, Tests: abgenommen. Befund im Browser (390×659): Stufe 1 ist
+fast weiß (helle Grundfarbe `#b1dce1` + Himmelsspiegel), Stufe 2 trüb grau. Claude hat
+Werte an einer Testseite ausprobiert (`public/probe-3d/wasser.html`, Variante "c" wirkt
+wie echtes Meer). Nur `src/v3d/wasser.ts` (und bei Bedarf `balance3d.ts` Block `BUEHNE`)
+ändern, als benannte Konstanten:
+- **Stufe 1:** Grundfarbe `#0b3440`, Rauheit 0,2, `normalScale` 0,9, Normalkarten-
+  `repeat` 40, `envMapIntensity` 0,7. Himmelsverlauf (Canvas 256×128, von oben):
+  0 → `#5d9fd6`, 0,48 → `#bcd9ea`, 0,52 → `#dfe9ec`, 1 → `#3a5560`.
+- **Stufe 0:** Grundfarbe `#0b3440` (gleiche Farbe wie Stufe 1).
+- **Stufe 2:** `waterColor` `0x0e3a46`, `distortionScale` 2,5.
+- Sonne, Dunst, Kamera, alles andere unverändert. Tests, `tsc`, Build grün;
+  Status am Ende wieder `IMPL_DONE`, kurzer Nachtrag im Implementation Summary.
 
-**Strategie**
+## Nacharbeit 2 (Claude-Review 2026-09-29) — Speicherleck nach dem Messmodus
 
-| Seed | Ergebnis | Dauer (s) | T | F | Z | Säulen |
-|---:|---|---:|---:|---:|---:|---:|
-| 1 | sieg | 134.63 | 30.07 | 15.97 | 0 | 1 |
-| 2 | sieg | 135.73 | 30.07 | 16.26 | 0 | 1 |
-| 3 | sieg | 134.97 | 30.07 | 16.42 | 0 | 1 |
-| 4 | sieg | 136.53 | 30.07 | 15.77 | 0 | 1 |
-| 5 | sieg | 137.73 | 30.07 | 17 | 0 | 1 |
-| 6 | sieg | 134.83 | 30.07 | 15.84 | 0 | 1 |
-| 7 | sieg | 134 | 30.07 | 16.68 | 0 | 1 |
-| 8 | sieg | 134.2 | 30.07 | 16.55 | 0 | 1 |
-| 9 | sieg | 134.83 | 30.07 | 15.84 | 0 | 1 |
-| 10 | sieg | 140.27 | 30.07 | 16.05 | 0 | 1 |
-| 11 | sieg | 137.53 | 30.07 | 17.13 | 0 | 1 |
-| 12 | sieg | 133.37 | 30.07 | 17.42 | 0 | 1 |
-| 13 | sieg | 133.67 | 30.07 | 16.22 | 0 | 1 |
-| 14 | sieg | 135.97 | 30.07 | 15.76 | 0 | 1 |
-| 15 | sieg | 133.97 | 30.07 | 17.03 | 0 | 1 |
-| 16 | sieg | 136.8 | 30.07 | 16.9 | 0 | 1 |
-| 17 | sieg | 136.07 | 30.07 | 16.7 | 0 | 1 |
-| 18 | sieg | 136.8 | 30.07 | 16.9 | 0 | 1 |
-| 19 | sieg | 132.73 | 30.07 | 16.14 | 0 | 1 |
-| 20 | sieg | 138.1 | 30.07 | 17.12 | 0 | 1 |
-
-- Spezifikationskonflikt: R1 nennt `y` höchstens 60 und fordert Test-Level
-  mit großem Start-`y`; die Obergrenze ist deshalb der parametrisierte Startwert
-  (Level 1 genau 60). Beim Elite-Boss gilt der explizite Zeitpunkt 60 s aus R1.
-- Nicht durchgeführt: grafische/iPhone-Abnahme und Claude-Review (außerhalb R1).
-  Die Terminal-App war in dieser Umgebung nicht verfügbar; Tests liefen direkt
-  über die Projekt-Shell. Keine Commits oder Pushes.
+Wasserwerte: abgenommen. Befund im Browser mit WebGL-Zählern (Anlegen minus Löschen von
+Texturen, Puffern, Framebuffern, Renderbuffern): Start → Zurück ist über drei Runden
+exakt stabil. **Nach einem vollständigen Messlauf + Zurück bleiben liegen: 1 Textur,
+1 Framebuffer, 1 Renderbuffer, 6 Puffer.** Im Messmodus zeigte der zweite Start
+Geometrien 36 / Texturen 9 statt 35 / 8 (Randbedingung 5 verletzt).
+Ursachen (von Claude im Code gefunden):
+1. `src/v3d/wasserSpiegel.ts` hat **keine eigene `dispose()`-Methode** (A4 verlangt sie).
+   `wasser.ts` ruft `mesh.dispose()` auf, das den Spiegel-Zielpuffer nicht freigibt.
+   → In der Klasse `Water` eine `dispose()` ergänzen: `this.spiegelZiel.dispose()`,
+   `this.geometry.dispose()`, `this.material.dispose()`.
+2. `bricheAb()` in `messung.ts` gibt die Vollast-`InstancedMesh` nicht mit
+   `InstancedMesh.dispose()` frei (Instanz-Matrix-Puffer bleiben). → je Kind
+   `(child as THREE.InstancedMesh).dispose()` zusätzlich zur Geometrie.
+Nach der Korrektur prüft Claude erneut mit den WebGL-Zählern. Tests, `tsc`, Build grün;
+Status am Ende `IMPL_DONE`, kurzer Nachtrag im Implementation Summary.

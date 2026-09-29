@@ -2,6 +2,9 @@ import type Phaser from 'phaser'
 import type * as THREE from 'three'
 import { holeRenderer, entferneRenderer } from './renderer'
 import { baueSzene, gibSzeneFrei } from './szene'
+import { DATEIEN_FEHLER, type Welt } from './szene'
+import { passeKameraAn } from './kamera'
+import { leseWasserStufe } from './wasser'
 import { zeigeOberflaeche, versteckeOberflaeche } from './oberflaeche'
 import { ladeFortschritt } from './speicher'
 import { bricheAb, messBild, messungLaeuft, starteMessung } from './messung'
@@ -15,6 +18,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
   let renderer: THREE.WebGLRenderer | undefined
   let scene: THREE.Scene | undefined
   let camera: THREE.PerspectiveCamera | undefined
+  let welt: Welt | null = null
   let beendet = false
   let letzterFrame = 0
   const canvas = game.canvas
@@ -23,8 +27,8 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     renderer.setSize(innerWidth, innerHeight, false)
     renderer.domElement.style.width = '100%'
     renderer.domElement.style.height = '100%'
-    camera.aspect = innerWidth / innerHeight
-    camera.updateProjectionMatrix()
+    passeKameraAn(camera, innerWidth, innerHeight)
+    if (welt?.wasser.stufe === 2) welt.wasser.wechsle(2)
   }
   const sichtbar = () => {
     if (!renderer || beendet) return
@@ -43,6 +47,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     if (!renderer || !scene || !camera || beendet) return
     const dt = letzterFrame ? Math.max(0, jetzt - letzterFrame) : 0
     letzterFrame = jetzt
+    welt?.wasser.aktualisiere(Math.min(0.1, dt / 1000))
     renderer.render(scene, camera)
     messBild(dt, jetzt)
   }
@@ -50,9 +55,9 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     if (beendet) return
     beendet = true
     try {
-      bricheAb()
+      bricheAb(undefined, false)
       renderer?.setAnimationLoop(null)
-      if (scene) gibSzeneFrei(scene)
+      if (welt) { gibSzeneFrei(welt); welt = null }
       if (renderer) renderer.domElement.style.display = 'none'
       versteckeOberflaeche()
       window.removeEventListener('resize', groesse)
@@ -74,12 +79,18 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     game.loop.sleep()
     canvas.style.visibility = 'hidden'
     renderer = holeRenderer()
-    const welt = baueSzene()
+    const ui = zeigeOberflaeche(() => verlasse(), () => {
+      if (welt && renderer) starteMessung(welt, renderer, game, ui.ergebnisse, ui.messen)
+    }, ladeFortschritt().hoechstesLevel)
+    ui.messen.disabled = true
+    ui.ergebnisse.style.display = 'block'
+    ui.ergebnisse.textContent = 'Lädt …'
+    welt = await baueSzene(renderer, leseWasserStufe(location.search), () => beendet, hinweis => verlasse(hinweis))
+    if (beendet || !welt) return
     scene = welt.scene
     camera = welt.camera
-    const ui = zeigeOberflaeche(() => verlasse(), () => {
-      if (scene && camera && renderer) starteMessung(scene, camera, renderer, game, ui.ergebnisse, ui.messen)
-    }, ladeFortschritt().hoechstesLevel)
+    ui.messen.disabled = false
+    ui.ergebnisse.style.display = 'none'
     if (!dauerhaftAngefragt && navigator.storage?.persist) {
       dauerhaftAngefragt = true
       void navigator.storage.persist().then(gewahrt => {
@@ -97,7 +108,6 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     letzterFrame = 0
     renderer.setAnimationLoop(zeichne)
   } catch (error) {
-    verlasse('3D konnte nicht gestartet werden')
-    throw error
+    verlasse(error instanceof Error && error.message === DATEIEN_FEHLER ? DATEIEN_FEHLER : '3D konnte nicht gestartet werden')
   }
 }
