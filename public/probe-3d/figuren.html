@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Figuren-Schau</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #6f7a86; overflow: hidden; font-family: -apple-system, sans-serif; }
+  canvas { display: block; }
+  #kopf { position: fixed; left: 8px; right: 8px; top: calc(env(safe-area-inset-top) + 8px); color: #fff;
+          background: rgba(0,0,0,.55); border-radius: 10px; padding: 8px 12px; font-size: 15px; line-height: 1.35; }
+  #kopf b { font-size: 18px; }
+  #leiste { position: fixed; left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom) + 10px);
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  button { font: 600 15px -apple-system, sans-serif; padding: 12px 4px; border-radius: 10px; border: 0;
+           background: rgba(0,0,0,.6); color: #fff; }
+  button.an { background: #2f7de1; }
+</style>
+<script type="importmap">{ "imports": { "three": "./three.module.mjs" } }</script>
+</head>
+<body>
+<div id="kopf">Figuren laden …</div>
+<div id="leiste">
+  <button data-t="truppe">Truppe</button><button data-t="zombies">Zombies</button>
+  <button data-t="bosse">Bosse</button><button data-t="spiel">Im Spiel</button>
+</div>
+<script type="module">
+import * as THREE from 'three'
+import { GLTFLoader } from './addons/loaders/GLTFLoader.js'
+import { clone } from './addons/utils/SkeletonUtils.js'
+
+// Reine Ansichtsseite: Thomas soll Truppe und Gegner sehen, bevor etwas festgelegt wird.
+// Alle Modelle: Quaternius "Zombie Apocalypse Kit", CC0.
+const kopf = document.getElementById('kopf')
+const renderer = new THREE.WebGLRenderer({ antialias: true })
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2))
+renderer.setSize(innerWidth, innerHeight)
+document.body.appendChild(renderer.domElement)
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(0x87c6ee)
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 200)
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight) })
+scene.add(new THREE.HemisphereLight(0xffffff, 0x556070, 1.8))
+const sonne = new THREE.DirectionalLight(0xffffff, 2.2); sonne.position.set(-4, 10, 8); scene.add(sonne)
+const boden = new THREE.Mesh(new THREE.PlaneGeometry(7, 80), new THREE.MeshStandardMaterial({ color: 0x3b4450 }))
+boden.rotation.x = -Math.PI / 2; boden.position.z = -20; scene.add(boden)
+const wasser = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: 0x2f6f96 }))
+wasser.rotation.x = -Math.PI / 2; wasser.position.set(0, -0.02, -20); scene.add(wasser)
+
+const laden = f => new GLTFLoader().loadAsync('./modelle/schau_' + f + '.glb')
+const namen = ['Characters_Lis', 'Characters_Sam', 'Characters_Shaun', 'Characters_Matt', 'Zombie_Basic', 'Zombie_Chubby', 'Zombie_Arm', 'Zombie_Ribcage']
+const m = Object.fromEntries(await Promise.all(namen.map(async n => [n, await laden(n)])))
+const WAFFEN = ['Axe', 'Guitar', 'Knife', 'Pistol', 'Rifle', 'Shotgun', 'SMG', 'Spear', 'WoodenBat_Barbed', 'WoodenBat_Saw']
+
+const mixer = []
+let gruppe = new THREE.Group(); scene.add(gruppe)
+function figur(name, clipName, waffe, groesse = 1, farbe) {
+  const g = m[name], o = clone(g.scene)
+  o.traverse(k => {
+    if (WAFFEN.includes(k.name)) k.visible = k.name === waffe
+    if (k.isMesh) { k.material = k.material.clone(); k.material.side = THREE.FrontSide; if (farbe) k.material.color.set(farbe) }
+  })
+  // Die Modelle sind ab Werk etwa gleich gross (1,0 bis 1,6 Einheiten, im Browser gemessen).
+  o.scale.setScalar(groesse); o.userData.hoehe = 1.6 * groesse
+  const mx = new THREE.AnimationMixer(o)
+  const clip = g.animations.find(a => a.name === clipName) ?? g.animations[0]
+  mx.clipAction(clip).play(); mx.setTime(Math.random() * clip.duration); mixer.push(mx)
+  return o
+}
+function schild(text, y) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 64
+  const g = c.getContext('2d'); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(0, 0, 256, 64)
+  g.fillStyle = '#fff'; g.font = 'bold 40px -apple-system, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 128, 34)
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false })); s.scale.set(0.8, 0.2, 1); s.position.y = y; return s
+}
+let drehen = true
+// Hochformat: vier Figuren als 2x2-Raster (vorn zwei, dahinter zwei), zwei als Paar.
+const RASTER = { 4: [[-0.85, 1.2], [0.85, 1.2], [-0.85, -1.6], [0.85, -1.6]], 2: [[-1.2, 1.2], [0.7, -1.2]] }
+function reihe(eintraege) {
+  eintraege.forEach((e, i) => {
+    const [x, z] = RASTER[eintraege.length][i]
+    const halter = new THREE.Group(); halter.position.set(x, 0, z)
+    const f = figur(e.name, e.clip, e.waffe, e.groesse, e.farbe); f.userData.dreh = true; halter.add(f)
+    halter.add(schild(e.label, f.userData.hoehe + 0.25)); gruppe.add(halter)
+  })
+}
+
+function setzeKamera(fov, pos, ziel) {
+  camera.fov = fov; camera.updateProjectionMatrix(); camera.position.set(...pos); camera.lookAt(...ziel)
+}
+const ANSICHTEN = {
+  truppe() {
+    setzeKamera(40, [0, 3.4, 10.5], [0, 0.7, -0.4])
+    reihe([
+      { name: 'Characters_Lis', clip: 'Idle_Gun', waffe: 'Pistol', label: 'A · Pistole' },
+      { name: 'Characters_Sam', clip: 'Idle_Gun', waffe: 'SMG', label: 'B · MP' },
+      { name: 'Characters_Shaun', clip: 'Idle_Gun', waffe: 'Rifle', label: 'C · Gewehr' },
+      { name: 'Characters_Matt', clip: 'Idle_Gun', waffe: 'Shotgun', label: 'D · Schrot' },
+    ])
+    return '<b>Eigene Truppe</b> – vier Überlebende, jede mit einer Stufe der Waffenkisten (Pistole → MP → Gewehr → Schrotflinte). Figuren drehen sich langsam.'
+  },
+  zombies() {
+    setzeKamera(40, [0, 3.4, 10.5], [0, 0.7, -0.4])
+    reihe([
+      { name: 'Zombie_Basic', clip: 'Walk', label: 'A · Normal' },
+      { name: 'Zombie_Chubby', clip: 'Walk', label: 'B · Dick' },
+      { name: 'Zombie_Arm', clip: 'Walk', label: 'C · Einarm' },
+      { name: 'Zombie_Ribcage', clip: 'Walk', label: 'D · Skelett' },
+    ])
+    return '<b>Zombies</b> – die vier Typen aus dem Paket, laufend. Die Horde kann sie gemischt zeigen.'
+  },
+  bosse() {
+    setzeKamera(40, [0, 2.6, 12], [0, 1.9, 0])
+    reihe([
+      { name: 'Zombie_Arm', clip: 'Punch', groesse: 1.3, label: 'Mini-Boss' },
+      { name: 'Zombie_Chubby', clip: 'Idle_Attack', groesse: 2.2, farbe: 0xc26a6a, label: 'Endboss' },
+    ])
+    return '<b>Bosse</b> – Vorschläge: Mini-Boss = Einarm-Zombie in groß; Endboss = dicker Zombie, riesig und rot getönt. Ein echter Elite-Boss mit Rüstung müsste aus einem weiteren kostenlosen Paket kommen.'
+  },
+  spiel() {
+    drehen = false
+    setzeKamera(50, [0, 9, 10], [0, 0, -12])
+    const typen = ['Zombie_Basic', 'Zombie_Chubby', 'Zombie_Arm', 'Zombie_Ribcage']
+    for (let i = 0; i < 140; i++) {
+      const z = figur(typen[i % 4 === 3 ? (i % 3) + 1 : 0], 'Walk', null, 0.47)
+      z.position.set(-3 + (i % 14) * 0.46, 0, -8 - Math.floor(i / 14) * 0.5); gruppe.add(z)
+    }
+    for (let i = 0; i < 24; i++) {
+      const s = figur('Characters_Matt', 'Run_Gun', 'Rifle', 0.47); s.rotation.y = Math.PI
+      s.position.set(-1.5 + (i % 6) * 0.6, 0, 1.8 - Math.floor(i / 6) * 0.6); gruppe.add(s)
+    }
+    const boss = figur('Zombie_Chubby', 'Idle_Attack', null, 1.6, 0xc26a6a); boss.position.set(0, 0, -15); gruppe.add(boss)
+    return '<b>Im Spiel</b> – Blick aus der Spielkamera, Größe wie im Spiel. Nur zur Ansicht, Leistung hier nicht aussagekräftig.'
+  },
+}
+function zeige(t) {
+  scene.remove(gruppe); gruppe = new THREE.Group(); scene.add(gruppe); mixer.length = 0; drehen = true
+  kopf.innerHTML = ANSICHTEN[t]()
+  document.querySelectorAll('button').forEach(b => b.classList.toggle('an', b.dataset.t === t))
+}
+document.querySelectorAll('button').forEach(b => b.addEventListener('click', () => zeige(b.dataset.t)))
+zeige('truppe')
+
+let letzte = performance.now()
+renderer.setAnimationLoop(() => {
+  const jetzt = performance.now(), dt = (jetzt - letzte) / 1000; letzte = jetzt
+  mixer.forEach(x => x.update(dt))
+  if (drehen) gruppe.traverse(o => { if (o.userData.dreh) o.rotation.y += dt * 0.5 })
+  renderer.render(scene, camera)
+})
+</script>
+</body>
+</html>
