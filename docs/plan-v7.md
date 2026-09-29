@@ -77,6 +77,7 @@ absichtlich geschwärzten Figuren gegengeprüft (82 % statt 0 %).
 | Spezialeinheiten | Panzer (walzt eine Schneise), Haubitze (Flächenschlag), Hubschrauber (kreist und feuert, v. a. gegen Bosse), Humvee mit MG (fährt mit, länger, schwächer). Modelle: Sketchfab CC-BY (Abrams, Panzerhaubitze 2000, Apache/Hind, Humvee) — Auswahl vor D5 mit Thomas |
 | Ende | Mini-Bosse unterwegs, am Ende Elite-Endboss |
 | Umfang | Mehrere Level mit steigender Schwierigkeit |
+| **Mechanik neu (Thomas 2026-09-29, nach D3)** | Die Truppe `T` ist ein **Vorrat**: **Links** +1 sammeln — kein Aussenden, kein Schießen. **Mitte** — die Truppe strömt als **Welle** los (Aussenden zieht von `T` ab), durch die ×2-Wand zur Front; geschossen wird erst **hinter der Wand**. **Rechts** — die Truppe **schießt vom Platz auf die Säule** (Zähler sinkt, abhängig von `T`), kein Aussenden, keine Soldaten verbraucht, kostet nur Zeit. Die ×2-Wand bleibt (Claude: Welle 40 → 80 ist der Belohnungsmoment) und wächst im Lauf (B). Vorab-Simulation (Claude): nur-abziehen-ohne-Sperre wäre sinnlos (dauernd links bleiben gewinnt); mit Sperre gewinnt der Rhythmus sammeln→senden 17/20 bei ~8/s Sammeln und ~8/s Senden, passiv und nur-links verlieren |
 | Straße (nach D2a) | Drei Streifen mit niedriger Betonkante ab der ×2-Wand: links +1, Mitte Kampffeld (Horde nur hier), rechts Säulen. ×2-Wand nur über die Mitte. **Vervielfacher wächst im Lauf (Thomas 2026-09-29, Variante B):** die Wand zählt die durchlaufenden Soldaten und steigt stufenweise (Richtwert alle 100 Soldaten +1) bis zu einer Obergrenze; Stufe und Obergrenze kalibriert Claude in R2 mit den Bots |
 | Größen (nach D2a) | Zombies 1,5× (≈ 1,95 m), +1-Schilder und ×2-Wand 2×. **Eigene Soldaten mindestens so groß wie die Zombies** — auch wenn die Horde nach vorne kommt, wirken Zombies nie größer als die Truppe |
 
@@ -206,8 +207,8 @@ Test: Summe der Ereignisse = Änderung der Zähler, in jedem Schritt.
 
 Jeder Schritt ist **eine** Spec in `docs/active-task.md`, **ein** Codex-Lauf im Terminal,
 Review durch Claude, ein Commit, Desktop-Vorprüfung, dann **ein** iPhone-Foto von Thomas.
-Erst danach der nächste Schritt. **Reihenfolge:** D0 → R1 → D1 → D2a → D2b → D2c → D3 →
-D4 → R2 → D5a → D5b → D5c → D6 → D7 → D8. R1 ist harte Voraussetzung für D3. Gamefeel gilt erst nach Thomas' Test am iPhone.
+Erst danach der nächste Schritt. **Reihenfolge (ab 2026-09-29):** D0 → R1 → D1 → D2a → D2b → D2c → D3 →
+R2 → D3-Anpassung → D4 → D5a → D5b → D5c → D6 → D7 → D8. R1 ist harte Voraussetzung für D3. Gamefeel gilt erst nach Thomas' Test am iPhone.
 
 **D0 — Fundament.** npm `three`; `src/v3d/` mit Einstieg; Menüknopf "RUN GUN 3D" statt
 "RUN GUN V2"; Nachladen mit Fehlerbild; Phaser schlafen/wecken; einmaliger Renderer;
@@ -264,7 +265,7 @@ in der Mitte nicht.
 Mini-Bosse, Front nach dem Rechenkern, Mündungsfeuer und fallende Zombies an der Front.
 Nachweise: Ereignisprotokoll-Invariante im laufenden Spiel; Bildvergleich; Thomas-Test.
 
-**R2 — Rechenkern Spezialeinheiten.** Die vier Einheiten nach der Tabelle im Rechenkern,
+**R2 — Rechenkern neue Mechanik + Spezialeinheiten (vorgezogen vor D4, Thomas 2026-09-29).** Vorrat-Mechanik (Zeile "Mechanik neu"), Säule per Beschuss von rechts, Vervielfacher wächst (B), dann die Spezialeinheiten; Bots neu (passiv, nur-links, Rhythmus, Rhythmus+Säule) und Kalibrierung durch Claude; danach D3-Darstellung anpassen (Welle statt Strom, Schuss auf Säule). Ursprünglicher Text:  Die vier Einheiten nach der Tabelle im Rechenkern,
 Bot-Test mit und ohne Einheit (Differenz gleich der Tabelle ±5 %).
 
 **D5a — Säulen.** Säulen mit Zähler, Abbau durch Hinsteuern. **Vorher:** Claude legt die
