@@ -1471,3 +1471,24 @@ heraus und liefern immer Feldkoordinaten.
 **Prueffrage nach jedem Eingriff an Puffer oder Kamera:** Einmal links, einmal
 mittig, einmal rechts tippen und nachsehen, wo die Figur landet. Das faengt den
 Fehler in dreissig Sekunden.
+
+## 2026-09-29 — Nach langen Werkzeugketten in die falsche Sprache gekippt
+
+**Befund:** Thomas: "bitte alles auf deutsh". Nach vielen Tool-Aufrufen (Probe bauen,
+testen, deployen) kamen Zwischenmeldungen und die Hauptantwort auf Englisch.
+
+**Regel:** Vor jeder Antwort an Thomas pruefen: Ist der Text Deutsch mit Umlauten?
+Gilt besonders fuer kurze Zwischenmeldungen zwischen Tool-Aufrufen.
+
+## 2026-09-29 — Schwarze Figuren am iPhone waren voller Grafikspeicher
+
+**Befund:** In drei Messseiten waren die Zombies am iPhone schwarz, am Mac bemalt. Drei
+Verdachte (Oberfläche, Schärfe-Umschaltung, Instanzen/Materialwechsel) lagen daneben und
+kosteten Thomas je einen Testlauf. Erst sein Satz "startet hell, wird dunkel, dann stürzt
+die Seite ab" zeigte die Ursache: 62 Bemalungen à 1024 px plus Zusatzkarten, geschätzt
+über 300 MB Grafikspeicher. Safari wirft dann Bemalungen hinaus und beendet die Seite.
+
+**Regel:** Bei 3D im Browser am iPhone zuerst den Grafikspeicher schätzen (Breite × Höhe ×
+4 × 4/3 je gezeichneter Bemalung) und unter 60 MB halten. Messseiten prüfen das Ergebnis
+selbst (Bildpunkte auslesen, Schwarz-Anteil), statt Thomas für jeden Verdacht draufschauen
+zu lassen — und diese Prüfung vorher mit absichtlich falschem Bild gegenprüfen.
