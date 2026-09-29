@@ -13,8 +13,8 @@ am 2026-09-29 entschieden: **V2 wird in 3D neu gebaut** — mit Three.js (kosten
 
 ## Machbarkeit — am iPhone gemessen (2026-09-29, Thomas' Gerät, 390×659, Schärfe 2×)
 
-Alle Testseiten liegen unter `public/probe-3d/` und sind online
-(`https://thmshn75.github.io/run-gun/probe-3d/…`). Sie bleiben als Referenz, bis D2 abgenommen ist.
+Alle Testseiten liegen seit D2c unter `archiv/probe-3d/` (nicht mehr online, D2 abgenommen
+2026-09-29: Worst Case 600 Zombies + 120 Soldaten + 2 Bosse + Wasser 55,2–55,8 fps / 24–25 ms, Dauertest 3 min bestanden).
 
 | Testseite | Ergebnis |
 |---|---|

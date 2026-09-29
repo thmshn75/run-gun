@@ -32,5 +32,6 @@ describe.skipIf(!existsSync(join(dist, 'sw.js')))('3D-Build', () => {
     expect(alle3d.reduce((summe, name) => summe + statSync(join(dist, 'assets', name)).size, 0)).toBeLessThanOrEqual(25 * 1048576)
     for (const name of dateien) expect(readFileSync(join(dist, 'assets', name), 'utf8')).not.toContain('data:image/webp')
     expect(urls.some(url => url.includes('probe-3d'))).toBe(false)
+    expect(existsSync(join(dist, 'probe-3d'))).toBe(false) // seit D2c archiviert, nicht mehr ausgeliefert
   })
 })
