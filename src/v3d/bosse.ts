@@ -71,7 +71,15 @@ export function baueBoss(art:BossArt,gltf:GLTF):Boss{
   return {objekt,breite,spiele(name){const next=clips.find(c=>c.name.split('|').at(-1)===name);if(!next)throw new Error(`${art}: Bewegung ${name} fehlt`);mixer.stopAllAction();mixer.clipAction(next).reset().play()},aktualisiere(dtS){mixer.update(Math.max(0,dtS))},gibFrei(){mixer.stopAllAction();mixer.uncacheRoot(objekt);entsorgeBossGLTF(gltf)}}
 }
 
-export function bossFreieAufstellung(anzahl:number,startZ:number,radius:number,seed=73291):ZombieEintrag[]{
+export function bossFreieAufstellung(anzahl:number,startZ:number,radius:number,seed=73291,lochZ=-36,vonVorn=false):ZombieEintrag[]{
+  if (vonVorn) {
+    if (anzahl <= 0) return []
+    const platz=zombieAufstellung(FIGUREN.ZOMBIES_SICHTBAR_MAX+80,0,seed)
+    const rest=platz.slice(-anzahl-20)
+    const vorderkante=Math.max(...rest.map(e=>e.z))
+    return rest.map(e=>({...e,z:e.z-vorderkante+startZ}))
+      .filter(e=>Math.hypot(e.x,e.z-lochZ)>=radius).slice(0,anzahl)
+  }
   const platz=zombieAufstellung(anzahl+100,startZ,seed)
-  return platz.filter(e=>Math.hypot(e.x,e.z+36)>=radius).slice(0,anzahl)
+  return platz.filter(e=>Math.hypot(e.x,e.z-lochZ)>=radius).slice(0,anzahl)
 }

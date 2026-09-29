@@ -21,6 +21,7 @@ let reloading = false
 let registration: ServiceWorkerRegistration | undefined
 
 const reloadForUpdate = () => {
+  if (window.__rg3dAktiv === true) { pendingReload = true; return }
   reloading = true
   location.reload()
 }
@@ -34,6 +35,10 @@ navigator.serviceWorker?.addEventListener('controllerchange', () => {
   }
 
   pendingReload = true
+})
+
+window.addEventListener('rg3dverlassen', () => {
+  if (pendingReload && !reloading) reloadForUpdate()
 })
 
 document.addEventListener('visibilitychange', () => {

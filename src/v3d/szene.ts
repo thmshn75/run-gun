@@ -4,11 +4,11 @@ import normalenUrl from './bilder/v3d-wasser-normalen.webp?url'
 import { BUEHNE, FIGUREN } from './balance3d'
 import { baueKamera } from './kamera'
 import { ladeZombie, ZombieMasse, type ZombieBau } from './figuren'
-import { ladeSoldatenDateien, fertigeSoldaten, entsorgeGLTF, SoldatenMasse, truppenAufstellung, laufenderTrupp, type SoldatenBau } from './soldaten'
+import { ladeSoldatenDateien, fertigeSoldaten, entsorgeGLTF, SoldatenMasse, type SoldatenBau } from './soldaten'
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js'
 import { baueSchild, gibSchilderFrei } from './schilder'
 import { baueWasser, type WasserHalter, type WasserStufe } from './wasser'
-import { baueBoss, bossFreieAufstellung, entsorgeBossGLTF, ladeBossDateien, type Boss } from './bosse'
+import { baueBoss, entsorgeBossGLTF, ladeBossDateien, type Boss } from './bosse'
 
 export const DATEIEN_FEHLER = '3D-Dateien nicht ladbar – App neu öffnen'
 export interface Welt {
@@ -23,20 +23,14 @@ export interface Welt {
   soldatBau: SoldatenBau
   truppe: SoldatenMasse
   laufTrupp: SoldatenMasse
+  front: SoldatenMasse
+  laufGruppen: THREE.Object3D[]
+  plusSchilder: THREE.Object3D[]
+  wand: THREE.Object3D
+  saeule: THREE.Object3D
+  saeulenInnen: THREE.Object3D
   miniboss: Boss
   eliteboss: Boss
-}
-
-function textBild(text: string, farbe: string): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = 256
-  const ctx = canvas.getContext('2d')!
-  ctx.fillStyle = farbe; ctx.fillRect(0, 0, 256, 256)
-  ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-  ctx.font = 'bold 112px system-ui'; ctx.fillText(text, 128, 130)
-  const textur = new THREE.CanvasTexture(canvas)
-  textur.colorSpace = THREE.SRGBColorSpace
-  return textur
 }
 
 function box(gruppe: THREE.Group | THREE.Scene, name: string, groesse: [number, number, number], pos: [number, number, number], farbe: string, layer = 0): THREE.Mesh {
@@ -48,16 +42,17 @@ function box(gruppe: THREE.Group | THREE.Scene, name: string, groesse: [number, 
   return mesh
 }
 
-function platzhalter(scene: THREE.Scene): void {
+function platzhalter(scene: THREE.Scene) {
   const gruppe = new THREE.Group()
   gruppe.name = 'platzhalter'
   gruppe.visible = new URLSearchParams(location.search).get('platzhalter') !== '0'
   scene.add(gruppe)
   const wand = baueSchild({ breite: 2 * BUEHNE.MITTE_HALB, hoehe: BUEHNE.WAND_HOEHE, text: '×2', farbe: BUEHNE.WAND_FARBE })
   wand.name = 'vervielfacher'; wand.position.z = -5; gruppe.add(wand)
+  const plusSchilder: THREE.Object3D[] = []
   for (let z = 6; z >= -60; z -= BUEHNE.PLUS_ABSTAND) {
     const plus = baueSchild({ breite: BUEHNE.PLUS_BREITE, hoehe: BUEHNE.PLUS_HOEHE, text: '+1', farbe: '#168bd2', unterkante: 0.5, neigungGrad: -10, pfosten: false })
-    plus.name = 'plus-eins'; plus.position.set(BUEHNE.PLUS_X, 0, z); gruppe.add(plus)
+    plus.name = 'plus-eins'; plus.position.set(BUEHNE.PLUS_X, 0, z); gruppe.add(plus); plusSchilder.push(plus)
   }
   const innen = box(gruppe, 'spezialeinheit-platzhalter', [1, 0.6, 1.2], [BUEHNE.SAEULE_X, 0.3, -12], '#244a32')
   innen.renderOrder = 1
@@ -74,8 +69,9 @@ function platzhalter(scene: THREE.Scene): void {
     for (const x of [-0.8, 0.8])
       box(rahmen, 'saeule-kante', [0.06, 0.06, 1.6], [BUEHNE.SAEULE_X + x, y, -12], '#e5f6fa').renderOrder = 3
   }
-  const saeulenZahl = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.7), new THREE.MeshBasicMaterial({ map: textBild('150', '#777c82'), side: THREE.DoubleSide }))
-  saeulenZahl.name = 'saeule-zahl'; saeulenZahl.position.set(BUEHNE.SAEULE_X, 3.4, -11.18); saeulenZahl.renderOrder = 4; gruppe.add(saeulenZahl)
+  const saeule = new THREE.Group(); saeule.name = 'saeule-gesamt'; gruppe.add(saeule)
+  for (const obj of [innen, glas, rahmen]) saeule.attach(obj)
+  return { gruppe, wand, plusSchilder, saeule, saeulenInnen: innen }
 }
 
 export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStufe, abgebrochen: () => boolean, beiLadeFehler: (hinweis: string) => void): Promise<Welt | null> {
@@ -145,21 +141,22 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
     // Der Boden des Damms schließt die Seiten bis y = -0,6.
     const damm = new THREE.Mesh(new THREE.PlaneGeometry(12, 240), beton)
     damm.rotation.x = Math.PI / 2; damm.position.set(0, -0.6, -100); damm.name = 'damm-unterseite'; scene.add(damm)
-    platzhalter(scene)
+    const platz = platzhalter(scene)
     const nahWert = new URLSearchParams(location.search).get('nahaufnahme')
     const nahaufnahme = nahWert === '1' || nahWert === 'soldat'
     const soldatNahaufnahme = nahWert === 'soldat'
-    const buehnenAnzahl = FIGUREN.ZOMBIES_BUEHNE
+    const buehnenAnzahl = FIGUREN.ZOMBIES_SICHTBAR_MAX
     const zombieMasse = new ZombieMasse(zombieBau, zombieBau.materialien, buehnenAnzahl)
-    zombieMasse.setze(nahWert === '1' ? [-0.85, 0, 0.85].map((x, i) => ({ x, z: 0, dreh: 0, variante: i, groesse: 1 })) : bossFreieAufstellung(buehnenAnzahl, -35, FIGUREN.MINIBOSS_FREIRADIUS))
+    zombieMasse.setze(nahWert === '1' ? [-0.85, 0, 0.85].map((x, i) => ({ x, z: 0, dreh: 0, variante: i, groesse: 1 })) : [])
     scene.add(zombieMasse.gruppe)
     bosse[0].objekt.position.z=-36;bosse[1].objekt.position.z=-66
     scene.add(bosse[0].objekt,bosse[1].objekt)
     const truppe=new SoldatenMasse(soldatBau)
     const laufTrupp=new SoldatenMasse(soldatBau)
-    truppe.setze(soldatNahaufnahme ? [-1.5,-.5,.5,1.5].map((x,i)=>({x,z:0,dreh:0,bewegung:(['laufen','stehen','schiessen','fallen'] as const)[i]})) : truppenAufstellung())
-    laufTrupp.setze(soldatNahaufnahme?[]:laufenderTrupp())
-    scene.add(truppe.gruppe,laufTrupp.gruppe)
+    const front=new SoldatenMasse(soldatBau)
+    truppe.setze(soldatNahaufnahme ? [-1.5,-.5,.5,1.5].map((x,i)=>({x,z:0,dreh:0,bewegung:(['laufen','stehen','schiessen','fallen'] as const)[i]})) : [])
+    laufTrupp.setze([])
+    scene.add(truppe.gruppe,laufTrupp.gruppe,front.gruppe)
     if (nahaufnahme) {
       bosse.forEach(b=>{b.objekt.visible=false})
       scene.background = new THREE.Color('#777c7e'); scene.fog = null
@@ -169,7 +166,7 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
     const wasser = baueWasser(scene, renderer, normalen, stufe)
     if (nahaufnahme) scene.children.filter(o => o instanceof THREE.Mesh).forEach(o => { o.visible = false })
     geladenesZombieBau = null
-    return { scene, camera, bemalungen: [strasse, normalen], wasser, zombieBau, zombieMasse, nahaufnahme, soldatNahaufnahme, soldatBau, truppe, laufTrupp,miniboss:bosse[0],eliteboss:bosse[1] }
+    return { scene, camera, bemalungen: [strasse, normalen], wasser, zombieBau, zombieMasse, nahaufnahme, soldatNahaufnahme, soldatBau, truppe, laufTrupp,front,miniboss:bosse[0],eliteboss:bosse[1], laufGruppen:[truppe.gruppe,laufTrupp.gruppe,front.gruppe,zombieMasse.gruppe,bosse[0].objekt,bosse[1].objekt,platz.gruppe], plusSchilder:platz.plusSchilder,wand:platz.wand,saeule:platz.saeule,saeulenInnen:platz.saeulenInnen }
   } catch {
     geladen.forEach(t => t.dispose())
     freigabeZombie()
@@ -190,6 +187,7 @@ export function gibSzeneFrei(welt: Welt): void {
   welt.wasser.gibFrei()
   welt.zombieMasse.gibFrei()
   welt.laufTrupp.gibNetzeFrei()
+  welt.front.gibNetzeFrei()
   welt.truppe.gibFrei()
   welt.miniboss.gibFrei();welt.eliteboss.gibFrei()
   welt.scene.remove(welt.zombieMasse.gruppe)

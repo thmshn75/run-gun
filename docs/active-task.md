@@ -1,6 +1,6 @@
 # Aktive Aufgabe
 
-Status: ENTWURF (noch nicht an Codex — Thomas 2026-09-29)
+Status: APPROVED
 
 ## Aufgabe: D3 — Steuerung, Aussenden, linker Rand (Run Gun 3D)
 
@@ -194,6 +194,16 @@ solange der Kern `eingesammelt` meldet; Tempo wechselt in 0,25 s linear zwischen
 Kampf-Darstellung (Schießen, Treffer, Umfallen, Mündungsfeuer), Vorrücken der Bosse mit
 Angriff, Spezialeinheiten, Vervielfacher-Wachstum (R2), mehrere Level, Klang.
 
+## Fortsetzung (Claude 2026-09-29 20:48)
+
+Der erste Lauf brach nach ~6 min am Codex-Kontingent ab. Im Arbeitsverzeichnis liegt ein
+**unfertiger Zwischenstand** (u. a. `lauf.ts`, `steuerung.ts`, `anzeigen.ts`, Tests,
+Änderungen an `main.ts`, `einstieg.ts`, `szene.ts`, `messung.ts`). Zuerst `git diff` und
+neue Dateien lesen, den Stand gegen die Spec (H1–H10, A1–A6) prüfen, dann **fertigstellen**
+— nicht verwerfen, nicht doppelt anlegen. Volle Suite, `tsc`, Build.
+
 ## Implementation Summary
 
-(Codex füllt aus.)
+- D3-Lauf mit Kernschritten, Fingersteuerung, Formations-, Trupp-, Front- und Hordenansicht, Zahlen, +1-Schilderring, Säule und Ende-Tafel umgesetzt. H1–H10 einschließlich Pausen, Messung mit 60-s-Strategie-Bot und aufgeschobenem Service-Worker-Neuladen berücksichtigt; `rechnung.ts` und `LEVELS` unverändert.
+- Nachweise: `npm test` 62 Dateien/530 Tests grün; `npm run check` und `npm run build` grün; `git diff --check` sauber; kein `http` in `src/v3d/`. Hauptbündel 1.467.937 → 1.468.039 Byte (+102, Grenze ±200).
+- Offen für Abnahme: Browser/WebGL-Zähler beim Zweitstart und nach NOCHMAL sowie iPhone-Steuergefühl und 60-s-Bot-Messbudget. Die verfügbare Browseroberfläche verweigerte den Zugriff; ein iPhone ist in dieser Session nicht erreichbar. Kein Commit/Push (Projektregel).

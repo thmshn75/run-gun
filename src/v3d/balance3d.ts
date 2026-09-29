@@ -85,3 +85,8 @@ export const FIGUREN = {
   ZOMBIE_X_MIN: -(BUEHNE.MITTE_HALB - 0.35), ZOMBIE_X_MAX: BUEHNE.MITTE_HALB - 0.35,
   ZOMBIE_SPALTENABSTAND: 0.63, ZOMBIE_REIHENABSTAND: 0.83, ZOMBIE_ZUFALLSVERSATZ: 0.12,
 } as const
+
+// Aus src/style.css (env(safe-area-inset-*), touch-action: none) und
+// src/systems/safeArea.ts (CSS-Pixel); die Randgeste braucht 24 pt Reserve.
+export const STEUERUNG = { RANDRESERVE_PT: 24, MIN_X: -3, MAX_X: 3, MAX_M_PRO_S: 8 } as const
+export const DARSTELLUNG = { FORMATION_MAX: 30, TRUPPS_MAX: 50, FRONT_MAX: 40, HORDE_MAX: 600, SCHILDER_TEMPO_LANGSAM: 2, SCHILDER_TEMPO_SCHNELL: 8 } as const

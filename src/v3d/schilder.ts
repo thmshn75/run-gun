@@ -86,6 +86,14 @@ export function baueSchild(daten: SchildDaten): THREE.Group {
   return gruppe
 }
 
+export function setzeSchildText(schild: THREE.Object3D, daten: SchildDaten): void {
+  const front = schild.getObjectByName('schild-vorderseite')
+  if (!(front instanceof THREE.Mesh)) return
+  const material = front.material as THREE.MeshBasicMaterial
+  const neu = bemalung(daten)
+  if (material.map !== neu) { material.map = neu; material.needsUpdate = true }
+}
+
 export function gibSchilderFrei(): void {
   for (const textur of bemalungen.values()) textur.dispose()
   bemalungen.clear()

@@ -7,12 +7,15 @@ import { FIGUREN } from './balance3d'
 import { bossFreieAufstellung } from './bosse'
 import type { Welt } from './szene'
 import type { WasserStufe } from './wasser'
+import { neuerLauf, schritt } from './rechnung'
+import { LEVELS } from './balance3d'
 
 export const MESSSTUFEN = [
   {name:'Vollast ohne Bosse',dauer:30000,mini:false,elite:false},
   {name:'Vollast + Mini-Boss',dauer:30000,mini:true,elite:false},
   {name:'Vollast + beide Bosse',dauer:30000,mini:true,elite:true},
   ...[1,2,3].map(minute=>({name:`Dauertest 3 min · Minute ${minute}`,dauer:60000,mini:true,elite:true})),
+  {name:'Lauf (Bot)',dauer:60000,mini:true,elite:true},
 ] as const
 
 type Phase = 'warm' | 'messen' | 'umbau'
@@ -32,8 +35,10 @@ interface Lauf {
   messpunktZ: number
   vollast: ZombieMasse
   soldaten: SoldatenMasse
-  verborgenePlatzhalter: THREE.Object3D[]
+  sichtbarkeiten: Map<THREE.Object3D, boolean>
   bossSichtbar: [boolean,boolean]
+  bot: ReturnType<typeof neuerLauf>
+  botErsteSaeule: boolean
 }
 let lauf: Lauf | null = null
 
@@ -87,21 +92,17 @@ export function starteMessung(welt: Welt, renderer: THREE.WebGLRenderer, game: P
   const liste:SoldatEintrag[]=Array.from({length:FIGUREN.SOLDATEN_SICHTBAR_MAX},(_,i)=>({x:(i%10-4.5)*.6,z:Math.floor(i/10)*.6,dreh:0,bewegung:'laufen'}))
   soldaten.setze(liste)
   welt.scene.add(vollast.gruppe, soldaten.gruppe)
-  const verborgenePlatzhalter: THREE.Object3D[] = []
-  welt.scene.traverse(obj => {
-    if (obj === welt.zombieMasse.gruppe || obj === welt.truppe.gruppe || obj === welt.laufTrupp.gruppe) {
-      if (obj.visible) verborgenePlatzhalter.push(obj)
-      obj.visible = false
-    }
-  })
+  const sichtbarkeiten = new Map(welt.laufGruppen.map(obj => [obj, obj.visible]))
+  welt.laufGruppen.forEach(obj => { obj.visible = false })
   const original = welt.wasser.stufe
   const bossSichtbar:[boolean,boolean]=[welt.miniboss.objekt.visible,welt.eliteboss.objekt.visible]
   welt.miniboss.objekt.visible=false;welt.eliteboss.objekt.visible=false
   welt.wasser.wechsle(1)
-  lauf = { welt, renderer, game, anzeige, knopf, original, stufe: 0, phase: 'warm', zeit: 0, bilder: [], ergebnisse: [], schwarz: null, messpunktZ, vollast, soldaten, verborgenePlatzhalter,bossSichtbar }
+  lauf = { welt, renderer, game, anzeige, knopf, original, stufe: 0, phase: 'warm', zeit: 0, bilder: [], ergebnisse: [], schwarz: null, messpunktZ, vollast, soldaten, sichtbarkeiten,bossSichtbar,bot:neuerLauf(LEVELS[0],12345),botErsteSaeule:false }
   knopf.disabled = true
   anzeige.style.display = 'block'
   anzeige.style.overflowY='auto'
+  anzeige.style.pointerEvents='none'
   anzeige.textContent = 'Aufwärmen · Wasser 1 · 5 s'
 }
 
@@ -110,6 +111,13 @@ export function messBild(dt: number, jetzt: number): void {
   if (!l) return
   l.soldaten.aktualisiere(jetzt)
   l.vollast.aktualisiere(jetzt)
+  if (l.phase === 'messen' && MESSSTUFEN[l.stufe].name === 'Lauf (Bot)' && l.bot.ergebnis === 'laeuft') {
+    const x = l.bot.T < 30 ? -1 : l.botErsteSaeule ? 0 : 1
+    if (Number.isFinite(dt) && dt > 0) {
+      const events = schritt(l.bot,{x},Math.min(.1,dt/1000))
+      if (events.some(e=>e.art==='einheitFrei')) l.botErsteSaeule=true
+    }
+  }
   // Der Aufrufer zeichnet unmittelbar vor dieser Funktion: Probe am Ende jeder Stufe/Minute.
   if (l.phase === 'messen' && l.schwarz === null && l.zeit >= MESSSTUFEN[l.stufe].dauer-1000) l.schwarz = schwarzAnteil(l)
   l.zeit += Math.max(0, dt)
@@ -143,10 +151,11 @@ export function bricheAb(grund?: string, wiederherstellen = true): void {
   l.welt.scene.remove(l.vollast.gruppe, l.soldaten.gruppe)
   l.vollast.gibNetzeFrei()
   l.soldaten.gibNetzeFrei()
-  l.verborgenePlatzhalter.forEach(obj => { obj.visible = true })
+  l.sichtbarkeiten.forEach((sichtbar,obj) => { obj.visible = sichtbar })
   l.welt.miniboss.objekt.visible=l.bossSichtbar[0];l.welt.eliteboss.objekt.visible=l.bossSichtbar[1]
   if (wiederherstellen) l.welt.wasser.wechsle(l.original)
   l.knopf.disabled = false
+  l.anzeige.style.pointerEvents='none'
   if (grund) { l.anzeige.style.display = 'block'; l.anzeige.textContent = grund }
 }
 

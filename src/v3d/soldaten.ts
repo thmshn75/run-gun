@@ -5,7 +5,7 @@ import bewegungUrl from './modelle/v3d-bewegung.glb?url'
 import { FIGUREN } from './balance3d'
 
 export type SoldatenBewegung = 'laufen' | 'stehen' | 'schiessen' | 'fallen'
-export interface SoldatEintrag { x: number; z: number; dreh: number; bewegung: SoldatenBewegung }
+export interface SoldatEintrag { x: number; z: number; dreh: number; bewegung: SoldatenBewegung; phase?: number }
 export interface SoldatenBau {
   formen: Record<SoldatenBewegung, THREE.BufferGeometry[]>
   material: THREE.MeshStandardMaterial
@@ -222,7 +222,7 @@ export class SoldatenMasse {
   }
   setze(liste:SoldatEintrag[]):void{
     const zaehler=new Map<THREE.InstancedMesh,number>(),dummy=new THREE.Object3D(),fallen=new Set<number>()
-    liste.forEach((s,i)=>{const phase=i%FIGUREN.SOLDAT_PHASENGRUPPEN,netz=this.netze[s.bewegung][phase],n=zaehler.get(netz)??0;if(n>=netz.instanceMatrix.count)throw new Error('Soldaten-Kapazität überschritten')
+    liste.forEach((s,i)=>{const phase=(s.phase??i)%FIGUREN.SOLDAT_PHASENGRUPPEN,netz=this.netze[s.bewegung][phase],n=zaehler.get(netz)??0;if(n>=netz.instanceMatrix.count)throw new Error('Soldaten-Kapazität überschritten')
       if(s.bewegung==='fallen'){fallen.add(i);if(!this.starts.has(i))this.starts.set(i,this.zeit)}
       dummy.position.set(s.x,0,s.z);dummy.rotation.set(0,s.dreh,0);dummy.updateMatrix();netz.setMatrixAt(n,dummy.matrix);zaehler.set(netz,n+1)})
     for(const i of this.starts.keys())if(!fallen.has(i))this.starts.delete(i)

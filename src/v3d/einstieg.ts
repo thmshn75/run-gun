@@ -8,13 +8,18 @@ import { leseWasserStufe } from './wasser'
 import { zeigeOberflaeche, versteckeOberflaeche } from './oberflaeche'
 import { ladeFortschritt } from './speicher'
 import { bricheAb, messBild, messungLaeuft, starteMessung } from './messung'
+import { FingerSteuerung } from './steuerung'
+import { SpielLauf, WeltDarstellung } from './lauf'
+import { LEVELS } from './balance3d'
 
 let aktiv = false
 let dauerhaftAngefragt = false
+declare global { interface Window { __rg3dAktiv?: boolean } }
 
 export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: string) => void): Promise<void> {
   if (aktiv) return
   aktiv = true
+  window.__rg3dAktiv = true
   let renderer: THREE.WebGLRenderer | undefined
   let scene: THREE.Scene | undefined
   let camera: THREE.PerspectiveCamera | undefined
@@ -23,6 +28,11 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
   let letzterFrame = 0
   let spielzeit = 0
   let fallRunde = -1
+  let finger: FingerSteuerung | null = null
+  let lauf: SpielLauf | null = null
+  let infoOffen = false
+  let endeTimer: ReturnType<typeof setTimeout> | undefined
+  let ui: ReturnType<typeof zeigeOberflaeche>
   const canvas = game.canvas
   const groesse = () => {
     if (!aktiv || !renderer || !camera) return
@@ -50,27 +60,47 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     if (!renderer || !scene || !camera || beendet) return
     const dt = letzterFrame ? Math.max(0, jetzt - letzterFrame) : 0
     letzterFrame = jetzt
-    spielzeit += Math.min(100,dt)/1000
-    welt?.wasser.aktualisiere(Math.min(0.1, dt / 1000))
-    welt?.zombieMasse.aktualisiere(spielzeit)
-    welt?.truppe.aktualisiere(spielzeit)
-    welt?.laufTrupp.aktualisiere(spielzeit)
-    welt?.miniboss.aktualisiere(Math.min(0.1,dt/1000))
-    welt?.eliteboss.aktualisiere(Math.min(0.1,dt/1000))
-    if (welt?.nahaufnahme && !welt.soldatNahaufnahme) welt.zombieMasse.setze([-0.85, 0, 0.85].map((x, i) => ({ x, z: 0, dreh: spielzeit * Math.PI / 4, variante: i, groesse: 1 })))
-    if (welt?.soldatNahaufnahme) {
+    const pausiert = infoOffen || messungLaeuft() || document.hidden
+    const sek = Number.isFinite(dt) ? Math.min(.1,dt/1000) : 0
+    if (!pausiert && sek > 0) {
+      spielzeit += sek
+      welt?.wasser.aktualisiere(sek)
+      welt?.zombieMasse.aktualisiere(spielzeit)
+      welt?.truppe.aktualisiere(spielzeit)
+      welt?.laufTrupp.aktualisiere(spielzeit)
+      welt?.front.aktualisiere(spielzeit)
+      welt?.miniboss.aktualisiere(sek)
+      welt?.eliteboss.aktualisiere(sek)
+      if (lauf && !welt?.nahaufnahme) {
+        const ereignisse = lauf.schritt(sek, finger?.ziel ?? null)
+        ui.zahlen.textContent = `Level 1 · ${lauf.zustand.t.toFixed(1)} s · T ${Math.floor(lauf.zustand.T)} · F ${Math.floor(lauf.zustand.F)}`
+        if (ereignisse.some(e=>e.art==='sieg'||e.art==='niederlage')) {
+          finger?.gibFrei(); finger=null; ui.ende.style.display='block'
+          ui.endeText.textContent=`${lauf.zustand.ergebnis==='sieg'?'SIEG':'NIEDERLAGE'} · ${lauf.zustand.t.toFixed(1)} s`
+          ui.nochmal.disabled=true;ui.endeZurueck.disabled=true
+          endeTimer=setTimeout(()=>{ui.nochmal.disabled=false;ui.endeZurueck.disabled=false},700)
+        }
+      }
+    }
+    if (welt?.nahaufnahme && !welt.soldatNahaufnahme && !pausiert) welt.zombieMasse.setze([-0.85, 0, 0.85].map((x, i) => ({ x, z: 0, dreh: spielzeit * Math.PI / 4, variante: i, groesse: 1 })))
+    if (welt?.soldatNahaufnahme && !pausiert) {
       const runde=Math.floor(spielzeit/3)
       if(runde!==fallRunde){welt.truppe.setze([]);fallRunde=runde}
       welt.truppe.setze([-1.5,-.5,.5,1.5].map((x,i)=>({x,z:0,dreh:spielzeit*Math.PI/4,bewegung:(['laufen','stehen','schiessen','fallen'] as const)[i]})))
     }
     renderer.render(scene, camera)
+    const warMessung = messungLaeuft()
     messBild(dt, spielzeit)
+    if (warMessung && !messungLaeuft()) letzterFrame = 0
   }
   const verlasse = (hinweis?: string) => {
     if (beendet) return
     beendet = true
     try {
       bricheAb(undefined, false)
+      if (endeTimer) clearTimeout(endeTimer)
+      finger?.gibFrei(); finger=null
+      lauf?.gibLaufFrei(); lauf=null
       renderer?.setAnimationLoop(null)
       if (welt) { gibSzeneFrei(welt); welt = null }
       if (renderer) renderer.domElement.style.display = 'none'
@@ -86,6 +116,8 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
       game.input.pointers.forEach(p => p.reset())
       game.input.mousePointer?.reset()
       aktiv = false
+      window.__rg3dAktiv = false
+      window.dispatchEvent(new Event('rg3dverlassen'))
       beimSchliessen(hinweis)
     }
   }
@@ -94,16 +126,19 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     game.loop.sleep()
     canvas.style.visibility = 'hidden'
     renderer = holeRenderer()
-    const ui = zeigeOberflaeche(() => verlasse(), () => {
+    ui = zeigeOberflaeche(() => verlasse(), () => {
       if (welt && renderer) starteMessung(welt, renderer, game, ui.ergebnisse, ui.messen)
-    }, ladeFortschritt().hoechstesLevel)
+    }, ladeFortschritt().hoechstesLevel, () => finger?.aktiv ?? false, () => { infoOffen=true;finger?.verwerfe();letzterFrame=0 }, () => { infoOffen=false;letzterFrame=0 })
+    ui.nochmal.addEventListener('click',()=>{if(!welt||!lauf||!renderer||!camera)return;lauf.gibLaufFrei();lauf=new SpielLauf(LEVELS[0],Date.now(),new WeltDarstellung(welt));finger=new FingerSteuerung(renderer.domElement,camera);ui.ende.style.display='none';letzterFrame=0})
     ui.messen.disabled = true
     ui.ergebnisse.style.display = 'block'
     ui.ergebnisse.textContent = 'Lädt …'
     welt = await baueSzene(renderer, leseWasserStufe(location.search), () => beendet, hinweis => verlasse(hinweis))
-    if (beendet || !welt) return
+    if (beendet) return
+    if (!welt) { verlasse(DATEIEN_FEHLER); return }
     scene = welt.scene
     camera = welt.camera
+    if (!welt.nahaufnahme) { finger=new FingerSteuerung(renderer.domElement,camera);lauf=new SpielLauf(LEVELS[0],Date.now(),new WeltDarstellung(welt)) }
     ui.messen.disabled = false
     ui.ergebnisse.style.display = 'none'
     if(new URLSearchParams(location.search).get('pruefung')==='soldat'){
