@@ -1,161 +1,199 @@
 # Aktive Aufgabe
 
-Status: APPROVED
+Status: ENTWURF (noch nicht an Codex — Thomas 2026-09-29)
 
-## Aufgabe: D2c — Bosse und Gesamtmessung (Run Gun 3D)
+## Aufgabe: D3 — Steuerung, Aussenden, linker Rand (Run Gun 3D)
 
-Verbindlicher Plan: `docs/plan-v7.md`, "Thomas' Entscheidungen" (Mini-Boss, Elite-Endboss),
-"Machbarkeit → Folgerungen" (Bosse = echte Skelett-Figuren, Farb- + Reliefbild),
-Randbedingungen 3–5, 7, 8 und "Schrittfolge → D2c". Dieser Schritt bringt **Mini-Boss und
-Elite-Boss** als animierte Skelett-Figuren in die Bühne, misst ihre Kosten einzeln und dann
-den **Worst Case** mit Dauertest, und nimmt danach die Testseiten aus dem Deploy.
-Stand: 600 Zombies + 120 Soldaten + Wasser 1 = 55,8 fps / 24 ms am iPhone (knapp im
-Budget). Vorlage für Bosse: `public/probe-3d/diagnose7.html`, Funktion `bossFigur`.
+Verbindlicher Plan: `docs/plan-v7.md`, "Spielrechnung", "Schrittfolge → D3" (inkl.
++1-Schilder-Absatz) und Randbedingungen 3, 6, 7, 10. Ab hier wird es ein **Spiel**: Der
+Rechenkern `src/v3d/rechnung.ts` (R1, unverändert) läuft im Bildtakt, die Grafik stellt
+ihn nur dar. Neu: Finger-Steuerung der Truppe, Aussenden von Trupps, Verdopplung an der
+×2-Wand, +1-Sammeln am linken Rand, Soldaten zur Säule, Horde als Block an der
+Frontlage, Zahlen-Anzeigen, einfacher Laufschluss. **Kein Kampf-Bild** (Schießen,
+Umfallen, Mündungsfeuer, marschierende Bosse: D4), keine Spezialeinheiten (R2/D5).
 
 ## Erlaubte Änderungen (abschließend)
 
-- Neu: `src/v3d/bosse.ts`, `src/v3d/modelle/v3d-miniboss.glb`,
-  `src/v3d/modelle/v3d-eliteboss.glb`, Test `tests/v3dBosse.test.ts`.
-- Geändert: `scripts/modelle.mjs` (Ziele `miniboss`, `eliteboss`), `src/v3d/szene.ts`
-  (Bosse in die Bühne, Lade-Gate), `src/v3d/messung.ts` (Stufen, Dauertest),
-  `src/v3d/balance3d.ts` (Block `FIGUREN`), `src/v3d/einstieg.ts` (nur Bildtakt),
-  `tests/v3dBuild.test.ts`, `docs/lizenzen.md` (Änderungsvermerke Bosse).
-- Quellen (nur lesen): `modelle-quelle/miniboss-vereinfacht.glb` (Sketchfab "Nightmare
-  Creature 1#", Rodolfoisreal1423, CC-BY 4.0; 1672 Dreiecke, 3 Bilder, 22 Clips) und
-  `modelle-quelle/eliteboss-vereinfacht.glb` ("Mutant Golem", Vasian-Digital3D, CC-BY 4.0;
-  12 200 Dreiecke, 2 Materialien, 4 Bilder, ein Clip `Motion` 28,5 s), Lizenztexte
-  daneben. Beide sind am iPhone in `diagnose7.html` geprüft. Kein neues Paket.
+- Neu: `src/v3d/lauf.ts` (Spielschleife: Rechenkern ↔ Darstellung), `src/v3d/steuerung.ts`
+  (Finger → Truppenlage), `src/v3d/anzeigen.ts` (Zahlen als Sprites/Canvas),
+  Tests `tests/v3dLauf.test.ts`, `tests/v3dSteuerung.test.ts`.
+- Geändert: `src/v3d/szene.ts` (statische Platzhalter-Aufstellungen → vom Lauf gesteuert;
+  Nahaufnahmen bleiben), `src/v3d/einstieg.ts` (Lauf starten/pausieren/beenden, Eingabe),
+  `src/v3d/oberflaeche.ts` (MESSEN in die INFO-Tafel verlegen, Laufende-Anzeige),
+  `src/v3d/messung.ts` (nur: Messung pausiert den Lauf und stellt ihn danach wieder her
+  bzw. läuft auf der statischen Vollast wie bisher), `src/v3d/figuren.ts`,
+  `src/v3d/soldaten.ts`, `src/v3d/schilder.ts`, `src/v3d/bosse.ts` (nur Erweiterungen für
+  bewegliche Aufstellungen/Zahlen, Lochposition als Parameter), `src/v3d/balance3d.ts`
+  (Block `DARSTELLUNG`), `src/v3d/info.ts` (Knopf "Leistung messen", Pause beim Öffnen).
+- **Ausnahme außerhalb `src/v3d/` (Härtung H9):** `src/main.ts` — nur die Prüfung eines
+  globalen Flags vor dem Neuladen nach Service-Worker-Update; Regressionsnachweis:
+  bestehende Tests grün, Hauptbündel nicht gewachsen (±200 Byte erlaubt).
+- **Nicht ändern:** `src/v3d/rechnung.ts`, `LEVELS` in `balance3d.ts`, Tests von R1.
+
+## Grundsatz: Rechenkern führt, Grafik folgt
+
+- Je Bild: `schritt(zustand, { x }, dt)` mit `dt` in Sekunden (gedeckelt 0,1 s, pausierbar
+  wie die Animationszeit), danach Darstellung aus dem Zustand und den Ereignissen.
+  **Keine** eigene Spiellogik in der Grafik (keine eigenen Zähler, die vom Kern abweichen).
+- Koordinaten wie D1: Kern-Position `pos` → `z = −pos`, Frontlage `y` → `z = −y`.
+- Zufall: fester Seed je Lauf (`Date.now()` ist erlaubt als Seed, im Zustand gespeichert).
 
 ## Akzeptanzkriterien
 
-### A1 Aufbereitung (`node scripts/modelle.mjs miniboss|eliteboss`)
+### A1 Steuerung (`steuerung.ts`, Plan D3)
 
-- Nur **Farb- und Reliefbild** behalten (Plan Folgerung 2), Metall-Rauheit-/Glanzbilder
-  entfernen; Faktoren Metall 0, Rauheit 0,8. Bilder **512 × 512 WebP**. Keine
-  Vereinfachung der Geometrie (bereits vereinfacht und geprüft).
-- **Mini-Boss:** nur die Clips `walk`, `Run`, `attack_1`, `attack_2`, `roar`, `hit_1`,
-  `death_1` behalten (Namen enthalten den Präfix `Creature_armature|`), `resample`.
-- **Elite-Boss:** Clip `Motion` behalten, `resample`; Tangenten entfernen, `prune`,
-  `dedup`.
-- Prüfungen am Ende (Abbruch bei Verletzung): Dreiecke wie Quelle ±1 %, je Material
-  höchstens Farb- + Reliefbild, alle Bilder 512², erwartete Clips vorhanden, **Datei
-  ≤ 2 MB** je Boss (sonst Schlüsselbilder weiter ausdünnen, nicht Geometrie).
+- **Absolut zum Finger:** Solange ein Finger auf der Steuerfläche liegt, ist die Zielposition
+  der Truppe die Finger-x-Position, in Weltkoordinaten auf Höhe der Aussendelinie `z = 0`
+  (Strahl aus der Kamera auf die Ebene `y = 0` schneiden). Ohne Finger bleibt die Truppe,
+  wo sie ist.
+- **Geglättet**, höchstens **8 m/s** seitlich (Konstante). Grenzen: Truppenmitte
+  `xWelt ∈ [−3, +3]` (Formation 6 m breit bleibt auf der 12-m-Straße).
+- Eingabe an den Kern: `x = xWelt / 3` (→ `[−1, +1]`); damit sammelt die Truppe ab
+  `xWelt < −1.8` (Kern-Schwelle −0,6) und schickt ab `xWelt > +1.8` zur Säule.
+- **Steuerfläche** = ganzer Bildschirm **außer** den Knopf-Tippflächen (ZURÜCK, INFO; je
+  eigene Fläche ≥ 44 × 44 pt, Plan D3). `touch-action: none` auf der Zeichenfläche, keine
+  Seiten-Scrolls, Mehrfinger: der erste Finger zählt. Pointer Events (kein Phaser-Input;
+  Phaser ist im Schlaf).
+- Werte für Safe-Area/Touch aus dem bestehenden Code übernehmen (Randbedingung 6), nicht
+  neu erfinden; im Bericht nennen, woher.
 
-### A2 Bosse zeichnen (`src/v3d/bosse.ts`)
+### A2 Truppe und Aussenden
 
-- Echte `SkinnedMesh` mit `AnimationMixer` (keine Instanzen, keine gebackenen Formen).
-  Material `MeshStandardMaterial({ map, normalMap, roughness: 0.8, metalness: 0 })`,
-  `side: FrontSide`, Layer 1 (keine Spiegelung).
-- Wurzelbewegung entfernen (wie `aufDerStelle` in `diagnose7.html`, x/z der Spur mit der
-  größten waagrechten Strecke festhalten) — die Bosse laufen auf der Stelle; Vorwärts-
-  bewegung kommt in D4.
-- Größe: **`MINIBOSS_HOEHE = 3.2` m**, **`ELITEBOSS_HOEHE = 4.8` m** (gemessen über den
-  Clip, nicht nur Bild 0; Füße auf `y = 0 ± 5 cm` über den ganzen Clip).
-  Blick zur Truppe (**+z**) — mit Test absichern (Kopf/Gesicht vor dem Hinterkopf in +z,
-  wie der Blick-Test des Soldaten).
-- Schnittstelle: `baueBoss(art, gltf) → { objekt, spiele(clipKurzname), aktualisiere(dtS),
-  gibFrei() }`; Mini: Standard `walk`; Elite: `Motion` in Schleife. Zeit aus der
-  pausierbaren Einstiegszeit (wie Soldaten). `gibFrei()` gibt Geometrie, Material,
-  Bilder, Skelett (`skeleton.dispose()`) und Mixer frei.
-- Lade-Gate: beide glb im gemeinsamen Laden (8-s-Limit nur fürs Laden, Freigabe bei
-  Abbruch wie D2b).
+- **Truppe an der Linie:** `T` (Kern) wird als Formation `stehen` gezeigt, 10 je Reihe,
+  höchstens **30 Figuren** (Konstante); Mitte = Truppenlage, Blick −z. Zahl `T` (ganzzahlig
+  abgerundet) als Anzeige über der Truppe.
+- **Trupps:** Jedes Kern-Ereignis `ausgesandt` erzeugt einen sichtbaren Trupp an `z = 0`,
+  x = Truppenlage beim Aussenden; der Trupp folgt `trupp.pos` aus dem Kern (Bewegung
+  `laufen`), zeigt `min(anzahl, 10)` Figuren in einem kleinen Block. Nach `vervielfacht`
+  zeigt er entsprechend mehr (bis 10) und kurz eine "×2"-Aufblende (optional, billig).
+- **Wege:** Trupp mit Ziel `front` läuft nach der Wand in die Mitte (x → 0 geglättet,
+  bleibt in `[−2.8, 2.8]`); Ziel `saeule` läuft nach der Wand in den rechten Streifen
+  (x → `SAEULE_X`) und verschwindet bei `angekommenSaeule` an der Säule.
+- **Front:** `F` (Kern) wird als Gruppe `stehen` an `z = −y + 1,5` gezeigt, `min(F, 40)`
+  Figuren (≙ Kontaktbreite K), 10 je Reihe, Blick −z; Zahl `F` darüber. (Schießen: D4.)
+- **Sichtgrenze Soldaten gesamt 120:** Formation ≤ 30, Trupps zusammen ≤ 50 (älteste
+  zuerst weglassen), Front ≤ 40. Bewegungen je Gruppe über die vorhandene
+  `SoldatenMasse` (Instanzen neu setzen nur bei Änderung, sonst Formen weiterschalten).
 
-### A3 Bühne
+### A3 ×2-Wand, +1-Schilder, Säule
 
-- Mini-Boss mittig in der vordersten Hordenreihe: `x = 0`, `z = −36` (die Zombies im
-  Umkreis von 1,4 m um ihn werden in der Aufstellung ausgelassen, damit sie nicht durch
-  ihn hindurchragen).
-- Elite-Boss hinter der Horde: `x = 0`, `z = −66` (liegt im Bild; falls nicht, so weit nach
-  vorn, dass er ganz sichtbar ist, und im Bericht nennen).
-- Beide bleiben innerhalb des mittleren Streifens (Breite prüfen; Elite darf die
-  Betonkanten nicht überragen — sonst Größe um höchstens 15 % senken und melden).
+- **×2-Wand** zeigt `×k` aus dem Level (Level 1: 2); Text wird nur bei Änderung neu gemalt.
+- **+1-Schilder** (Plan D3-Absatz): laufen im linken Streifen der Truppe **entgegen**
+  (+z), Grundtempo **2 m/s**, solange die Truppe nicht sammelt; sobald der Kern
+  `eingesammelt` meldet, Tempo **8 m/s** (2/s × 4 m Abstand). Ein Schild, das `z = 0`
+  erreicht, verschwindet mit kurzem Aufleuchten und taucht hinten wieder auf (Ring aus
+  Schildern, keine neuen Objekte). Das Sammeln selbst zählt **nur** der Kern (`T` steigt
+  kontinuierlich); die Schilder sind Darstellung — Gleichlauf ±1 über 10 s ist ausreichend.
+- **Säule:** Zahl zeigt `ceil(P)`; bei `einheitFrei` blinkt die Säule kurz, der
+  Platzhalter-Kasten innen verschwindet, und für die nächste Säule (neuer Wert 150)
+  erscheint ein neuer Kasten. Nach der letzten Säule: Säule ausblenden.
 
-### A4 Messmodus (`src/v3d/messung.ts`)
+### A4 Horde (nur Lage, noch kein Kampf)
 
-Ablauf (Wasser 1 fest, 600 Zombies + 120 laufende Soldaten wie bisher):
-1. 5 s Aufwärmen,
-2. **"Vollast ohne Bosse"** 30 s,
-3. **"Vollast + Mini-Boss"** 30 s,
-4. **"Vollast + beide Bosse"** 30 s,
-5. **"Dauertest 3 min"** (Vollast + beide Bosse): Anzeige je Minute Schnitt-fps und
-   langsamste 5 %, dazu Schwarz-Anteil am Ende; Urteil gegen dieselbe Grenze **für jede
-   Minute** (Wärme: die dritte Minute zählt).
-Zwischen den Stufen 2 s ohne Zählung. Jede Zeile nennt Geometrien/Texturen und den
-Speicherplan inkl. Boss-Bemalungen. Die Anzeige bleibt scrollbar. Stufenliste als
-Konstante.
+- Der Zombie-Block steht mit seiner **Vorderkante an `z = −y`** und zeigt
+  `min(ceil(Z), 600)` Zombies (Aufstellung nach hinten wie bisher); Neuaufstellung nur,
+  wenn sich die gezeigte Zahl um ≥ 10 ändert oder die Lage um ≥ 0,1 m (Instanzen nur
+  verschieben, nicht neu erzeugen). Zombies laufen auf der Stelle.
+- Mini-Boss sichtbar, solange `miniBoss.imFeld && B > 0`, in der Vorderreihe (x = 0,
+  `z = −y − 1`); Elite-Boss sichtbar ab `eliteBoss.imFeld`, hinter der Masse (`z = −y − 12`
+  bzw. bei `Z = 0` an der Front). Bosse laufen auf der Stelle (Angriff/Tod: D4/D6).
 
-### A5 Testseiten aus dem Deploy — **macht Claude nach Thomas' iPhone-Messung**
+### A5 Laufbeginn und -ende, Oberfläche
 
-Nicht in diesem Codex-Lauf (die Testseiten bleiben online, bis Thomas die Boss-Messung
-gesehen hat). Codex fasst `public/probe-3d/` nicht an.
+- Lauf startet beim Betreten von RUN GUN 3D nach dem Laden automatisch mit Level
+  `ladeFortschritt().hoechstesLevel` (nur Level 1 existiert; sonst 1).
+- Bei `sieg`/`niederlage`: Kern stoppt (tut er selbst), Tafel mittig "SIEG"/"NIEDERLAGE",
+  Dauer, und Knöpfe "NOCHMAL" (neuer Lauf, gleicher Level, neuer Seed) und "ZURÜCK".
+  Level-Speicher nur bei Sieg (höchstes Level + 1, gedeckelt auf `LEVELS.length`).
+- **MESSEN** wandert in die INFO-Tafel (Knopf "Leistung messen"); die Messung pausiert den
+  Lauf, blendet die Lauf-Figuren aus, nutzt ihre statische Vollast wie bisher und stellt
+  danach den Lauf wieder her.
+- Pause bei `visibilitychange`/Kontextverlust wie bisher: auch der Kern steht still.
+- Oben: Level, Zeit, `T` und `F` als kleine Zahlen (DOM, keine neuen Bilder).
 
 ### A6 Tests und Nachweise
 
-- `tests/v3dBosse.test.ts`: glb-JSON-Prüfungen aus A1; Blickrichtung +z und Füße (soweit
-  in Node machbar wie beim Soldaten, sonst Begründung im Bericht); Aufstellung lässt den
-  Kreis um den Mini-Boss frei; `docs/lizenzen.md` nennt beide Bosse samt Änderungen.
-- Build-Test: beide glb im Precache, Summe 3D-Dateien ≤ 25 MB, Hauptbündel unverändert.
-- `npm test`, `tsc`, `build` grün. Browser-Sichtprüfung und Zweitstart macht Claude,
-  iPhone-Messung Thomas.
-- **Leistungs-Reißleine:** Codex senkt nichts selbst. Verfehlt die iPhone-Messung die
-  Grenze, entscheiden Claude/Thomas (Reihenfolge: Elite-Relief weg → Schärfe 1,5× fest →
-  weniger sichtbare Zombies).
+- `tests/v3dSteuerung.test.ts` (reine Funktionen): Finger→Weltlage über die Kamera
+  (Bildmitte → x ≈ 0; linker Rand → Grenze −3), Glättung hält 8 m/s ein, Kern-`x` ist
+  `xWelt/3` und in `[−1, 1]`.
+- `tests/v3dLauf.test.ts` (ohne Grafik, `lauf.ts` mit abstrahierter Darstellung):
+  - **10 s Aussenden** in der Mitte: Summe `ausgesandt` = Formel `∫(2 + 0,1·T)dt` ±10 %
+    (Plan D3), sichtbare Trupps entsprechen den Ereignissen.
+  - **Linker Rand:** 10 s bei `xWelt = −3` → `T` steigt um 20 ±1; Mitte → `T` unverändert.
+  - Rechter Rand: Trupps gehen zur Säule, `P` sinkt; `einheitFrei` löst Säulenwechsel aus.
+  - Sichtgrenzen (30/50/40, 600 Zombies) nie überschritten; Pause hält den Kern an.
+- Zweitstart: `renderer.info.memory` gleich (Claude prüft mit WebGL-Zählern), auch nach
+  "NOCHMAL".
+- `npm test`, `tsc`, `build` grün; Hauptbündel unverändert; kein `http` in `src/v3d/`.
+- iPhone (Thomas): Steuerung fühlt sich direkt an; Messung aus der INFO-Tafel im Budget.
 
-## Härtung (Claude, 2026-09-29) — gilt vorrangig
+## Härtung (Claude, 2026-09-29) — gilt vorrangig vor A1–A6
 
-1. **≤ 2 MB-Weg:** Reicht `resample` nicht, Abtastrate der Clips auf 15 Hz senken, dann
-   Toleranz erhöhen. Nie Geometrie oder Bildgröße ändern. Bleibt eine Datei über 2 MB:
-   Abbruch mit Meldung der Anteile (Geometrie, Bilder, Animation).
-2. **Blickrichtung:** Korrekturdrehung als Konstante `MINIBOSS_DREHUNG` /
-   `ELITEBOSS_DREHUNG` in `FIGUREN`. Test: Kopfknochen-z > Beckenknochen-z (Blick +z) in
-   Clip-Bild 0 **und** Clip-Mitte.
-3. **Boden:** Wurzel-y bleibt erhalten (Stampfen/Wippen). Skalierung aus der Höhe in Bild 0.
-   Bodenbezug = tiefster Fußpunkt über den ganzen Clip, **einmal** verschoben (nicht je
-   Bild); die ±5 cm gelten für diesen Wert.
-4. **Material:** Aus dem glb nur die Bilder übernehmen, eigenes `MeshStandardMaterial`
-   (A2) hat Vorrang. `map.colorSpace = SRGBColorSpace`, `normalMap` linear. Prüfung im
-   Skript und Test: je Material genau ein `baseColorTexture` und ein `normalTexture`;
-   Emissive/Occlusion ausdrücklich entfernt und im Bericht genannt.
-5. **Aufstellung:** ausgelassene Zombies werden hinten angehängt, die Zahl bleibt 600
-   (Vergleichbarkeit). Freiradius = halbe Boss-Breite im Clip `walk` + 0,4 m (Konstante).
-6. **Grenze:** die bestehende `urteil()`-Grenze (≥ 55 fps, ≤ 25 ms, Schwarz ≤ 10 %,
-   ≤ 60 MB) gilt je Stufe und je Dauertest-Minute, Anzeige ✅/❌ wie bisher.
+**H1 Zeitschritt:** `schritt` nur mit `0 < dt ≤ 0,1` aufrufen (Kern wirft sonst
+`RangeError`, `rechnung.ts:52`). Bei `dt ≤ 0`, `NaN` (erstes Bild, nach Pause, doppelter
+Zeitstempel) den Kernschritt überspringen; `dt > 0,1` deckeln. Test mit `0`, `NaN`, `5`.
+
+**H2 Finger (iOS):** Pointer Events mit `setPointerCapture`; der Finger wird verworfen bei
+`pointerup`, `pointercancel`, `lostpointercapture`, `blur`, `visibilitychange`, Öffnen der
+INFO- oder Ende-Tafel. Ohne Finger bleibt die letzte Lage. Finger-NDC aus
+`canvas.getBoundingClientRect()` (nicht `innerWidth/Height`). Abbildung: Bildschirm-x →
+Punkt `(x, 0, 0)` auf der Aussendelinie. **Randreserve:** ±3 wird schon **24 pt vor dem
+Bildschirmrand** erreicht (iOS-Randgeste), dort geklemmt. Safe-Area-Werte als Zahlen in
+`balance3d.ts` (Randbedingung 6), Quelle im Bericht. Tests: Bildmitte → 0 mit zwei
+verschiedenen Rechtecken; x = 24 pt → −3.
+
+**H3 Trupps stabil:** Sichtobjekte per Objekt-Referenz auf die Kern-Trupps
+(`Map<Trupp, Sicht>`; der Kern mutiert die Objekte nur). Jedes Sichtobjekt hat eine feste
+Phase; `SoldatEintrag` bekommt optional `phase`, `SoldatenMasse.setze` nutzt sie statt des
+Listenindex (sonst springen Beinposen). `x` des Trupps merkt sich die Darstellung beim
+Entstehen. Ereignisse nur für Effekte (×2, Aufleuchten).
+
+**H4 Front- und Trupp-Lage:** Front-Trupp gezeichnet bei `z = −min(pos, y − 1,5)`, blendet
+dort in die Front-Gruppe über. Die Front-Gruppe beginnt an `z = −y + 1,5` und wächst nach
+**+z** (zur Kamera). Steht die Front vor der Wand (`y < 5`): Gruppe auf `z ≤ −1` klemmen,
+Trupps laufen nicht durch die Wand. Niederlage (`y ≤ 0`): Horde nicht weiter zeichnen.
+
+**H5 Horde billig bewegen:** Horde **einmal** aufstellen und nur über
+`gruppe.position.z = −y` verschieben. Neu `setze` nur bei Änderung der gezeigten Zahl,
+höchstens alle 0,25 s; Zombies fallen **von vorn** (reihenweise) weg. Mini-Boss in einem
+Loch der Vorderreihe (`bossFreieAufstellung` mit Lochposition als Parameter), Elite-Boss
+hinter der gezeigten Masse (`z = −y − Tiefe − 2`), bei `Z = 0` an der Front.
+
+**H6 Anzeigen sparsam:** eine Canvas-Textur je Anzeige, wiederverwendet; neu malen nur bei
+geänderter ganzer Zahl und höchstens 4× pro Sekunde; Freigabe in `gibSzeneFrei`
+(Zweitstart- und NOCHMAL-Zähler gleich).
+
+**H7 Messung:** Die Welt führt `welt.laufGruppen: THREE.Object3D[]`; `starteMessung`
+blendet alle aus und stellt sie danach mit den vorherigen Sichtbarkeiten wieder her;
+während `messungLaeuft()` schreibt `lauf.ts` weder `visible` noch Instanzen und der Kern
+pausiert. **Neue Messstufe "Lauf (Bot)" 60 s** am Ende der Stufenliste: echter Kernlauf
+mit dem Strategie-Bot aus R1, Sichtgrenzen voll ausgeschöpft (600 Zombies, 30 Formation,
+50 Trupps, 40 Front, beide Bosse), gleiche Budgetgrenze — ohne sie ist D3 am iPhone nicht
+abnehmbar. Der Knopf "Leistung messen" schließt die INFO-Tafel vor dem Start; das
+Ergebnis-Panel hat während der Messung `pointer-events: none` außer auf Knöpfen.
+
+**H8 Tafeln:** INFO offen = Lauf pausiert (Kern + Animationszeit), Finger verworfen,
+beim Schließen erstes Bild mit `dt = 0` (→ H1). Ende-Tafel: Knöpfe erst **700 ms** nach
+Erscheinen aktiv; ZURÜCK/INFO ignorieren Tipps, solange ein Steuer-Finger aktiv ist.
+NOCHMAL gibt den Lauf frei (`gibLaufFrei()`) und startet neu, gleicher Renderer.
+
+**H9 Service-Worker-Neuladen:** `src/main.ts` lädt bei `pendingReload` bzw.
+`controllerchange` neu (beim Sichtbarwerden). Solange der 3D-Modus aktiv ist
+(`window.__rg3dAktiv === true`, gesetzt/gelöscht in `einstieg.ts`), wird das Neuladen
+**aufgeschoben** und nach dem Verlassen nachgeholt. Kein Import von `src/v3d/` in
+`main.ts` (Isolation, Hauptbündel).
+
+**H10 Umfang verkleinert:** Level-Speichern bei Sieg entfällt in D3 (D6/D7). Säule nur:
+Zahl `ceil(P)`, bei `einheitFrei` Innenkasten weg und neuer Kasten für die nächste Säule,
+nach der letzten Säule ausblenden — **kein** Blinken. +1-Schilder: Aufleuchten nur,
+solange der Kern `eingesammelt` meldet; Tempo wechselt in 0,25 s linear zwischen 2 und
+8 m/s.
 
 ## Nicht in diesem Schritt
 
-Boss-Vorwärtsbewegung, Angriff, Treffer, Tod im Spiel (D4/D6), Steuerung (D3).
+Kampf-Darstellung (Schießen, Treffer, Umfallen, Mündungsfeuer), Vorrücken der Bosse mit
+Angriff, Spezialeinheiten, Vervielfacher-Wachstum (R2), mehrere Level, Klang.
 
 ## Implementation Summary
 
-Codex, 2026-09-29: Boss-Aufbereitung, Skelett-/Mixer-Darstellung, gemeinsames Lade-Gate,
-Aufstellung mit 600 Zombies, Messstufen samt drei Dauertest-Minuten, Lizenz- und
-Build-Nachweise umgesetzt. Mini-Boss: 1.672 Dreiecke, 487.528 Byte, sieben Clips;
-Elite-Boss: 12.200 Dreiecke, 2.051.104 Byte, `Motion`. Je Material nur Farb- und
-Reliefbild (512² WebP); Metall-/Rauheits-, Emissive- und Occlusion-Bilder entfernt.
-`npm run check` und `npm run build` bestanden; 3D-Dateien im Build zusammen 4,35 MB,
-beide Boss-Dateien im Precache, Hauptbündel 1.467.937 Byte (Grenze 1.475.425).
-`npm test`: 522/523 Tests bestanden. Ein Akzeptanztest bleibt rot: Elite-Boss im Clip
-8,95 m breit bei 6,8 m Mittelstreifen. Selbst −15 % ergäben 7,61 m. Entscheidung zu
-Modell/Größe/Clip ausstehend, daher Status noch SPEC_READY. Browser-Sichtprüfung,
-Zweitstart und iPhone-Dauermessung liegen gemäß A6 bei Claude bzw. Thomas; A5 folgt
-erst nach Thomas' Messung. Keine Commits oder Pushes.
-
-## Entscheidung Claude (2026-09-29 20:00) — Elite-Boss-Größe
-
-Befund Codex: Bei 6,5 m Höhe wird der Elite-Boss im Clip `Motion` 8,95 m breit (Streifen
-6,8 m). Entscheidung: **`ELITEBOSS_HOEHE = 4.8` m** (Breite über den Clip dann ≈ 6,6 m;
-immer noch 2,4× Soldatengröße). Test: größte Breite über den Clip ≤ 6,8 m bleibt streng.
-Nur die Konstante und davon abhängige Werte/Tests anpassen, dann Tests/`tsc`/Build,
-Status `IMPL_DONE`, kurzer Nachtrag.
-
-## Implementation Summary — Elite-Boss-Größe (Codex, 2026-09-29)
-
-Die Elite-Höhe ist gemäß Claudes Entscheidung auf 4,8 m gesetzt; Spezifikation und
-Wertetest sind angepasst. Der Test prüft die größte Clip-Breite weiterhin streng gegen
-6,8 m und besteht. `npm test -- --run tests/v3dBosse.test.ts`: 3/3;
-`npm test`: 523/523 in 60 Dateien; `npm run check` (TypeScript) und `npm run build`
-erfolgreich. Der Build enthält beide Boss-Dateien im Precache; das Hauptbündel bleibt
-bei 1.467.937 Byte. Terminal.app war in dieser Umgebung nicht verfügbar; die Prüfungen
-liefen deshalb in der direkten Shell. Browser-Sichtprüfung und Zweitstart liegen bei
-Claude, die iPhone-Dauermessung bei Thomas. Die Testseiten bleiben gemäß A5 bis zu
-dieser Messung im Deploy. Keine Commits oder Pushes.
+(Codex füllt aus.)

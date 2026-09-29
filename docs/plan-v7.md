@@ -106,7 +106,8 @@ absichtlich geschwärzten Figuren gegengeprüft (82 % statt 0 %).
    Menüknopf "RUN GUN V2" → "RUN GUN 3D" (Thomas: "wir ersetzen V2"); Nachlade-Einstieg
    in `MenuScene`; `package.json`/Lockfile (`three`; ab D2a zusätzlich reine Werkzeug-`devDependencies` für
    `scripts/modelle.mjs`: `@gltf-transform/*`, `meshoptimizer`, `sharp` — nie im Spiel-Code); `vite.config.ts` (Service-Worker-
-   Regeln, s. 4). Jede dieser Änderungen braucht einen Regressionsnachweis: Offline-Start
+   Regeln, s. 4). **Ab D3:** `src/main.ts` — nur Aufschub des Service-Worker-Neuladens, solange der
+   3D-Modus aktiv ist (globales Flag, kein Import aus `src/v3d/`). Jede dieser Änderungen braucht einen Regressionsnachweis: Offline-Start
    des bestehenden Spiels im Flugmodus, Größe des Hauptbündels vorher/nachher (darf nicht
    wachsen), bestehende Tests grün.
 2. **Eigener Code-Bereich `src/v3d/`**, keine Imports aus `src/systems/`, `src/config/`,
