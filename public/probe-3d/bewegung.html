@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Bewegungs-Test</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #6f7a86; overflow: hidden; font-family: -apple-system, sans-serif; }
+  canvas { display: block; }
+  #kopf { position: fixed; left: 8px; right: 8px; top: calc(env(safe-area-inset-top) + 8px); color: #fff;
+          background: rgba(0,0,0,.55); border-radius: 10px; padding: 8px 12px; font-size: 15px; line-height: 1.35; }
+  #kopf b { font-size: 18px; }
+  #leiste { position: fixed; left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom) + 10px);
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  button { font: 600 14px -apple-system, sans-serif; padding: 11px 2px; border-radius: 10px; border: 0;
+           background: rgba(0,0,0,.6); color: #fff; }
+  button.an { background: #2f7de1; }
+</style>
+<script type="importmap">{ "imports": { "three": "./three.module.mjs" } }</script>
+</head>
+<body>
+<div id="kopf">Laden …</div>
+<div id="leiste">
+  <button data-b="jog">Joggen</button><button data-b="jogZiel">Joggen + Zielen</button><button data-b="geh">Gehen</button>
+  <button data-b="schuss">Schießen</button><button data-b="tod">Umfallen</button><button data-b="ruhe">Ruhepose</button>
+</div>
+<script type="module">
+import * as THREE from 'three'
+import { GLTFLoader } from './addons/loaders/GLTFLoader.js'
+
+// Test: Bewegungen der kostenlosen Quaternius-Bibliothek (CC0, Skelett im Unreal-Stil)
+// auf den Sketchfab-Soldaten (Skelett im Character-Creator-Stil) uebertragen.
+// Verfahren: fuer jeden Knochen die Richtung zum Kindknochen aus der Vorlage uebernehmen
+// (Richtungsabgleich). Das ist unabhaengig von Proportionen und Grundhaltung beider Skelette.
+const kopf = document.getElementById('kopf')
+const renderer = new THREE.WebGLRenderer({ antialias: true })
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2))
+renderer.setSize(innerWidth, innerHeight)
+document.body.appendChild(renderer.domElement)
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(0x87c6ee)
+const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 100)
+camera.position.set(0, 1.3, 9); camera.lookAt(0, 0.9, 0)
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight) })
+scene.add(new THREE.HemisphereLight(0xffffff, 0x556070, 2.2))
+const sonne = new THREE.DirectionalLight(0xffffff, 2.5); sonne.position.set(-3, 8, 6); scene.add(sonne)
+const boden = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0x3b4450 }))
+boden.rotation.x = -Math.PI / 2; scene.add(boden)
+
+const [quelleG, soldatG] = await Promise.all(['ual1', 'sf_soldat'].map(n => new GLTFLoader().loadAsync('./modelle/' + n + '.glb')))
+const quelle = quelleG.scene, soldat = soldatG.scene
+
+// Beide auf 1,7 m, Vorlage links, Soldat rechts. Zuerst ohne Drehung, damit die
+// Richtungen beider Skelette im selben Raum verglichen werden.
+function aufstellen(o, x) {
+  o.updateMatrixWorld(true)
+  const b = new THREE.Box3().setFromObject(o, true), s = 1.7 / (b.max.y - b.min.y)
+  o.scale.multiplyScalar(s); o.position.set(x, -b.min.y * s, 0); scene.add(o); o.updateMatrixWorld(true)
+}
+aufstellen(quelle, -0.6); aufstellen(soldat, 0.6)
+
+// Zuordnung Vorlage → Soldat, jeweils mit dem Kindknochen, der die Richtung angibt.
+// teil: 'unten' kommt aus der Bein-Bewegung, 'oben' aus der Oberkoerper-Bewegung.
+const PAARE = [
+  ['pelvis', 'CC_Base_Hip_01', 'spine_01', 'CC_Base_Waist_033', 'unten'],
+  ['spine_01', 'CC_Base_Waist_033', 'spine_02', 'CC_Base_Spine01_034', 'unten'],
+  ['spine_02', 'CC_Base_Spine01_034', 'spine_03', 'CC_Base_Spine02_035', 'oben'],
+  ['spine_03', 'CC_Base_Spine02_035', 'neck_01', 'CC_Base_NeckTwist01_036', 'oben'],
+  ['neck_01', 'CC_Base_NeckTwist01_036', 'Head', 'CC_Base_Head_038', 'oben'],
+  ['clavicle_l', 'CC_Base_L_Clavicle_049', 'upperarm_l', 'CC_Base_L_Upperarm_050', 'oben'],
+  ['upperarm_l', 'CC_Base_L_Upperarm_050', 'lowerarm_l', 'CC_Base_L_Forearm_051', 'oben'],
+  ['lowerarm_l', 'CC_Base_L_Forearm_051', 'hand_l', 'CC_Base_L_Hand_055', 'oben'],
+  ['clavicle_r', 'CC_Base_R_Clavicle_073', 'upperarm_r', 'CC_Base_R_Upperarm_074', 'oben'],
+  ['upperarm_r', 'CC_Base_R_Upperarm_074', 'lowerarm_r', 'CC_Base_R_Forearm_077', 'oben'],
+  ['lowerarm_r', 'CC_Base_R_Forearm_077', 'hand_r', 'CC_Base_R_Hand_081', 'oben'],
+  ['thigh_l', 'CC_Base_L_Thigh_03', 'calf_l', 'CC_Base_L_Calf_04', 'unten'],
+  ['calf_l', 'CC_Base_L_Calf_04', 'foot_l', 'CC_Base_L_Foot_05', 'unten'],
+  ['foot_l', 'CC_Base_L_Foot_05', 'ball_l', 'CC_Base_L_ToeBase_07', 'unten'],
+  ['thigh_r', 'CC_Base_R_Thigh_018', 'calf_r', 'CC_Base_R_Calf_021', 'unten'],
+  ['calf_r', 'CC_Base_R_Calf_021', 'foot_r', 'CC_Base_R_Foot_022', 'unten'],
+  ['foot_r', 'CC_Base_R_Foot_022', 'ball_r', 'CC_Base_R_ToeBase_023', 'unten'],
+]
+const q = n => quelle.getObjectByName(n), z = n => soldat.getObjectByName(n)
+const fehlt = PAARE.flatMap(p => [[p[0], q(p[0])], [p[2], q(p[2])], [p[1], z(p[1])], [p[3], z(p[3])]]).filter(x => !x[1]).map(x => x[0])
+const ruhe = new Map(); soldat.traverse(o => { if (o.isBone) ruhe.set(o, o.quaternion.clone()) })
+
+const qMixer = new THREE.AnimationMixer(quelle)
+const clipVon = name => quelleG.animations.find(a => a.name === name)
+const wp = (o, v) => o.getWorldPosition(v)
+const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3(), D = new THREE.Vector3()
+const qa = new THREE.Quaternion(), qb = new THREE.Quaternion(), qc = new THREE.Quaternion()
+
+// Richtung jedes Vorlage-Knochens je Bild aufnehmen (ohne die Vorlage selbst zu veraendern).
+function richtungen(clip, bilder) {
+  const act = qMixer.clipAction(clip); qMixer.stopAllAction(); act.play()
+  const out = []
+  for (let f = 0; f < bilder; f++) {
+    qMixer.setTime(clip.duration * f / bilder); quelle.updateMatrixWorld(true)
+    out.push(PAARE.map(p => {
+      const dir = wp(q(p[2]), B).sub(wp(q(p[0]), A)).normalize().clone()
+      const seite = wp(q('thigh_l'), C).sub(wp(q('thigh_r'), D)).normalize().clone()
+      return { dir, seite }
+    }))
+  }
+  qMixer.stopAllAction(); return out
+}
+
+// Soldat Bild fuer Bild so stellen, dass seine Knochen in dieselbe Richtung zeigen.
+function uebertrage(untenName, obenName, bilder = 40) {
+  const unten = clipVon(untenName), oben = clipVon(obenName)
+  const dauer = unten.duration
+  const rU = richtungen(unten, bilder), rO = oben === unten ? rU : richtungen(oben, bilder)
+  const spuren = PAARE.map(() => [])
+  for (let f = 0; f < bilder; f++) {
+    for (const [b, r] of ruhe) b.quaternion.copy(r)
+    soldat.updateMatrixWorld(true)
+    PAARE.forEach((p, i) => {
+      const ziel = (p[4] === 'unten' ? rU : rO)[f][i]
+      const k = z(p[1]), kind = z(p[3])
+      k.updateWorldMatrix(true, true)
+      const ist = wp(kind, B).sub(wp(k, A)).normalize()
+      qa.setFromUnitVectors(ist, ziel.dir)
+      if (i === 0) {
+        // Huefte: nach der Aufrichtung auch die Blickrichtung angleichen (Linie zwischen den Oberschenkeln).
+        k.getWorldQuaternion(qb); qb.premultiply(qa)
+        k.parent.getWorldQuaternion(qc); k.quaternion.copy(qc.invert().multiply(qb)); k.updateWorldMatrix(true, true)
+        const s = wp(z('CC_Base_L_Thigh_03'), C).sub(wp(z('CC_Base_R_Thigh_018'), D))
+        const achse = ziel.dir, ss = s.clone().projectOnPlane(achse).normalize(), sz = ziel.seite.clone().projectOnPlane(achse).normalize()
+        qa.setFromUnitVectors(ss, sz)
+      }
+      k.getWorldQuaternion(qb); qb.premultiply(qa)
+      k.parent.getWorldQuaternion(qc); k.quaternion.copy(qc.invert().multiply(qb))
+      k.updateWorldMatrix(true, true)
+      spuren[i].push(k.quaternion.x, k.quaternion.y, k.quaternion.z, k.quaternion.w)
+    })
+  }
+  const zeiten = Array.from({ length: bilder }, (_, f) => dauer * f / bilder)
+  return new THREE.AnimationClip(untenName + '+' + obenName, dauer,
+    PAARE.map((p, i) => new THREE.QuaternionKeyframeTrack(z(p[1]).name + '.quaternion', zeiten, spuren[i])))
+}
+
+const BEWEGUNGEN = {
+  jog: ['Jog_Fwd_Loop', 'Jog_Fwd_Loop', 'Joggen'],
+  jogZiel: ['Jog_Fwd_Loop', 'Pistol_Aim_Neutral', 'Beine joggen, Arme zielen (Grundlage für das M4)'],
+  geh: ['Walk_Loop', 'Walk_Loop', 'Gehen'],
+  schuss: ['Pistol_Idle_Loop', 'Pistol_Shoot', 'Stehen und schießen'],
+  tod: ['Death01', 'Death01', 'Umfallen'],
+}
+const sMixer = new THREE.AnimationMixer(soldat)
+let vMixer = new THREE.AnimationMixer(quelle)
+function zeige(b) {
+  document.querySelectorAll('button').forEach(x => x.classList.toggle('an', x.dataset.b === b))
+  sMixer.stopAllAction(); vMixer.stopAllAction()
+  for (const [k, r] of ruhe) k.quaternion.copy(r)
+  if (b === 'ruhe') { kopf.innerHTML = '<b>Ruhepose</b> – so kommt der Soldat aus dem Paket.'; return }
+  const [u, o, text] = BEWEGUNGEN[b]
+  const t0 = performance.now(), clip = uebertrage(u, o), ms = performance.now() - t0
+  sMixer.clipAction(clip).play()
+  vMixer.clipAction(clipVon(u)).play()
+  kopf.innerHTML = `<b>${text}</b> – links die Vorlage (Quaternius, CC0), rechts der Soldat mit übertragener Bewegung. Umrechnung ${ms.toFixed(0)} ms.` + (fehlt.length ? `<br>Fehlende Knochen: ${fehlt.join(', ')}` : '')
+}
+document.querySelectorAll('button').forEach(x => x.addEventListener('click', () => zeige(x.dataset.b)))
+zeige('jog')
+
+let letzte = performance.now()
+renderer.setAnimationLoop(() => {
+  const jetzt = performance.now(), dt = (jetzt - letzte) / 1000; letzte = jetzt
+  vMixer.update(dt); sMixer.update(dt)
+  renderer.render(scene, camera)
+})
+</script>
+</body>
+</html>
