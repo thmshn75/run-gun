@@ -17,11 +17,15 @@ export function bildFuer(gruppe: number, zeit: number, dauer = FIGUREN.ZOMBIE_ZY
 export function zombieAufstellung(anzahl: number, startZ: number, seed = 73291): ZombieEintrag[] {
   let zustand = seed >>> 0
   const zufall = () => ((zustand = (Math.imul(zustand, 1664525) + 1013904223) >>> 0) / 4294967296)
+  const spalten = Math.floor((FIGUREN.ZOMBIE_X_MAX - FIGUREN.ZOMBIE_X_MIN) / FIGUREN.ZOMBIE_SPALTENABSTAND) + 1
   return Array.from({ length: anzahl }, (_, i) => {
-    const reihe = Math.floor(i / 24), spalte = i % 24
+    const reihe = Math.floor(i / spalten), spalte = i % spalten
     return {
-      x: Math.max(-5, Math.min(5, (spalte - 11.5) * 0.42 + (reihe % 2) * 0.21 + (zufall() * 2 - 1) * 0.08)),
-      z: startZ - reihe * 0.55 + (zufall() * 2 - 1) * 0.08,
+      x: Math.max(FIGUREN.ZOMBIE_X_MIN, Math.min(FIGUREN.ZOMBIE_X_MAX,
+        (spalte - (spalten - 1) / 2) * FIGUREN.ZOMBIE_SPALTENABSTAND
+        + (reihe % 2) * FIGUREN.ZOMBIE_SPALTENABSTAND / 2
+        + (zufall() * 2 - 1) * FIGUREN.ZOMBIE_ZUFALLSVERSATZ)),
+      z: startZ - reihe * FIGUREN.ZOMBIE_REIHENABSTAND + (zufall() * 2 - 1) * FIGUREN.ZOMBIE_ZUFALLSVERSATZ,
       dreh: (zufall() * 2 - 1) * Math.PI / 12,
       variante: Math.floor(zufall() * 3),
       groesse: 0.92 + zufall() * 0.16,

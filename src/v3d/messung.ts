@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import type Phaser from 'phaser'
 import { auswerten, pmremPufferBytes, speicherMB, spiegelPufferBytes, urteil, type Bildgroesse } from './rechnen'
 import { ZombieMasse, zombieAufstellung } from './figuren'
+import { FIGUREN } from './balance3d'
 import type { Welt } from './szene'
 import type { WasserStufe } from './wasser'
 
@@ -21,6 +22,7 @@ interface Lauf {
   bilder: number[]
   ergebnisse: string[]
   schwarz: number | null
+  messpunktZ: number
   vollast: ZombieMasse
   soldaten: THREE.Group
   verborgenePlatzhalter: THREE.Object3D[]
@@ -77,7 +79,7 @@ function wippe(gruppe: THREE.Group, zeit: number): void {
 
 function schwarzAnteil(l: Lauf): number | null {
   const gl = l.renderer.getContext()
-  const p = new THREE.Vector3(0, 0.35, -30).project(l.welt.camera)
+  const p = new THREE.Vector3(0, FIGUREN.ZOMBIE_HOEHE / 2, l.messpunktZ).project(l.welt.camera)
   const x = Math.round((p.x + 1) / 2 * gl.drawingBufferWidth) - 20
   const y = Math.round((p.y + 1) / 2 * gl.drawingBufferHeight) - 20
   if (x < 0 || y < 0 || x + 41 > gl.drawingBufferWidth || y + 41 > gl.drawingBufferHeight) return null
@@ -117,8 +119,10 @@ function groessen(l: Lauf) {
 
 export function starteMessung(welt: Welt, renderer: THREE.WebGLRenderer, game: Phaser.Game, anzeige: HTMLElement, knopf: HTMLButtonElement): void {
   if (lauf) return
-  const vollast = new ZombieMasse(welt.zombieBau, welt.zombieBau.materialien, 1200)
-  vollast.setze(zombieAufstellung(1200, -22, 49183))
+  const vollast = new ZombieMasse(welt.zombieBau, welt.zombieBau.materialien, FIGUREN.ZOMBIES_SICHTBAR_MAX)
+  const aufstellung = zombieAufstellung(FIGUREN.ZOMBIES_SICHTBAR_MAX, -22, 49183)
+  vollast.setze(aufstellung)
+  const messpunktZ = (Math.min(...aufstellung.map(z => z.z)) + Math.max(...aufstellung.map(z => z.z))) / 2
   const soldaten = baueSoldaten()
   welt.scene.add(vollast.gruppe, soldaten)
   const verborgenePlatzhalter: THREE.Object3D[] = []
@@ -130,7 +134,7 @@ export function starteMessung(welt: Welt, renderer: THREE.WebGLRenderer, game: P
   })
   const original = welt.wasser.stufe
   welt.wasser.wechsle(0)
-  lauf = { welt, renderer, game, anzeige, knopf, original, stufe: 0, phase: 'warm', zeit: 0, bilder: [], ergebnisse: [], schwarz: null, vollast, soldaten, verborgenePlatzhalter }
+  lauf = { welt, renderer, game, anzeige, knopf, original, stufe: 0, phase: 'warm', zeit: 0, bilder: [], ergebnisse: [], schwarz: null, messpunktZ, vollast, soldaten, verborgenePlatzhalter }
   knopf.disabled = true
   anzeige.style.display = 'block'
   anzeige.textContent = 'Aufwärmen · Wasser 0 · 5 s'

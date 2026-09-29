@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import strassenUrl from './bilder/v3d-strasse.webp?url'
 import normalenUrl from './bilder/v3d-wasser-normalen.webp?url'
-import { BUEHNE } from './balance3d'
+import { BUEHNE, FIGUREN } from './balance3d'
 import { baueKamera } from './kamera'
 import { ladeZombie, ZombieMasse, zombieAufstellung, type ZombieBau } from './figuren'
 import { baueWasser, type WasserHalter, type WasserStufe } from './wasser'
@@ -50,11 +50,10 @@ function platzhalter(scene: THREE.Scene): void {
   gruppe.name = 'platzhalter'
   gruppe.visible = new URLSearchParams(location.search).get('platzhalter') !== '0'
   scene.add(gruppe)
-  box(gruppe, 'vervielfacher', [12, 1.2, 0.18], [0, 0.6, -5], '#8e36c0')
-  schild(gruppe, 'vervielfacher-zahl', 2.2, 1, 0, 0.6, -4.88, textBild('×2', '#8e36c0'))
+  box(gruppe, 'vervielfacher', [12, 2.4, 0.18], [0, 1.2, -5], '#8e36c0')
+  schild(gruppe, 'vervielfacher-zahl', 4.4, 2, 0, 1.2, -4.88, textBild('×2', '#8e36c0'))
   const plus = textBild('+1', '#168bd2')
-  for (let z = 6; z >= -60; z -= 3.5) schild(gruppe, 'plus-eins', 1.2, 0.8, -5.2, 0.8, z, plus)
-  schild(gruppe, 'plus-eins', 1.2, 0.8, -5.2, 0.8, -60, plus)
+  for (let z = 6; z >= -60; z -= 7) schild(gruppe, 'plus-eins', 2.4, 1.6, -6 + 0.15 + 1.2, 1.6, z, plus)
   box(gruppe, 'saeule', [1.6, 4, 1.6], [4.6, 2, -12], '#aaaeb3')
   schild(gruppe, 'saeule-zahl', 1.4, 0.7, 4.6, 3.4, -11.18, textBild('150', '#777c82'))
   box(gruppe, 'truppe', [6, 0.9, 3], [0, 0.45, 1.5], '#2875bd', 1)
@@ -107,13 +106,14 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
     damm.rotation.x = Math.PI / 2; damm.position.set(0, -0.6, -100); damm.name = 'damm-unterseite'; scene.add(damm)
     platzhalter(scene)
     const nahaufnahme = new URLSearchParams(location.search).get('nahaufnahme') === '1'
-    const zombieMasse = new ZombieMasse(zombieBau, zombieBau.materialien, 600)
-    zombieMasse.setze(nahaufnahme ? [-0.65, 0, 0.65].map((x, i) => ({ x, z: 0, dreh: 0, variante: i, groesse: 1 })) : zombieAufstellung(600, -35))
+    const buehnenAnzahl = FIGUREN.ZOMBIES_SICHTBAR_MAX / 2
+    const zombieMasse = new ZombieMasse(zombieBau, zombieBau.materialien, buehnenAnzahl)
+    zombieMasse.setze(nahaufnahme ? [-0.85, 0, 0.85].map((x, i) => ({ x, z: 0, dreh: 0, variante: i, groesse: 1 })) : zombieAufstellung(buehnenAnzahl, -35))
     scene.add(zombieMasse.gruppe)
     if (nahaufnahme) {
       scene.background = new THREE.Color('#777c7e'); scene.fog = null
       scene.traverse(obj => { if (obj instanceof THREE.Mesh && !zombieMasse.gruppe.children.includes(obj)) obj.visible = false })
-      camera.position.set(0, 1.35, Math.max(3.8, 2.7 / (2 * Math.tan(THREE.MathUtils.degToRad(17.5)) * innerWidth / innerHeight))); camera.lookAt(0, 0.65, 0); camera.near = 0.1; camera.fov = 35; camera.updateProjectionMatrix()
+      camera.position.set(0, 1.95, Math.max(3.8, 2.9 / (2 * Math.tan(THREE.MathUtils.degToRad(17.5)) * innerWidth / innerHeight))); camera.lookAt(0, 0.95, 0); camera.near = 0.1; camera.fov = 35; camera.updateProjectionMatrix()
     }
     const wasser = baueWasser(scene, renderer, normalen, stufe)
     if (nahaufnahme) scene.children.filter(o => o instanceof THREE.Mesh).forEach(o => { o.visible = false })

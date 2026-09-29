@@ -182,6 +182,8 @@ Soldaten (D2b), Bosse (D2c), Bewegung nach vorn, Wellen, Front, Treffer, Umfalle
 
 ## Implementation Summary
 
+- Nacharbeit 2: Zombie-Höhe 1,95 m; Aufstellung mit 0,63 m Spaltenabstand, 0,83 m Reihenabstand, ±0,12 m Versatz und 16 Spalten aus der Straßenbreite. Bühnenblock 400, Mess-Vollast 800 Zombies; Schwarz-Messpunkt aus der tatsächlichen Tiefe der Vollast berechnet. +1-Schilder 2,4 × 1,6 m links an der Mauer in 7-m-Abständen, ×2-Wand 2,4 m hoch und Schrift-Schild 4,4 × 2 m. Nahaufnahme für die größeren Figuren neu ausgerichtet.
+- Nacharbeit-2-Prüfung: gezielter Figurentest 4/4, `npm test` 57 Dateien/510 Tests, `npx tsc --noEmit`, `npm run build`, `git diff --check` grün; kein `http` in `src/v3d/`. Build enthält die GLB weiter im Precache. Browser-Sichtprüfung, WebGL-Zähler beim Zweitstart und iPhone-Messung der neuen 800er-Vollast bleiben wie in A5/A6 Claude und Thomas vorbehalten; hier kein Gerätewert behauptet.
 - Zombie zunächst aus der Rohquelle aufbereitet (906 Dreiecke); der Browser-Review zeigte dabei Löcher und schwebende Hosenteile. Nacharbeit 1 nutzt deshalb die eingecheckte, am iPhone geprüfte Referenz `modelle-quelle/zombie-vereinfacht.glb` ohne `weld` oder `simplify`: 1009 Dreiecke, 189564 Byte, 512er-WebP, UV-Spannen 0,972/0,965. Die Referenz ist bytegleich mit `public/probe-3d/modelle/sf_zombie_m.glb` (339412 Byte); alle vier Teilnetze behalten ihre Dreieckszahlen.
 - `scripts/zombie-varianten.py` färbt Hose und Haut anhand der UV-Dreiecke von `Bottoms` und `Body` vollflächig getrennt; `Eyelashes` und `default` bleiben unangetastet. Variante C hat kleine weiche Blutflecken auf Körper und Hose. B/C: 26378/26674 Byte, mittlere Helligkeit 141,8/141,0. Kontrollbild: `tmp/zombie-varianten.png`. Wiederholtes Erzeugen lieferte bytegleiche GLB und Varianten.
 - `src/v3d/figuren.ts` lädt im gemeinsamen 8-s-Lade-Gate, backt zwölf Formen und zeichnet 600 Zombies auf der Bühne sowie 1200 in der Vollast als Instanzen mit je drei Bemalungen und acht Phasengruppen. Der 4,033-s-Clip enthält anhand der Fußhöhen einen linken und einen rechten Schritt; verwendet wird der ganze Abschnitt 0–4,033 s. Die Referenz zeichnet ohne Drehung; hier ebenfalls 0° Korrektur. Die 120 Soldaten-Platzhalter bleiben. Messstufen 0/1, Nahaufnahme und Freigabe bei Abbruch/Zweitstart sind eingebunden. Lizenz-Änderungsvermerk ergänzt.
@@ -216,3 +218,24 @@ Entscheidung Claude (A1.6 Rückfall):
    `tmp/zombie-varianten-3d.png` ist nicht nötig (Claude prüft im Browser).
 3. Tests anpassen, falls sie die alte Eingabe/Dreieckszahl festschreiben. Rest bleibt.
 Status am Ende `IMPL_DONE`, Nachtrag im Implementation Summary.
+
+## Nacharbeit 2 (Thomas 2026-09-29) — Größen und Sichtgrenze
+
+iPhone-Messung mit 1200 echten Zombies: Wasser 0 = 53,4 fps / 26 ms, Wasser 1 = 52,4 fps
+/ 27 ms → außerhalb des Budgets. Thomas: Figuren und +1-Schilder zu klein. Entscheidung
+(Thomas + Claude, Plan aktualisiert):
+- `FIGUREN.ZOMBIE_HOEHE` 1,3 → **1,95** (1,5×). In `zombieAufstellung` die festen Werte
+  als Konstanten in `FIGUREN` führen und mitskalieren: Spaltenabstand 0,42 → **0,63**,
+  Reihenabstand 0,55 → **0,83**, Versatz jeder zweiten Reihe = halber Spaltenabstand,
+  Zufallsversatz ±0,12; Spaltenzahl aus der Breite ableiten (`x ∈ [−5, 5]` → 16 je
+  Reihe), keine feste 24 mehr.
+- **Sichtgrenze 800 Zombies:** Konstante `FIGUREN.ZOMBIES_SICHTBAR_MAX = 800`. Vollast
+  im Messmodus = 800 echte Zombies (ab `z = −22`), Bühnen-Block = **400** Zombies ab
+  `z = −35`. Messpunkt Schwarz-Anteil so legen, dass er in der Vollast-Masse liegt
+  (Mitte der Vollast: `z = −22 − halbe Tiefe`), als berechneter Wert, nicht fest −30.
+- **+1-Schilder 2×:** 2,4 × 1,6 m, Mittelhöhe 1,6 m, Spalte an die linke Randmauer gerückt
+  (`x = −6 + 0,15 + 1,2`), Abstand längs 7 m (statt 3,5). **×2-Wand 2× hoch:** 2,4 m
+  (Mitte `y = 1,2`), Schrift-Schild ebenfalls 2× (4,4 × 2 m). Säulen-Platzhalter bleibt.
+- Nahaufnahme: Kamera so anpassen, dass die drei Zombies wieder gut ins Bild passen.
+- Tests auf die neuen Konstanten anpassen (Aufstellung innerhalb der Straße, Anzahl je
+  Reihe aus Breite). Status am Ende `IMPL_DONE`, Nachtrag im Implementation Summary.

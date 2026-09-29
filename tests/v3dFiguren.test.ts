@@ -69,12 +69,23 @@ describe('Zombie-Figur', () => {
     expect(abstand(schwerpunkt[11],schwerpunkt[0])).toBeLessThanOrEqual(Math.max(...spruenge)+1e-5)
     formen.forEach(f=>f.dispose())
   })
-  it('verteilt Gruppen und 600 Figuren deterministisch auf der Straße',()=>{
+  it('verteilt Gruppen und 400 Figuren deterministisch in 16 Spalten auf der Straße',()=>{
     expect(bildFuer(0,0)).toBe(0);expect(bildFuer(1,0)).toBe(2);expect(bildFuer(7,0)).toBe(11)
     expect(bildFuer(0,1.1)).toBe(0);expect(bildFuer(1,.55)).toBe(8)
-    const a=zombieAufstellung(600,-35)
-    expect(a).toEqual(zombieAufstellung(600,-35));expect(a).toHaveLength(600)
-    for(const v of a){expect(v.x).toBeGreaterThanOrEqual(-5);expect(v.x).toBeLessThanOrEqual(5);expect(v.z).toBeLessThanOrEqual(-34.92);expect(v.groesse).toBeGreaterThanOrEqual(.92);expect(v.groesse).toBeLessThanOrEqual(1.08);expect(v.variante).toBeGreaterThanOrEqual(0);expect(v.variante).toBeLessThan(3)}
+    expect(FIGUREN.ZOMBIE_HOEHE).toBe(1.95)
+    expect(FIGUREN.ZOMBIES_SICHTBAR_MAX).toBe(800)
+    const spalten = Math.floor((FIGUREN.ZOMBIE_X_MAX - FIGUREN.ZOMBIE_X_MIN) / FIGUREN.ZOMBIE_SPALTENABSTAND) + 1
+    expect(spalten).toBe(16)
+    const a=zombieAufstellung(FIGUREN.ZOMBIES_SICHTBAR_MAX / 2,-35)
+    expect(a).toEqual(zombieAufstellung(400,-35));expect(a).toHaveLength(400)
+    for(const [i,v] of a.entries()){
+      expect(v.x).toBeGreaterThanOrEqual(FIGUREN.ZOMBIE_X_MIN);expect(v.x).toBeLessThanOrEqual(FIGUREN.ZOMBIE_X_MAX)
+      const reihe=Math.floor(i/spalten)
+      expect(v.z).toBeGreaterThanOrEqual(-35-reihe*FIGUREN.ZOMBIE_REIHENABSTAND-FIGUREN.ZOMBIE_ZUFALLSVERSATZ)
+      expect(v.z).toBeLessThanOrEqual(-35-reihe*FIGUREN.ZOMBIE_REIHENABSTAND+FIGUREN.ZOMBIE_ZUFALLSVERSATZ)
+      expect(v.groesse).toBeGreaterThanOrEqual(.92);expect(v.groesse).toBeLessThanOrEqual(1.08)
+      expect(v.variante).toBeGreaterThanOrEqual(0);expect(v.variante).toBeLessThan(3)
+    }
     const lizenz=readFileSync('docs/lizenzen.md','utf8');expect(lizenz).toContain('Zombie Walk Test');expect(lizenz).toContain('OSCAR CREATIVO')
   })
 })

@@ -27,7 +27,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     renderer.setSize(innerWidth, innerHeight, false)
     renderer.domElement.style.width = '100%'
     renderer.domElement.style.height = '100%'
-    if (welt?.nahaufnahme) { camera.aspect = innerWidth / innerHeight; camera.fov = 35; camera.position.z = Math.max(3.8, 2.7 / (2 * Math.tan(17.5 * Math.PI / 180) * camera.aspect)); camera.lookAt(0, 0.65, 0); camera.updateProjectionMatrix() }
+    if (welt?.nahaufnahme) { camera.aspect = innerWidth / innerHeight; camera.fov = 35; camera.position.y = 1.95; camera.position.z = Math.max(3.8, 2.9 / (2 * Math.tan(17.5 * Math.PI / 180) * camera.aspect)); camera.lookAt(0, 0.95, 0); camera.updateProjectionMatrix() }
     else passeKameraAn(camera, innerWidth, innerHeight)
     if (welt?.wasser.stufe === 2) welt.wasser.wechsle(2)
   }
@@ -50,7 +50,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     letzterFrame = jetzt
     welt?.wasser.aktualisiere(Math.min(0.1, dt / 1000))
     welt?.zombieMasse.aktualisiere(jetzt / 1000)
-    if (welt?.nahaufnahme) welt.zombieMasse.setze([-0.65, 0, 0.65].map((x, i) => ({ x, z: 0, dreh: jetzt / 1000 * Math.PI / 4, variante: i, groesse: 1 })))
+    if (welt?.nahaufnahme) welt.zombieMasse.setze([-0.85, 0, 0.85].map((x, i) => ({ x, z: 0, dreh: jetzt / 1000 * Math.PI / 4, variante: i, groesse: 1 })))
     renderer.render(scene, camera)
     messBild(dt, jetzt)
   }
