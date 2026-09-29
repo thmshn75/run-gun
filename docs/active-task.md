@@ -199,6 +199,7 @@ Figuren, Bewegung, Steuerung, Aussenden, Rechenkern-Anbindung, Säulen-Logik, Kl
 - Noch ausstehende Fremd-/Gerätenachweise: Desktop-Sichtvergleich durch Claude und iPhone-Messung durch Thomas laut A6. Die echte Zweitstart-Speicherprüfung je Wasserstufe und 1→2→0→1 konnte hier nicht gemessen werden: Die Browsersteuerung für Google Chrome wurde von der Umgebung nicht freigegeben. Der Terminal-Start über `open -a Terminal` war ebenfalls nicht verfügbar; die Prüfungen liefen direkt in der Projekt-Shell. Keine Commits oder Pushes.
 - Nacharbeit 1: Nur `src/v3d/wasser.ts` geändert: beide einfachen Wasserstufen mit Grundfarbe `#0b3440`, Stufe 1 mit Rauheit 0,2, Normalstärke 0,9, Wiederholung 40, Umgebung 0,7 und dem vorgegebenen vierstufigen Himmelsverlauf; Stufe 2 mit Wasserfarbe `0x0e3a46` und Verzerrung 2,5. Werte als Konstanten benannt. Gezielter Test: 4/4; `npx tsc --noEmit` und `npm run build` Exit 0; `npm test`: 56 Testdateien, 506/506 Tests. Browser-Sichtprüfung und iPhone-Messung bleiben bei Claude bzw. Thomas. `open -a Terminal` scheiterte in dieser Umgebung mit „Unable to find application named 'Terminal'“, daher liefen die Prüfungen in der Projekt-Shell.
 - Nacharbeit 2: `Water.dispose()` gibt Spiegel-Zielpuffer, Geometrie und Material frei; `bricheAb()` gibt zusätzlich die beiden Vollast-`InstancedMesh` frei. `npx tsc --noEmit` und `npm run build` Exit 0; `npm test`: 56 Testdateien, 506/506 Tests; `git diff --check` ohne Befund. Die erneute WebGL-Zählerprüfung nach vollständigem Messlauf und Zurück führt Claude laut Nacharbeit im Browser durch. `open -a Terminal` war hier erneut nicht verfügbar; die Prüfungen liefen direkt in der Projekt-Shell. Keine Commits oder Pushes.
+- Nacharbeit 3: `v3d-strasse.webp` als Asphaltbelag mit maßhaltigen Rand- und Strichlinien sowie dezenten Fahrspuren neu erzeugt (1024×512, WebP Qualität 88); `scripts/strasse-asphalt.py` verarbeitet den Bildwerkzeug-Grundbelag reproduzierbar und schreibt die 2×2-Kachelprobe nach `/private/tmp/run-gun-d1-kacheln/strasse-asphalt-2x2.png`. In `szene.ts` nur Längswiederholung `(1, 40)`, seitliche Kantenklemmung, Anisotropie bis 8 und Rauheit 0,95 geändert. Bildprüfung: Mittelwert RGB 92,6/95,9/99,2, Längsnaht 2,27 mittlere Pixelabweichung (benachbarte Zeilen 14,67), visuell keine auffällige Naht. Speicherformel erfasst 1024×512 automatisch mit 2,67 MB. `npm test`: 56 Dateien, 506/506 Tests; `npx tsc --noEmit`, `npm run build`, gezielter Build-Test und `git diff --check` Exit 0. Beide WebP-Dateien im Precache, alle 3D-Dateien zusammen 901391 Bytes. Desktop-Sichtvergleich der neuen Straße und neue iPhone-Messung stehen noch aus; die Terminal-App war nicht verfügbar, deshalb Prüfungen in der Projekt-Shell. Keine Commits oder Pushes.
 
 ## Nacharbeit 1 (Claude-Review 2026-09-29) — nur Wasserwerte
 
@@ -232,3 +233,31 @@ Ursachen (von Claude im Code gefunden):
    `(child as THREE.InstancedMesh).dispose()` zusätzlich zur Geometrie.
 Nach der Korrektur prüft Claude erneut mit den WebGL-Zählern. Tests, `tsc`, Build grün;
 Status am Ende `IMPL_DONE`, kurzer Nachtrag im Implementation Summary.
+
+## Nacharbeit 3 (Thomas 2026-09-29) — Straßenbelag Asphalt
+
+D1 läuft am iPhone im Budget (Wasser 1: 55,7 fps / 24 ms). Thomas findet die Straße zu
+glatt und hat aus vier Entwürfen **Asphalt** gewählt (dunkelgrau, weiße Randlinien,
+gestrichelte Fahrstreifen). Nur `v3d-strasse.webp` und die Belags-Einstellungen in
+`szene.ts` ändern; alles andere bleibt.
+- **Neue Bemalung** `src/v3d/bilder/v3d-strasse.webp`, **1024 × 512 px = 12 m quer ×
+  6 m längs** (die ganze Straßenbreite in einer Kachel, nur in Längsrichtung wiederholt:
+  `repeat = (1, 40)` auf 240 m, `wrapT = RepeatWrapping`, `wrapS = ClampToEdge`).
+- Grundbelag: **Codex erzeugt eine Asphaltfläche mit dem Bildwerkzeug** (dunkelgrauer
+  Asphalt, feine Körnung, leichte Farbunterschiede, von oben, ohne Perspektive, ohne
+  Markierungen). In Längsrichtung nahtlos machen (Kanten überblenden), Helligkeit so
+  setzen, dass der Mittelwert etwa `#5a5d61` entspricht.
+- Darauf per Skript (PIL) gezeichnet, maßstabsgenau (85,3 px/m quer, 85,3 px/m längs):
+  - weiße Randlinien (`#e8e6de`), 0,15 m breit, Innenkante 0,35 m von jeder Straßenkante;
+  - zwei gestrichelte Fahrstreifenlinien bei `x = −2` und `x = +2` m, 0,12 m breit,
+    Strich 3 m, Lücke 3 m (genau eine Periode je Kachel);
+  - zwei dezente dunklere Fahrspuren je Fahrstreifen (Reifenspuren, weich, Deckkraft
+    ≤ 15 %), durchgehend, damit sich nichts sichtbar alle 6 m wiederholt;
+  - **keine** einzelnen Flicken oder Flecken (sie würden sich alle 6 m wiederholen).
+  - Linien leicht abgenutzt (feines Rauschen in der Deckkraft), nicht perfekt glatt.
+  - Das Skript kommt nach `scripts/strasse-asphalt.py`, WebP Qualität 88.
+- `szene.ts`: `anisotropy = min(8, renderer.capabilities.getMaxAnisotropy())` für die
+  Straße (Linien bleiben in der Ferne scharf); Rauheit 0,95.
+- Speicherplan zählt die neue Größe automatisch mit (prüfen).
+- 2×2-Kachelprobe (längs) als PNG ins Scratchpad, im Bericht nennen. Tests, `tsc`,
+  Build grün; Status am Ende `IMPL_DONE`, Nachtrag im Implementation Summary.

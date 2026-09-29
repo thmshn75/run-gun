@@ -75,8 +75,10 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
     const [strasse, normalen] = await Promise.race([beide, zeitlimit])
     if (abgebrochen()) { geladen.forEach(t => t.dispose()); return null }
     strasse.colorSpace = THREE.SRGBColorSpace
-    strasse.wrapS = strasse.wrapT = THREE.RepeatWrapping
-    strasse.repeat.set(3, 60)
+    strasse.wrapS = THREE.ClampToEdgeWrapping
+    strasse.wrapT = THREE.RepeatWrapping
+    strasse.repeat.set(1, 40)
+    strasse.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy())
     normalen.wrapS = normalen.wrapT = THREE.RepeatWrapping
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(BUEHNE.DUNST_FARBE)
@@ -87,7 +89,7 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
     sonne.position.set(...BUEHNE.SONNE)
     scene.add(sonne)
     const beton = new THREE.MeshStandardMaterial({ color: '#b9bdbe', roughness: 0.9 })
-    const asphalt = new THREE.MeshStandardMaterial({ map: strasse, roughness: 0.9 })
+    const asphalt = new THREE.MeshStandardMaterial({ map: strasse, roughness: 0.95 })
     const decke = new THREE.Mesh(new THREE.PlaneGeometry(BUEHNE.BAHN_BREITE, 240), asphalt)
     decke.name = 'strasse'; decke.rotation.x = -Math.PI / 2; decke.position.z = -100
     scene.add(decke)
