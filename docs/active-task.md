@@ -2,385 +2,160 @@
 
 Status: APPROVED
 
-## Aufgabe: D2b — Soldat (Run Gun 3D)
+## Aufgabe: D2c — Bosse und Gesamtmessung (Run Gun 3D)
 
-Verbindlicher Plan: `docs/plan-v7.md`, Abschnitte "Thomas' Entscheidungen" (Soldat,
-Bewaffnung, Größen), "Machbarkeit → Folgerungen", Randbedingungen 3–5, 7–9 und
-"Schrittfolge → D2b" inkl. **Reißleine D2b**. Dieser Schritt bringt den **echten
-Soldaten** in den 3D-Modus: Modell aufbereiten (eine Bemalung, Tarnmuster, Helm),
-Bewegungen aus der Quaternius-Bibliothek übertragen, M4 an die rechte Hand, gebackene
-Formen als Instanzen, Truppe in Reihen. Keine Spiellogik (Aussenden, Front: D3/D4).
-Vorlagen: `public/probe-3d/bewegung.html` (Übertragung, am iPhone bewiesen, 13 ms),
-`src/v3d/figuren.ts` (Backen/Zeichnen der Zombies aus D2a — gleiche Technik).
+Verbindlicher Plan: `docs/plan-v7.md`, "Thomas' Entscheidungen" (Mini-Boss, Elite-Endboss),
+"Machbarkeit → Folgerungen" (Bosse = echte Skelett-Figuren, Farb- + Reliefbild),
+Randbedingungen 3–5, 7, 8 und "Schrittfolge → D2c". Dieser Schritt bringt **Mini-Boss und
+Elite-Boss** als animierte Skelett-Figuren in die Bühne, misst ihre Kosten einzeln und dann
+den **Worst Case** mit Dauertest, und nimmt danach die Testseiten aus dem Deploy.
+Stand: 600 Zombies + 120 Soldaten + Wasser 1 = 55,8 fps / 24 ms am iPhone (knapp im
+Budget). Vorlage für Bosse: `public/probe-3d/diagnose7.html`, Funktion `bossFigur`.
 
 ## Erlaubte Änderungen (abschließend)
 
-- Neu: `src/v3d/soldaten.ts` (Laden, Übertragen, Backen, `SoldatenMasse`),
-  `src/v3d/modelle/v3d-soldat.glb`, `src/v3d/modelle/v3d-bewegung.glb`,
-  `scripts/soldat-tarnung.py` (falls Pixelarbeit in Python einfacher), Test
-  `tests/v3dSoldaten.test.ts`.
-- Geändert: `scripts/modelle.mjs` (neue Ziele `soldat` und `bewegung`),
-  `src/v3d/szene.ts` (Truppen-Platzhalter → echte Truppe, Lade-Gate),
-  `src/v3d/messung.ts` (Soldaten-Kugeln → echte Soldaten), `src/v3d/balance3d.ts`
-  (Block `FIGUREN`), `src/v3d/einstieg.ts` (nur Bildtakt), `docs/lizenzen.md`
-  (Soldat: Änderungen ergänzen; **M4 neu**; Quaternius-Bewegungen), bestehende Tests nur
-  wo Werte gewollt geändert werden.
-- Quellen (nur lesen): `modelle-quelle/soldat-vereinfacht.glb` (= am iPhone geprüfter
-  Soldat, 5130 Dreiecke, 10 Materialien, 24 Bilder), `modelle-quelle/m4/` (Sketchfab
-  "Low-Poly M4a1", TastyTony, CC-BY 4.0, 10 680 Dreiecke, ohne Bilder, nur
-  Materialfarben), Bewegungen aus
-  `~/Downloads/rungun-roh/ual/ual1/Universal Animation Library[Standard]/Unreal-Godot/UAL1_Standard.glb`
-  (Quaternius, CC0; liegt bewusst außerhalb des Repos). **Claude hat eine Kopie nach
-  `tmp/UAL1_Standard.glb` gelegt (ignoriert von Git) — das Skript liest diesen Pfad**
-  (Konstante), mit verständlicher Fehlermeldung, falls die Datei fehlt.
-- Keine neuen Pakete (die Werkzeug-Pakete aus D2a sind da).
+- Neu: `src/v3d/bosse.ts`, `src/v3d/modelle/v3d-miniboss.glb`,
+  `src/v3d/modelle/v3d-eliteboss.glb`, Test `tests/v3dBosse.test.ts`.
+- Geändert: `scripts/modelle.mjs` (Ziele `miniboss`, `eliteboss`), `src/v3d/szene.ts`
+  (Bosse in die Bühne, Lade-Gate), `src/v3d/messung.ts` (Stufen, Dauertest),
+  `src/v3d/balance3d.ts` (Block `FIGUREN`), `src/v3d/einstieg.ts` (nur Bildtakt),
+  `tests/v3dBuild.test.ts`, `docs/lizenzen.md` (Änderungsvermerke Bosse).
+- Quellen (nur lesen): `modelle-quelle/miniboss-vereinfacht.glb` (Sketchfab "Nightmare
+  Creature 1#", Rodolfoisreal1423, CC-BY 4.0; 1672 Dreiecke, 3 Bilder, 22 Clips) und
+  `modelle-quelle/eliteboss-vereinfacht.glb` ("Mutant Golem", Vasian-Digital3D, CC-BY 4.0;
+  12 200 Dreiecke, 2 Materialien, 4 Bilder, ein Clip `Motion` 28,5 s), Lizenztexte
+  daneben. Beide sind am iPhone in `diagnose7.html` geprüft. Kein neues Paket.
 
 ## Akzeptanzkriterien
 
-### A0 Vorab-Korrektur +1-Schilder (Thomas 2026-09-29)
+### A1 Aufbereitung (`node scripts/modelle.mjs miniboss|eliteboss`)
 
-- `baueSchild` bekommt die Option `pfosten: boolean` (Standard `true`). **+1-Schilder
-  ohne Pfosten** — sie schweben (Unterkante 0,5 m über der Straße bleibt). Die ×2-Wand
-  behält ihre Pfosten.
-- Abstand der +1-Schilder längs **4 m** statt 7 m (Konstante in `BUEHNE`).
+- Nur **Farb- und Reliefbild** behalten (Plan Folgerung 2), Metall-Rauheit-/Glanzbilder
+  entfernen; Faktoren Metall 0, Rauheit 0,8. Bilder **512 × 512 WebP**. Keine
+  Vereinfachung der Geometrie (bereits vereinfacht und geprüft).
+- **Mini-Boss:** nur die Clips `walk`, `Run`, `attack_1`, `attack_2`, `roar`, `hit_1`,
+  `death_1` behalten (Namen enthalten den Präfix `Creature_armature|`), `resample`.
+- **Elite-Boss:** Clip `Motion` behalten, `resample`; Tangenten entfernen, `prune`,
+  `dedup`.
+- Prüfungen am Ende (Abbruch bei Verletzung): Dreiecke wie Quelle ±1 %, je Material
+  höchstens Farb- + Reliefbild, alle Bilder 512², erwartete Clips vorhanden, **Datei
+  ≤ 2 MB** je Boss (sonst Schlüsselbilder weiter ausdünnen, nicht Geometrie).
 
-### A1 Aufbereitung Soldat (`node scripts/modelle.mjs soldat`)
+### A2 Bosse zeichnen (`src/v3d/bosse.ts`)
 
-Ausgabe `src/v3d/modelle/v3d-soldat.glb`, Skelett und Skin bleiben erhalten:
-- **Eine einzige Bemalung (Atlas) 1024 × 1024:** die 10 Farbbilder (nur Basisfarbe;
-  Relief-/Glanz-/Rauheitsbilder entfernen) je auf 256 × 256 verkleinern und in ein
-  4 × 4-Raster legen (Rand 4 px je Kachel, Kanten ausgeblutet gegen Säume), UVs jedes
-  Teilnetzes auf seine Kachel umrechnen, **alle Teilnetze auf ein Material** mit dem
-  Atlas (Faktoren wie Zombie: Basisfarbe [1,1,1,1], Metall 0, Rauheit 0,85). Eine freie
-  Kachel wird **Waffenfarbe** (s. A3).
-- **Tarnmuster** (Plan: Codex malt es): **Codex erzeugt mit dem Bildwerkzeug** ein
-  nahtloses Woodland-/Multicam-artiges Tarnmuster (Grün-, Braun-, Sandtöne, 512 px,
-  kachelbar). Es wird auf die Kacheln **Jacke (`Mark_Kitel_1`) und Hose
-  (`Mark_Pants_1`)** gelegt: `neu = tarn × (Helligkeit_original / mittlere
-  Helligkeit_original)` innerhalb der UV-belegten Fläche (Maske aus den UV-Dreiecken
-  dieses Teilnetzes, wie Zombie-Varianten), damit Falten und Schattierung bleiben.
-  Kacheln werden **nur innerhalb der Maske** verändert.
-- **Helm (`Mark_Helmet1`) = SOCOM-Stil:** einfarbig Coyote-Tan (`#a58a64`) mit der
-  Originalschattierung (gleiche Formel), keine Tarnung.
-- Handschuhe, Weste, Taschen, Stiefel: unverändert (dunkel, taktisch).
-- Prüfungen am Skriptende (Abbruch bei Verletzung): genau ein Bild, 1024², ein Material,
-  Dreiecke 4900–5400, Skelett vorhanden, Datei ≤ 2 MB. Kontrollbild des Atlas nach
-  `tmp/soldat-atlas.png`.
+- Echte `SkinnedMesh` mit `AnimationMixer` (keine Instanzen, keine gebackenen Formen).
+  Material `MeshStandardMaterial({ map, normalMap, roughness: 0.8, metalness: 0 })`,
+  `side: FrontSide`, Layer 1 (keine Spiegelung).
+- Wurzelbewegung entfernen (wie `aufDerStelle` in `diagnose7.html`, x/z der Spur mit der
+  größten waagrechten Strecke festhalten) — die Bosse laufen auf der Stelle; Vorwärts-
+  bewegung kommt in D4.
+- Größe: **`MINIBOSS_HOEHE = 3.2` m**, **`ELITEBOSS_HOEHE = 4.8` m** (gemessen über den
+  Clip, nicht nur Bild 0; Füße auf `y = 0 ± 5 cm` über den ganzen Clip).
+  Blick zur Truppe (**+z**) — mit Test absichern (Kopf/Gesicht vor dem Hinterkopf in +z,
+  wie der Blick-Test des Soldaten).
+- Schnittstelle: `baueBoss(art, gltf) → { objekt, spiele(clipKurzname), aktualisiere(dtS),
+  gibFrei() }`; Mini: Standard `walk`; Elite: `Motion` in Schleife. Zeit aus der
+  pausierbaren Einstiegszeit (wie Soldaten). `gibFrei()` gibt Geometrie, Material,
+  Bilder, Skelett (`skeleton.dispose()`) und Mixer frei.
+- Lade-Gate: beide glb im gemeinsamen Laden (8-s-Limit nur fürs Laden, Freigabe bei
+  Abbruch wie D2b).
 
-### A2 Bewegungen (`node scripts/modelle.mjs bewegung`)
+### A3 Bühne
 
-Ausgabe `src/v3d/modelle/v3d-bewegung.glb`: **nur Skelett + diese Clips** aus UAL1
-(Netze, Bilder, Materialien entfernen): `Jog_Fwd_Loop`, `Pistol_Aim_Neutral`,
-`Pistol_Idle_Loop`, `Pistol_Shoot`, `Death01`. Prüfung: Clips vorhanden, Datei ≤ 1 MB.
+- Mini-Boss mittig in der vordersten Hordenreihe: `x = 0`, `z = −36` (die Zombies im
+  Umkreis von 1,4 m um ihn werden in der Aufstellung ausgelassen, damit sie nicht durch
+  ihn hindurchragen).
+- Elite-Boss hinter der Horde: `x = 0`, `z = −66` (liegt im Bild; falls nicht, so weit nach
+  vorn, dass er ganz sichtbar ist, und im Bericht nennen).
+- Beide bleiben innerhalb des mittleren Streifens (Breite prüfen; Elite darf die
+  Betonkanten nicht überragen — sonst Größe um höchstens 15 % senken und melden).
 
-### A3 M4 (im Skript `soldat`, als Teil derselben glb)
+### A4 Messmodus (`src/v3d/messung.ts`)
 
-- M4 aus `modelle-quelle/m4/` auf **350 – 600 Dreiecke** vereinfachen (Bisektion wie
-  D2a, `lockBorder`), Länge real ~0,84 m relativ zur Soldatengröße skalieren.
-- UVs aller M4-Punkte auf die **Waffenfarbe-Kachel** im Atlas (dunkles Grau
-  `#2b2d2f` mit leichtem Verlauf; alle Punkte auf die Kachelmitte ist erlaubt).
-- M4 wird als eigenes Teilnetz **starr an den Knochen `CC_Base_R_Hand_081` gebunden**
-  (Skin-Gewicht 1,0 auf diesen Knochen), Griff in der Hand, Lauf nach vorn entlang der
-  Zielrichtung der Pose `Pistol_Aim_Neutral`. Lage/Drehung als Konstanten im Skript,
-  von Codex an der Pose ermittelt.
+Ablauf (Wasser 1 fest, 600 Zombies + 120 laufende Soldaten wie bisher):
+1. 5 s Aufwärmen,
+2. **"Vollast ohne Bosse"** 30 s,
+3. **"Vollast + Mini-Boss"** 30 s,
+4. **"Vollast + beide Bosse"** 30 s,
+5. **"Dauertest 3 min"** (Vollast + beide Bosse): Anzeige je Minute Schnitt-fps und
+   langsamste 5 %, dazu Schwarz-Anteil am Ende; Urteil gegen dieselbe Grenze **für jede
+   Minute** (Wärme: die dritte Minute zählt).
+Zwischen den Stufen 2 s ohne Zählung. Jede Zeile nennt Geometrien/Texturen und den
+Speicherplan inkl. Boss-Bemalungen. Die Anzeige bleibt scrollbar. Stufenliste als
+Konstante.
 
-### A4 Übertragen und Backen (`src/v3d/soldaten.ts`)
+### A5 Testseiten aus dem Deploy — **macht Claude nach Thomas' iPhone-Messung**
 
-- Übertragung wie `bewegung.html` (`PAARE`, `richtungen`, `uebertrage`), zusätzlich
-  **Hüfthöhe**: die Höhe des Beckens der Vorlage je Bild relativ zu ihrer Ruhehöhe,
-  skaliert mit Soldatengröße / Vorlagengröße, als Positionsspur auf `CC_Base_Hip_01`
-  (nur y; x/z fest — auf der Stelle).
-- Vier Bewegungen, je als feste Formen gebacken (alle Teilnetze inkl. M4 zu einer
-  Geometrie je Form, `uv`/`index` gemeinsam wie D2a):
-  - `laufen` = Beine `Jog_Fwd_Loop` + Oberkörper `Pistol_Aim_Neutral`, **12 Formen**,
-    Zyklus `SOLDAT_LAUF_ZYKLUS_S = 0.7`;
-  - `stehen` = `Pistol_Idle_Loop` (ganzer Körper), **8 Formen**, Zyklus aus dem Clip;
-  - `schiessen` = Beine `Pistol_Idle_Loop` + Oberkörper `Pistol_Shoot`, **8 Formen**,
-    Zyklus aus dem Clip;
-  - `fallen` = `Death01`, **10 Formen**, nicht wiederholend (letzte Form bleibt).
-- Größe **`SOLDAT_HOEHE = 2.0` m** (Thomas: Soldaten mindestens so groß wie die
-  Zombies, 1,95 m), gemessen in der Ruhe-/Stehpose; Füße auf `y = 0`. Blick nach
-  **−z** (zur Horde).
-- Material: `MeshStandardMaterial({ map: atlas, roughness: 0.85, metalness: 0,
-  side: FrontSide })`.
-- Laden im gemeinsamen **Lade-Gate** (glb Soldat + glb Bewegung, Zeitlimit, Abbruch-
-  Freigabe wie D2a). Übertragung + Backen gemessen und im Messmodus angezeigt ("Backen
-  Soldat: x ms").
-
-### A5 Zeichnen und Bühne
-
-- `SoldatenMasse` analog `ZombieMasse`: je Bewegung × 8 Phasengruppen ein
-  `InstancedMesh` (Kapazität `SOLDATEN_SICHTBAR_MAX = 120`), Layer 1; `setze(liste)`
-  mit `{ x, z, dreh, bewegung }`; `fallen` spielt je Eintrag ab einer Startzeit einmal
-  ab (für D4 vorbereitet, hier nur in der Nahaufnahme gezeigt). `gibFrei()` wie D2a
-  (alle Formen, Material, Atlas, Netze).
-- **Bühne:** Der blaue Truppen-Platzhalter entfällt. Stattdessen **30 Soldaten in
-  Reihen** (3 Reihen × 10, Abstand quer 0,6 m, längs 0,9 m) mittig vor der Wand ab
-  `z = +0.5` Richtung Kamera, Bewegung `stehen`, Blick −z. Dazu **ein laufender Trupp**
-  von 10 Soldaten (2 × 5) zwischen Wand und Horde bei `z ≈ −15` mit `laufen` (auf der
-  Stelle), damit man die Laufbewegung sieht.
-- **Messmodus:** Die 120 Soldaten-Kugeln werden **120 echte Soldaten** (gleiche
-  Aufstellung wie bisher, `z = 0 … +7`), Bewegung `laufen` (teuerste Dauerbewegung);
-  die Bühnen-Truppe und der Trupp werden während der Messung ausgeblendet. Zombie-Vollast
-  bleibt 600.
-- **Nahaufnahme** `?nahaufnahme=soldat`: vier Soldaten nebeneinander (laufen, stehen,
-  schiessen, fallen — fallen wiederholt alle 3 s), drehen langsam, Kamera wie
-  Zombie-Nahaufnahme; Zombie-Nahaufnahme bleibt `?nahaufnahme=1`.
-- **Prüfanzeige** `?pruefung=soldat` (für Claude): zeigt als Text
-  (a) Abstand M4-Griffpunkt ↔ Handwurzel (Ursprung `CC_Base_R_Hand_081`) in cm in den
-  Formen 0 von `laufen`, `stehen`, `schiessen` (Plan: **höchstens 3 cm**),
-  (b) Höhe der Hüfte über dem Boden in der letzten `fallen`-Form in cm (Plan:
-  **höchstens 15 cm**), (c) tiefster Punkt je Form (Füße auf 0 ± 3 cm) für `laufen`,
-  `stehen`, `schiessen`, (d) Backzeit in ms. Den Griffpunkt legt das Skript als
-  Konstante fest (Punkt am Pistolengriff des M4 in Modellkoordinaten).
+Nicht in diesem Codex-Lauf (die Testseiten bleiben online, bis Thomas die Boss-Messung
+gesehen hat). Codex fasst `public/probe-3d/` nicht an.
 
 ### A6 Tests und Nachweise
 
-- `tests/v3dSoldaten.test.ts`: glb-JSON-Prüfungen für beide Dateien (A1/A2-Grenzen,
-  ein Material, ein Bild, Clips), M4-Teilnetz vorhanden und nur an `CC_Base_R_Hand_081`
-  gebunden, Aufstellung der Bühnen-Truppe mittig und vor der Wand,
-  `docs/lizenzen.md` enthält Soldat, "Low-Poly M4a1"/"TastyTony" und Quaternius.
+- `tests/v3dBosse.test.ts`: glb-JSON-Prüfungen aus A1; Blickrichtung +z und Füße (soweit
+  in Node machbar wie beim Soldaten, sonst Begründung im Bericht); Aufstellung lässt den
+  Kreis um den Mini-Boss frei; `docs/lizenzen.md` nennt beide Bosse samt Änderungen.
 - Build-Test: beide glb im Precache, Summe 3D-Dateien ≤ 25 MB, Hauptbündel unverändert.
-- `npm test`, `tsc`, `build` grün. Zweitstart-Zähler prüft Claude im Browser.
-- **Reißleine (Plan D2b):** Sieht die übertragene Bewegung nach diesem einen Anlauf
-  nicht überzeugend aus, wird **nicht nachgebohrt** — Claude und Thomas entscheiden über
-  den Rückfall (feste Anschlag-Pose mit Schrittwippen). Codex meldet nur, was auffiel.
+- `npm test`, `tsc`, `build` grün. Browser-Sichtprüfung und Zweitstart macht Claude,
+  iPhone-Messung Thomas.
+- **Leistungs-Reißleine:** Codex senkt nichts selbst. Verfehlt die iPhone-Messung die
+  Grenze, entscheiden Claude/Thomas (Reihenfolge: Elite-Relief weg → Schärfe 1,5× fest →
+  weniger sichtbare Zombies).
 
-## Härtung (Claude, 2026-09-29) — gilt vorrangig vor A1–A6
+## Härtung (Claude, 2026-09-29) — gilt vorrangig
 
-1. **Ein Netz, ein Attributsatz:** Im Skript je Primitive alle Attribute außer
-   `POSITION`, `NORMAL`, `TEXCOORD_0`, `JOINTS_0`, `WEIGHTS_0` löschen (die Quelle hat
-   drei verschiedene Sätze, u. a. `TEXCOORD_1/2`, `TANGENT`), dann **alle 23 Teilnetze
-   plus M4 zu einem Primitive mit einem Skin** verschmelzen. Prüfung: genau ein
-   Primitive. So liefert `backe()` eine Geometrie je Form.
-2. **Kacheln:** 9 Materialien haben ein Bild, `Mark_SunGlusses_Glus` nur eine Farbe →
-   eigene Kachel `#111111`. Kachel-Reihenfolge als feste Konstante. **Ausbluten 8 px**
-   je Kachel. Atlas als **WebP** (Qualität als Konstante) in der glb; begründete
-   Abweichung von Randbedingung 8 (512 px) im Skriptkopf: 1024² ersetzt 10 Einzelbilder
-   à 512 und ist kleiner. Speicherplan zählt den Atlas mit.
-3. **Tarnmuster:** Codex legt das erzeugte Muster als **`modelle-quelle/tarnmuster.png`**
-   (512², eingecheckt) ab; es ist Eingabe von `soldat`. Nahtlos-Prüfung im Skript
-   (mittlere Farbdifferenz linke↔rechte Randspalte und obere↔untere Randzeile unter einer
-   Schwelle, sonst Kanten per Überblendung angleichen). Abbildung: Muster auf 256
-   verkleinern und **in UV-Raum 1:1 kachelnd** über die Kachel legen; Helligkeitsformel
-   im 256er-Raum. Pixel außerhalb der Maske bleiben unverändert (Test).
-4. **M4:** alle 11 Primitives zu einem Netz verschmelzen, **eigenes Skin/Gelenke
-   verwerfen**, Knotentransformationen einbacken, verschweißen, dann vereinfachen
-   (Fehlerschranke statt harter Randsperre). Bindung über Gewicht 1,0 auf
-   `CC_Base_R_Hand_081` im Soldaten-Skin, Lage im Bindraum des Knochens.
-5. **Backen ohne Neu-Ausrichtung je Form:** Bodenhöhe und x/z-Bezug werden **einmal**
-   aus Form 0 von `stehen` (ohne M4) bestimmt und für alle Formen aller Bewegungen gleich
-   verwendet — **kein `minY`/Schwerpunkt je Form** (sonst verschwinden Hüftwippen und
-   Fallen). Prüfung (c): tiefster Punkt über alle Formen einer Bewegung = 0 ± 3 cm, keine
-   Form unter −3 cm.
-6. **Prüfanzeige zusätzlich:** (i) Winkel Lauf-Achse des M4 ↔ −z in `schiessen` Form 0
-   **≤ 15°**, (ii) Abstand Mündung ↔ Brustmitte **≥ 0,4 m** (Waffe ragt nicht durch den
-   Körper). Griffpunkt und Laufachse aus der Pose berechnet, nicht geschätzt. Soweit
-   in Node ohne Renderer machbar, rechnet `tests/v3dSoldaten.test.ts` dieselben Zahlen mit
-   denselben Funktionen und prüft die Grenzen; sonst im Bericht sagen, warum nicht.
-7. **Tests zusätzlich:** alle Formen einer Bewegung haben gleiche Punktzahl und dasselbe
-   `index`/`uv`-Objekt.
-8. **Lade-Gate:** Das 8-s-Zeitlimit gilt **nur für das Laden der Dateien**; Übertragen
-   und Backen laufen danach ohne Limit. Bei Abbruch/Zeitüberschreitung werden alle
-   Zwischenstände (Formen, Material, Atlas) freigegeben (`vorbei`-Flag wie D2a).
-9. **Zeit:** Die Animationszeit von `SoldatenMasse` (auch `fallen`-Startzeiten) kommt
-   aus der pausierbaren Zeit des Einstiegs (Parameter), nicht aus `performance.now()`.
-10. **Bewegungsquelle:** nur `tmp/UAL1_Standard.glb`, **nie** die `_RM`-Variante.
-11. **Leistungs-Reißleine:** Codex senkt nichts selbst. Verfehlt Thomas' iPhone-Messung
-    die Grenze, entscheiden Claude/Thomas in dieser Reihenfolge: Phasengruppen Soldat
-    8 → 4, Formen `laufen` 12 → 8, `SOLDATEN_SICHTBAR_MAX` 120 → 80.
-12. `modelle-quelle/tarnmuster.png` ist erlaubte neue Datei.
+1. **≤ 2 MB-Weg:** Reicht `resample` nicht, Abtastrate der Clips auf 15 Hz senken, dann
+   Toleranz erhöhen. Nie Geometrie oder Bildgröße ändern. Bleibt eine Datei über 2 MB:
+   Abbruch mit Meldung der Anteile (Geometrie, Bilder, Animation).
+2. **Blickrichtung:** Korrekturdrehung als Konstante `MINIBOSS_DREHUNG` /
+   `ELITEBOSS_DREHUNG` in `FIGUREN`. Test: Kopfknochen-z > Beckenknochen-z (Blick +z) in
+   Clip-Bild 0 **und** Clip-Mitte.
+3. **Boden:** Wurzel-y bleibt erhalten (Stampfen/Wippen). Skalierung aus der Höhe in Bild 0.
+   Bodenbezug = tiefster Fußpunkt über den ganzen Clip, **einmal** verschoben (nicht je
+   Bild); die ±5 cm gelten für diesen Wert.
+4. **Material:** Aus dem glb nur die Bilder übernehmen, eigenes `MeshStandardMaterial`
+   (A2) hat Vorrang. `map.colorSpace = SRGBColorSpace`, `normalMap` linear. Prüfung im
+   Skript und Test: je Material genau ein `baseColorTexture` und ein `normalTexture`;
+   Emissive/Occlusion ausdrücklich entfernt und im Bericht genannt.
+5. **Aufstellung:** ausgelassene Zombies werden hinten angehängt, die Zahl bleibt 600
+   (Vergleichbarkeit). Freiradius = halbe Boss-Breite im Clip `walk` + 0,4 m (Konstante).
+6. **Grenze:** die bestehende `urteil()`-Grenze (≥ 55 fps, ≤ 25 ms, Schwarz ≤ 10 %,
+   ≤ 60 MB) gilt je Stufe und je Dauertest-Minute, Anzeige ✅/❌ wie bisher.
 
 ## Nicht in diesem Schritt
 
-Aussenden, Steuerung, Front, Treffer, Mündungsfeuer (D3/D4), Bosse (D2c).
+Boss-Vorwärtsbewegung, Angriff, Treffer, Tod im Spiel (D4/D6), Steuerung (D3).
 
 ## Implementation Summary
 
-Die D2b-Dateien und die A0-Schilder-Korrektur wurden im begonnenen Lauf erstellt. In
-der Fortsetzung wurde die M4-Bindung auf den tatsächlichen Bindraum des Handknochens
-umgestellt und ein Griff- sowie Mündungs-Prüfpunkt eingebaut: Griffabstand in den drei
-Posen etwa 0,002 cm, Laufwinkel in Schießen-Form 0 etwa 5,4°, Abstand Mündung–Brust
-etwa 0,56 m. Das bestehende Ziel `zombie` in `scripts/modelle.mjs` ist wieder verfügbar.
+Codex, 2026-09-29: Boss-Aufbereitung, Skelett-/Mixer-Darstellung, gemeinsames Lade-Gate,
+Aufstellung mit 600 Zombies, Messstufen samt drei Dauertest-Minuten, Lizenz- und
+Build-Nachweise umgesetzt. Mini-Boss: 1.672 Dreiecke, 487.528 Byte, sieben Clips;
+Elite-Boss: 12.200 Dreiecke, 2.051.104 Byte, `Motion`. Je Material nur Farb- und
+Reliefbild (512² WebP); Metall-/Rauheits-, Emissive- und Occlusion-Bilder entfernt.
+`npm run check` und `npm run build` bestanden; 3D-Dateien im Build zusammen 4,35 MB,
+beide Boss-Dateien im Precache, Hauptbündel 1.467.937 Byte (Grenze 1.475.425).
+`npm test`: 522/523 Tests bestanden. Ein Akzeptanztest bleibt rot: Elite-Boss im Clip
+8,95 m breit bei 6,8 m Mittelstreifen. Selbst −15 % ergäben 7,61 m. Entscheidung zu
+Modell/Größe/Clip ausstehend, daher Status noch SPEC_READY. Browser-Sichtprüfung,
+Zweitstart und iPhone-Dauermessung liegen gemäß A6 bei Claude bzw. Thomas; A5 folgt
+erst nach Thomas' Messung. Keine Commits oder Pushes.
 
-**Abnahme offen:** Die Übertragung des Joggens senkt die Formen 1, 2, 7 und 8 bis
-7,8 cm unter den Boden; `Death01` sinkt ab Form 6, in der letzten Form liegen
-Soldatenpunkte 32,8 cm unter dem Boden (v. a. Taschen am Rumpf; Rumpfpunkte 22 cm).
-Die Grenze von −3 cm blieb unverändert; ein Versuch, die Hüftspur des Joggens zu
-begrenzen, reichte nicht und wurde zurückgenommen. Der iPhone-Sichttest und
-Zweitstart-Zähler sind durch Claude/Thomas im Browser zu prüfen. `IMPL_DONE` benennt
-hier den abgeschlossenen Codex-Lauf, nicht eine bestandene Abnahme.
+## Entscheidung Claude (2026-09-29 20:00) — Elite-Boss-Größe
 
-Abschlussprüfung: `npm test` 519/520 grün (genau der Boden-Test schlägt mit zwei
-Grenzverletzungen fehl), `npm run check` und `npm run build` erfolgreich. Beide GLB
-stehen im Precache; alle acht 3D-Dateien zusammen 2 007 718 Byte (< 25 MB),
-`probe-3d` nicht im Precache. Hauptbündel 1 467,93 kB wie im ersten Build dieses
-Laufs. Browser-Zweitstart, Netzprotokoll und iPhone-Messung wurden nicht ausgeführt;
-das eigentliche Bewegungskriterium ist bereits im Node-Test verletzt.
+Befund Codex: Bei 6,5 m Höhe wird der Elite-Boss im Clip `Motion` 8,95 m breit (Streifen
+6,8 m). Entscheidung: **`ELITEBOSS_HOEHE = 4.8` m** (Breite über den Clip dann ≈ 6,6 m;
+immer noch 2,4× Soldatengröße). Test: größte Breite über den Clip ≤ 6,8 m bleibt streng.
+Nur die Konstante und davon abhängige Werte/Tests anpassen, dann Tests/`tsc`/Build,
+Status `IMPL_DONE`, kurzer Nachtrag.
 
-## Fortsetzung (Claude 2026-09-29 18:25) — Lauf hing, gezielt abschließen
+## Implementation Summary — Elite-Boss-Größe (Codex, 2026-09-29)
 
-Der erste Lauf hing ab 17:54 nach `node scripts/modelle.mjs soldat && npm test -- --run
-tests/v3dSoldaten.test.ts` (Exit 1) und wurde abgebrochen. Stand: Aufbereitung läuft
-(5388 Dreiecke, M4 584, Atlas 1024², 414 656 Byte), 6/7 Soldaten-Tests grün.
-**Fehlschlag:** `backt alle Formen … prüft die Pose`: tiefster Punkt −0,078 m (Grenze
-−0,03). Aufgabe:
-1. Herausfinden, **welche Bewegung/Form** unter den Boden geht (im Bericht nennen) und
-   die **Ursache** beheben (z. B. Hüfthöhe falsch skaliert/bezogen, Ruhehöhe der Vorlage
-   falsch, Boden-Bezug), **nicht die Grenze lockern**. Bei `fallen` darf der Körper
-   liegen, aber nicht einsinken (gleiche Grenze).
-2. Danach die übrigen Punkte der Spec prüfen und fertigstellen (Härtung 1–12, A0–A6),
-   volle Suite, `tsc`, Build.
-3. Keine langen Denkpausen ohne Befehl: ist ein Punkt nach zwei Versuchen nicht lösbar,
-   im Bericht beschreiben und weitermachen.
-Status am Ende `IMPL_DONE`, Implementation Summary ausfüllen.
-
-## Nacharbeit 2 (Claude 2026-09-29 18:55) — Einsinken beheben (letzter Anlauf)
-
-Befund Claude im Code (`src/v3d/soldaten.ts` Z. 67–99): Die Hüftverschiebung wird als
-Welt-y-Differenz gerechnet und direkt in `hip.position.y` geschrieben, nur durch
-`parentScale.y` geteilt. Das Elternobjekt des Knochens `CC_Base_Hip_01` ist in solchen
-Exporten **gedreht** (und skaliert) — lokales y ist dann nicht Welt-oben. Außerdem wird
-`basisHip` in der Bindpose der Vorlage gemessen.
-1. **Hüfte im Elternraum setzen:** gewünschte Welt-Position der Hüfte = Ruhe-Weltposition
-   + (0, Δy, 0); per `hip.parent.worldToLocal(...)` in lokale Koordinaten umrechnen und
-   `hip.position` komplett setzen (nicht nur `.y`). `Δy` = (Beckenhöhe Vorlage im Bild −
-   Beckenhöhe Vorlage in **`Pistol_Idle_Loop` Bild 0**) × (Beinlänge Soldat / Beinlänge
-   Vorlage), Beinlänge = Hüfte→Fußknöchel in der jeweiligen Ruhe-/Stehpose.
-2. **Bodenklemme je Form (Absicherung):** Nach dem Posieren liegt der tiefste Punkt des
-   **Körpers** (ohne M4) unter dem Boden-Bezug → ganze Form um genau diesen Betrag
-   **anheben**. Nie absenken (Wippen und Flugphase beim Laufen bleiben). Die M4 darf beim
-   Fallen den Boden berühren, aber nicht tiefer als −3 cm; sonst ebenfalls anheben.
-3. Test unverändert streng (`expect`, nicht `expect.soft`): tiefster Punkt je Bewegung
-   ≥ −3 cm, `fallenHuefteCm ≤ 15`, übrige Grenzen wie Härtung 6. Im Bericht je Bewegung:
-   tiefster Punkt vor und nach der Klemme (zeigt, ob 1. die Ursache war).
-4. Gelingt es nicht: nichts lockern, Bericht mit Zahlen — Claude entscheidet über die
-   Reißleine (feste Pose).
-Status am Ende `IMPL_DONE`, Nachtrag im Implementation Summary.
-
-## Implementation Summary — Nacharbeit 2 (Codex, 2026-09-29)
-
-Die Hüftspur verwendet jetzt die Beckenhöhe von `Pistol_Idle_Loop` Bild 0 und das
-Verhältnis der Beinlängen; die gewünschte Weltposition wird vollständig in den
-Elternraum von `CC_Base_Hip_01` umgerechnet. Jede Form wird nur angehoben, wenn
-Körper oder M4 die Bodengrenze unterschreiten. Griff-, Brust- und Hüft-Prüfpunkte
-werden um denselben Betrag versetzt. Das Lade-Gate gibt bei Abbruch auch dann alle
-bereits geladenen Soldaten- oder Zombie-Dateien frei, wenn nur eine Quelle fehlt.
-
-Tiefster Punkt vor → nach Bodenklemme, je Bewegung: `laufen` −5,51 → 0 cm
-(Formen 1, 2 und 7 unter −3 cm; Form 8 bei −2,61 cm), `stehen` 0 → 0 cm,
-`schiessen` 0 → 0 cm, `fallen` −18,28 → 0 cm (Formen 3–9 unter −3 cm;
-Formzählung ab 0). Griffabstand in drei Posen rund 0,002 cm, Laufwinkel 5,38°,
-Mündung–Brust 0,56 m. **Offen bleibt die Fall-Hüfte: 30,01 cm statt höchstens
-15 cm.** Die Bodenklemme hebt den Körper in der letzten Fallform um 18,09 cm;
-ohne sie sinken Körperpunkte ein. Ein Versuch mit dem tatsächlichen Clip-Endpunkt
-verschlechterte die Hüfthöhe auf 106,55 cm und wurde zurückgenommen. Grenze und
-strenge `expect`-Prüfung blieben unverändert; die Reißleine erfordert nun eine
-Entscheidung von Claude/Thomas über die feste Pose.
-
-Abschlussprüfung: `npm test` 519/520 grün (einziger Fehlschlag Fall-Hüfte),
-`npm run check` und `npm run build` erfolgreich. Acht 3D-Dateien: 2 008 537 Byte;
-beide neuen GLB im Precache, `probe-3d` nicht darin. Hauptbündel 1 467,93 kB.
-Browser-Zweitstart, Netzprotokoll, Sichtprüfung und iPhone-Messung bleiben
-ungetestet; die lokale Umgebung hat keine Terminal.app, daher liefen die
-Prüfungen in einer direkten Terminal-Sitzung.
-
-## Nacharbeit 3 (Thomas 2026-09-29) — komplett Coyote statt Tarnmuster
-
-iPhone-Messung D2b: Wasser 0 = 55,6 fps / 24 ms, Wasser 1 = 55,8 fps / 24 ms →
-**im Budget, Leistung abgenommen.** Thomas gibt Soldat und Bewegungen frei, möchte die
-Ausrüstung aber **komplett in Coyote-Farbe** statt Tarnmuster.
-- `scripts/modelle.mjs` (Ziel `soldat`): Kacheln `Mark_Kitel_1`, `Mark_Pants_1`,
-  `Mark_Plate_1`, `Mark_Pouches_1`, `Mark_Helmet1`, `Mark_Boots_2` einfarbig umfärben mit
-  der vorhandenen Formel (Farbe × Originalhelligkeit / mittlere Helligkeit, nur in der
-  Maske). Farben als Konstanten: Kleidung (Jacke/Hose) Coyote `#8a7456`, Weste/Taschen
-  eine Spur dunkler `#7a6549`, Helm `#a58a64` (wie bisher), Stiefel `#6e5a42`.
-  `Mark_HeadMasked`, `Mark_SunGlusses_Glus`, `Mark_Gloves_1`, `Mark_Eye`, M4 unverändert.
-- Das Tarnmuster wird nicht mehr verwendet; `modelle-quelle/tarnmuster.png` und die
-  Nahtlos-Prüfung bleiben liegen, aber das Skript liest das Muster nicht mehr (Funktion
-  entfernen oder unbenutzt lassen — `tsc`/Lint dürfen nicht meckern).
-- `v3d-soldat.glb` neu erzeugen, Kontrollbild `tmp/soldat-atlas.png`. `docs/lizenzen.md`:
-  Änderungsvermerk Soldat "neu bemalt (Coyote)" statt Tarnmuster.
-- Tests grün, Status `IMPL_DONE`, Nachtrag im Implementation Summary.
-
-## Implementation Summary — Nacharbeit 3 (Codex, 2026-09-29)
-
-Die sechs festgelegten Kacheln für Kleidung, Weste, Taschen, Helm und Stiefel werden
-mit ihren Coyote-Farben und der vorhandenen Helligkeitsformel nur innerhalb ihrer
-UV-Masken neu bemalt. Das Skript liest das Tarnmuster nicht mehr; die Quelldatei
-und ihre Nahtlos-Prüfung bleiben erhalten. Soldaten-GLB und Kontrollbild wurden neu
-erzeugt; der Lizenzvermerk und sein Test nennen jetzt Coyote.
-
-Ergebnis des Modell-Skripts: 5.388 Dreiecke (M4: 584), ein 1024²-Atlas,
-421.652 Byte GLB. `npm test -- --run tests/v3dSoldaten.test.ts`: 7/7;
-`npm test`: 520/520 in 59 Testdateien; `npm run check`, `npm run build` und
-`git diff --check`: erfolgreich. Beide Soldaten-Dateien stehen im Build-Precache;
-das Hauptbündel bleibt bei 1.467,93 kB. Die iPhone-Leistung und die Bewegungen
-hat Thomas in Nacharbeit 3 bereits abgenommen. Einen Browser-Zweitstart oder
-erneuten iPhone-Sichttest für die neue Farbgebung habe ich nicht durchgeführt.
-
-## Nacharbeit 4 (Thomas 2026-09-29) — Soldaten schauen in die falsche Richtung
-
-Befund (Claude, Screenshot 3× Auflösung, Thomas bestätigt): In der Bühne sieht man
-Gesichtsmasken, Brillen und Westentaschen — die Soldaten schauen **zur Kamera (+z)**
-statt zur Horde (**−z**, A4). Auch die M4 zeigen damit nach hinten.
-- Blickrichtung korrigieren (Drehung um y beim Backen bzw. im Bezug, so dass Gesicht und
-  M4-Lauf nach −z zeigen) — für alle Bewegungen, Bühne, laufenden Trupp und Messmodus.
-- Die Nahaufnahme `?nahaufnahme=soldat` darf die Figuren weiter zur Kamera drehen
-  (Prüfansicht), die Spielszene nicht.
-- **Neuer Test:** In Form 0 von `laufen`, `stehen`, `schiessen` liegt die M4-Mündung
-  bei kleinerem z als die Brustmitte (mind. 0,3 m) und das Gesicht (Kopfknochen-Vorderseite
-  bzw. Nase/Maske) bei kleinerem z als der Hinterkopf. Prüfanzeige `?pruefung=soldat`
-  zeigt "Blick: −z ✓/✗".
-- Tests grün, Status `IMPL_DONE`, kurzer Nachtrag.
-
-## Implementation Summary — Nacharbeit 4 (Codex, 2026-09-29)
-
-Alle gebackenen Soldatenformen sind um die y-Achse zur Horde gedreht; die M4 bleibt
-am Handgriff und zeigt ebenfalls nach −z. Die Nahaufnahme dreht die Figuren weiter
-zur Kamera. Die Prüfanzeige ergänzt „Blick: −z ✓/✗“. Der Test prüft in Form 0 von
-Laufen, Stehen und Schießen Mündung vor Brust (1,22–1,24 m, Grenze 0,3 m) und
-Augen vor Kopfknochen (8,3–8,5 cm). Griffabstand bleibt unter 0,002 cm,
-Laufwinkel 5,38°; die übrigen Pose-Grenzen bleiben erfüllt.
-
-`npm test -- --run tests/v3dSoldaten.test.ts`: 7/7; `npm test`: 520/520 in 59
-Dateien; `npm run check`, `npm run build`, `git diff --check`: erfolgreich.
-Beide Soldaten-GLB stehen im Precache; acht 3D-Dateien zusammen 2 016 020 Byte
-(< 25 MB), keine `probe-3d`-Datei. Hauptbündel 1 467,93 kB wie zuvor.
-Browser-Zweitstart und erneuter iPhone-Sichttest wurden hier nicht ausgeführt;
-die lokale Prüfung hatte keinen Zugriff auf Thomas' iPhone. Die iPhone-Leistung
-und Bewegungen hatte Thomas in Nacharbeit 3 bereits abgenommen.
-
-## Nacharbeit 5 (Thomas 2026-09-29) — Gewehr und Arme sichtbar machen
-
-Thomas: "ich sehe keine Waffen, nur Soldaten ohne Arme". Bei ~1,5 cm Figurenhöhe gehen
-das dunkelgraue M4 vor der Brust und die Coyote-Ärmel im Körper unter. Aus der D8-Liste
-vorgezogen:
-- **M4 1,5× größer** (Spielgrafik-Übertreibung, Länge ~1,26 m relativ), Griff bleibt in
-  der Hand (Griffabstand ≤ 3 cm bleibt Test), **Farbe tiefschwarz** `#111214` mit leichtem
-  hellerem Verlauf an der Oberkante (Kachel Waffenfarbe), damit es gegen Coyote und Asphalt
-  steht. Mündungs-/Winkeltests bleiben (Mündung ↔ Brust dann ≥ 0,5 m).
-- **Arme absetzen:** Jacke (`Mark_Kitel_1`) — Ärmel und Oberteil — heller Sand-Coyote
-  `#b39a74`; Weste/Taschen bleiben dunkler `#7a6549`; **Handschuhe schwarz** `#141414`
-  (nur Helligkeit anpassen, Maske wie bisher). Hose `#8a7456` bleibt.
-- `v3d-soldat.glb` neu erzeugen, Kontrollbild aktualisieren. Tests grün, Status
-  `IMPL_DONE`, kurzer Nachtrag.
-
-## Implementation Summary — Nacharbeit 5 (Codex, 2026-09-29)
-
-Das M4 ist um den Faktor 1,5 auf etwa 1,26 m verlängert; der Griff bleibt am
-Handknochen. Die Waffenkachel ist tiefschwarz (`#111214`) mit hellem Verlauf an der
-Oberkante. Die Jacke samt Ärmeln ist heller Sand-Coyote (`#b39a74`), die Handschuhe
-sind schwarz (`#141414`); Hose, Weste und Taschen behalten ihre Farben. Soldaten-GLB
-und `tmp/soldat-atlas.png` wurden neu erzeugt. Der Test prüft zusätzlich die
-Gewehrlänge in der Stehform und mindestens 0,5 m Mündung–Brust-Abstand in den drei
-aktiven Posen.
-
-Modell-Skript: 5.388 Dreiecke (M4: 584), ein 1024²-Atlas, 424.460 Byte GLB.
-Soldaten-Test 7/7, volle Suite 520/520 in 59 Dateien, `npm run check`,
-`npm run build` und `git diff --check` erfolgreich. Beide Soldaten-GLB stehen im
-Precache, `probe-3d` nicht; acht 3D-Dateien zusammen 2.018.828 Byte (< 25 MB),
-Hauptbündel weiterhin 1.467,93 kB. Terminal.app ließ sich in dieser Umgebung
-nicht starten ("Unable to find application named 'Terminal'"); die Tests liefen
-in einer direkten Terminal-Sitzung. Erneuter iPhone-Sichttest und Browser-
-Zweitstart bleiben offen, weil diese Geräte-/Browserprüfung hier nicht vorlag.
+Die Elite-Höhe ist gemäß Claudes Entscheidung auf 4,8 m gesetzt; Spezifikation und
+Wertetest sind angepasst. Der Test prüft die größte Clip-Breite weiterhin streng gegen
+6,8 m und besteht. `npm test -- --run tests/v3dBosse.test.ts`: 3/3;
+`npm test`: 523/523 in 60 Dateien; `npm run check` (TypeScript) und `npm run build`
+erfolgreich. Der Build enthält beide Boss-Dateien im Precache; das Hauptbündel bleibt
+bei 1.467.937 Byte. Terminal.app war in dieser Umgebung nicht verfügbar; die Prüfungen
+liefen deshalb in der direkten Shell. Browser-Sichtprüfung und Zweitstart liegen bei
+Claude, die iPhone-Dauermessung bei Thomas. Die Testseiten bleiben gemäß A5 bis zu
+dieser Messung im Deploy. Keine Commits oder Pushes.

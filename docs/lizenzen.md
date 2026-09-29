@@ -4,6 +4,7 @@ Stand der API-Prüfung (`api.sketchfab.com/v3/models/<uid>`): 2026-09-29.
 Änderungen an allen Sketchfab-Modellen: vereinfacht, Bemalung verkleinert und in WebP
 umgewandelt, Material umgewandelt; beim Zombie Bemalung in zwei Farbvarianten umgefärbt, Laufbild in feste Formen gebacken, Bewegung auf der Stelle; beim Soldaten zusätzlich neu bemalt (Coyote) und übertragene
 Bewegungen; beim M4 Netz vereint, vereinfacht, neu gefärbt und starr an die rechte Hand gebunden.
+Mini-Boss und Elite-Boss: bereits vereinfachte Quellgeometrie unverändert übernommen, Farb- und Reliefbilder auf 512 × 512 WebP verkleinert, Metall-/Rauheits-, Emissive- und Occlusion-Bilder entfernt, Material auf Metall 0/Rauheit 0,8 umgestellt, Tangenten entfernt und Animationen ausgewählt und ausgedünnt. Beim Mini-Boss blieben sieben Clips, beim Elite-Boss `Motion`.
 
 | Modell | Urheber | Quelle | Lizenz |
 |---|---|---|---|

@@ -1,7 +1,7 @@
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { NodeIO } from '@gltf-transform/core'
 import { KHRMaterialsSpecular, KHRMaterialsIOR, EXTTextureWebP, KHRMeshQuantization } from '@gltf-transform/extensions'
-import { dedup, prune, quantize, simplifyPrimitive } from '@gltf-transform/functions'
+import { dedup, prune, quantize, resample, simplifyPrimitive } from '@gltf-transform/functions'
 import { MeshoptSimplifier } from 'meshoptimizer'
 import sharp from 'sharp'
 import { Matrix4, Vector3, Quaternion } from 'three'
@@ -193,5 +193,55 @@ async function zombie() {
   console.log(JSON.stringify({dreiecke: anzahl, bytes, bild: [bildMeta.width,bildMeta.height], uv:[us,vs], animationen:kroot.listAnimations().length}))
 }
 
+async function boss(art) {
+  const quelle = `modelle-quelle/${art}-vereinfacht.glb`, ausgabe = `src/v3d/modelle/v3d-${art}.glb`
+  const doc = await io.read(quelle), root = doc.getRoot()
+  const vorher = root.listMeshes().flatMap(m => m.listPrimitives()).reduce((n,p) => n + dreiecke(p), 0)
+  const erwartet = art === 'miniboss' ? ['walk','Run','attack_1','attack_2','roar','hit_1','death_1'].map(n => `Creature_armature|${n}`) : ['Motion']
+  for (const clip of root.listAnimations()) if (!erwartet.includes(clip.getName())) clip.dispose()
+  for (const mat of root.listMaterials()) {
+    for (const ext of mat.listExtensions()) mat.setExtension(ext.extensionName, null)
+    mat.setMetallicRoughnessTexture(null).setOcclusionTexture(null).setEmissiveTexture(null)
+    mat.setMetallicFactor(0).setRoughnessFactor(.8).setEmissiveFactor([0,0,0])
+    if (!mat.getBaseColorTexture() || !mat.getNormalTexture()) throw new Error(`${art}: Farb- oder Reliefbild fehlt`)
+  }
+  for (const mesh of root.listMeshes()) for (const p of mesh.listPrimitives()) p.setAttribute('TANGENT', null)
+  await doc.transform(prune(), dedup(), resample())
+  entferneVerwaisteAccessoren(root)
+  for (const bild of root.listTextures()) {
+    bild.setImage(await sharp(bild.getImage()).resize(512,512).webp({quality:80}).toBuffer()).setMimeType('image/webp').setURI(`${art}-${root.listTextures().indexOf(bild)}.webp`)
+  }
+  await mkdir('src/v3d/modelle', {recursive:true})
+  await io.write(ausgabe, doc)
+  let bytes = (await stat(ausgabe)).size
+  if (bytes > 2*1048576) {
+    // Erst 15 Hz, danach höhere Resample-Toleranz. Keine Geometrie- oder Bildänderung.
+    for (const clip of root.listAnimations()) for (const channel of clip.listChannels()) {
+      const s=channel.getSampler(), input=s.getInput(), output=s.getOutput(), count=input.getCount(), width=output.getElementSize()
+      if (count < 3) continue
+      const times=[], values=[]; let last=-Infinity
+      for (let i=0;i<count;i++) {const t=input.getScalar(i);if(i!==0&&i!==count-1&&t-last<1/15)continue;times.push(t);for(let j=0;j<width;j++)values.push(output.getArray()[i*width+j]);last=t}
+      s.setInput(doc.createAccessor().setType('SCALAR').setArray(new Float32Array(times)))
+      s.setOutput(doc.createAccessor().setType(output.getType()).setArray(new Float32Array(values)))
+    }
+    for (const toleranz of [1e-3,3e-3,1e-2,3e-2]) {
+      await doc.transform(resample({tolerance:toleranz}),prune(),dedup())
+      entferneVerwaisteAccessoren(root)
+      await io.write(ausgabe,doc);bytes=(await stat(ausgabe)).size
+      if(bytes<=2*1048576)break
+    }
+  }
+  const check=(await io.read(ausgabe)).getRoot(),nachher=check.listMeshes().flatMap(m=>m.listPrimitives()).reduce((n,p)=>n+dreiecke(p),0)
+  const namen=check.listAnimations().map(a=>a.getName())
+  const materialOk=check.listMaterials().every(m=>m.getBaseColorTexture()&&m.getNormalTexture()&&!m.getMetallicRoughnessTexture()&&!m.getOcclusionTexture()&&!m.getEmissiveTexture()&&m.getMetallicFactor()===0&&m.getRoughnessFactor()===.8)
+  const bildMetas=await Promise.all(check.listTextures().map(t=>sharp(t.getImage()).metadata()))
+  const bildOk=bildMetas.every(m=>m.width===512&&m.height===512&&m.format==='webp')
+  if(Math.abs(nachher/vorher-1)>.01||!materialOk||!bildOk||namen.length!==erwartet.length||erwartet.some(n=>!namen.includes(n))||bytes>2*1048576){
+    const anteile={geometrie:check.listMeshes().flatMap(m=>m.listPrimitives()).reduce((n,p)=>n+p.listAttributes().reduce((sum,a)=>sum+a.getArray().byteLength,0)+(p.getIndices()?.getArray().byteLength??0),0),bilder:check.listTextures().reduce((n,t)=>n+t.getImage().byteLength,0),animation:check.listAnimations().reduce((n,a)=>n+a.listSamplers().reduce((sum,s)=>sum+s.getInput().getArray().byteLength+s.getOutput().getArray().byteLength,0),0)}
+    throw new Error(`${art}: Qualitätsgrenze verletzt ${JSON.stringify({vorher,nachher,bytes,anteile,materialOk,bildOk,namen})}`)
+  }
+  console.log(JSON.stringify({art,dreiecke:nachher,bytes,bilder:bildMetas.length,clips:namen}))
+}
+
 const ziel=process.argv[2]
-if(ziel==='soldat')await soldat();else if(ziel==='bewegung')await bewegung();else if(ziel==='zombie')await zombie();else throw new Error('Aufruf: node scripts/modelle.mjs soldat|bewegung|zombie')
+if(ziel==='soldat')await soldat();else if(ziel==='bewegung')await bewegung();else if(ziel==='zombie')await zombie();else if(ziel==='miniboss'||ziel==='eliteboss')await boss(ziel);else throw new Error('Aufruf: node scripts/modelle.mjs soldat|bewegung|zombie|miniboss|eliteboss')

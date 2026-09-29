@@ -3,11 +3,12 @@ import strassenUrl from './bilder/v3d-strasse.webp?url'
 import normalenUrl from './bilder/v3d-wasser-normalen.webp?url'
 import { BUEHNE, FIGUREN } from './balance3d'
 import { baueKamera } from './kamera'
-import { ladeZombie, ZombieMasse, zombieAufstellung, type ZombieBau } from './figuren'
+import { ladeZombie, ZombieMasse, type ZombieBau } from './figuren'
 import { ladeSoldatenDateien, fertigeSoldaten, entsorgeGLTF, SoldatenMasse, truppenAufstellung, laufenderTrupp, type SoldatenBau } from './soldaten'
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js'
 import { baueSchild, gibSchilderFrei } from './schilder'
 import { baueWasser, type WasserHalter, type WasserStufe } from './wasser'
+import { baueBoss, bossFreieAufstellung, entsorgeBossGLTF, ladeBossDateien, type Boss } from './bosse'
 
 export const DATEIEN_FEHLER = '3D-Dateien nicht ladbar – App neu öffnen'
 export interface Welt {
@@ -22,6 +23,8 @@ export interface Welt {
   soldatBau: SoldatenBau
   truppe: SoldatenMasse
   laufTrupp: SoldatenMasse
+  miniboss: Boss
+  eliteboss: Boss
 }
 
 function textBild(text: string, farbe: string): THREE.CanvasTexture {
@@ -82,6 +85,8 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
   let geladenesZombieBau: ZombieBau | null = null
   let dateien: [GLTF, GLTF] | null = null
   let soldatBau: SoldatenBau | null = null
+  let bossDateien: [GLTF,GLTF] | null = null
+  let bosse: [Boss,Boss] | null = null
   const freigabeZombie = () => { if (geladenesZombieBau) { geladenesZombieBau.formen.forEach(g => g.dispose()); geladenesZombieBau.materialien.forEach(m => m.dispose()); geladenesZombieBau.bemalungen.forEach(t => t.dispose()); geladenesZombieBau = null } }
   const lade = (url: string) => loader.loadAsync(url).then(textur => {
     if (vorbei || abgebrochen()) textur.dispose()
@@ -90,21 +95,24 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
   })
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    const beide = Promise.all([lade(strassenUrl), lade(normalenUrl), ladeZombie(renderer, () => vorbei || abgebrochen()).then(bau => { if (bau && (vorbei || abgebrochen())) { bau.formen.forEach(g => g.dispose()); bau.materialien.forEach(m => m.dispose()); bau.bemalungen.forEach(t => t.dispose()); return null } return bau }), ladeSoldatenDateien(() => vorbei || abgebrochen()).then(result => { if(result && (vorbei || abgebrochen())) { result.forEach(entsorgeGLTF); return null } dateien=result; return result })])
+    const beide = Promise.all([lade(strassenUrl), lade(normalenUrl), ladeZombie(renderer, () => vorbei || abgebrochen()).then(bau => { if (bau && (vorbei || abgebrochen())) { bau.formen.forEach(g => g.dispose()); bau.materialien.forEach(m => m.dispose()); bau.bemalungen.forEach(t => t.dispose()); return null } return bau }), ladeSoldatenDateien(() => vorbei || abgebrochen()).then(result => { if(result && (vorbei || abgebrochen())) { result.forEach(entsorgeGLTF); return null } dateien=result; return result }),ladeBossDateien(()=>vorbei||abgebrochen()).then(result=>{bossDateien=result;return result})])
     const zeitlimit = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(DATEIEN_FEHLER)), 8000) })
-    const [strasse, normalen, zombieBau, soldatDateien] = await Promise.race([beide, zeitlimit])
-    if (!zombieBau || !soldatDateien) {
+    const [strasse, normalen, zombieBau, soldatDateien, geladeneBosse] = await Promise.race([beide, zeitlimit])
+    if (!zombieBau || !soldatDateien || !geladeneBosse) {
       geladen.forEach(t => t.dispose())
       if (zombieBau) { geladenesZombieBau = zombieBau; freigabeZombie() }
       if (soldatDateien) { soldatDateien.forEach(entsorgeGLTF); dateien = null }
+      if (geladeneBosse) { geladeneBosse.forEach(entsorgeBossGLTF);bossDateien=null }
       return null
     }
     geladenesZombieBau = zombieBau
-    if (abgebrochen()) { geladen.forEach(t => t.dispose()); freigabeZombie(); soldatDateien.forEach(entsorgeGLTF); dateien = null; return null }
+    if (abgebrochen()) { geladen.forEach(t => t.dispose()); freigabeZombie(); soldatDateien.forEach(entsorgeGLTF); dateien = null;geladeneBosse.forEach(entsorgeBossGLTF);bossDateien=null; return null }
     if(timer){clearTimeout(timer);timer=undefined}
     soldatBau=fertigeSoldaten(soldatDateien,abgebrochen)
     dateien=null
-    if(!soldatBau){geladen.forEach(t=>t.dispose());freigabeZombie();return null}
+    if(!soldatBau){geladen.forEach(t=>t.dispose());freigabeZombie();geladeneBosse.forEach(entsorgeBossGLTF);bossDateien=null;return null}
+    bosse=[baueBoss('miniboss',geladeneBosse[0]),baueBoss('eliteboss',geladeneBosse[1])]
+    bossDateien=null
     strasse.colorSpace = THREE.SRGBColorSpace
     strasse.wrapS = THREE.ClampToEdgeWrapping
     strasse.wrapT = THREE.RepeatWrapping
@@ -143,14 +151,17 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
     const soldatNahaufnahme = nahWert === 'soldat'
     const buehnenAnzahl = FIGUREN.ZOMBIES_BUEHNE
     const zombieMasse = new ZombieMasse(zombieBau, zombieBau.materialien, buehnenAnzahl)
-    zombieMasse.setze(nahWert === '1' ? [-0.85, 0, 0.85].map((x, i) => ({ x, z: 0, dreh: 0, variante: i, groesse: 1 })) : zombieAufstellung(buehnenAnzahl, -35))
+    zombieMasse.setze(nahWert === '1' ? [-0.85, 0, 0.85].map((x, i) => ({ x, z: 0, dreh: 0, variante: i, groesse: 1 })) : bossFreieAufstellung(buehnenAnzahl, -35, FIGUREN.MINIBOSS_FREIRADIUS))
     scene.add(zombieMasse.gruppe)
+    bosse[0].objekt.position.z=-36;bosse[1].objekt.position.z=-66
+    scene.add(bosse[0].objekt,bosse[1].objekt)
     const truppe=new SoldatenMasse(soldatBau)
     const laufTrupp=new SoldatenMasse(soldatBau)
     truppe.setze(soldatNahaufnahme ? [-1.5,-.5,.5,1.5].map((x,i)=>({x,z:0,dreh:0,bewegung:(['laufen','stehen','schiessen','fallen'] as const)[i]})) : truppenAufstellung())
     laufTrupp.setze(soldatNahaufnahme?[]:laufenderTrupp())
     scene.add(truppe.gruppe,laufTrupp.gruppe)
     if (nahaufnahme) {
+      bosse.forEach(b=>{b.objekt.visible=false})
       scene.background = new THREE.Color('#777c7e'); scene.fog = null
       scene.traverse(obj => { if (obj instanceof THREE.Mesh && !(soldatNahaufnahme?truppe.gruppe:zombieMasse.gruppe).children.includes(obj)) obj.visible = false })
       camera.position.set(0, 1.95, Math.max(3.8, 2.9 / (2 * Math.tan(THREE.MathUtils.degToRad(17.5)) * innerWidth / innerHeight))); camera.lookAt(0, 0.95, 0); camera.near = 0.1; camera.fov = 35; camera.updateProjectionMatrix()
@@ -158,11 +169,13 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
     const wasser = baueWasser(scene, renderer, normalen, stufe)
     if (nahaufnahme) scene.children.filter(o => o instanceof THREE.Mesh).forEach(o => { o.visible = false })
     geladenesZombieBau = null
-    return { scene, camera, bemalungen: [strasse, normalen], wasser, zombieBau, zombieMasse, nahaufnahme, soldatNahaufnahme, soldatBau, truppe, laufTrupp }
+    return { scene, camera, bemalungen: [strasse, normalen], wasser, zombieBau, zombieMasse, nahaufnahme, soldatNahaufnahme, soldatBau, truppe, laufTrupp,miniboss:bosse[0],eliteboss:bosse[1] }
   } catch {
     geladen.forEach(t => t.dispose())
     freigabeZombie()
     if(dateien)dateien.forEach(entsorgeGLTF)
+    if(bossDateien)bossDateien.forEach(entsorgeBossGLTF)
+    if(bosse)bosse.forEach(b=>b.gibFrei())
     if(soldatBau){for(const row of Object.values(soldatBau.formen))row.forEach(g=>g.dispose());soldatBau.material.dispose();soldatBau.atlas.dispose()}
     gibSchilderFrei()
     if (!abgebrochen()) beiLadeFehler(DATEIEN_FEHLER)
@@ -178,6 +191,7 @@ export function gibSzeneFrei(welt: Welt): void {
   welt.zombieMasse.gibFrei()
   welt.laufTrupp.gibNetzeFrei()
   welt.truppe.gibFrei()
+  welt.miniboss.gibFrei();welt.eliteboss.gibFrei()
   welt.scene.remove(welt.zombieMasse.gruppe)
   const geometrien = new Set<THREE.BufferGeometry>()
   const materialien = new Set<THREE.Material>()

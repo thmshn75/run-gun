@@ -27,6 +27,7 @@ describe.skipIf(!existsSync(join(dist, 'sw.js')))('3D-Build', () => {
     const glb = readdirSync(join(dist, 'assets')).filter(n => n.endsWith('.glb'))
     expect(glb.length).toBeGreaterThanOrEqual(1)
     for (const name of glb) { expect(name).toContain('v3d'); expect(urls).toContain(`assets/${name}`) }
+    for (const boss of ['v3d-miniboss','v3d-eliteboss']) expect(glb.some(name=>name.startsWith(boss))).toBe(true)
     const alle3d = readdirSync(join(dist, 'assets')).filter(n => n.includes('v3d'))
     expect(alle3d.reduce((summe, name) => summe + statSync(join(dist, 'assets', name)).size, 0)).toBeLessThanOrEqual(25 * 1048576)
     for (const name of dateien) expect(readFileSync(join(dist, 'assets', name), 'utf8')).not.toContain('data:image/webp')

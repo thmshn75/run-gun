@@ -55,6 +55,8 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     welt?.zombieMasse.aktualisiere(spielzeit)
     welt?.truppe.aktualisiere(spielzeit)
     welt?.laufTrupp.aktualisiere(spielzeit)
+    welt?.miniboss.aktualisiere(Math.min(0.1,dt/1000))
+    welt?.eliteboss.aktualisiere(Math.min(0.1,dt/1000))
     if (welt?.nahaufnahme && !welt.soldatNahaufnahme) welt.zombieMasse.setze([-0.85, 0, 0.85].map((x, i) => ({ x, z: 0, dreh: spielzeit * Math.PI / 4, variante: i, groesse: 1 })))
     if (welt?.soldatNahaufnahme) {
       const runde=Math.floor(spielzeit/3)

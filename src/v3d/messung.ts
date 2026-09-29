@@ -1,13 +1,19 @@
 import * as THREE from 'three'
 import type Phaser from 'phaser'
 import { auswerten, pmremPufferBytes, speicherMB, spiegelPufferBytes, urteil, type Bildgroesse } from './rechnen'
-import { ZombieMasse, zombieAufstellung } from './figuren'
+import { ZombieMasse } from './figuren'
 import { SoldatenMasse, type SoldatEintrag } from './soldaten'
 import { FIGUREN } from './balance3d'
+import { bossFreieAufstellung } from './bosse'
 import type { Welt } from './szene'
 import type { WasserStufe } from './wasser'
 
-const MESSSTUFEN: WasserStufe[] = [0, 1]
+export const MESSSTUFEN = [
+  {name:'Vollast ohne Bosse',dauer:30000,mini:false,elite:false},
+  {name:'Vollast + Mini-Boss',dauer:30000,mini:true,elite:false},
+  {name:'Vollast + beide Bosse',dauer:30000,mini:true,elite:true},
+  ...[1,2,3].map(minute=>({name:`Dauertest 3 min · Minute ${minute}`,dauer:60000,mini:true,elite:true})),
+] as const
 
 type Phase = 'warm' | 'messen' | 'umbau'
 interface Lauf {
@@ -17,7 +23,7 @@ interface Lauf {
   anzeige: HTMLElement
   knopf: HTMLButtonElement
   original: WasserStufe
-  stufe: WasserStufe
+  stufe: number
   phase: Phase
   zeit: number
   bilder: number[]
@@ -27,6 +33,7 @@ interface Lauf {
   vollast: ZombieMasse
   soldaten: SoldatenMasse
   verborgenePlatzhalter: THREE.Object3D[]
+  bossSichtbar: [boolean,boolean]
 }
 let lauf: Lauf | null = null
 
@@ -73,7 +80,7 @@ function groessen(l: Lauf) {
 export function starteMessung(welt: Welt, renderer: THREE.WebGLRenderer, game: Phaser.Game, anzeige: HTMLElement, knopf: HTMLButtonElement): void {
   if (lauf) return
   const vollast = new ZombieMasse(welt.zombieBau, welt.zombieBau.materialien, FIGUREN.ZOMBIES_SICHTBAR_MAX)
-  const aufstellung = zombieAufstellung(FIGUREN.ZOMBIES_SICHTBAR_MAX, -15, 49183)
+  const aufstellung = bossFreieAufstellung(FIGUREN.ZOMBIES_SICHTBAR_MAX, -15, FIGUREN.MINIBOSS_FREIRADIUS, 49183)
   vollast.setze(aufstellung)
   const messpunktZ = (Math.min(...aufstellung.map(z => z.z)) + Math.max(...aufstellung.map(z => z.z))) / 2
   const soldaten = new SoldatenMasse(welt.soldatBau)
@@ -88,11 +95,14 @@ export function starteMessung(welt: Welt, renderer: THREE.WebGLRenderer, game: P
     }
   })
   const original = welt.wasser.stufe
-  welt.wasser.wechsle(0)
-  lauf = { welt, renderer, game, anzeige, knopf, original, stufe: 0, phase: 'warm', zeit: 0, bilder: [], ergebnisse: [], schwarz: null, messpunktZ, vollast, soldaten, verborgenePlatzhalter }
+  const bossSichtbar:[boolean,boolean]=[welt.miniboss.objekt.visible,welt.eliteboss.objekt.visible]
+  welt.miniboss.objekt.visible=false;welt.eliteboss.objekt.visible=false
+  welt.wasser.wechsle(1)
+  lauf = { welt, renderer, game, anzeige, knopf, original, stufe: 0, phase: 'warm', zeit: 0, bilder: [], ergebnisse: [], schwarz: null, messpunktZ, vollast, soldaten, verborgenePlatzhalter,bossSichtbar }
   knopf.disabled = true
   anzeige.style.display = 'block'
-  anzeige.textContent = 'Aufwärmen · Wasser 0 · 5 s'
+  anzeige.style.overflowY='auto'
+  anzeige.textContent = 'Aufwärmen · Wasser 1 · 5 s'
 }
 
 export function messBild(dt: number, jetzt: number): void {
@@ -100,29 +110,30 @@ export function messBild(dt: number, jetzt: number): void {
   if (!l) return
   l.soldaten.aktualisiere(jetzt)
   l.vollast.aktualisiere(jetzt)
-  // Der Aufrufer zeichnet unmittelbar vor dieser Funktion: Probe am gerenderten Bild bei 15 s.
-  if (l.phase === 'messen' && l.schwarz === null && l.zeit >= 15000) l.schwarz = schwarzAnteil(l)
+  // Der Aufrufer zeichnet unmittelbar vor dieser Funktion: Probe am Ende jeder Stufe/Minute.
+  if (l.phase === 'messen' && l.schwarz === null && l.zeit >= MESSSTUFEN[l.stufe].dauer-1000) l.schwarz = schwarzAnteil(l)
   l.zeit += Math.max(0, dt)
   if (l.phase === 'messen') l.bilder.push(dt)
-  const dauer = l.phase === 'warm' ? 5000 : l.phase === 'umbau' ? 2000 : 30000
+  const dauer = l.phase === 'warm' ? 5000 : l.phase === 'umbau' ? 2000 : MESSSTUFEN[l.stufe].dauer
   if (l.zeit < dauer) return
   if (l.phase === 'warm' || l.phase === 'umbau') {
     l.phase = 'messen'; l.zeit = 0; l.bilder = []; l.schwarz = null
-    l.anzeige.textContent = `${l.ergebnisse.join('\n\n')}\nWasser ${l.stufe} · 30 s`
+    l.anzeige.textContent = `${l.ergebnisse.join('\n\n')}\n${MESSSTUFEN[l.stufe].name} · ${dauer===5000?30:MESSSTUFEN[l.stufe].dauer/1000} s`
     return
   }
   const a = auswerten(l.bilder)
   const mb = groessen(l)
-  l.ergebnisse.push(`Wasser ${l.stufe} · Zombie-/Soldaten-Vollast: ${a.fps?.toFixed(1) ?? '–'} fps · langsamste 5 % ${a.p95?.toFixed(1) ?? '–'} ms · Schwarz ${l.schwarz === null ? '–' : `${l.schwarz.toFixed(1)} %`} · >250 ms: ${a.verworfen}\nBacken Soldat: ${l.welt.soldatBau.backzeitMs.toFixed(1)} ms · Bemalung ${mb.bemalungen.toFixed(2)} MB · Wasserpuffer ${mb.zusatz.toFixed(2)} MB · Renderflächen ${mb.renderflaechen.toFixed(2)} MB · Phaser-Rest ${mb.phaserRest.toFixed(2)} MB · Geometrien ${l.renderer.info.memory.geometries} · Texturen ${l.renderer.info.memory.textures}\n${urteil(a, l.schwarz, mb.gesamt)}`)
-  if (l.stufe === MESSSTUFEN[MESSSTUFEN.length - 1]) {
+  l.ergebnisse.push(`${MESSSTUFEN[l.stufe].name}: ${a.fps?.toFixed(1) ?? '–'} fps · langsamste 5 % ${a.p95?.toFixed(1) ?? '–'} ms · Schwarz ${l.schwarz === null ? '–' : `${l.schwarz.toFixed(1)} %`} · >250 ms: ${a.verworfen}\nBacken Soldat: ${l.welt.soldatBau.backzeitMs.toFixed(1)} ms · Bemalungen inkl. Bosse ${mb.bemalungen.toFixed(2)} MB · Wasserpuffer ${mb.zusatz.toFixed(2)} MB · Renderflächen ${mb.renderflaechen.toFixed(2)} MB · Phaser-Rest ${mb.phaserRest.toFixed(2)} MB · Speicherplan ${mb.gesamt.toFixed(2)} MB · Geometrien ${l.renderer.info.memory.geometries} · Texturen ${l.renderer.info.memory.textures}\n${urteil(a, l.schwarz, mb.gesamt)}`)
+  if (l.stufe === MESSSTUFEN.length - 1) {
     l.anzeige.textContent = l.ergebnisse.join('\n\n')
     bricheAb()
     return
   }
-  l.stufe = MESSSTUFEN[MESSSTUFEN.indexOf(l.stufe) + 1]
-  l.welt.wasser.wechsle(l.stufe)
+  l.stufe++
+  l.welt.miniboss.objekt.visible=MESSSTUFEN[l.stufe].mini
+  l.welt.eliteboss.objekt.visible=MESSSTUFEN[l.stufe].elite
   l.phase = 'umbau'; l.zeit = 0; l.bilder = []; l.schwarz = null
-  l.anzeige.textContent = `${l.ergebnisse.join('\n\n')}\nWasser ${l.stufe} · Umbau · 2 s`
+  l.anzeige.textContent = `${l.ergebnisse.join('\n\n')}\n${MESSSTUFEN[l.stufe].name} · Pause · 2 s`
 }
 
 export function bricheAb(grund?: string, wiederherstellen = true): void {
@@ -133,6 +144,7 @@ export function bricheAb(grund?: string, wiederherstellen = true): void {
   l.vollast.gibNetzeFrei()
   l.soldaten.gibNetzeFrei()
   l.verborgenePlatzhalter.forEach(obj => { obj.visible = true })
+  l.welt.miniboss.objekt.visible=l.bossSichtbar[0];l.welt.eliteboss.objekt.visible=l.bossSichtbar[1]
   if (wiederherstellen) l.welt.wasser.wechsle(l.original)
   l.knopf.disabled = false
   if (grund) { l.anzeige.style.display = 'block'; l.anzeige.textContent = grund }
