@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>3D-Probe Diagnose 4</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #6f7a86; overflow: hidden; font-family: -apple-system, sans-serif; }
+  canvas { display: block; }
+  #hud { position: fixed; left: 8px; right: 8px; top: calc(env(safe-area-inset-top) + 8px); color: #fff;
+         background: rgba(0,0,0,.55); border-radius: 10px; padding: 10px 12px; font-size: 15px; line-height: 1.4; }
+  #hud b { font-size: 18px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 6px; }
+  td, th { text-align: left; padding: 2px 4px; font-size: 14px; }
+  #urteil { font-size: 20px; font-weight: 700; margin-top: 6px; }
+</style>
+<script type="importmap">{ "imports": { "three": "./three.module.mjs" } }</script>
+</head>
+<body>
+<div id="hud">Figuren laden …</div>
+<script type="module">
+import * as THREE from 'three'
+import { GLTFLoader } from './addons/loaders/GLTFLoader.js'
+import { mergeGeometries } from './addons/utils/BufferGeometryUtils.js'
+
+// Leistungstest mit den gewaehlten Sketchfab-Figuren (vereinfacht): Zombie ~1000 Dreiecke,
+// Soldat ~5100 Dreiecke in 10 Teilen, Mini- und Elite-Boss als echte Skelett-Figuren.
+// Diagnose 4. In Diagnose 3 waren die Figuren mit MeshLambertMaterial am iPhone schwarz
+// (am Mac nicht) - die Messung dieser Stufen zaehlt nicht. Jetzt ist "einfach" dasselbe
+// MeshStandardMaterial wie geliefert, nur ohne Relief-, Glanz- und Spiegelkarten.
+// Pruefkriterium (vor dem Lauf festgelegt): Stufe "1000, einfach, Soldat vereinfacht" muss
+// im Schnitt >= 55 fps schaffen, langsamste 5 % <= 25 ms, UND die Figuren muessen bemalt
+// (nicht schwarz) zu sehen sein.
+const STUFEN = [
+  { name: 'Aufwärmen (nicht gewertet)', z: 2000, einfach: false, sLo: false, schaerfe: 2, aufwaermen: true },
+  { name: '1000, einfache Oberfläche', z: 1000, einfach: true, sLo: false, schaerfe: 2 },
+  { name: '1000, einfach, Soldat vereinfacht', z: 1000, einfach: true, sLo: true, schaerfe: 2, kriterium: true },
+  { name: '1500, einfach, Soldat vereinfacht', z: 1500, einfach: true, sLo: true, schaerfe: 2 },
+  { name: '1000, einfach, Soldat verei., Schärfe 1,5×', z: 1000, einfach: true, sLo: true, schaerfe: 1.5 },
+]
+const MAX = 2000, SOLDATEN = 60, BILDER = 8, STUFE_S = 6, EINLAUF_S = 1.5
+const hud = document.getElementById('hud')
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
+const dpr = Math.min(window.devicePixelRatio || 1, 2)
+renderer.setPixelRatio(dpr)
+renderer.setSize(innerWidth, innerHeight)
+document.body.appendChild(renderer.domElement)
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(0x87c6ee)
+scene.fog = new THREE.Fog(0x87c6ee, 40, 75)
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 120)
+camera.position.set(0, 9, 10); camera.lookAt(0, 0, -12)
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight) })
+scene.add(new THREE.HemisphereLight(0xffffff, 0x556070, 2.2))
+const sonne = new THREE.DirectionalLight(0xffffff, 2.2); sonne.position.set(-6, 14, 4); scene.add(sonne)
+const BAHN = 7
+const boden = new THREE.Mesh(new THREE.PlaneGeometry(BAHN, 80), new THREE.MeshStandardMaterial({ color: 0x3b4450 }))
+boden.rotation.x = -Math.PI / 2; boden.position.z = -30; scene.add(boden)
+const aussen = new THREE.Mesh(new THREE.PlaneGeometry(40, 80), new THREE.MeshStandardMaterial({ color: 0x2f6f96 }))
+aussen.rotation.x = -Math.PI / 2; aussen.position.set(0, -0.02, -30); scene.add(aussen)
+
+const laden = n => new GLTFLoader().loadAsync('./modelle/' + n + '.glb')
+// Wurzelbewegung entfernen: Spur mit der groessten waagrechten Strecke festhalten.
+function aufDerStelle(clip) {
+  let beste = null, weite = 0
+  for (const t of clip.tracks) {
+    if (!t.name.endsWith('.position')) continue
+    let a = Infinity, b = -Infinity, c = Infinity, d = -Infinity
+    for (let i = 0; i < t.values.length; i += 3) { a = Math.min(a, t.values[i]); b = Math.max(b, t.values[i]); c = Math.min(c, t.values[i + 2]); d = Math.max(d, t.values[i + 2]) }
+    if (b - a + d - c > weite) { weite = b - a + d - c; beste = t }
+  }
+  if (beste) for (let i = 0; i < beste.values.length; i += 3) { beste.values[i] = beste.values[0]; beste.values[i + 2] = beste.values[2] }
+}
+
+// Backt die Animation in BILDER feste Formen, getrennt je Material (der Soldat hat zehn).
+function backe(gltf, hoehe) {
+  const root = gltf.scene, clip = gltf.animations[0]
+  aufDerStelle(clip)
+  const mixer = new THREE.AnimationMixer(root); mixer.clipAction(clip).play()
+  const nachMaterial = new Map()
+  root.traverse(o => { if (o.isMesh) { const m = o.material; if (!nachMaterial.has(m)) nachMaterial.set(m, []); nachMaterial.get(m).push(o) } })
+  const v = new THREE.Vector3(), teile = [...nachMaterial].map(([material, netze]) => ({ material, netze, formen: [] }))
+  for (let f = 0; f < BILDER; f++) {
+    mixer.setTime(clip.duration * f / BILDER); root.updateMatrixWorld(true)
+    for (const t of teile) {
+      const stuecke = t.netze.map(m => {
+        const g = m.geometry, n = g.attributes.position.count, pos = new Float32Array(n * 3)
+        if (m.isSkinnedMesh) m.skeleton.update()
+        for (let i = 0; i < n; i++) {
+          if (m.isSkinnedMesh) m.getVertexPosition(i, v); else v.fromBufferAttribute(g.attributes.position, i)
+          v.applyMatrix4(m.matrixWorld); pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z
+        }
+        const neu = new THREE.BufferGeometry()
+        neu.setAttribute('position', new THREE.BufferAttribute(pos, 3)); neu.setAttribute('uv', g.attributes.uv)
+        if (g.index) neu.setIndex(g.index)
+        return neu
+      })
+      const form = mergeGeometries(stuecke); form.computeVertexNormals(); t.formen.push(form)
+    }
+  }
+  const box = new THREE.Box3()
+  for (const t of teile) box.union(new THREE.Box3().setFromBufferAttribute(t.formen[0].attributes.position))
+  const s = hoehe / (box.max.y - box.min.y)
+  let dreiecke = 0
+  for (const t of teile) {
+    for (const f of t.formen) { f.translate(0, -box.min.y, 0); f.scale(s, s, s) }
+    t.material = t.material.clone(); t.material.side = THREE.FrontSide
+    // Einfache Oberflaeche: nur das Farbbild, ohne Relief-, Glanz- und Spiegelkarten.
+    t.einfach = new THREE.MeshStandardMaterial({ map: t.material.map, roughness: 0.85, metalness: 0, side: THREE.FrontSide })
+    dreiecke += (t.formen[0].index ? t.formen[0].index.count : t.formen[0].attributes.position.count) / 3
+  }
+  return { teile, dauer: clip.duration, dreiecke }
+}
+
+hud.textContent = 'Figuren laden und Laufbilder backen …'
+const [zG, sG, miniG, eliteG, sxG] = await Promise.all(['sf_zombie_lo', 'sf_soldat_lo', 'sf_miniboss', 'sf_eliteboss', 'sf_soldat_xlo'].map(laden))
+const zombie = backe(zG, 0.7), soldat = backe(sG, 0.7), soldatLo = backe(sxG, 0.7)
+
+// Je Material und Bildgruppe ein Instanz-Netz; Figur i gehoert zur Bildgruppe i % BILDER.
+function netze(bau, anzahl) {
+  const je = Math.ceil(anzahl / BILDER)
+  return bau.teile.map(t => Array.from({ length: BILDER }, (_, g) => {
+    const n = new THREE.InstancedMesh(t.formen[g], t.material, je)
+    n.instanceMatrix.setUsage(THREE.DynamicDrawUsage); n.frustumCulled = false; scene.add(n); return n
+  }))
+}
+const zNetze = netze(zombie, MAX), sNetze = netze(soldat, SOLDATEN), sLoNetze = netze(soldatLo, SOLDATEN)
+
+function bossFigur(g, hoehe, clipTeil, x, z) {
+  const o = g.scene; o.updateMatrixWorld(true)
+  const b = new THREE.Box3().setFromObject(o, true), s = hoehe / (b.max.y - b.min.y)
+  g.animations.forEach(aufDerStelle)
+  o.scale.setScalar(s); o.position.set(x, -b.min.y * s, z); scene.add(o)
+  const clip = g.animations.find(a => a.name.toLowerCase().includes(clipTeil)) ?? g.animations[0]
+  const mx = new THREE.AnimationMixer(o); mx.clipAction(clip).play(); return mx
+}
+const bossMixer = [bossFigur(miniG, 1.1, 'walk', -1.8, -7.2), bossFigur(eliteG, 2.6, 'motion', 0, -22)]
+
+const ABSTAND = 0.42, SPALTEN = Math.floor((BAHN - 0.4) / ABSTAND)
+const zPlatz = Array.from({ length: MAX }, (_, i) => {
+  const r = Math.floor(i / SPALTEN), c = i % SPALTEN
+  return { x: -BAHN / 2 + 0.4 + c * ABSTAND + (r % 2) * 0.15 + (Math.random() - 0.5) * 0.1, z: -6 - r * ABSTAND, dreh: (Math.random() - 0.5) * 0.5 }
+})
+const sPlatz = Array.from({ length: SOLDATEN }, (_, i) => ({ x: -1.5 + (i % 6) * 0.6, z: 4.5 - Math.floor(i / 6) * 0.55 }))
+const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), eins = new THREE.Vector3(1, 1, 1)
+
+function fuelle(bau, netzListe, anzahl, platz, dreh, t) {
+  const bild = Math.floor(t / bau.dauer * BILDER), zaehler = new Array(BILDER).fill(0)
+  for (let i = 0; i < anzahl; i++) {
+    const g = i % BILDER; platz(i, v); q.setFromEuler(e.set(0, dreh(i), 0)); m4.compose(v, q, eins)
+    for (const teil of netzListe) teil[g].setMatrixAt(zaehler[g], m4)
+    zaehler[g]++
+  }
+  netzListe.forEach((teil, k) => teil.forEach((n, g) => { n.geometry = bau.teile[k].formen[(g + bild) % BILDER]; n.material = cfg.einfach ? bau.teile[k].einfach : bau.teile[k].material; n.count = zaehler[g]; n.instanceMatrix.needsUpdate = true }))
+}
+let aktiv = 0, cfg = STUFEN[0]
+function stelle(t, dt) {
+  const marsch = (t * 0.25) % (ABSTAND * 2), seitlich = Math.sin(t * 0.8) * 1.2
+  fuelle(zombie, zNetze, aktiv, (i, z) => z.set(zPlatz[i].x, 0, zPlatz[i].z + marsch), i => zPlatz[i].dreh, t)
+  fuelle(soldat, sNetze, cfg.sLo ? 0 : SOLDATEN, (i, z) => z.set(sPlatz[i].x + seitlich, 0, sPlatz[i].z), () => Math.PI, t)
+  fuelle(soldatLo, sLoNetze, cfg.sLo ? SOLDATEN : 0, (i, z) => z.set(sPlatz[i].x + seitlich, 0, sPlatz[i].z), () => Math.PI, t)
+  bossMixer.forEach(m => m.update(dt / 1000))
+}
+
+const ergebnisse = []
+let stufe = -1, stufeStart = 0, frames = []
+function naechsteStufe(jetzt) { stufe++; frames = []; stufeStart = jetzt; if (stufe < STUFEN.length) { cfg = STUFEN[stufe]; aktiv = cfg.z; renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.schaerfe)); renderer.setSize(innerWidth, innerHeight) } }
+function auswerten() {
+  const ms = frames.slice().sort((a, b) => a - b)
+  return { fps: 1000 / (ms.reduce((a, b) => a + b, 0) / ms.length), p95: ms[Math.floor(ms.length * 0.95)] }
+}
+function zeigeHud() {
+  const info = `Bildschirm ${innerWidth}×${innerHeight}, Schärfe ${dpr}× (Gerät ${window.devicePixelRatio})<br>` +
+    `Zombie ${zombie.dreiecke} Dreiecke, Soldat ${soldat.dreiecke} / vereinfacht ${soldatLo.dreiecke} (${soldat.teile.length} Teile)`
+  const zeilen = ergebnisse.map(r => `<tr><td>${r.n}</td><td>${r.fps.toFixed(0)} fps</td><td>${r.p95.toFixed(1)} ms</td></tr>`).join('')
+  const tabelle = `<table><tr><th>Stufe</th><th>Schnitt</th><th>langsamste 5 %</th></tr>${zeilen}</table>`
+  if (stufe < STUFEN.length) {
+    hud.innerHTML = `<b>Messung läuft – Handy ruhig halten</b><br>Stufe ${stufe + 1}/${STUFEN.length}: ${STUFEN[stufe].name}<br>${info}${tabelle}`
+  } else {
+    const k = ergebnisse.find(r => r.kriterium), ok = k.fps >= 55 && k.p95 <= 25, mittel = !ok && k.fps >= 40
+    hud.innerHTML = `<b>Fertig – bitte Bildschirmfoto an Oscar</b><br>${info}${tabelle}<div id="urteil">${ok ? '✅ trägt – bitte prüfen: Figuren bemalt, nicht schwarz?' : mittel ? '⚠️ geht mit Abstrichen' : '❌ zu langsam'}</div>`
+  }
+}
+
+let letzte = performance.now(), letzteHud = 0
+naechsteStufe(letzte)
+renderer.setAnimationLoop(() => {
+  const jetzt = performance.now(), dt = jetzt - letzte; letzte = jetzt
+  stelle(jetzt / 1000, dt)
+  renderer.render(scene, camera)
+  if (stufe < STUFEN.length) {
+    const seit = (jetzt - stufeStart) / 1000
+    if (seit > EINLAUF_S) frames.push(dt)
+    if (seit > (cfg.aufwaermen ? 4 : STUFE_S)) { if (!cfg.aufwaermen) ergebnisse.push({ n: STUFEN[stufe].name, kriterium: !!cfg.kriterium, ...auswerten() }); naechsteStufe(jetzt); zeigeHud() }
+  }
+  if (jetzt - letzteHud > 500) { letzteHud = jetzt; zeigeHud() }
+})
+</script>
+</body>
+</html>
