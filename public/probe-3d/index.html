@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>3D-Probe</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #6f7a86; overflow: hidden; font-family: -apple-system, sans-serif; }
+  canvas { display: block; }
+  #hud { position: fixed; left: 8px; right: 8px; top: calc(env(safe-area-inset-top) + 8px); color: #fff;
+         background: rgba(0,0,0,.55); border-radius: 10px; padding: 10px 12px; font-size: 15px; line-height: 1.4; }
+  #hud b { font-size: 18px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 6px; }
+  td, th { text-align: left; padding: 2px 4px; font-size: 14px; }
+  #urteil { font-size: 20px; font-weight: 700; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div id="hud">3D-Probe lädt …</div>
+<script type="module">
+import * as THREE from './three.module.mjs'
+
+// Pruefkriterium (vor dem Lauf festgelegt): Stufe "2000 Figuren" muss im Schnitt >= 55 fps
+// schaffen und darf bei den langsamsten 5 % der Bilder nicht ueber 25 ms liegen.
+const STUFEN = [
+  { name: '500 Figuren', rot: 500, schatten: false },
+  { name: '1000 Figuren', rot: 1000, schatten: false },
+  { name: '2000 Figuren', rot: 2000, schatten: false },
+  { name: '4000 Figuren', rot: 4000, schatten: false },
+  { name: '2000 + Schatten', rot: 2000, schatten: true },
+]
+const BLAU = 250, MAX = 4000 + BLAU, STUFE_S = 6, EINLAUF_S = 1.5
+const hud = document.getElementById('hud')
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
+const dpr = Math.min(window.devicePixelRatio || 1, 2)
+renderer.setPixelRatio(dpr)
+renderer.setSize(innerWidth, innerHeight)
+renderer.shadowMap.type = THREE.PCFShadowMap
+document.body.appendChild(renderer.domElement)
+
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(0x87c6ee)
+scene.fog = new THREE.Fog(0x87c6ee, 40, 75)
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 120)
+camera.position.set(0, 9, 10)
+camera.lookAt(0, 0, -12)
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight) })
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x556070, 1.6))
+const sonne = new THREE.DirectionalLight(0xffffff, 2.2)
+sonne.position.set(-6, 14, 4)
+sonne.target.position.set(0, 0, -14)
+sonne.shadow.mapSize.set(1024, 1024)
+Object.assign(sonne.shadow.camera, { left: -8, right: 8, top: 30, bottom: -8, near: 1, far: 50 })
+scene.add(sonne, sonne.target)
+
+// Bahn: 7 Einheiten breit, 70 lang, graue Mauern links/rechts, Schilderreihen aussen.
+const BAHN = 7
+const boden = new THREE.Mesh(new THREE.PlaneGeometry(BAHN, 80), new THREE.MeshStandardMaterial({ color: 0x3b4450 }))
+boden.rotation.x = -Math.PI / 2; boden.position.z = -30; boden.receiveShadow = true; scene.add(boden)
+const aussen = new THREE.Mesh(new THREE.PlaneGeometry(40, 80), new THREE.MeshStandardMaterial({ color: 0xdfe6ee }))
+aussen.rotation.x = -Math.PI / 2; aussen.position.set(0, -0.02, -30); scene.add(aussen)
+for (const s of [-1, 1]) {
+  const mauer = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, 80), new THREE.MeshStandardMaterial({ color: 0x9aa3ad }))
+  mauer.position.set(s * (BAHN / 2 + 0.15), 0.3, -30); mauer.castShadow = true; scene.add(mauer)
+}
+function schildTextur(text, farbe) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128
+  const g = c.getContext('2d'); g.fillStyle = farbe; g.fillRect(0, 0, 256, 128)
+  g.fillStyle = '#fff'; g.font = 'bold 80px -apple-system, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'
+  g.fillText(text, 128, 68); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t
+}
+const schildGeo = new THREE.BoxGeometry(1.5, 0.75, 0.08)
+const schildLinks = new THREE.MeshStandardMaterial({ map: schildTextur('+1', '#1f7fd6') })
+const schildRechts = new THREE.MeshStandardMaterial({ map: schildTextur('+99', '#e0b12a') })
+for (let i = 0; i < 26; i++) {
+  for (const [s, mat] of [[-1, schildLinks], [1, schildRechts]]) {
+    const m = new THREE.Mesh(schildGeo, mat); m.position.set(s * (BAHN / 2 + 1.1), 0.75, 6 - i * 2.2); m.castShadow = true; scene.add(m)
+  }
+}
+const tor = new THREE.Mesh(new THREE.BoxGeometry(BAHN, 0.7, 0.12), new THREE.MeshStandardMaterial({ map: schildTextur('×88', '#8a3fe0'), transparent: true, opacity: 0.9 }))
+tor.position.set(0, 0.35, 3); scene.add(tor)
+
+// Figuren: vier Instanz-Netze (Koerper, Kopf, zwei Beine) - jede Figur wird jedes Bild neu gestellt.
+const teile = {
+  koerper: new THREE.CapsuleGeometry(0.16, 0.28, 3, 8),
+  kopf: new THREE.SphereGeometry(0.13, 10, 8),
+  bein: new THREE.BoxGeometry(0.09, 0.3, 0.09).translate(0, -0.15, 0),
+}
+const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 })
+const netze = {
+  koerper: new THREE.InstancedMesh(teile.koerper, mat, MAX),
+  kopf: new THREE.InstancedMesh(teile.kopf, mat, MAX),
+  beinL: new THREE.InstancedMesh(teile.bein, mat, MAX),
+  beinR: new THREE.InstancedMesh(teile.bein, mat, MAX),
+}
+const ROT = new THREE.Color(0xd93a3a), BLAUF = new THREE.Color(0x3a8ee8)
+for (const n of Object.values(netze)) { n.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(n) }
+
+// Rote Masse als Teppich ab z = -8 nach hinten, blaue Laeufer davor.
+const plaetze = []
+{ const abstand = 0.34, spalten = Math.floor((BAHN - 0.4) / abstand)
+  for (let i = 0; i < 4000; i++) { const r = Math.floor(i / spalten), c = i % spalten
+    plaetze.push({ x: -BAHN / 2 + 0.35 + c * abstand + (r % 2) * 0.12, z: -8 - r * abstand, phase: Math.random() * 6.28, blau: false }) } }
+for (let i = 0; i < BLAU; i++) plaetze.push({ x: (Math.random() - 0.5) * (BAHN - 0.8), z: 2 - Math.random() * 10, phase: Math.random() * 6.28, blau: true })
+
+// Boss: grosse Figur aus einfachen Formen am Ende der Masse.
+const boss = new THREE.Group()
+const bossMat = new THREE.MeshStandardMaterial({ color: 0xb02828, roughness: 0.5 })
+const bossKoerper = new THREE.Mesh(new THREE.CapsuleGeometry(0.9, 1.2, 4, 12), bossMat); bossKoerper.position.y = 1.7
+const bossKopf = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 12), new THREE.MeshStandardMaterial({ color: 0xcfd6de, metalness: 0.6, roughness: 0.3 })); bossKopf.position.y = 3.4
+const schwert = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2.6, 0.3), bossKopf.material); schwert.position.set(1.2, 2.6, 0)
+boss.add(bossKoerper, bossKopf, schwert); boss.traverse(o => { o.castShadow = true }); scene.add(boss)
+
+const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), eins = new THREE.Vector3(1, 1, 1)
+let aktiv = 0
+function setzeFarben() {
+  // Die Plaetze 0..aktiv-1 sind rot, danach folgen die blauen Laeufer.
+  for (let i = 0; i < MAX; i++) { const f = i >= aktiv ? BLAUF : ROT
+    for (const net of Object.values(netze)) net.setColorAt(i, f) }
+  for (const net of Object.values(netze)) net.instanceColor.needsUpdate = true
+}
+setzeFarben()
+
+function stelle(t) {
+  // Reihenfolge: erst die aktiven roten, dann die blauen - Instanzen dahinter werden nicht gezeichnet.
+  let k = 0
+  const zeige = (p) => {
+    const lauf = p.blau ? 1 : 0.35, s = Math.sin(t * (p.blau ? 11 : 5) + p.phase) * 0.6 * lauf
+    let z = p.z; if (p.blau) { z = 2 - ((t * 3 + p.phase * 2) % 10) }
+    const hub = Math.abs(Math.sin(t * 11 + p.phase)) * 0.05 * lauf
+    const y = 0.3 + hub
+    v.set(p.x, y + 0.3, z); m4.compose(v, q.identity(), eins); netze.koerper.setMatrixAt(k, m4)
+    v.set(p.x, y + 0.62, z); m4.compose(v, q.identity(), eins); netze.kopf.setMatrixAt(k, m4)
+    q.setFromEuler(e.set(s, 0, 0)); v.set(p.x - 0.07, y + 0.12, z); m4.compose(v, q, eins); netze.beinL.setMatrixAt(k, m4)
+    q.setFromEuler(e.set(-s, 0, 0)); v.set(p.x + 0.07, y + 0.12, z); m4.compose(v, q, eins); netze.beinR.setMatrixAt(k, m4)
+    k++
+  }
+  for (let i = 0; i < aktiv; i++) zeige(plaetze[i])
+  for (let i = 4000; i < MAX; i++) zeige(plaetze[i])
+  for (const n of Object.values(netze)) { n.count = k; n.instanceMatrix.needsUpdate = true }
+  const reihen = Math.ceil(aktiv / Math.floor((BAHN - 0.4) / 0.34))
+  boss.position.set(0, 0, -8 - reihen * 0.34 - 1.5)
+  schwert.rotation.z = Math.sin(t * 2) * 0.8
+  boss.position.y = Math.abs(Math.sin(t * 2)) * 0.15
+}
+
+function schatten(an) {
+  renderer.shadowMap.enabled = an; sonne.castShadow = an
+  for (const n of Object.values(netze)) n.castShadow = an
+  scene.traverse(o => { if (o.material) o.material.needsUpdate = true })
+}
+
+const ergebnisse = []
+let stufe = -1, stufeStart = 0, frames = []
+function naechsteStufe(jetzt) {
+  stufe++; frames = []; stufeStart = jetzt
+  if (stufe >= STUFEN.length) return
+  aktiv = STUFEN[stufe].rot; setzeFarben(); schatten(STUFEN[stufe].schatten)
+}
+function auswerten() {
+  const ms = frames.slice().sort((a, b) => a - b)
+  const schnitt = ms.reduce((a, b) => a + b, 0) / ms.length
+  const p95 = ms[Math.floor(ms.length * 0.95)]
+  return { fps: 1000 / schnitt, p95 }
+}
+function zeigeHud(t) {
+  const info = `Bildschirm ${innerWidth}×${innerHeight}, Schärfe ${dpr}× (Gerät ${window.devicePixelRatio})`
+  let zeilen = ergebnisse.map(r => `<tr><td>${r.name}</td><td>${r.fps.toFixed(0)} fps</td><td>${r.p95.toFixed(1)} ms</td></tr>`).join('')
+  if (stufe < STUFEN.length) {
+    hud.innerHTML = `<b>Messung läuft – Handy ruhig halten</b><br>Stufe ${stufe + 1}/${STUFEN.length}: ${STUFEN[stufe].name}<br>${info}<table><tr><th>Stufe</th><th>Schnitt</th><th>langsamste 5 %</th></tr>${zeilen}</table>`
+  } else {
+    const k = ergebnisse.find(r => r.name === '2000 Figuren')
+    const ok = k.fps >= 55 && k.p95 <= 25
+    const mittel = !ok && k.fps >= 40
+    hud.innerHTML = `<b>Fertig – bitte Bildschirmfoto an Oscar</b><br>${info}<table><tr><th>Stufe</th><th>Schnitt</th><th>langsamste 5 %</th></tr>${zeilen}</table>` +
+      `<div id="urteil">${ok ? '✅ 3D trägt' : mittel ? '⚠️ geht mit Abstrichen' : '❌ zu langsam'}</div>`
+  }
+}
+
+let letzte = performance.now(), letzteHud = 0
+naechsteStufe(letzte)
+renderer.setAnimationLoop(() => {
+  const jetzt = performance.now(), dt = jetzt - letzte; letzte = jetzt
+  const t = jetzt / 1000
+  stelle(t)
+  renderer.render(scene, camera)
+  if (stufe < STUFEN.length) {
+    const seit = (jetzt - stufeStart) / 1000
+    if (seit > EINLAUF_S) frames.push(dt)
+    if (seit > STUFE_S) { ergebnisse.push({ name: STUFEN[stufe].name, ...auswerten() }); naechsteStufe(jetzt); zeigeHud(t) }
+  }
+  if (jetzt - letzteHud > 500) { letzteHud = jetzt; zeigeHud(t) }
+})
+</script>
+</body>
+</html>
