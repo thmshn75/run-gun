@@ -1521,3 +1521,15 @@ der Einschlagstelle. Ebenso fielen die umfallenden Horde-Zombies hinter der Fron
 **Regel:** Jede Wirkung, die der Spieler einer Ursache zuordnen soll, muss **am Ort der
 Ursache** sichtbar werden (Treffer-Loecher, Explosion am Ziel). Beim Review nicht nur die
 Zahl pruefen, sondern im Bild an der Stelle hinsehen, wo es passieren soll.
+
+## 2026-09-30 — Schneise zum dritten Mal gemeldet: Wirkung heilte schneller, als man sie sah
+
+Thomas meldete nach D5b, Nacharbeit 1 und Nacharbeit 2 jeweils dasselbe: Der Panzer zieht
+keine bleibende Schneise. Jede Runde hat genau das Genannte nachgebessert (weiter fahren,
+mehr Treffer), aber die Treffer-Loecher heilen alle 0,25 s und die Horde stellt sich sofort
+neu auf — die Gasse war rechnerisch da und nach einer Sekunde wieder zu. Geprueft wurde im
+Browser das Einzelbild waehrend der Durchfahrt, nicht das Bild zwei Sekunden danach.
+**Regel:** Bei einer Wirkung, die der Spieler als **Zustand** beschreibt (Schneise, Loch,
+Luecke), die **Standzeit** mitspezifizieren und pruefen: Bild waehrend UND einige Sekunden
+nach der Wirkung ansehen. Meldet Thomas dasselbe ein zweites Mal, nicht den Wert weiterdrehen,
+sondern fragen, welche Mechanik das Gewuenschte wieder aufhebt (hier: Heilen + Neuaufstellung).
