@@ -9,7 +9,7 @@ import type { Welt } from './szene'
 import type { WasserStufe } from './wasser'
 import { Einsatzbilder, SpielLauf, WeltDarstellung, hatKontakt } from './lauf'
 import { neuerLauf, starteEinheit, type Zustand, type Ereignis } from './rechnung'
-import { LEVELS } from './balance3d'
+import { LEVELS, SPEZIAL } from './balance3d'
 import { speichereLetzteMessung } from './info'
 
 // Dauertest-Werte ab D5c enthalten zwei Feldfahrzeuge und sind mit älteren Messungen nicht direkt vergleichbar.
@@ -59,18 +59,20 @@ export class DauertestFahrzeuge {
     this.zustand.y = 15; this.zustand.Z = 600
     for (const name of ['humvee', 'hubschrauber'] as const) {
       const a = starteEinheit(this.zustand, name)
-      a.verstrichen = name === 'humvee' ? 3 : 2
+      a.verstrichen = SPEZIAL[name].ablauf[0].dauer
     }
   }
   aktualisiere(dt: number): void {
     if (this.frei) return
     this.ereignisse.length = 0
     for (const a of this.zustand.aktiv) {
-      const beginn = a.einheit === 'humvee' ? 3 : 2
-      const ende = beginn + (a.einheit === 'humvee' ? 30 : 12)
+      const ablauf = SPEZIAL[a.einheit].ablauf
+      const beginn = ablauf[0].dauer
+      const ende = beginn + ablauf[1].dauer
       a.verstrichen += dt
       if (a.verstrichen >= ende) a.verstrichen = beginn
-      this.ereignisse.push({ art: 'spezialTreffer', einheit: a.einheit, menge: (a.einheit === 'humvee' ? 4 : 20) * dt, t: 0 })
+      const rate = a.einheit === 'humvee' ? SPEZIAL.humvee.ablauf[1].zombiesProSekunde : SPEZIAL.hubschrauber.ablauf[1].zombiesProSekunde
+      this.ereignisse.push({ art: 'spezialTreffer', einheit: a.einheit, menge: rate * dt, t: 0 })
     }
     this.einsatz.abgleichen(this.zustand, this.ereignisse, dt)
     this.einsatz.nimmTreffer()

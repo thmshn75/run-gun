@@ -81,9 +81,12 @@ export class Einsatzbilder {
       const dauer = stand.name === 'panzer' ? .6 : stand.name === 'hubschrauber' ? 1 : .8
       stand.gruppe.scale.setScalar(Math.max(0, 1 - stand.abgang / dauer))
       const p = stand.abgangPos!
-      if (stand.name === 'panzer' && stand.schneiseZ !== undefined) stand.gruppe.position.z = p.z - (stand.halt2! - stand.schneiseZ) / SPEZIAL.panzer.ablauf[4].dauer * Math.min(stand.abgang, dauer)
+      if ((stand.name === 'panzer' || stand.name === 'humvee') && stand.schneiseZ !== undefined) {
+        const start = stand.name === 'panzer' ? stand.halt2! : stand.halt1
+        const schneiseDauer = stand.name === 'panzer' ? SPEZIAL.panzer.ablauf[4].dauer : SPEZIAL.humvee.ablauf[1].dauer
+        stand.gruppe.position.z = p.z - (start - stand.schneiseZ) / schneiseDauer * Math.min(stand.abgang, dauer)
+      }
       else if (stand.name === 'hubschrauber') stand.gruppe.position.set(p.x + 12 * Math.min(stand.abgang, dauer) * -Math.sin(stand.abgangKurs!), p.y + 3 * Math.min(stand.abgang, dauer), p.z - 12 * Math.min(stand.abgang, dauer) * Math.cos(stand.abgangKurs!))
-      else if (stand.name === 'humvee') stand.gruppe.position.z = p.z + 6 * Math.min(stand.abgang, dauer)
       if (stand.abgang >= dauer) this.entferne(a, stand)
     }
   }
@@ -104,12 +107,10 @@ export class Einsatzbilder {
         const phase = phaseBei(name, a.verstrichen)
         const geplant = name === 'panzer' ? [1.45, 1.85, 3.7, 4.1].filter(t => t <= a.verstrichen + 1e-9).length : 0
         const stand: FeldStand = { gruppe, name, halt1, abgang: -1, schuss: geplant, schussUhr: 0, rest: 0, offsetX, kreisVersatz, bossSchuss: 0, bossExplosionen: new Set(), letzteZiele: [] }
-        if (name === 'humvee') {
-          const halt = -(5 + Math.max(0, z.y - 5) / 2)
-          stand.halt2 = halt <= halt1 - 2 ? halt : halt1
-        }
         this.fahrzeuge.set(a, stand)
-        if (name === 'panzer' && phase.index === 4) { this.gasse.beginne(offsetX, FAHRZEUGE.panzer.SCHNEISE_HALB); stand.gasseBegonnen = true }
+        if (phase.art === 'schneise' && (name === 'panzer' || name === 'humvee')) {
+          this.gasse.beginne(offsetX, FAHRZEUGE[name].SCHNEISE_HALB); stand.gasseBegonnen = true
+        }
       }
     }
     for (const [a, stand] of this.fahrzeuge) {
@@ -130,9 +131,18 @@ export class Einsatzbilder {
           stand.gruppe.rotation.y = theta
         }
       } else if (stand.name === 'humvee') {
-        const L = FAHRZEUGE.humvee.LAENGE * FAHRZEUGE.humvee.SPIEL_SKALA
-        const zielZ = Math.min(stand.halt1, Math.max(stand.halt2!, -z.y + L / 2 + 2))
-        stand.gruppe.position.z = phase.index === 0 ? THREE.MathUtils.lerp(10, zielZ, phase.anteil) : zielZ
+        if (phase.index === 0) stand.gruppe.position.z = THREE.MathUtils.lerp(10, stand.halt1, phase.anteil)
+        else {
+          if (stand.schneiseZ === undefined) {
+            const sichtbar = z.y <= 0 ? 0 : Math.min(DARSTELLUNG.HORDE_MAX, Math.ceil(z.Z))
+            const aufstellung = baueHorde(sichtbar, new Set()).eintraege
+            const tiefe = aufstellung.length ? -Math.min(...aufstellung.map(e => e.z)) : 0
+            stand.schneiseZ = -z.y - tiefe - 4
+          }
+          stand.gruppe.position.z = THREE.MathUtils.lerp(stand.halt1, stand.schneiseZ, phase.anteil)
+          if (!stand.gasseBegonnen) { this.gasse.beginne(stand.offsetX, FAHRZEUGE.humvee.SCHNEISE_HALB); stand.gasseBegonnen = true }
+          this.gasse.erweitere(stand.gruppe.position.z - FAHRZEUGE.humvee.LAENGE * FAHRZEUGE.humvee.SPIEL_SKALA / 2 + z.y)
+        }
       } else if (phase.index === 0) stand.gruppe.position.z = THREE.MathUtils.lerp(10, stand.halt1, phase.anteil)
       else if (stand.name === 'haubitze') stand.gruppe.position.z = phase.index === 2
         ? THREE.MathUtils.lerp(stand.halt1, 10, phase.anteil) : stand.halt1
@@ -175,12 +185,13 @@ export class Einsatzbilder {
             const boss = stand.name === 'hubschrauber' && !!bossPunkt && (!ereignis || (stand.bossSchuss + 1) % 3 === 0)
             if (stand.name === 'hubschrauber') stand.bossSchuss++
             const s = stand.schuss
-            const x = stand.name === 'humvee' ? -2.6 + 5.2 * (s % 24 <= 12 ? s % 24 : 24 - s % 24) / 12 : -2.8 + 5.6 * this.zufall()
+            const x = stand.name === 'humvee' ? stand.offsetX - 1.2 + 2.4 * (s % 24 <= 12 ? s % 24 : 24 - s % 24) / 12 : -2.8 + 5.6 * this.zufall()
             const tief = stand.name === 'humvee' ? .5 + 2 * this.zufall() : 1 + 8 * this.zufall()
-            const ziel = boss ? bossPunkt!.clone() : new THREE.Vector3(x, .2, -z.y - tief)
+            const ziel = boss ? bossPunkt!.clone() : new THREE.Vector3(x, .2, stand.name === 'humvee' ? stand.gruppe.position.z - FAHRZEUGE.humvee.LAENGE * FAHRZEUGE.humvee.SPIEL_SKALA / 2 - tief : -z.y - tief)
             const menge = boss ? 0 : Math.floor(stand.rest + 1e-9)
-            if (!boss) stand.rest -= menge
-            this.schiesse(stand, ziel, stand.name === 'humvee' ? 1.5 : 2.5, menge, stand.name === 'humvee' ? 1.5 : 2)
+            if (stand.name === 'humvee') stand.rest = 0
+            else if (!boss) stand.rest -= menge
+            this.schiesse(stand, ziel, stand.name === 'humvee' ? 1.5 : 2.5, stand.name === 'humvee' ? 0 : menge, stand.name === 'humvee' ? 0 : 2)
           }
         }
         continue
@@ -217,7 +228,7 @@ export class Einsatzbilder {
       }
     }
     for (const [a, stand] of this.fahrzeuge) if ((z.ergebnis !== 'laeuft' || !z.aktiv.includes(a)) && stand.abgang < 0) {
-      if (stand.name === 'haubitze' && a.verstrichen >= 4.75 - 1e-9) this.entferne(a, stand)
+      if (stand.name === 'haubitze' && a.verstrichen >= SPEZIAL.haubitze.ablauf.reduce((summe, phase) => summe + phase.dauer, 0) - 1e-9) this.entferne(a, stand)
       else { stand.abgang = 0; stand.abgangPos = stand.gruppe.position.clone(); stand.abgangKurs = stand.gruppe.rotation.y }
     }
     this.ticke(dt)

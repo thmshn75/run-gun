@@ -1543,3 +1543,12 @@ gelesen worden.
 **Regel:** Die Uebergabe zu Sitzungsbeginn vollstaendig lesen, nicht die abgeschnittene
 Vorschau. Widerspricht sie CLAUDE.md, gilt die neuere Uebergabe, und CLAUDE.md wird im
 selben Zug nachgezogen.
+
+## 2026-09-30 — Fahrzeuge fuhren rueckwaerts, im Review nicht gesehen
+
+Humvee und Hubschrauber zeigten im Feld mit dem Heck nach vorn (Drehung der Miniaturen
+uebernommen). Die Browser-Bildfolge war als Streifen kleiner Bilder angesehen worden; darin
+war die Ausrichtung nicht erkennbar. Thomas sah es am iPhone sofort.
+**Regel:** Bei jedem neuen oder umgebauten Fahrzeug im Review ein Nahbild (Ausschnitt, volle
+Aufloesung) waehrend der Fahrt ansehen und ausdruecklich pruefen: Bug/Nase in Fahrtrichtung?
+Die Spec verlangt dafuer einen Verhaltenstest (Bug-Teil liegt bei −z).

@@ -344,12 +344,61 @@ Jeder Test mit `dt = 1/60` **und** `dt = 0,1`, wo Zeit läuft.
 Sonst nichts aendern. `npm run check`, `npm test`, `npm run build` gruen. Status am Ende
 IMPL_DONE, kurzer Abschlussbericht.
 
+## Nacharbeit 2 (Thomas am iPhone, 2026-09-30 19:36) — nur diese Punkte
+
+Thomas: "Der Humvee faehrt verkehrt ein und bleibt viel zu lange, er koennte auch einfach
+durch die Menge fahren und abraeumen wie der Panzer; die Haubitze schiesst noch immer zu
+schnell die zwei Schuesse ab; der Hubschrauber liegt ebenso verkehrt."
+
+**N1 Ausrichtung Humvee und Hubschrauber (Feld).** Beide zeigen im Feld mit dem Heck nach
+vorn (Fahrt-/Flugrichtung). Ursache vermutlich `DREHUNG: 180` (fuer die Miniaturen
+bestimmt), das `baueFeldFahrzeug` in die DREHUNG-Gruppe uebernimmt. Loesung: je Fahrzeug ein
+eigenes Feld `FELD_DREHUNG` in `FAHRZEUGE` (Panzer/Haubitze = bisheriger Wert, Humvee und
+Hubschrauber so, dass Motorhaube bzw. Cockpit/Nase im Feld nach −z zeigen);
+`baueFeldFahrzeug` nutzt `FELD_DREHUNG`, die **Miniaturen bleiben unveraendert**
+(`DREHUNG`). Codex bestimmt "vorn" an der Geometrie (Knotennamen/Teilboxen, z. B.
+Hauptrotor-Mast vs. Heckrotor beim Hubschrauber: Heckrotor muss nach +z; beim Humvee
+Windschutzscheibe/Haube) und nennt im Bericht, woran. `MUENDUNG` beider danach neu
+bestimmen (MG-Rohrende zeigt nach vorn, Bugkanone unter der Nase), Werte im Bericht.
+Test (Verhalten): In der Kurs-Gruppe bei Kurs 0 liegt der Heckrotor-Knoten des
+Hubschraubers bei z > 0 und der Hauptrotor/Rumpfbug davor; beim Humvee liegt der als "vorn"
+bestimmte Teil bei z < 0. Panzer/Haubitze unveraendert (Regressionstest bleibt).
+
+**N2 Humvee faehrt durch die Horde wie der Panzer.** `SPEZIAL.humvee.ablauf` =
+`[{ art: 'fahrt', dauer: 2 }, { art: 'schneise', dauer: 6, zombiesProSekunde: 20 }]`
+(Wirkung bleibt 120; kein `bossAnteil`). Feldbild nach dem Panzer-Muster: Fahrt von z = +10
+auf `halt1`, dann Schneise von `halt1` bis hinter die Horde (`schneiseZ` wie beim Panzer:
+Hordentiefe + 4 m), linear ueber die Phase; das MG feuert waehrend der Schneise im Takt
+`HUMVEE_TAKT_S` weiter mit Mündungsblitz und Explosion Ø 1,5 m **vor dem Bug** (z zwischen
+Bug −0,5 und −2,5 m, x-Schwenk wie bisher, aber in `[−1,2; +1,2]` um die Spur), **ohne**
+Treffer-Loecher (wie beim Panzer ist die Gasse die Darstellung, `rest` verwerfen). Gasse:
+dieselbe `HordeGasse` mit `FAHRZEUGE.humvee.SCHNEISE_HALB` = halbe x-Ausdehnung des
+Feld-Humvee (an der Box gemessen, Wert im Bericht); schliesst mit der naechsten Welle wie
+beim Panzer. Abgang: hinten aus der Horde weiter nach −z (wie Panzer), schrumpfen. Die
+bisherige Halte-/Zurueckweich-Logik (`halt2`, `zielZ`) und die Feuer-Phase fallen fuer den
+Humvee weg; `DauertestFahrzeuge` auf den neuen Ablauf umstellen (Dauerschleife ueber die
+Schneise). Tests: Humvee nach 2 s bei `halt1`, Ende der Schneise hinter der Horde; Gasse
+nach der Durchfahrt offen (gleicher Test wie Panzer); Kern-Summe 120 ± 0,1; Schuesse in
+der Schneise ~ 6 / 0,25 = 24 ± 1.
+
+**N3 Haubitze langsamer.** `SPEZIAL.haubitze` Einschlaege `abstand` 2 → **4 s**, Phasendauer
+entsprechend 2,05 → **4,05 s**. Die fest verdrahtete Gesamtdauer `4.75` in `lauf.ts`
+(Entfernen der Haubitze) und alle anderen Stellen, die Haubitzen-Zeiten als Zahl enthalten,
+aus `SPEZIAL` ableiten.
+
+**Bots:** vorher/nachher-Tabelle; harte Grenze passiv 0/20.
+Nachweise: `npm run check`, `npm test`, `npm run build`, `npm run bots3d` gruen. Status am
+Ende IMPL_DONE, Abschlussbericht.
+
 ## Abschlussbericht (Pflicht)
 Was geändert, Bots vorher/nachher, Testergebnis mit Zahlen, Mündungswerte Humvee und
 Hubschrauber, `SCHNEISE_HALB`, jeder umgestellte Bestandstest mit Grund, was nicht ging und
 warum. Status am Ende auf `IMPL_DONE`.
 
 ## Implementation Summary
+- Nacharbeit 2: Feld-Drehung für Humvee/Hubschrauber von der Miniatur-Drehung getrennt (beide 0°; Panzer/Haubitze unverändert 0°). Die niedrige Haube liegt im Humvee-Netz bei negativem z, der Heckrotor des Hubschraubers bei positivem z. Humvee-Mündung `[0, 1.76, -0.87]` am vorderen Dachrand (ein separates MG-Rohr ist im vereinten Netz nicht eindeutig erkennbar), Hubschrauber-Mündung `[0, 1.2, -8.05]` unter der Nase; Humvee-Halbbreite der Gasse `.7957 m` aus Modell-x-Ausdehnung `1.9892 m × .8 / 2`.
+- Humvee: 2 s Anfahrt, 6 s Schneise mit 120 Zombies Kernwirkung, MG-Schüsse vor dem Bug ohne heilende Löcher, Gasse bis zur nächsten Welle und Abgang hinter der Horde. Haubitzen-Einschläge 4 s auseinander, Einsatzdauer 6,75 s. Dauertest folgt dem neuen Humvee-Ablauf.
+- Nachweise Nacharbeit 2: `npm run check`, `npm test` (65 Dateien, 596 Tests), `npm run build`, `npm run bots3d` und `git diff --check` grün. Bots vorher/nachher identisch: passiv 0/20, nurLinks 0/20, rhythmus(40) 20/20, rhythmusSaeule(60) 20/20, rhythmusSaeule(15) 0/20, rhythmusSaeule(25) 0/20. Terminal.app ließ sich hier nicht starten; die Testsuite lief direkt in der Shell. iPhone-Sichtkontrolle bleibt ausstehend.
 - Nacharbeit 1: Flugunterkante des Hubschraubers auf 4 m gesetzt; der Anflugkurs wird aus der Richtung Startpunkt → Zielpunkt berechnet. Bestehenden Höhentest an `FLUGHOEHE` gebunden und Anflugrichtung für beide Kreisversätze bei `dt = 1/60` und `0,1` geprüft.
 - D5c: Humvee und Hubschrauber als Feldfahrzeuge mit Kurs-Gruppe, maßstäblicher Geometrie, Rotoren, Schusstakt, Zielpunkten, Treffern und Abgang; Panzer-Schneise bleibt bis zur nächsten Welle offen und schließt dann in 3 s. Panzer-Bosswirkung, Säulen-Reihenfolge und Hubschrauber-Wirkung gemäß S1b/S3 umgesetzt. Dauertest zeigt beide Fahrzeuge.
 - Geometrie: Humvee-Mündung `[0, 3.15, -2.3]`, Hubschrauber-Mündung `[0, 1.2, -8.85]` (je Kurs-Gruppen-Koordinaten vor Spielskalierung); Panzer-Schneisen-Halbbreite `1.3954 m` aus Modell-x-Ausdehnung `3.4885 m × 0.8 / 2`.

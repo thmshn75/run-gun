@@ -45,31 +45,38 @@ describe('D5c Feldfahrzeuge', () => {
   })
 
   for (const dt of [1 / 60, .1]) {
-    it(`Humvee fährt zur Front, weicht zurück und schießt am Ort (dt ${dt})`, () => {
+    it(`Humvee fährt durch die Horde, feuert vor dem Bug und hinterlässt eine Gasse (dt ${dt})`, () => {
       const { welt } = attrappe(), bilder = new Einsatzbilder(welt), z = neuerLauf(LEVELS[0], 1)
-      z.y = 20; z.Z = 1000
+      z.y = 20; z.Z = 600
       const a = starteEinheit(z, 'humvee')
-      a.verstrichen = 3
+      a.verstrichen = 2
       bilder.abgleichen(z, [], 0)
       const gruppe = welt.scene.getObjectByName('einsatz-humvee') as THREE.Group
-      expect(gruppe.position.z).toBeCloseTo(-12.5, 2)
-      z.y = 5; a.verstrichen += dt
-      bilder.abgleichen(z, [], dt)
       expect(gruppe.position.z).toBeCloseTo(-7.84, 2)
       expect(bilder.schuesse(a)).toBe(0)
-      let gemeldet = 0
-      for (let t = 0; t < 30 - 2 * dt; t += dt) {
-        a.verstrichen = 3 + t
-        bilder.abgleichen(z, [{ art: 'spezialTreffer', einheit: 'humvee', menge: 4 * dt, t }], dt)
-        gemeldet += bilder.nimmTreffer().reduce((summe, treffer) => summe + treffer.menge, 0)
+      const tiefe = -Math.min(...baueHorde(600, new Set()).eintraege.map(e => e.z))
+      for (let t = dt; t <= 6 + 1e-8; t += dt) {
+        a.verstrichen = 2 + t
+        bilder.abgleichen(z, [{ art: 'spezialTreffer', einheit: 'humvee', menge: 20 * dt, t }], dt)
+        expect(bilder.nimmTreffer()).toHaveLength(0)
       }
-      expect(bilder.schuesse(a)).toBeGreaterThanOrEqual(118)
-      expect(bilder.schuesse(a)).toBeLessThanOrEqual(120)
-      expect(gemeldet).toBeGreaterThanOrEqual(118)
+      expect(gruppe.position.z).toBeCloseTo(-z.y - tiefe - 4, 2)
+      expect(bilder.schuesse(a)).toBeGreaterThanOrEqual(23)
+      expect(bilder.schuesse(a)).toBeLessThanOrEqual(25)
+      expect(bilder.gasse.aktiv).toBe(true)
+      expect(bilder.gasse.halb).toBeCloseTo(FAHRZEUGE.humvee.SCHNEISE_HALB, 4)
+      expect(bilder.gasse.bis).toBeLessThan(-tiefe)
+      expect(baueHorde(600, new Set(), bilder.gasse).eintraege.some(e => bilder.gasse.enthaelt(e))).toBe(false)
+      bilder.abgleichen(z, [], 10)
+      expect(bilder.gasse.aktiv).toBe(true)
+      bilder.abgleichen(z, [{ art: 'welle', menge: 1, t: 0 }], 1.5)
+      expect(bilder.gasse.aktiv).toBe(true)
+      bilder.abgleichen(z, [], 1.5)
+      expect(bilder.gasse.aktiv).toBe(false)
       const ziele = bilder.letzteZiele(a)
-      expect(Math.min(...ziele.map(p => p.x))).toBeCloseTo(-2.6, 5)
-      expect(Math.max(...ziele.map(p => p.x))).toBeCloseTo(2.6, 5)
-      expect(ziele.every(p => p.z <= -z.y - .5 && p.z >= -z.y - 2.5)).toBe(true)
+      expect(Math.min(...ziele.map(p => p.x))).toBeCloseTo(-1.2, 5)
+      expect(Math.max(...ziele.map(p => p.x))).toBeCloseTo(1.2, 5)
+      expect(ziele.at(-1)!.z).toBeLessThan(gruppe.position.z - 1.84)
       bilder.gibFrei()
     })
 
@@ -133,7 +140,8 @@ describe('D5c Feldfahrzeuge', () => {
     z.y = 20
     const h1 = starteEinheit(z, 'humvee'), h2 = starteEinheit(z, 'humvee')
     const f1 = starteEinheit(z, 'hubschrauber'), f2 = starteEinheit(z, 'hubschrauber')
-    for (const a of [h1, h2, f1, f2]) a.verstrichen = 15
+    for (const a of [h1, h2]) a.verstrichen = 4
+    for (const a of [f1, f2]) a.verstrichen = 6
     bilder.abgleichen(z, [], 0)
     const humvees = welt.scene.children.filter(o => o.name === 'einsatz-humvee')
     const flieger = welt.scene.children.filter(o => o.name === 'einsatz-hubschrauber')

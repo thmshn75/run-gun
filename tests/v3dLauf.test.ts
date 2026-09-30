@@ -164,9 +164,9 @@ describe('3D-Lauf',()=>{
       const ui=zeigeOberflaeche(()=>{},()=>{},1)
       ui.zahlen.textContent='Level 1 · Welle 2/3'
       const z = neuerLauf(LEVELS[0], 1)
-      starteEinheit(z, 'humvee').verstrichen = 8
+      starteEinheit(z, 'humvee').verstrichen = 2.1
       setzeEinheitenBanner(z.aktiv)
-      const banner=elemente.find(e=>e.children.some(c=>(c as {textContent?:string}).textContent==='HUMVEE · 25 s'))!
+      const banner=elemente.find(e=>e.children.some(c=>(c as {textContent?:string}).textContent==='HUMVEE · 6 s'))!
       expect(Number.parseFloat(banner.style.top)+10).toBeGreaterThanOrEqual(ui.zahlen.getBoundingClientRect().bottom+6)
     } finally { versteckeOberflaeche();vi.unstubAllGlobals() }
   })
@@ -444,13 +444,13 @@ describe('3D-Lauf',()=>{
     z.P=.1;lauf.x=3
     const frei=lauf.schritt(.1,3)
     expect(frei.some(e=>e.art==='einheitAktiv')).toBe(true)
-    expect(bannerEintraege(z.aktiv)).toEqual(['HUMVEE · 33 s'])
+    expect(bannerEintraege(z.aktiv)).toEqual(['HUMVEE · 8 s'])
     const bannerZ = neuerLauf(LEVELS[0], 1)
-    starteEinheit(bannerZ, 'humvee').verstrichen = 3.1
+    starteEinheit(bannerZ, 'humvee').verstrichen = 2.1
     starteEinheit(bannerZ, 'panzer').verstrichen = 3.5
-    expect(bannerEintraege(bannerZ.aktiv)).toEqual(['HUMVEE · 30 s','PANZER · 6 s'])
+    expect(bannerEintraege(bannerZ.aktiv)).toEqual(['HUMVEE · 6 s','PANZER · 6 s'])
     for(let i=0;i<10;i++)lauf.schritt(.1,0)
-    expect(bannerEintraege(z.aktiv)).toEqual(['HUMVEE · 32 s'])
+    expect(bannerEintraege(z.aktiv)).toEqual(['HUMVEE · 7 s'])
     z.aktiv[0].verstrichen=gesamtDauer('humvee')-.01
     const ende=lauf.schritt(.1,0)
     expect(ende.some(e=>e.art==='einheitEnde')).toBe(true)

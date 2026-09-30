@@ -87,7 +87,7 @@ export function baueFeldFahrzeug(bau: FahrzeugBau, name: FahrzeugName): THREE.Gr
   const kurs = new THREE.Group()
   kurs.name = `einsatz-${name}`
   const drehung = new THREE.Group()
-  drehung.rotation.y = FAHRZEUGE[name].DREHUNG * Math.PI / 180
+  drehung.rotation.y = FAHRZEUGE[name].FELD_DREHUNG * Math.PI / 180
   kurs.add(drehung)
   const modell = bau.vorlage.clone(true)
   modell.traverse(o => { if (o instanceof THREE.Mesh) o.layers.set(1) })

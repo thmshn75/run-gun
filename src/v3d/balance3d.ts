@@ -43,12 +43,12 @@ export const LEVELS: Level[] = [{
 }]
 
 export const SPEZIAL = {
-  humvee: { ablauf: [{ art: 'fahrt', dauer: 3 }, { art: 'feuer', dauer: 30, zombiesProSekunde: 4 }] },
+  humvee: { ablauf: [{ art: 'fahrt', dauer: 2 }, { art: 'schneise', dauer: 6, zombiesProSekunde: 20 }] },
   panzer: { ablauf: [{ art: 'fahrt', dauer: 1.2 }, { art: 'feuer', dauer: .75, zombiesProSekunde: 40 },
     { art: 'fahrt', dauer: 1.5 }, { art: 'feuer', dauer: .75, zombiesProSekunde: 40 },
     { art: 'schneise', dauer: 5, zombiesProSekunde: 20, bossAnteil: .05 }] },
   haubitze: { ablauf: [{ art: 'fahrt', dauer: 1.2 },
-    { art: 'einschlaege', dauer: 2.05, einschlaege: 2, abstand: 2, zombiesProEinschlag: 90 },
+    { art: 'einschlaege', dauer: 4.05, einschlaege: 2, abstand: 4, zombiesProEinschlag: 90 },
     { art: 'fahrt', dauer: 1.5 }] },
   hubschrauber: { ablauf: [{ art: 'fahrt', dauer: 2 },
     { art: 'feuer', dauer: 12, zombiesProSekunde: 20, bossPunkteProSekunde: 25 }] },
@@ -56,10 +56,10 @@ export const SPEZIAL = {
 export type SpezialName = keyof typeof SPEZIAL
 
 export const FAHRZEUGE = {
-  humvee: { LAENGE: 4.6, DREIECKE: 1528, DREHUNG: 180, SPIEL_SKALA: .8, MUENDUNG: [0, 3.15, -2.3] as const },
-  panzer: { LAENGE: 9.8, DREIECKE: 1560, DREHUNG: 0, SPIEL_SKALA: .8, MUENDUNG: [0, 2.02, -4.9] as const, SCHNEISE_HALB: 1.3954 },
-  haubitze: { LAENGE: 7.3, DREIECKE: 3714, DREHUNG: 0, MUENDUNG: [-.032, 2.54, -3.65] as const, SPIEL_SKALA: .5 },
-  hubschrauber: { LAENGE: 17.7, DREIECKE: 2907, DREHUNG: 180, SPIEL_SKALA: .4, MUENDUNG: [0, 1.2, -8.85] as const, FLUGHOEHE: 4, KREIS_RADIUS: 3, KREIS_S: 6 },
+  humvee: { LAENGE: 4.6, DREIECKE: 1528, DREHUNG: 180, FELD_DREHUNG: 0, SPIEL_SKALA: .8, MUENDUNG: [0, 1.76, -.87] as const, SCHNEISE_HALB: .7957 },
+  panzer: { LAENGE: 9.8, DREIECKE: 1560, DREHUNG: 0, FELD_DREHUNG: 0, SPIEL_SKALA: .8, MUENDUNG: [0, 2.02, -4.9] as const, SCHNEISE_HALB: 1.3954 },
+  haubitze: { LAENGE: 7.3, DREIECKE: 3714, DREHUNG: 0, FELD_DREHUNG: 0, MUENDUNG: [-.032, 2.54, -3.65] as const, SPIEL_SKALA: .5 },
+  hubschrauber: { LAENGE: 17.7, DREIECKE: 2907, DREHUNG: 180, FELD_DREHUNG: 0, SPIEL_SKALA: .4, MUENDUNG: [0, 1.2, -8.05] as const, FLUGHOEHE: 4, KREIS_RADIUS: 3, KREIS_S: 6 },
   DREH_S: 8,
   MINI_Y: 2.2,
   SPUR_X: 1.8,

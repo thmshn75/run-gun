@@ -8,14 +8,13 @@ steht auf IDLE.)
 
 ## Offen — naechster Schritt zuerst
 
-0. **D5c gebaut, geprueft, online (Commit 1b81184, 2026-09-30 19:35) — wartet auf Thomas' iPhone-Test.**
-   Humvee/Hubschrauber feuern auf dem Feld, Panzer-Gasse bleibt bis zur naechsten Welle,
-   Panzer -5 % je Boss, Saeulen Humvee → Haubitze → Panzer → Hubschrauber (20/s). Nacharbeit 1:
-   Hubschrauber-Flughoehe 7 → 4 m (war am oberen Bildrand abgeschnitten), Anflug-Kurs korrigiert.
-   595 Tests, Bots (passiv 0/20). Browser-Bildfolge ok. **Nicht geprueft:** Zweitstart-Speicherzaehler,
-   sauberer Draw-Call-Vergleich (grob 181–193 gegen 184 ohne Einsatz, Szenen nicht gleich),
-   Gasse schliesst nach Welle nur im Test, nicht im Bild gesehen. Thomas: iPhone-Blick +
-   Messung inkl. Dauertest 3 min (jetzt mit zwei Fahrzeugen, nicht mit frueheren Werten vergleichbar).
+0. **D5c + Nacharbeit 2 online (2026-09-30 ~20:05) — wartet auf Thomas' Sichttest.**
+   Messung D5c (vor Nacharbeit 2) am iPhone: alles gruen (Thomas 19:47).
+   Nacharbeit 2 nach Thomas' iPhone-Blick: Humvee/Hubschrauber zeigten im Feld verkehrt
+   (jetzt `FELD_DREHUNG`, Miniaturen unveraendert); Humvee faehrt jetzt 2 s an und 6 s mit
+   MG durch die Horde (Gasse wie Panzer, schmaler, 120 Wirkung); Haubitze 4 s zwischen den
+   Schuessen. 596 Tests, Bots unveraendert (passiv 0/20). Humvee-Muendung am vorderen
+   Dachrand (kein MG-Rohr im Modell erkennbar). Offen: Thomas' Blick auf die drei Punkte.
 
 1. **Heute online (2026-09-30), alles committet:**
    - D3-Nacharbeit (Truppe nie unter 1, Finger robust, Blick zur Saeule, Zaehler Horde/Boss/

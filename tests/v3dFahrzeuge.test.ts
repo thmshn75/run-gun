@@ -16,6 +16,51 @@ const namen = ['humvee','panzer','haubitze','hubschrauber'] as const
 const io = new NodeIO().registerExtensions([EXTTextureWebP])
 
 describe('3D-Fahrzeuge', () => {
+  it('richtet Feldmodelle an Haube und Heckrotor aus, ohne Miniaturdrehung zu ändern', async () => {
+    for (const name of ['humvee', 'hubschrauber'] as const) {
+      const root = (await io.read(`src/v3d/modelle/v3d-${name}.glb`)).getRoot()
+      const vorlage = new THREE.Group()
+      for (const node of root.listNodes().filter(n => n.getMesh())) {
+        const knoten = new THREE.Group()
+        knoten.name = node.getName()
+        knoten.matrix.fromArray(node.getWorldMatrix())
+        knoten.matrixAutoUpdate = false
+        for (const primitive of node.getMesh()!.listPrimitives()) {
+          const positionen = primitive.getAttribute('POSITION')!
+          const werte = new Float32Array(positionen.getCount() * 3)
+          for (let i = 0; i < positionen.getCount(); i++) positionen.getElement(i, werte.subarray(i * 3, i * 3 + 3))
+          const geometrie = new THREE.BufferGeometry()
+          geometrie.setAttribute('position', new THREE.BufferAttribute(werte, 3))
+          knoten.add(new THREE.Mesh(geometrie))
+        }
+        vorlage.add(knoten)
+      }
+      const bau = { vorlage } as FahrzeugBau
+      const kurs = baueFeldFahrzeug(bau, name)
+      expect(FAHRZEUGE[name].DREHUNG).toBe(180)
+      expect(FAHRZEUGE[name].FELD_DREHUNG).toBe(0)
+      expect(new THREE.Box3().setFromObject(kurs).getSize(new THREE.Vector3()).x / 2).toBeCloseTo(name === 'humvee' ? FAHRZEUGE.humvee.SCHNEISE_HALB : 2.43, 2)
+      if (name === 'hubschrauber') {
+        const heck = kurs.getObjectByName('heckrotor')!, haupt = kurs.getObjectByName('rotor')!
+        kurs.updateMatrixWorld(true)
+        expect(heck.getWorldPosition(new THREE.Vector3()).z).toBeGreaterThan(0)
+        expect(haupt.getWorldPosition(new THREE.Vector3()).z).toBeLessThan(0)
+        expect(heck.getWorldPosition(new THREE.Vector3()).z).toBeGreaterThan(haupt.getWorldPosition(new THREE.Vector3()).z)
+      } else {
+        // Im Originalnetz liegt die niedrige Motorhaube am negativen z-Ende.
+        const punkte = root.listMeshes()[0].listPrimitives()[0].getAttribute('POSITION')!
+        let haube = Infinity
+        for (let i = 0; i < punkte.getCount(); i++) {
+          const [x, y, z] = punkte.getElement(i, [0, 0, 0])
+          if (Math.abs(x) < .3 && y < 1.3) haube = Math.min(haube, z)
+        }
+        expect(haube).toBeLessThan(-2)
+        expect(kurs.localToWorld(new THREE.Vector3(0, 0, haube * FAHRZEUGE[name].SPIEL_SKALA)).z).toBeLessThan(0)
+      }
+      const muendung = FAHRZEUGE[name].MUENDUNG
+      expect(kurs.localToWorld(new THREE.Vector3(0, 0, muendung[2] * FAHRZEUGE[name].SPIEL_SKALA)).z).toBeLessThan(0)
+    }
+  })
   it('gibt den Prüf-Einsatz nur mit pruefung=1 frei', () => {
     expect(pruefEinsatz('?einsatz=panzer')).toEqual([])
     expect(pruefEinsatz('?pruefung=soldat&einsatz=panzer')).toEqual([])
@@ -76,12 +121,12 @@ describe('3D-Fahrzeuge', () => {
       expect(explosion.mock.calls[0][0].x).toBeGreaterThanOrEqual(-2.2)
       expect(explosion.mock.calls[0][0].x).toBeLessThanOrEqual(-1.2)
       expect(bilder.nimmTreffer()).toMatchObject([{menge:90,radius:3}])
-      a.verstrichen=3.2;bilder.abgleichen(z,[{art:'spezialTreffer',einheit:'haubitze',menge:90,t:3.2}],0)
+      a.verstrichen=5.2;bilder.abgleichen(z,[{art:'spezialTreffer',einheit:'haubitze',menge:90,t:5.2}],0)
       expect(explosion.mock.calls[1][0].x).toBeGreaterThanOrEqual(1.2)
       expect(explosion.mock.calls[1][0].x).toBeLessThanOrEqual(2.2)
-      a.verstrichen=4;bilder.abgleichen(z,[],0)
+      a.verstrichen=6;bilder.abgleichen(z,[],0)
       expect(gruppe.position.z).toBeGreaterThan(-5-7.3*.5/2-1)
-      a.verstrichen=4.75;z.aktiv=[];bilder.abgleichen(z,[],0)
+      a.verstrichen=6.75;z.aktiv=[];bilder.abgleichen(z,[],0)
       expect(gruppe.position.z).toBe(10)
       expect(scene.getObjectByName('einsatz-haubitze')).toBeUndefined()
       const panzer=starteEinheit(z,'panzer')
