@@ -8,15 +8,19 @@ steht auf IDLE.)
 
 ## Offen — naechster Schritt zuerst
 
-0. **D5d Startbildschirm online (2026-09-30 ~20:55): zwei Knoepfe "RUN & GUN" / "RUN GUN 3D",
-   3D-Knopf im 2D-Menue entfernt, 3D-Speicher nachweislich nur `rg3d*`.** Offen:
-   - **Icon:** drei Varianten in `assets/probe/icon-varianten/` (git-ignoriert, lokal); Thomas
-     waehlt. **ACHTUNG Benni:** iOS-Home-Bildschirm-App hat einen eigenen Speicher; App
-     loeschen + neu hinzufuegen (noetig fuer neues Icon) loescht sehr wahrscheinlich den
-     2D-Spielstand. Es gibt keine Export-/Import-Funktion. Ohne Sicherungsweg Benni NICHT
-     loeschen lassen.
-   - D5c: Thomas' letzter Blick auf Hubschrauber-Einschlaege (Nacharbeit 4) steht aus.
-   - Danach D6 (Elite-Endboss, Sieg/Niederlage).
+0. **D5c abgenommen (Thomas 21:00). D5d online: Startbildschirm "RUN & GUN" / "RUN GUN 3D",
+   Icon Variante 2 (Hubschrauber, Quelle `assets/icon-quelle.png`, `scripts/make-icons.py`),
+   Icon-Links mit `?v=2`.** Offen:
+   - **Icon-Test Thomas:** erst iPhone-Neustart (Vorhersage: altes Icon bleibt), sonst App
+     loeschen + neu hinzufuegen (sein Spielstand ist ihm egal). **Benni NICHT loeschen lassen**
+     (eigener Speicher der Home-Bildschirm-App; kein Export/Import) — ausser Spielstand-
+     Uebertragung per Code wird gebaut.
+   - **Thomas' Wuensche 21:00, Machbarkeit beantwortet, Entscheidung offen:** Lobby fuer 3D
+     (Vorschlag Stufe 1: Spielen, Level-Auswahl, Testgelaende mit Fahrzeug-Knoepfen, Beste
+     Laeufe; Konto/Shop spaeter nach D7); Saeulen wiederholen sich (P je Runde ×1,5
+     vorgeschlagen); Saeulen als Eisblock mit dem Fahrzeug darin, Fahrzeuge etwa doppelt so
+     gross, laengs, Hubschrauber ~halb; Risse je Treffer, Splitter beim Freischiessen.
+     Vorgeschlagene Reihenfolge: Eis-Saeulen → D6 → D7 + Lobby Stufe 1 → Konto/Shop.
 
 1. **Heute online (2026-09-30), alles committet:**
    - D3-Nacharbeit (Truppe nie unter 1, Finger robust, Blick zur Saeule, Zaehler Horde/Boss/
