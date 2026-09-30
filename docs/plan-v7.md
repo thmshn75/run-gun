@@ -191,10 +191,10 @@ Boss-Lebenspunkte `B_mini`, `B_elite`. Bahnkoordinate `x` der Truppe von −1 (l
 | Bosse | nehmen Schaden wie 25 Zombies (`B −= 25` je "gefallenem" Anteil); Mini 400, Elite 3000 |
 | Niederlage | `y ≤ 0` (Horde erreicht die Truppe) |
 | Sieg | `B_elite = 0`; sind vorher alle Zombies gefallen, marschiert der Elite-Boss allein |
-| Säulen-Reihenfolge | Level 1: Humvee → Panzer → Haubitze → Hubschrauber, `P = 150` je Säule |
+| Säulen-Reihenfolge | Level 1: Humvee → Haubitze → Panzer → Hubschrauber (Thomas 2026-09-30 17:31; vorher Panzer vor Haubitze), `P = 150` je Säule |
 | Panzer | 4 s, 1,5 m breite Schneise: 40 Zombies/s |
 | Haubitze | 3 Einschläge im Abstand 1 s, je 60 Zombies (Radius 2 m) |
-| Hubschrauber | 12 s, 15 Zombies/s, gegen Bosse 25 Punkte/s |
+| Hubschrauber | 12 s, 20 Zombies/s (ab D5c, Thomas: stärkste Einheit; vorher 15), gegen Bosse 25 Punkte/s |
 | Humvee mit MG | 30 s, 4 Zombies/s |
 | Level 1 Start | `T0 = 10` |
 

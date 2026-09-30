@@ -10,7 +10,7 @@ Status: SPEC_READY
 Verbindlicher Plan: `docs/plan-v7.md`, Zeile **"Einsatz der Fahrzeuge (Thomas 2026-09-30)"**
 und "Schrittfolge → D5c". Der Rechenkern kennt Humvee und Hubschrauber seit D5b
 (`SPEZIAL.humvee`: fahrt 3 s → feuer 30 s @ 4/s; `SPEZIAL.hubschrauber`: fahrt 2 s → feuer
-12 s @ 15/s + Boss 25/s). Dieser Schritt zeigt beide auf dem Feld, nach dem Muster von
+12 s @ 15/s + Boss 25/s; ab S3 20/s). Dieser Schritt zeigt beide auf dem Feld, nach dem Muster von
 Panzer/Haubitze in der Klasse `Einsatzbilder` (`src/v3d/lauf.ts`).
 
 **Dazu (Thomas 2026-09-30 17:06, dritte Meldung zum selben Punkt):** "Der Panzer zieht noch
@@ -35,7 +35,7 @@ nicht nur im Einzelbild auftauchen.
   zwangsläufig brechen, werden auf die neuen Sollwerte umgestellt und im Bericht einzeln
   genannt — z. B. Panzer-Gesamtdauer 6,7 → 9,2 s in `tests/v3dRechnung.test.ts` Zeile 17,
   `pruefEinsatz` in `tests/v3dFahrzeuge.test.ts` Zeilen 19–23).
-- **Nicht:** `src/v3d/rechnung.ts` (Ausnahme: S1b, nur der Spezial-Abschnitt), übrige `SPEZIAL`-Werte, `LEVELS`, `scripts/`, Modelle,
+- **Nicht:** `src/v3d/rechnung.ts` (Ausnahme: S1b, nur der Spezial-Abschnitt), übrige `SPEZIAL`-Werte (Ausnahme S3), `LEVELS` (Ausnahme S3: nur `saeulen`), `scripts/`, Modelle,
   Bilder, `src/v3d/anzeigen.ts`, alles außerhalb von `src/v3d/` und `tests/`.
 - Haubitze: sichtbares Verhalten (Größe, Wege, Schüsse, Abgang) bleibt unverändert; nur der
   interne Skalierungsweg wird vereinheitlicht (F2).
@@ -43,9 +43,11 @@ nicht nur im Einzelbild auftauchen.
 ## Reihenfolge (verbindlich)
 
 **Zuerst** auf dem unveränderten Stand `npm run bots3d` ausführen und die Tabelle als
-"Vorher" in den Bericht schreiben; am Ende "Nachher". Einzige Kernänderung ist die zeitliche
-Streckung der Panzer-Schneise bei gleicher Horde-Wirkung plus 5 % Boss-Leben je Boss (S1b) → Grenze: Siegquote je Bot ±1/20,
-Ø-Dauer ±5 %. Verletzt → melden, **nicht** an Zahlen drehen.
+"Vorher" in den Bericht schreiben; am Ende "Nachher". Kernänderungen: Streckung der
+Panzer-Schneise bei gleicher Horde-Wirkung, 5 % Boss-Leben je Boss (S1b), neue
+Säulen-Reihenfolge und stärkerer Hubschrauber (S3). Die Balance ändert sich damit gewollt:
+keine ±-Grenze als Abbruch, Claude bewertet die Tabelle; harte Grenze nur **passiv verliert
+20/20**. Verletzt → melden, **nicht** an Zahlen drehen.
 
 ## Akzeptanzkriterien
 
@@ -101,7 +103,7 @@ aufgespart; bei jedem **Horde**-Schuss werden `floor(rest + 1e-9)` Zombies als
 `HordeTreffer` am Ziel dieses Schusses gemeldet und von `rest` abgezogen. Boss-Schüsse ziehen
 nichts ab (der Rest bleibt für den nächsten Horde-Schuss). Keine Menge wird ohne Ziel verworfen. Über einen
 ganzen Einsatz bei freiem `Z`: Summe der gemeldeten Mengen ≥ Kernwirkung − eine Schussmenge
-(Humvee ≥ 119 von 120, Hubschrauber ≥ 177 von 180).
+(Humvee ≥ 119 von 120, Hubschrauber ≥ 237 von 240).
 
 **F6 Löcher bleiben stehen.** `HordeLoecher`: Jedes Loch steht mindestens
 `DARSTELLUNG.LOCH_STANDZEIT_S = 2` s; danach heilt das **älteste** fällige Loch, höchstens
@@ -219,6 +221,18 @@ Aufstellung, Front bei z = 0, nach hinten negativ): verdeckt ist jeder Eintrag m
 - Neu gesetzt wird die Horde wie bisher bei geänderter Zahl oder Lochversion, zusätzlich bei
   geändertem `bis` (Drossel 0,1 s bleibt).
 
+### S3 — Reihenfolge und Hubschrauber als Stärkster (Thomas 17:31)
+- `LEVELS[0].saeulen` = `['humvee', 'haubitze', 'panzer', 'hubschrauber']` (Haubitze vor
+  Panzer). Miniaturen und Namensschilder in den Säulen folgen der Liste (nicht fest
+  verdrahtet); bestehende Zuordnungstests auf die neue Reihenfolge umstellen.
+- "Hubschrauber muss das stärkste sein": `SPEZIAL.hubschrauber` Feuer **20/s** (statt 15/s)
+  → 240 Zombies in 12 s, dazu Boss 25/s wie bisher. Rangfolge der Horde-Wirkung damit:
+  Humvee 120 < Panzer 160 (+ 5 % je Boss) < Haubitze 180 < Hubschrauber 240 (+ 300 Boss-Punkte).
+  Test: Kern-Summe Hubschrauber 240 ± 0,1 bei freiem `Z`.
+- **Bots:** Diese Punkte ändern die Balance bewusst (Freischalt-Reihenfolge, mehr Wirkung).
+  Die Grenze "±1/20, ±5 %" gilt hier nicht als Abbruch; stattdessen Tabelle vorher/nachher
+  im Bericht, Claude bewertet. Harte Grenze bleibt: **passiv verliert 20/20**.
+
 ### P — Prüfparameter
 - `pruefEinsatz` liefert eine **Liste**: `?pruefung=1&einsatz=humvee,hubschrauber` startet
   beide (Reihenfolge wie angegeben, Doppelte und Unbekannte ignoriert, höchstens vier); ein
@@ -262,7 +276,7 @@ Jeder Test mit `dt = 1/60` **und** `dt = 0,1`, wo Zeit läuft.
 - **Hubschrauber:** am Ende der Fahrt am Kreispunkt θ = 0; im Feuer Abstand zur Kreismitte
   3 ± 0,05 und Unterkante 7 ± 0,05, auch wenn `y` sich ändert; nach 6 s wieder am
   Einstiegspunkt; Mündung liegt in Flugrichtung vor der Mitte (bei θ = 0 und θ = π/2);
-  Schüsse über 12 s = 60 ± 1; Summe ≥ 177; mit `bossPunkt` und ohne `spezialTreffer` gehen
+  Schüsse über 12 s = 60 ± 1; Summe ≥ 237; mit `bossPunkt` und ohne `spezialTreffer` gehen
   alle Explosionen auf den Boss, keine Löcher; ohne Ereignis und ohne `bossPunkt` kein Schuss.
 - **Takt:** Schüsse über den kumulativen Zähler (F4) zählen, nicht über Explosionen.
   Fahrzeug bei `verstrichen = 15` angelegt → in den ersten 3 Bildern höchstens 1 Schuss; ein
@@ -315,7 +329,7 @@ Jeder Test mit `dt = 1/60` **und** `dt = 0,1`, wo Zeit läuft.
 - Lässt sich ein Kriterium nicht erfüllen (z. B. Mündung nicht bestimmbar): melden, Rest
   fertig bauen. Kein Ersatzprodukt (kein Fahrzeug ohne Feuer, keine Wirkung ohne
   Explosion/Loch, keine Kern-/`SPEZIAL`-Änderung über S1/S1b hinaus, um Tests grün zu bekommen).
-- Bots außerhalb der Grenze → melden, nichts anpassen.
+- Passiv-Bot gewinnt irgendwo (Grenze 20/20 verletzt) → melden, nichts anpassen.
 - Höchstens zwei Anläufe, dann zurück zu Thomas.
 
 ## Abschlussbericht (Pflicht)
