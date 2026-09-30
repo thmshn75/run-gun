@@ -7,7 +7,7 @@ import { FIGUREN } from './balance3d'
 import { bossFreieAufstellung } from './bosse'
 import type { Welt } from './szene'
 import type { WasserStufe } from './wasser'
-import { SpielLauf, WeltDarstellung } from './lauf'
+import { SpielLauf, WeltDarstellung, hatKontakt } from './lauf'
 import type { Zustand } from './rechnung'
 import { LEVELS } from './balance3d'
 
@@ -40,6 +40,7 @@ interface Lauf {
   bossSichtbar: [boolean,boolean]
   bot: SpielLauf | null
   botSteuerung: MessBotSteuerung
+  maxDrawCalls: number
 }
 let lauf: Lauf | null = null
 
@@ -123,7 +124,7 @@ export function starteMessung(welt: Welt, renderer: THREE.WebGLRenderer, game: P
   const bossSichtbar:[boolean,boolean]=[welt.miniboss.objekt.visible,welt.eliteboss.objekt.visible]
   welt.miniboss.objekt.visible=false;welt.eliteboss.objekt.visible=false
   welt.wasser.wechsle(1)
-  lauf = { welt, renderer, game, anzeige, knopf, original, stufe: 0, phase: 'warm', zeit: 0, bilder: [], ergebnisse: [], schwarz: null, messpunktZ, vollast, soldaten, sichtbarkeiten,bossSichtbar,bot:null,botSteuerung:new MessBotSteuerung() }
+  lauf = { welt, renderer, game, anzeige, knopf, original, stufe: 0, phase: 'warm', zeit: 0, bilder: [], ergebnisse: [], schwarz: null, messpunktZ, vollast, soldaten, sichtbarkeiten,bossSichtbar,bot:null,botSteuerung:new MessBotSteuerung(),maxDrawCalls:0 }
   knopf.disabled = true
   anzeige.style.display = 'block'
   anzeige.style.overflowY='auto'
@@ -136,9 +137,12 @@ export function messBild(dt: number, jetzt: number): void {
   if (!l) return
   l.soldaten.aktualisiere(jetzt)
   l.vollast.aktualisiere(jetzt)
+  const sek = Number.isFinite(dt) ? Math.max(0, Math.min(.1, dt / 1000)) : 0
+  l.welt.miniboss.aktualisiere(sek)
+  l.welt.eliteboss.aktualisiere(sek)
+  if (l.phase === 'messen' && l.bot && hatKontakt(l.bot.zustand)) l.maxDrawCalls = Math.max(l.maxDrawCalls, l.renderer.info.render.calls)
   if (l.phase === 'messen' && l.bot && Number.isFinite(dt) && dt > 0) {
-    const sek = Math.min(.1, dt / 1000)
-    if (l.bot.zustand.ergebnis === 'laeuft') l.bot.schritt(sek, l.botSteuerung.ziel(l.bot.zustand))
+    l.bot.schritt(sek, l.botSteuerung.ziel(l.bot.zustand))
     l.welt.truppe.aktualisiere(l.bot.zustand.t)
     l.welt.laufTrupp.aktualisiere(l.bot.zustand.t)
     l.welt.front.aktualisiere(l.bot.zustand.t)
@@ -158,7 +162,7 @@ export function messBild(dt: number, jetzt: number): void {
   }
   const a = auswerten(l.bilder)
   const mb = groessen(l)
-  l.ergebnisse.push(`${MESSSTUFEN[l.stufe].name}: ${a.fps?.toFixed(1) ?? '–'} fps · langsamste 5 % ${a.p95?.toFixed(1) ?? '–'} ms · Schwarz ${l.schwarz === null ? '–' : `${l.schwarz.toFixed(1)} %`} · >250 ms: ${a.verworfen}\nBacken Soldat: ${l.welt.soldatBau.backzeitMs.toFixed(1)} ms · Bemalungen inkl. Bosse ${mb.bemalungen.toFixed(2)} MB · Wasserpuffer ${mb.zusatz.toFixed(2)} MB · Renderflächen ${mb.renderflaechen.toFixed(2)} MB · Phaser-Rest ${mb.phaserRest.toFixed(2)} MB · Speicherplan ${mb.gesamt.toFixed(2)} MB · Geometrien ${l.renderer.info.memory.geometries} · Texturen ${l.renderer.info.memory.textures}\n${urteil(a, l.schwarz, mb.gesamt)}`)
+  l.ergebnisse.push(`${MESSSTUFEN[l.stufe].name}: ${a.fps?.toFixed(1) ?? '–'} fps · langsamste 5 % ${a.p95?.toFixed(1) ?? '–'} ms · Schwarz ${l.schwarz === null ? '–' : `${l.schwarz.toFixed(1)} %`} · >250 ms: ${a.verworfen}\nBacken Soldat: ${l.welt.soldatBau.backzeitMs.toFixed(1)} ms · Bemalungen inkl. Bosse ${mb.bemalungen.toFixed(2)} MB · Wasserpuffer ${mb.zusatz.toFixed(2)} MB · Renderflächen ${mb.renderflaechen.toFixed(2)} MB · Phaser-Rest ${mb.phaserRest.toFixed(2)} MB · Speicherplan ${mb.gesamt.toFixed(2)} MB · Geometrien ${l.renderer.info.memory.geometries} · Texturen ${l.renderer.info.memory.textures}${l.bot ? `\nProtokoll: ${l.bot.protokollFehler ?? `ok (nach ${l.bot.zustand.t.toFixed(1)} s)`} · Draw Calls (max): ${l.maxDrawCalls}` : ''}\n${urteil(a, l.schwarz, mb.gesamt)}`)
   if (l.stufe === MESSSTUFEN.length - 1) {
     l.anzeige.textContent = l.ergebnisse.join('\n\n')
     bricheAb()

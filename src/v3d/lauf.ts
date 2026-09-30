@@ -4,6 +4,8 @@ import { glaetteX, kernX } from './steuerung'
 import { bossFreieAufstellung } from './bosse'
 import type { Welt } from './szene'
 import type { SoldatEintrag } from './soldaten'
+import { SoldatenMasse } from './soldaten'
+import { FallendeZombies } from './figuren'
 import { BossBalken, Muendungsblitze, ZahlAnzeige } from './anzeigen'
 import { setzeSchildText } from './schilder'
 import { setzeEinheitenBanner } from './oberflaeche'
@@ -80,18 +82,81 @@ export function spurFaktor(soldaten: readonly LaufSoldat[], max = DARSTELLUNG.TR
   while (soldaten.reduce((n, s) => n + (s.nummer % faktor === 0 ? s.vervielfacht ? s.k : 1 : 0), 0) > max) faktor++
   return faktor
 }
-export interface LaufDarstellung { zeige(z: Zustand, trupps: ReadonlyMap<Trupp, Sicht>, ereignisse: Ereignis[], dt: number, x: number): void; gibFrei?(): void }
+export function hatKontakt(z: Zustand): boolean {
+  return z.F > 0 && (z.Z > 0 || (z.miniBoss.imFeld && z.miniBoss.B > 0) || (z.eliteBoss.imFeld && z.eliteBoss.B > 0))
+}
+
+export type BossZustand = 'weg' | 'laeuft' | 'kaempft' | 'stirbt'
+export interface BossStand { zustand: BossZustand; clip: string; einmal: boolean; sichtbar: boolean; balken: boolean; z: number; todSeit: number }
+export function bossBewegung(vorher: BossStand, eingabe: { t: number; y: number; kontakt: boolean; imFeld: boolean; B: number; todesDauer: number }): BossStand {
+  const { t, y, kontakt, imFeld, B, todesDauer } = eingabe
+  if (vorher.zustand === 'stirbt') return t - vorher.todSeit >= Math.max(2, todesDauer)
+    ? { ...vorher, zustand: 'weg', sichtbar: false, balken: false }
+    : vorher
+  if (vorher.zustand !== 'weg' && B <= 0) return { zustand: 'stirbt', clip: 'death_1', einmal: true, sichtbar: true, balken: false, z: vorher.z, todSeit: t }
+  if (!imFeld || B <= 0 || y <= 0) return { zustand: 'weg', clip: 'walk', einmal: false, sichtbar: false, balken: false, z: -y - 1, todSeit: -Infinity }
+  const kampf = kontakt
+  return { zustand: kampf ? 'kaempft' : 'laeuft', clip: kampf ? 'attack_1' : 'walk', einmal: false, sichtbar: true, balken: true, z: -y - 1, todSeit: -Infinity }
+}
+
+export interface LaufDiag { frontBewegung: SoldatEintrag['bewegung']; frontBlitze: number; fallZombiesAktiv: number; fallZombiesEntstanden: number; fallSoldatenAktiv: number; fallSoldatenEntstanden: number; bossZustand: BossZustand }
+export interface LaufDarstellung { zeige(z: Zustand, trupps: ReadonlyMap<Trupp, Sicht>, ereignisse: Ereignis[], dt: number, x: number): void; nachlauf?(dt: number): void; diag?(): Readonly<LaufDiag>; setzeSeed?(seed: number): void; gibFrei?(): void }
 const weltDarstellungen = new WeakMap<Welt, WeltDarstellung>()
+const bossFarben = new WeakMap<THREE.Object3D, Map<THREE.MeshStandardMaterial, THREE.Color>>()
+function originalBossFarben(objekt: THREE.Object3D): Map<THREE.MeshStandardMaterial, THREE.Color> {
+  let farben = bossFarben.get(objekt)
+  if (!farben) {
+    farben = new Map()
+    objekt.traverse(o => { if (o instanceof THREE.Mesh) for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m instanceof THREE.MeshStandardMaterial) farben!.set(m, m.color.clone()) })
+    bossFarben.set(objekt, farben)
+  }
+  return farben
+}
 export class SpielLauf {
   zustand: Zustand
   x = 0
   private sichten = new Map<Trupp, Sicht>()
   private soldatNummer = 0
   private darstellung?: LaufDarstellung
-  constructor(level: Level = LEVELS[0], seed = Date.now(), darstellung?: LaufDarstellung) { this.zustand = neuerLauf(level, seed); this.darstellung = darstellung }
+  protokollFehler: string | null = null
+  private basis!: { T: number; miniBoss: number; eliteBoss: number }
+  private summen!: Record<'eingesammelt' | 'ausgesandt' | 'welle' | 'zombieGefallen' | 'spezialTreffer' | 'angekommenFront' | 'soldatGefallen' | 'miniBoss' | 'eliteBoss', number>
+  private nachlaufZeit = 0
+  constructor(level: Level = LEVELS[0], seed = Date.now(), darstellung?: LaufDarstellung) { this.zustand = neuerLauf(level, seed); this.darstellung = darstellung; darstellung?.setzeSeed?.(seed); this.protokollNeuBasieren() }
+  protokollNeuBasieren(): void {
+    const z = this.zustand
+    this.basis = { T: z.T, miniBoss: z.miniBoss.B, eliteBoss: z.eliteBoss.B }
+    this.summen = { eingesammelt: 0, ausgesandt: 0, welle: z.Z, zombieGefallen: 0, spezialTreffer: 0, angekommenFront: z.F, soldatGefallen: 0, miniBoss: 0, eliteBoss: 0 }
+    this.protokollFehler = null
+  }
+  private pruefe(ereignisse: readonly Ereignis[]): void {
+    for (const e of ereignisse) {
+      if (e.art === 'bossTreffer' && e.boss) this.summen[e.boss] += e.menge
+      else if (e.art in this.summen) this.summen[e.art as keyof typeof this.summen] += e.menge
+    }
+    const z = this.zustand, s = this.summen
+    const werte: [string, number, number][] = [
+      ['T', this.basis.T + s.eingesammelt - s.ausgesandt, z.T],
+      ['Z', s.welle - s.zombieGefallen - s.spezialTreffer, z.Z],
+      ['F', s.angekommenFront - s.soldatGefallen, z.F],
+      ['miniBoss.B', this.basis.miniBoss - s.miniBoss, z.miniBoss.B],
+      ['eliteBoss.B', this.basis.eliteBoss - s.eliteBoss, z.eliteBoss.B],
+    ]
+    const diag = this.darstellung?.diag?.()
+    if (diag) {
+      werte.push(['Fall-Zombies', s.zombieGefallen + s.spezialTreffer, diag.fallZombiesEntstanden])
+      werte.push(['Fall-Soldaten', s.soldatGefallen, diag.fallSoldatenEntstanden])
+    }
+    for (const [name, soll, ist] of werte) {
+      const toleranz = 1e-6 * Math.max(1, Math.abs(soll))
+      const zuViel = name.startsWith('Fall-') ? ist > soll + toleranz : Math.abs(ist - soll) > toleranz
+      if (zuViel && this.protokollFehler === null) this.protokollFehler = `${z.t.toFixed(2)} s: ${name} Soll ${soll}, Ist ${ist}`
+    }
+  }
   schritt(dt: number, ziel: number | null, pausiert = false): Ereignis[] {
-    if (pausiert || !Number.isFinite(dt) || dt <= 0 || this.zustand.ergebnis !== 'laeuft') return []
+    if (pausiert || !Number.isFinite(dt) || dt <= 0) return []
     dt = Math.min(dt, 0.1)
+    if (this.zustand.ergebnis !== 'laeuft') { if (this.nachlaufZeit < 3) { this.darstellung?.nachlauf?.(Math.min(dt, 3 - this.nachlaufZeit)); this.nachlaufZeit += dt } return [] }
     if (ziel !== null) this.x = glaetteX(this.x, ziel, dt)
     const vorherT = this.zustand.T
     const alt = new Set(this.zustand.trupps)
@@ -106,6 +171,7 @@ export class SpielLauf {
     }
     for (const trupp of this.sichten.keys()) if (!this.zustand.trupps.includes(trupp)) this.sichten.delete(trupp)
     this.darstellung?.zeige(this.zustand, this.sichten, ereignisse, dt, this.x)
+    this.pruefe(ereignisse)
     return ereignisse
   }
   gibLaufFrei(): void { this.darstellung?.gibFrei?.(); this.sichten.clear() }
@@ -145,13 +211,40 @@ export class WeltDarstellung implements LaufDarstellung {
   private blitzTakt = new BlitzTakt()
   private blitzPunkte: { ende: number; pos: THREE.Vector3 }[] = []
   private blitze = new Muendungsblitze(DARSTELLUNG.BLITZE_MAX)
+  private frontBlitze = new Muendungsblitze(DARSTELLUNG.FRONT_BLITZE_MAX)
+  private frontBlitzPunkte = Array.from({ length: DARSTELLUNG.FRONT_BLITZE_MAX }, () => new THREE.Vector3())
+  private frontBlitzEnden = new Float64Array(DARSTELLUNG.FRONT_BLITZE_MAX)
+  private frontBlitzAktiv = 0
+  private frontBlitzRest = 0
+  private frontFiguren: SoldatEintrag[] = []
+  private letzteFrontBewegung: SoldatEintrag['bewegung'] = 'stehen'
+  private fallZombies: FallendeZombies
+  private fallSoldaten: SoldatenMasse
+  private fallSoldatenListe: SoldatEintrag[] = []
+  private fallSoldatenEnden = new Float64Array(DARSTELLUNG.FALL_SOLDATEN_MAX)
+  private fallZombieRest = 0
+  private fallSpezialRest = 0
+  private fallSoldatRest = 0
+  private fallZombiesGesamt = 0
+  private fallSoldatenGesamt = 0
+  private uhr = 0
+  private zufallZustand: number
+  private bossStand: BossStand = { zustand: 'weg', clip: 'walk', einmal: false, sichtbar: false, balken: false, z: 0, todSeit: -Infinity }
+  private bossBlitzBis = -Infinity
+  private letzterBossBlitz = -Infinity
+  private bossOriginal: Map<THREE.MeshStandardMaterial, THREE.Color>
   private wandPulsBis = -Infinity
   private glasBlitzBis = -Infinity
   private letzterGlasBlitz = -Infinity
   private glasMaterial: THREE.MeshStandardMaterial | null
   private glasFarbe: THREE.Color | null
-  constructor(welt: Welt) {
+  constructor(welt: Welt, seed = 12345) {
     this.welt=welt
+    this.zufallZustand = seed >>> 0
+    this.fallZombies = new FallendeZombies(welt.zombieBau)
+    this.fallSoldaten = new SoldatenMasse(welt.soldatBau, DARSTELLUNG.FALL_SOLDATEN_MAX)
+    this.bossOriginal = originalBossFarben(welt.miniboss.objekt)
+    this.setzeBossZurueck()
     this.miniBalken = new BossBalken(LEVELS[0].B_mini)
     this.eliteBalken = new BossBalken(LEVELS[0].B_elite)
     this.vorgaenger = weltDarstellungen.get(welt)
@@ -168,13 +261,53 @@ export class WeltDarstellung implements LaufDarstellung {
     this.aufblendMaterial = new THREE.SpriteMaterial({map:this.aufblendTextur,transparent:true,depthTest:false})
     this.aufblenden = Array.from({length:8},()=>{const s=new THREE.Sprite(this.aufblendMaterial);s.visible=false;s.scale.set(1.5,.75,1);s.renderOrder=11;welt.scene.add(s);return s})
     welt.scene.add(this.truppeZahl.objekt, this.frontZahl.objekt, this.hordeZahl.objekt, this.miniBalken.objekt, this.eliteBalken.objekt, this.saeuleZahl.objekt)
-    welt.scene.add(this.blitze.objekt)
-    welt.laufGruppen.push(this.truppeZahl.objekt, this.frontZahl.objekt, this.hordeZahl.objekt, this.miniBalken.objekt, this.eliteBalken.objekt, this.saeuleZahl.objekt,this.blitze.objekt,...this.aufblenden)
+    welt.scene.add(this.blitze.objekt, this.frontBlitze.objekt, this.fallZombies.gruppe, this.fallSoldaten.gruppe)
+    welt.laufGruppen.push(this.truppeZahl.objekt, this.frontZahl.objekt, this.hordeZahl.objekt, this.miniBalken.objekt, this.eliteBalken.objekt, this.saeuleZahl.objekt,this.blitze.objekt,this.frontBlitze.objekt,this.fallZombies.gruppe,this.fallSoldaten.gruppe,...this.aufblenden)
+  }
+  private zufall(): number {
+    let n = this.zufallZustand = (this.zufallZustand + 0x6D2B79F5) >>> 0
+    n = Math.imul(n ^ (n >>> 15), n | 1); n ^= n + Math.imul(n ^ (n >>> 7), n | 61)
+    return ((n ^ (n >>> 14)) >>> 0) / 4294967296
+  }
+  setzeSeed(seed: number): void { this.zufallZustand = seed >>> 0 }
+  private setzeBossZurueck(): void {
+    this.welt.miniboss.spiele('walk')
+    this.welt.miniboss.objekt.visible = false
+    this.bossOriginal.forEach((farbe, material) => material.color.copy(farbe))
+    this.bossStand = { zustand: 'weg', clip: 'walk', einmal: false, sichtbar: false, balken: false, z: 0, todSeit: -Infinity }
+    this.bossBlitzBis = this.letzterBossBlitz = -Infinity
+  }
+  diag(): Readonly<LaufDiag> { return { frontBewegung: this.letzteFrontBewegung, frontBlitze: this.frontBlitzAktiv, fallZombiesAktiv: this.fallZombies.aktiv, fallZombiesEntstanden: this.fallZombiesGesamt, fallSoldatenAktiv: this.fallSoldatenListe.length, fallSoldatenEntstanden: this.fallSoldatenGesamt, bossZustand: this.bossStand.zustand } }
+  private tickeNeu(): void {
+    this.fallZombies.aktualisiere(this.uhr)
+    let geaendert = false
+    for (let i = this.fallSoldatenListe.length - 1; i >= 0; i--) if (this.fallSoldatenEnden[this.fallSoldatenListe[i].phase!] <= this.uhr) { this.fallSoldatenListe.splice(i, 1); geaendert = true }
+    if (geaendert) this.fallSoldaten.setze(this.fallSoldatenListe)
+    this.fallSoldaten.aktualisiere(this.uhr)
+    let aktiv = 0
+    for (let i = 0; i < this.frontBlitzAktiv; i++) if (this.frontBlitzEnden[i] > this.uhr) {
+      this.frontBlitzPunkte[aktiv].copy(this.frontBlitzPunkte[i]); this.frontBlitzEnden[aktiv++] = this.frontBlitzEnden[i]
+    }
+    this.frontBlitzAktiv = aktiv
+    this.frontBlitze.setze(this.frontBlitzPunkte, this.welt.camera, aktiv)
+    this.bossOriginal.forEach((farbe, material) => material.color.copy(farbe).multiplyScalar(this.uhr < this.bossBlitzBis ? 1.7 : 1))
+    if (this.bossStand.zustand === 'stirbt') this.aktualisiereBoss(null)
+  }
+  nachlauf(dt: number): void { this.uhr += Math.max(0, dt); this.tickeNeu() }
+  private aktualisiereBoss(z: Zustand | null): void {
+    const alt = this.bossStand
+    const neu = bossBewegung(alt, { t: this.uhr, y: z?.y ?? 0, kontakt: z ? hatKontakt(z) : false, imFeld: z?.miniBoss.imFeld ?? false, B: z?.miniBoss.B ?? 0, todesDauer: 2 })
+    if (neu.zustand !== alt.zustand) this.welt.miniboss.spiele(neu.clip, neu.einmal)
+    this.bossStand = neu
+    this.welt.miniboss.objekt.visible = neu.sichtbar
+    this.welt.miniboss.objekt.position.z = neu.z
+    this.miniBalken.objekt.visible = neu.balken
   }
   zeige(z: Zustand, trupps: ReadonlyMap<Trupp, Sicht>, ereignisse: Ereignis[], dt: number, x: number): void {
     this.letzterStand = { z, trupps, x }
     const w = this.welt
     const t = z.t
+    this.uhr += dt
     if (z.kAktuell !== this.letzterFaktor) {
       this.letzterFaktor = z.kAktuell
       setzeSchildText(w.wand, { breite: 2 * BUEHNE.MITTE_HALB, hoehe: BUEHNE.WAND_HOEHE, text: wandText(z), farbe: BUEHNE.WAND_FARBE })
@@ -214,18 +347,67 @@ export class WeltDarstellung implements LaufDarstellung {
     const muendung = w.soldatBau.pruefung.debugMuzzle
     const lokal = Array.isArray(muendung) ? new THREE.Vector3(...muendung as [number,number,number]) : new THREE.Vector3(0,1.3,-.5)
     for (let i = 0; i < neueBlitze; i++) {
-      const figur = formationsFiguren(z.T)[Math.floor(Math.random() * formation)]
+      const figur = formationsFiguren(z.T)[Math.floor(this.zufall() * formation)]
       const dreh = saeulenBlick(x, figur.x, figur.z) * this.drehAnteil
       const pos = lokal.clone().applyAxisAngle(new THREE.Vector3(0,1,0), dreh).add(new THREE.Vector3(x + figur.x,0,figur.z))
       this.blitzPunkte.push({ ende: t + DARSTELLUNG.BLITZ_DAUER, pos })
     }
     this.blitze.setze(this.blitzPunkte.map(b => b.pos), w.camera)
     const front = Math.min(DARSTELLUNG.FRONT_MAX,Math.floor(z.F))
-    if (front !== this.letzteF) {
-      w.front.setze(Array.from({length:front},(_,i):SoldatEintrag=>({x:(i%10-4.5)*.6,z:Math.floor(i/10)*.7,dreh:0,bewegung:'stehen',phase:i%8})))
+    const frontBewegung = hatKontakt(z) ? 'schiessen' : 'stehen'
+    if (front !== this.letzteF || frontBewegung !== this.letzteFrontBewegung) {
+      this.frontFiguren = Array.from({length:front},(_,i):SoldatEintrag=>({x:(i%10-4.5)*.6,z:Math.floor(i/10)*.7,dreh:0,bewegung:frontBewegung,phase:i%8}))
+      w.front.setze(this.frontFiguren)
       this.letzteF = front
+      this.letzteFrontBewegung = frontBewegung
     }
     w.front.gruppe.position.z = Math.min(-3.1,-z.y+1.5)
+    let zombieNeuBild = 0, soldatNeuBild = 0
+    if (frontBewegung === 'schiessen' && front > 0) {
+      this.frontBlitzRest += dt * DARSTELLUNG.FRONT_BLITZE_PRO_SEKUNDE
+      const muendung = w.soldatBau.pruefung.debugMuzzle
+      const mx = Array.isArray(muendung) ? muendung[0] : 0, my = Array.isArray(muendung) ? muendung[1] : 1.3, mz = Array.isArray(muendung) ? muendung[2] : -.5
+      while (this.frontBlitzRest >= 1) {
+        this.frontBlitzRest--
+        if (this.frontBlitzAktiv < DARSTELLUNG.FRONT_BLITZE_MAX) {
+          const f = this.frontFiguren[Math.floor(this.zufall() * front)]
+          const i = this.frontBlitzAktiv++
+          this.frontBlitzPunkte[i].set(f.x + mx, my, w.front.gruppe.position.z + f.z + mz)
+          this.frontBlitzEnden[i] = this.uhr + .06
+        }
+      }
+    } else this.frontBlitzRest = 0
+    if (z.y > 0 && z.ergebnis === 'laeuft') {
+      for (const e of ereignisse) {
+        if (e.art === 'zombieGefallen' || e.art === 'spezialTreffer') {
+          const spezial = e.art === 'spezialTreffer'
+          let rest = (spezial ? this.fallSpezialRest : this.fallZombieRest) + e.menge
+          const anzahl = Math.floor(rest); rest -= anzahl
+          if (spezial) this.fallSpezialRest = rest; else this.fallZombieRest = rest
+          const neu = Math.min(anzahl, this.fallZombies.frei, 4 - zombieNeuBild)
+          for (let i = 0; i < neu; i++) {
+            const fx = FIGUREN.ZOMBIE_X_MIN + this.zufall() * (FIGUREN.ZOMBIE_X_MAX - FIGUREN.ZOMBIE_X_MIN)
+            const fz = spezial ? -z.y - this.zufall() * Math.max(1, Math.ceil(z.Z / 10) * FIGUREN.ZOMBIE_REIHENABSTAND) : -z.y + .3 + this.zufall() * .5
+            if (this.fallZombies.starte(fx, fz, (this.zufall() - .5) * Math.PI / 6, .92 + this.zufall() * .16, Math.floor(this.zufall() * 3), this.uhr)) { this.fallZombiesGesamt++; zombieNeuBild++ }
+          }
+        } else if (e.art === 'soldatGefallen') {
+          this.fallSoldatRest += e.menge
+          const anzahl = Math.floor(this.fallSoldatRest); this.fallSoldatRest -= anzahl
+          let neu = Math.min(anzahl, DARSTELLUNG.FALL_SOLDATEN_MAX - this.fallSoldatenListe.length, 2 - soldatNeuBild)
+          while (neu-- > 0) {
+            let phase = 0
+            while (this.fallSoldatenListe.some(s => s.phase === phase)) phase++
+            const platz = this.frontFiguren[Math.floor(this.zufall() * Math.min(front, 10))]
+            if (!platz) break
+            this.fallSoldatenListe.push({ x: platz.x, z: w.front.gruppe.position.z + platz.z, dreh: 0, bewegung: 'fallen', phase, start: this.uhr })
+            this.fallSoldatenEnden[phase] = this.uhr + Math.max(1.2, w.soldatBau.dauer.fallen + .4)
+            this.fallSoldatenGesamt++
+            soldatNeuBild++
+          }
+          this.fallSoldaten.setze(this.fallSoldatenListe)
+        }
+      }
+    }
     const laufSoldaten: LaufSoldat[] = []
     for (const [trupp,sicht] of trupps) {
       const zielX = trupp.pos < z.level.wand ? sicht.x : 0
@@ -255,9 +437,8 @@ export class WeltDarstellung implements LaufDarstellung {
     this.hordeZahl.objekt.visible=z.y>0&&z.Z>0
     if (this.hordeZahl.objekt.visible) this.hordeZahl.setze(z.Z,t)
     this.hordeZahl.objekt.position.set(0,ZAHL_HOEHEN.horde,-z.y+1)
-    w.miniboss.objekt.visible=z.y>0&&z.miniBoss.imFeld&&z.miniBoss.B>0
-    w.miniboss.objekt.position.z=-z.y-1
-    this.miniBalken.objekt.visible=w.miniboss.objekt.visible
+    this.aktualisiereBoss(z)
+    if (ereignisse.some(e => e.art === 'bossTreffer' && e.boss === 'miniBoss') && this.uhr - this.letzterBossBlitz >= 1/3) { this.letzterBossBlitz = this.uhr; this.bossBlitzBis = this.uhr + .1 }
     if (this.miniBalken.objekt.visible) this.miniBalken.setze(z.miniBoss.B,t)
     this.miniBalken.objekt.position.set(w.miniboss.objekt.position.x,FIGUREN.MINIBOSS_HOEHE+.5,w.miniboss.objekt.position.z)
     w.eliteboss.objekt.visible=z.y>0&&z.eliteBoss.imFeld&&z.eliteBoss.B>0
@@ -279,25 +460,40 @@ export class WeltDarstellung implements LaufDarstellung {
     else this.saeuleZahl.objekt.visible=false
     this.saeuleZahl.objekt.position.set(BUEHNE.SAEULE_X,4.7,-12)
     setzeEinheitenBanner(z.aktiv)
+    this.tickeNeu()
   }
   gibFrei():void {
+    this.setzeBossZurueck()
     this.truppeZahl.gibFrei(); this.frontZahl.gibFrei(); this.hordeZahl.gibFrei(); this.miniBalken.gibFrei(); this.eliteBalken.gibFrei(); this.saeuleZahl.gibFrei()
     this.aufblenden.forEach(s=>s.removeFromParent())
     this.aufblendMaterial.dispose(); this.aufblendTextur.dispose()
     this.blitze.gibFrei()
+    this.frontBlitze.gibFrei()
+    this.fallZombies.gruppe.removeFromParent(); this.fallZombies.gibNetzeFrei()
+    this.fallSoldaten.gruppe.removeFromParent(); this.fallSoldaten.gibNetzeFrei()
     setzeEinheitenBanner([])
     this.welt.wand.scale.setScalar(1)
     if (this.glasMaterial && this.glasFarbe) { this.glasMaterial.color.copy(this.glasFarbe); this.glasMaterial.opacity = .3 }
     this.welt.scene.remove(this.truppeZahl.objekt, this.frontZahl.objekt, this.hordeZahl.objekt, this.miniBalken.objekt, this.eliteBalken.objekt, this.saeuleZahl.objekt)
-    this.welt.laufGruppen = this.welt.laufGruppen.filter(obj => obj !== this.truppeZahl.objekt && obj !== this.frontZahl.objekt && obj !== this.hordeZahl.objekt && obj !== this.miniBalken.objekt && obj !== this.eliteBalken.objekt && obj !== this.saeuleZahl.objekt && obj !== this.blitze.objekt && !this.aufblenden.includes(obj as THREE.Sprite))
+    this.welt.laufGruppen = this.welt.laufGruppen.filter(obj => obj !== this.truppeZahl.objekt && obj !== this.frontZahl.objekt && obj !== this.hordeZahl.objekt && obj !== this.miniBalken.objekt && obj !== this.eliteBalken.objekt && obj !== this.saeuleZahl.objekt && obj !== this.blitze.objekt && obj !== this.frontBlitze.objekt && obj !== this.fallZombies.gruppe && obj !== this.fallSoldaten.gruppe && !this.aufblenden.includes(obj as THREE.Sprite))
     if (weltDarstellungen.get(this.welt) === this) {
       if (this.vorgaenger) {
         weltDarstellungen.set(this.welt, this.vorgaenger)
         if (this.vorgaenger.letzterStand) {
           this.vorgaenger.letzteT = this.vorgaenger.letzteF = this.vorgaenger.letzteHorde = -1
+          this.vorgaenger.letzteFrontBewegung = 'stehen'
           this.vorgaenger.hordeZeit = -Infinity
           this.vorgaenger.letzteTrupps = ''
           this.vorgaenger.letzterFaktor = NaN
+          this.vorgaenger.uhr = 0
+          this.vorgaenger.fallZombieRest = this.vorgaenger.fallSpezialRest = this.vorgaenger.fallSoldatRest = 0
+          this.vorgaenger.fallZombiesGesamt = this.vorgaenger.fallSoldatenGesamt = 0
+          this.vorgaenger.frontBlitzAktiv = this.vorgaenger.frontBlitzRest = 0
+          this.vorgaenger.frontBlitze.setze(this.vorgaenger.frontBlitzPunkte, this.welt.camera, 0)
+          this.vorgaenger.fallSoldatenListe.length = 0
+          this.vorgaenger.fallSoldaten.setze([])
+          this.vorgaenger.fallZombies.aktualisiere(Infinity)
+          this.vorgaenger.setzeBossZurueck()
           const { z, trupps, x } = this.vorgaenger.letzterStand
           this.vorgaenger.zeige(z, trupps, [], 0, x)
         }

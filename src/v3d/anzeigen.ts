@@ -19,8 +19,8 @@ export class Muendungsblitze {
     this.objekt.frustumCulled = false
     this.objekt.renderOrder = 12
   }
-  setze(punkte: readonly THREE.Vector3[], kamera: THREE.Camera): void {
-    this.objekt.count = Math.min(punkte.length, this.objekt.instanceMatrix.count)
+  setze(punkte: readonly THREE.Vector3[], kamera: THREE.Camera, anzahl = punkte.length): void {
+    this.objekt.count = Math.min(anzahl, this.objekt.instanceMatrix.count)
     for (let i = 0; i < this.objekt.count; i++) {
       this.dummy.position.copy(punkte[i]); this.dummy.quaternion.copy(kamera.quaternion)
       this.dummy.updateMatrix(); this.objekt.setMatrixAt(i, this.dummy.matrix)

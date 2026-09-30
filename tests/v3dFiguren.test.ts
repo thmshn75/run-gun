@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { NodeIO } from '@gltf-transform/core'
 import { EXTTextureWebP } from '@gltf-transform/extensions'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-import { backe, bildFuer, zombieAufstellung } from '../src/v3d/figuren'
+import { backe, bildFuer, zombieAufstellung, FallendeZombies, type ZombieBau } from '../src/v3d/figuren'
+import * as THREE from 'three'
 import { BUEHNE, FIGUREN } from '../src/v3d/balance3d'
 
 const pfad = 'src/v3d/modelle/v3d-zombie.glb'
@@ -17,6 +18,20 @@ function glbJson() {
 }
 
 describe('Zombie-Figur', () => {
+  it('kippt mit dem Kopf nach vorne und leert den Fall-Pool nach 1,1 s',()=>{
+    const bau:ZombieBau={formen:[new THREE.BoxGeometry(.3,FIGUREN.ZOMBIE_HOEHE,.3)],materialien:[new THREE.MeshStandardMaterial(),new THREE.MeshStandardMaterial(),new THREE.MeshStandardMaterial()],bemalungen:[],dauer:1,dreiecke:12}
+    const fall=new FallendeZombies(bau,2)
+    expect(fall.starte(0,-2,0,1,0,0)).toBe(true)
+    fall.aktualisiere(.35)
+    const matrix=new THREE.Matrix4()
+    ;(fall.gruppe.children[0] as THREE.InstancedMesh).getMatrixAt(0,matrix)
+    const kopf=new THREE.Vector3(0,FIGUREN.ZOMBIE_HOEHE,0).applyMatrix4(matrix)
+    expect(kopf.z).toBeLessThan(-2)
+    expect(kopf.y).toBeLessThan(.2)
+    fall.aktualisiere(1.1)
+    expect(fall.aktiv).toBe(0)
+    fall.gibNetzeFrei()
+  })
   it('erhält die Teilnetze und Dreiecke der geprüften Referenz', () => {
     const vorlage=readFileSync('modelle-quelle/zombie-vereinfacht.glb')
     const quellJson=JSON.parse(vorlage.subarray(20,20+vorlage.readUInt32LE(12)).toString())

@@ -2,7 +2,8 @@ import { readFileSync, statSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import sharp from 'sharp'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-import { backeSoldaten, truppenAufstellung, laufenderTrupp } from '../src/v3d/soldaten'
+import * as THREE from 'three'
+import { backeSoldaten, truppenAufstellung, laufenderTrupp, SoldatenMasse, type SoldatenBau } from '../src/v3d/soldaten'
 import { BUEHNE, FIGUREN } from '../src/v3d/balance3d'
 
 function glb(path:string){
@@ -16,6 +17,22 @@ function accessor(g:ReturnType<typeof glb>,index:number,vertex:number):number[]{
 }
 const soldat='src/v3d/modelle/v3d-soldat.glb',bewegung='src/v3d/modelle/v3d-bewegung.glb'
 describe('3D-Soldat',()=>{
+  it('hält eigene Fall-Startzeiten je Phasengruppe und kappt Überlauf',()=>{
+    const formen=()=>Array.from({length:4},(_,i)=>new THREE.BoxGeometry(i+1,1,1))
+    const bau:SoldatenBau={formen:{fallen:formen(),laufen:formen(),stehen:formen(),schiessen:formen()},material:new THREE.MeshStandardMaterial(),atlas:new THREE.Texture(),dauer:{fallen:1,laufen:1,stehen:1,schiessen:1},backzeitMs:0,pruefung:{}}
+    const masse=new SoldatenMasse(bau,1)
+    const a={x:0,z:0,dreh:0,bewegung:'fallen' as const,phase:0,start:0},b={...a,phase:1,start:.5}
+    masse.setze([a,b]);masse.aktualisiere(.75)
+    const netze=masse.gruppe.children as THREE.InstancedMesh[]
+    const fall=netze.slice(0,8)
+    expect(fall[0].geometry).not.toBe(fall[1].geometry)
+    const vorher=fall[1].geometry
+    masse.setze([b]);masse.aktualisiere(.75)
+    expect(fall[1].geometry).toBe(vorher)
+    expect(()=>masse.setze([b,b,b])).not.toThrow()
+    masse.gibNetzeFrei()
+    expect(bau.material).toBeTruthy()
+  })
   it('hält Atlas-, Skin-, Dreiecks- und Dateigrenzen ein',async()=>{
     const g=glb(soldat),j=g.json,p=j.meshes[0].primitives[0]
     expect(j.meshes).toHaveLength(1);expect(j.meshes[0].primitives).toHaveLength(1)

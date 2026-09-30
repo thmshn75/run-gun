@@ -9,7 +9,7 @@ export type BossArt = 'miniboss' | 'eliteboss'
 export interface Boss {
   objekt: THREE.Group
   breite: number
-  spiele(clipKurzname: string): void
+  spiele(clipKurzname: string, einmal?: boolean): void
   aktualisiere(dtS: number): void
   gibFrei(): void
 }
@@ -68,16 +68,13 @@ export function baueBoss(art:BossArt,gltf:GLTF):Boss{
   objekt.position.y=-boden.min.y
   mixer.setTime(0);objekt.updateMatrixWorld(true)
   const breite=art==='miniboss'?walkBox.max.x-walkBox.min.x:boden.max.x-boden.min.x
-  return {objekt,breite,spiele(name){const next=clips.find(c=>c.name.split('|').at(-1)===name);if(!next)throw new Error(`${art}: Bewegung ${name} fehlt`);mixer.stopAllAction();mixer.clipAction(next).reset().play()},aktualisiere(dtS){mixer.update(Math.max(0,dtS))},gibFrei(){mixer.stopAllAction();mixer.uncacheRoot(objekt);entsorgeBossGLTF(gltf)}}
+  return {objekt,breite,spiele(name,einmal=false){const next=clips.find(c=>c.name.split('|').at(-1)===name);if(!next)throw new Error(`${art}: Bewegung ${name} fehlt`);mixer.stopAllAction();const action=mixer.clipAction(next).reset();action.setLoop(einmal?THREE.LoopOnce:THREE.LoopRepeat,einmal?1:Infinity);action.clampWhenFinished=einmal;action.play()},aktualisiere(dtS){mixer.update(Math.max(0,dtS))},gibFrei(){mixer.stopAllAction();mixer.uncacheRoot(objekt);entsorgeBossGLTF(gltf)}}
 }
 
 export function bossFreieAufstellung(anzahl:number,startZ:number,radius:number,seed=73291,lochZ=-36,vonVorn=false):ZombieEintrag[]{
   if (vonVorn) {
     if (anzahl <= 0) return []
-    const platz=zombieAufstellung(FIGUREN.ZOMBIES_SICHTBAR_MAX+80,0,seed)
-    const rest=platz.slice(-anzahl-20)
-    const vorderkante=Math.max(...rest.map(e=>e.z))
-    return rest.map(e=>({...e,z:e.z-vorderkante+startZ}))
+    return zombieAufstellung(anzahl+100,startZ,seed)
       .filter(e=>Math.hypot(e.x,e.z-lochZ)>=radius).slice(0,anzahl)
   }
   const platz=zombieAufstellung(anzahl+100,startZ,seed)

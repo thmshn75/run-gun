@@ -2,178 +2,187 @@
 
 Status: APPROVED
 
-## Aufgabe: D3-Anpassung — neue Mechanik sichtbar machen (Run Gun 3D)
+## Aufgabe: D4 — Horde und Front, Kampfbild (Run Gun 3D)
 
-Verbindlicher Plan: `docs/plan-v7.md`, Zeile "Mechanik neu" und "Schrittfolge → R2" (danach
-D3-Anpassung). Der Rechenkern (R2, `rechnung.ts`) ist fertig und bleibt **unverändert**.
-Dieser Schritt passt nur die Darstellung an: Truppe als schrumpfender Vorrat, Säulenbeschuss
-von rechts, wachsende Wand, aktive Spezialeinheit als Anzeige. Die D3-Härtung (H1–H10 aus
-dem vorigen Auftrag, u. a. Zeitschritt, Finger, Sichtgrenzen, Messung, Pause) gilt weiter.
+Verbindlicher Plan: `docs/plan-v7.md`, "Schrittfolge → D4" (mechanischer Schlüsselschritt),
+Zeile "Mechanik neu" (geschossen wird erst hinter der Wand) und Frontregel (Tabelle Rechenkern).
+Der Rechenkern (`rechnung.ts`) ist fertig und bleibt **unverändert**; Front, Horde und Bosse
+bewegen sich schon nach seinen Werten (`y`, `Z`, `F`, `B`). Dieser Schritt macht den **Kampf
+sichtbar**: Front schießt, Zombies und Soldaten fallen, der Mini-Boss greift an und stirbt, und
+das Ereignisprotokoll wird im laufenden Spiel geprüft. Das Budget ist ausgereizt (Worst Case
+55,2 fps am iPhone): jede neue Darstellung ist klein, gedeckelt und ohne Zuteilungen je Bild.
 
 ## Erlaubte Änderungen (abschließend)
 
-`src/v3d/lauf.ts`, `src/v3d/anzeigen.ts`, `src/v3d/szene.ts`, `src/v3d/soldaten.ts`,
-`src/v3d/schilder.ts`, `src/v3d/oberflaeche.ts`, `src/v3d/balance3d.ts` (nur Block
-`DARSTELLUNG`), `tests/v3dLauf.test.ts`. **Nicht:** `rechnung.ts`, `LEVELS`, `SPEZIAL`.
+- `src/v3d/lauf.ts` (Hauptarbeit), `src/v3d/anzeigen.ts`, `src/v3d/balance3d.ts` (nur Block
+  `DARSTELLUNG`).
+- `src/v3d/figuren.ts`: neue Klasse `FallendeZombies`.
+- `src/v3d/soldaten.ts`: nur `SoldatenMasse` (Fall-Startzeit je Phasengruppe, s. A3; `setze`
+  wirft nie, sondern kappt still an der Kapazität).
+- `src/v3d/bosse.ts`: nur `spiele(name, einmal?)` und `bossFreieAufstellung` Zweig
+  `vonVorn=true` (Präfixstabilität, A2). Der Zweig ohne `vonVorn` (Messung/Vollast) bleibt.
+- `src/v3d/messung.ts`: nur (a) in `messBild` die Boss-Mixer mit ticken
+  (`miniboss/eliteboss.aktualisiere(sek)`), (b) Anzeige "Protokoll" und "Draw Calls" in
+  "Lauf (Bot)".
+- Tests: `tests/v3dLauf.test.ts`, `tests/v3dFiguren.test.ts`, `tests/v3dSoldaten.test.ts`,
+  `tests/v3dBosse.test.ts` (bestehende Tests nur, wo die Spec Werte gewollt ändert —
+  im Bericht nennen).
+- **Nicht:** `rechnung.ts`, `LEVELS`, `SPEZIAL`, `einstieg.ts`, `szene.ts`, Modelle, Bilder.
+
+## Grundsätze (gelten für A1–A4)
+
+- **Besitz:** Alle neuen Objekte (Fall-Pools, Front-Blitze, Fall-Soldaten-Masse) gehören
+  `WeltDarstellung` — angelegt im Konstruktor aus `welt.zombieBau`/`welt.soldatBau`, in die
+  Szene und in `welt.laufGruppen` eingetragen, in `gibFrei()` entfernt und freigegeben
+  (eigene Netze, Canvas-Texturen, Materialien). **Fall-Massen und `FallendeZombies` geben
+  nur eigene Netze/Instanzpuffer frei (`gibNetzeFrei`-Muster); sie rufen nie
+  `SoldatenMasse.gibFrei`/`ZombieMasse.gibFrei` auf und disposen nie Material, Atlas oder
+  Formen aus `welt.zombieBau`/`welt.soldatBau`** (Test: Materialien nach `gibFrei()` nicht
+  freigegeben).
+- **Takt:** `zeige` und `nachlauf` ticken die neuen Objekte selbst, **nach** dem `setze`,
+  mit der Darstellungsuhr (`fallSoldaten.aktualisiere(uhr)`, `FallendeZombies`-Ablauf,
+  Blitze). Der Boss-Mixer läuft weiter über `einstieg.ts`/`messBild`.
+- **Uhr:** Alle D4-Abläufe (Fall 1,1 s/Soldaten-Fenster, Boss 2 s, Aufhellen 0,1 s, Blitze)
+  laufen auf einer eigenen **Darstellungsuhr** in `WeltDarstellung`, die nur über
+  `zeige(…, dt)` vorrückt (`dt` ist in `SpielLauf` auf 0,1 gedeckelt). Pause → steht.
+  **Nach Sieg/Niederlage** ruft `SpielLauf.schritt` statt des Kerns
+  `darstellung.nachlauf?(dt)` auf (höchstens 3 s): Uhr läuft weiter, laufende Abläufe enden,
+  es entstehen keine neuen. `einstieg.ts` bleibt unverändert.
+- **Kontakt** ist eine gemeinsame Funktion wie im Kern: `kontakt(z) = z.F > 0 &&
+  (z.Z > 0 || miniImFeld || eliteImFeld)` — gilt in A1 und A4 gleich.
+- **Zufall** der Darstellung aus einem kleinen Mulberry32 mit Seed aus `SpielLauf` (in Tests
+  setzbar), kein `Math.random` in neuem Code. Vektoren/Arrays vorhalten und
+  wiederverwenden; die Front-Figurenliste nur bei Zahländerung neu bauen.
 
 ## Akzeptanzkriterien
 
-### A1 Truppe als Vorrat
-- Die Formation zeigt `min(floor(T), 30)` Figuren und **schrumpft sichtbar**, wenn in der
-  Mitte gesendet wird; neue Läufer starten **aus der Formation heraus** (Startposition =
-  Platz einer Figur der vorderen Reihe, nicht aus einem Punkt), dann Spur-Logik wie bisher.
-- Links (`eingesammelt`): Formation wächst, keine Läufer, kein Schießen (Bewegung `stehen`).
+### A1 Front schießt
+- Bei `kontakt(z)` zeigt die Front-Formation (`w.front`, `min(floor(F), 40)` Figuren,
+  Aufstellung wie bisher) **`schiessen`**, Blick −z; sonst `stehen`. Der Neu-Setz-Cache
+  berücksichtigt Anzahl **und** Bewegung.
+- **Front-Blitze:** eigene `Muendungsblitze`-Instanz, höchstens
+  `DARSTELLUNG.FRONT_BLITZE_MAX = 8`, `FRONT_BLITZE_PRO_SEKUNDE = 12`, je 0,06 s, an der
+  M4-Mündung zufälliger Front-Figuren (Mündungslage wie am Säulenbeschuss, Drehung 0). Ohne
+  Kontakt oder ohne Front-Figur: keine. Säulenbeschuss rechts unverändert.
 
-### A2 Säulenbeschuss (rechts)
-- Solange der Kern `saeuleTreffer` meldet: Formation dreht sich zur Säule (Blickrichtung
-  auf `SAEULE_X`, `z = −12`, weich in 0,3 s), Bewegung **`schiessen`**, und es gibt
-  **Mündungsblitze**: kleine additive Leuchtflecken (ein gemeinsames `InstancedMesh` aus
-  Quads mit einer 64-px-Canvas-Textur, höchstens 12 gleichzeitig, je 0,06 s sichtbar, an
-  der M4-Mündung zufällig ausgewählter Schützen, ~10 Blitze/s gesamt).
-- Die Säule zeigt Treffer: Glas blitzt kurz heller (höchstens 5×/s gedrosselt), Zahl
-  `ceil(P)` sinkt laufend.
-- Verlässt die Truppe rechts, dreht die Formation zurück (Blick −z), Bewegung `stehen`.
+### A2 Zombies fallen
+- **Horde präfixstabil** (`bosse.ts`, Zweig `vonVorn`): `zombieAufstellung(n + 100, 0,
+  seed)`, Loch filtern, `slice(0, n)` — **ohne** von `n` abhängige Verschiebung. Für
+  `n < m` sind die ersten `n` Einträge (x, z, dreh, variante, groesse) gleich (`toEqual`).
+  Sinkt die Zahl, verschwinden Zombies hinten. Der bestehende Test "Vorderkante = 0" wird
+  auf `max z ≤ FIGUREN.ZOMBIE_ZUFALLSVERSATZ + 1e-9` umgestellt; `toHaveLength(n)` für
+  n ∈ {1, 300, 590, 600}.
+- **`FallendeZombies`** (`figuren.ts`): je Variante ein `InstancedMesh` mit **Form 0**,
+  zusammen höchstens `DARSTELLUNG.FALL_ZOMBIES_MAX = 24`, Layer 1, Kind der **Szene**
+  (Weltlage beim Entstehen eingefroren, fährt nicht mit der Horde). Ablauf 1,1 s: Drehpunkt
+  Fuß, 0–0,35 s kippen `rotation.x = −θ`, θ 0 → 85° mit `t²` (Kopf nach −z), 0,35–0,7 s
+  liegen, 0,7–1,1 s um 0,5 m sinken, dann weg; `dreh` ±15° und `groesse` 0,92–1,08 zufällig.
+  Test: Kopfpunkt `(0, h, 0)` hat bei 0,35 s `z < 0` und `y < 0,2`; nach 1,1 s ist der Pool
+  leer.
+- **Auslösung über Ereignisse, nicht über die sichtbare Zahl:** `fallRest +=
+  Σ zombieGefallen.menge`, `n = floor(fallRest)`, `fallRest −= n`; es entstehen
+  `min(n, freie Plätze, 4)` je Bild (Rest verfällt, keine Warteschlange). Lage: x zufällig
+  im Hordenstreifen, **z zwischen Front und Horde** (Weltlage `−y + 0,3 … −y + 0,8`), damit
+  kein stehender Zombie "doppelt" wirkt. Gleiches Muster für `spezialTreffer` (eigener
+  Rest), Lage zufällig in der ganzen sichtbaren Horde. Keine Auslösung bei `y ≤ 0` oder
+  nach Lauf-Ende. Unabhängig vom 600-Deckel und vom 0,25-s-Takt der Hordenaufstellung.
 
-### A3 Wand wächst
-- Die Wand zeigt `×kAktuell`. Bei `wandStufe`: Text wechselt, Wand pulsiert 0,4 s (Skalierung
-  1 → 1,08 → 1), kurzer heller Aufblitz. Läufer hinter der Wand zeigen `k` Figuren je
-  Soldat (bis zur Sichtgrenze 50, Faktorlogik wie bisher).
+### A3 Soldaten fallen
+- Eigene `SoldatenMasse` **`fallSoldaten`** (Kapazität `DARSTELLUNG.FALL_SOLDATEN_MAX = 8`),
+  getrennt von `w.front`. Auslösung wie A2 über `soldatGefallen` (eigener Rest,
+  `min(n, freie Plätze, 2)` je Bild). Lage: zufälliger Platz der vordersten Front-Reihe
+  (Weltlage eingefroren). Bewegung `fallen`; Fenster je Soldat
+  `max(1,2 s, Dauer fallen + 0,4 s)` ab Start, danach weg (Liste neu setzen).
+- `SoldatenMasse`: `starts` wird **`Map<Phasengruppe, Startzeit>`**; `SoldatEintrag`
+  erhält optional `start` (Darstellungsuhr), das `lauf.ts` für Fallende setzt. Jeder
+  Fallende belegt eine freie Phasengruppe 0–7 und läuft ab seiner eigenen Startzeit.
+  Test: zwei Fallende in verschiedenen Gruppen, 0,5 s Abstand → verschiedene `geometry`;
+  das Ende des einen ändert die Startzeit des anderen nicht.
 
-### A4 Spezialeinheit aktiv
-- Bei `einheitAktiv`: Banner oben mittig (DOM), z. B. "HUMVEE · 30 s", Restzeit zählt
-  herunter; mehrere gleichzeitig untereinander; bei `einheitEnde` weg. Bei `einheitFrei`
-  verschwindet der Innenkasten der Säule (wie bisher), die nächste Säule zeigt 150.
-- Horde schrumpft dabei über die Kernwerte (keine eigene Rechnung). Fahrzeug-Modelle: D5.
+### A4 Mini-Boss kämpft
+- Reine Funktion `bossBewegung(vorher, eingabe) → { clip, einmal, sichtbar, balken, z }`
+  in `lauf.ts` (Zustände `laeuft → kaempft → stirbt → weg`), getestet mit Attrappe:
+  `walk` ohne Kontakt; `attack_1` (Schleife) bei `kontakt(z)` und Mini im Feld;
+  bei `B ≤ 0` einmal `death_1` (letzte Pose halten), **z-Lage beim Tod eingefroren**,
+  Balken sofort weg, nach 2 s unsichtbar. Sichtbarkeit hängt an diesem Zustand, nicht an
+  `imFeld && B > 0`. `spiele` wird **nur bei Zustandswechsel** aufgerufen.
+- `bosse.ts`: `spiele(name, einmal?)` setzt bei jedem Aufruf `setLoop(LoopOnce|LoopRepeat)`
+  und `clampWhenFinished` passend.
+- Aufhellen: bei `bossTreffer` mit `boss === 'miniBoss'`, Farbe ×1,7 für 0,1 s, höchstens
+  3×/s; Originalfarben **einmal je Boss-Objekt** merken (WeakMap auf Modulebene), nicht je
+  Konstruktor — sonst merkt sich eine zweite Darstellung die aufgehellte Farbe.
+- `eingabe` von `bossBewegung` = `{ t (Darstellungsuhr), y, kontakt, imFeld, B,
+  todesDauer }`. Startzustand `weg`; → `laeuft` bei `imFeld && B > 0 && y > 0`; `z` in
+  `laeuft/kaempft` = `−y − 1` (wie heute), in `stirbt` eingefroren. Unsichtbar nach
+  `max(2 s, Clip-Länge death_1)` ab Tod.
+- `WeltDarstellung`-Konstruktor und `gibFrei()` setzen den Mini-Boss auf `walk`, Farbe und
+  Sichtbarkeit zurück (sonst steht er nach "Nochmal" in der Todespose). Der
+  **Vorgänger-Zweig** in `gibFrei()` (Bot-Lauf legt eine zweite `WeltDarstellung` über
+  dieselbe Welt) setzt zusätzlich alle neuen Caches, Reste, Uhrmarken und den Boss-Zustand
+  des Vorgängers auf Anfang (Zustand `weg`, Clip `walk`, Farbe original). Test: nach
+  Bot-Darstellung + `gibFrei()` spielt der Vorgänger wieder richtig. Elite: unverändert
+  (`Motion`, D6).
 
-### A5 Tests und Nachweise
-- `tests/v3dLauf.test.ts`: Formation = `min(floor(T),30)`; rechts: Schießzustand aktiv und
-  Blitze ≤ 12; `wandStufe` löst Anzeige-Wechsel aus; Banner-Liste folgt `einheitAktiv/Ende`.
-- Messstufe "Lauf (Bot)" nutzt den Rhythmus-mit-Säule-Bot (S = 60), damit Säulenbeschuss,
-  Blitze und Welle mitgemessen werden.
-- `npm test`, `tsc`, `build` grün; Zweitstart-Zähler gleich (Claude prüft), Hauptbündel
-  unverändert; kein `http` in `src/v3d/`.
+### A5 Ereignisprotokoll-Invariante im laufenden Spiel
+- `SpielLauf` merkt im Konstruktor `T0`, `B_start` je Boss und summiert die **zurückgegebenen**
+  Ereignisse; je Schritt Prüfung (Toleranz `1e-6 · max(1, Wert)`):
+  `T = T0 + Σeingesammelt − Σausgesandt`, `Z = Σwelle − ΣzombieGefallen − ΣspezialTreffer`,
+  `F = ΣangekommenFront − ΣsoldatGefallen`, `B = B_start − ΣbossTreffer(boss)` je Boss.
+  Dazu Darstellung: `Σ entstandene Fall-Zombies ≤ ΣzombieGefallen + ΣspezialTreffer`,
+  `Σ Fall-Soldaten ≤ ΣsoldatGefallen`.
+- **Beobachtung für Tests/Prüfung:** `WeltDarstellung.diag` (schreibgeschützt):
+  `frontBewegung`, `frontBlitze`, `fallZombiesAktiv`, `fallZombiesEntstanden`,
+  `fallSoldatenAktiv`, `fallSoldatenEntstanden`, `bossZustand`. `LaufDarstellung` bekommt
+  optional `diag?()`; `SpielLauf` prüft die beiden Darstellungs-Ungleichungen darüber.
+- `protokollFehler: string | null` hält den **ersten** Fehler (Zeit, Größe, Soll, Ist).
+  `protokollNeuBasieren()` für Tests, die den Zustand von außen setzen. Stimmt eine
+  Gleichung nicht, **nicht den Kern ändern**, sondern im Bericht melden.
+- "Lauf (Bot)" zeigt am Ende "Protokoll: ok (nach X s)" bzw. den Fehler, dazu die
+  höchsten `renderer.info.render.calls` im Kampf.
+- Test: `MessBotSteuerung`, `dt = 1/30`, Seeds `[1,2,3,4,5]`, bis Sieg/Niederlage,
+  Obergrenze 900 s Simulationszeit (Überschreitung = Fehlschlag) → `protokollFehler === null`.
+
+### A6 Tests und Nachweise
+- Test-Helfer `baueWeltAttrappe()` in den Tests (echte `THREE.Scene`, Attrappen-
+  `ZombieBau`/`SoldatenBau` mit kleinen Geometrien, Boss-Attrappe mit `spiele`-Protokoll,
+  `document`-/Canvas-Stub wie bestehend) — damit `WeltDarstellung` selbst getestet wird,
+  nicht nur Hilfsfunktionen.
+- Tests zu A1–A5 wie oben; zusätzlich Front `schiessen` nur bei Kontakt, Front-Blitze ≤ 8
+  und 0 ohne Kontakt, Fall-Pools nie über Deckel bei 1000 Ereignissen in einem Bild,
+  keine Auslösung nach Lauf-Ende, `gibFrei()` hinterlässt keine Objekte in Szene/
+  `laufGruppen`.
+- `npm test`, `tsc`, `build` grün; Hauptbündel unverändert; kein `http` in `src/v3d/`.
+- Claude prüft: Zweitstart-Zähler (WebGL-Zähler gleich nach 2. Start), Bildvergleich gegen
+  `docs/vorbild/`, "Lauf (Bot)" im Browser inkl. Draw Calls; Thomas misst am iPhone.
+
+## Reißleine
+
+- **Bild:** Überzeugt der Bildvergleich nach einem Anlauf nicht → zurück zu Thomas mit den
+  Bildern (Plan).
+- **Leistung:** Unter 55 fps am iPhone in "Lauf (Bot)" → in dieser Reihenfolge
+  `FALL_ZOMBIES_MAX` 24 → 12, Front-Blitze aus, Boss-Aufhellen aus; reicht das nicht →
+  zurück zu Thomas.
 
 ## Nicht in diesem Schritt
-Frontkampf-Bild (Schießen an der Front, fallende Zombies/Soldaten: D4), Fahrzeuge (D5).
+
+Treffer-Zahlen/Blut/Klang (D8), Fahrzeuge (D5), Elite-Boss-Kampf und Sieg/Niederlage-Bild
+(D6), Level (D7).
 
 ## Implementation Summary
 
-- A1–A4 umgesetzt: Formation folgt dem Vorrat; Läufer starten an Plätzen der vorderen
-  Reihe. Beim Säulentreffer dreht und schießt die Formation mit begrenzten Mündungsblitzen;
-  Glas und Wand reagieren auf Treffer bzw. Stufenwechsel. Aktive Einheiten erscheinen
-  mit herunterzählender Restzeit als Banner. Rechenkern, LEVELS und SPEZIAL unverändert.
-- A5 abgeschlossen: Die freigegebene Messstufe "Lauf (Bot)" steuert mit dem
-  Rhythmus-mit-Säule-Bot (S = 60) die sichtbare Szene; Welle, Säulenbeschuss und
-  Mündungsblitze werden so mitgemessen. Nach der Messung wird die Spielansicht
-  wiederhergestellt. Der 60-s-Test belegt Aussenden und Säulentreffer.
-- Prüfung nach dem letzten Code-Stand: `npm test` 62 Dateien, 545 Tests grün;
-  `npm run check`, `npm run build` und `git diff --check` Exit 0. Hauptbündel vor/nach
-  Build 1.468.039 Byte; kein `http` in `src/v3d/`. Zweitstart-Zähler prüft laut Spec
-  Claude; ein Browser-/iPhone-Sichttest fand hier nicht statt.
-
-## Freigabe (Claude 2026-09-29 21:48)
-
-`src/v3d/messung.ts` ist für A5 **freigegeben** (nur: Mess-Bot der Stufe "Lauf (Bot)" auf
-Rhythmus-mit-Säule, S = 60, und was dafür nötig ist). Dann Tests/`tsc`/Build, Status
-`IMPL_DONE`, Nachtrag.
-
-## Nacharbeit 1 (Thomas 2026-09-29 22:02, iPhone-Spieltest) — 4 Punkte
-
-**1. Truppe nie unter 1 (Rechenkern, Regel 2 ändern — ausdrücklich erlaubt):** Beim
-Aussenden bleibt immer mindestens 1 Soldat: `g = min(floor(sendeRest), floor(T) − 1)`,
-gesendet wird nur bei `T ≥ 2`; bei `T < 2` ist `sendeRest = 0`. `rechnung.ts`,
-`tests/v3dRechnung.test.ts` (Randfall: Mitte mit `T = 1` sendet nichts, `T` bleibt 1) und
-Bots (`rhythmus*`: zurück nach links bei `T < 2` statt `< 1`) anpassen; `npm run bots3d`
-ausführen und die Tabelle in den Bericht (Erwartung: praktisch unverändert).
-
-**2. Finger verliert den Kontakt (`steuerung.ts`) — Befund Claude:** `down` ignoriert jede
-neue Berührung, solange `id !== null`. Verschluckt iOS einmal `pointerup`/`pointercancel`
-(oder feuert `lostpointercapture` unerwartet), bleibt die alte `id` hängen und **alle
-weiteren Berührungen werden ignoriert** → "Finger verliert den Kontakt". Änderung:
-- `pointerdown` übernimmt **immer** den neuen Finger (alte `id` verwerfen, Capture neu).
-- `pointerup`/`pointercancel` zusätzlich auf `window` hören (nur für die aktive `id`).
-- `lostpointercapture` **nicht** mehr als Loslassen werten (nur Capture neu setzen, solange
-  kein `pointerup` kam).
-- `pointermove` akzeptiert auch Bewegungen der aktiven `id`, die am `window` ankommen.
-- Test (reine Logik mit simulierten Ereignissen): hängende `id` + neues `pointerdown` →
-  Steuerung folgt dem neuen Finger; `lostpointercapture` allein beendet nicht.
-
-**3. Drehung rechts falsch (`lauf.ts`, `saeulenBlick`) — Befund Claude:** Die Figur schaut
-bei Drehung 0 nach −z; der Drehwinkel für Blickrichtung `(dx, dz)` ist
-`θ = atan2(−dx, −dz)`. Aktuell `−atan2(dx, dz)` → bei der Säule vorn (dz ≈ −12) ergibt das
-fast 180°, die Truppe schaut zur Kamera. Formel korrigieren; Mündungsblitze mit derselben
-Drehung. **Test:** Vorwärtsvektor `(0,0,−1)` um θ gedreht zeigt zur Säule
-(Skalarprodukt > 0,95) für mehrere Truppenlagen.
-
-**4. Zähler für Horde und Bosse:**
-- Über der Hordenvorderkante eine Zahl **`ceil(Z)`** (gleiche Anzeige-Technik, ≤ 4×/s neu
-  gemalt), dazu oben in der Statuszeile "Welle n/3".
-- Über jedem sichtbaren Boss ein **Lebensbalken** (Canvas-Sprite, ~2,5 m breit, rot auf
-  dunkel) mit Zahl `ceil(B)`; verschwindet mit dem Boss.
-- Tests: Anzeige folgt `Z`/`B` (Drosselung), Welle-Zähler folgt `welle`-Ereignissen.
-
-Alles andere unverändert. `npm test`, `tsc`, `build`, `bots3d` grün; Status `IMPL_DONE`,
-Nachtrag.
-
-## Nachtrag zur Implementation (Codex 2026-09-29)
-
-- Der Rechenkern lässt beim Aussenden mindestens einen Soldaten stehen und löscht bei
-  `T < 2` den Sendrest. Beide Rhythmus-Bots wechseln dann zurück nach links.
-- Die Fingersteuerung übernimmt neue Berührungen auch bei hängender alter ID; Bewegungen
-  und Ende werden zusätzlich am Fenster empfangen. Verlorener Pointer-Capture beendet
-  die aktive Berührung nicht. Die Säulendrehung zeigt nun zur Säule.
-- Die Horde trägt `ceil(Z)` über ihrer Vorderkante, sichtbare Bosse einen roten
-  Lebensbalken mit `ceil(B)`, und die Statuszeile zeigt `Welle n/3`. Anzeigen werden
-  höchstens viermal pro Sekunde neu gemalt.
-- Prüfung nach letztem Code-Stand: `npm test` 62 Dateien, 549 Tests grün;
-  `npm run check`, `npm run build`, `npm run bots3d`, `git diff --check` Exit 0.
-  Hauptbündel 1.468.039 Byte unverändert; kein `http` in `src/v3d/`.
-- Botwerte (`Siege/20`, mittlere Dauer, mittlere gefallene Säulen): passiv
-  `0, 115,6 s, 0,00`; nurLinks `0, 75,0 s, 0,00`; rhythmus(40)
-  `20, 123,1 s, 0,00`; rhythmusSaeule(60) `20, 108,0 s, 2,05`;
-  rhythmusSaeule(15) `0, 118,9 s, 2,00`; rhythmusSaeule(25)
-  `0, 124,8 s, 3,00`.
-- iPhone-Sichtprüfung und Zweitstart-Zähler wurden hier nicht erneut ausgeführt;
-  letzterer bleibt laut Akzeptanzkriterium beim Claude-Review.
-
-## Nacharbeit 2 (Claude-Review 2026-09-29 22:25) — nur ein Punkt
-
-Browserbefund: Die Hordenzahl (`hordeZahl`, `y = 2.8`, `z = −y + 1`) liegt fast auf der
-Frontzahl (`frontZahl`, `y = 2.8`, `z = min(−1, −y + 2.5)`) → am Bildschirm übereinander
-("236" über "7"), unlesbar. Änderung nur in `src/v3d/lauf.ts`: Hordenzahl auf **`y = 4.6`**
-(über dem Mini-Boss-Balken) und Schrift/Hintergrund **dunkelrot** (`#6e1414`, weiße Zahl),
-damit sie klar zur Horde gehört; Frontzahl bleibt. Falls `ZahlAnzeige` dafür eine Farboption
-braucht: optionaler Konstruktor-Parameter in `anzeigen.ts` (Standard unverändert). Test:
-Hordenzahl und Frontzahl haben ≥ 1,5 m Höhenabstand. `npm test`, `tsc`, `build` grün;
-Status `IMPL_DONE`, Nachtrag.
-
-**Punkt B (Thomas 22:12: "ausgesendete Truppen springen manchmal komisch hin und her") —
-Befund Claude:** `baueLaufSpuren` dünnt bei vollem Bild (`faktor ≥ 2`) über den
-**Listenindex** aus (`i % gewicht`). Erreicht der älteste Trupp die Front und fällt aus der
-Liste, verschieben sich alle Indizes → die Auswahl kippt auf die jeweils andere Hälfte
-der Soldaten, jede sichtbare Figur springt auf die Nachbarspur. Änderung (`lauf.ts`):
-- Jeder Kernsoldat bekommt beim Anlegen eine **feste Nummer** (`nummer`, schon vorhanden in
-  `SpielLauf.schritt`), wird in `Sicht.soldaten` und `LaufSoldat` mitgeführt; Ausdünnen über
-  `s.nummer % gewicht` statt Index (gilt auch in `spurFaktor`).
-- Test: Liste mit `faktor = 2`; ältesten Trupp entfernen → alle weiterhin sichtbaren
-  Figuren behalten ihr `x` exakt (keine Figur wechselt die Spur).
-- Prüfe beim Umsetzen, ob es **weitere Sprungquellen** gibt (z. B. `startX`-Übergang,
-  `sicht.x`-Klemme, Wechsel `figurFaktor`), und nenne sie im Bericht; beheben nur, wenn es
-  eindeutig ein Sprung ist (Positionsänderung > 0,3 m in einem Bild ohne Spielgrund).
-
-## Nachtrag zur Nacharbeit 2 (Codex 2026-09-29)
-
-- Hordenzahl auf 4,6 m gesetzt (1,8 m über der Frontzahl), mit dunkelrotem Hintergrund
-  `#6e1414` und weißer Zahl. Die übrigen Zahlen behalten ihre bisherige Farbe.
-- Jeder Läufer trägt seine feste Nummer bis in die Darstellung. Sichtauswahl und
-  Sichtfaktor verwenden diese Nummer, sodass das Ausscheiden des ältesten Läufers
-  die Spuren der übrigen Figuren nicht wechselt.
-- Zusätzliche Sprungquelle `startX` behoben: Die seitliche Bewegung vom Startplatz
-  zur Spur ist nun auf 0,3 m pro 0,1 s begrenzt. Die `sicht.x`-Klemme betrifft
-  nur Trupps mit Frontziel und begrenzt auf ±2,8 m; der Wechsel des Sichtfaktors
-  kann Figuren ein- oder ausblenden, versetzt aber keine weiter sichtbare Figur.
-- Prüfung nach letztem Code-Stand: `npm test` 62 Dateien, 552 Tests grün;
-  `npm run check`, `npm run build`, `git diff --check` Exit 0.
-  Hauptbündel 1.468.039 Byte unverändert; kein `http` in `src/v3d/`.
-  Browser-/iPhone-Sichtprüfung und Zweitstart-Zähler wurden hier nicht erneut
-  ausgeführt; letzterer bleibt laut Akzeptanzkriterium beim Claude-Review.
+- D4-Kampfbild ergänzt: Front schießt bei Kontakt mit gedeckelten eigenen Mündungsblitzen;
+  Zombies und Soldaten fallen ereignisgesteuert in eigenen, begrenzten Pools. Die Horde
+  bleibt bei sinkender Zahl präfixstabil. Der Mini-Boss wechselt zwischen Lauf, Angriff,
+  Tod und Ausblenden; Treffer hellen ihn kurz auf. Alle neuen Darstellungsobjekte werden
+  beim Freigeben entfernt, ohne Bau-Materialien oder Formen freizugeben.
+- Eigene Darstellungsuhr samt maximal 3 s Nachlauf, gesetzter Zufallsseed und Diagnosewerte.
+  `SpielLauf` prüft nach jedem Kernschritt die Ereignisbilanz und merkt den ersten Fehler.
+  Die Bot-Messung zeigt Protokollstand und maximale Draw Calls während Kontakt; Boss-Mixer
+  laufen auch dort weiter.
+- Tests: `npm test` 62 Dateien / 559 Tests grün; `npm run check`, `npm run build` und
+  `git diff --check` Exit 0. Fünf Bot-Seeds mit 1/30 s enden innerhalb 900 s ohne
+  Protokollfehler. Der bestehende Test zur Hordenvorderkante wurde gemäß A2 von `= 0`
+  auf `≤ ZOMBIE_ZUFALLSVERSATZ` geändert. Hauptbündel 1.468.039 Byte unverändert;
+  kein `http` in `src/v3d/`.
+- Browser-Bildvergleich, Zweitstart-WebGL-Zähler, Lauf-(Bot)-Anzeige im Browser und
+  iPhone-FPS wurden hier nicht gemessen; sie bleiben beim vorgesehenen Claude-/Thomas-Review.

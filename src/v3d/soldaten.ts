@@ -5,7 +5,7 @@ import bewegungUrl from './modelle/v3d-bewegung.glb?url'
 import { FIGUREN } from './balance3d'
 
 export type SoldatenBewegung = 'laufen' | 'stehen' | 'schiessen' | 'fallen'
-export interface SoldatEintrag { x: number; z: number; dreh: number; bewegung: SoldatenBewegung; phase?: number }
+export interface SoldatEintrag { x: number; z: number; dreh: number; bewegung: SoldatenBewegung; phase?: number; start?: number }
 export interface SoldatenBau {
   formen: Record<SoldatenBewegung, THREE.BufferGeometry[]>
   material: THREE.MeshStandardMaterial
@@ -214,7 +214,7 @@ export class SoldatenMasse {
   private netze:Record<SoldatenBewegung,THREE.InstancedMesh[]>={} as Record<SoldatenBewegung,THREE.InstancedMesh[]>
   private starts=new Map<number,number>()
   private zeit=0
-  constructor(bau:SoldatenBau,max=FIGUREN.SOLDATEN_SICHTBAR_MAX){
+  constructor(bau:SoldatenBau,max: number=FIGUREN.SOLDATEN_SICHTBAR_MAX){
     this.bau=bau
     this.gruppe.name='soldaten-masse'
     for(const bewegung of Object.keys(bau.formen) as SoldatenBewegung[]){this.netze[bewegung]=Array.from({length:FIGUREN.SOLDAT_PHASENGRUPPEN},()=>{
@@ -222,16 +222,16 @@ export class SoldatenMasse {
   }
   setze(liste:SoldatEintrag[]):void{
     const zaehler=new Map<THREE.InstancedMesh,number>(),dummy=new THREE.Object3D(),fallen=new Set<number>()
-    liste.forEach((s,i)=>{const phase=(s.phase??i)%FIGUREN.SOLDAT_PHASENGRUPPEN,netz=this.netze[s.bewegung][phase],n=zaehler.get(netz)??0;if(n>=netz.instanceMatrix.count)throw new Error('Soldaten-Kapazität überschritten')
-      if(s.bewegung==='fallen'){fallen.add(i);if(!this.starts.has(i))this.starts.set(i,this.zeit)}
+    liste.forEach((s,i)=>{const phase=(s.phase??i)%FIGUREN.SOLDAT_PHASENGRUPPEN,netz=this.netze[s.bewegung][phase],n=zaehler.get(netz)??0;if(n>=netz.instanceMatrix.count)return
+      if(s.bewegung==='fallen'){fallen.add(phase);if(!this.starts.has(phase))this.starts.set(phase,s.start??this.zeit)}
       dummy.position.set(s.x,0,s.z);dummy.rotation.set(0,s.dreh,0);dummy.updateMatrix();netz.setMatrixAt(n,dummy.matrix);zaehler.set(netz,n+1)})
-    for(const i of this.starts.keys())if(!fallen.has(i))this.starts.delete(i)
+    for(const phase of this.starts.keys())if(!fallen.has(phase))this.starts.delete(phase)
     for(const row of Object.values(this.netze))for(const mesh of row){mesh.count=zaehler.get(mesh)??0;mesh.instanceMatrix.needsUpdate=true}
   }
   aktualisiere(zeit:number):void{
     this.zeit=zeit
     for(const [bewegung,row] of Object.entries(this.netze) as [SoldatenBewegung,THREE.InstancedMesh[]][])
-      row.forEach((netz,g)=>{const bilder=this.bau.formen[bewegung],dauer=this.bau.dauer[bewegung],start=bewegung==='fallen'?Math.min(...this.starts.values(),zeit):0,t=bewegung==='fallen'?Math.max(0,zeit-start):zeit,
+      row.forEach((netz,g)=>{const bilder=this.bau.formen[bewegung],dauer=this.bau.dauer[bewegung],start=bewegung==='fallen'?(this.starts.get(g)??zeit):0,t=bewegung==='fallen'?Math.max(0,zeit-start):zeit,
         bild=bewegung==='fallen'?Math.min(bilder.length-1,Math.floor(t/dauer*bilder.length)):(Math.floor(t/dauer*bilder.length)+Math.round(g*bilder.length/row.length))%bilder.length;netz.geometry=bilder[bild]})
   }
   gibNetzeFrei():void{for(const row of Object.values(this.netze))for(const n of row){this.gruppe.remove(n);n.dispose()}}

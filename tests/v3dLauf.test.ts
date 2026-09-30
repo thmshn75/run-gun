@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { SpielLauf, baueLaufSpuren, spurFaktor, formationsFiguren, formationsBewegung, BlitzTakt, wandText, ZAHL_HOEHEN, type LaufSoldat, type LaufDarstellung } from '../src/v3d/lauf'
+import { SpielLauf, WeltDarstellung, baueLaufSpuren, spurFaktor, formationsFiguren, formationsBewegung, BlitzTakt, wandText, ZAHL_HOEHEN, bossBewegung, type LaufSoldat, type LaufDarstellung, type BossStand } from '../src/v3d/lauf'
 import type { Zustand } from '../src/v3d/rechnung'
 import { bannerEintraege } from '../src/v3d/oberflaeche'
 import { MessBotSteuerung } from '../src/v3d/messung'
@@ -9,6 +9,27 @@ import { BUEHNE } from '../src/v3d/balance3d'
 import { statusZeile } from '../src/v3d/oberflaeche'
 import * as THREE from 'three'
 import { BossBalken, ZahlAnzeige } from '../src/v3d/anzeigen'
+import { ZombieMasse, type ZombieBau } from '../src/v3d/figuren'
+import { SoldatenMasse, type SoldatenBau } from '../src/v3d/soldaten'
+import type { Welt } from '../src/v3d/szene'
+
+function baueWeltAttrappe() {
+  const kontext={clearRect:vi.fn(),fillRect:vi.fn(),fillText:vi.fn(),createRadialGradient:()=>({addColorStop:vi.fn()})}
+  vi.stubGlobal('document',{createElement:()=>({width:0,height:0,getContext:()=>kontext})})
+  const form=()=>new THREE.BoxGeometry(.3,2,.3)
+  const zombieBau:ZombieBau={formen:[form()],materialien:[new THREE.MeshStandardMaterial(),new THREE.MeshStandardMaterial(),new THREE.MeshStandardMaterial()],bemalungen:[],dauer:1.1,dreiecke:12}
+  const soldatBau:SoldatenBau={formen:{laufen:[form()],stehen:[form()],schiessen:[form()],fallen:[form(),form(),form(),form()]},material:new THREE.MeshStandardMaterial(),atlas:new THREE.Texture(),dauer:{laufen:1,stehen:1,schiessen:1,fallen:1},backzeitMs:0,pruefung:{debugMuzzle:[0,1.3,-.5]}}
+  const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(),truppe=new SoldatenMasse(soldatBau,40),laufTrupp=new SoldatenMasse(soldatBau,50),front=new SoldatenMasse(soldatBau,40),zombieMasse=new ZombieMasse(zombieBau,zombieBau.materialien,600)
+  const wand=new THREE.Group(),saeule=new THREE.Group(),saeulenInnen=new THREE.Group()
+  const bossObjekt=new THREE.Group(),bossMaterial=new THREE.MeshStandardMaterial({color:'#777777'})
+  bossObjekt.add(new THREE.Mesh(form(),bossMaterial))
+  const miniSpiele=vi.fn(),eliteSpiele=vi.fn()
+  const miniboss={objekt:bossObjekt,breite:1,spiele:miniSpiele,aktualisiere:vi.fn(),gibFrei:vi.fn()}
+  const eliteboss={objekt:new THREE.Group(),breite:1,spiele:eliteSpiele,aktualisiere:vi.fn(),gibFrei:vi.fn()}
+  scene.add(truppe.gruppe,laufTrupp.gruppe,front.gruppe,zombieMasse.gruppe,wand,saeule,bossObjekt,eliteboss.objekt)
+  const welt={scene,camera,bemalungen:[new THREE.Texture(),new THREE.Texture()],wasser:{} as Welt['wasser'],zombieBau,zombieMasse,nahaufnahme:false,soldatNahaufnahme:false,soldatBau,truppe,laufTrupp,front,laufGruppen:[truppe.gruppe,laufTrupp.gruppe,front.gruppe,zombieMasse.gruppe],plusSchilder:[],wand,saeule,saeulenInnen,miniboss,eliteboss} as Welt
+  return {welt,miniSpiele,bossMaterial,raume:()=>vi.unstubAllGlobals()}
+}
 
 function laufe(ziel: number, dauer=10) {
   let gezeigt=0, ausgesandt=0, einheiten=0
@@ -19,6 +40,87 @@ function laufe(ziel: number, dauer=10) {
   return {lauf,gezeigt,ausgesandt,einheiten}
 }
 describe('3D-Lauf',()=>{
+  it('zeigt Frontkampf und gedeckelte Fall-Pools und räumt eigene Netze auf',()=>{
+    const {welt,miniSpiele,bossMaterial,raume}=baueWeltAttrappe()
+    try {
+      const matFrei=vi.spyOn(welt.soldatBau.material,'dispose'),zombieFrei=vi.spyOn(welt.zombieBau.materialien[0],'dispose')
+      const anzeige=new WeltDarstellung(welt,7),lauf=new SpielLauf(undefined,7,anzeige),z=lauf.zustand
+      z.F=40;z.Z=100;z.y=20;z.miniBoss.imFeld=true
+      anzeige.zeige(z,new Map(),[{art:'zombieGefallen',menge:1000,t:0},{art:'soldatGefallen',menge:1000,t:0}],.1,0)
+      expect(anzeige.diag().frontBewegung).toBe('schiessen')
+      expect(anzeige.diag().frontBlitze).toBeGreaterThan(0)
+      expect(anzeige.diag().frontBlitze).toBeLessThanOrEqual(8)
+      expect(anzeige.diag().fallZombiesAktiv).toBeLessThanOrEqual(24)
+      expect(anzeige.diag().fallSoldatenAktiv).toBeLessThanOrEqual(8)
+      expect(miniSpiele).toHaveBeenCalledWith('attack_1',false)
+      z.miniBoss.B=0;z.miniBoss.imFeld=false
+      anzeige.zeige(z,new Map(),[{art:'bossTreffer',boss:'miniBoss',menge:1,t:0}],.1,0)
+      expect(anzeige.diag().bossZustand).toBe('stirbt')
+      expect(miniSpiele).toHaveBeenLastCalledWith('death_1',true)
+      expect(bossMaterial.color.getHexString()).not.toBe('777777')
+      z.Z=0;z.F=0;z.miniBoss.imFeld=false
+      anzeige.zeige(z,new Map(),[],.1,0)
+      expect(anzeige.diag().frontBewegung).toBe('stehen')
+      expect(anzeige.diag().frontBlitze).toBe(0)
+      z.ergebnis='sieg'
+      const vorEnde=anzeige.diag().fallZombiesEntstanden
+      anzeige.zeige(z,new Map(),[{art:'zombieGefallen',menge:1000,t:0}],.1,0)
+      expect(anzeige.diag().fallZombiesEntstanden).toBe(vorEnde)
+      anzeige.nachlauf(2)
+      expect(anzeige.diag().fallZombiesAktiv).toBe(0)
+      expect(anzeige.diag().bossZustand).toBe('weg')
+      anzeige.gibFrei()
+      expect(welt.laufGruppen).toHaveLength(4)
+      expect(matFrei).not.toHaveBeenCalled()
+      expect(zombieFrei).not.toHaveBeenCalled()
+      expect(bossMaterial.color.getHexString()).toBe('777777')
+    } finally { raume() }
+  })
+  it('setzt den Vorgänger nach der Bot-Darstellung samt Boss-Clip zurück',()=>{
+    const {welt,miniSpiele,raume}=baueWeltAttrappe()
+    try {
+      const vorn=new WeltDarstellung(welt,1),z=new SpielLauf().zustand
+      z.F=10;z.Z=10;z.miniBoss.imFeld=true
+      vorn.zeige(z,new Map(),[],.1,0)
+      const bot=new WeltDarstellung(welt,2)
+      bot.zeige(z,new Map(),[{art:'zombieGefallen',menge:10,t:0}],.1,0)
+      bot.gibFrei()
+      expect(miniSpiele).toHaveBeenLastCalledWith('attack_1',false)
+      expect(vorn.diag().fallZombiesEntstanden).toBe(0)
+      expect(vorn.diag().bossZustand).toBe('kaempft')
+      vorn.gibFrei()
+    } finally { raume() }
+  })
+  it('merkt den ersten Protokollfehler mit Soll und Ist',()=>{
+    const lauf=new SpielLauf(undefined,1)
+    lauf.zustand.T+=10
+    lauf.schritt(1/30,null)
+    expect(lauf.protokollFehler).toContain('T Soll')
+    const erster=lauf.protokollFehler
+    lauf.schritt(1/30,null)
+    expect(lauf.protokollFehler).toBe(erster)
+    lauf.protokollNeuBasieren()
+    expect(lauf.protokollFehler).toBeNull()
+  })
+  it('prüft das Ereignisprotokoll mit fünf Bot-Seeds bis zum Ende',()=>{
+    for (const seed of [1,2,3,4,5]) {
+      const bot=new MessBotSteuerung(),lauf=new SpielLauf(undefined,seed)
+      for(let i=0;i<900*30 && lauf.zustand.ergebnis==='laeuft';i++) lauf.schritt(1/30,bot.ziel(lauf.zustand))
+      expect(lauf.zustand.ergebnis).not.toBe('laeuft')
+      expect(lauf.protokollFehler).toBeNull()
+    }
+  })
+  it('führt den Mini-Boss vom Lauf über Angriff und Tod aus dem Bild',()=>{
+    let stand:BossStand={zustand:'weg',clip:'walk',einmal:false,sichtbar:false,balken:false,z:0,todSeit:-Infinity}
+    stand=bossBewegung(stand,{t:0,y:30,kontakt:false,imFeld:true,B:100,todesDauer:1})
+    expect([stand.zustand,stand.clip,stand.z]).toEqual(['laeuft','walk',-31])
+    stand=bossBewegung(stand,{t:1,y:29,kontakt:true,imFeld:true,B:100,todesDauer:1})
+    expect([stand.zustand,stand.clip]).toEqual(['kaempft','attack_1'])
+    stand=bossBewegung(stand,{t:2,y:28,kontakt:true,imFeld:false,B:0,todesDauer:1})
+    expect([stand.zustand,stand.clip,stand.einmal,stand.balken,stand.z]).toEqual(['stirbt','death_1',true,false,-30])
+    expect(bossBewegung(stand,{t:3,y:20,kontakt:false,imFeld:false,B:0,todesDauer:1}).sichtbar).toBe(true)
+    expect(bossBewegung(stand,{t:4,y:20,kontakt:false,imFeld:false,B:0,todesDauer:1}).zustand).toBe('weg')
+  })
   it('trennt die Hordenzahl vertikal von der Frontzahl',()=>{
     expect(ZAHL_HOEHEN.horde).toBe(4.6)
     expect(ZAHL_HOEHEN.horde-ZAHL_HOEHEN.front).toBeGreaterThanOrEqual(1.5)
@@ -226,7 +328,12 @@ describe('3D-Lauf',()=>{
     const nachVerlust = bossFreieAufstellung(590,0,1.102,73291,-1,true)
     expect(voll).toHaveLength(600)
     expect(nachVerlust).toHaveLength(590)
-    expect(Math.max(...voll.map(e=>e.z))).toBe(0)
+    expect(Math.max(...voll.map(e=>e.z))).toBeLessThanOrEqual(0.12+1e-9)
     expect(voll.every(e=>Math.hypot(e.x,e.z+1)>=1.102)).toBe(true)
+    for (const n of [1,300,590,600]) {
+      const teil=bossFreieAufstellung(n,0,1.102,73291,-1,true)
+      expect(teil).toHaveLength(n)
+      expect(teil).toEqual(voll.slice(0,n))
+    }
   })
 })
