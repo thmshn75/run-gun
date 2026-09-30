@@ -19,6 +19,8 @@ steht auf IDLE, es laeuft kein Codex.)
    Spec ("nach dem Einsatz"), in Kauf genommen. Die A/B-Gegenprobe `&vorwaermen=0` trennt nicht
    mehr (im Browser 0 neue Programme auch ohne Vorwaermen, weil instanceColor-Fix allein wirkt).
    Vorhersage iPhone: Schuss 1 Explosion ≥ 20 Bilder, laengstes Bild bei Schuss 1 ≈ Schuss 2.
+   **Thomas 22:07: "passt alles so"** — bezog sich sicher auf das Icon, ob auch auf den
+   Haubitzen-/Panzer-Test, ist offen: zu Sitzungsbeginn in einem Satz nachfragen.
 
 0. **Danach: D5e Eis-Saeulen — Spec schreiben** (Plan V7, Abschnitt "D5e";
    danach D6 → D7 + Lobby Stufe 1 → Werkstatt → Arsenal → D8, alles im Plan festgehalten,
@@ -39,7 +41,8 @@ steht auf IDLE, es laeuft kein Codex.)
      Haelfte des Bildschirms fuer den vollen Ausschlag (100–290 px bei 390), jetzt nur noch
      135–255 px — kann nervoes wirken; Thomas' Urteil abwarten, Regler
      `STEUERUNG.VERSTAERKUNG` / `MAX_M_PRO_S` in `balance3d.ts`.
-   - **Icon-Test:** Icon Variante 2 (Hubschrauber) online, Links mit `?v=2`. Thomas probiert
+   - ~~Icon-Test~~ ERLEDIGT 22:07: Neustart behielt altes Icon (wie vorhergesagt), nach Loeschen +
+     Neu-Hinzufuegen passt es. Alter Text: Icon Variante 2 (Hubschrauber) online, Links mit `?v=2`. Thomas probiert
      erst einen iPhone-Neustart (Vorhersage: altes Icon bleibt), sonst App loeschen + neu
      hinzufuegen (sein Spielstand ist ihm egal). **Benni NICHT loeschen lassen**: die
      Home-Bildschirm-App hat eigenen Speicher, ein Export/Import fehlt. Benni bekommt alle
