@@ -1,7 +1,7 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-09-30 16:15 (**Plan V7 "Run Gun 3D" ist verbindlich**, `docs/plan-v7.md`.
-Pause auf Thomas' Wunsch; letzter Commit 62269c5, online.)
+Stand: 2026-09-30 16:55 (**Plan V7 "Run Gun 3D" ist verbindlich**, `docs/plan-v7.md`.
+Pause auf Thomas' Wunsch; letzter Commit 8c9cd9a, online.)
 
 **Das Naechste liegt in `## Offen`.**
 
@@ -14,6 +14,8 @@ Pause auf Thomas' Wunsch; letzter Commit 62269c5, online.)
    (Einsatzablaeufe im Rechenkern mit Anfahrt, Panzer/Haubitze auf dem Feld) und
    D5b-Nacharbeit (Treffer-Loecher an der Einschlagstelle, beide mittig links/rechts,
    Haubitze 0,5-Massstab mit 2 Schuss + Abfahrt, +1-Schilder 21 m/s).
+   D5b-Nacharbeit 2 (8c9cd9a): Panzer faehrt durch die ganze Horde (30+30+100), Haubitze
+   2 s Schussabstand, Steuerung 24 m/s (vorher 8).
    - iPhone-Messungen: D4 und D5b im Budget (Lauf-Bot 58,3 fps, Dauertest ~56 fps).
    - **Offen bei Thomas:** Blick auf die D5b-Nacharbeit am iPhone (Pruefweg in Safari:
      `…/run-gun/?pruefung=1&einsatz=panzer` bzw. `haubitze`).
