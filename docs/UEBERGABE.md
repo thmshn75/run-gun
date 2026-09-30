@@ -8,7 +8,22 @@ steht auf IDLE, es laeuft kein Codex.)
 
 ## Offen — naechster Schritt zuerst
 
-0. **Naechster Schritt: D5e Eis-Saeulen — Spec schreiben** (Plan V7, Abschnitt "D5e";
+0a. **ZUERST: Haubitze (Thomas am iPhone 2026-09-30 21:34, nach Nacharbeit 3):** "Haubitze hat
+   kein Muendungsfeuer und den ersten Einschlag sehe ich immer noch nicht — alles andere ok"
+   (Steuerung, Ziele tiefer, Panzer: ok). Der Fix aus Nacharbeit 3 (Pruef-Einsaetze nach der
+   Ladeanzeige, Explosionen ohne Tiefentest) hat den ersten Einschlag also NICHT sichtbar
+   gemacht → Ursache ist eine andere; nicht denselben Wert weiterdrehen (Lesson 2026-09-30
+   "Schneise zum dritten Mal"). Pruefen im Browser mit Nahbild je Bild um den ersten
+   Einschlag (Zeitpunkt aus dem Kern: Beginn Phase `einschlaege`, t = 1,2 s nach Start):
+   Wird `explosionen.starte` fuer den ersten Schuss ueberhaupt aufgerufen (Ereignis im
+   selben Bild wie das Anlegen? `schuesse`-Zaehlung fuer die Haubitze nur `ereignis ? 1 : 0`,
+   Ziel `stand.ziel` evtl. erst danach gesetzt)? Muendungsblitz: Haubitze `MUENDUNG`
+   [−0,032; 2,54; −3,65] bei `SPIEL_SKALA` 0,5 — Blitz evtl. im Modell verborgen oder
+   Blitz-Pool (`blitzPunkte.length < 4`) voll; Blitzgroesse fuer die Haubitze ggf. zu klein.
+   Beides in einem Codex-Auftrag, mit Verhaltenstest (Blitz + Explosion je Schuss, auch fuer
+   den ersten) und Nahbild-Nachweis durch Claude.
+
+0. **Danach: D5e Eis-Saeulen — Spec schreiben** (Plan V7, Abschnitt "D5e";
    danach D6 → D7 + Lobby Stufe 1 → Werkstatt → Arsenal → D8, alles im Plan festgehalten,
    Thomas 21:24). Vorgaben fuer D5e: Eisblock milchig-blau halbdurchsichtig mit Fahrzeug
    darin, Fahrzeuge etwa doppelt so gross, laengs zur Strasse, Hubschrauber ~halbe Spielgroesse
@@ -409,6 +424,5 @@ echten Runs. Beides sollte nach Bennis Test nachgezogen werden.
 ## Einstiegssatz
 "Lies `docs/UEBERGABE.md` (vollstaendig, nicht nur die Vorschau), `docs/lessons.md` und
 `docs/plan-v7.md` und arbeite dort weiter. **Nichts neu aufsetzen.** Es laeuft gerade nichts,
-`docs/active-task.md` ist leer. Naechster Schritt steht in `## Offen`, Punkt 0 (D5e
-Eis-Saeulen spezifizieren); vorher Thomas nach seinem iPhone-Blick auf Steuerung/Haubitze
-und dem Icon-Test fragen."
+`docs/active-task.md` ist leer. Zuerst `## Offen`, Punkt 0a (Haubitze: Muendungsfeuer fehlt, erster Einschlag
+unsichtbar), dann Punkt 0 (D5e Eis-Saeulen); Thomas nach dem Icon-Test fragen."
