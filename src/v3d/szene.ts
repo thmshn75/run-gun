@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import strassenUrl from './bilder/v3d-strasse.webp?url'
 import normalenUrl from './bilder/v3d-wasser-normalen.webp?url'
-import { BUEHNE, DARSTELLUNG, FIGUREN, LEVELS } from './balance3d'
+import { BUEHNE, DARSTELLUNG, FAHRZEUGE, FIGUREN, LEVELS, type FahrzeugName } from './balance3d'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { baueKamera } from './kamera'
 import { ladeZombie, ZombieMasse, type ZombieBau } from './figuren'
@@ -10,6 +10,7 @@ import type { GLTF } from 'three/addons/loaders/GLTFLoader.js'
 import { baueSchild, gibSchilderFrei } from './schilder'
 import { baueWasser, type WasserHalter, type WasserStufe } from './wasser'
 import { baueBoss, entsorgeBossGLTF, ladeBossDateien, type Boss } from './bosse'
+import { baueMiniatur, ladeFahrzeuge, type FahrzeugBau } from './fahrzeuge'
 
 export const DATEIEN_FEHLER = '3D-Dateien nicht ladbar – App neu öffnen'
 export interface Welt {
@@ -21,6 +22,10 @@ export interface Welt {
   zombieMasse: ZombieMasse
   nahaufnahme: boolean
   soldatNahaufnahme: boolean
+  fahrzeugNahaufnahme: boolean
+  fahrzeuge: Record<FahrzeugName, FahrzeugBau>
+  fahrzeugGross: THREE.Group[]
+  fahrzeugText: HTMLElement | null
   soldatBau: SoldatenBau
   truppe: SoldatenMasse
   laufTrupp: SoldatenMasse
@@ -44,7 +49,7 @@ function box(gruppe: THREE.Group | THREE.Scene, name: string, groesse: [number, 
   return mesh
 }
 
-export function platzhalter(scene: THREE.Scene) {
+export function platzhalter(scene: THREE.Scene, fahrzeuge: Record<FahrzeugName, FahrzeugBau>) {
   const gruppe = new THREE.Group()
   gruppe.name = 'platzhalter'
   gruppe.visible = new URLSearchParams(location.search).get('platzhalter') !== '0'
@@ -56,8 +61,8 @@ export function platzhalter(scene: THREE.Scene) {
     const plus = baueSchild({ breite: BUEHNE.PLUS_BREITE, hoehe: BUEHNE.PLUS_HOEHE, text: '+1', farbe: '#168bd2', unterkante: 0.5, neigungGrad: -10, pfosten: false })
     plus.name = 'plus-eins'; plus.position.set(BUEHNE.PLUS_X, 0, z); gruppe.add(plus); plusSchilder.push(plus)
   }
-  const innenGeometrie = new THREE.BoxGeometry(1, 0.6, 1.2)
   const glasGeometrie = new THREE.BoxGeometry(1.6, 4, 1.6)
+  const sockelGeometrie = new THREE.CylinderGeometry(.65, .65, .06, 24)
   const schildGeometrie = new THREE.PlaneGeometry(1.6, .9)
   const kanten: THREE.BufferGeometry[] = []
   const kante = (masse: [number, number, number], pos: [number, number, number]) => {
@@ -71,8 +76,8 @@ export function platzhalter(scene: THREE.Scene) {
   const rahmenGeometrie = mergeGeometries(kanten)
   kanten.forEach(g => g.dispose())
   if (!rahmenGeometrie) throw new Error('Säulenrahmen nicht zusammenführbar')
-  const innenMaterial = new THREE.MeshStandardMaterial({ color: '#244a32' })
-  const glasMaterial = new THREE.MeshStandardMaterial({ color: '#c8ecf7', transparent: true, opacity: .3, depthWrite: false, roughness: .1 })
+  const glasMaterial = new THREE.MeshStandardMaterial({ color: '#c8ecf7', transparent: true, opacity: .15, depthWrite: false, roughness: .1 })
+  const sockelMaterial = new THREE.MeshStandardMaterial({ color: '#263039', roughness: .8 })
   const rahmenMaterial = new THREE.MeshStandardMaterial({ color: '#e5f6fa' })
   const saeulen: THREE.Group[] = [], saeulenInnen: THREE.Object3D[] = [], saeulenSchilder: THREE.Mesh[] = []
   for (const [index, name] of LEVELS[0].saeulen.entries()) {
@@ -80,8 +85,12 @@ export function platzhalter(scene: THREE.Scene) {
     const saeule = new THREE.Group()
     saeule.name = `saeule-${name}`
     saeule.position.set(BUEHNE.SAEULE_X, 0, -12 - index * BUEHNE.SAEULEN_ABSTAND)
-    const innen = new THREE.Mesh(innenGeometrie, innenMaterial)
-    innen.name = 'spezialeinheit-platzhalter'; innen.position.y = .3; innen.renderOrder = 1
+    const innen = baueMiniatur(fahrzeuge[name as FahrzeugName], name as FahrzeugName, [1.5, 1.5, 1.5])
+    innen.position.y += FAHRZEUGE.MINI_Y
+    innen.userData.miniBasisY = innen.position.y
+    innen.renderOrder = 1
+    const sockel = new THREE.Mesh(sockelGeometrie, sockelMaterial)
+    sockel.name = 'mini-sockel'; sockel.position.y = FAHRZEUGE.MINI_Y - .03; sockel.layers.set(1)
     const glas = new THREE.Mesh(glasGeometrie, glasMaterial)
     glas.name = 'saeule'; glas.position.y = 2; glas.renderOrder = 2
     const rahmen = new THREE.Mesh(rahmenGeometrie, rahmenMaterial)
@@ -101,7 +110,7 @@ export function platzhalter(scene: THREE.Scene) {
     const schild = new THREE.Mesh(schildGeometrie, new THREE.MeshBasicMaterial({ map: textur, transparent: true, depthTest: false, side: THREE.DoubleSide }))
     schild.name = `saeule-name-${name.toUpperCase()}`; schild.position.y = 4.95; schild.renderOrder = 10
     schild.userData.canvas = canvas
-    saeule.add(innen, glas, rahmen, schild); gruppe.add(saeule)
+    saeule.add(innen, sockel, glas, rahmen, schild); gruppe.add(saeule)
     saeulen.push(saeule); saeulenInnen.push(innen); saeulenSchilder.push(schild)
   }
   return { gruppe, wand, plusSchilder, saeulen, saeulenInnen, saeulenSchilder }
@@ -116,6 +125,8 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
   let soldatBau: SoldatenBau | null = null
   let bossDateien: [GLTF,GLTF] | null = null
   let bosse: [Boss,Boss] | null = null
+  let fahrzeuge: Record<FahrzeugName, FahrzeugBau> | null = null
+  let fahrzeugText: HTMLElement | null = null
   const freigabeZombie = () => { if (geladenesZombieBau) { geladenesZombieBau.formen.forEach(g => g.dispose()); geladenesZombieBau.materialien.forEach(m => m.dispose()); geladenesZombieBau.bemalungen.forEach(t => t.dispose()); geladenesZombieBau = null } }
   const lade = (url: string) => loader.loadAsync(url).then(textur => {
     if (vorbei || abgebrochen()) textur.dispose()
@@ -124,22 +135,23 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
   })
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    const beide = Promise.all([lade(strassenUrl), lade(normalenUrl), ladeZombie(renderer, () => vorbei || abgebrochen()).then(bau => { if (bau && (vorbei || abgebrochen())) { bau.formen.forEach(g => g.dispose()); bau.materialien.forEach(m => m.dispose()); bau.bemalungen.forEach(t => t.dispose()); return null } return bau }), ladeSoldatenDateien(() => vorbei || abgebrochen()).then(result => { if(result && (vorbei || abgebrochen())) { result.forEach(entsorgeGLTF); return null } dateien=result; return result }),ladeBossDateien(()=>vorbei||abgebrochen()).then(result=>{bossDateien=result;return result})])
+    const beide = Promise.all([lade(strassenUrl), lade(normalenUrl), ladeZombie(renderer, () => vorbei || abgebrochen()).then(bau => { if (bau && (vorbei || abgebrochen())) { bau.formen.forEach(g => g.dispose()); bau.materialien.forEach(m => m.dispose()); bau.bemalungen.forEach(t => t.dispose()); return null } return bau }), ladeSoldatenDateien(() => vorbei || abgebrochen()).then(result => { if(result && (vorbei || abgebrochen())) { result.forEach(entsorgeGLTF); return null } dateien=result; return result }),ladeBossDateien(()=>vorbei||abgebrochen()).then(result=>{bossDateien=result;return result}),ladeFahrzeuge(()=>vorbei||abgebrochen()).then(result=>{fahrzeuge=result;return result})])
     const zeitlimit = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(DATEIEN_FEHLER)), 8000) })
-    const [strasse, normalen, zombieBau, soldatDateien, geladeneBosse] = await Promise.race([beide, zeitlimit])
-    if (!zombieBau || !soldatDateien || !geladeneBosse) {
+    const [strasse, normalen, zombieBau, soldatDateien, geladeneBosse, geladeneFahrzeuge] = await Promise.race([beide, zeitlimit])
+    if (!zombieBau || !soldatDateien || !geladeneBosse || !geladeneFahrzeuge) {
       geladen.forEach(t => t.dispose())
       if (zombieBau) { geladenesZombieBau = zombieBau; freigabeZombie() }
       if (soldatDateien) { soldatDateien.forEach(entsorgeGLTF); dateien = null }
       if (geladeneBosse) { geladeneBosse.forEach(entsorgeBossGLTF);bossDateien=null }
+      if (geladeneFahrzeuge) { Object.values(geladeneFahrzeuge).forEach(b=>b.gibFrei());fahrzeuge=null }
       return null
     }
     geladenesZombieBau = zombieBau
-    if (abgebrochen()) { geladen.forEach(t => t.dispose()); freigabeZombie(); soldatDateien.forEach(entsorgeGLTF); dateien = null;geladeneBosse.forEach(entsorgeBossGLTF);bossDateien=null; return null }
+    if (abgebrochen()) { geladen.forEach(t => t.dispose()); freigabeZombie(); soldatDateien.forEach(entsorgeGLTF); dateien = null;geladeneBosse.forEach(entsorgeBossGLTF);bossDateien=null;Object.values(geladeneFahrzeuge).forEach(b=>b.gibFrei());fahrzeuge=null; return null }
     if(timer){clearTimeout(timer);timer=undefined}
     soldatBau=fertigeSoldaten(soldatDateien,abgebrochen)
     dateien=null
-    if(!soldatBau){geladen.forEach(t=>t.dispose());freigabeZombie();geladeneBosse.forEach(entsorgeBossGLTF);bossDateien=null;return null}
+    if(!soldatBau){geladen.forEach(t=>t.dispose());freigabeZombie();geladeneBosse.forEach(entsorgeBossGLTF);bossDateien=null;Object.values(geladeneFahrzeuge).forEach(b=>b.gibFrei());fahrzeuge=null;return null}
     bosse=[baueBoss('miniboss',geladeneBosse[0]),baueBoss('eliteboss',geladeneBosse[1])]
     bossDateien=null
     strasse.colorSpace = THREE.SRGBColorSpace
@@ -174,10 +186,70 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
     // Der Boden des Damms schließt die Seiten bis y = -0,6.
     const damm = new THREE.Mesh(new THREE.PlaneGeometry(12, 240), beton)
     damm.rotation.x = Math.PI / 2; damm.position.set(0, -0.6, -100); damm.name = 'damm-unterseite'; scene.add(damm)
-    const platz = platzhalter(scene)
+    const platz = platzhalter(scene, geladeneFahrzeuge)
     const nahWert = new URLSearchParams(location.search).get('nahaufnahme')
-    const nahaufnahme = nahWert === '1' || nahWert === 'soldat'
+    const nahaufnahme = nahWert === '1' || nahWert === 'soldat' || nahWert === 'fahrzeuge'
     const soldatNahaufnahme = nahWert === 'soldat'
+    const fahrzeugNahaufnahme = nahWert === 'fahrzeuge'
+    const fahrzeugGross: THREE.Group[] = []
+    let fahrzeugVorschau: THREE.Group | null = null
+    if (fahrzeugNahaufnahme) {
+      const vorschau = new THREE.Group()
+      vorschau.name = 'fahrzeug-nahaufnahme'
+      fahrzeugVorschau = vorschau
+      scene.add(vorschau)
+      const radien = LEVELS[0].saeulen.map(name => {
+        const box = new THREE.Box3().setFromObject(geladeneFahrzeuge[name as FahrzeugName].vorlage, true)
+        const mass = box.getSize(new THREE.Vector3())
+        return Math.hypot(mass.x, mass.z) / 2
+      })
+      const abstand = 2
+      const positionen: number[] = []
+      let x = 0
+      for (let i = 0; i < radien.length; i++) {
+        if (i) x += radien[i - 1] + radien[i] + abstand
+        positionen.push(x)
+      }
+      const mitte = (positionen[0] - radien[0] + positionen.at(-1)! + radien.at(-1)!) / 2
+      const spannweite = positionen.at(-1)! + radien.at(-1)! - (positionen[0] - radien[0])
+      fahrzeugText = document.createElement('div')
+      fahrzeugText.setAttribute('aria-label', 'Fahrzeugdaten')
+      Object.assign(fahrzeugText.style, { position: 'fixed', left: '8px', right: '8px', bottom: 'calc(env(safe-area-inset-bottom) + 8px)', zIndex: '10', pointerEvents: 'none', color: 'white', background: '#152535e8', padding: '8px', borderRadius: '6px', font: '12px/1.35 system-ui' })
+      for (const [i, name] of LEVELS[0].saeulen.entries()) {
+        const bau = geladeneFahrzeuge[name as FahrzeugName]
+        const modell = baueMiniatur(bau, name as FahrzeugName, [100, 100, 100])
+        modell.scale.setScalar(1)
+        modell.position.set(positionen[i] - mitte, 0, 0)
+        vorschau.add(modell)
+        fahrzeugGross.push(modell)
+        const zeile = document.createElement('div')
+        zeile.textContent = `${name.toUpperCase()} · ${bau.laenge} m · ${FAHRZEUGE[name as FahrzeugName].DREIECKE} Dreiecke · Drehung beim Normieren: ${FAHRZEUGE[name as FahrzeugName].DREHUNG}°`
+        fahrzeugText.appendChild(zeile)
+      }
+      const boden = new THREE.Mesh(new THREE.PlaneGeometry(spannweite + 8, 42), new THREE.MeshStandardMaterial({ color: '#60686c', roughness: 1 }))
+      boden.name = 'fahrzeug-boden'
+      boden.rotation.x = -Math.PI / 2
+      boden.position.y = -0.04
+      vorschau.add(boden)
+      scene.background=new THREE.Color('#777c7e');scene.fog=null
+      const setzeKamera=()=>{
+        camera.aspect=innerWidth/innerHeight;camera.fov=35
+        const entfernung = spannweite / (1.8 * Math.tan(THREE.MathUtils.degToRad(17.5)) * camera.aspect)
+        camera.position.set(0, 1 + entfernung * Math.sin(THREE.MathUtils.degToRad(20)), entfernung * Math.cos(THREE.MathUtils.degToRad(20)))
+        camera.lookAt(0, 1, 0)
+        camera.near=.1;camera.far=Math.max(500,entfernung+50);camera.updateProjectionMatrix()
+      }
+      setzeKamera()
+      let zuletzt=0,zeit=0
+      scene.onBeforeRender=()=>{setzeKamera();const jetzt=performance.now(),dt=zuletzt?Math.min(.1,(jetzt-zuletzt)/1000):0;zuletzt=jetzt
+        if(document.hidden)return
+        zeit+=dt
+        for(const modell of fahrzeugGross){modell.rotation.y=zeit*2*Math.PI/FAHRZEUGE.DREH_S
+          modell.getObjectByName('rotor')?.rotation.set(0,zeit*8*Math.PI,0)
+          modell.getObjectByName('heckrotor')?.rotation.set(zeit*12*Math.PI,0,0)
+        }
+      }
+    }
     const buehnenAnzahl = FIGUREN.ZOMBIES_SICHTBAR_MAX
     const zombieMasse = new ZombieMasse(zombieBau, zombieBau.materialien, buehnenAnzahl)
     zombieMasse.setze(nahWert === '1' ? [-0.85, 0, 0.85].map((x, i) => ({ x, z: 0, dreh: 0, variante: i, groesse: 1 })) : [])
@@ -190,22 +262,26 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
     truppe.setze(soldatNahaufnahme ? [-1.5,-.5,.5,1.5].map((x,i)=>({x,z:0,dreh:0,bewegung:(['laufen','stehen','schiessen','fallen'] as const)[i]})) : [])
     laufTrupp.setze([])
     scene.add(truppe.gruppe,laufTrupp.gruppe,front.gruppe)
-    if (nahaufnahme) {
+    if (nahaufnahme && !fahrzeugNahaufnahme) {
       bosse.forEach(b=>{b.objekt.visible=false})
       scene.background = new THREE.Color('#777c7e'); scene.fog = null
       scene.traverse(obj => { if (obj instanceof THREE.Mesh && !(soldatNahaufnahme?truppe.gruppe:zombieMasse.gruppe).children.includes(obj)) obj.visible = false })
       camera.position.set(0, 1.95, Math.max(3.8, 2.9 / (2 * Math.tan(THREE.MathUtils.degToRad(17.5)) * innerWidth / innerHeight))); camera.lookAt(0, 0.95, 0); camera.near = 0.1; camera.fov = 35; camera.updateProjectionMatrix()
     }
     const wasser = baueWasser(scene, renderer, normalen, stufe)
-    if (nahaufnahme) scene.children.filter(o => o instanceof THREE.Mesh).forEach(o => { o.visible = false })
+    if (fahrzeugVorschau) scene.children.forEach(o => { if (o !== fahrzeugVorschau && !(o instanceof THREE.Light)) o.visible = false })
+    if (fahrzeugText) document.body.appendChild(fahrzeugText)
+    if (nahaufnahme && !fahrzeugNahaufnahme) scene.children.filter(o => o instanceof THREE.Mesh).forEach(o => { o.visible = false })
     geladenesZombieBau = null
-    return { scene, camera, bemalungen: [strasse, normalen], wasser, zombieBau, zombieMasse, nahaufnahme, soldatNahaufnahme, soldatBau, truppe, laufTrupp,front,miniboss:bosse[0],eliteboss:bosse[1], laufGruppen:[truppe.gruppe,laufTrupp.gruppe,front.gruppe,zombieMasse.gruppe,bosse[0].objekt,bosse[1].objekt,platz.gruppe], plusSchilder:platz.plusSchilder,wand:platz.wand,saeulen:platz.saeulen,saeulenInnen:platz.saeulenInnen,saeulenSchilder:platz.saeulenSchilder }
+    return { scene, camera, bemalungen: [strasse, normalen], wasser, zombieBau, zombieMasse, nahaufnahme, soldatNahaufnahme, fahrzeugNahaufnahme, fahrzeuge:geladeneFahrzeuge, fahrzeugGross, fahrzeugText, soldatBau, truppe, laufTrupp,front,miniboss:bosse[0],eliteboss:bosse[1], laufGruppen:[truppe.gruppe,laufTrupp.gruppe,front.gruppe,zombieMasse.gruppe,bosse[0].objekt,bosse[1].objekt,platz.gruppe], plusSchilder:platz.plusSchilder,wand:platz.wand,saeulen:platz.saeulen,saeulenInnen:platz.saeulenInnen,saeulenSchilder:platz.saeulenSchilder }
   } catch {
+    fahrzeugText?.remove()
     geladen.forEach(t => t.dispose())
     freigabeZombie()
     if(dateien)dateien.forEach(entsorgeGLTF)
     if(bossDateien)bossDateien.forEach(entsorgeBossGLTF)
     if(bosse)bosse.forEach(b=>b.gibFrei())
+    if(fahrzeuge)Object.values(fahrzeuge as Record<FahrzeugName,FahrzeugBau>).forEach(b=>b.gibFrei())
     if(soldatBau){for(const row of Object.values(soldatBau.formen))row.forEach(g=>g.dispose());soldatBau.material.dispose();soldatBau.atlas.dispose()}
     gibSchilderFrei()
     if (!abgebrochen()) beiLadeFehler(DATEIEN_FEHLER)
@@ -217,12 +293,14 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
 }
 
 export function gibSzeneFrei(welt: Welt): void {
+  welt.fahrzeugText?.remove()
   welt.wasser.gibFrei()
   welt.zombieMasse.gibFrei()
   welt.laufTrupp.gibNetzeFrei()
   welt.front.gibNetzeFrei()
   welt.truppe.gibFrei()
   welt.miniboss.gibFrei();welt.eliteboss.gibFrei()
+  Object.values(welt.fahrzeuge).forEach(b=>b.gibFrei())
   welt.scene.remove(welt.zombieMasse.gruppe)
   const geometrien = new Set<THREE.BufferGeometry>()
   const materialien = new Set<THREE.Material>()

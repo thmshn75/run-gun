@@ -5,7 +5,7 @@ import { bannerEintraege } from '../src/v3d/oberflaeche'
 import { MessBotSteuerung } from '../src/v3d/messung'
 import { bossFreieAufstellung } from '../src/v3d/bosse'
 import { saeulenBlick } from '../src/v3d/lauf'
-import { BUEHNE, DARSTELLUNG, FIGUREN, LEVELS } from '../src/v3d/balance3d'
+import { BUEHNE, DARSTELLUNG, FAHRZEUGE, FIGUREN, LEVELS } from '../src/v3d/balance3d'
 import { statusZeile } from '../src/v3d/oberflaeche'
 import * as THREE from 'three'
 import { BossBalken, ZahlAnzeige } from '../src/v3d/anzeigen'
@@ -23,7 +23,7 @@ function baueWeltAttrappe() {
   const zombieBau:ZombieBau={formen:[form()],materialien:[new THREE.MeshStandardMaterial(),new THREE.MeshStandardMaterial(),new THREE.MeshStandardMaterial()],bemalungen:[],dauer:1.1,dreiecke:12}
   const soldatBau:SoldatenBau={formen:{laufen:[form()],stehen:[form()],schiessen:[form()],fallen:[form(),form(),form(),form()]},material:new THREE.MeshStandardMaterial(),atlas:new THREE.Texture(),dauer:{laufen:1,stehen:1,schiessen:1,fallen:1},backzeitMs:0,pruefung:{debugMuzzle:[0,1.3,-.5]}}
   const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(),truppe=new SoldatenMasse(soldatBau,40),laufTrupp=new SoldatenMasse(soldatBau,50),front=new SoldatenMasse(soldatBau,40),zombieMasse=new ZombieMasse(zombieBau,zombieBau.materialien,600)
-  const wand=new THREE.Group(),saeulen=LEVELS[0].saeulen.map(name=>{const g=new THREE.Group();g.name=`saeule-${name}`;return g}),saeulenInnen=saeulen.map(g=>{const innen=new THREE.Group();g.add(innen);return innen})
+  const wand=new THREE.Group(),saeulen=LEVELS[0].saeulen.map(name=>{const g=new THREE.Group();g.name=`saeule-${name}`;return g}),saeulenInnen=saeulen.map(g=>{const innen=new THREE.Group();innen.position.y=FAHRZEUGE.MINI_Y;innen.userData.miniBasisY=FAHRZEUGE.MINI_Y;g.add(innen);return innen})
   saeulen.forEach((g,i)=>g.position.set(BUEHNE.SAEULE_X,0,-12-i*BUEHNE.SAEULEN_ABSTAND))
   const saeulenSchilder=saeulen.map(g=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(document.createElement('canvas'))}));m.userData.canvas=document.createElement('canvas');g.add(m);return m})
   const bossObjekt=new THREE.Group(),bossMaterial=new THREE.MeshStandardMaterial({color:'#777777'})
@@ -180,9 +180,18 @@ describe('3D-Lauf',()=>{
       expect(namenBreiten).toHaveLength(LEVELS[0].saeulen.length)
       expect(namenBreiten.every(breite=>breite<=256-16)).toBe(true)
       expect(welt.saeulen.filter(s=>s.visible).map(s=>s.name)).toEqual(LEVELS[0].saeulen.map(n=>`saeule-${n}`))
+      expect(welt.saeulenInnen[0].rotation.y).toBeCloseTo(.1*2*Math.PI/8)
+      expect(welt.saeulenInnen[0].position.y).toBeCloseTo(FAHRZEUGE.MINI_Y+.08*Math.sin(.1*Math.PI))
+      const drehung=welt.saeulenInnen[0].rotation.y
+      const hoehe=welt.saeulenInnen[0].position.y
+      anzeige.zeige(z,new Map(),[],0,0)
+      expect(welt.saeulenInnen[0].rotation.y).toBe(drehung)
+      expect(welt.saeulenInnen[0].position.y).toBe(hoehe)
       z.saeulenIndex=1
       anzeige.zeige(z,new Map(),[{art:'einheitFrei',menge:1,t:0}],.1,0)
       expect(welt.saeulen[0].visible).toBe(false)
+      expect(welt.saeulenInnen[0].visible).toBe(false)
+      expect(welt.saeulenInnen[1].visible).toBe(true)
       expect(welt.saeulen[1].position.z).toBe(-20)
       for(let i=0;i<6;i++)anzeige.zeige(z,new Map(),[],.1,0)
       expect(welt.saeulen[1].position.z).toBeCloseTo(-12)
@@ -196,8 +205,33 @@ describe('3D-Lauf',()=>{
       const neu=new SpielLauf().zustand
       nochmal.zeige(neu,new Map(),[],.1,0)
       expect(welt.saeulen[0].visible).toBe(true)
+      expect(welt.saeulenInnen[0].visible).toBe(true)
       expect(welt.saeulen[0].position.z).toBe(-12)
       nochmal.gibFrei()
+    } finally {raume()}
+  })
+  it('lässt Miniaturen in zwei Sekunden um 8 cm schweben und setzt das Glas nach Treffern zurück',()=>{
+    const {welt,raume}=baueWeltAttrappe()
+    const glasMaterial=new THREE.MeshStandardMaterial({opacity:.3})
+    const glas=new THREE.Mesh(new THREE.BoxGeometry(),glasMaterial)
+    glas.name='saeule'
+    welt.saeulen[0].add(glas)
+    try {
+      const anzeige=new WeltDarstellung(welt),z=new SpielLauf().zustand
+      expect(glasMaterial.opacity).toBe(.15)
+      anzeige.zeige(z,new Map(),[{art:'saeuleTreffer',menge:1,t:0}],.5,0)
+      expect(welt.saeulenInnen[0].position.y).toBeCloseTo(FAHRZEUGE.MINI_Y+.08)
+      expect(glasMaterial.opacity).toBe(.65)
+      z.t=.1
+      anzeige.zeige(z,new Map(),[],.5,0)
+      expect(welt.saeulenInnen[0].position.y).toBeCloseTo(FAHRZEUGE.MINI_Y)
+      expect(glasMaterial.opacity).toBe(.15)
+      anzeige.nachlauf(.5)
+      expect(welt.saeulenInnen[0].position.y).toBeCloseTo(FAHRZEUGE.MINI_Y-.08)
+      anzeige.nachlauf(.5)
+      expect(welt.saeulenInnen[0].position.y).toBeCloseTo(FAHRZEUGE.MINI_Y)
+      anzeige.gibFrei()
+      expect(glasMaterial.opacity).toBe(.15)
     } finally {raume()}
   })
   it('führt den Mess-Bot mit S=60 abwechselnd über Mitte und Säule',()=>{

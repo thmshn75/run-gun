@@ -1,10 +1,10 @@
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
-import { NodeIO } from '@gltf-transform/core'
+import { Document, NodeIO } from '@gltf-transform/core'
 import { KHRMaterialsSpecular, KHRMaterialsIOR, EXTTextureWebP, KHRMeshQuantization } from '@gltf-transform/extensions'
 import { dedup, prune, quantize, resample, simplifyPrimitive } from '@gltf-transform/functions'
 import { MeshoptSimplifier } from 'meshoptimizer'
 import sharp from 'sharp'
-import { Matrix4, Vector3, Quaternion } from 'three'
+import { Matrix3, Matrix4, Vector3, Quaternion } from 'three'
 
 // 1024² ersetzt zehn Einzelbilder à 512² und spart gegenüber ihnen GPU-Speicher.
 const ATLAS = 1024, KACHEL = 256, RAND = 8, WEBP_QUALITAET = 85
@@ -243,5 +243,80 @@ async function boss(art) {
   console.log(JSON.stringify({art,dreiecke:nachher,bytes,bilder:bildMetas.length,clips:namen}))
 }
 
+const FAHRZEUG_QUELLEN = {
+  humvee: 'tmp/fahrzeuge/humvee/scene.gltf', panzer: 'tmp/fahrzeuge/panzer/scene.gltf',
+  haubitze: 'tmp/fahrzeuge/haubitze/scene.gltf', hubschrauber: 'tmp/fahrzeuge/hubschrauber/scene.gltf',
+}
+const FAHRZEUG_LAENGEN = {humvee:4.6,panzer:9.8,haubitze:7.3,hubschrauber:17.7}
+// Humvee: vordere Aufhängung +z; AMX: Rohr +z; Haubitze: Rohr -z; Apache: Heck -z.
+const FAHRZEUG_DREHUNG = {humvee:Math.PI,panzer:Math.PI,haubitze:0,hubschrauber:Math.PI}
+
+async function fahrzeug(name) {
+  const quelle=await io.read(FAHRZEUG_QUELLEN[name]), alt=quelle.getRoot()
+  const teile=alt.listNodes().filter(n=>n.getMesh()).flatMap(n=>n.getMesh().listPrimitives().map(p=>({n,p})))
+  const punkte=[]
+  for(const {n,p} of teile){const m=new Matrix4().fromArray(n.getWorldMatrix()),a=p.getAttribute('POSITION')
+    for(let i=0;i<a.getCount();i++)punkte.push(new Vector3(...a.getElement(i,[0,0,0])).applyMatrix4(m))
+  }
+  const min=new Vector3(Infinity,Infinity,Infinity),max=new Vector3(-Infinity,-Infinity,-Infinity)
+  punkte.forEach(v=>{min.min(v);max.max(v)})
+  const laengsAchse=max.z-min.z>=max.x-min.x?'z':'x'
+  const faktor=FAHRZEUG_LAENGEN[name]/(max[laengsAchse]-min[laengsAchse])
+  const mitte=new Vector3((min.x+max.x)/2,min.y,(min.z+max.z)/2)
+  const drehung=new Quaternion().setFromAxisAngle(new Vector3(0,1,0),FAHRZEUG_DREHUNG[name])
+  const normiere=v=>v.sub(mitte).applyQuaternion(drehung).multiplyScalar(faktor)
+  const doc=new Document(),root=doc.getRoot(),buffer=doc.createBuffer(),scene=doc.createScene(name)
+  const material=doc.createMaterial(name).setMetallicFactor(0).setRoughnessFactor(.8).setBaseColorFactor([1,1,1,1])
+  const mats=alt.listMaterials(),bilder=mats.map(m=>m.getBaseColorTexture()).filter(Boolean)
+  let bild
+  if(name==='haubitze'){
+    const raw=Buffer.alloc(64*64*4)
+    const linearZuSrgb=x=>Math.round(255*(x<=.0031308?12.92*x:1.055*x**(1/2.4)-.055))
+    for(let k=0;k<mats.length;k++){const c=mats[k].getBaseColorFactor()
+      for(let y=0;y<64;y++)for(let x=k*8;x<(k+1)*8;x++){const o=(y*64+x)*4;for(let j=0;j<3;j++)raw[o+j]=linearZuSrgb(c[j]);raw[o+3]=255}
+    }
+    bild=await sharp(raw,{raw:{width:64,height:64,channels:4}}).webp({lossless:true}).toBuffer()
+  }else if(bilder.length===1) bild=await sharp(bilder[0].getImage()).resize(512,512).webp({quality:85}).toBuffer()
+  else if(bilder.length===2){const raw=Buffer.alloc(512*512*4)
+    for(let k=0;k<2;k++){const tile=await sharp(bilder[k].getImage()).ensureAlpha().resize(256,512).raw().toBuffer()
+      for(let y=0;y<512;y++)tile.copy(raw,(y*512+k*256)*4,y*256*4,(y+1)*256*4)
+    }
+    bild=await sharp(raw,{raw:{width:512,height:512,channels:4}}).webp({quality:85}).toBuffer()
+  }else throw new Error(`${name}: unerwartete Farbbilder ${bilder.length}`)
+  const textur=doc.createTexture(`${name}-farbe`).setImage(bild).setMimeType('image/webp').setURI(`v3d-${name}.webp`)
+  material.setBaseColorTexture(textur)
+  const gruppen=new Map()
+  for(const {n,p} of teile){
+    const knoten=name==='hubschrauber'?(n.getName().startsWith('Rotor_')?'rotor':n.getName().startsWith('Back_Rotor_')?'heckrotor':'rumpf'):'rumpf'
+    if(!gruppen.has(knoten))gruppen.set(knoten,{pos:[],norm:[],uv:[],ind:[],pivot:knoten==='rumpf'?new Vector3():normiere(new Vector3(...n.getWorldTranslation()))})
+    const g=gruppen.get(knoten),m=new Matrix4().fromArray(n.getWorldMatrix()),nm=new Matrix3().getNormalMatrix(m),a=p.getAttribute('POSITION'),norm=p.getAttribute('NORMAL'),uv=p.getAttribute('TEXCOORD_0'),offset=g.pos.length/3
+    const mat=p.getMaterial(),k=mats.indexOf(mat),tex=mat.getBaseColorTexture(),bildIndex=bilder.indexOf(tex)
+    if(k<0||name!=='haubitze'&&(!uv||bildIndex<0))throw new Error(`${name}: Farbe/UV fehlt`)
+    for(let i=0;i<a.getCount();i++){
+      const v=normiere(new Vector3(...a.getElement(i,[0,0,0])).applyMatrix4(m)).sub(g.pivot)
+      g.pos.push(v.x,v.y,v.z)
+      const normal=norm?new Vector3(...norm.getElement(i,[0,0,1])).applyMatrix3(nm).applyQuaternion(drehung).normalize():new Vector3(0,1,0)
+      g.norm.push(normal.x,normal.y,normal.z)
+      if(name==='haubitze')g.uv.push((k+.5)/mats.length,.5)
+      else {const [u,vv]=uv.getElement(i,[0,0]);g.uv.push(bilder.length===2?(bildIndex+u)*.5:u,vv)}
+    }
+    const indices=p.getIndices(),count=indices?.getCount()??a.getCount()
+    for(let i=0;i<count;i++)g.ind.push(offset+(indices?indices.getScalar(i):i))
+  }
+  for(const [k,g] of gruppen){const mesh=doc.createMesh(k),primitive=doc.createPrimitive().setMaterial(material)
+    primitive.setAttribute('POSITION',doc.createAccessor().setType('VEC3').setArray(new Float32Array(g.pos)).setBuffer(buffer))
+    primitive.setAttribute('NORMAL',doc.createAccessor().setType('VEC3').setArray(new Float32Array(g.norm)).setBuffer(buffer))
+    primitive.setAttribute('TEXCOORD_0',doc.createAccessor().setType('VEC2').setArray(new Float32Array(g.uv)).setBuffer(buffer))
+    primitive.setIndices(doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(g.ind)).setBuffer(buffer))
+    mesh.addPrimitive(primitive);scene.addChild(doc.createNode(k).setMesh(mesh).setTranslation(g.pivot.toArray()))
+  }
+  await mkdir('src/v3d/modelle',{recursive:true})
+  const out=`src/v3d/modelle/v3d-${name}.glb`;await io.write(out,doc)
+  const check=(await io.read(out)).getRoot(),dreiecke=check.listMeshes().flatMap(m=>m.listPrimitives()).reduce((n,p)=>n+(p.getIndices()?.getCount()??p.getAttribute('POSITION').getCount())/3,0),bytes=(await stat(out)).size,meta=await sharp(check.listTextures()[0].getImage()).metadata()
+  const rotoren=check.listNodes().map(n=>n.getName())
+  if(dreiecke>4000||check.listMaterials().length!==1||check.listTextures().length!==1||bytes>1048576||meta.width!==(name==='haubitze'?64:512)||meta.height!==meta.width||meta.format!=='webp'||name==='hubschrauber'&&(!rotoren.includes('rotor')||!rotoren.includes('heckrotor')))throw new Error(`${name}: Qualitätsgrenze verletzt`)
+  console.log(JSON.stringify({name,dreiecke,bytes,bild:[meta.width,meta.height],drehung:FAHRZEUG_DREHUNG[name],laenge:FAHRZEUG_LAENGEN[name]}))
+}
+
 const ziel=process.argv[2]
-if(ziel==='soldat')await soldat();else if(ziel==='bewegung')await bewegung();else if(ziel==='zombie')await zombie();else if(ziel==='miniboss'||ziel==='eliteboss')await boss(ziel);else throw new Error('Aufruf: node scripts/modelle.mjs soldat|bewegung|zombie|miniboss|eliteboss')
+if(ziel==='soldat')await soldat();else if(ziel==='bewegung')await bewegung();else if(ziel==='zombie')await zombie();else if(ziel==='miniboss'||ziel==='eliteboss')await boss(ziel);else if(ziel==='fahrzeuge')for(const n of Object.keys(FAHRZEUG_QUELLEN))await fahrzeug(n);else if(ziel in FAHRZEUG_QUELLEN)await fahrzeug(ziel);else throw new Error('Aufruf: node scripts/modelle.mjs soldat|bewegung|zombie|miniboss|eliteboss|fahrzeuge|humvee|panzer|haubitze|hubschrauber')

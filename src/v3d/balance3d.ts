@@ -50,6 +50,16 @@ export const SPEZIAL = {
 } as const
 export type SpezialName = keyof typeof SPEZIAL
 
+export const FAHRZEUGE = {
+  humvee: { LAENGE: 4.6, DREIECKE: 1528, DREHUNG: 180 },
+  panzer: { LAENGE: 9.8, DREIECKE: 1560, DREHUNG: 180 },
+  haubitze: { LAENGE: 7.3, DREIECKE: 3714, DREHUNG: 0 },
+  hubschrauber: { LAENGE: 17.7, DREIECKE: 2907, DREHUNG: 180 },
+  DREH_S: 8,
+  MINI_Y: 2.2,
+} as const
+export type FahrzeugName = Exclude<keyof typeof FAHRZEUGE, 'DREH_S' | 'MINI_Y'>
+
 // 1 Einheit = 1 Meter. x quer, y oben, vorwärts = negatives z;
 // Aussendelinie z = 0, Rechenposition pos bzw. Frontlage y wird z = -pos bzw. -y.
 export const BUEHNE = {

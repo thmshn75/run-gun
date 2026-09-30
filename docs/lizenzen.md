@@ -13,5 +13,11 @@ Mini-Boss und Elite-Boss: bereits vereinfachte Quellgeometrie unverändert über
 | Zombie Walk Test | OSCAR CREATIVO | https://sketchfab.com/3d-models/165fd9342c364216bfdd8c2f1102223c | CC-BY 4.0 |
 | Nightmare Creature 1# | Rodolfoisreal1423 | https://sketchfab.com/3d-models/9fb509d207d744babeb5d87a486f7de1 | CC-BY 4.0 |
 | Mutant Golem | Vasian-Digital3D | https://sketchfab.com/3d-models/a69cb526305b4a5b91c2e63901972346 | CC-BY 4.0 |
+| Low Poly Humvee vehicle | [Duane's Mind](https://sketchfab.com/duanesmind) | https://sketchfab.com/3d-models/low-poly-humvee-vehicle-fac4178dc3db4eb9abf7f45425125e1e | CC-BY 4.0 |
+| AMX-56 Low Poly | [Waroxed](https://sketchfab.com/Waroxed) | https://sketchfab.com/3d-models/amx-56-low-poly-ee60c5f42e0847d79143b38f5faced57 | CC-BY 4.0 |
+| M144 155mm Howitzer low poly (downloadable) | [Cyan_dev10](https://sketchfab.com/Cyan_dev10) | https://sketchfab.com/3d-models/m144-155mm-howitzer-low-poly-downloadable-1c56f9b18a3f459891f6f8b902d192a0 | CC-BY 4.0 |
+| Low Poly Apache Gunship | [Duane's Mind](https://sketchfab.com/duanesmind) | https://sketchfab.com/3d-models/low-poly-apache-gunship-035ed0b967f848cfa9e0ff0ade53c3dd | CC-BY 4.0 |
 | Universal Animation Library (Bewegungen) | Quaternius | https://quaternius.com/packs/universalanimationlibrary.html | CC0 |
 | Zombie Apocalypse Kit (nur Testseiten) | Quaternius | https://quaternius.com/packs/zombieapocalypsekit.html | CC0 |
+
+Fahrzeuge: Netze vereint (Hubschrauber-Rotoren getrennt), vereinfacht, Bilder reduziert und zu WebP/Atlas bzw. Farbpalette umgewandelt, Lage und Maßstab normiert, in den Säulen zu Miniaturen skaliert.

@@ -1,4 +1,4 @@
-import { BUEHNE, DARSTELLUNG, FIGUREN, LEVELS, type Level } from './balance3d'
+import { BUEHNE, DARSTELLUNG, FAHRZEUGE, FIGUREN, LEVELS, type Level } from './balance3d'
 import { neuerLauf, schritt, type Ereignis, type Trupp, type Zustand } from './rechnung'
 import { glaetteX, kernX } from './steuerung'
 import { bossFreieAufstellung } from './bosse'
@@ -251,7 +251,7 @@ export class WeltDarstellung implements LaufDarstellung {
     const glas = welt.saeulen[0]?.getObjectByName('saeule')
     this.glasMaterial = glas instanceof THREE.Mesh && glas.material instanceof THREE.MeshStandardMaterial ? glas.material : null
     this.glasFarbe = this.glasMaterial ? new THREE.Color('#c8ecf7') : null
-    if (this.glasMaterial && this.glasFarbe) { this.glasMaterial.color.copy(this.glasFarbe); this.glasMaterial.opacity = .3 }
+    if (this.glasMaterial && this.glasFarbe) { this.glasMaterial.color.copy(this.glasFarbe); this.glasMaterial.opacity = .15 }
     const canvas = document.createElement('canvas')
     canvas.width = 128; canvas.height = 64
     const ctx = canvas.getContext('2d')!
@@ -278,7 +278,17 @@ export class WeltDarstellung implements LaufDarstellung {
     this.bossBlitzBis = this.letzterBossBlitz = -Infinity
   }
   diag(): Readonly<LaufDiag> { return { frontBewegung: this.letzteFrontBewegung, frontBlitze: this.frontBlitzAktiv, fallSoldatenAktiv: this.fallSoldatenListe.length, fallSoldatenEntstanden: this.fallSoldatenGesamt, bossZustand: this.bossStand.zustand } }
+  private bewegeMiniaturen(): void {
+    for (const miniatur of this.welt.saeulenInnen) {
+      miniatur.rotation.y = this.uhr * 2 * Math.PI / FAHRZEUGE.DREH_S
+      const basisY = miniatur.userData.miniBasisY
+      if (typeof basisY === 'number') miniatur.position.y = basisY + .08 * Math.sin(this.uhr * Math.PI)
+      miniatur.getObjectByName('rotor')?.rotation.set(0, this.uhr * 8 * Math.PI, 0)
+      miniatur.getObjectByName('heckrotor')?.rotation.set(this.uhr * 12 * Math.PI, 0, 0)
+    }
+  }
   private tickeNeu(): void {
+    this.bewegeMiniaturen()
     let geaendert = false
     for (let i = this.fallSoldatenListe.length - 1; i >= 0; i--) if (this.fallSoldatenEnden[this.fallSoldatenListe[i].phase!] <= this.uhr) { this.fallSoldatenListe.splice(i, 1); geaendert = true }
     if (geaendert) this.fallSoldaten.setze(this.fallSoldatenListe)
@@ -307,6 +317,7 @@ export class WeltDarstellung implements LaufDarstellung {
     const w = this.welt
     const t = z.t
     this.uhr += dt
+    this.bewegeMiniaturen()
     if (z.kAktuell !== this.letzterFaktor) {
       this.letzterFaktor = z.kAktuell
       setzeSchildText(w.wand, { breite: 2 * BUEHNE.MITTE_HALB, hoehe: BUEHNE.WAND_HOEHE, text: wandText(z), farbe: BUEHNE.WAND_FARBE })
@@ -438,7 +449,7 @@ export class WeltDarstellung implements LaufDarstellung {
     if (ereignisse.some(e => e.art === 'saeuleTreffer') && t - this.letzterGlasBlitz >= .2) { this.letzterGlasBlitz = t; this.glasBlitzBis = t + .08 }
     if (this.glasMaterial && this.glasFarbe) {
       this.glasMaterial.color.copy(this.glasFarbe).lerp(new THREE.Color('#ffffff'), t < this.glasBlitzBis ? .8 : 0)
-      this.glasMaterial.opacity = t < this.glasBlitzBis ? .65 : .3
+      this.glasMaterial.opacity = t < this.glasBlitzBis ? .65 : .15
     }
     if (z.saeulenIndex !== this.letzteSaeule) {
       this.saeulenVon = w.saeulen.map(s => s.position.z)
@@ -491,7 +502,7 @@ export class WeltDarstellung implements LaufDarstellung {
     this.fallSoldaten.gruppe.removeFromParent(); this.fallSoldaten.gibNetzeFrei()
     setzeEinheitenBanner([])
     this.welt.wand.scale.setScalar(1)
-    if (this.glasMaterial && this.glasFarbe) { this.glasMaterial.color.copy(this.glasFarbe); this.glasMaterial.opacity = .3 }
+    if (this.glasMaterial && this.glasFarbe) { this.glasMaterial.color.copy(this.glasFarbe); this.glasMaterial.opacity = .15 }
     this.welt.scene.remove(this.truppeZahl.objekt, this.frontZahl.objekt, this.hordeZahl.objekt, this.miniBalken.objekt, this.eliteBalken.objekt)
     this.welt.laufGruppen = this.welt.laufGruppen.filter(obj => obj !== this.truppeZahl.objekt && obj !== this.frontZahl.objekt && obj !== this.hordeZahl.objekt && obj !== this.miniBalken.objekt && obj !== this.eliteBalken.objekt && obj !== this.blitze.objekt && obj !== this.frontBlitze.objekt && obj !== this.fallSoldaten.gruppe && !this.aufblenden.includes(obj as THREE.Sprite))
     if (weltDarstellungen.get(this.welt) === this) {

@@ -1,7 +1,9 @@
 import * as THREE from 'three'
 import { describe, expect, it, vi } from 'vitest'
-import { BUEHNE, DARSTELLUNG, LEVELS } from '../src/v3d/balance3d'
+import { BUEHNE, DARSTELLUNG, FAHRZEUGE, LEVELS } from '../src/v3d/balance3d'
 import { platzhalter } from '../src/v3d/szene'
+import type { FahrzeugBau } from '../src/v3d/fahrzeuge'
+import type { FahrzeugName } from '../src/v3d/balance3d'
 import { baueKamera, passeKameraAn } from '../src/v3d/kamera'
 import { leseWasserStufe } from '../src/v3d/wasser'
 import { pmremPufferBytes, spiegelPufferBytes } from '../src/v3d/rechnen'
@@ -29,7 +31,10 @@ describe('3D-Bühne', () => {
     vi.stubGlobal('document',{createElement:()=>({width:0,height:0,getContext:()=>ctx})})
     vi.stubGlobal('location',{search:''})
     try {
-      const scene=new THREE.Scene(),p=platzhalter(scene)
+      const vorlage=new THREE.Group(),form=new THREE.BoxGeometry(1,1,1),material=new THREE.MeshStandardMaterial()
+      vorlage.add(new THREE.Mesh(form,material))
+      const fahrzeuge=Object.fromEntries(LEVELS[0].saeulen.map(n=>[n,{geometrien:[form],material,laenge:4,vorlage,gibFrei(){}}])) as Record<FahrzeugName,FahrzeugBau>
+      const scene=new THREE.Scene(),p=platzhalter(scene,fahrzeuge)
       expect(DARSTELLUNG.SAEULEN_VORSCHAU).toBe(3)
       expect(BUEHNE.SAEULEN_ABSTAND).toBe(8)
       expect(p.saeulen.map(s=>s.name)).toEqual(LEVELS[0].saeulen.map(n=>`saeule-${n}`))
@@ -40,16 +45,27 @@ describe('3D-Bühne', () => {
       expect(ctx.measureText).toHaveBeenCalled()
       expect(p.saeulen.map(s=>s.position.z)).toEqual([-12,-20,-28,-36])
       for (const [i,saeule] of p.saeulen.entries()) {
-        expect(saeule.children).toHaveLength(4)
+        expect(saeule.children).toHaveLength(5)
         expect(saeule.children.filter(o=>o.name==='saeule-rahmen')).toHaveLength(1)
+        expect(p.saeulenInnen[i].name).toBe(`fahrzeug-${LEVELS[0].saeulen[i]}`)
+        expect(new THREE.Box3().setFromObject(p.saeulenInnen[i],true).min.y).toBeCloseTo(FAHRZEUGE.MINI_Y)
+        const sockel=saeule.getObjectByName('mini-sockel') as THREE.Mesh
+        expect(sockel).toBeInstanceOf(THREE.Mesh)
+        const sockelGroesse=new THREE.Box3().setFromObject(sockel,true).getSize(new THREE.Vector3())
+        expect(sockelGroesse.x).toBeCloseTo(1.3)
+        expect(sockelGroesse.y).toBeCloseTo(.06)
+        expect(sockelGroesse.z).toBeCloseTo(1.3)
+        const glas=saeule.getObjectByName('saeule') as THREE.Mesh
+        expect((glas.material as THREE.MeshStandardMaterial).opacity).toBe(.15)
+        expect(saeule.getObjectByName('spezialeinheit-platzhalter')).toBeUndefined()
         expect(saeule.children.find(o=>o.name===`saeule-name-${LEVELS[0].saeulen[i].toUpperCase()}`)).toBeDefined()
-        if(i>0)for(let j=0;j<3;j++){
+        if(i>0)for(let j=1;j<4;j++){
           expect((saeule.children[j] as THREE.Mesh).geometry).toBe((p.saeulen[0].children[j] as THREE.Mesh).geometry)
           expect((saeule.children[j] as THREE.Mesh).material).toBe((p.saeulen[0].children[j] as THREE.Mesh).material)
         }
-        if(i>0)expect((saeule.children[3] as THREE.Mesh).geometry).toBe((p.saeulen[0].children[3] as THREE.Mesh).geometry)
+        if(i>0)expect((saeule.children[4] as THREE.Mesh).geometry).toBe((p.saeulen[0].children[4] as THREE.Mesh).geometry)
       }
-      expect(p.saeulen.reduce((n,s)=>n+s.children.filter(o=>o instanceof THREE.Mesh).length,0)).toBeLessThanOrEqual(16)
+      expect(p.saeulen.reduce((n,s)=>n+s.children.filter(o=>o instanceof THREE.Mesh).length,0)).toBeLessThanOrEqual(20)
     } finally {vi.unstubAllGlobals()}
   })
   it('trennt Schilder, Kampffeld und Säule geometrisch', () => {
