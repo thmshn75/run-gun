@@ -7,7 +7,8 @@ export class Explosionen {
   private material: THREE.MeshBasicMaterial
   private dummy = new THREE.Object3D()
   private farbe = new THREE.Color()
-  private aktiv: { pos: THREE.Vector3; durchmesser: number; alter: number }[] = []
+  private aktiv: { id: number; pos: THREE.Vector3; durchmesser: number; alter: number }[] = []
+  private naechsteId = 0
   constructor() {
     const canvas = document.createElement('canvas')
     canvas.width = canvas.height = 64
@@ -19,15 +20,19 @@ export class Explosionen {
     this.material = new THREE.MeshBasicMaterial({ map: this.textur, transparent: true, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, side: THREE.DoubleSide })
     this.objekt = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), this.material, DARSTELLUNG.EXPLOSIONEN_MAX)
     this.objekt.frustumCulled = false; this.objekt.count = 0; this.objekt.renderOrder = 12
+    this.objekt.setColorAt(0, new THREE.Color(1, 1, 1))
   }
   get anzahl(): number { return this.aktiv.length }
   get grosse(): number { return this.aktiv.filter(e => e.durchmesser > 4).length }
-  starte(pos: THREE.Vector3, durchmesser: number): void {
+  istAktiv(id: number): boolean { return this.objekt.count > 0 && this.aktiv.some(e => e.id === id) }
+  starte(pos: THREE.Vector3, durchmesser: number): number {
     if (durchmesser > 4) {
       if (this.grosse >= 2) this.aktiv.splice(this.aktiv.findIndex(e => e.durchmesser > 4), 1)
       else if (this.aktiv.length >= DARSTELLUNG.EXPLOSIONEN_MAX) this.aktiv.splice(this.aktiv.findIndex(e => e.durchmesser <= 4), 1)
-    } else if (this.aktiv.length >= DARSTELLUNG.EXPLOSIONEN_MAX) return
-    this.aktiv.push({ pos: pos.clone(), durchmesser, alter: 0 })
+    } else if (this.aktiv.length >= DARSTELLUNG.EXPLOSIONEN_MAX) return -1
+    const id = ++this.naechsteId
+    this.aktiv.push({ id, pos: pos.clone(), durchmesser, alter: 0 })
+    return id
   }
   schritt(dt: number, kamera: THREE.Camera): void {
     for (const e of this.aktiv) e.alter += Math.max(0, dt)
@@ -44,6 +49,11 @@ export class Explosionen {
     if (this.objekt.instanceColor) this.objekt.instanceColor.needsUpdate = true
   }
   zuruecksetzen(): void { this.aktiv.length = 0; this.objekt.count = 0 }
+  vorwaermen(): void {
+    this.dummy.position.set(0, 0, -1e6); this.dummy.scale.setScalar(1); this.dummy.updateMatrix()
+    this.objekt.setMatrixAt(0, this.dummy.matrix); this.objekt.count = 1
+    this.objekt.instanceMatrix.needsUpdate = true
+  }
   gibFrei(): void { this.objekt.removeFromParent(); this.objekt.geometry.dispose(); this.objekt.dispose(); this.material.dispose(); this.textur.dispose() }
 }
 
@@ -60,18 +70,27 @@ export class Muendungsblitze {
     glow.addColorStop(0, '#fff'); glow.addColorStop(.18, '#fff8c7'); glow.addColorStop(.45, '#ffb434aa'); glow.addColorStop(1, '#ff980000')
     ctx.fillStyle = glow; ctx.fillRect(0, 0, 64, 64)
     this.textur = new THREE.CanvasTexture(canvas)
-    this.material = new THREE.MeshBasicMaterial({ map: this.textur, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
-    this.objekt = new THREE.InstancedMesh(new THREE.PlaneGeometry(.45, .45), this.material, max)
+    this.material = new THREE.MeshBasicMaterial({ map: this.textur, transparent: true, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, side: THREE.DoubleSide })
+    this.objekt = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), this.material, max)
     this.objekt.count = 0
     this.objekt.frustumCulled = false
     this.objekt.renderOrder = 12
+    this.objekt.setColorAt(0, new THREE.Color(1, 1, 1))
   }
-  setze(punkte: readonly THREE.Vector3[], kamera: THREE.Camera, anzahl = punkte.length): void {
+  setze(punkte: readonly THREE.Vector3[], kamera: THREE.Camera, anzahl = punkte.length, groessen?: readonly number[], helligkeiten?: readonly number[]): void {
     this.objekt.count = Math.min(anzahl, this.objekt.instanceMatrix.count)
     for (let i = 0; i < this.objekt.count; i++) {
       this.dummy.position.copy(punkte[i]); this.dummy.quaternion.copy(kamera.quaternion)
+      this.dummy.scale.setScalar(groessen?.[i] ?? .45)
       this.dummy.updateMatrix(); this.objekt.setMatrixAt(i, this.dummy.matrix)
+      this.objekt.setColorAt(i, new THREE.Color().setScalar(helligkeiten?.[i] ?? 1))
     }
+    this.objekt.instanceMatrix.needsUpdate = true
+    if (this.objekt.instanceColor) this.objekt.instanceColor.needsUpdate = true
+  }
+  vorwaermen(): void {
+    this.dummy.position.set(0, 0, -1e6); this.dummy.scale.setScalar(.45); this.dummy.updateMatrix()
+    this.objekt.setMatrixAt(0, this.dummy.matrix); this.objekt.count = 1
     this.objekt.instanceMatrix.needsUpdate = true
   }
   gibFrei(): void { this.objekt.removeFromParent(); this.objekt.geometry.dispose(); this.objekt.dispose(); this.material.dispose(); this.textur.dispose() }

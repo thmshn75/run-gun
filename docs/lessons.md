@@ -1552,3 +1552,13 @@ war die Ausrichtung nicht erkennbar. Thomas sah es am iPhone sofort.
 **Regel:** Bei jedem neuen oder umgebauten Fahrzeug im Review ein Nahbild (Ausschnitt, volle
 Aufloesung) waehrend der Fahrt ansehen und ausdruecklich pruefen: Bug/Nase in Fahrtrichtung?
 Die Spec verlangt dafuer einen Verhaltenstest (Bug-Teil liegt bei −z).
+
+## 2026-09-30 — Kurzer Blitz verschwand, bevor er je gezeichnet wurde
+
+Thomas: "Haubitze hat kein Muendungsfeuer". Im Browser mitgeschrieben: Beim Panzer hatten
+Schuss 1 und 4 kein einziges gezeichnetes Blitzbild, weil der Blitz (0,08 s) im selben Bild
+gealtert wurde, in dem er entstand — ein etwas laengeres Bild, und er war weg. Dazu war er fuer
+alle Fahrzeuge 0,45 m gross (≈ 6–12 px). Geprueft war bisher nur, ob `schiesse` aufgerufen wird.
+**Regel:** Kurzlebige Effekte (Blitz, Funke) altern erst ab dem Bild nach ihrem ersten Zeichnen
+und haben eine Mindestzahl gerenderter Bilder. Im Review nicht den Aufruf zaehlen, sondern die
+**gezeichneten Bilder je Ereignis** (Hook auf `setze`/`count`) und die Groesse in Bildpunkten.

@@ -16,13 +16,54 @@ const SPUR_FOLGE = [4, 7, 1, 9, 2, 5, 0, 8, 3, 6] as const
 type FeldStand = { gruppe: THREE.Group; name: FahrzeugName; halt1: number; halt2?: number; schneiseZ?: number; gasseBegonnen?: boolean; abgang: number; abgangPos?: THREE.Vector3; abgangKurs?: number; schuss: number; schussUhr: number; rest: number; ziel?: THREE.Vector3; zielPhase?: number; offsetX: number; kreisVersatz: number; bossSchuss: number; bossExplosionen: Set<string>; letzteZiele: THREE.Vector3[] }
 export type HordeTreffer = { punkt: THREE.Vector3; menge: number; radius: number }
 
+type PruefSchuss = { name: 'haubitze' | 'panzer'; nummer: number; t: number; zeit: number; blitzId: number; explosionId: number; blitzBilder: number; explosionsBilder: number; laengstesBild: number; programmeVorher: number; neueProgramme: number }
+export class PruefDiagnose {
+  private schuesse: PruefSchuss[] = []
+  private letzteBilder: { zeit: number; dauer: number }[] = []
+  private zeit = 0
+  private programmeVorher = 0
+  private programmeNachZweitem: number | null = null
+  readonly vorwaermen: boolean
+  constructor(vorwaermen: boolean) { this.vorwaermen = vorwaermen }
+  vorBild(zeit: number, programmeVorher: number): void { this.zeit = zeit; this.programmeVorher = programmeVorher }
+  schuss(name: 'haubitze' | 'panzer', nummer: number, t: number, blitzId: number, explosionId: number): void {
+    const letzte = this.letzteBilder.filter(b => this.zeit - b.zeit <= 500)
+    this.schuesse.push({ name, nummer, t, zeit: this.zeit, blitzId, explosionId, blitzBilder: 0, explosionsBilder: 0,
+      laengstesBild: Math.max(0, ...letzte.map(b => b.dauer)), programmeVorher: this.programmeVorher, neueProgramme: 0 })
+  }
+  bild(zeit: number, dauer: number, programme: number, bilder: Einsatzbilder): void {
+    this.letzteBilder.push({ zeit, dauer })
+    this.letzteBilder = this.letzteBilder.filter(b => zeit - b.zeit <= 500)
+    for (const s of this.schuesse) {
+      if (zeit - s.zeit <= 500) s.laengstesBild = Math.max(s.laengstesBild, dauer)
+      if (zeit >= s.zeit) {
+        if (bilder.blitzAktiv(s.blitzId)) s.blitzBilder++
+        if (bilder.explosionen.istAktiv(s.explosionId)) s.explosionsBilder++
+        if (zeit - s.zeit <= 500) s.neueProgramme = Math.max(s.neueProgramme, programme - s.programmeVorher)
+      }
+    }
+    const zweiter = this.schuesse.find(s => s.name === 'haubitze' && s.nummer === 2)
+    if (zweiter && zeit - zweiter.zeit >= 1000 && this.programmeNachZweitem === null) this.programmeNachZweitem = programme
+  }
+  get anzahl(): number { return this.schuesse.length }
+  get programmZahlen(): readonly [number | null, number | null] { return [this.schuesse.find(s => s.name === 'haubitze' && s.nummer === 1)?.programmeVorher ?? null, this.programmeNachZweitem] }
+  text(): string {
+    const [vor, nach] = this.programmZahlen
+    return this.schuesse.map(s => `${s.name === 'haubitze' ? 'Haubitze' : 'Panzer'} Schuss ${s.nummer} · t ${s.t.toFixed(2)} s · Blitz ${s.blitzBilder} Bilder · Explosion ${s.explosionsBilder} Bilder · laengstes Bild ${Math.round(s.laengstesBild)} ms · neue Programme ${s.neueProgramme} · Vorwaermen ${this.vorwaermen ? 'an' : 'aus'}`).join('\n') + (vor === null ? '' : `\nProgramme vor Schuss 1: ${vor} · 1 s nach Schuss 2: ${nach ?? 'ausstehend'}`)
+  }
+}
+
 export class Einsatzbilder {
   private welt: Welt
   readonly explosionen = new Explosionen()
   readonly blitze = new Muendungsblitze(4)
   private fahrzeuge = new Map<AktiveEinheit, FeldStand>()
-  private blitzPunkte: { pos: THREE.Vector3; rest: number }[] = []
+  private blitzPunkte: { id: number; pos: THREE.Vector3; rest: number; dauer: number; durchmesser: number; klein: boolean; bilder?: number }[] = []
   private blitzPositionen: THREE.Vector3[] = []
+  private blitzGroessen: number[] = []
+  private blitzHelligkeiten: number[] = []
+  private naechsterBlitz = 0
+  pruefDiagnose?: PruefDiagnose
   private treffer: HordeTreffer[] = []
   private offeneTreffer: Ereignis[] = []
   private zufallZustand = 1
@@ -57,11 +98,26 @@ export class Einsatzbilder {
     stand.gruppe.updateMatrixWorld(true)
     return stand.gruppe.localToWorld(this.wegwerf.set(p[0], p[1], p[2]).clone().multiplyScalar(FAHRZEUGE[stand.name].SPIEL_SKALA))
   }
-  private schiesse(stand: FeldStand, ziel: THREE.Vector3, durchmesser: number, menge = 0, radius = 0): void {
+  blitzAktiv(id: number): boolean { return this.blitze.objekt.count > 0 && this.blitzPunkte.some(b => b.id === id) }
+  private schiesse(stand: FeldStand, ziel: THREE.Vector3, durchmesser: number, menge = 0, radius = 0, t = 0): void {
     stand.schuss++
     stand.letzteZiele.push(ziel.clone())
-    if (this.blitzPunkte.length < 4) this.blitzPunkte.push({ pos: this.muendung(stand), rest: stand.name === 'humvee' ? DARSTELLUNG.HUMVEE_BLITZ_DAUER_S : .08 })
-    this.explosionen.starte(ziel, durchmesser)
+    const werte = DARSTELLUNG.FAHRZEUG_BLITZ[stand.name]
+    const klein = stand.name === 'humvee' || stand.name === 'hubschrauber'
+    if (this.blitzPunkte.length >= 4 && !klein) {
+      const index = this.blitzPunkte.findIndex(b => b.klein)
+      this.blitzPunkte.splice(index >= 0 ? index : 0, 1)
+    }
+    let blitzId = -1
+    if (this.blitzPunkte.length < 4) {
+      const richtung = new THREE.Vector3(0, 0, -1)
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), FAHRZEUGE[stand.name].FELD_DREHUNG * Math.PI / 180)
+        .applyQuaternion(stand.gruppe.getWorldQuaternion(new THREE.Quaternion()))
+      blitzId = ++this.naechsterBlitz
+      this.blitzPunkte.push({ id: blitzId, pos: this.muendung(stand).addScaledVector(richtung, .3 * werte.durchmesser), rest: werte.dauer, dauer: werte.dauer, durchmesser: werte.durchmesser, klein, bilder: 0 })
+    }
+    const explosionId = this.explosionen.starte(ziel, durchmesser)
+    if (stand.name === 'haubitze' || stand.name === 'panzer') this.pruefDiagnose?.schuss(stand.name, stand.schuss, t, blitzId, explosionId)
     if (menge > 0) this.treffer.push({ punkt: ziel.clone(), menge, radius })
   }
   private entferne(a: AktiveEinheit, stand: FeldStand): void {
@@ -73,13 +129,21 @@ export class Einsatzbilder {
     this.rotorUhr += Math.max(0, dt)
     this.explosionen.schritt(dt, this.welt.camera)
     this.blitzPositionen.length = 0
+    this.blitzGroessen.length = 0; this.blitzHelligkeiten.length = 0
     for (let i = this.blitzPunkte.length - 1; i >= 0; i--) {
       const blitz = this.blitzPunkte[i]
-      blitz.rest -= dt
-      if (blitz.rest <= 0) this.blitzPunkte.splice(i, 1)
-      else this.blitzPositionen.push(blitz.pos)
+      const bilder = blitz.bilder ?? 0
+      if (bilder > 0) blitz.rest -= dt
+      blitz.bilder = bilder + 1
+      if (blitz.rest <= 0 && blitz.bilder > 3) this.blitzPunkte.splice(i, 1)
+      else {
+        const anteil = blitz.rest > 0 ? blitz.rest / blitz.dauer : .2
+        this.blitzPositionen.push(blitz.pos)
+        this.blitzGroessen.push(blitz.durchmesser * (.6 + .4 * anteil))
+        this.blitzHelligkeiten.push(anteil)
+      }
     }
-    this.blitze.setze(this.blitzPositionen, this.welt.camera)
+    this.blitze.setze(this.blitzPositionen, this.welt.camera, this.blitzPositionen.length, this.blitzGroessen, this.blitzHelligkeiten)
     for (const stand of this.fahrzeuge.values()) if (stand.name === 'hubschrauber') {
       stand.gruppe.getObjectByName('rotor')?.rotation.set(0, this.rotorUhr * 8 * Math.PI, 0)
       stand.gruppe.getObjectByName('heckrotor')?.rotation.set(this.rotorUhr * 12 * Math.PI, 0, 0)
@@ -200,7 +264,7 @@ export class Einsatzbilder {
             const menge = boss ? 0 : Math.floor(stand.rest + 1e-9)
             if (stand.name === 'humvee') stand.rest = 0
             else if (!boss) stand.rest -= menge
-            this.schiesse(stand, ziel, stand.name === 'humvee' ? 3 : 2.5, stand.name === 'humvee' ? 0 : menge, stand.name === 'humvee' ? 0 : 2)
+            this.schiesse(stand, ziel, stand.name === 'humvee' ? 3 : 2.5, stand.name === 'humvee' ? 0 : menge, stand.name === 'humvee' ? 0 : 2, a.verstrichen)
           }
         }
         continue
@@ -219,7 +283,7 @@ export class Einsatzbilder {
           const tief = this.schussTiefe(z, stand.name === 'haubitze')
           stand.ziel = new THREE.Vector3(zielX, .2, -z.y - tief)
         }
-        this.schiesse(stand, stand.ziel!, stand.name === 'haubitze' ? 7 : 4)
+        this.schiesse(stand, stand.ziel!, stand.name === 'haubitze' ? 7 : 4, 0, 0, a.verstrichen)
       }
       if (ereignis && stand.name === 'haubitze' && stand.ziel) this.treffer.push({ punkt: stand.ziel.clone(), menge: ereignis.menge, radius: 3 })
       if (ereignis && stand.name === 'panzer') {
@@ -534,7 +598,7 @@ export class WeltDarstellung implements LaufDarstellung {
   private blitzPunkte: { ende: number; pos: THREE.Vector3 }[] = []
   private blitze = new Muendungsblitze(DARSTELLUNG.BLITZE_MAX)
   private frontBlitze = new Muendungsblitze(DARSTELLUNG.FRONT_BLITZE_MAX)
-  private einsatz: Einsatzbilder
+  readonly einsatz: Einsatzbilder
   private frontBlitzPunkte = Array.from({ length: DARSTELLUNG.FRONT_BLITZE_MAX }, () => new THREE.Vector3())
   private frontBlitzEnden = new Float64Array(DARSTELLUNG.FRONT_BLITZE_MAX)
   private frontBlitzAktiv = 0
@@ -557,7 +621,7 @@ export class WeltDarstellung implements LaufDarstellung {
   private letzterGlasBlitz = -Infinity
   private glasMaterial: THREE.MeshStandardMaterial | null
   private glasFarbe: THREE.Color | null
-  constructor(welt: Welt, seed = 12345) {
+  constructor(welt: Welt, seed = 12345, pruefDiagnose?: PruefDiagnose) {
     this.welt=welt
     welt.saeulen.forEach((saeule, i) => {
       saeule.position.z = -12 - i * BUEHNE.SAEULEN_ABSTAND
@@ -567,6 +631,7 @@ export class WeltDarstellung implements LaufDarstellung {
     this.zufallZustand = seed >>> 0
     this.fallSoldaten = new SoldatenMasse(welt.soldatBau, DARSTELLUNG.FALL_SOLDATEN_MAX)
     this.einsatz = new Einsatzbilder(welt)
+    this.einsatz.pruefDiagnose = pruefDiagnose
     this.bossOriginal = originalBossFarben(welt.miniboss.objekt)
     this.setzeBossZurueck()
     this.miniBalken = new BossBalken(LEVELS[0].B_mini)

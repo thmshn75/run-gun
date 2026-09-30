@@ -7,10 +7,10 @@ import { passeKameraAn } from './kamera'
 import { leseWasserStufe } from './wasser'
 import { statusZeile, zeigeOberflaeche, versteckeOberflaeche } from './oberflaeche'
 import { ladeFortschritt } from './speicher'
-import { bricheAb, messBild, messungLaeuft, starteMessung } from './messung'
+import { bricheAb, messBild, messungLaeuft, starteMessung, zeigeMessErgebnis } from './messung'
 import { aktualisiereLetzteMessung } from './info'
 import { FingerSteuerung } from './steuerung'
-import { SpielLauf, WeltDarstellung } from './lauf'
+import { PruefDiagnose, SpielLauf, WeltDarstellung } from './lauf'
 import { LEVELS } from './balance3d'
 import { starteEinheit, type Zustand } from './rechnung'
 import type { SpezialName } from './balance3d'
@@ -52,6 +52,11 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
   let fallRunde = -1
   let finger: FingerSteuerung | null = null
   let lauf: SpielLauf | null = null
+  let darstellung: WeltDarstellung | null = null
+  let pruefDiagnose = pruefEinsatz(location.search).some(name => name === 'haubitze' || name === 'panzer')
+    ? new PruefDiagnose(new URLSearchParams(location.search).get('vorwaermen') !== '0') : null
+  let pruefEnde: number | null = null
+  let pruefAngezeigt = false
   let pruefEinsatzAusstehend = false
   let infoOffen = false
   let ergebnisOffen = false
@@ -67,6 +72,13 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     if (welt?.nahaufnahme) { camera.aspect = innerWidth / innerHeight; camera.fov = 35; camera.position.y = 1.95; camera.position.z = Math.max(3.8, 2.9 / (2 * Math.tan(17.5 * Math.PI / 180) * camera.aspect)); camera.lookAt(0, 0.95, 0); camera.updateProjectionMatrix() }
     else passeKameraAn(camera, innerWidth, innerHeight)
     if (welt?.wasser.stufe === 2) welt.wasser.wechsle(2)
+  }
+  const vorwaermenEffekte = () => {
+    if (!renderer || !scene || !camera || !darstellung || new URLSearchParams(location.search).get('vorwaermen') === '0') return
+    const { explosionen, blitze } = darstellung.einsatz
+    explosionen.vorwaermen(); blitze.vorwaermen()
+    try { renderer.compile(scene, camera) }
+    finally { explosionen.zuruecksetzen(); blitze.setze([], camera) }
   }
   const sichtbar = () => {
     if (!renderer || beendet) return
@@ -85,6 +97,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     if (!renderer || !scene || !camera || beendet) return
     const dt = letzterFrame ? Math.max(0, jetzt - letzterFrame) : 0
     letzterFrame = jetzt
+    pruefDiagnose?.vorBild(jetzt, renderer.info.programs?.length ?? 0)
     const pausiert = infoOffen || ergebnisOffen || messungLaeuft() || document.hidden
     const sek = Number.isFinite(dt) ? Math.min(.1,dt/1000) : 0
     if (!pausiert && sek > 0) {
@@ -100,6 +113,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
         const ereignisse = lauf.schritt(sek, finger?.ziel ?? null)
         ui.zahlen.textContent = statusZeile(1, lauf.zustand.t, lauf.zustand.T, lauf.zustand.F, lauf.zustand.gestarteteWellen, lauf.zustand.level.wellen.length)
         if (ereignisse.some(e=>e.art==='sieg'||e.art==='niederlage')) {
+          if (pruefDiagnose) pruefEnde = jetzt
           finger?.gibFrei(); finger=null; ui.ende.style.display='block'
           ui.endeText.textContent=`${lauf.zustand.ergebnis==='sieg'?'SIEG':'NIEDERLAGE'} · ${lauf.zustand.t.toFixed(1)} s`
           ui.nochmal.disabled=true;ui.endeZurueck.disabled=true
@@ -114,6 +128,16 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
       welt.truppe.setze([-1.5,-.5,.5,1.5].map((x,i)=>({x,z:0,dreh:spielzeit*Math.PI/4,bewegung:(['laufen','stehen','schiessen','fallen'] as const)[i]})))
     }
     renderer.render(scene, camera)
+    if (pruefDiagnose && darstellung) {
+      pruefDiagnose.bild(jetzt, dt, renderer.info.programs?.length ?? 0, darstellung.einsatz)
+      if (pruefEnde !== null && !pruefAngezeigt && jetzt - pruefEnde >= 1000) {
+        pruefAngezeigt = true
+        zeigeMessErgebnis(ui.ergebnisse, pruefDiagnose.text(), offen => {
+          ergebnisOffen = offen; finger?.verwerfe(); letzterFrame = 0
+          if (offen) aktualisiereLetzteMessung(ui.info)
+        })
+      }
+    }
     if (pruefEinsatzAusstehend && lauf && ui.ergebnisse.style.display === 'none') {
       if (startePruefEinsatz(lauf.zustand, location.search, false)) {
         lauf.protokollNeuBasieren()
@@ -169,7 +193,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
         })
       }
     }, ladeFortschritt().hoechstesLevel, () => finger?.aktiv ?? false, () => { infoOffen=true;finger?.verwerfe();letzterFrame=0 }, () => { infoOffen=false;letzterFrame=0 })
-    ui.nochmal.addEventListener('click',()=>{if(!welt||!lauf||!renderer||!camera)return;lauf.gibLaufFrei();lauf=new SpielLauf(LEVELS[0],Date.now(),new WeltDarstellung(welt));finger=new FingerSteuerung(renderer.domElement,camera);ui.ende.style.display='none';letzterFrame=0})
+    ui.nochmal.addEventListener('click',()=>{if(!welt||!lauf||!renderer||!camera)return;lauf.gibLaufFrei();pruefDiagnose=pruefDiagnose?new PruefDiagnose(new URLSearchParams(location.search).get('vorwaermen')!=='0'):null;pruefEnde=null;pruefAngezeigt=false;darstellung=new WeltDarstellung(welt,12345,pruefDiagnose??undefined);lauf=new SpielLauf(LEVELS[0],Date.now(),darstellung);vorwaermenEffekte();pruefEinsatzAusstehend=pruefEinsatz(location.search).length>0;finger=new FingerSteuerung(renderer.domElement,camera);ui.ende.style.display='none';letzterFrame=0})
     ui.messen.disabled = true
     ui.ergebnisse.style.display = 'block'
     ui.ergebnisse.textContent = 'Lädt …'
@@ -179,9 +203,11 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     scene = welt.scene
     camera = welt.camera
     if (!welt.nahaufnahme) {
-      finger=new FingerSteuerung(renderer.domElement,camera);lauf=new SpielLauf(LEVELS[0],Date.now(),new WeltDarstellung(welt))
+      finger=new FingerSteuerung(renderer.domElement,camera);darstellung=new WeltDarstellung(welt, 12345, pruefDiagnose ?? undefined);lauf=new SpielLauf(LEVELS[0],Date.now(),darstellung)
       pruefEinsatzAusstehend = pruefEinsatz(location.search).length > 0
     }
+    groesse()
+    vorwaermenEffekte()
     ui.messen.disabled = false
     ui.ergebnisse.style.display = 'none'
     if(new URLSearchParams(location.search).get('pruefung')==='soldat'){
