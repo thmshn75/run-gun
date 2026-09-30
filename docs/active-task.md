@@ -28,7 +28,7 @@ nicht nur im Einzelbild auftauchen.
 - `src/v3d/lauf.ts` (`Einsatzbilder`, `baueHorde`, `HordeLoecher`, Aufrufe in `WeltDarstellung`),
   `src/v3d/fahrzeuge.ts` (`baueFeldFahrzeug`),
   `src/v3d/balance3d.ts` (**nur** `FAHRZEUGE`, `DARSTELLUNG` und `SPEZIAL.panzer` Phase
-  `schneise`, siehe S1),
+  `schneise`, siehe S1/S1b),
   `src/v3d/einstieg.ts` (nur `pruefEinsatz` und sein Aufruf),
   `src/v3d/messung.ts` (nur M1),
   Tests `tests/v3d*.test.ts` (bestehende Tests, die durch die hier beauftragten Änderungen
@@ -44,7 +44,7 @@ nicht nur im Einzelbild auftauchen.
 
 **Zuerst** auf dem unveränderten Stand `npm run bots3d` ausführen und die Tabelle als
 "Vorher" in den Bericht schreiben; am Ende "Nachher". Einzige Kernänderung ist die zeitliche
-Streckung der Panzer-Schneise bei gleicher Gesamtwirkung → Grenze: Siegquote je Bot ±1/20,
+Streckung der Panzer-Schneise bei gleicher Horde-Wirkung plus 100 Boss-Punkte (S1b) → Grenze: Siegquote je Bot ±1/20,
 Ø-Dauer ±5 %. Verletzt → melden, **nicht** an Zahlen drehen.
 
 ## Akzeptanzkriterien
@@ -167,6 +167,17 @@ wiederverwenden; neue Objekte nur je Schuss/Anlegen).
 40/s; Gesamtwirkung bleibt 30 + 30 + 100 = 160). Alles, was die Schneisendauer heute als
 Zahl enthält (z. B. `tempo = … / 2.5` im Abgang), liest sie aus `SPEZIAL`.
 
+**S1b Panzer trifft die Bosse (Thomas 17:20: "den beiden soll er auch leben entziehen, ein
+wenig").** Die Phase `schneise` bekommt `bossPunkteProSekunde: 20` — der Kern wendet das über
+den vorhandenen Zweig an (derselbe wie beim Hubschrauber, `rechnung.ts` wird **nicht**
+geändert): 5 s × 20 = **100 Punkte** am Boss im Feld (Mini-Boss vor Elite-Boss; Mini 400 →
+−25 %, Elite 3000 → −3 %). Vereinfachung, bewusst: Der Kern zieht über die ganze Schneise ab,
+nicht nur im Moment der Durchfahrt; ist kein Boss im Feld, verfällt es. Bild: Wenn die
+Panzerspitze auf Höhe eines sichtbaren Bosses ist (|bugZ − Boss-z| < 1,5 m, `bossPunkt` wie
+in K), eine Explosion Ø 2,5 m am Boss (einmal je Boss und Durchfahrt). Tests: Kern — Boss im
+Feld verliert über die Schneise 100 ± 1 (dt 1/30 und 0,1), ohne Boss keine Wirkung, Horde-
+Wirkung unverändert 160; Bild — genau eine Boss-Explosion bei der Durchfahrt.
+
 **S2 Gasse bleibt.** Neue kleine Klasse `HordeGasse` in `lauf.ts` (Zustand: `aktiv`, `x`,
 `halb`, `bis`): Die Gasse ist ein Streifen in **Horde-Koordinaten** (Eintrag-x/-z der
 Aufstellung, Front bei z = 0, nach hinten negativ): verdeckt ist jeder Eintrag mit
@@ -174,10 +185,16 @@ Aufstellung, Front bei z = 0, nach hinten negativ): verdeckt ist jeder Eintrag m
 - `halb` = halbe x-Ausdehnung des Feld-Panzers im Spiel (Codex misst sie an der Box, Wert als
   `FAHRZEUGE.panzer.SCHNEISE_HALB` im Bericht) — "seine komplette Breite".
 - Während `schneise`: `bis = min(bis, bugWelt + z.y)` in jedem Bild (bugWelt = Welt-z der
-  Panzerspitze) — die Gasse wächst mit dem Panzer von vorn nach hinten. Ab Schneisenende
-  `bis = −∞`: die Gasse reicht durch die **ganze** Horde, auch durch Zombies, die später
-  nachrücken, und bleibt **bis zum Ende des Laufs** (Annahme Claude zu "dauerhaft"; Reset nur
-  über `zuruecksetzen()`/neuen Lauf).
+  Panzerspitze) — die Gasse wächst mit dem Panzer von vorn nach hinten; bei Schneisenende
+  bleibt `bis` dort stehen (der Panzer ist hinten aus der Horde heraus).
+- **Wann sie zugeht (Thomas 17:20: "nicht bis zum Ende des Laufs — wenn von hinten Zombies
+  nachkommen, dann ganz normal"):** Die Gasse bleibt offen, bis die **nächste Welle** kommt
+  (Kern-Ereignis `welle` nach Schneisenbeginn). Ab dann schließt sie sich von hinten nach
+  vorn: `bis` wandert über `DARSTELLUNG.GASSE_SCHLIESSEN_S = 3` s linear bis 0 (die
+  nachrückenden Zombies füllen sie auf), danach Gasse aus. Einträge hinter `bis` — auch die
+  zum Auffüllen hinten angehängten — sind immer normal. Kommt keine Welle mehr, bleibt sie
+  offen. Reset über `zuruecksetzen()`/neuen Lauf. Ein zweiter Panzer legt eine neue Gasse an
+  (ersetzt die alte).
 - Die Zahl `Z` bleibt die des Kerns: `baueHorde(zahl, loecher, gasse)` liefert genau `zahl`
   Einträge nach dem Filtern (Löcher **und** Gasse) plus `basisLaenge` (Zahl der verbrauchten
   Einträge der ungefilterten Basisliste). Die Basisliste ist präfixstabil (geprüft: gleiche
@@ -250,9 +267,11 @@ Jeder Test mit `dt = 1/60` **und** `dt = 0,1`, wo Zeit läuft.
 - **Löcher:** Humvee hält nach 2 s Feuer ≥ 6 Löcher gleichzeitig; ein Loch verschwindet nicht
   vor 2 s; nie mehr als 150.
 - **Schneise:** Nach Schneisenende liegt in der an `zombieMasse.setze` übergebenen Liste
-  **kein** Eintrag im Streifen `|x| < halb` — auch 20 s später, nach Frontbewegung und nach
-  Zunahme von `Z`; die Liste hat genau `min(600, ceil(Z))` Einträge; während der Schneise
-  wächst der verdeckte Bereich monoton nach hinten; nach `zuruecksetzen()` ist die Gasse weg.
+  **kein** Eintrag im Streifen `|x| < halb` vor `bis` — auch 10 s später und nach
+  Frontbewegung, solange keine Welle kam; die Liste hat genau `min(600, ceil(Z))` Einträge;
+  während der Schneise wächst der verdeckte Bereich monoton nach hinten; nach einem
+  `welle`-Ereignis ist die Gasse nach 3 s ± 0,2 vollständig zu (und davor teilweise); nach
+  `zuruecksetzen()` ist sie weg.
   Prüffrage: fiele der Test mit der alten, heilenden Schneise durch? (muss ja).
 - **Skala/Regression:** z-Ausdehnung Humvee 3,68, Hubschrauber 7,08, Haubitze 3,65, Panzer
   7,84 (je ± 0,05); Haubitzen-/Panzer-Mündung unverändert; Abgang ohne Größensprung
@@ -275,8 +294,8 @@ Jeder Test mit `dt = 1/60` **und** `dt = 0,1`, wo Zeit läuft.
 - `npm run check`, `npm test`, `npm run build`, `npm run bots3d` (vorher/nachher); kein
   `http` in `src/v3d/`.
 - Claude prüft im Browser (390×844, Touch) als Bildfolge:
-  `?pruefung=1&einsatz=panzer` (Durchfahrt **und** 5 s / 20 s nach Schneisenende: Gasse
-  steht), `…=humvee`, `…=hubschrauber`, `…=humvee,hubschrauber` (Anfahrt, Feuer mit Explosion
+  `?pruefung=1&einsatz=panzer` (Durchfahrt, 5 s nach Schneisenende steht die Gasse, nach der
+  nächsten Welle geht sie zu; Mini-Boss verliert Leben mit Explosion bei der Durchfahrt), `…=humvee`, `…=hubschrauber`, `…=humvee,hubschrauber` (Anfahrt, Feuer mit Explosion
   und stehenden Löchern, Abgang); Hubschrauber-Start liegt im Bild und verdeckt Truppe/Front
   höchstens 2 s — sonst Start auf (0, 9, +6) bzw. `KREIS_RADIUS` 2,5 (nur über `FAHRZEUGE`,
   Claude entscheidet); Draw Calls; Zweitstart-Zähler.
@@ -289,7 +308,7 @@ Jeder Test mit `dt = 1/60` **und** `dt = 0,1`, wo Zeit läuft.
   **melden** und die übrigen Punkte fertig bauen — kein Ersatz über heilende Löcher.
 - Lässt sich ein Kriterium nicht erfüllen (z. B. Mündung nicht bestimmbar): melden, Rest
   fertig bauen. Kein Ersatzprodukt (kein Fahrzeug ohne Feuer, keine Wirkung ohne
-  Explosion/Loch, keine Kern-/`SPEZIAL`-Änderung über S1 hinaus, um Tests grün zu bekommen).
+  Explosion/Loch, keine Kern-/`SPEZIAL`-Änderung über S1/S1b hinaus, um Tests grün zu bekommen).
 - Bots außerhalb der Grenze → melden, nichts anpassen.
 - Höchstens zwei Anläufe, dann zurück zu Thomas.
 
