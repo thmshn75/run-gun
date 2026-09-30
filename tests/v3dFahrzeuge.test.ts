@@ -10,7 +10,7 @@ import { Einsatzbilder } from '../src/v3d/lauf'
 import { neuerLauf, starteEinheit } from '../src/v3d/rechnung'
 import type { Welt } from '../src/v3d/szene'
 import { Explosionen } from '../src/v3d/anzeigen'
-import { pruefEinsatz } from '../src/v3d/einstieg'
+import { pruefEinsatz, startePruefEinsatz } from '../src/v3d/einstieg'
 
 const namen = ['humvee','panzer','haubitze','hubschrauber'] as const
 const io = new NodeIO().registerExtensions([EXTTextureWebP])
@@ -66,6 +66,11 @@ describe('3D-Fahrzeuge', () => {
     expect(pruefEinsatz('?pruefung=soldat&einsatz=panzer')).toEqual([])
     expect(pruefEinsatz('?pruefung=1&einsatz=falsch')).toEqual([])
     expect(pruefEinsatz('?pruefung=1&einsatz=haubitze')).toEqual(['haubitze'])
+    const zustand=neuerLauf(LEVELS[0],1)
+    expect(startePruefEinsatz(zustand,'?pruefung=1&einsatz=haubitze',true)).toBe(false)
+    expect(zustand.aktiv).toHaveLength(0)
+    expect(startePruefEinsatz(zustand,'?pruefung=1&einsatz=haubitze',false)).toBe(true)
+    expect(zustand.aktiv.map(a=>a.einheit)).toEqual(['haubitze'])
   })
   it('fährt über Zustand zum Halt, entfernt sich nach Sieg und lässt geteilte Ressourcen stehen', () => {
     const ctx={createRadialGradient:()=>({addColorStop:vi.fn()}),fillRect:vi.fn(),fillStyle:''}
@@ -142,8 +147,8 @@ describe('3D-Fahrzeuge', () => {
         expect(durchmesser).toBe(4)
         expect(punkt.x).toBeGreaterThanOrEqual(i<2?-2.2:1.2)
         expect(punkt.x).toBeLessThanOrEqual(i<2?-1.2:2.2)
-        expect(punkt.z).toBeGreaterThanOrEqual(-z.y-4)
-        expect(punkt.z).toBeLessThanOrEqual(-z.y)
+        expect(punkt.z).toBeGreaterThanOrEqual(-z.y-6)
+        expect(punkt.z).toBeLessThanOrEqual(-z.y-4)
       })
       bilder.gibFrei()
     } finally { vi.unstubAllGlobals() }
@@ -154,6 +159,9 @@ describe('3D-Fahrzeuge', () => {
     try {
       const bilder=new Explosionen()
       for(let i=0;i<10;i++)bilder.starte(new THREE.Vector3(),i<4?5:2.5)
+      expect(bilder.anzahl).toBe(8);expect(bilder.grosse).toBe(2)
+      expect((bilder.objekt.material as THREE.MeshBasicMaterial).depthTest).toBe(false)
+      bilder.starte(new THREE.Vector3(4,0,-20),7)
       expect(bilder.anzahl).toBe(8);expect(bilder.grosse).toBe(2)
       bilder.schritt(.45,new THREE.PerspectiveCamera())
       expect(bilder.anzahl).toBe(8)

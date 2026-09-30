@@ -16,14 +16,17 @@ export class Explosionen {
     glow.addColorStop(0, '#ffffff'); glow.addColorStop(.24, '#fff5dc'); glow.addColorStop(.58, '#ff8b2299'); glow.addColorStop(1, '#f55b1600')
     ctx.fillStyle = glow; ctx.fillRect(0, 0, 64, 64)
     this.textur = new THREE.CanvasTexture(canvas)
-    this.material = new THREE.MeshBasicMaterial({ map: this.textur, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
+    this.material = new THREE.MeshBasicMaterial({ map: this.textur, transparent: true, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, side: THREE.DoubleSide })
     this.objekt = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), this.material, DARSTELLUNG.EXPLOSIONEN_MAX)
     this.objekt.frustumCulled = false; this.objekt.count = 0; this.objekt.renderOrder = 12
   }
   get anzahl(): number { return this.aktiv.length }
   get grosse(): number { return this.aktiv.filter(e => e.durchmesser > 4).length }
   starte(pos: THREE.Vector3, durchmesser: number): void {
-    if (this.aktiv.length >= DARSTELLUNG.EXPLOSIONEN_MAX || (durchmesser > 4 && this.grosse >= 2)) return
+    if (durchmesser > 4) {
+      if (this.grosse >= 2) this.aktiv.splice(this.aktiv.findIndex(e => e.durchmesser > 4), 1)
+      else if (this.aktiv.length >= DARSTELLUNG.EXPLOSIONEN_MAX) this.aktiv.splice(this.aktiv.findIndex(e => e.durchmesser <= 4), 1)
+    } else if (this.aktiv.length >= DARSTELLUNG.EXPLOSIONEN_MAX) return
     this.aktiv.push({ pos: pos.clone(), durchmesser, alter: 0 })
   }
   schritt(dt: number, kamera: THREE.Camera): void {

@@ -85,6 +85,39 @@ Service-Worker-Precache landen (Build pruefen: in `dist/sw.js` gelistet).
 Test: `TitleScene` nutzt `start`, `MenuScene` weiter `title`; Bild wird nicht verzerrt
 (Anzeige-Seitenverhaeltnis = Bild-Seitenverhaeltnis).
 
+## Nacharbeit 3 (Thomas 2026-09-30 21:15) — nur diese Punkte
+
+**N3 Erster Haubitzen-Einschlag nicht sichtbar.** Befund Claude (Browser 390×844,
+`?pruefung=1&einsatz=haubitze`): In den ersten ~1,5 s nach dem 3D-Start liegt eine dunkle
+Abdeckung ueber dem Bild; der erste Einschlag (t = 1,2 s) faellt darunter. (1) Die Abdeckung
+identifizieren und im Bericht nennen. (2) Pruef-Einsaetze (`pruefEinsatz`) erst starten, wenn
+die Abdeckung vollstaendig weg ist (nicht vorher `starteEinheit`). (3) Pruefen, ob im
+normalen Spiel (Saeule freigeschossen) der erste Einschlag sichtbar ist — insbesondere, ob
+er von der Haubitze selbst, der Truppe oder einem Schild verdeckt wird oder in einem Bild
+liegt, in dem die Explosion (Pool voll, `EXPLOSIONEN_MAX`) verworfen wird; Befund im Bericht,
+Ursache beheben. Test: Haubitze im Pruefmodus → beide Explosionen werden gestartet, waehrend
+keine Abdeckung sichtbar ist.
+
+**N4 Panzer und Haubitze schiessen weiter hinten in die Horde, nicht auf die Kampflinie.**
+Heute: Panzer-Ziele `−y − 0…4 m`, Haubitze `−y − 3…10 m`. Neu fuer beide: Zielpunkt z
+zufaellig zwischen `−y − max(4, 0,4·T)` und `−y − max(6, 0,85·T)`, T = aktuelle Tiefe der
+sichtbaren Horde (wie beim Panzer fuer `schneiseZ` bestimmt, einmal je Schuss, nicht je Bild).
+Explosionsrand bleibt ≥ 1 m hinter der Front (Haubitze Ø 7 → Rand ≥ 1 m: Mindesttiefe fuer
+die Haubitze `max(4,5; …)`). Treffer-Loecher am selben Punkt wie bisher. Test (dt 1/60, 0,1):
+alle Panzer-/Haubitzen-Ziele liegen in diesem Band, bei grosser und kleiner Horde.
+
+**N5 Finger-Steuerung schneller.** Thomas: "kommt mir noch zu langsam vor". Heute: absolute
+Zuordnung Finger → x (−3…+3) ueber fast die ganze Bildbreite (Randreserve 24 pt), Nachfuehren
+mit hoechstens `MAX_M_PRO_S = 24` m/s. (1) Im Bericht messen: Bildschirm-x bei 390 px Breite,
+an dem x = −3 bzw. +3 erreicht wird. (2) Neu: Verstaerkung um die Bildmitte
+`STEUERUNG.VERSTAERKUNG = 1.6` (Finger-Abstand zur Mitte × 1,6, dann auf −3…+3 begrenzt →
+voller Ausschlag bei ~60 % der Bildbreite) und `MAX_M_PRO_S` 24 → **40**. Randgeste
+(Randreserve) bleibt. Tests: Verstaerkung (Finger auf 30 % Breite → x = −3), Nachfuehrrate,
+bestehende Steuerungstests angepasst.
+
+Nachweise: `npm run check`, `npm test`, `npm run build`, `npm run bots3d` gruen (Bots nur
+zur Kontrolle, Kern unveraendert). Status am Ende IMPL_DONE, Abschlussbericht.
+
 ## Nachweise
 `npm run check`, `npm test`, `npm run build` gruen. Status am Ende IMPL_DONE,
 Abschlussbericht: was geaendert, Testergebnisse, was nicht ging und warum.
@@ -94,6 +127,9 @@ Laesst sich eine Variante nicht erzeugen: melden, Rest fertig bauen. Keine Aende
 2D-Spiellogik oder 2D-Speicher, um etwas gruen zu bekommen.
 
 ## Implementation Summary
+- Nacharbeit 3: Die dunkle Abdeckung war `ui.ergebnisse` mit „Lädt …“ im 3D-Start. Pruef-Einsaetze starten nun nach dem Ausblenden und nach dem ersten gerenderten Bild; im Pruefmodus erscheint kein deckender Offline-Speicherhinweis. Im normalen Spiel ist dieser Hinweis nur noch eine kleine Zeile. Grosse Explosionen bekommen auch bei vollem Pool einen Platz und werden vor Truppe, Fahrzeugen und Schildern gezeichnet (ohne Tiefenverdeckung). Ein normaler erster Haubitzeneinschlag sowie beide Pruef-Einschlaege wurden mit vollem Pool als gestartete Explosionen getestet. Ein echter Browser-/iPhone-Bildeindruck blieb offen: der In-App-Browser war nicht verfuegbar und die Computerfreigabe fuer Chrome wurde abgelehnt; ein iPhone war nicht verbunden.
+- Panzer und Haubitze zielen je Schuss in das Band aus 40 bis 85 Prozent der sichtbaren Hordentiefe, mit Mindestabstand 4 m bzw. 4,5 m zur Front. Treffer-Loecher bleiben am Explosionspunkt. Fingersteuerung: Verstaerkung 1,6 und Nachfuehren 40 m/s, Randgeste unveraendert. Bei 390 px Breite lag der volle Ausschlag vor der Aenderung bei x≈99,5/290,5 px, danach bei x≈135,3/254,7 px (links/rechts).
+- Nachweise nach dem letzten Patch: `npm run check` Exit 0; `npm test` 66 Dateien/613 Tests gruen, darunter dt 1/60 und 0,1 bei kleiner/grosser Horde; `npm run build` Exit 0 (nur bestehende Chunk-Groessen-Warnung); `npm run bots3d` Exit 0, Ergebnisse 0/0/20/20/0/0 Siege von je 20; `git diff --check` ohne Befund. Kein Commit erstellt.
 - Nacharbeit 2: Neues Panzer-Motiv mit dem eingebauten Bildwerkzeug aus `variante-3.png` als Referenz erzeugt und als `src/assets/start.jpg` gespeichert (780×1688, RGB, 346561 Byte). `BootScene` laedt es unter `start`; nur `TitleScene` zeigt es mittig mit unverzerrter Cover-Skalierung. `MenuScene` nutzt weiter `title`.
 - `vite.config.ts` nimmt JPG in den Service-Worker-Precache auf; Build-Nachweis: `start-H7GYUnQz.jpg` steht in `dist/sw.js`. Tests: `npm run check` Exit 0; gezielter Titeltest 5/5; `npm run build` Exit 0; `npm test` 66 Dateien/610 Tests gruen. Kein iPhone-/Browser-Livetest in dieser Umgebung.
 - Nacharbeit 1: Nur der 3D-Knopf auf dem Titelbildschirm hat jetzt sechs versetzte dunkle Schriftebenen sowie eine 27-px-Front mit hellem bis orangefarbenem Verlauf, dunklem Rand und weichem Schatten. Die Textebenen liegen ueber dem 56-px-Knopf und nehmen keine Eingaben an; die Standardbeschriftung blieb unveraendert.

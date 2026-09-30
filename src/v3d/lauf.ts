@@ -40,6 +40,14 @@ export class Einsatzbilder {
     n = Math.imul(n ^ (n >>> 15), n | 1); n ^= n + Math.imul(n ^ (n >>> 7), n | 61)
     return ((n ^ (n >>> 14)) >>> 0) / 4294967296
   }
+  private schussTiefe(z: Zustand, haubitze: boolean): number {
+    const sichtbar = z.y <= 0 ? 0 : Math.min(DARSTELLUNG.HORDE_MAX, Math.ceil(z.Z))
+    const aufstellung = baueHorde(sichtbar, new Set()).eintraege
+    const tiefe = aufstellung.length ? -Math.min(...aufstellung.map(e => e.z)) : 0
+    const nah = Math.max(haubitze ? 4.5 : 4, .4 * tiefe)
+    const fern = Math.max(6, .85 * tiefe)
+    return nah + (fern - nah) * this.zufall()
+  }
   nimmTreffer(): HordeTreffer[] { return this.treffer.splice(0) }
   get anzahl(): number { return this.fahrzeuge.size }
   schuesse(a: AktiveEinheit): number { return this.fahrzeuge.get(a)?.schuss ?? 0 }
@@ -199,7 +207,7 @@ export class Einsatzbilder {
       }
       if (stand.name === 'panzer' && ereignis && (aktuellePhase === 1 || aktuellePhase === 3) && stand.zielPhase !== aktuellePhase) {
         stand.zielPhase = aktuellePhase
-        stand.ziel = new THREE.Vector3((aktuellePhase === 1 ? -1.7 : 1.7) + (this.zufall() - .5), .2, -z.y - 4 * this.zufall())
+        stand.ziel = new THREE.Vector3((aktuellePhase === 1 ? -1.7 : 1.7) + (this.zufall() - .5), .2, -z.y - this.schussTiefe(z, false))
       }
       const geplant = stand.name === 'panzer' ? [1.45, 1.85, 3.7, 4.1].filter(t => t <= a.verstrichen + 1e-9).length : 0
       const schuesse = stand.name === 'haubitze' ? (ereignis ? 1 : 0) : geplant - stand.schuss
@@ -208,7 +216,7 @@ export class Einsatzbilder {
         const links = stand.name === 'haubitze' ? nummer === 0 : nummer < 2
         if (!(stand.name === 'panzer' && (nummer === 0 || nummer === 2) && stand.zielPhase === (nummer === 0 ? 1 : 3))) {
           const zielX = (links ? -1.7 : 1.7) + (this.zufall() - .5)
-          const tief = stand.name === 'haubitze' ? 3 + 7 * this.zufall() : 4 * this.zufall()
+          const tief = this.schussTiefe(z, stand.name === 'haubitze')
           stand.ziel = new THREE.Vector3(zielX, .2, -z.y - tief)
         }
         this.schiesse(stand, stand.ziel!, stand.name === 'haubitze' ? 7 : 4)

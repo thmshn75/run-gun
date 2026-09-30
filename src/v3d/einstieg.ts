@@ -12,7 +12,7 @@ import { aktualisiereLetzteMessung } from './info'
 import { FingerSteuerung } from './steuerung'
 import { SpielLauf, WeltDarstellung } from './lauf'
 import { LEVELS } from './balance3d'
-import { starteEinheit } from './rechnung'
+import { starteEinheit, type Zustand } from './rechnung'
 import type { SpezialName } from './balance3d'
 
 export function pruefEinsatz(suche: string): SpezialName[] {
@@ -24,6 +24,14 @@ export function pruefEinsatz(suche: string): SpezialName[] {
     if (namen.length === 4) break
   }
   return namen
+}
+
+export function startePruefEinsatz(zustand: Zustand, suche: string, abdeckungSichtbar: boolean): boolean {
+  if (abdeckungSichtbar) return false
+  const einsatz = pruefEinsatz(suche)
+  if (!einsatz.length) return true
+  einsatz.forEach(name => starteEinheit(zustand, name))
+  return true
 }
 
 let aktiv = false
@@ -44,6 +52,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
   let fallRunde = -1
   let finger: FingerSteuerung | null = null
   let lauf: SpielLauf | null = null
+  let pruefEinsatzAusstehend = false
   let infoOffen = false
   let ergebnisOffen = false
   let endeTimer: ReturnType<typeof setTimeout> | undefined
@@ -105,6 +114,12 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
       welt.truppe.setze([-1.5,-.5,.5,1.5].map((x,i)=>({x,z:0,dreh:spielzeit*Math.PI/4,bewegung:(['laufen','stehen','schiessen','fallen'] as const)[i]})))
     }
     renderer.render(scene, camera)
+    if (pruefEinsatzAusstehend && lauf && ui.ergebnisse.style.display === 'none') {
+      if (startePruefEinsatz(lauf.zustand, location.search, false)) {
+        lauf.protokollNeuBasieren()
+        pruefEinsatzAusstehend = false
+      }
+    }
     const warMessung = messungLaeuft()
     messBild(dt, spielzeit)
     if (warMessung && !messungLaeuft()) letzterFrame = 0
@@ -144,12 +159,15 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     canvas.style.visibility = 'hidden'
     renderer = holeRenderer()
     ui = zeigeOberflaeche(() => verlasse(), () => {
-      if (welt && renderer) starteMessung(welt, renderer, game, ui.ergebnisse, ui.messen, offen => {
-        ergebnisOffen = offen
-        finger?.verwerfe()
-        letzterFrame = 0
-        if (offen) aktualisiereLetzteMessung(ui.info)
-      })
+      if (welt && renderer) {
+        ui.ergebnisse.style.bottom = 'calc(env(safe-area-inset-bottom) + 8px)'
+        starteMessung(welt, renderer, game, ui.ergebnisse, ui.messen, offen => {
+          ergebnisOffen = offen
+          finger?.verwerfe()
+          letzterFrame = 0
+          if (offen) aktualisiereLetzteMessung(ui.info)
+        })
+      }
     }, ladeFortschritt().hoechstesLevel, () => finger?.aktiv ?? false, () => { infoOffen=true;finger?.verwerfe();letzterFrame=0 }, () => { infoOffen=false;letzterFrame=0 })
     ui.nochmal.addEventListener('click',()=>{if(!welt||!lauf||!renderer||!camera)return;lauf.gibLaufFrei();lauf=new SpielLauf(LEVELS[0],Date.now(),new WeltDarstellung(welt));finger=new FingerSteuerung(renderer.domElement,camera);ui.ende.style.display='none';letzterFrame=0})
     ui.messen.disabled = true
@@ -162,8 +180,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     camera = welt.camera
     if (!welt.nahaufnahme) {
       finger=new FingerSteuerung(renderer.domElement,camera);lauf=new SpielLauf(LEVELS[0],Date.now(),new WeltDarstellung(welt))
-      const einsatz = pruefEinsatz(location.search)
-      if (einsatz.length) { einsatz.forEach(name => starteEinheit(lauf!.zustand, name)); lauf.protokollNeuBasieren() }
+      pruefEinsatzAusstehend = pruefEinsatz(location.search).length > 0
     }
     ui.messen.disabled = false
     ui.ergebnisse.style.display = 'none'
@@ -173,14 +190,18 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
       const blick=['laufen','stehen','schiessen'].every(name=>Number(pruefung[`${name}MuendungVorBrustM`])>=.3&&Number(pruefung[`${name}GesichtVorKopfM`])>0)
       ui.ergebnisse.textContent=`Backen Soldat: ${welt.soldatBau.backzeitMs.toFixed(1)} ms\nBlick: −z ${blick?'✓':'✗'}\n${Object.entries(pruefung).map(([k,v])=>`${k}: ${Array.isArray(v)?v.join(', '):Number(v).toFixed(2)}`).join('\n')}`
     }
-    if (!dauerhaftAngefragt && navigator.storage?.persist) {
+    if (!dauerhaftAngefragt && navigator.storage?.persist && !pruefEinsatzAusstehend) {
       dauerhaftAngefragt = true
       void navigator.storage.persist().then(gewahrt => {
         if (!gewahrt && !beendet) {
           ui.ergebnisse.style.display = 'block'
+          ui.ergebnisse.style.bottom = 'auto'
           ui.ergebnisse.textContent = 'Offline-Speicher nicht dauerhaft zugesagt'
           offlineTimer = setTimeout(() => {
-            if (ui.ergebnisse.textContent === 'Offline-Speicher nicht dauerhaft zugesagt') ui.ergebnisse.style.display = 'none'
+            if (ui.ergebnisse.textContent === 'Offline-Speicher nicht dauerhaft zugesagt') {
+              ui.ergebnisse.style.display = 'none'
+              ui.ergebnisse.style.bottom = 'calc(env(safe-area-inset-bottom) + 8px)'
+            }
           }, 4000)
         }
       }).catch(() => { /* Offline-Start bleibt auch ohne Zusage möglich. */ })

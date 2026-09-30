@@ -9,6 +9,7 @@ import { bossFreieAufstellung } from '../src/v3d/bosse'
 import { saeulenBlick } from '../src/v3d/lauf'
 import { BUEHNE, DARSTELLUNG, FAHRZEUGE, FIGUREN, LEVELS } from '../src/v3d/balance3d'
 import { statusZeile } from '../src/v3d/oberflaeche'
+import { startePruefEinsatz } from '../src/v3d/einstieg'
 import * as THREE from 'three'
 import { BossBalken, ZahlAnzeige } from '../src/v3d/anzeigen'
 import { ZombieMasse, type ZombieBau } from '../src/v3d/figuren'
@@ -144,6 +145,81 @@ describe('3D-Lauf',()=>{
       }
       expect(schuesse).toHaveBeenCalledTimes(6)
       expect(schuesse.mock.calls.slice(4).map(c=>Math.sign(c[0].x))).toEqual([-1,1])
+      einsatz.gibFrei()
+    } finally {raume()}
+  })
+  it('legt Panzer- und Haubitzenziele bei kleiner und großer Horde hinter die Front',()=>{
+    for (const dt of [1/60,.1]) for (const zahl of [20,600]) {
+      const {welt,raume}=baueWeltAttrappe()
+      try {
+        const einsatz=new Einsatzbilder(welt),z=neuerLauf(LEVELS[0],1)
+        z.y=20;z.Z=zahl
+        const tiefe=-Math.min(...baueHorde(zahl,new Set()).eintraege.map(e=>e.z))
+        const explosionen=vi.spyOn(einsatz.explosionen,'starte')
+        const panzer=starteEinheit(z,'panzer')
+        einsatz.abgleichen(z,[],0)
+        for (const zeit of [1.45,1.85,3.7,4.1]) {
+          panzer.verstrichen=zeit
+          einsatz.abgleichen(z,[{art:'spezialTreffer',menge:4,t:zeit,einheit:'panzer'}],dt)
+        }
+        const haubitze=starteEinheit(z,'haubitze')
+        for (const zeit of [1.2,5.2]) {
+          haubitze.verstrichen=zeit
+          einsatz.abgleichen(z,[{art:'spezialTreffer',menge:90,t:zeit,einheit:'haubitze'}],dt)
+          expect(einsatz.nimmTreffer().at(-1)?.punkt).toEqual(explosionen.mock.lastCall?.[0])
+        }
+        expect(explosionen).toHaveBeenCalledTimes(6)
+        explosionen.mock.calls.forEach(([punkt],index)=>{
+          const nah=Math.max(index<4?4:4.5,.4*tiefe)
+          const fern=Math.max(6,.85*tiefe)
+          expect(-z.y-punkt.z).toBeGreaterThanOrEqual(nah-1e-9)
+          expect(-z.y-punkt.z).toBeLessThanOrEqual(fern+1e-9)
+        })
+        einsatz.gibFrei()
+      } finally {raume()}
+    }
+  })
+  it('startet beide Prüf-Haubitzeneinschläge erst ohne Ladeabdeckung und zeigt den ersten auch bei vollem Pool',()=>{
+    const {welt,raume}=baueWeltAttrappe()
+    try {
+      const einsatz=new Einsatzbilder(welt),z=neuerLauf(LEVELS[0],1)
+      z.y=20;z.Z=600
+      const suche='?pruefung=1&einsatz=haubitze'
+      expect(startePruefEinsatz(z,suche,true)).toBe(false)
+      expect(z.aktiv).toHaveLength(0)
+      for(let i=0;i<DARSTELLUNG.EXPLOSIONEN_MAX;i++) einsatz.explosionen.starte(new THREE.Vector3(i,0,-10),2.5)
+      expect(einsatz.explosionen.anzahl).toBe(DARSTELLUNG.EXPLOSIONEN_MAX)
+      expect(startePruefEinsatz(z,suche,false)).toBe(true)
+      const haubitze=z.aktiv[0]
+      const explosionen=vi.spyOn(einsatz.explosionen,'starte')
+      for(const zeit of [1.2,5.2]) {
+        haubitze.verstrichen=zeit
+        einsatz.abgleichen(z,[{art:'spezialTreffer',menge:90,t:zeit,einheit:'haubitze'}],.1)
+        expect(einsatz.explosionen.grosse).toBeGreaterThan(0)
+      }
+      expect(explosionen.mock.calls.filter(([,d])=>d===7)).toHaveLength(2)
+      expect((einsatz.explosionen.objekt.material as THREE.MeshBasicMaterial).depthTest).toBe(false)
+      einsatz.gibFrei()
+    } finally {raume()}
+  })
+  it('zeigt den ersten normalen Haubitzeneinschlag hinter der Kampflinie trotz vollem Pool und Vordergrund',()=>{
+    const {welt,raume}=baueWeltAttrappe()
+    try {
+      const einsatz=new Einsatzbilder(welt),z=neuerLauf(LEVELS[0],1)
+      z.y=20;z.Z=600
+      for(let i=0;i<DARSTELLUNG.EXPLOSIONEN_MAX;i++) einsatz.explosionen.starte(new THREE.Vector3(i,0,-10),2.5)
+      const haubitze=starteEinheit(z,'haubitze')
+      einsatz.abgleichen(z,[],0)
+      haubitze.verstrichen=1.2
+      einsatz.abgleichen(z,[{art:'spezialTreffer',menge:90,t:1.2,einheit:'haubitze'}],1/60)
+      const ziel=einsatz.letzteZiele(haubitze)[0]
+      expect(ziel).toBeDefined()
+      expect(ziel.x).toBeLessThan(-1.2)
+      expect(ziel.z).toBeLessThan(-z.y-4.5)
+      expect(einsatz.explosionen.grosse).toBe(1)
+      expect(einsatz.explosionen.anzahl).toBe(DARSTELLUNG.EXPLOSIONEN_MAX)
+      expect(einsatz.explosionen.objekt.renderOrder).toBeGreaterThan(10)
+      expect((einsatz.explosionen.objekt.material as THREE.MeshBasicMaterial).depthTest).toBe(false)
       einsatz.gibFrei()
     } finally {raume()}
   })

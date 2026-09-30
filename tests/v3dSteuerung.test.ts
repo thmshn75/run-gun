@@ -8,10 +8,13 @@ describe('3D-Fingersteuerung', () => {
       const camera=baueKamera(rect.width,rect.height)
       expect(fingerWeltX(rect.left+rect.width/2,rect.top+rect.height/2,rect,camera)).toBeCloseTo(0,5)
       expect(fingerWeltX(rect.left+24,rect.top+rect.height/2,rect,camera)).toBe(-3)
+      expect(fingerWeltX(rect.left+rect.width*.3,rect.top+rect.height/2,rect,camera)).toBe(-3)
+      expect(fingerWeltX(rect.left+rect.width*.7,rect.top+rect.height/2,rect,camera)).toBe(3)
     }
   })
   it('begrenzt Tempo und Kernwert',()=>{
-    expect(glaetteX(0,3,.1)).toBeCloseTo(2.4)
+    expect(glaetteX(0,3,.1)).toBe(3)
+    expect(glaetteX(-3,3,1/60)).toBeCloseTo(-3+40/60)
     expect(glaetteX(0,3,0)).toBe(0)
     let x=-3
     for(let i=0;i<3;i++) x=glaetteX(x,3,.1)

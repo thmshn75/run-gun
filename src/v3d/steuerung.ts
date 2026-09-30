@@ -16,7 +16,7 @@ export function fingerWeltX(clientX: number, clientY: number, rect: Pick<DOMRect
   const line = new THREE.Vector3(0, 0, 0).project(camera)
   ray.setFromCamera(new THREE.Vector2(ndc.x, line.y), camera)
   ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit)
-  const welt = Math.max(STEUERUNG.MIN_X, Math.min(STEUERUNG.MAX_X, hit.x))
+  const welt = Math.max(STEUERUNG.MIN_X, Math.min(STEUERUNG.MAX_X, hit.x * STEUERUNG.VERSTAERKUNG))
   if (clientX <= links) return STEUERUNG.MIN_X
   if (clientX >= rechts) return STEUERUNG.MAX_X
   return welt
