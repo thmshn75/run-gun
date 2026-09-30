@@ -424,12 +424,27 @@ freischiessen, sind unberuehrt).
 Nachweise: `npm run check`, `npm test`, `npm run build`, `npm run bots3d` gruen. Status am
 Ende IMPL_DONE, Abschlussbericht.
 
+## Nacharbeit 4 (Thomas 2026-09-30 20:28) — nur dieser Punkt
+
+Thomas: "Kann es sein, dass der Hubschrauber auch die eigenen Truppen abschiesst?" Im Kern
+nicht (Soldaten fallen nur im Frontkampf), aber die Explosionen liegen optisch auf der Truppe.
+**N6 Hubschrauber-Einschlaege weg von der Truppe (nur Bild).** Horde-Ziel des Hubschraubers:
+z zufaellig zwischen `−y − 3,25` und `−y − 9` (Explosionsrand Ø 2,5 m bleibt ≥ 2 m hinter
+der Front). Boss-Ziel: `bossPunkt` um **1,5 m nach −z** versetzt (Ruecken des Bosses) und
+danach auf `z ≤ −y − 3,25` begrenzt. Konstanten benannt in `DARSTELLUNG`
+(`HUBSCHRAUBER_FRONTABSTAND = 3.25`, `HUBSCHRAUBER_BOSS_VERSATZ = 1.5`). Kern unveraendert.
+Tests (dt 1/60 und 0,1): alle Hubschrauber-Ziele (Horde und Boss, auch Boss direkt an der
+Front bei z = −y) haben z ≤ −y − 3,25; Boss-Ziel liegt hinter `bossPunkt`.
+Nachweise: `npm run check`, `npm test`, `npm run build` gruen. Status am Ende IMPL_DONE,
+kurzer Abschlussbericht.
+
 ## Abschlussbericht (Pflicht)
 Was geändert, Bots vorher/nachher, Testergebnis mit Zahlen, Mündungswerte Humvee und
 Hubschrauber, `SCHNEISE_HALB`, jeder umgestellte Bestandstest mit Grund, was nicht ging und
 warum. Status am Ende auf `IMPL_DONE`.
 
 ## Implementation Summary
+- Nacharbeit 4: Hubschrauber-Hordenziele beginnen 3,25 m hinter der Front; Boss-Ziele werden um 1,5 m nach hinten versetzt und bei 3,25 m Frontabstand begrenzt. Nur Feldbild geändert, Kern unverändert. Bestandstest für das bisher unveränderte Boss-Ziel auf den beauftragten Versatz umgestellt; neue Tests prüfen Horde und Boss an der Front sowie weiter hinten bei `dt = 1/60` und `0,1`. `npm run check`, `npm test` (65 Dateien, 605 Tests) und `npm run build` grün. Build meldet bestehende Warnung zu großen Chunks; iPhone-Sichtkontrolle hier nicht erfolgt. Keine Bots neu gemessen, da Nacharbeit 4 nur das Feldbild ändert.
 - Nacharbeit 3: Humvee-Schneise 12 s mit 10 Zombies/s bei unveränderter Kernwirkung 120; Explosionen Ø 3 m und Humvee-Mündungsblitz 0,15 s (Takt weiter 0,25 s, im Test 48 Schüsse). Der Kern merkt ab Schneisenbeginn `gasseAnteil` (Humvee 0,2609; Panzer 0,4575), leitet diesen Anteil der Truppentreffer bei anwesendem Boss zuerst auf Mini-/Elite-Boss und setzt ihn bei der nächsten Welle zurück. Frontdruck, Soldatenverlust und Frontverschiebung bleiben nach bisheriger Rechnung.
 - Nacharbeit-3-Bots vorher/nachher; Siege und mittlere Dauer, passive Grenze 0/20 eingehalten:
 

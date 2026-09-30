@@ -186,8 +186,9 @@ export class Einsatzbilder {
             if (stand.name === 'hubschrauber') stand.bossSchuss++
             const s = stand.schuss
             const x = stand.name === 'humvee' ? stand.offsetX - 1.2 + 2.4 * (s % 24 <= 12 ? s % 24 : 24 - s % 24) / 12 : -2.8 + 5.6 * this.zufall()
-            const tief = stand.name === 'humvee' ? .5 + 2 * this.zufall() : 1 + 8 * this.zufall()
+            const tief = stand.name === 'humvee' ? .5 + 2 * this.zufall() : DARSTELLUNG.HUBSCHRAUBER_FRONTABSTAND + (9 - DARSTELLUNG.HUBSCHRAUBER_FRONTABSTAND) * this.zufall()
             const ziel = boss ? bossPunkt!.clone() : new THREE.Vector3(x, .2, stand.name === 'humvee' ? stand.gruppe.position.z - FAHRZEUGE.humvee.LAENGE * FAHRZEUGE.humvee.SPIEL_SKALA / 2 - tief : -z.y - tief)
+            if (boss) ziel.z = Math.min(ziel.z - DARSTELLUNG.HUBSCHRAUBER_BOSS_VERSATZ, -z.y - DARSTELLUNG.HUBSCHRAUBER_FRONTABSTAND)
             const menge = boss ? 0 : Math.floor(stand.rest + 1e-9)
             if (stand.name === 'humvee') stand.rest = 0
             else if (!boss) stand.rest -= menge

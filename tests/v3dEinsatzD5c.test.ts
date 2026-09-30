@@ -131,7 +131,36 @@ describe('D5c Feldfahrzeuge', () => {
       for (let i = 0; i < Math.ceil(.4 / dt); i++) bilder.abgleichen(z, [], dt, boss)
       expect(bilder.schuesse(a)).toBeGreaterThan(vor)
       expect(bilder.nimmTreffer()).toHaveLength(0)
-      expect(bilder.letzteZiele(a).at(-1)).toEqual(boss)
+      expect(bilder.letzteZiele(a).at(-1)).toEqual(new THREE.Vector3(boss.x, boss.y, boss.z - DARSTELLUNG.HUBSCHRAUBER_BOSS_VERSATZ))
+      bilder.gibFrei()
+    })
+
+    it(`hält alle Hubschrauber-Einschläge hinter der Front (dt ${dt})`, () => {
+      const { welt } = attrappe(), bilder = new Einsatzbilder(welt), z = neuerLauf(LEVELS[0], 1)
+      z.y = 15; z.Z = 600
+      const a = starteEinheit(z, 'hubschrauber')
+      a.verstrichen = 2
+      bilder.abgleichen(z, [], 0)
+      for (let i = 0; i < Math.ceil(1 / dt); i++) {
+        a.verstrichen += dt
+        bilder.abgleichen(z, [{ art: 'spezialTreffer', einheit: 'hubschrauber', menge: 20 * dt, t: a.verstrichen }], dt)
+      }
+      const hordeZiele = bilder.letzteZiele(a)
+      expect(hordeZiele.length).toBeGreaterThan(0)
+      expect(hordeZiele.every(p => p.z <= -z.y - DARSTELLUNG.HUBSCHRAUBER_FRONTABSTAND + 1e-9)).toBe(true)
+      const bossAnFront = new THREE.Vector3(1, 2, -z.y)
+      const vorBoss = hordeZiele.length
+      for (let i = 0; i < Math.ceil(.4 / dt); i++) bilder.abgleichen(z, [], dt, bossAnFront)
+      const frontBossZiele = bilder.letzteZiele(a).slice(vorBoss)
+      expect(frontBossZiele.length).toBeGreaterThan(0)
+      expect(frontBossZiele.every(p => p.z <= -z.y - DARSTELLUNG.HUBSCHRAUBER_FRONTABSTAND && p.z < bossAnFront.z)).toBe(true)
+      expect(bossAnFront.z).toBe(-z.y)
+      const bossHinten = new THREE.Vector3(1, 2, -z.y - 5)
+      const vorHinten = bilder.letzteZiele(a).length
+      for (let i = 0; i < Math.ceil(.4 / dt); i++) bilder.abgleichen(z, [], dt, bossHinten)
+      const hintereBossZiele = bilder.letzteZiele(a).slice(vorHinten)
+      expect(hintereBossZiele.length).toBeGreaterThan(0)
+      expect(hintereBossZiele.every(p => p.z === bossHinten.z - DARSTELLUNG.HUBSCHRAUBER_BOSS_VERSATZ)).toBe(true)
       bilder.gibFrei()
     })
   }

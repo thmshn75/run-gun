@@ -8,7 +8,10 @@ steht auf IDLE.)
 
 ## Offen — naechster Schritt zuerst
 
-0. **D5c + Nacharbeit 3 online (2026-09-30 ~20:25) — wartet auf Thomas' Sichttest.**
+0. **D5c + Nacharbeit 4 online (2026-09-30 ~20:40) — wartet auf Thomas' letzten Blick (Hubschrauber-Einschlaege).**
+   Humvee und Boss-Kampf durch die Gasse: Thomas ok (20:27). Nacharbeit 4: Hubschrauber-Einschlaege
+   ≥ 3,25 m hinter der Front, Boss-Ziel 1,5 m am Ruecken (nur Bild; Kern toetet keine eigenen Soldaten).
+   Danach D5c abnehmen, dann **D6** (Elite-Endboss, Sieg/Niederlage).
    Messung D5c am iPhone: alles gruen (Thomas 19:47). Nach Nacharbeit 2 hat Thomas Haubitze,
    Panzer und Hubschrauber abgenommen (20:06). Nacharbeit 3: Humvee 12 s @ 10/s durch die
    Horde, Explosion 3 m, Muendungsblitz 0,15 s; **Kern:** `gasseAnteil` – solange eine Gasse
