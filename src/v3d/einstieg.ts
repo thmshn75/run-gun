@@ -8,6 +8,7 @@ import { leseWasserStufe } from './wasser'
 import { statusZeile, zeigeOberflaeche, versteckeOberflaeche } from './oberflaeche'
 import { ladeFortschritt } from './speicher'
 import { bricheAb, messBild, messungLaeuft, starteMessung } from './messung'
+import { aktualisiereLetzteMessung } from './info'
 import { FingerSteuerung } from './steuerung'
 import { SpielLauf, WeltDarstellung } from './lauf'
 import { LEVELS } from './balance3d'
@@ -31,6 +32,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
   let finger: FingerSteuerung | null = null
   let lauf: SpielLauf | null = null
   let infoOffen = false
+  let ergebnisOffen = false
   let endeTimer: ReturnType<typeof setTimeout> | undefined
   let offlineTimer: ReturnType<typeof setTimeout> | undefined
   let ui: ReturnType<typeof zeigeOberflaeche>
@@ -61,7 +63,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     if (!renderer || !scene || !camera || beendet) return
     const dt = letzterFrame ? Math.max(0, jetzt - letzterFrame) : 0
     letzterFrame = jetzt
-    const pausiert = infoOffen || messungLaeuft() || document.hidden
+    const pausiert = infoOffen || ergebnisOffen || messungLaeuft() || document.hidden
     const sek = Number.isFinite(dt) ? Math.min(.1,dt/1000) : 0
     if (!pausiert && sek > 0) {
       spielzeit += sek
@@ -129,7 +131,12 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     canvas.style.visibility = 'hidden'
     renderer = holeRenderer()
     ui = zeigeOberflaeche(() => verlasse(), () => {
-      if (welt && renderer) starteMessung(welt, renderer, game, ui.ergebnisse, ui.messen)
+      if (welt && renderer) starteMessung(welt, renderer, game, ui.ergebnisse, ui.messen, offen => {
+        ergebnisOffen = offen
+        finger?.verwerfe()
+        letzterFrame = 0
+        if (offen) aktualisiereLetzteMessung(ui.info)
+      })
     }, ladeFortschritt().hoechstesLevel, () => finger?.aktiv ?? false, () => { infoOffen=true;finger?.verwerfe();letzterFrame=0 }, () => { infoOffen=false;letzterFrame=0 })
     ui.nochmal.addEventListener('click',()=>{if(!welt||!lauf||!renderer||!camera)return;lauf.gibLaufFrei();lauf=new SpielLauf(LEVELS[0],Date.now(),new WeltDarstellung(welt));finger=new FingerSteuerung(renderer.domElement,camera);ui.ende.style.display='none';letzterFrame=0})
     ui.messen.disabled = true

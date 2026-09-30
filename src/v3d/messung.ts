@@ -10,6 +10,7 @@ import type { WasserStufe } from './wasser'
 import { SpielLauf, WeltDarstellung, hatKontakt } from './lauf'
 import type { Zustand } from './rechnung'
 import { LEVELS } from './balance3d'
+import { speichereLetzteMessung } from './info'
 
 export const MESSSTUFEN = [
   {name:'Vollast ohne Bosse',dauer:30000,mini:false,elite:false},
@@ -41,8 +42,34 @@ interface Lauf {
   bot: SpielLauf | null
   botSteuerung: MessBotSteuerung
   maxDrawCalls: number
+  beiErgebnis: (offen: boolean) => void
 }
 let lauf: Lauf | null = null
+
+export function zeigeMessErgebnis(anzeige: HTMLElement, ergebnis: string, beiErgebnis: (offen: boolean) => void): void {
+  speichereLetzteMessung(ergebnis)
+  const schliessen = document.createElement('button')
+  schliessen.textContent = 'SCHLIESSEN'
+  Object.assign(schliessen.style, { display: 'block', minWidth: '44px', minHeight: '44px', marginBottom: '8px', touchAction: 'manipulation' })
+  schliessen.addEventListener('click', () => {
+    anzeige.style.display = 'none'
+    anzeige.style.pointerEvents = 'none'
+    beiErgebnis(false)
+  })
+  const inhalt = document.createElement('div')
+  inhalt.textContent = ergebnis
+  anzeige.replaceChildren(schliessen, inhalt)
+  Object.assign(anzeige.style, { display: 'block', pointerEvents: 'auto', touchAction: 'pan-y', overflowY: 'auto', overscrollBehavior: 'contain' })
+  anzeige.scrollTop = 0
+  beiErgebnis(true)
+}
+
+export function bereiteMessAnzeige(anzeige: HTMLElement): void {
+  anzeige.style.display = 'block'
+  anzeige.style.overflowY = 'auto'
+  anzeige.style.pointerEvents = 'none'
+  anzeige.textContent = 'Aufwärmen · Wasser 1 · 5 s'
+}
 
 // Gleiche Zustandsfolge wie rhythmusSaeule(60) in scripts/bots3d.ts.
 export class MessBotSteuerung {
@@ -108,8 +135,9 @@ function groessen(l: Lauf) {
   return { ...grund, zusatz, gesamt: grund.bemalungen + zusatz }
 }
 
-export function starteMessung(welt: Welt, renderer: THREE.WebGLRenderer, game: Phaser.Game, anzeige: HTMLElement, knopf: HTMLButtonElement): void {
+export function starteMessung(welt: Welt, renderer: THREE.WebGLRenderer, game: Phaser.Game, anzeige: HTMLElement, knopf: HTMLButtonElement, beiErgebnis: (offen: boolean) => void = () => {}): void {
   if (lauf) return
+  beiErgebnis(false)
   const vollast = new ZombieMasse(welt.zombieBau, welt.zombieBau.materialien, FIGUREN.ZOMBIES_SICHTBAR_MAX)
   const aufstellung = bossFreieAufstellung(FIGUREN.ZOMBIES_SICHTBAR_MAX, -15, FIGUREN.MINIBOSS_FREIRADIUS, 49183)
   vollast.setze(aufstellung)
@@ -124,12 +152,9 @@ export function starteMessung(welt: Welt, renderer: THREE.WebGLRenderer, game: P
   const bossSichtbar:[boolean,boolean]=[welt.miniboss.objekt.visible,welt.eliteboss.objekt.visible]
   welt.miniboss.objekt.visible=false;welt.eliteboss.objekt.visible=false
   welt.wasser.wechsle(1)
-  lauf = { welt, renderer, game, anzeige, knopf, original, stufe: 0, phase: 'warm', zeit: 0, bilder: [], ergebnisse: [], schwarz: null, messpunktZ, vollast, soldaten, sichtbarkeiten,bossSichtbar,bot:null,botSteuerung:new MessBotSteuerung(),maxDrawCalls:0 }
+  lauf = { welt, renderer, game, anzeige, knopf, original, stufe: 0, phase: 'warm', zeit: 0, bilder: [], ergebnisse: [], schwarz: null, messpunktZ, vollast, soldaten, sichtbarkeiten,bossSichtbar,bot:null,botSteuerung:new MessBotSteuerung(),maxDrawCalls:0,beiErgebnis }
   knopf.disabled = true
-  anzeige.style.display = 'block'
-  anzeige.style.overflowY='auto'
-  anzeige.style.pointerEvents='none'
-  anzeige.textContent = 'Aufwärmen · Wasser 1 · 5 s'
+  bereiteMessAnzeige(anzeige)
 }
 
 export function messBild(dt: number, jetzt: number): void {
@@ -164,8 +189,9 @@ export function messBild(dt: number, jetzt: number): void {
   const mb = groessen(l)
   l.ergebnisse.push(`${MESSSTUFEN[l.stufe].name}: ${a.fps?.toFixed(1) ?? '–'} fps · langsamste 5 % ${a.p95?.toFixed(1) ?? '–'} ms · Schwarz ${l.schwarz === null ? '–' : `${l.schwarz.toFixed(1)} %`} · >250 ms: ${a.verworfen}\nBacken Soldat: ${l.welt.soldatBau.backzeitMs.toFixed(1)} ms · Bemalungen inkl. Bosse ${mb.bemalungen.toFixed(2)} MB · Wasserpuffer ${mb.zusatz.toFixed(2)} MB · Renderflächen ${mb.renderflaechen.toFixed(2)} MB · Phaser-Rest ${mb.phaserRest.toFixed(2)} MB · Speicherplan ${mb.gesamt.toFixed(2)} MB · Geometrien ${l.renderer.info.memory.geometries} · Texturen ${l.renderer.info.memory.textures}${l.bot ? `\nProtokoll: ${l.bot.protokollFehler ?? `ok (nach ${l.bot.zustand.t.toFixed(1)} s)`} · Draw Calls (max): ${l.maxDrawCalls}` : ''}\n${urteil(a, l.schwarz, mb.gesamt)}`)
   if (l.stufe === MESSSTUFEN.length - 1) {
-    l.anzeige.textContent = l.ergebnisse.join('\n\n')
+    const ergebnis = l.ergebnisse.join('\n\n')
     bricheAb()
+    zeigeMessErgebnis(l.anzeige, ergebnis, l.beiErgebnis)
     return
   }
   l.stufe++
@@ -187,8 +213,7 @@ export function bricheAb(grund?: string, wiederherstellen = true): void {
   l.welt.miniboss.objekt.visible=l.bossSichtbar[0];l.welt.eliteboss.objekt.visible=l.bossSichtbar[1]
   if (wiederherstellen) l.welt.wasser.wechsle(l.original)
   l.knopf.disabled = false
-  l.anzeige.style.pointerEvents='none'
-  if (grund) { l.anzeige.style.display = 'block'; l.anzeige.textContent = grund }
+  if (grund) zeigeMessErgebnis(l.anzeige, [...l.ergebnisse, grund].join('\n\n'), l.beiErgebnis)
 }
 
 export function messungLaeuft(): boolean { return lauf !== null }

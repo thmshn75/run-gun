@@ -51,7 +51,7 @@ export function zeigeOberflaeche(zurueck: () => void, messen: () => void, level:
   levelText.textContent = `Level ${level}`
   Object.assign(levelText.style, { position: 'absolute', top: 'calc(env(safe-area-inset-top) + 20px)', left: '50%', transform: 'translateX(-50%)', fontWeight: 'bold' })
   const results = document.createElement('div')
-  Object.assign(results.style, { position: 'absolute', top: 'calc(env(safe-area-inset-top) + 64px)', left: '8px', right: '8px', maxHeight: '42vh', overflowY: 'auto', padding: '8px', background: '#122436dd', fontSize: '12px', whiteSpace: 'pre-wrap', display: 'none', touchAction: 'pan-y' })
+  Object.assign(results.style, { position: 'absolute', top: 'calc(env(safe-area-inset-top) + 64px)', bottom: 'calc(env(safe-area-inset-bottom) + 8px)', left: '8px', right: '8px', overflowY: 'auto', overscrollBehavior: 'contain', padding: '8px', background: '#122436dd', fontSize: '12px', whiteSpace: 'pre-wrap', display: 'none', touchAction: 'pan-y' })
   const zahlen = document.createElement('div')
   Object.assign(zahlen.style, { position: 'absolute', top: 'calc(env(safe-area-inset-top) + 54px)', left: '8px', fontSize: '12px', textShadow: '0 1px 2px black' })
   status = zahlen
