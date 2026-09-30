@@ -209,7 +209,7 @@ Test: Summe der Ereignisse = Änderung der Zähler, in jedem Schritt.
 Jeder Schritt ist **eine** Spec in `docs/active-task.md`, **ein** Codex-Lauf im Terminal,
 Review durch Claude, ein Commit, Desktop-Vorprüfung, dann **ein** iPhone-Foto von Thomas.
 Erst danach der nächste Schritt. **Reihenfolge (ab 2026-09-29):** D0 → R1 → D1 → D2a → D2b → D2c → D3 →
-R2 → D3-Anpassung → D4 → D5a → D5b → D5c → D5d → D6 → D7 → D8. R1 ist harte Voraussetzung für D3. Gamefeel gilt erst nach Thomas' Test am iPhone.
+R2 → D3-Anpassung → D4 → D5a → D5b → D5c → D5d → D5e → D6 → D7 (+ Lobby) → Werkstatt → Arsenal → D8. R1 ist harte Voraussetzung für D3. Gamefeel gilt erst nach Thomas' Test am iPhone.
 
 **D0 — Fundament.** npm `three`; `src/v3d/` mit Einstieg; Menüknopf "RUN GUN 3D" statt
 "RUN GUN V2"; Nachladen mit Fehlerbild; Phaser schlafen/wecken; einmaliger Renderer;
@@ -283,6 +283,14 @@ App-Icon im Stil der 3D-Version: Codex erzeugt Varianten, Thomas waehlt, dann Ei
 Hinweis: Auslieferung an Benni automatisch beim naechsten Oeffnen; das Home-Bildschirm-Icon
 uebernimmt iOS erst nach Entfernen und neu Hinzufuegen der App.
 
+**D5e — Eis-Saeulen (Thomas 2026-09-30 21:00–21:24).** Saeulen als milchig-blaue,
+halbdurchsichtige Eisbloecke mit dem Fahrzeug darin (etwa doppelt so gross wie heute, laengs
+zur Strasse; Hubschrauber ~halbe Spielgroesse wegen Rotor; Saeulenrand ≤ ~3,7 m von der
+Mitte, Truppe laeuft bis x = 3). Risse je Treffer, Splitter beim Freischiessen, keine teure
+Lichtbrechung. Auf dem Block **nur die Zahl** der verbleibenden Treffer, keine Namen/
+Beschreibungen. Saeulen **wiederholen sich** (nach dem letzten wieder das erste; `P` je Runde
+×1,5, Balance ueber Bots).
+
 **D6 — Elite-Endboss, Sieg und Niederlage.** Nachweis: beide Ausgänge je einmal im
 Spiel und im Bot-Lauf.
 
@@ -290,6 +298,18 @@ Spiel und im Bot-Lauf.
 Säulen-Reihenfolge) in `balance3d.ts`, Level-Speicher. Nachweis je Level: passiv verliert
 20/20 Seeds, Strategie gewinnt ≥ 15/20, Schwierigkeit steigt (Strategie-Gewinnquote
 fällt von Level zu Level).
+
+**D7-Lobby (Thomas 2026-09-30 21:24).** 3D-Lobby nach dem Startbildschirm, Kreislauf
+spielen → Muenzen → aufruesten → naechstes Level:
+1. **Level-Karte**, **Testgelaende** (jedes Fahrzeug per Knopf, ersetzt `?pruefung`),
+   **Beste Laeufe** — zusammen mit D7.
+2. **Werkstatt** (3D-Konto aus Zombies + Sieg-Bonus) — nach D7, weil die Preise auf den
+   Levels aufsetzen. Kaufbar: mehr Startsoldaten, staerkeres Truppenfeuer, duenneres Eis;
+   je Fahrzeug eine Stufe: **Panzer und Haubitze je einen Schuss mehr vor der Fahrt** (keine
+   breitere Schneise — der Panzer ist so breit, wie er ist), **Humvee faehrt laenger**,
+   **Hubschrauber bleibt laenger**.
+3. **Arsenal** (Reihenfolge der Fahrzeuge in den Eisbloecken selbst festlegen) — zuletzt.
+Reihenfolge ab jetzt: D5e → D6 → D7 + Lobby 1 → Werkstatt → Arsenal → D8.
 
 **D8 — Politur.** **Vorgemerkt (Thomas 2026-09-29):** Soldat — Ärmel heller als Weste (Arme im Coyote sichtbar), echte Gewehr-Anschlagpose statt Pistolenhaltung; Gesichtsmaske ggf. Coyote. Nur mit vorab von Thomas bestätigter Liste (Treffer-Feedback, Zahlen,
 Klang …); ohne Liste kein Codex-Auftrag.
