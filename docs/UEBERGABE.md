@@ -1,28 +1,46 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-09-30 17:00 (**Plan V7 "Run Gun 3D" ist verbindlich**, `docs/plan-v7.md`.
-Sessionende auf Thomas' Wunsch; letzter Code-Commit 8c9cd9a, online; `docs/active-task.md`
-steht auf IDLE.)
+Stand: 2026-09-30 21:35 (**Plan V7 "Run Gun 3D" ist verbindlich**, `docs/plan-v7.md`.
+Sessionende auf Thomas' Wunsch; letzter Code-Commit c7d0b9c, online; `docs/active-task.md`
+steht auf IDLE, es laeuft kein Codex.)
 
-**Das Naechste liegt in `## Offen`.**
+**Das Naechste liegt in `## Offen`, Punkt 0.**
 
 ## Offen — naechster Schritt zuerst
 
-0. **D5c abgenommen (Thomas 21:00). D5d online: Startbildschirm "RUN & GUN" / "RUN GUN 3D",
-   Icon Variante 2 (Hubschrauber, Quelle `assets/icon-quelle.png`, `scripts/make-icons.py`),
-   Icon-Links mit `?v=2`.** Offen:
-   - **Icon-Test Thomas:** erst iPhone-Neustart (Vorhersage: altes Icon bleibt), sonst App
-     loeschen + neu hinzufuegen (sein Spielstand ist ihm egal). **Benni NICHT loeschen lassen**
-     (eigener Speicher der Home-Bildschirm-App; kein Export/Import) — ausser Spielstand-
-     Uebertragung per Code wird gebaut.
-   - **Thomas' Wuensche 21:00, Machbarkeit beantwortet, Entscheidung offen:** Lobby fuer 3D
-     (Vorschlag Stufe 1: Spielen, Level-Auswahl, Testgelaende mit Fahrzeug-Knoepfen, Beste
-     Laeufe; Konto/Shop spaeter nach D7); Saeulen wiederholen sich (P je Runde ×1,5
-     vorgeschlagen); Saeulen als Eisblock mit dem Fahrzeug darin, Fahrzeuge etwa doppelt so
-     gross, laengs, Hubschrauber ~halb; Risse je Treffer, Splitter beim Freischiessen.
-     **Thomas 21:09:** Auf den Eisbloecken nur noch die Zahl (verbleibende Treffer), keine
-     Namensschilder/Beschreibungen mehr.
-     Vorgeschlagene Reihenfolge: Eis-Saeulen → D6 → D7 + Lobby Stufe 1 → Konto/Shop.
+0. **Naechster Schritt: D5e Eis-Saeulen — Spec schreiben** (Plan V7, Abschnitt "D5e";
+   danach D6 → D7 + Lobby Stufe 1 → Werkstatt → Arsenal → D8, alles im Plan festgehalten,
+   Thomas 21:24). Vorgaben fuer D5e: Eisblock milchig-blau halbdurchsichtig mit Fahrzeug
+   darin, Fahrzeuge etwa doppelt so gross, laengs zur Strasse, Hubschrauber ~halbe Spielgroesse
+   (Rotor), Saeulenrand ≤ ~3,7 m von der Mitte (Truppe bis x = 3; heute `SAEULE_X` 4,7, Glas
+   1,6×4×1,6, Miniatur 1,5 m, `szene.ts` ~64–113); Risse je Treffer, Splitter beim
+   Freischiessen, keine Lichtbrechung (iPhone-Budget ausgereizt, Messung noetig); **nur die
+   Zahl** der verbleibenden Treffer, keine Namensschilder; Saeulen **wiederholen sich**
+   (Kern `rechnung.ts` ~Z. 114–125: `saeulenIndex` zyklisch, `P` je Runde ×1,5; Bots vorher/
+   nachher, passiv 0/20). Spec haerten (liefert Basis fuer D7/Werkstatt).
+
+   **Warten auf Thomas (iPhone):**
+   - Blick auf **D5d-Nacharbeit 3**: erster Haubitzen-Einschlag sichtbar (Ursache war die
+     Ladeanzeige "Laedt …", Pruef-Einsaetze starten jetzt danach; Explosionen zeichnen jetzt
+     ueber allem), Panzer/Haubitze zielen in die Hordenmitte bis hinten (0,4–0,85 × Tiefe),
+     **Steuerung**: Verstaerkung 1,6 + 40 m/s. Achtung: schon vorher reichte etwa die mittlere
+     Haelfte des Bildschirms fuer den vollen Ausschlag (100–290 px bei 390), jetzt nur noch
+     135–255 px — kann nervoes wirken; Thomas' Urteil abwarten, Regler
+     `STEUERUNG.VERSTAERKUNG` / `MAX_M_PRO_S` in `balance3d.ts`.
+   - **Icon-Test:** Icon Variante 2 (Hubschrauber) online, Links mit `?v=2`. Thomas probiert
+     erst einen iPhone-Neustart (Vorhersage: altes Icon bleibt), sonst App loeschen + neu
+     hinzufuegen (sein Spielstand ist ihm egal). **Benni NICHT loeschen lassen**: die
+     Home-Bildschirm-App hat eigenen Speicher, ein Export/Import fehlt. Benni bekommt alle
+     Neuerungen automatisch, nur das Icon nicht.
+
+   **Heute abgenommen/online:** D5c (Humvee faehrt 2 s an + 12 s mit MG durch die Horde,
+   Hubschrauber kreist 4 m hoch, Panzer-Gasse bis zur naechsten Welle, Panzer −5 % je Boss,
+   Truppe trifft Bosse durch offene Gasse (`gasseAnteil` im Kern), Haubitze 4 s Schussabstand,
+   Hubschrauber-Einschlaege ≥ 3,25 m hinter der Front; Messung am iPhone gruen, Thomas ok).
+   D5d: Startbildschirm "RUN & GUN" (2D, unveraendert) / "RUN GUN 3D" (3D-Schriftzug), neues
+   Startbild `src/assets/start.jpg` (nur Titelseite, 2D-Menue behaelt `title.png`),
+   3D-Knopf im 2D-Menue entfernt, 3D speichert nachweislich nur `rg3d*`-Schluessel.
+   Lokal (git-ignoriert): Icon-Entwuerfe `assets/probe/icon-varianten/`.
 
 1. **Heute online (2026-09-30), alles committet:**
    - D3-Nacharbeit (Truppe nie unter 1, Finger robust, Blick zur Saeule, Zaehler Horde/Boss/
@@ -44,7 +62,10 @@ steht auf IDLE.)
 3. **Bekannt, nicht beauftragt:** Einheiten-Banner liegt ueber der Messergebnisliste;
    Hubschrauber-Miniatur in der hintersten Saeule teils vom Namensschild verdeckt.
 4. **Arbeitsweg:** Codex-Start per `.command` mit `codex exec "<Auftrag>" < /dev/null >
-   codex.out 2>&1` (Companion haengt), Warteschleife mit Stillstands- (15 min) und
+   codex.out 2>&1` (Companion haengt bzw. endet ohne Bericht — am 2026-09-30 erneut passiert;
+   CLAUDE.md ist nachgezogen). Nacharbeiten als eigener Abschnitt in `active-task.md`, Auftrag
+   "NUR den Abschnitt '…' umsetzen". Codex meldet "Terminal.app fehlt" — harmlos, er testet
+   in seiner Shell; Claude laesst die Suite selbst im Terminal laufen, Warteschleife mit Stillstands- (15 min) und
    Limitwaechter; Tests/Build ueber `scratchpad`-`.command` im Terminal; Bildpruefung mit
    Playwright 390×844 (hasTouch). Ein Test, den Codex laut Freigabeliste nicht anfassen
    darf, darf Claude selbst anpassen (`tests/` ist frei). Fahrzeug-Rohdateien:
@@ -374,7 +395,7 @@ echten Runs. Beides sollte nach Bennis Test nachgezogen werden.
 - Versuche nur im Testbereich (Testgelaende/Probelauf), bis Thomas sein Go gibt.
 
 ## Wichtige Dateien und Befehle
-- Plan `docs/plan-v6.md` (verbindlich, "Run Gun V2") · Archiv: `docs/plan-v5.md`
+- Plan `docs/plan-v7.md` (verbindlich, "Run Gun 3D"; 3D-Code `src/v3d/`) · Archiv: `docs/plan-v6.md`, `docs/plan-v5.md`
   (Torlauf, aufgegeben) und `docs/plan-v4.md` (enthaelt die Befunde beider
   Gegenpruefungen) ·
   Endlos-Regler: `BALANCE.level.endless`, `enemy.endlessHpGrowthPerLevel`,
@@ -386,12 +407,8 @@ echten Runs. Beides sollte nach Bennis Test nachgezogen werden.
 - Deploy: `gh run watch $(gh run list --limit 1 --json databaseId --jq '.[0].databaseId') --exit-status`
 
 ## Einstiegssatz
-"Lies `docs/UEBERGABE.md`, `docs/lessons.md` und `docs/plan-v6.md` und arbeite dort weiter.
-**Nichts neu aufsetzen** — V1/V2/V3 sind abgenommen und getaggt, V4 ist gebaut und
-gemessen, V5 (Torlauf) ist aufgegeben, V6 "Run Gun V2" ist gebaut und gemessen und
-liegt seit dem 2026-09-20 auf Eis; die zehn Gangarten sind seit dem 2026-09-05 fertig
-und im Spiel.
-Die Wandlogik aus dem Genre-Vorbild Last Z: Survival Shooter und der PROBELAUF sind
-erledigt - beide liegen im Testbereich und bleiben vorerst dort; ohne Thomas' Go wandert
-nichts davon in den echten Run. **Es laeuft gerade nichts, `docs/active-task.md` ist
-leer.** Was liegen bleibt, steht in `## Offen`."
+"Lies `docs/UEBERGABE.md` (vollstaendig, nicht nur die Vorschau), `docs/lessons.md` und
+`docs/plan-v7.md` und arbeite dort weiter. **Nichts neu aufsetzen.** Es laeuft gerade nichts,
+`docs/active-task.md` ist leer. Naechster Schritt steht in `## Offen`, Punkt 0 (D5e
+Eis-Saeulen spezifizieren); vorher Thomas nach seinem iPhone-Blick auf Steuerung/Haubitze
+und dem Icon-Test fragen."
