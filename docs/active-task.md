@@ -1,6 +1,6 @@
 # Aktive Aufgabe
 
-Status: SPEC_READY
+Status: APPROVED
 
 ## Aufgabe: D5d — Zwei Spiele in einer App (Startbildschirm) + App-Icon-Varianten
 
@@ -61,3 +61,10 @@ Abschlussbericht: was geaendert, Testergebnisse, was nicht ging und warum.
 ## Reißleine
 Laesst sich eine Variante nicht erzeugen: melden, Rest fertig bauen. Keine Aenderung an
 2D-Spiellogik oder 2D-Speicher, um etwas gruen zu bekommen.
+
+## Implementation Summary
+- Titelbildschirm: zwei gleichwertige 56-px-Knoepfe fuer Standardspiel und 3D; 3D-Startlogik mit Doppelstart-Sperre, Rueckgabe-Hinweis und Fehlerpfad einmal in `TitleScene`.
+- 3D-Knopf aus dem 2D-Menue entfernt. 3D-Speicherzugriffe mit `localStorage`-Stub auf `rg3d`-Schluessel geprueft; 2D-Stand bleibt bytegleich.
+- Drei 1024×1024-RGB-Icon-Entwuerfe und Kontaktbogen (180/60 px) unter `assets/probe/icon-varianten/` erstellt; kein Icon eingebaut.
+- Nachweise: `npm run check` Exit 0; `npm test` 66 Dateien/608 Tests gruen; `npm run build` Exit 0; `git diff --check` ohne Befund. Kein iPhone-/WebGL-Livetest in dieser Umgebung.
+- Die vier Icon-Dateien liegen in einem durch `.gitignore` ignorierten Ordner. Erzwungenes Git-Vormerken scheiterte an schreibgeschuetztem `.git/index.lock`; fuer einen spaeteren Commit muessen sie mit `git add -f assets/probe/icon-varianten/*.png` aufgenommen werden.

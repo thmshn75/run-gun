@@ -8,16 +8,15 @@ steht auf IDLE.)
 
 ## Offen — naechster Schritt zuerst
 
-0. **D5c + Nacharbeit 4 online (2026-09-30 ~20:40) — wartet auf Thomas' letzten Blick (Hubschrauber-Einschlaege).**
-   Humvee und Boss-Kampf durch die Gasse: Thomas ok (20:27). Nacharbeit 4: Hubschrauber-Einschlaege
-   ≥ 3,25 m hinter der Front, Boss-Ziel 1,5 m am Ruecken (nur Bild; Kern toetet keine eigenen Soldaten).
-   Danach D5c abnehmen, dann **D6** (Elite-Endboss, Sieg/Niederlage).
-   Messung D5c am iPhone: alles gruen (Thomas 19:47). Nach Nacharbeit 2 hat Thomas Haubitze,
-   Panzer und Hubschrauber abgenommen (20:06). Nacharbeit 3: Humvee 12 s @ 10/s durch die
-   Horde, Explosion 3 m, Muendungsblitz 0,15 s; **Kern:** `gasseAnteil` – solange eine Gasse
-   offen ist (bis zur naechsten Welle), geht dieser Anteil des Frontfeuers direkt auf die
-   Bosse (Panzer ~50 %, Humvee ~28 % der Hordenbreite). 603 Tests, Bots praktisch gleich
-   (passiv 0/20). Offen: Thomas' Blick auf Humvee und Boss-Kampf durch die Gasse.
+0. **D5d Startbildschirm online (2026-09-30 ~20:55): zwei Knoepfe "RUN & GUN" / "RUN GUN 3D",
+   3D-Knopf im 2D-Menue entfernt, 3D-Speicher nachweislich nur `rg3d*`.** Offen:
+   - **Icon:** drei Varianten in `assets/probe/icon-varianten/` (git-ignoriert, lokal); Thomas
+     waehlt. **ACHTUNG Benni:** iOS-Home-Bildschirm-App hat einen eigenen Speicher; App
+     loeschen + neu hinzufuegen (noetig fuer neues Icon) loescht sehr wahrscheinlich den
+     2D-Spielstand. Es gibt keine Export-/Import-Funktion. Ohne Sicherungsweg Benni NICHT
+     loeschen lassen.
+   - D5c: Thomas' letzter Blick auf Hubschrauber-Einschlaege (Nacharbeit 4) steht aus.
+   - Danach D6 (Elite-Endboss, Sieg/Niederlage).
 
 1. **Heute online (2026-09-30), alles committet:**
    - D3-Nacharbeit (Truppe nie unter 1, Finger robust, Blick zur Saeule, Zaehler Horde/Boss/

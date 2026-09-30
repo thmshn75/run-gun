@@ -37,7 +37,6 @@ export class MenuScene extends Phaser.Scene {
 
   /** Stand vor dem letzten Zuruecksetzen, falls einer da ist und noch nichts erspielt wurde. */
   private zurueckholbar: SaveData | undefined
-  private startet3D = false
 
   public constructor() {
     super('MenuScene')
@@ -140,43 +139,6 @@ export class MenuScene extends Phaser.Scene {
       'PROBELAUF',
       true,
       () => { this.zeigeProbelaufWahl() },
-      undefined, true,
-    )
-    // 3D bekommt eine eigene Zeile in der freien Luecke ueber den drei bestehenden
-    // Modi. Steht FORTSCHRITT ZURUECKHOLEN da, beginnt die freie Luecke erst darueber.
-    const v2Top = (this.zurueckholbar === undefined ? layout.testButton.top : layout.restoreButton.top) - 12 - layout.testButton.height
-    this.addButton(
-      safeLeft + safeWidth / 2,
-      v2Top + layout.testButton.height / 2,
-      safeWidth - 2 * BALANCE.menu.sidePadding,
-      layout.testButton.height,
-      'RUN GUN 3D',
-      true,
-      () => {
-        if (this.startet3D) return
-        this.startet3D = true
-        const hinweisText = (hinweis?: string) => {
-          if (!hinweis) return
-          const text = this.add.text(safeLeft + safeWidth / 2, v2Top - 16, hinweis, {
-            fontFamily: 'system-ui', fontSize: '14px', color: '#ffffff', backgroundColor: '#172231', align: 'center',
-          }).setOrigin(0.5).setDepth(20)
-          this.time.delayedCall(4000, () => text.destroy())
-        }
-        import('../v3d/einstieg').then(({ starte3D }) => {
-          try { sessionStorage.removeItem('rg3d_neuladen') } catch { /* Speicher kann gesperrt sein. */ }
-          void starte3D(this.game, hinweis => { this.startet3D = false; hinweisText(hinweis) }).catch(() => { this.startet3D = false })
-        }).catch(() => {
-          this.startet3D = false
-          try {
-            if (sessionStorage.getItem('rg3d_neuladen') !== '1') {
-              sessionStorage.setItem('rg3d_neuladen', '1')
-              location.reload()
-              return
-            }
-          } catch { /* Ohne Session-Speicher kein sicherer Reload. */ }
-          hinweisText('3D-Dateien nicht ladbar – App neu öffnen')
-        })
-      },
       undefined, true,
     )
     // FORTSCHRITT ZURUECKHOLEN - steht nur da, wenn es etwas zurueckzuholen gibt
