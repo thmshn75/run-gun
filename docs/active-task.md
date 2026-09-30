@@ -35,7 +35,7 @@ nicht nur im Einzelbild auftauchen.
   zwangsläufig brechen, werden auf die neuen Sollwerte umgestellt und im Bericht einzeln
   genannt — z. B. Panzer-Gesamtdauer 6,7 → 9,2 s in `tests/v3dRechnung.test.ts` Zeile 17,
   `pruefEinsatz` in `tests/v3dFahrzeuge.test.ts` Zeilen 19–23).
-- **Nicht:** `src/v3d/rechnung.ts`, übrige `SPEZIAL`-Werte, `LEVELS`, `scripts/`, Modelle,
+- **Nicht:** `src/v3d/rechnung.ts` (Ausnahme: S1b, nur der Spezial-Abschnitt), übrige `SPEZIAL`-Werte, `LEVELS`, `scripts/`, Modelle,
   Bilder, `src/v3d/anzeigen.ts`, alles außerhalb von `src/v3d/` und `tests/`.
 - Haubitze: sichtbares Verhalten (Größe, Wege, Schüsse, Abgang) bleibt unverändert; nur der
   interne Skalierungsweg wird vereinheitlicht (F2).
@@ -44,7 +44,7 @@ nicht nur im Einzelbild auftauchen.
 
 **Zuerst** auf dem unveränderten Stand `npm run bots3d` ausführen und die Tabelle als
 "Vorher" in den Bericht schreiben; am Ende "Nachher". Einzige Kernänderung ist die zeitliche
-Streckung der Panzer-Schneise bei gleicher Horde-Wirkung plus 100 Boss-Punkte (S1b) → Grenze: Siegquote je Bot ±1/20,
+Streckung der Panzer-Schneise bei gleicher Horde-Wirkung plus 5 % Boss-Leben je Boss (S1b) → Grenze: Siegquote je Bot ±1/20,
 Ø-Dauer ±5 %. Verletzt → melden, **nicht** an Zahlen drehen.
 
 ## Akzeptanzkriterien
@@ -167,16 +167,22 @@ wiederverwenden; neue Objekte nur je Schuss/Anlegen).
 40/s; Gesamtwirkung bleibt 30 + 30 + 100 = 160). Alles, was die Schneisendauer heute als
 Zahl enthält (z. B. `tempo = … / 2.5` im Abgang), liest sie aus `SPEZIAL`.
 
-**S1b Panzer trifft die Bosse (Thomas 17:20: "den beiden soll er auch leben entziehen, ein
-wenig").** Die Phase `schneise` bekommt `bossPunkteProSekunde: 20` — der Kern wendet das über
-den vorhandenen Zweig an (derselbe wie beim Hubschrauber, `rechnung.ts` wird **nicht**
-geändert): 5 s × 20 = **100 Punkte** am Boss im Feld (Mini-Boss vor Elite-Boss; Mini 400 →
-−25 %, Elite 3000 → −3 %). Vereinfachung, bewusst: Der Kern zieht über die ganze Schneise ab,
-nicht nur im Moment der Durchfahrt; ist kein Boss im Feld, verfällt es. Bild: Wenn die
-Panzerspitze auf Höhe eines sichtbaren Bosses ist (|bugZ − Boss-z| < 1,5 m, `bossPunkt` wie
-in K), eine Explosion Ø 2,5 m am Boss (einmal je Boss und Durchfahrt). Tests: Kern — Boss im
-Feld verliert über die Schneise 100 ± 1 (dt 1/30 und 0,1), ohne Boss keine Wirkung, Horde-
-Wirkung unverändert 160; Bild — genau eine Boss-Explosion bei der Durchfahrt.
+**S1b Panzer trifft die Bosse (Thomas 17:20/17:28: "den beiden soll er auch Leben
+entziehen", "5 % bei beiden Bossen").** Die Phase `schneise` bekommt
+`bossAnteil: 0.05`. **Kern-Änderung (einzige in `rechnung.ts`, freigegeben):** In einer
+Phase mit `bossAnteil` verliert **jeder** Boss, der im Feld ist (`imFeld && B > 0`), anteilig
+über die Phasendauer `bossAnteil × Start-Lebenspunkte` (aus dem Level: `B_mini`, `B_elite`),
+also bei voller Schneise Mini −20 (von 400), Elite −150 (von 3000); gemeldet als vorhandenes
+`bossTreffer`-Ereignis mit `boss`, keine neue Ereignisart; Tod des Bosses wie beim
+Hubschrauber (`imFeld = false`). Der Hubschrauber-Zweig (`bossPunkteProSekunde`, nur ein
+Boss) bleibt unverändert. Vereinfachung, bewusst: Abzug über die ganze Schneise, nicht nur im
+Moment der Durchfahrt; ist kein Boss im Feld, verfällt es.
+Bild: Wenn die Panzerspitze auf Höhe eines sichtbaren Bosses ist (|bugZ − Boss-z| < 1,5 m,
+Boss-Position wie `bossPunkt` in K, hier für beide Bosse), eine Explosion Ø 2,5 m am Boss
+(einmal je Boss und Durchfahrt).
+Tests: Kern — Mini allein −20 ± 0,1, Elite allein −150 ± 0,1, beide im Feld beide zugleich,
+kein Boss → keine Wirkung (dt 1/30 und 0,1); Horde-Wirkung unverändert 160; Invariante
+Ereignisprotokoll grün; Bild — genau eine Boss-Explosion je Boss bei der Durchfahrt.
 
 **S2 Gasse bleibt.** Neue kleine Klasse `HordeGasse` in `lauf.ts` (Zustand: `aktiv`, `x`,
 `halb`, `bis`): Die Gasse ist ein Streifen in **Horde-Koordinaten** (Eintrag-x/-z der
