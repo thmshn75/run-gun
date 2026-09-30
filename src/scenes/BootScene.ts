@@ -232,6 +232,7 @@ import sceneryTowerAUrl from '../assets/scenery-tower-a.png'
 import sceneryTowerBUrl from '../assets/scenery-tower-b.png'
 import sceneryTowerCUrl from '../assets/scenery-tower-c.png'
 import titleUrl from '../assets/title.png'
+import startUrl from '../assets/start.jpg'
 import weaponLaserGateUrl from '../assets/weapon-laser-gate.png'
 import weaponLaserHudUrl from '../assets/weapon-laser-hud.png'
 import weaponMinigunGateUrl from '../assets/weapon-minigun-gate.png'
@@ -283,6 +284,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('barrel-roll-7', barrelRoll7Url)
     this.load.image('barrel-roll-8', barrelRoll8Url)
     this.load.image('title', titleUrl)
+    this.load.image('start', startUrl)
     this.load.image('enemy-light', enemyLightUrl)
     this.load.image('enemy-standard', enemyStandardUrl)
     this.load.image('enemy-lurch-1', enemyLurch1Url)

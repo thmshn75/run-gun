@@ -20,6 +20,8 @@ steht auf IDLE.)
      Laeufe; Konto/Shop spaeter nach D7); Saeulen wiederholen sich (P je Runde ×1,5
      vorgeschlagen); Saeulen als Eisblock mit dem Fahrzeug darin, Fahrzeuge etwa doppelt so
      gross, laengs, Hubschrauber ~halb; Risse je Treffer, Splitter beim Freischiessen.
+     **Thomas 21:09:** Auf den Eisbloecken nur noch die Zahl (verbleibende Treffer), keine
+     Namensschilder/Beschreibungen mehr.
      Vorgeschlagene Reihenfolge: Eis-Saeulen → D6 → D7 + Lobby Stufe 1 → Konto/Shop.
 
 1. **Heute online (2026-09-30), alles committet:**

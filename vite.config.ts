@@ -33,7 +33,7 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
-        globPatterns: ['**/*.{js,css,html,png,webmanifest,glb,webp}'],
+        globPatterns: ['**/*.{js,css,html,png,jpg,webmanifest,glb,webp}'],
         globIgnores: ['probe-3d/**'],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
       },
