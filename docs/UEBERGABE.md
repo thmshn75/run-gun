@@ -8,30 +8,15 @@ steht auf IDLE.)
 
 ## Offen — naechster Schritt zuerst
 
-0. **Naechster Schritt: D5c — Spec steht (`docs/active-task.md`, SPEC_READY, gehaertet in
-   zwei Runden, Stand 2026-09-30 17:37).** Enthaelt zusaetzlich Thomas' Vorgaben vom Nachmittag:
-   bleibende Panzer-Schneise (5 s, volle Breite, schliesst mit der naechsten Welle), Panzer
-   entzieht beiden Bossen je 5 %, Saeulen Humvee → Haubitze → Panzer → Hubschrauber,
-   Hubschrauber 20/s (staerkste Einheit). **Codex-Start erst auf Thomas' Go** (Codex-Limit,
-   Reset ca. 18:20). Erst auf Thomas' Go
-   starten (er pausiert gern zwischen Schritten: "nach diesem Lauf stoppen" heisst: den
-   laufenden Schritt fertig pruefen, committen, deployen, dann nichts Neues anstossen).
-   - Ablaeufe laut Plan (Zeile "Einsatz der Fahrzeuge", Thomas 2026-09-30): **Humvee** faehrt
-     bis zur Haelfte (Wand → Front) und schiesst; **Hubschrauber** kreist ueber der Horde und
-     feuert. Beide nur begrenzte Zeit. Im Rechenkern stehen die Ablaeufe schon
-     (`SPEZIAL.humvee`: fahrt 3 s → feuer 30 s @ 4/s; `SPEZIAL.hubschrauber`: fahrt 2 s →
-     feuer 12 s @ 15/s + Boss 25/s).
-   - Wiederverwenden: Klasse `Einsatzbilder` in `src/v3d/lauf.ts` (Zustandsabgleich ueber
-     `z.aktiv`, `phaseBei`, Abgang, `zuruecksetzen` im Vorgaenger-Zweig), `Explosionen`
-     (`anzeigen.ts`), **Treffer-Loecher** (`baueHorde` mit Lochliste: Treffer verschwinden an
-     der Einschlagstelle, heilen alle 0,25 s), Mitte der Fahrbahn / links-rechts-Muster wie
-     Panzer. Hubschrauber-Rotoren (`rotor` y-Achse, `heckrotor` x-Achse) drehen schon in den
-     Miniaturen. Thomas' Muster aus D5b: Wirkung muss **sichtbar** sein (Explosion + Loch),
-     Fahrzeuge in der Mitte, nicht zu gross.
-   - Pruefweg: `?pruefung=1&einsatz=humvee|hubschrauber` (nur mit `pruefung=1` aktiv).
-     Im Testbrowser dunkelt der Hinweis "Offline-Speicher nicht dauerhaft zugesagt" die
-     ersten ~4 s ab — Einsaetze mit kurzem Ablauf daher mit Bildfolge + Aufhellen pruefen.
-   - D5c-Nachweis laut Plan inkl. Dauertest 3 min (Thomas misst am iPhone).
+0. **D5c gebaut, geprueft, online (Commit 1b81184, 2026-09-30 19:35) — wartet auf Thomas' iPhone-Test.**
+   Humvee/Hubschrauber feuern auf dem Feld, Panzer-Gasse bleibt bis zur naechsten Welle,
+   Panzer -5 % je Boss, Saeulen Humvee → Haubitze → Panzer → Hubschrauber (20/s). Nacharbeit 1:
+   Hubschrauber-Flughoehe 7 → 4 m (war am oberen Bildrand abgeschnitten), Anflug-Kurs korrigiert.
+   595 Tests, Bots (passiv 0/20). Browser-Bildfolge ok. **Nicht geprueft:** Zweitstart-Speicherzaehler,
+   sauberer Draw-Call-Vergleich (grob 181–193 gegen 184 ohne Einsatz, Szenen nicht gleich),
+   Gasse schliesst nach Welle nur im Test, nicht im Bild gesehen. Thomas: iPhone-Blick +
+   Messung inkl. Dauertest 3 min (jetzt mit zwei Fahrzeugen, nicht mit frueheren Werten vergleichbar).
+
 1. **Heute online (2026-09-30), alles committet:**
    - D3-Nacharbeit (Truppe nie unter 1, Finger robust, Blick zur Saeule, Zaehler Horde/Boss/
      Welle, keine springenden Laeufer).
