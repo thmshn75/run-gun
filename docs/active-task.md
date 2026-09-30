@@ -2,9 +2,6 @@
 
 Status: SPEC_READY
 
-**Handoff-Sperre:** Codex erst starten, wenn Thomas das Go gibt (Codex-Limit am 2026-09-30
-17:03 bei 5 % Rest) — der Lauf darf nicht mittendrin am Limit abbrechen.
-
 ## Aufgabe: D5c — Humvee und Hubschrauber auf dem Feld + bleibende Panzer-Schneise
 
 Verbindlicher Plan: `docs/plan-v7.md`, Zeile **"Einsatz der Fahrzeuge (Thomas 2026-09-30)"**
