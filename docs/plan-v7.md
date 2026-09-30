@@ -209,7 +209,7 @@ Test: Summe der Ereignisse = Änderung der Zähler, in jedem Schritt.
 Jeder Schritt ist **eine** Spec in `docs/active-task.md`, **ein** Codex-Lauf im Terminal,
 Review durch Claude, ein Commit, Desktop-Vorprüfung, dann **ein** iPhone-Foto von Thomas.
 Erst danach der nächste Schritt. **Reihenfolge (ab 2026-09-29):** D0 → R1 → D1 → D2a → D2b → D2c → D3 →
-R2 → D3-Anpassung → D4 → D5a → D5b → D5c → D6 → D7 → D8. R1 ist harte Voraussetzung für D3. Gamefeel gilt erst nach Thomas' Test am iPhone.
+R2 → D3-Anpassung → D4 → D5a → D5b → D5c → D5d → D6 → D7 → D8. R1 ist harte Voraussetzung für D3. Gamefeel gilt erst nach Thomas' Test am iPhone.
 
 **D0 — Fundament.** npm `three`; `src/v3d/` mit Einstieg; Menüknopf "RUN GUN 3D" statt
 "RUN GUN V2"; Nachladen mit Fehlerbild; Phaser schlafen/wecken; einmaliger Renderer;
@@ -274,6 +274,14 @@ Fahrzeug-Tabelle vor (Kandidat, Dreiecke, Bemalungsgröße, Lizenz), Thomas wäh
 **D5b — Panzer und Haubitze. D5c — Hubschrauber und Humvee** (inkl. Dauertest 3 Minuten).
 Nachweise je Einheit: Rechenkern-Test mit/ohne Einheit, Differenz gleich der Tabelle
 (±5 %); Leistung im Budget, während zwei Einheiten gleichzeitig wirken.
+
+**D5d — Zwei Spiele in einer App + App-Icon (Thomas 2026-09-30 20:36).** Startbildschirm
+mit zwei gleichwertigen Knoepfen: "RUN & GUN" (Standardversion mit allem Bisherigen: Konto,
+Shop, Testgelaende, Probelauf, erspielter Stand) und "RUN GUN 3D" (eigener Spielstand,
+getrennt vom 2D-Stand; Thomas: "Eigener Stand"). Der 3D-Knopf im 2D-Menue entfaellt. Neues
+App-Icon im Stil der 3D-Version: Codex erzeugt Varianten, Thomas waehlt, dann Einbau.
+Hinweis: Auslieferung an Benni automatisch beim naechsten Oeffnen; das Home-Bildschirm-Icon
+uebernimmt iOS erst nach Entfernen und neu Hinzufuegen der App.
 
 **D6 — Elite-Endboss, Sieg und Niederlage.** Nachweis: beide Ausgänge je einmal im
 Spiel und im Bot-Lauf.
