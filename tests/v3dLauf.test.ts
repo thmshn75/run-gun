@@ -5,7 +5,7 @@ import { bannerEintraege } from '../src/v3d/oberflaeche'
 import { MessBotSteuerung } from '../src/v3d/messung'
 import { bossFreieAufstellung } from '../src/v3d/bosse'
 import { saeulenBlick } from '../src/v3d/lauf'
-import { BUEHNE } from '../src/v3d/balance3d'
+import { BUEHNE, DARSTELLUNG, FIGUREN, LEVELS } from '../src/v3d/balance3d'
 import { statusZeile } from '../src/v3d/oberflaeche'
 import * as THREE from 'three'
 import { BossBalken, ZahlAnzeige } from '../src/v3d/anzeigen'
@@ -14,21 +14,26 @@ import { SoldatenMasse, type SoldatenBau } from '../src/v3d/soldaten'
 import type { Welt } from '../src/v3d/szene'
 
 function baueWeltAttrappe() {
-  const kontext={clearRect:vi.fn(),fillRect:vi.fn(),fillText:vi.fn(),createRadialGradient:()=>({addColorStop:vi.fn()})}
-  vi.stubGlobal('document',{createElement:()=>({width:0,height:0,getContext:()=>kontext})})
+  const namenBreiten: number[]=[]
+  const kontext={font:'',clearRect:vi.fn(),fillRect:vi.fn(),fillText:vi.fn(function(this:{font:string},name:string){
+    if(LEVELS[0].saeulen.some(n=>n.toUpperCase()===name))namenBreiten.push(name.length*Number.parseInt(this.font.match(/\d+/)?.[0]??'0')*.64)
+  }),measureText:vi.fn(function(this:{font:string},name:string){return {width:name.length*Number.parseInt(this.font.match(/\d+/)?.[0]??'0')*.64}}),createRadialGradient:()=>({addColorStop:vi.fn()})}
+  vi.stubGlobal('document',{createElement:()=>({width:256,height:128,getContext:()=>kontext})})
   const form=()=>new THREE.BoxGeometry(.3,2,.3)
   const zombieBau:ZombieBau={formen:[form()],materialien:[new THREE.MeshStandardMaterial(),new THREE.MeshStandardMaterial(),new THREE.MeshStandardMaterial()],bemalungen:[],dauer:1.1,dreiecke:12}
   const soldatBau:SoldatenBau={formen:{laufen:[form()],stehen:[form()],schiessen:[form()],fallen:[form(),form(),form(),form()]},material:new THREE.MeshStandardMaterial(),atlas:new THREE.Texture(),dauer:{laufen:1,stehen:1,schiessen:1,fallen:1},backzeitMs:0,pruefung:{debugMuzzle:[0,1.3,-.5]}}
   const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(),truppe=new SoldatenMasse(soldatBau,40),laufTrupp=new SoldatenMasse(soldatBau,50),front=new SoldatenMasse(soldatBau,40),zombieMasse=new ZombieMasse(zombieBau,zombieBau.materialien,600)
-  const wand=new THREE.Group(),saeule=new THREE.Group(),saeulenInnen=new THREE.Group()
+  const wand=new THREE.Group(),saeulen=LEVELS[0].saeulen.map(name=>{const g=new THREE.Group();g.name=`saeule-${name}`;return g}),saeulenInnen=saeulen.map(g=>{const innen=new THREE.Group();g.add(innen);return innen})
+  saeulen.forEach((g,i)=>g.position.set(BUEHNE.SAEULE_X,0,-12-i*BUEHNE.SAEULEN_ABSTAND))
+  const saeulenSchilder=saeulen.map(g=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(document.createElement('canvas'))}));m.userData.canvas=document.createElement('canvas');g.add(m);return m})
   const bossObjekt=new THREE.Group(),bossMaterial=new THREE.MeshStandardMaterial({color:'#777777'})
   bossObjekt.add(new THREE.Mesh(form(),bossMaterial))
   const miniSpiele=vi.fn(),eliteSpiele=vi.fn()
   const miniboss={objekt:bossObjekt,breite:1,spiele:miniSpiele,aktualisiere:vi.fn(),gibFrei:vi.fn()}
   const eliteboss={objekt:new THREE.Group(),breite:1,spiele:eliteSpiele,aktualisiere:vi.fn(),gibFrei:vi.fn()}
-  scene.add(truppe.gruppe,laufTrupp.gruppe,front.gruppe,zombieMasse.gruppe,wand,saeule,bossObjekt,eliteboss.objekt)
-  const welt={scene,camera,bemalungen:[new THREE.Texture(),new THREE.Texture()],wasser:{} as Welt['wasser'],zombieBau,zombieMasse,nahaufnahme:false,soldatNahaufnahme:false,soldatBau,truppe,laufTrupp,front,laufGruppen:[truppe.gruppe,laufTrupp.gruppe,front.gruppe,zombieMasse.gruppe],plusSchilder:[],wand,saeule,saeulenInnen,miniboss,eliteboss} as Welt
-  return {welt,miniSpiele,bossMaterial,raume:()=>vi.unstubAllGlobals()}
+  scene.add(truppe.gruppe,laufTrupp.gruppe,front.gruppe,zombieMasse.gruppe,wand,...saeulen,bossObjekt,eliteboss.objekt)
+  const welt={scene,camera,bemalungen:[new THREE.Texture(),new THREE.Texture()],wasser:{} as Welt['wasser'],zombieBau,zombieMasse,nahaufnahme:false,soldatNahaufnahme:false,soldatBau,truppe,laufTrupp,front,laufGruppen:[truppe.gruppe,laufTrupp.gruppe,front.gruppe,zombieMasse.gruppe],plusSchilder:[],wand,saeulen,saeulenInnen,saeulenSchilder,miniboss,eliteboss} as Welt
+  return {welt,miniSpiele,bossMaterial,namenBreiten,raume:()=>vi.unstubAllGlobals()}
 }
 
 function laufe(ziel: number, dauer=10) {
@@ -40,17 +45,41 @@ function laufe(ziel: number, dauer=10) {
   return {lauf,gezeigt,ausgesandt,einheiten}
 }
 describe('3D-Lauf',()=>{
-  it('zeigt Frontkampf und gedeckelte Fall-Pools und räumt eigene Netze auf',()=>{
+  it('setzt Einheiten-Banner mindestens sechs Pixel unter die Statuszeile',async()=>{
+    vi.resetModules()
+    const {setzeEinheitenBanner,zeigeOberflaeche,versteckeOberflaeche}=await import('../src/v3d/oberflaeche')
+    const elemente: { tag: string; style: Record<string,string>; children: unknown[]; textContent: string; getBoundingClientRect: () => {top:number;bottom:number}; appendChild: (child:unknown)=>void; append: (...children:unknown[])=>void; replaceChildren: (...children:unknown[])=>void; addEventListener:()=>void }[]=[]
+    const createElement=(tag:string)=>{
+      const element={tag,style:{} as Record<string,string>,children:[] as unknown[],textContent:'',
+        getBoundingClientRect:()=>({top:tag==='div'&&elemente.indexOf(element)===0?10:20,bottom:90}),
+        appendChild(child:unknown){this.children.push(child)},append(...children:unknown[]){this.children.push(...children)},
+        replaceChildren(...children:unknown[]){this.children=children},addEventListener(){} }
+      elemente.push(element)
+      return element
+    }
+    vi.stubGlobal('document',{body:{appendChild:vi.fn()},createElement})
+    try {
+      const ui=zeigeOberflaeche(()=>{},()=>{},1)
+      ui.zahlen.textContent='Level 1 · Welle 2/3'
+      setzeEinheitenBanner([{einheit:'humvee',rest:25}])
+      const banner=elemente.find(e=>e.children.some(c=>(c as {textContent?:string}).textContent==='HUMVEE · 25 s'))!
+      expect(Number.parseFloat(banner.style.top)+10).toBeGreaterThanOrEqual(ui.zahlen.getBoundingClientRect().bottom+6)
+    } finally { versteckeOberflaeche();vi.unstubAllGlobals() }
+  })
+  it('zeigt Frontkampf und gedeckelte Fall-Soldaten und räumt eigene Netze auf',()=>{
     const {welt,miniSpiele,bossMaterial,raume}=baueWeltAttrappe()
     try {
+      const gruppenVorher=new Set(welt.scene.children.filter(o=>o instanceof THREE.Group))
       const matFrei=vi.spyOn(welt.soldatBau.material,'dispose'),zombieFrei=vi.spyOn(welt.zombieBau.materialien[0],'dispose')
       const anzeige=new WeltDarstellung(welt,7),lauf=new SpielLauf(undefined,7,anzeige),z=lauf.zustand
+      expect(welt.scene.children.filter(o=>o instanceof THREE.Group && !gruppenVorher.has(o))).toHaveLength(1)
       z.F=40;z.Z=100;z.y=20;z.miniBoss.imFeld=true
       anzeige.zeige(z,new Map(),[{art:'zombieGefallen',menge:1000,t:0},{art:'soldatGefallen',menge:1000,t:0}],.1,0)
       expect(anzeige.diag().frontBewegung).toBe('schiessen')
       expect(anzeige.diag().frontBlitze).toBeGreaterThan(0)
       expect(anzeige.diag().frontBlitze).toBeLessThanOrEqual(8)
-      expect(anzeige.diag().fallZombiesAktiv).toBeLessThanOrEqual(24)
+      expect(welt.scene.getObjectByName('fallZombies')).toBeUndefined()
+      expect('fallZombiesAktiv' in anzeige.diag()).toBe(false)
       expect(anzeige.diag().fallSoldatenAktiv).toBeLessThanOrEqual(8)
       expect(miniSpiele).toHaveBeenCalledWith('attack_1',false)
       z.miniBoss.B=0;z.miniBoss.imFeld=false
@@ -63,11 +92,8 @@ describe('3D-Lauf',()=>{
       expect(anzeige.diag().frontBewegung).toBe('stehen')
       expect(anzeige.diag().frontBlitze).toBe(0)
       z.ergebnis='sieg'
-      const vorEnde=anzeige.diag().fallZombiesEntstanden
       anzeige.zeige(z,new Map(),[{art:'zombieGefallen',menge:1000,t:0}],.1,0)
-      expect(anzeige.diag().fallZombiesEntstanden).toBe(vorEnde)
       anzeige.nachlauf(2)
-      expect(anzeige.diag().fallZombiesAktiv).toBe(0)
       expect(anzeige.diag().bossZustand).toBe('weg')
       anzeige.gibFrei()
       expect(welt.laufGruppen).toHaveLength(4)
@@ -86,7 +112,6 @@ describe('3D-Lauf',()=>{
       bot.zeige(z,new Map(),[{art:'zombieGefallen',menge:10,t:0}],.1,0)
       bot.gibFrei()
       expect(miniSpiele).toHaveBeenLastCalledWith('attack_1',false)
-      expect(vorn.diag().fallZombiesEntstanden).toBe(0)
       expect(vorn.diag().bossZustand).toBe('kaempft')
       vorn.gibFrei()
     } finally { raume() }
@@ -121,9 +146,59 @@ describe('3D-Lauf',()=>{
     expect(bossBewegung(stand,{t:3,y:20,kontakt:false,imFeld:false,B:0,todesDauer:1}).sichtbar).toBe(true)
     expect(bossBewegung(stand,{t:4,y:20,kontakt:false,imFeld:false,B:0,todesDauer:1}).zustand).toBe('weg')
   })
-  it('trennt die Hordenzahl vertikal von der Frontzahl',()=>{
-    expect(ZAHL_HOEHEN.horde).toBe(4.6)
-    expect(ZAHL_HOEHEN.horde-ZAHL_HOEHEN.front).toBeGreaterThanOrEqual(1.5)
+  it('setzt Schildertempo und Hordenzahl an den rechten Rand',()=>{
+    expect(DARSTELLUNG.SCHILDER_TEMPO_LANGSAM).toBe(4)
+    expect(DARSTELLUNG.SCHILDER_TEMPO_SCHNELL).toBe(16)
+    const {welt,raume}=baueWeltAttrappe()
+    try {
+      const anzeige=new WeltDarstellung(welt),z=new SpielLauf().zustand
+      z.Z=20;z.y=20
+      anzeige.zeige(z,new Map(),[],.1,0)
+      const zahl=welt.scene.children.find(o=>o instanceof THREE.Mesh && o.position.x===FIGUREN.ZOMBIE_X_MAX+.6)!
+      expect(zahl.position.y).toBe(2.4)
+      expect(zahl.position.z).toBe(-z.y+1)
+      expect(Math.abs(zahl.position.x-welt.miniboss.objekt.position.x)).toBeGreaterThanOrEqual(2)
+      anzeige.gibFrei()
+    } finally {raume()}
+  })
+  it('beschleunigt die +1-Schilder mit 48 m/s²',()=>{
+    const {welt,raume}=baueWeltAttrappe()
+    try {
+      const schild=new THREE.Group();welt.plusSchilder.push(schild)
+      const anzeige=new WeltDarstellung(welt),z=new SpielLauf().zustand
+      anzeige.zeige(z,new Map(),[{art:'eingesammelt',menge:1,t:0}],.1,0)
+      expect(schild.position.z).toBeCloseTo(-BUEHNE.PLUS_ABSTAND+.88)
+      anzeige.gibFrei()
+    } finally {raume()}
+  })
+  it('rückt Säulen nach Freigabe in 0,6 s vor und blendet nach der letzten aus',()=>{
+    const {welt,namenBreiten,raume}=baueWeltAttrappe()
+    try {
+      const anzeige=new WeltDarstellung(welt),z=new SpielLauf().zustand
+      z.P=150
+      anzeige.zeige(z,new Map(),[],.1,0)
+      expect(namenBreiten).toHaveLength(LEVELS[0].saeulen.length)
+      expect(namenBreiten.every(breite=>breite<=256-16)).toBe(true)
+      expect(welt.saeulen.filter(s=>s.visible).map(s=>s.name)).toEqual(LEVELS[0].saeulen.map(n=>`saeule-${n}`))
+      z.saeulenIndex=1
+      anzeige.zeige(z,new Map(),[{art:'einheitFrei',menge:1,t:0}],.1,0)
+      expect(welt.saeulen[0].visible).toBe(false)
+      expect(welt.saeulen[1].position.z).toBe(-20)
+      for(let i=0;i<6;i++)anzeige.zeige(z,new Map(),[],.1,0)
+      expect(welt.saeulen[1].position.z).toBeCloseTo(-12)
+      for(let index=2;index<=LEVELS[0].saeulen.length;index++){
+        z.saeulenIndex=index;z.P=index===LEVELS[0].saeulen.length?null:150
+        anzeige.zeige(z,new Map(),[{art:'einheitFrei',menge:1,t:0}],.1,0)
+        expect(welt.saeulen.filter(s=>s.visible)).toHaveLength(Math.min(1+DARSTELLUNG.SAEULEN_VORSCHAU, LEVELS[0].saeulen.length-index))
+      }
+      anzeige.gibFrei()
+      const nochmal=new WeltDarstellung(welt)
+      const neu=new SpielLauf().zustand
+      nochmal.zeige(neu,new Map(),[],.1,0)
+      expect(welt.saeulen[0].visible).toBe(true)
+      expect(welt.saeulen[0].position.z).toBe(-12)
+      nochmal.gibFrei()
+    } finally {raume()}
   })
   it('führt den Mess-Bot mit S=60 abwechselnd über Mitte und Säule',()=>{
     const bot = new MessBotSteuerung()

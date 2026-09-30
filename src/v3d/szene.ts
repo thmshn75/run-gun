@@ -1,7 +1,8 @@
 import * as THREE from 'three'
 import strassenUrl from './bilder/v3d-strasse.webp?url'
 import normalenUrl from './bilder/v3d-wasser-normalen.webp?url'
-import { BUEHNE, FIGUREN } from './balance3d'
+import { BUEHNE, DARSTELLUNG, FIGUREN, LEVELS } from './balance3d'
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { baueKamera } from './kamera'
 import { ladeZombie, ZombieMasse, type ZombieBau } from './figuren'
 import { ladeSoldatenDateien, fertigeSoldaten, entsorgeGLTF, SoldatenMasse, type SoldatenBau } from './soldaten'
@@ -27,8 +28,9 @@ export interface Welt {
   laufGruppen: THREE.Object3D[]
   plusSchilder: THREE.Object3D[]
   wand: THREE.Object3D
-  saeule: THREE.Object3D
-  saeulenInnen: THREE.Object3D
+  saeulen: THREE.Group[]
+  saeulenInnen: THREE.Object3D[]
+  saeulenSchilder: THREE.Mesh[]
   miniboss: Boss
   eliteboss: Boss
 }
@@ -42,7 +44,7 @@ function box(gruppe: THREE.Group | THREE.Scene, name: string, groesse: [number, 
   return mesh
 }
 
-function platzhalter(scene: THREE.Scene) {
+export function platzhalter(scene: THREE.Scene) {
   const gruppe = new THREE.Group()
   gruppe.name = 'platzhalter'
   gruppe.visible = new URLSearchParams(location.search).get('platzhalter') !== '0'
@@ -54,24 +56,55 @@ function platzhalter(scene: THREE.Scene) {
     const plus = baueSchild({ breite: BUEHNE.PLUS_BREITE, hoehe: BUEHNE.PLUS_HOEHE, text: '+1', farbe: '#168bd2', unterkante: 0.5, neigungGrad: -10, pfosten: false })
     plus.name = 'plus-eins'; plus.position.set(BUEHNE.PLUS_X, 0, z); gruppe.add(plus); plusSchilder.push(plus)
   }
-  const innen = box(gruppe, 'spezialeinheit-platzhalter', [1, 0.6, 1.2], [BUEHNE.SAEULE_X, 0.3, -12], '#244a32')
-  innen.renderOrder = 1
-  const glas = new THREE.Mesh(new THREE.BoxGeometry(1.6, 4, 1.6), new THREE.MeshStandardMaterial({
-    color: '#c8ecf7', transparent: true, opacity: 0.3, depthWrite: false, roughness: 0.1,
-  }))
-  glas.name = 'saeule'; glas.position.set(BUEHNE.SAEULE_X, 2, -12); glas.renderOrder = 2; gruppe.add(glas)
-  const rahmen = new THREE.Group(); rahmen.name = 'saeule-rahmen'; gruppe.add(rahmen)
-  for (const x of [-0.8, 0.8]) for (const z of [-0.8, 0.8])
-    box(rahmen, 'saeule-kante', [0.06, 4, 0.06], [BUEHNE.SAEULE_X + x, 2, -12 + z], '#e5f6fa').renderOrder = 3
-  for (const y of [0, 4]) {
-    for (const z of [-0.8, 0.8])
-      box(rahmen, 'saeule-kante', [1.6, 0.06, 0.06], [BUEHNE.SAEULE_X, y, -12 + z], '#e5f6fa').renderOrder = 3
-    for (const x of [-0.8, 0.8])
-      box(rahmen, 'saeule-kante', [0.06, 0.06, 1.6], [BUEHNE.SAEULE_X + x, y, -12], '#e5f6fa').renderOrder = 3
+  const innenGeometrie = new THREE.BoxGeometry(1, 0.6, 1.2)
+  const glasGeometrie = new THREE.BoxGeometry(1.6, 4, 1.6)
+  const schildGeometrie = new THREE.PlaneGeometry(1.6, .9)
+  const kanten: THREE.BufferGeometry[] = []
+  const kante = (masse: [number, number, number], pos: [number, number, number]) => {
+    const g = new THREE.BoxGeometry(...masse); g.translate(...pos); kanten.push(g)
   }
-  const saeule = new THREE.Group(); saeule.name = 'saeule-gesamt'; gruppe.add(saeule)
-  for (const obj of [innen, glas, rahmen]) saeule.attach(obj)
-  return { gruppe, wand, plusSchilder, saeule, saeulenInnen: innen }
+  for (const x of [-.8, .8]) for (const z of [-.8, .8]) kante([.06, 4, .06], [x, 2, z])
+  for (const y of [0, 4]) {
+    for (const z of [-.8, .8]) kante([1.6, .06, .06], [0, y, z])
+    for (const x of [-.8, .8]) kante([.06, .06, 1.6], [x, y, 0])
+  }
+  const rahmenGeometrie = mergeGeometries(kanten)
+  kanten.forEach(g => g.dispose())
+  if (!rahmenGeometrie) throw new Error('Säulenrahmen nicht zusammenführbar')
+  const innenMaterial = new THREE.MeshStandardMaterial({ color: '#244a32' })
+  const glasMaterial = new THREE.MeshStandardMaterial({ color: '#c8ecf7', transparent: true, opacity: .3, depthWrite: false, roughness: .1 })
+  const rahmenMaterial = new THREE.MeshStandardMaterial({ color: '#e5f6fa' })
+  const saeulen: THREE.Group[] = [], saeulenInnen: THREE.Object3D[] = [], saeulenSchilder: THREE.Mesh[] = []
+  for (const [index, name] of LEVELS[0].saeulen.entries()) {
+    if (index > DARSTELLUNG.SAEULEN_VORSCHAU) break
+    const saeule = new THREE.Group()
+    saeule.name = `saeule-${name}`
+    saeule.position.set(BUEHNE.SAEULE_X, 0, -12 - index * BUEHNE.SAEULEN_ABSTAND)
+    const innen = new THREE.Mesh(innenGeometrie, innenMaterial)
+    innen.name = 'spezialeinheit-platzhalter'; innen.position.y = .3; innen.renderOrder = 1
+    const glas = new THREE.Mesh(glasGeometrie, glasMaterial)
+    glas.name = 'saeule'; glas.position.y = 2; glas.renderOrder = 2
+    const rahmen = new THREE.Mesh(rahmenGeometrie, rahmenMaterial)
+    rahmen.name = 'saeule-rahmen'; rahmen.renderOrder = 3
+    const canvas = document.createElement('canvas')
+    canvas.width = 256; canvas.height = 128
+    const ctx = canvas.getContext('2d')!
+    ctx.fillStyle = '#102437d9'; ctx.fillRect(0, 0, 256, 128)
+    ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    let schrift = 34
+    ctx.font = `bold ${schrift}px system-ui`
+    while (schrift > 10 && ctx.measureText(name.toUpperCase()).width > canvas.width - 16) {
+      ctx.font = `bold ${--schrift}px system-ui`
+    }
+    ctx.fillText(name.toUpperCase(), 128, 48)
+    const textur = new THREE.CanvasTexture(canvas); textur.colorSpace = THREE.SRGBColorSpace
+    const schild = new THREE.Mesh(schildGeometrie, new THREE.MeshBasicMaterial({ map: textur, transparent: true, depthTest: false, side: THREE.DoubleSide }))
+    schild.name = `saeule-name-${name.toUpperCase()}`; schild.position.y = 4.95; schild.renderOrder = 10
+    schild.userData.canvas = canvas
+    saeule.add(innen, glas, rahmen, schild); gruppe.add(saeule)
+    saeulen.push(saeule); saeulenInnen.push(innen); saeulenSchilder.push(schild)
+  }
+  return { gruppe, wand, plusSchilder, saeulen, saeulenInnen, saeulenSchilder }
 }
 
 export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStufe, abgebrochen: () => boolean, beiLadeFehler: (hinweis: string) => void): Promise<Welt | null> {
@@ -166,7 +199,7 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
     const wasser = baueWasser(scene, renderer, normalen, stufe)
     if (nahaufnahme) scene.children.filter(o => o instanceof THREE.Mesh).forEach(o => { o.visible = false })
     geladenesZombieBau = null
-    return { scene, camera, bemalungen: [strasse, normalen], wasser, zombieBau, zombieMasse, nahaufnahme, soldatNahaufnahme, soldatBau, truppe, laufTrupp,front,miniboss:bosse[0],eliteboss:bosse[1], laufGruppen:[truppe.gruppe,laufTrupp.gruppe,front.gruppe,zombieMasse.gruppe,bosse[0].objekt,bosse[1].objekt,platz.gruppe], plusSchilder:platz.plusSchilder,wand:platz.wand,saeule:platz.saeule,saeulenInnen:platz.saeulenInnen }
+    return { scene, camera, bemalungen: [strasse, normalen], wasser, zombieBau, zombieMasse, nahaufnahme, soldatNahaufnahme, soldatBau, truppe, laufTrupp,front,miniboss:bosse[0],eliteboss:bosse[1], laufGruppen:[truppe.gruppe,laufTrupp.gruppe,front.gruppe,zombieMasse.gruppe,bosse[0].objekt,bosse[1].objekt,platz.gruppe], plusSchilder:platz.plusSchilder,wand:platz.wand,saeulen:platz.saeulen,saeulenInnen:platz.saeulenInnen,saeulenSchilder:platz.saeulenSchilder }
   } catch {
     geladen.forEach(t => t.dispose())
     freigabeZombie()

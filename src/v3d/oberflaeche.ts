@@ -2,6 +2,7 @@ import { baueInfo } from './info'
 
 let container: HTMLDivElement | null = null
 let einheiten: HTMLDivElement | null = null
+let status: HTMLDivElement | null = null
 
 export function bannerEintraege(aktiv: readonly { einheit: string; rest: number }[]): string[] {
   return aktiv.map(({ einheit, rest }) => `${einheit.toLocaleUpperCase('de-DE')} · ${Math.ceil(rest)} s`)
@@ -15,9 +16,10 @@ export function setzeEinheitenBanner(aktiv: readonly { einheit: string; rest: nu
   if (!container) return
   if (!einheiten) {
     einheiten = document.createElement('div')
-    Object.assign(einheiten.style, { position: 'absolute', top: 'calc(env(safe-area-inset-top) + 50px)', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', fontWeight: 'bold', fontSize: '13px', textShadow: '0 1px 4px #000', whiteSpace: 'nowrap' })
+    Object.assign(einheiten.style, { position: 'absolute', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', fontWeight: 'bold', fontSize: '13px', textShadow: '0 1px 4px #000', whiteSpace: 'nowrap' })
     container.appendChild(einheiten)
   }
+  if (status) einheiten.style.top = `${status.getBoundingClientRect().bottom - container.getBoundingClientRect().top + 6}px`
   einheiten.replaceChildren(...bannerEintraege(aktiv).map(text => {
     const zeile = document.createElement('div')
     zeile.textContent = text
@@ -40,6 +42,7 @@ export function zeigeOberflaeche(zurueck: () => void, messen: () => void, level:
   }
   container.replaceChildren()
   einheiten = null
+  status = null
   container.style.display = 'block'
   const back = knopf('ZURÜCK', { top: 'calc(env(safe-area-inset-top) + 8px)', left: 'calc(env(safe-area-inset-left) + 8px)' })
   const infoButton = knopf('INFO', { top: 'calc(env(safe-area-inset-top) + 8px)', right: 'calc(env(safe-area-inset-right) + 8px)' })
@@ -51,6 +54,7 @@ export function zeigeOberflaeche(zurueck: () => void, messen: () => void, level:
   Object.assign(results.style, { position: 'absolute', top: 'calc(env(safe-area-inset-top) + 64px)', left: '8px', right: '8px', maxHeight: '42vh', overflowY: 'auto', padding: '8px', background: '#122436dd', fontSize: '12px', whiteSpace: 'pre-wrap', display: 'none', touchAction: 'pan-y' })
   const zahlen = document.createElement('div')
   Object.assign(zahlen.style, { position: 'absolute', top: 'calc(env(safe-area-inset-top) + 54px)', left: '8px', fontSize: '12px', textShadow: '0 1px 2px black' })
+  status = zahlen
   const ende = document.createElement('div')
   Object.assign(ende.style, { display: 'none', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', minWidth: '220px', padding: '20px', background: '#122436ee', textAlign: 'center', pointerEvents: 'auto' })
   const nochmal = knopf('NOCHMAL', { position: 'static', margin: '8px' })
@@ -66,4 +70,4 @@ export function zeigeOberflaeche(zurueck: () => void, messen: () => void, level:
   return { messen: measure, ergebnisse: results, info, zahlen, ende, endeText, nochmal, endeZurueck }
 }
 
-export function versteckeOberflaeche(): void { if (container) container.style.display = 'none'; einheiten = null }
+export function versteckeOberflaeche(): void { if (container) container.style.display = 'none'; einheiten = null; status = null }

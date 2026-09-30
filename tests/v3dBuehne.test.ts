@@ -1,6 +1,7 @@
 import * as THREE from 'three'
-import { describe, expect, it } from 'vitest'
-import { BUEHNE } from '../src/v3d/balance3d'
+import { describe, expect, it, vi } from 'vitest'
+import { BUEHNE, DARSTELLUNG, LEVELS } from '../src/v3d/balance3d'
+import { platzhalter } from '../src/v3d/szene'
 import { baueKamera, passeKameraAn } from '../src/v3d/kamera'
 import { leseWasserStufe } from '../src/v3d/wasser'
 import { pmremPufferBytes, spiegelPufferBytes } from '../src/v3d/rechnen'
@@ -22,6 +23,35 @@ function breite(camera: THREE.PerspectiveCamera, z: number) {
 }
 
 describe('3D-Bühne', () => {
+  it('baut vier benannte Säulen mit einem Rahmen-Netz und geteilten Ressourcen', () => {
+    const gemalteNamen: {name:string;breite:number}[]=[]
+    const ctx={font:'',clearRect:vi.fn(),fillRect:vi.fn(),fillText:vi.fn(function(this:{font:string},name:string){gemalteNamen.push({name,breite:name.length*Number.parseInt(this.font.match(/\d+/)?.[0]??'0')*.64})}),strokeText:vi.fn(),measureText:vi.fn(function(this:{font:string},name:string){return {width:name.length*Number.parseInt(this.font.match(/\d+/)?.[0]??'0')*.64}}),createLinearGradient:()=>({addColorStop:vi.fn()})}
+    vi.stubGlobal('document',{createElement:()=>({width:0,height:0,getContext:()=>ctx})})
+    vi.stubGlobal('location',{search:''})
+    try {
+      const scene=new THREE.Scene(),p=platzhalter(scene)
+      expect(DARSTELLUNG.SAEULEN_VORSCHAU).toBe(3)
+      expect(BUEHNE.SAEULEN_ABSTAND).toBe(8)
+      expect(p.saeulen.map(s=>s.name)).toEqual(LEVELS[0].saeulen.map(n=>`saeule-${n}`))
+      for(const name of LEVELS[0].saeulen)expect(ctx.fillText).toHaveBeenCalledWith(name.toUpperCase(),128,48)
+      const saeulenNamen=gemalteNamen.filter(e=>LEVELS[0].saeulen.some(n=>n.toUpperCase()===e.name))
+      expect(saeulenNamen.map(e=>e.name)).toEqual(LEVELS[0].saeulen.map(n=>n.toUpperCase()))
+      expect(saeulenNamen.every(e=>e.breite<=256-16)).toBe(true)
+      expect(ctx.measureText).toHaveBeenCalled()
+      expect(p.saeulen.map(s=>s.position.z)).toEqual([-12,-20,-28,-36])
+      for (const [i,saeule] of p.saeulen.entries()) {
+        expect(saeule.children).toHaveLength(4)
+        expect(saeule.children.filter(o=>o.name==='saeule-rahmen')).toHaveLength(1)
+        expect(saeule.children.find(o=>o.name===`saeule-name-${LEVELS[0].saeulen[i].toUpperCase()}`)).toBeDefined()
+        if(i>0)for(let j=0;j<3;j++){
+          expect((saeule.children[j] as THREE.Mesh).geometry).toBe((p.saeulen[0].children[j] as THREE.Mesh).geometry)
+          expect((saeule.children[j] as THREE.Mesh).material).toBe((p.saeulen[0].children[j] as THREE.Mesh).material)
+        }
+        if(i>0)expect((saeule.children[3] as THREE.Mesh).geometry).toBe((p.saeulen[0].children[3] as THREE.Mesh).geometry)
+      }
+      expect(p.saeulen.reduce((n,s)=>n+s.children.filter(o=>o instanceof THREE.Mesh).length,0)).toBeLessThanOrEqual(16)
+    } finally {vi.unstubAllGlobals()}
+  })
   it('trennt Schilder, Kampffeld und Säule geometrisch', () => {
     const aussen = BUEHNE.BAHN_BREITE / 2
     expect(BUEHNE.MITTE_HALB).toBe(3.4)

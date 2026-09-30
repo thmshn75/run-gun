@@ -4,7 +4,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import zombieUrl from './modelle/v3d-zombie.glb?url'
 import bUrl from './bilder/v3d-zombie-b.webp?url'
 import cUrl from './bilder/v3d-zombie-c.webp?url'
-import { DARSTELLUNG, FIGUREN } from './balance3d'
+import { FIGUREN } from './balance3d'
 
 export interface ZombieEintrag { x: number; z: number; dreh: number; variante: number; groesse: number }
 export interface ZombieBau { formen: THREE.BufferGeometry[]; materialien: [THREE.MeshStandardMaterial, THREE.MeshStandardMaterial, THREE.MeshStandardMaterial]; bemalungen: THREE.Texture[]; dauer: number; dreiecke: number }
@@ -152,44 +152,4 @@ export class ZombieMasse {
   aktualisiere(zeitSekunden:number):void {this.netze.forEach(reihe=>reihe.forEach((netz,g)=>{netz.geometry=this.bau.formen[bildFuer(g,zeitSekunden)]}))}
   gibNetzeFrei():void {this.netze.forEach(reihe=>reihe.forEach(n=>{this.gruppe.remove(n);n.dispose()}))}
   gibFrei():void {this.gibNetzeFrei();this.bau.formen.forEach(g=>g.dispose());this.bau.materialien.forEach(m=>m.dispose());this.bau.bemalungen.forEach(t=>t.dispose())}
-}
-
-export class FallendeZombies {
-  readonly gruppe = new THREE.Group()
-  private netze: THREE.InstancedMesh[]
-  private dummy = new THREE.Object3D()
-  private eintraege: { x: number; z: number; dreh: number; groesse: number; variante: number; start: number }[] = []
-  constructor(bau: ZombieBau, max = DARSTELLUNG.FALL_ZOMBIES_MAX) {
-    this.netze = bau.materialien.map(material => {
-      const netz = new THREE.InstancedMesh(bau.formen[0], material, max)
-      netz.layers.set(1); netz.frustumCulled = false; netz.instanceMatrix.setUsage(THREE.DynamicDrawUsage); netz.count = 0
-      this.gruppe.add(netz)
-      return netz
-    })
-  }
-  get aktiv(): number { return this.eintraege.length }
-  get frei(): number { return this.netze[0].instanceMatrix.count - this.aktiv }
-  starte(x: number, z: number, dreh: number, groesse: number, variante: number, zeit: number): boolean {
-    if (this.frei <= 0) return false
-    this.eintraege.push({ x, z, dreh, groesse, variante, start: zeit })
-    return true
-  }
-  aktualisiere(zeit: number): void {
-    let behalten = 0
-    const zaehler = [0, 0, 0]
-    for (let i = 0; i < this.eintraege.length; i++) {
-      const e = this.eintraege[i], alter = Math.max(0, zeit - e.start)
-      if (alter >= 1.1) continue
-      this.eintraege[behalten++] = e
-      const kipp = Math.min(1, alter / .35)
-      this.dummy.position.set(e.x, alter <= .7 ? 0 : -.5 * (alter - .7) / .4, e.z)
-      this.dummy.rotation.set(-Math.PI * 85 / 180 * kipp * kipp, e.dreh, 0, 'YXZ')
-      this.dummy.scale.setScalar(e.groesse)
-      this.dummy.updateMatrix()
-      this.netze[e.variante].setMatrixAt(zaehler[e.variante]++, this.dummy.matrix)
-    }
-    this.eintraege.length = behalten
-    for (let i = 0; i < 3; i++) { this.netze[i].count = zaehler[i]; this.netze[i].instanceMatrix.needsUpdate = true }
-  }
-  gibNetzeFrei(): void { for (const netz of this.netze) { netz.removeFromParent(); netz.dispose() } this.eintraege.length = 0 }
 }

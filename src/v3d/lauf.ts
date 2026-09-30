@@ -5,14 +5,13 @@ import { bossFreieAufstellung } from './bosse'
 import type { Welt } from './szene'
 import type { SoldatEintrag } from './soldaten'
 import { SoldatenMasse } from './soldaten'
-import { FallendeZombies } from './figuren'
 import { BossBalken, Muendungsblitze, ZahlAnzeige } from './anzeigen'
 import { setzeSchildText } from './schilder'
 import { setzeEinheitenBanner } from './oberflaeche'
 import * as THREE from 'three'
 
 const SPUR_FOLGE = [4, 7, 1, 9, 2, 5, 0, 8, 3, 6] as const
-export const ZAHL_HOEHEN = { front: 2.8, horde: 4.6 } as const
+export const ZAHL_HOEHEN = { front: 2.8, horde: 2.4 } as const
 type Sicht = { x: number; soldaten: { nummer: number; spur: number; phase: number; startX: number }[]; vervielfachtUm?: number }
 export interface LaufSoldat { nummer: number; pos: number; x: number; ziel: Trupp['ziel']; vervielfacht: boolean; k: number; spur: number; phase: number; aufklappen: number; startX?: number }
 
@@ -99,7 +98,7 @@ export function bossBewegung(vorher: BossStand, eingabe: { t: number; y: number;
   return { zustand: kampf ? 'kaempft' : 'laeuft', clip: kampf ? 'attack_1' : 'walk', einmal: false, sichtbar: true, balken: true, z: -y - 1, todSeit: -Infinity }
 }
 
-export interface LaufDiag { frontBewegung: SoldatEintrag['bewegung']; frontBlitze: number; fallZombiesAktiv: number; fallZombiesEntstanden: number; fallSoldatenAktiv: number; fallSoldatenEntstanden: number; bossZustand: BossZustand }
+export interface LaufDiag { frontBewegung: SoldatEintrag['bewegung']; frontBlitze: number; fallSoldatenAktiv: number; fallSoldatenEntstanden: number; bossZustand: BossZustand }
 export interface LaufDarstellung { zeige(z: Zustand, trupps: ReadonlyMap<Trupp, Sicht>, ereignisse: Ereignis[], dt: number, x: number): void; nachlauf?(dt: number): void; diag?(): Readonly<LaufDiag>; setzeSeed?(seed: number): void; gibFrei?(): void }
 const weltDarstellungen = new WeakMap<Welt, WeltDarstellung>()
 const bossFarben = new WeakMap<THREE.Object3D, Map<THREE.MeshStandardMaterial, THREE.Color>>()
@@ -144,7 +143,6 @@ export class SpielLauf {
     ]
     const diag = this.darstellung?.diag?.()
     if (diag) {
-      werte.push(['Fall-Zombies', s.zombieGefallen + s.spezialTreffer, diag.fallZombiesEntstanden])
       werte.push(['Fall-Soldaten', s.soldatGefallen, diag.fallSoldatenEntstanden])
     }
     for (const [name, soll, ist] of werte) {
@@ -187,12 +185,15 @@ export class WeltDarstellung implements LaufDarstellung {
   private hordeZahl = new ZahlAnzeige(1.8, 'ceil', '#6e1414')
   private miniBalken: BossBalken
   private eliteBalken: BossBalken
-  private saeuleZahl = new ZahlAnzeige(1.3)
+  private letzteSaeulenZahl: number | null = null
+  private letzteSchildSaeule = -1
   private letzteHorde = -1
   private hordeZeit = -Infinity
-  private tempo = 2
+  private tempo: number = DARSTELLUNG.SCHILDER_TEMPO_LANGSAM
   private plusOffset = 0
   private letzteSaeule = -1
+  private saeulenStart = 0
+  private saeulenVon: number[] = []
   private letzteT = -1
   private letzteF = -1
   private letzteTrupps = ''
@@ -201,8 +202,6 @@ export class WeltDarstellung implements LaufDarstellung {
   private aufblenden: THREE.Sprite[]
   private aufblendTextur: THREE.CanvasTexture
   private aufblendMaterial: THREE.SpriteMaterial
-  private innenSichtbar = true
-  private innenAusBis = -Infinity
   private letzterFaktor = NaN
   private drehAnteil = 0
   private letzteDrehung = NaN
@@ -218,14 +217,10 @@ export class WeltDarstellung implements LaufDarstellung {
   private frontBlitzRest = 0
   private frontFiguren: SoldatEintrag[] = []
   private letzteFrontBewegung: SoldatEintrag['bewegung'] = 'stehen'
-  private fallZombies: FallendeZombies
   private fallSoldaten: SoldatenMasse
   private fallSoldatenListe: SoldatEintrag[] = []
   private fallSoldatenEnden = new Float64Array(DARSTELLUNG.FALL_SOLDATEN_MAX)
-  private fallZombieRest = 0
-  private fallSpezialRest = 0
   private fallSoldatRest = 0
-  private fallZombiesGesamt = 0
   private fallSoldatenGesamt = 0
   private uhr = 0
   private zufallZustand: number
@@ -240,8 +235,12 @@ export class WeltDarstellung implements LaufDarstellung {
   private glasFarbe: THREE.Color | null
   constructor(welt: Welt, seed = 12345) {
     this.welt=welt
+    welt.saeulen.forEach((saeule, i) => {
+      saeule.position.z = -12 - i * BUEHNE.SAEULEN_ABSTAND
+      saeule.visible = i <= DARSTELLUNG.SAEULEN_VORSCHAU
+      welt.saeulenInnen[i].visible = saeule.visible
+    })
     this.zufallZustand = seed >>> 0
-    this.fallZombies = new FallendeZombies(welt.zombieBau)
     this.fallSoldaten = new SoldatenMasse(welt.soldatBau, DARSTELLUNG.FALL_SOLDATEN_MAX)
     this.bossOriginal = originalBossFarben(welt.miniboss.objekt)
     this.setzeBossZurueck()
@@ -249,9 +248,10 @@ export class WeltDarstellung implements LaufDarstellung {
     this.eliteBalken = new BossBalken(LEVELS[0].B_elite)
     this.vorgaenger = weltDarstellungen.get(welt)
     weltDarstellungen.set(welt, this)
-    const glas = welt.saeule.getObjectByName('saeule')
+    const glas = welt.saeulen[0]?.getObjectByName('saeule')
     this.glasMaterial = glas instanceof THREE.Mesh && glas.material instanceof THREE.MeshStandardMaterial ? glas.material : null
-    this.glasFarbe = this.glasMaterial?.color.clone() ?? null
+    this.glasFarbe = this.glasMaterial ? new THREE.Color('#c8ecf7') : null
+    if (this.glasMaterial && this.glasFarbe) { this.glasMaterial.color.copy(this.glasFarbe); this.glasMaterial.opacity = .3 }
     const canvas = document.createElement('canvas')
     canvas.width = 128; canvas.height = 64
     const ctx = canvas.getContext('2d')!
@@ -260,9 +260,9 @@ export class WeltDarstellung implements LaufDarstellung {
     this.aufblendTextur = new THREE.CanvasTexture(canvas)
     this.aufblendMaterial = new THREE.SpriteMaterial({map:this.aufblendTextur,transparent:true,depthTest:false})
     this.aufblenden = Array.from({length:8},()=>{const s=new THREE.Sprite(this.aufblendMaterial);s.visible=false;s.scale.set(1.5,.75,1);s.renderOrder=11;welt.scene.add(s);return s})
-    welt.scene.add(this.truppeZahl.objekt, this.frontZahl.objekt, this.hordeZahl.objekt, this.miniBalken.objekt, this.eliteBalken.objekt, this.saeuleZahl.objekt)
-    welt.scene.add(this.blitze.objekt, this.frontBlitze.objekt, this.fallZombies.gruppe, this.fallSoldaten.gruppe)
-    welt.laufGruppen.push(this.truppeZahl.objekt, this.frontZahl.objekt, this.hordeZahl.objekt, this.miniBalken.objekt, this.eliteBalken.objekt, this.saeuleZahl.objekt,this.blitze.objekt,this.frontBlitze.objekt,this.fallZombies.gruppe,this.fallSoldaten.gruppe,...this.aufblenden)
+    welt.scene.add(this.truppeZahl.objekt, this.frontZahl.objekt, this.hordeZahl.objekt, this.miniBalken.objekt, this.eliteBalken.objekt)
+    welt.scene.add(this.blitze.objekt, this.frontBlitze.objekt, this.fallSoldaten.gruppe)
+    welt.laufGruppen.push(this.truppeZahl.objekt, this.frontZahl.objekt, this.hordeZahl.objekt, this.miniBalken.objekt, this.eliteBalken.objekt,this.blitze.objekt,this.frontBlitze.objekt,this.fallSoldaten.gruppe,...this.aufblenden)
   }
   private zufall(): number {
     let n = this.zufallZustand = (this.zufallZustand + 0x6D2B79F5) >>> 0
@@ -277,9 +277,8 @@ export class WeltDarstellung implements LaufDarstellung {
     this.bossStand = { zustand: 'weg', clip: 'walk', einmal: false, sichtbar: false, balken: false, z: 0, todSeit: -Infinity }
     this.bossBlitzBis = this.letzterBossBlitz = -Infinity
   }
-  diag(): Readonly<LaufDiag> { return { frontBewegung: this.letzteFrontBewegung, frontBlitze: this.frontBlitzAktiv, fallZombiesAktiv: this.fallZombies.aktiv, fallZombiesEntstanden: this.fallZombiesGesamt, fallSoldatenAktiv: this.fallSoldatenListe.length, fallSoldatenEntstanden: this.fallSoldatenGesamt, bossZustand: this.bossStand.zustand } }
+  diag(): Readonly<LaufDiag> { return { frontBewegung: this.letzteFrontBewegung, frontBlitze: this.frontBlitzAktiv, fallSoldatenAktiv: this.fallSoldatenListe.length, fallSoldatenEntstanden: this.fallSoldatenGesamt, bossZustand: this.bossStand.zustand } }
   private tickeNeu(): void {
-    this.fallZombies.aktualisiere(this.uhr)
     let geaendert = false
     for (let i = this.fallSoldatenListe.length - 1; i >= 0; i--) if (this.fallSoldatenEnden[this.fallSoldatenListe[i].phase!] <= this.uhr) { this.fallSoldatenListe.splice(i, 1); geaendert = true }
     if (geaendert) this.fallSoldaten.setze(this.fallSoldatenListe)
@@ -321,7 +320,7 @@ export class WeltDarstellung implements LaufDarstellung {
       wandFront.material.color.setScalar(pulsRest > .32 ? 1.7 : 1)
     const gesammelt = ereignisse.some(e => e.art === 'eingesammelt')
     const soll = gesammelt ? DARSTELLUNG.SCHILDER_TEMPO_SCHNELL : DARSTELLUNG.SCHILDER_TEMPO_LANGSAM
-    this.tempo += Math.max(-24 * dt, Math.min(24 * dt, soll - this.tempo))
+    this.tempo += Math.max(-48 * dt, Math.min(48 * dt, soll - this.tempo))
     this.plusOffset = (this.plusOffset + this.tempo * dt) % BUEHNE.PLUS_ABSTAND
     w.plusSchilder.forEach((schild,i) => {
       schild.position.z = -(i + 1) * BUEHNE.PLUS_ABSTAND + this.plusOffset
@@ -362,7 +361,7 @@ export class WeltDarstellung implements LaufDarstellung {
       this.letzteFrontBewegung = frontBewegung
     }
     w.front.gruppe.position.z = Math.min(-3.1,-z.y+1.5)
-    let zombieNeuBild = 0, soldatNeuBild = 0
+    let soldatNeuBild = 0
     if (frontBewegung === 'schiessen' && front > 0) {
       this.frontBlitzRest += dt * DARSTELLUNG.FRONT_BLITZE_PRO_SEKUNDE
       const muendung = w.soldatBau.pruefung.debugMuzzle
@@ -379,18 +378,7 @@ export class WeltDarstellung implements LaufDarstellung {
     } else this.frontBlitzRest = 0
     if (z.y > 0 && z.ergebnis === 'laeuft') {
       for (const e of ereignisse) {
-        if (e.art === 'zombieGefallen' || e.art === 'spezialTreffer') {
-          const spezial = e.art === 'spezialTreffer'
-          let rest = (spezial ? this.fallSpezialRest : this.fallZombieRest) + e.menge
-          const anzahl = Math.floor(rest); rest -= anzahl
-          if (spezial) this.fallSpezialRest = rest; else this.fallZombieRest = rest
-          const neu = Math.min(anzahl, this.fallZombies.frei, 4 - zombieNeuBild)
-          for (let i = 0; i < neu; i++) {
-            const fx = FIGUREN.ZOMBIE_X_MIN + this.zufall() * (FIGUREN.ZOMBIE_X_MAX - FIGUREN.ZOMBIE_X_MIN)
-            const fz = spezial ? -z.y - this.zufall() * Math.max(1, Math.ceil(z.Z / 10) * FIGUREN.ZOMBIE_REIHENABSTAND) : -z.y + .3 + this.zufall() * .5
-            if (this.fallZombies.starte(fx, fz, (this.zufall() - .5) * Math.PI / 6, .92 + this.zufall() * .16, Math.floor(this.zufall() * 3), this.uhr)) { this.fallZombiesGesamt++; zombieNeuBild++ }
-          }
-        } else if (e.art === 'soldatGefallen') {
+        if (e.art === 'soldatGefallen') {
           this.fallSoldatRest += e.menge
           const anzahl = Math.floor(this.fallSoldatRest); this.fallSoldatRest -= anzahl
           let neu = Math.min(anzahl, DARSTELLUNG.FALL_SOLDATEN_MAX - this.fallSoldatenListe.length, 2 - soldatNeuBild)
@@ -436,7 +424,7 @@ export class WeltDarstellung implements LaufDarstellung {
     w.zombieMasse.gruppe.position.z=-z.y
     this.hordeZahl.objekt.visible=z.y>0&&z.Z>0
     if (this.hordeZahl.objekt.visible) this.hordeZahl.setze(z.Z,t)
-    this.hordeZahl.objekt.position.set(0,ZAHL_HOEHEN.horde,-z.y+1)
+    this.hordeZahl.objekt.position.set(FIGUREN.ZOMBIE_X_MAX+.6,ZAHL_HOEHEN.horde,-z.y+1)
     this.aktualisiereBoss(z)
     if (ereignisse.some(e => e.art === 'bossTreffer' && e.boss === 'miniBoss') && this.uhr - this.letzterBossBlitz >= 1/3) { this.letzterBossBlitz = this.uhr; this.bossBlitzBis = this.uhr + .1 }
     if (this.miniBalken.objekt.visible) this.miniBalken.setze(z.miniBoss.B,t)
@@ -447,35 +435,65 @@ export class WeltDarstellung implements LaufDarstellung {
     this.eliteBalken.objekt.visible=w.eliteboss.objekt.visible
     if (this.eliteBalken.objekt.visible) this.eliteBalken.setze(z.eliteBoss.B,t)
     this.eliteBalken.objekt.position.set(w.eliteboss.objekt.position.x,FIGUREN.ELITEBOSS_HOEHE+.5,w.eliteboss.objekt.position.z)
-    w.saeule.visible=z.P!==null
     if (ereignisse.some(e => e.art === 'saeuleTreffer') && t - this.letzterGlasBlitz >= .2) { this.letzterGlasBlitz = t; this.glasBlitzBis = t + .08 }
     if (this.glasMaterial && this.glasFarbe) {
       this.glasMaterial.color.copy(this.glasFarbe).lerp(new THREE.Color('#ffffff'), t < this.glasBlitzBis ? .8 : 0)
       this.glasMaterial.opacity = t < this.glasBlitzBis ? .65 : .3
     }
-    if (ereignisse.some(e => e.art === 'einheitFrei')) this.innenAusBis = t + .25
-    if (z.saeulenIndex !== this.letzteSaeule) {this.letzteSaeule=z.saeulenIndex; this.innenSichtbar = z.P !== null}
-    w.saeulenInnen.visible=z.P!==null && this.innenSichtbar && t >= this.innenAusBis
-    if (z.P!==null) {this.saeuleZahl.setze(Math.ceil(z.P),t);this.saeuleZahl.objekt.visible=true}
-    else this.saeuleZahl.objekt.visible=false
-    this.saeuleZahl.objekt.position.set(BUEHNE.SAEULE_X,4.7,-12)
+    if (z.saeulenIndex !== this.letzteSaeule) {
+      this.saeulenVon = w.saeulen.map(s => s.position.z)
+      this.saeulenStart = this.uhr
+      this.letzteSaeule = z.saeulenIndex
+    }
+    const anteil = Math.min(1, (this.uhr - this.saeulenStart) / .6)
+    w.saeulen.forEach((saeule, i) => {
+      saeule.visible = i >= z.saeulenIndex && i <= z.saeulenIndex + DARSTELLUNG.SAEULEN_VORSCHAU
+      if (saeule.visible) {
+        const ziel = -12 - (i - z.saeulenIndex) * BUEHNE.SAEULEN_ABSTAND
+        saeule.position.z = THREE.MathUtils.lerp(this.saeulenVon[i] ?? ziel, ziel, anteil)
+      }
+      w.saeulenInnen[i].visible = saeule.visible
+    })
+    const zahl = z.P === null ? null : Math.ceil(z.P)
+    if (z.saeulenIndex !== this.letzteSchildSaeule || zahl !== this.letzteSaeulenZahl) {
+      for (const [i, schild] of w.saeulenSchilder.entries()) {
+        const canvas = schild.userData.canvas as HTMLCanvasElement
+        const ctx = canvas.getContext('2d')!
+        ctx.clearRect(0, 0, 256, 128)
+        ctx.fillStyle = '#102437d9'; ctx.fillRect(0, 0, 256, 128)
+        ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+        const name = LEVELS[0].saeulen[i].toUpperCase()
+        let schrift = 34
+        ctx.font = `bold ${schrift}px system-ui`
+        while (schrift > 10 && ctx.measureText(name).width > canvas.width - 16) {
+          ctx.font = `bold ${--schrift}px system-ui`
+        }
+        ctx.fillText(name, 128, i === z.saeulenIndex ? 36 : 64)
+        if (i === z.saeulenIndex && z.P !== null) {
+          ctx.font = 'bold 48px system-ui'
+          ctx.fillText(String(zahl), 128, 91)
+        }
+        ;((schild.material as THREE.MeshBasicMaterial).map as THREE.CanvasTexture).needsUpdate = true
+      }
+      this.letzteSchildSaeule = z.saeulenIndex
+      this.letzteSaeulenZahl = zahl
+    }
     setzeEinheitenBanner(z.aktiv)
     this.tickeNeu()
   }
   gibFrei():void {
     this.setzeBossZurueck()
-    this.truppeZahl.gibFrei(); this.frontZahl.gibFrei(); this.hordeZahl.gibFrei(); this.miniBalken.gibFrei(); this.eliteBalken.gibFrei(); this.saeuleZahl.gibFrei()
+    this.truppeZahl.gibFrei(); this.frontZahl.gibFrei(); this.hordeZahl.gibFrei(); this.miniBalken.gibFrei(); this.eliteBalken.gibFrei()
     this.aufblenden.forEach(s=>s.removeFromParent())
     this.aufblendMaterial.dispose(); this.aufblendTextur.dispose()
     this.blitze.gibFrei()
     this.frontBlitze.gibFrei()
-    this.fallZombies.gruppe.removeFromParent(); this.fallZombies.gibNetzeFrei()
     this.fallSoldaten.gruppe.removeFromParent(); this.fallSoldaten.gibNetzeFrei()
     setzeEinheitenBanner([])
     this.welt.wand.scale.setScalar(1)
     if (this.glasMaterial && this.glasFarbe) { this.glasMaterial.color.copy(this.glasFarbe); this.glasMaterial.opacity = .3 }
-    this.welt.scene.remove(this.truppeZahl.objekt, this.frontZahl.objekt, this.hordeZahl.objekt, this.miniBalken.objekt, this.eliteBalken.objekt, this.saeuleZahl.objekt)
-    this.welt.laufGruppen = this.welt.laufGruppen.filter(obj => obj !== this.truppeZahl.objekt && obj !== this.frontZahl.objekt && obj !== this.hordeZahl.objekt && obj !== this.miniBalken.objekt && obj !== this.eliteBalken.objekt && obj !== this.saeuleZahl.objekt && obj !== this.blitze.objekt && obj !== this.frontBlitze.objekt && obj !== this.fallZombies.gruppe && obj !== this.fallSoldaten.gruppe && !this.aufblenden.includes(obj as THREE.Sprite))
+    this.welt.scene.remove(this.truppeZahl.objekt, this.frontZahl.objekt, this.hordeZahl.objekt, this.miniBalken.objekt, this.eliteBalken.objekt)
+    this.welt.laufGruppen = this.welt.laufGruppen.filter(obj => obj !== this.truppeZahl.objekt && obj !== this.frontZahl.objekt && obj !== this.hordeZahl.objekt && obj !== this.miniBalken.objekt && obj !== this.eliteBalken.objekt && obj !== this.blitze.objekt && obj !== this.frontBlitze.objekt && obj !== this.fallSoldaten.gruppe && !this.aufblenden.includes(obj as THREE.Sprite))
     if (weltDarstellungen.get(this.welt) === this) {
       if (this.vorgaenger) {
         weltDarstellungen.set(this.welt, this.vorgaenger)
@@ -485,14 +503,15 @@ export class WeltDarstellung implements LaufDarstellung {
           this.vorgaenger.hordeZeit = -Infinity
           this.vorgaenger.letzteTrupps = ''
           this.vorgaenger.letzterFaktor = NaN
+          this.vorgaenger.letzteSaeule = -1
+          this.vorgaenger.letzteSchildSaeule = -1
           this.vorgaenger.uhr = 0
-          this.vorgaenger.fallZombieRest = this.vorgaenger.fallSpezialRest = this.vorgaenger.fallSoldatRest = 0
-          this.vorgaenger.fallZombiesGesamt = this.vorgaenger.fallSoldatenGesamt = 0
+          this.vorgaenger.fallSoldatRest = 0
+          this.vorgaenger.fallSoldatenGesamt = 0
           this.vorgaenger.frontBlitzAktiv = this.vorgaenger.frontBlitzRest = 0
           this.vorgaenger.frontBlitze.setze(this.vorgaenger.frontBlitzPunkte, this.welt.camera, 0)
           this.vorgaenger.fallSoldatenListe.length = 0
           this.vorgaenger.fallSoldaten.setze([])
-          this.vorgaenger.fallZombies.aktualisiere(Infinity)
           this.vorgaenger.setzeBossZurueck()
           const { z, trupps, x } = this.vorgaenger.letzterStand
           this.vorgaenger.zeige(z, trupps, [], 0, x)
