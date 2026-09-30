@@ -39,6 +39,7 @@ describe('3D-Fahrzeuge', () => {
       expect(bilder.anzahl).toBe(1)
       const gruppe=scene.getObjectByName('einsatz-panzer') as THREE.Group
       expect(gruppe.position.z).toBe(10)
+      expect(gruppe.position.x).toBe(0)
       a.verstrichen=1.2;bilder.abgleichen(z,[],0)
       expect(gruppe.position.z).toBeCloseTo(-5-9.8*.8/2-1,2)
       z.y=10;a.verstrichen=4.2;bilder.abgleichen(z,[],0)
@@ -54,6 +55,54 @@ describe('3D-Fahrzeuge', () => {
       expect(frei).not.toHaveBeenCalled()
     } finally { vi.unstubAllGlobals() }
   })
+  it('setzt beide Fahrzeuge mittig, zielt links und rechts und fährt die Haubitze rückwärts ab', () => {
+    const ctx={createRadialGradient:()=>({addColorStop:vi.fn()}),fillRect:vi.fn(),fillStyle:''}
+    vi.stubGlobal('document',{createElement:()=>({width:64,height:64,getContext:()=>ctx})})
+    try {
+      const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(),laufGruppen:THREE.Object3D[]=[]
+      const geometrie=new THREE.BoxGeometry(2,2,7.3),material=new THREE.MeshStandardMaterial(),vorlage=new THREE.Group()
+      vorlage.add(new THREE.Mesh(geometrie,material))
+      const bau: FahrzeugBau={geometrien:[geometrie],material,laenge:7.3,vorlage,gibFrei(){}}
+      const welt={scene,camera,laufGruppen,fahrzeuge:{panzer:bau,haubitze:bau}} as unknown as Welt
+      const bilder=new Einsatzbilder(welt),z=neuerLauf(LEVELS[0],1),a=starteEinheit(z,'haubitze')
+      const explosion=vi.spyOn(bilder.explosionen,'starte')
+      bilder.abgleichen(z,[],0)
+      const gruppe=scene.getObjectByName('einsatz-haubitze') as THREE.Group
+      expect(gruppe.position.x).toBe(0)
+      expect(new THREE.Box3().setFromObject(gruppe,true).getSize(new THREE.Vector3()).z).toBeCloseTo(7.3*.5,3)
+      a.verstrichen=1.2;bilder.abgleichen(z,[{art:'spezialTreffer',einheit:'haubitze',menge:90,t:1.2}],0)
+      expect(gruppe.position.z).toBeCloseTo(-5-7.3*.5/2-1)
+      expect(explosion).toHaveBeenLastCalledWith(expect.objectContaining({x:expect.any(Number)}),7)
+      expect(explosion.mock.calls[0][0].x).toBeGreaterThanOrEqual(-2.2)
+      expect(explosion.mock.calls[0][0].x).toBeLessThanOrEqual(-1.2)
+      expect(bilder.nimmTreffer()).toMatchObject([{menge:90,radius:3}])
+      a.verstrichen=2.2;bilder.abgleichen(z,[{art:'spezialTreffer',einheit:'haubitze',menge:90,t:2.2}],0)
+      expect(explosion.mock.calls[1][0].x).toBeGreaterThanOrEqual(1.2)
+      expect(explosion.mock.calls[1][0].x).toBeLessThanOrEqual(2.2)
+      a.verstrichen=3;bilder.abgleichen(z,[],0)
+      expect(gruppe.position.z).toBeGreaterThan(-5-7.3*.5/2-1)
+      a.verstrichen=3.75;z.aktiv=[];bilder.abgleichen(z,[],0)
+      expect(gruppe.position.z).toBe(10)
+      expect(scene.getObjectByName('einsatz-haubitze')).toBeUndefined()
+      const panzer=starteEinheit(z,'panzer')
+      bilder.abgleichen(z,[],0)
+      expect((scene.getObjectByName('einsatz-panzer') as THREE.Group).position.x).toBe(0)
+      panzer.verstrichen=2.7;bilder.abgleichen(z,[],0)
+      panzer.verstrichen=4.3;bilder.abgleichen(z,[{art:'spezialTreffer',einheit:'panzer',menge:20,t:4.3}],0)
+      expect(bilder.nimmTreffer()[0].punkt.x).toBeGreaterThanOrEqual(1.2)
+      panzer.verstrichen=5.7;bilder.abgleichen(z,[],0)
+      const panzerZiele=explosion.mock.calls.slice(2)
+      expect(panzerZiele).toHaveLength(6)
+      panzerZiele.forEach(([punkt,durchmesser],i)=>{
+        expect(durchmesser).toBe(4)
+        expect(punkt.x).toBeGreaterThanOrEqual(i<3?-2.2:1.2)
+        expect(punkt.x).toBeLessThanOrEqual(i<3?-1.2:2.2)
+        expect(punkt.z).toBeGreaterThanOrEqual(-z.y-4)
+        expect(punkt.z).toBeLessThanOrEqual(-z.y)
+      })
+      bilder.gibFrei()
+    } finally { vi.unstubAllGlobals() }
+  })
   it('begrenzt Explosionen auf acht, davon zwei große', () => {
     const ctx={createRadialGradient:()=>({addColorStop:vi.fn()}),fillRect:vi.fn(),fillStyle:''}
     vi.stubGlobal('document',{createElement:()=>({width:64,height:64,getContext:()=>ctx})})
@@ -62,6 +111,8 @@ describe('3D-Fahrzeuge', () => {
       for(let i=0;i<10;i++)bilder.starte(new THREE.Vector3(),i<4?5:2.5)
       expect(bilder.anzahl).toBe(8);expect(bilder.grosse).toBe(2)
       bilder.schritt(.45,new THREE.PerspectiveCamera())
+      expect(bilder.anzahl).toBe(8)
+      bilder.schritt(.15,new THREE.PerspectiveCamera())
       expect(bilder.anzahl).toBe(0)
       bilder.gibFrei()
     } finally { vi.unstubAllGlobals() }

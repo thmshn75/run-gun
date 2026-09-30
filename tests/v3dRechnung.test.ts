@@ -14,7 +14,7 @@ const nah = (a: number, b: number) => {
 
 describe('3D-Spielrechnung', () => {
   it('wirkt je Ablauf unabhängig von der Schrittweite exakt wie die Tabelle', () => {
-    for (const [name, dauer, wirkung] of [['humvee',33,120],['haubitze',3.25,180],['panzer',6.7,160],['hubschrauber',14,180]] as const) {
+    for (const [name, dauer, wirkung] of [['humvee',33,120],['haubitze',3.75,180],['panzer',6.7,160],['hubschrauber',14,180]] as const) {
       expect(gesamtDauer(name)).toBeCloseTo(dauer, 8)
       for (const zeitSchritt of [1/30,.1,1]) {
         const z = neuerLauf(testLevel({ wellen: [], saeulen: [], eliteBossZeit: 999, startY: 1000 }), 5)
@@ -40,7 +40,7 @@ describe('3D-Spielrechnung', () => {
     expect(summe(schritt(z,{x:0},1),'spezialTreffer')).toBeCloseTo(2)
     expect(phaseBei('humvee',3.5)).toMatchObject({index:1,art:'feuer',lokal:.5})
   })
-  it('setzt drei Haubitzeneinschläge auf die geplanten Zeitpunkte', () => {
+  it('setzt zwei Haubitzeneinschläge auf die geplanten Zeitpunkte und wirkt bei der Abfahrt nicht', () => {
     for (const zeitSchritt of [1/30,.1,1]) {
       const z=neuerLauf(testLevel({wellen:[],saeulen:[],eliteBossZeit:999,startY:1000}),1)
       z.Z=1000
@@ -48,8 +48,8 @@ describe('3D-Spielrechnung', () => {
       starteEinheit(z,'haubitze')
       const treffer:Ereignis[]=[]
       while(z.aktiv.length) treffer.push(...schritt(z,{x:0},zeitSchritt).filter(e=>e.art==='spezialTreffer'))
-      expect(treffer).toHaveLength(3)
-      treffer.forEach((e,i)=>{expect(e.menge).toBe(60);expect(e.t).toBeGreaterThanOrEqual(start+1.2+i-zeitSchritt);expect(e.t).toBeLessThan(start+1.2+i)})
+      expect(treffer).toHaveLength(2)
+      treffer.forEach((e,i)=>{expect(e.menge).toBe(90);expect(e.t).toBeGreaterThanOrEqual(start+1.2+i-zeitSchritt);expect(e.t).toBeLessThan(start+1.2+i)})
     }
   })
   it('bilanziert jeden Schritt in 1000 deterministischen Zufallsläufen', () => {
@@ -237,7 +237,7 @@ describe('3D-Spielrechnung', () => {
     expect(summe(e, 'spezialTreffer')).toBe(0)
   })
 
-  it('lässt die Haubitze genau dreimal und zwei Einheiten gemeinsam wirken', () => {
+  it('lässt die Haubitze genau zweimal und zwei Einheiten gemeinsam wirken', () => {
     const z = neuerLauf(testLevel({ wellen: [{ t: 0, groesse: 1000 }], streuung: 0,
       miniBossWelle: null, eliteBossZeit: 999 }), 1)
     starteEinheit(z, 'haubitze'); starteEinheit(z, 'humvee')
@@ -248,7 +248,7 @@ describe('3D-Spielrechnung', () => {
       humvee += e.filter(x => x.art === 'spezialTreffer' && x.einheit === 'humvee').length
       ende += e.filter(x => x.art === 'einheitEnde' && x.einheit === 'haubitze').length
     }
-    expect(haubitze).toBe(3)
+    expect(haubitze).toBe(2)
     expect(humvee).toBe(1)
     expect(ende).toBe(1)
   })

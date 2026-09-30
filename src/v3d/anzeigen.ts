@@ -13,7 +13,7 @@ export class Explosionen {
     canvas.width = canvas.height = 64
     const ctx = canvas.getContext('2d')!
     const glow = ctx.createRadialGradient(32, 32, 1, 32, 32, 32)
-    glow.addColorStop(0, '#fff8bc'); glow.addColorStop(.22, '#ffbd38'); glow.addColorStop(.6, '#f55b1699'); glow.addColorStop(1, '#f55b1600')
+    glow.addColorStop(0, '#ffffff'); glow.addColorStop(.24, '#fff5dc'); glow.addColorStop(.58, '#ff8b2299'); glow.addColorStop(1, '#f55b1600')
     ctx.fillStyle = glow; ctx.fillRect(0, 0, 64, 64)
     this.textur = new THREE.CanvasTexture(canvas)
     this.material = new THREE.MeshBasicMaterial({ map: this.textur, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
@@ -28,12 +28,12 @@ export class Explosionen {
   }
   schritt(dt: number, kamera: THREE.Camera): void {
     for (const e of this.aktiv) e.alter += Math.max(0, dt)
-    this.aktiv = this.aktiv.filter(e => e.alter < .45)
+    this.aktiv = this.aktiv.filter(e => e.alter < .6)
     this.objekt.count = this.aktiv.length
     this.aktiv.forEach((e, i) => {
-      const anteil = e.alter / .45
+      const anteil = e.alter / .6
       this.dummy.position.copy(e.pos); this.dummy.quaternion.copy(kamera.quaternion)
-      this.dummy.scale.setScalar(e.durchmesser * (.4 + .6 * anteil))
+      this.dummy.scale.setScalar(e.durchmesser * (.5 + .5 * anteil))
       this.dummy.updateMatrix(); this.objekt.setMatrixAt(i, this.dummy.matrix)
       this.objekt.setColorAt(i, this.farbe.setScalar(1 - anteil))
     })

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { SpielLauf, WeltDarstellung, baueLaufSpuren, spurFaktor, formationsFiguren, formationsBewegung, BlitzTakt, wandText, ZAHL_HOEHEN, bossBewegung, type LaufSoldat, type LaufDarstellung, type BossStand } from '../src/v3d/lauf'
+import { SpielLauf, WeltDarstellung, baueHorde, HordeLoecher, baueLaufSpuren, spurFaktor, formationsFiguren, formationsBewegung, BlitzTakt, wandText, ZAHL_HOEHEN, bossBewegung, type LaufSoldat, type LaufDarstellung, type BossStand } from '../src/v3d/lauf'
 import type { Zustand } from '../src/v3d/rechnung'
 import { neuerLauf, starteEinheit, gesamtDauer } from '../src/v3d/rechnung'
 import type { FahrzeugBau } from '../src/v3d/fahrzeuge'
@@ -50,26 +50,50 @@ function laufe(ziel: number, dauer=10) {
   return {lauf,gezeigt,ausgesandt,einheiten}
 }
 describe('3D-Lauf',()=>{
-  it('blendet Horde in der Panzerschneise aus und schließt sie im Nachlauf',()=>{
+  it('entfernt Einschlag-Zombies vor Ort bei gleicher sichtbarer Zahl und heilt langsam',()=>{
+    const loecher=new HordeLoecher(),punkt=new THREE.Vector3(-1.7,.2,-25)
+    const imRadius=(eintraege: ReturnType<typeof baueHorde>)=>eintraege.filter(e=>Math.hypot(e.x-punkt.x,e.z-20-punkt.z)<=3).length
+    const vorher=imRadius(baueHorde(600,loecher.indizes))
+    const getroffen=loecher.treffer(600,-20,punkt,90,3)
+    const nachher=baueHorde(600,loecher.indizes)
+    expect(getroffen).toBeGreaterThanOrEqual(.8*Math.min(90,vorher))
+    expect(imRadius(nachher)).toBeLessThanOrEqual(vorher-.8*Math.min(90,vorher))
+    expect(nachher).toHaveLength(600)
+    loecher.zuruecksetzen()
+    expect(loecher.treffer(600,-20,punkt,90,100)).toBe(90)
+    loecher.schritt(20)
+    expect(loecher.indizes.size).toBe(10)
+    expect(baueHorde(600,loecher.indizes)).toHaveLength(600)
+    loecher.schritt(2.5)
+    expect(loecher.indizes.size).toBe(0)
+    expect(baueHorde(600,loecher.indizes)).toHaveLength(600)
+    loecher.treffer(600,-20,punkt,90,100)
+    loecher.passeAn(510)
+    expect(baueHorde(510,loecher.indizes)).toHaveLength(510)
+  })
+  it('hält die Horde mit Panzerschneisen-Löchern bei der sichtbaren Sollzahl',()=>{
     const {welt,raume}=baueWeltAttrappe()
     try {
       const anzeige=new WeltDarstellung(welt),z=neuerLauf(LEVELS[0],1)
       z.Z=600;z.y=20;z.t=10
-      const a=starteEinheit(z,'panzer');a.verstrichen=5.8
-      const calls: {zahl:number;imBand:number}[]=[]
+      const a=starteEinheit(z,'panzer');a.verstrichen=6.1
+      const calls: ReturnType<typeof baueHorde>[]=[]
       const original=welt.zombieMasse.setze.bind(welt.zombieMasse)
       vi.spyOn(welt.zombieMasse,'setze').mockImplementation(e=>{
-        calls.push({zahl:e.length,imBand:e.filter(p=>Math.abs(p.x-FAHRZEUGE.SPUR_X)<1.4&&p.z-z.y<=-13.85&&p.z-z.y>=-z.y).length})
+        calls.push([...e])
         original(e)
       })
-      anzeige.zeige(z,new Map(),[],.1,0)
-      expect(calls.at(-1)!.zahl).toBeLessThan(600)
-      expect(calls.at(-1)!.imBand).toBe(0)
+      anzeige.zeige(z,new Map(),[{art:'spezialTreffer',menge:20,t:10,einheit:'panzer'}],.1,0)
+      expect(calls.at(-1)).toHaveLength(600)
+      const gruppe=welt.scene.getObjectByName('einsatz-panzer')!
+      const bug=gruppe.position.z-FAHRZEUGE.panzer.LAENGE*FAHRZEUGE.SPIEL_SKALA/2
+      const amBug=(eintraege: ReturnType<typeof baueHorde>)=>eintraege.filter(p=>Math.hypot(p.x,p.z-z.y-bug)<=1.4).length
+      expect(amBug(calls.at(-1)!)).toBeLessThan(amBug(baueHorde(600,new Set())))
       z.aktiv=[];z.t+=.1;anzeige.zeige(z,new Map(),[],.1,0)
       anzeige.nachlauf(3)
-      expect(calls.at(-1)!.zahl).toBe(600)
+      expect(calls.at(-1)).toHaveLength(600)
       z.t+=3;anzeige.zeige(z,new Map(),[],0,0)
-      expect(calls.at(-1)!.zahl).toBe(600)
+      expect(calls.at(-1)).toHaveLength(600)
       anzeige.gibFrei()
     } finally {raume()}
   })
@@ -178,7 +202,7 @@ describe('3D-Lauf',()=>{
   })
   it('setzt Schildertempo und Hordenzahl an den rechten Rand',()=>{
     expect(DARSTELLUNG.SCHILDER_TEMPO_LANGSAM).toBe(4)
-    expect(DARSTELLUNG.SCHILDER_TEMPO_SCHNELL).toBe(16)
+    expect(DARSTELLUNG.SCHILDER_TEMPO_SCHNELL).toBe(21)
     const {welt,raume}=baueWeltAttrappe()
     try {
       const anzeige=new WeltDarstellung(welt),z=new SpielLauf().zustand
@@ -191,13 +215,13 @@ describe('3D-Lauf',()=>{
       anzeige.gibFrei()
     } finally {raume()}
   })
-  it('beschleunigt die +1-Schilder mit 48 m/s²',()=>{
+  it('beschleunigt die +1-Schilder mit 64 m/s²',()=>{
     const {welt,raume}=baueWeltAttrappe()
     try {
       const schild=new THREE.Group();welt.plusSchilder.push(schild)
       const anzeige=new WeltDarstellung(welt),z=new SpielLauf().zustand
       anzeige.zeige(z,new Map(),[{art:'eingesammelt',menge:1,t:0}],.1,0)
-      expect(schild.position.z).toBeCloseTo(-BUEHNE.PLUS_ABSTAND+.88)
+      expect(schild.position.z).toBeCloseTo(-BUEHNE.PLUS_ABSTAND+1.04)
       anzeige.gibFrei()
     } finally {raume()}
   })
