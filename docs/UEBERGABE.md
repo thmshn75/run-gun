@@ -1,44 +1,69 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-09-30 16:55 (**Plan V7 "Run Gun 3D" ist verbindlich**, `docs/plan-v7.md`.
-Pause auf Thomas' Wunsch; letzter Commit 8c9cd9a, online.)
+Stand: 2026-09-30 17:00 (**Plan V7 "Run Gun 3D" ist verbindlich**, `docs/plan-v7.md`.
+Sessionende auf Thomas' Wunsch; letzter Code-Commit 8c9cd9a, online; `docs/active-task.md`
+steht auf IDLE.)
 
 **Das Naechste liegt in `## Offen`.**
 
 ## Offen — naechster Schritt zuerst
 
-0. **Online und abgenommen bis D5b-Nacharbeit (62269c5).** Heute dazugekommen: D4 Kampfbild
-   (Front schiesst, Soldaten fallen, Mini-Boss kaempft/stirbt, Ereignisprotokoll-Pruefung),
-   D4-Nacharbeit (keine fallenden Horde-Zombies, Saeulen-Vorschau), Messanzeige scrollbar +
-   "Letzte Messung" unter INFO, D5a (4 Fahrzeuge als Miniaturen in den Saeulen), D5b
-   (Einsatzablaeufe im Rechenkern mit Anfahrt, Panzer/Haubitze auf dem Feld) und
-   D5b-Nacharbeit (Treffer-Loecher an der Einschlagstelle, beide mittig links/rechts,
-   Haubitze 0,5-Massstab mit 2 Schuss + Abfahrt, +1-Schilder 21 m/s).
-   D5b-Nacharbeit 2 (8c9cd9a): Panzer faehrt durch die ganze Horde (30+30+100), Haubitze
-   2 s Schussabstand, Steuerung 24 m/s (vorher 8).
+0. **Naechster Schritt: D5c — Humvee und Hubschrauber auf dem Feld.** Erst auf Thomas' Go
+   starten (er pausiert gern zwischen Schritten: "nach diesem Lauf stoppen" heisst: den
+   laufenden Schritt fertig pruefen, committen, deployen, dann nichts Neues anstossen).
+   - Ablaeufe laut Plan (Zeile "Einsatz der Fahrzeuge", Thomas 2026-09-30): **Humvee** faehrt
+     bis zur Haelfte (Wand → Front) und schiesst; **Hubschrauber** kreist ueber der Horde und
+     feuert. Beide nur begrenzte Zeit. Im Rechenkern stehen die Ablaeufe schon
+     (`SPEZIAL.humvee`: fahrt 3 s → feuer 30 s @ 4/s; `SPEZIAL.hubschrauber`: fahrt 2 s →
+     feuer 12 s @ 15/s + Boss 25/s).
+   - Wiederverwenden: Klasse `Einsatzbilder` in `src/v3d/lauf.ts` (Zustandsabgleich ueber
+     `z.aktiv`, `phaseBei`, Abgang, `zuruecksetzen` im Vorgaenger-Zweig), `Explosionen`
+     (`anzeigen.ts`), **Treffer-Loecher** (`baueHorde` mit Lochliste: Treffer verschwinden an
+     der Einschlagstelle, heilen alle 0,25 s), Mitte der Fahrbahn / links-rechts-Muster wie
+     Panzer. Hubschrauber-Rotoren (`rotor` y-Achse, `heckrotor` x-Achse) drehen schon in den
+     Miniaturen. Thomas' Muster aus D5b: Wirkung muss **sichtbar** sein (Explosion + Loch),
+     Fahrzeuge in der Mitte, nicht zu gross.
+   - Pruefweg: `?pruefung=1&einsatz=humvee|hubschrauber` (nur mit `pruefung=1` aktiv).
+     Im Testbrowser dunkelt der Hinweis "Offline-Speicher nicht dauerhaft zugesagt" die
+     ersten ~4 s ab — Einsaetze mit kurzem Ablauf daher mit Bildfolge + Aufhellen pruefen.
+   - D5c-Nachweis laut Plan inkl. Dauertest 3 min (Thomas misst am iPhone).
+1. **Heute online (2026-09-30), alles committet:**
+   - D3-Nacharbeit (Truppe nie unter 1, Finger robust, Blick zur Saeule, Zaehler Horde/Boss/
+     Welle, keine springenden Laeufer).
+   - D4 Kampfbild (Front schiesst, Soldaten fallen, Mini-Boss kaempft/stirbt,
+     Ereignisprotokoll-Invariante im Spiel) + Nacharbeit (keine fallenden Horde-Zombies —
+     Thomas: unsichtbar; Saeulen-Vorschau mit Namen; Hordenzahl am Rand).
+   - Messanzeige scrollbar, schliessbar, "Letzte Messung" unter INFO.
+   - D5a: vier Fahrzeuge (Humvee/Duane's Mind, AMX-56/Waroxed, M144/Cyan_dev10,
+     Apache/Duane's Mind; alle CC-BY, in `docs/lizenzen.md`) als schwebende Miniaturen in
+     den Glassaeulen.
+   - D5b: Einsatzablaeufe im Rechenkern (Anfahrt ohne Wirkung, Gesamtwirkung unveraendert,
+     Bots identisch), Panzer und Haubitze auf dem Feld; Nacharbeit 1+2: Treffer-Loecher,
+     beide mittig links/rechts, Haubitze 0,5-Massstab mit 2 Schuss (2 s Abstand, je 90) und
+     Rueckwaertsabfahrt, Panzer 30+30+100 mit Schneise durch die ganze Horde und Abgang oben,
+     +1-Schilder 21 m/s, **Steuerung 24 m/s** (vorher 8; Plan angepasst).
    - iPhone-Messungen: D4 und D5b im Budget (Lauf-Bot 58,3 fps, Dauertest ~56 fps).
-   - **Offen bei Thomas:** Blick auf die D5b-Nacharbeit am iPhone (Pruefweg in Safari:
-     `…/run-gun/?pruefung=1&einsatz=panzer` bzw. `haubitze`).
-   - **Naechster Schritt:** D5c — Humvee (faehrt bis zur Haelfte, schiesst) und Hubschrauber
-     (kreist, feuert) auf dem Feld, mit denselben Treffer-Loechern; Ablaeufe im Kern
-     stehen schon (D5b). Danach D6, D7, D8.
-   - Fahrzeug-Rohdateien: `~/Downloads/rungun-roh/<name>/`, Kopie in `tmp/fahrzeuge/`
-     (ignoriert). Sketchfab-Download ueber Chrome siehe Memory "chrome-applescript-neustart".
-   - **Codex-Start:** `.command` mit `codex exec "<Auftrag>" < /dev/null > codex.out 2>&1`,
-     Warteschleife mit Stillstands- und Limitwaechter.
-   - Bekannt, nicht beauftragt: im Pruefmodus dunkelt der Hinweis "Offline-Speicher nicht
-     dauerhaft zugesagt" die ersten Sekunden ab (nur Testbrowser); Einheiten-Banner liegt
-     ueber der Messergebnisliste.
-1. **Abgenommen und online (2026-09-29):** D0, R1, D1, D2a/b/c. Worst Case am iPhone
+2. **Offen bei Thomas:** iPhone-Blick auf D5b-Nacharbeit 2 (Panzer durch die Horde,
+   Haubitze langsamer, Steuerung).
+3. **Bekannt, nicht beauftragt:** Einheiten-Banner liegt ueber der Messergebnisliste;
+   Hubschrauber-Miniatur in der hintersten Saeule teils vom Namensschild verdeckt.
+4. **Arbeitsweg:** Codex-Start per `.command` mit `codex exec "<Auftrag>" < /dev/null >
+   codex.out 2>&1` (Companion haengt), Warteschleife mit Stillstands- (15 min) und
+   Limitwaechter; Tests/Build ueber `scratchpad`-`.command` im Terminal; Bildpruefung mit
+   Playwright 390×844 (hasTouch). Ein Test, den Codex laut Freigabeliste nicht anfassen
+   darf, darf Claude selbst anpassen (`tests/` ist frei). Fahrzeug-Rohdateien:
+   `~/Downloads/rungun-roh/<name>/`, Kopie `tmp/fahrzeuge/` (ignoriert); Sketchfab-Download
+   ueber Chrome (Memory "chrome-applescript-neustart").
+5. **Abgenommen und online (2026-09-29):** D0, R1, D1, D2a/b/c. Worst Case am iPhone
    (390×844, 600 Zombies + 120 Soldaten + 2 Bosse + Wasser 1): 55,2–55,8 fps, 24–25 ms,
    Dauertest 3 min bestanden — **das Budget ist ausgereizt**, alles Weitere muss sparsam
    sein und wird mit der neuen Messstufe "Lauf (Bot)" (D3) nachgewiesen.
-2. Wichtige Festlegungen des Tages stehen im Plan (Thomas' Entscheidungen): Strasse in drei
+6. Wichtige Festlegungen vom 2026-09-29 stehen im Plan (Thomas' Entscheidungen): Strasse in drei
    Streifen, Horde nur in der Mitte, Figuren 1,5×, +1-Schilder schweben (4 m), Glas-Saeule,
    blaue flache ×2-Wand, Soldat komplett Coyote mit M4 (1,5×, schwarz), Kamera 7 m vor
    (App laeuft am iPhone im Vollbild 390×844, nicht 390×659), Vervielfacher waechst (B).
    Thomas hat erwogen, die V1-Waffenlogik zu uebernehmen, und entschieden: **Plan bleibt**.
-3. Testseiten liegen unter `archiv/probe-3d/` (nicht mehr online). Rohdateien der Modelle
+7. Testseiten liegen unter `archiv/probe-3d/` (nicht mehr online). Rohdateien der Modelle
    unter `~/Downloads/rungun-roh/`; kleine vorbereitete Quellen in `modelle-quelle/`;
    Bewegungsbibliothek fuer das Skript als Kopie unter `tmp/UAL1_Standard.glb` (ignoriert).
 

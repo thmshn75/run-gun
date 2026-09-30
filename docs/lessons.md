@@ -1512,3 +1512,12 @@ gezielt fortsetzen lassen.
 "Starting Codex task thread", auch nach Neustart des geteilten Dienstes; `codex exec`
 direkt lief sofort. Rückfallweg: `.command` mit `codex exec "<Auftrag>" < /dev/null >
 codex.out 2>&1` statt Companion.
+
+## 2026-09-30 — Kern wirkt, Bild zeigt nichts
+
+Panzer und Haubitze haben laut Rechenkern 160/180 Zombies getoetet, am iPhone sah Thomas
+"keine Toten": die sichtbare Horde schrumpfte hinten (praefixstabile Aufstellung), nicht an
+der Einschlagstelle. Ebenso fielen die umfallenden Horde-Zombies hinter der Front nicht auf.
+**Regel:** Jede Wirkung, die der Spieler einer Ursache zuordnen soll, muss **am Ort der
+Ursache** sichtbar werden (Treffer-Loecher, Explosion am Ziel). Beim Review nicht nur die
+Zahl pruefen, sondern im Bild an der Stelle hinsehen, wo es passieren soll.
