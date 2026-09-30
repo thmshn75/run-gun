@@ -8,7 +8,12 @@ steht auf IDLE.)
 
 ## Offen — naechster Schritt zuerst
 
-0. **Naechster Schritt: D5c — Humvee und Hubschrauber auf dem Feld.** Erst auf Thomas' Go
+0. **Naechster Schritt: D5c — Spec steht (`docs/active-task.md`, SPEC_READY, gehaertet in
+   zwei Runden, Stand 2026-09-30 17:37).** Enthaelt zusaetzlich Thomas' Vorgaben vom Nachmittag:
+   bleibende Panzer-Schneise (5 s, volle Breite, schliesst mit der naechsten Welle), Panzer
+   entzieht beiden Bossen je 5 %, Saeulen Humvee → Haubitze → Panzer → Hubschrauber,
+   Hubschrauber 20/s (staerkste Einheit). **Codex-Start erst auf Thomas' Go** (Codex-Limit,
+   Reset ca. 18:20). Erst auf Thomas' Go
    starten (er pausiert gern zwischen Schritten: "nach diesem Lauf stoppen" heisst: den
    laufenden Schritt fertig pruefen, committen, deployen, dann nichts Neues anstossen).
    - Ablaeufe laut Plan (Zeile "Einsatz der Fahrzeuge", Thomas 2026-09-30): **Humvee** faehrt
@@ -43,8 +48,7 @@ steht auf IDLE.)
      Rueckwaertsabfahrt, Panzer 30+30+100 mit Schneise durch die ganze Horde und Abgang oben,
      +1-Schilder 21 m/s, **Steuerung 24 m/s** (vorher 8; Plan angepasst).
    - iPhone-Messungen: D4 und D5b im Budget (Lauf-Bot 58,3 fps, Dauertest ~56 fps).
-2. **Offen bei Thomas:** iPhone-Blick auf D5b-Nacharbeit 2 (Panzer durch die Horde,
-   Haubitze langsamer, Steuerung).
+2. **D5b-Nacharbeit 2 am iPhone ok** (Thomas 2026-09-30 17:31).
 3. **Bekannt, nicht beauftragt:** Einheiten-Banner liegt ueber der Messergebnisliste;
    Hubschrauber-Miniatur in der hintersten Saeule teils vom Namensschild verdeckt.
 4. **Arbeitsweg:** Codex-Start per `.command` mit `codex exec "<Auftrag>" < /dev/null >
