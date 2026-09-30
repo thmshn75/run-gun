@@ -8,20 +8,17 @@ steht auf IDLE, es laeuft kein Codex.)
 
 ## Offen — naechster Schritt zuerst
 
-0a. **ZUERST: Haubitze (Thomas am iPhone 2026-09-30 21:34, nach Nacharbeit 3):** "Haubitze hat
-   kein Muendungsfeuer und den ersten Einschlag sehe ich immer noch nicht — alles andere ok"
-   (Steuerung, Ziele tiefer, Panzer: ok). Der Fix aus Nacharbeit 3 (Pruef-Einsaetze nach der
-   Ladeanzeige, Explosionen ohne Tiefentest) hat den ersten Einschlag also NICHT sichtbar
-   gemacht → Ursache ist eine andere; nicht denselben Wert weiterdrehen (Lesson 2026-09-30
-   "Schneise zum dritten Mal"). Pruefen im Browser mit Nahbild je Bild um den ersten
-   Einschlag (Zeitpunkt aus dem Kern: Beginn Phase `einschlaege`, t = 1,2 s nach Start):
-   Wird `explosionen.starte` fuer den ersten Schuss ueberhaupt aufgerufen (Ereignis im
-   selben Bild wie das Anlegen? `schuesse`-Zaehlung fuer die Haubitze nur `ereignis ? 1 : 0`,
-   Ziel `stand.ziel` evtl. erst danach gesetzt)? Muendungsblitz: Haubitze `MUENDUNG`
-   [−0,032; 2,54; −3,65] bei `SPIEL_SKALA` 0,5 — Blitz evtl. im Modell verborgen oder
-   Blitz-Pool (`blitzPunkte.length < 4`) voll; Blitzgroesse fuer die Haubitze ggf. zu klein.
-   Beides in einem Codex-Auftrag, mit Verhaltenstest (Blitz + Explosion je Schuss, auch fuer
-   den ersten) und Nahbild-Nachweis durch Claude.
+0a. **Haubitze/Panzer — D5d-Nacharbeit 4 online (Commit 48d916a, 2026-09-30 22:10), wartet auf
+   Thomas am iPhone.** Befund Browser: Beide Haubitzenschuesse feuern, beide Explosionen sichtbar —
+   der erste Einschlag fehlte nur am iPhone. Verdacht (nicht belegt): Grafikprogramm der Explosion
+   wurde erst beim ersten Schuss uebersetzt (instanceColor kam erst dann dazu) → jetzt vorgewaermt,
+   instanceColor ab Konstruktor. Muendungsfeuer: war 0,45 m und alterte im Entstehungsbild
+   (Panzer-Schuss 1/4 ohne ein Blitzbild) → jetzt Haubitze Ø 2,4 m/0,15 s, Panzer Ø 1,6 m/0,12 s,
+   mind. 3 Bilder (Browser: 8–10 Bilder je Schuss, Nahbild ok). Pruef-Diagnose je Schuss erscheint
+   bei `?pruefung=1&einsatz=haubitze` erst am Levelende (~2 min, Niederlage) — Abweichung von der
+   Spec ("nach dem Einsatz"), in Kauf genommen. Die A/B-Gegenprobe `&vorwaermen=0` trennt nicht
+   mehr (im Browser 0 neue Programme auch ohne Vorwaermen, weil instanceColor-Fix allein wirkt).
+   Vorhersage iPhone: Schuss 1 Explosion ≥ 20 Bilder, laengstes Bild bei Schuss 1 ≈ Schuss 2.
 
 0. **Danach: D5e Eis-Saeulen — Spec schreiben** (Plan V7, Abschnitt "D5e";
    danach D6 → D7 + Lobby Stufe 1 → Werkstatt → Arsenal → D8, alles im Plan festgehalten,
