@@ -1,16 +1,124 @@
 import { BUEHNE, DARSTELLUNG, FAHRZEUGE, FIGUREN, LEVELS, type Level } from './balance3d'
-import { neuerLauf, schritt, type Ereignis, type Trupp, type Zustand } from './rechnung'
+import { neuerLauf, schritt, phaseBei, type AktiveEinheit, type Ereignis, type Trupp, type Zustand } from './rechnung'
 import { glaetteX, kernX } from './steuerung'
 import { bossFreieAufstellung } from './bosse'
 import type { Welt } from './szene'
 import type { SoldatEintrag } from './soldaten'
 import { SoldatenMasse } from './soldaten'
-import { BossBalken, Muendungsblitze, ZahlAnzeige } from './anzeigen'
+import { BossBalken, Explosionen, Muendungsblitze, ZahlAnzeige } from './anzeigen'
+import { baueFeldFahrzeug } from './fahrzeuge'
+import type { ZombieEintrag } from './figuren'
 import { setzeSchildText } from './schilder'
 import { setzeEinheitenBanner } from './oberflaeche'
 import * as THREE from 'three'
 
 const SPUR_FOLGE = [4, 7, 1, 9, 2, 5, 0, 8, 3, 6] as const
+type FeldName = 'panzer' | 'haubitze'
+type FeldStand = { gruppe: THREE.Group; name: FeldName; halt1: number; halt2?: number; schneiseZ?: number; abgang: number; schuss: number }
+export type HordeMaske = { x: number; z: number; breite: number } | null
+
+export class Einsatzbilder {
+  private welt: Welt
+  readonly explosionen = new Explosionen()
+  readonly blitze = new Muendungsblitze(4)
+  private fahrzeuge = new Map<AktiveEinheit, FeldStand>()
+  private blitzPunkte: { pos: THREE.Vector3; rest: number }[] = []
+  private schneise: HordeMaske = null
+  private schliessZeit = 0
+  private zufallZustand = 1
+  private wegwerf = new THREE.Vector3()
+  constructor(welt: Welt) {
+    this.welt = welt
+    welt.scene.add(this.explosionen.objekt, this.blitze.objekt)
+    welt.laufGruppen.push(this.explosionen.objekt, this.blitze.objekt)
+  }
+  setzeSeed(seed: number): void { this.zufallZustand = (seed ^ 0x9e3779b9) >>> 0 }
+  private zufall(): number {
+    let n = this.zufallZustand = (this.zufallZustand + 0x6D2B79F5) >>> 0
+    n = Math.imul(n ^ (n >>> 15), n | 1); n ^= n + Math.imul(n ^ (n >>> 7), n | 61)
+    return ((n ^ (n >>> 14)) >>> 0) / 4294967296
+  }
+  get maske(): HordeMaske { return this.schneise }
+  get anzahl(): number { return this.fahrzeuge.size }
+  private entferne(a: AktiveEinheit, stand: FeldStand): void {
+    stand.gruppe.removeFromParent()
+    this.welt.laufGruppen = this.welt.laufGruppen.filter(o => o !== stand.gruppe)
+    this.fahrzeuge.delete(a)
+  }
+  private ticke(dt: number): void {
+    this.explosionen.schritt(dt, this.welt.camera)
+    for (const blitz of this.blitzPunkte) blitz.rest -= dt
+    this.blitzPunkte = this.blitzPunkte.filter(b => b.rest > 0)
+    this.blitze.setze(this.blitzPunkte.map(b => b.pos), this.welt.camera)
+    for (const [a, stand] of this.fahrzeuge) if (stand.abgang >= 0) {
+      stand.abgang += dt
+      stand.gruppe.scale.setScalar(Math.max(0, 1 - stand.abgang / .8))
+      if (stand.abgang >= .8) this.entferne(a, stand)
+    }
+    if (this.schneise && ![...this.fahrzeuge.values()].some(s => s.name === 'panzer' && s.abgang < 0)) {
+      this.schliessZeit += dt
+      this.schneise.breite = Math.max(0, 1.4 * (1 - this.schliessZeit / 2))
+      if (this.schliessZeit >= 2) this.schneise = null
+    }
+  }
+  abgleichen(z: Zustand, ereignisse: readonly Ereignis[], dt: number): void {
+    for (const a of z.aktiv) {
+      if (a.einheit !== 'panzer' && a.einheit !== 'haubitze') continue
+      if (!this.fahrzeuge.has(a)) {
+        const name = a.einheit, bau = this.welt.fahrzeuge?.[name]
+        if (!bau) continue
+        const gruppe = baueFeldFahrzeug(bau, name)
+        gruppe.position.z = 10
+        this.welt.scene.add(gruppe); this.welt.laufGruppen.push(gruppe)
+        const halt1 = -5 - FAHRZEUGE[name].LAENGE * FAHRZEUGE.SPIEL_SKALA / 2 - 1
+        this.fahrzeuge.set(a, { gruppe, name, halt1, abgang: -1, schuss: 0 })
+      }
+      const stand = this.fahrzeuge.get(a)!
+      const phase = phaseBei(a.einheit, a.verstrichen)
+      if (phase.index === 0) stand.gruppe.position.z = THREE.MathUtils.lerp(10, stand.halt1, phase.anteil)
+      else if (stand.name === 'haubitze') stand.gruppe.position.z = stand.halt1
+      else {
+        if (phase.index >= 2 && stand.halt2 === undefined) {
+          const ziel = -(5 + Math.max(0, z.y - 5) / 2)
+          stand.halt2 = ziel <= stand.halt1 - 2 ? ziel : stand.halt1
+        }
+        if (phase.index === 1) stand.gruppe.position.z = stand.halt1
+        if (phase.index === 2) stand.gruppe.position.z = THREE.MathUtils.lerp(stand.halt1, stand.halt2!, phase.anteil)
+        if (phase.index === 3) stand.gruppe.position.z = stand.halt2!
+        if (phase.index === 4) {
+          if (stand.schneiseZ === undefined) stand.schneiseZ = Math.min(stand.halt2!, -z.y - 6)
+          stand.gruppe.position.z = THREE.MathUtils.lerp(stand.halt2!, stand.schneiseZ, phase.anteil)
+          this.schneise = { x: stand.gruppe.position.x, z: stand.gruppe.position.z, breite: 1.4 }
+          this.schliessZeit = 0
+        }
+      }
+    }
+    for (const [a, stand] of this.fahrzeuge) {
+      const einschlaege = ereignisse.filter(e => e.art === 'spezialTreffer' && e.einheit === stand.name).length
+      const geplant = stand.name === 'panzer' ? [1.7, 2.2, 2.7, 4.7, 5.2, 5.7].filter(t => t <= a.verstrichen + 1e-9).length : 0
+      const schuesse = stand.name === 'haubitze' ? einschlaege : einschlaege ? geplant - stand.schuss : 0
+      if (stand.name === 'panzer') stand.schuss = geplant
+      for (let i = 0; i < Math.max(0, schuesse); i++) {
+        const p = FAHRZEUGE[stand.name].MUENDUNG
+        if (this.blitzPunkte.length < 4) this.blitzPunkte.push({ pos: stand.gruppe.localToWorld(this.wegwerf.set(p[0], p[1], p[2]).clone().multiplyScalar(FAHRZEUGE.SPIEL_SKALA)), rest: .08 })
+        const tief = stand.name === 'haubitze' ? 2 + 10 * this.zufall() : 4 * this.zufall()
+        this.explosionen.starte(new THREE.Vector3((this.zufall() * 2 - 1) * 2.8, .2, -z.y - tief), stand.name === 'haubitze' ? 5 : 2.5)
+      }
+    }
+    for (const [a, stand] of this.fahrzeuge) if ((z.ergebnis !== 'laeuft' || !z.aktiv.includes(a)) && stand.abgang < 0) stand.abgang = 0
+    this.ticke(dt)
+  }
+  nachlauf(dt: number): void { this.ticke(dt) }
+  zuruecksetzen(): void {
+    for (const [a, stand] of this.fahrzeuge) this.entferne(a, stand)
+    this.explosionen.zuruecksetzen(); this.blitzPunkte.length = 0; this.blitze.setze([], this.welt.camera)
+    this.schneise = null; this.schliessZeit = 0
+  }
+  gibFrei(): void {
+    this.zuruecksetzen(); this.explosionen.gibFrei(); this.blitze.gibFrei()
+    this.welt.laufGruppen = this.welt.laufGruppen.filter(o => o !== this.explosionen.objekt && o !== this.blitze.objekt)
+  }
+}
 export const ZAHL_HOEHEN = { front: 2.8, horde: 2.4 } as const
 type Sicht = { x: number; soldaten: { nummer: number; spur: number; phase: number; startX: number }[]; vervielfachtUm?: number }
 export interface LaufSoldat { nummer: number; pos: number; x: number; ziel: Trupp['ziel']; vervielfacht: boolean; k: number; spur: number; phase: number; aufklappen: number; startX?: number }
@@ -188,6 +296,10 @@ export class WeltDarstellung implements LaufDarstellung {
   private letzteSaeulenZahl: number | null = null
   private letzteSchildSaeule = -1
   private letzteHorde = -1
+  private letzterMaskenSchluessel = ''
+  private hordeEintraege: ZombieEintrag[] = []
+  private hordeGefiltert: ZombieEintrag[] = []
+  private hordeEintraegeZahl = -1
   private hordeZeit = -Infinity
   private tempo: number = DARSTELLUNG.SCHILDER_TEMPO_LANGSAM
   private plusOffset = 0
@@ -211,6 +323,7 @@ export class WeltDarstellung implements LaufDarstellung {
   private blitzPunkte: { ende: number; pos: THREE.Vector3 }[] = []
   private blitze = new Muendungsblitze(DARSTELLUNG.BLITZE_MAX)
   private frontBlitze = new Muendungsblitze(DARSTELLUNG.FRONT_BLITZE_MAX)
+  private einsatz: Einsatzbilder
   private frontBlitzPunkte = Array.from({ length: DARSTELLUNG.FRONT_BLITZE_MAX }, () => new THREE.Vector3())
   private frontBlitzEnden = new Float64Array(DARSTELLUNG.FRONT_BLITZE_MAX)
   private frontBlitzAktiv = 0
@@ -242,6 +355,7 @@ export class WeltDarstellung implements LaufDarstellung {
     })
     this.zufallZustand = seed >>> 0
     this.fallSoldaten = new SoldatenMasse(welt.soldatBau, DARSTELLUNG.FALL_SOLDATEN_MAX)
+    this.einsatz = new Einsatzbilder(welt)
     this.bossOriginal = originalBossFarben(welt.miniboss.objekt)
     this.setzeBossZurueck()
     this.miniBalken = new BossBalken(LEVELS[0].B_mini)
@@ -269,7 +383,7 @@ export class WeltDarstellung implements LaufDarstellung {
     n = Math.imul(n ^ (n >>> 15), n | 1); n ^= n + Math.imul(n ^ (n >>> 7), n | 61)
     return ((n ^ (n >>> 14)) >>> 0) / 4294967296
   }
-  setzeSeed(seed: number): void { this.zufallZustand = seed >>> 0 }
+  setzeSeed(seed: number): void { this.zufallZustand = seed >>> 0; this.einsatz.setzeSeed(seed) }
   private setzeBossZurueck(): void {
     this.welt.miniboss.spiele('walk')
     this.welt.miniboss.objekt.visible = false
@@ -302,7 +416,30 @@ export class WeltDarstellung implements LaufDarstellung {
     this.bossOriginal.forEach((farbe, material) => material.color.copy(farbe).multiplyScalar(this.uhr < this.bossBlitzBis ? 1.7 : 1))
     if (this.bossStand.zustand === 'stirbt') this.aktualisiereBoss(null)
   }
-  nachlauf(dt: number): void { this.uhr += Math.max(0, dt); this.tickeNeu() }
+  nachlauf(dt: number): void {
+    this.uhr += Math.max(0, dt); this.tickeNeu(); this.einsatz.nachlauf(dt)
+    if (this.letzterStand) this.aktualisiereHorde(this.letzterStand.z)
+  }
+  private baueHorde(zahl: number, maske: HordeMaske, gruppenZ: number): ZombieEintrag[] {
+    if (zahl !== this.hordeEintraegeZahl) {
+      this.hordeEintraege = zahl ? bossFreieAufstellung(zahl, 0, FIGUREN.MINIBOSS_FREIRADIUS, 73291, -1, true) : []
+      this.hordeEintraegeZahl = zahl
+    }
+    if (!maske) return this.hordeEintraege
+    this.hordeGefiltert.length = 0
+    for (const e of this.hordeEintraege) if (!(Math.abs(e.x - maske.x) < maske.breite && e.z + gruppenZ <= maske.z && e.z + gruppenZ >= gruppenZ)) this.hordeGefiltert.push(e)
+    return this.hordeGefiltert
+  }
+  private aktualisiereHorde(z: Zustand): number {
+    const zombies = z.y <= 0 ? 0 : Math.min(DARSTELLUNG.HORDE_MAX, Math.ceil(z.Z))
+    const maske = this.einsatz.maske
+    const maskenSchluessel = maske ? `${maske.x.toFixed(2)}:${maske.z.toFixed(2)}:${maske.breite.toFixed(2)}` : ''
+    if ((zombies !== this.letzteHorde || maskenSchluessel !== this.letzterMaskenSchluessel) && this.uhr - this.hordeZeit >= (maske ? .1 : .25)) {
+      this.welt.zombieMasse.setze(this.baueHorde(zombies, maske, -z.y))
+      this.letzteHorde = zombies; this.hordeZeit = this.uhr; this.letzterMaskenSchluessel = maskenSchluessel
+    }
+    return zombies
+  }
   private aktualisiereBoss(z: Zustand | null): void {
     const alt = this.bossStand
     const neu = bossBewegung(alt, { t: this.uhr, y: z?.y ?? 0, kontakt: z ? hatKontakt(z) : false, imFeld: z?.miniBoss.imFeld ?? false, B: z?.miniBoss.B ?? 0, todesDauer: 2 })
@@ -318,6 +455,7 @@ export class WeltDarstellung implements LaufDarstellung {
     const t = z.t
     this.uhr += dt
     this.bewegeMiniaturen()
+    this.einsatz.abgleichen(z, ereignisse, dt)
     if (z.kAktuell !== this.letzterFaktor) {
       this.letzterFaktor = z.kAktuell
       setzeSchildText(w.wand, { breite: 2 * BUEHNE.MITTE_HALB, hoehe: BUEHNE.WAND_HOEHE, text: wandText(z), farbe: BUEHNE.WAND_FARBE })
@@ -427,11 +565,7 @@ export class WeltDarstellung implements LaufDarstellung {
     this.aufblenden.forEach((sprite,i)=>{const soldat=frische[i];sprite.visible=!!soldat;if(soldat)sprite.position.set(soldat.x,3.2,-soldat.pos)})
     const key = sichtbar.map(e=>`${e.x},${e.z},${e.phase}`).join(';')
     if (key !== this.letzteTrupps) {w.laufTrupp.setze(sichtbar); this.letzteTrupps=key}
-    const zombies = z.y <= 0 ? 0 : Math.min(DARSTELLUNG.HORDE_MAX,Math.ceil(z.Z))
-    if (zombies !== this.letzteHorde && t-this.hordeZeit >= .25) {
-      w.zombieMasse.setze(zombies ? bossFreieAufstellung(zombies,0,FIGUREN.MINIBOSS_FREIRADIUS,73291,-1,true) : [])
-      this.letzteHorde=zombies;this.hordeZeit=t
-    }
+    const zombies = this.aktualisiereHorde(z)
     w.zombieMasse.gruppe.position.z=-z.y
     this.hordeZahl.objekt.visible=z.y>0&&z.Z>0
     if (this.hordeZahl.objekt.visible) this.hordeZahl.setze(z.Z,t)
@@ -493,6 +627,7 @@ export class WeltDarstellung implements LaufDarstellung {
     this.tickeNeu()
   }
   gibFrei():void {
+    this.einsatz.gibFrei()
     this.setzeBossZurueck()
     this.truppeZahl.gibFrei(); this.frontZahl.gibFrei(); this.hordeZahl.gibFrei(); this.miniBalken.gibFrei(); this.eliteBalken.gibFrei()
     this.aufblenden.forEach(s=>s.removeFromParent())
@@ -508,6 +643,7 @@ export class WeltDarstellung implements LaufDarstellung {
     if (weltDarstellungen.get(this.welt) === this) {
       if (this.vorgaenger) {
         weltDarstellungen.set(this.welt, this.vorgaenger)
+        this.vorgaenger.einsatz.zuruecksetzen()
         if (this.vorgaenger.letzterStand) {
           this.vorgaenger.letzteT = this.vorgaenger.letzteF = this.vorgaenger.letzteHorde = -1
           this.vorgaenger.letzteFrontBewegung = 'stehen'

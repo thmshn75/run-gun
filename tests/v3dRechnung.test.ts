@@ -1,7 +1,7 @@
 import { performance } from 'node:perf_hooks'
 import { describe, expect, it } from 'vitest'
 import { LEVELS, type Level } from '../src/v3d/balance3d'
-import { neuerLauf, schritt, type Ereignis } from '../src/v3d/rechnung'
+import { neuerLauf, schritt, starteEinheit, gesamtDauer, phaseBei, type Ereignis } from '../src/v3d/rechnung'
 
 const dt = 1 / 30
 const testLevel = (aenderung: Partial<Level>): Level => ({ ...LEVELS[0],
@@ -13,6 +13,45 @@ const nah = (a: number, b: number) => {
 }
 
 describe('3D-Spielrechnung', () => {
+  it('wirkt je Ablauf unabhängig von der Schrittweite exakt wie die Tabelle', () => {
+    for (const [name, dauer, wirkung] of [['humvee',33,120],['haubitze',3.25,180],['panzer',6.7,160],['hubschrauber',14,180]] as const) {
+      expect(gesamtDauer(name)).toBeCloseTo(dauer, 8)
+      for (const zeitSchritt of [1/30,.1,1]) {
+        const z = neuerLauf(testLevel({ wellen: [], saeulen: [], eliteBossZeit: 999, startY: 1000 }), 5)
+        z.Z = 10000
+        starteEinheit(z, name)
+        let gesamt = 0
+        while (z.aktiv.length) {
+          const e = schritt(z, {x:0}, zeitSchritt)
+          gesamt += e.filter(x => x.art === 'spezialTreffer').reduce((s,x)=>s+x.menge,0)
+        }
+        expect(gesamt).toBeCloseTo(wirkung, 6)
+      }
+    }
+  })
+  it('hat in der Fahrt keine Wirkung und teilt Grenzschritte anteilig', () => {
+    const z = neuerLauf(testLevel({wellen:[],saeulen:[],eliteBossZeit:999,startY:1000}), 1)
+    z.Z=1000
+    const a=starteEinheit(z,'humvee')
+    expect(summe(schritt(z,{x:0},1),'spezialTreffer')).toBe(0)
+    expect(summe(schritt(z,{x:0},1),'spezialTreffer')).toBe(0)
+    expect(summe(schritt(z,{x:0},1),'spezialTreffer')).toBe(0)
+    a.verstrichen=2.5
+    expect(summe(schritt(z,{x:0},1),'spezialTreffer')).toBeCloseTo(2)
+    expect(phaseBei('humvee',3.5)).toMatchObject({index:1,art:'feuer',lokal:.5})
+  })
+  it('setzt drei Haubitzeneinschläge auf die geplanten Zeitpunkte', () => {
+    for (const zeitSchritt of [1/30,.1,1]) {
+      const z=neuerLauf(testLevel({wellen:[],saeulen:[],eliteBossZeit:999,startY:1000}),1)
+      z.Z=1000
+      const start=z.t
+      starteEinheit(z,'haubitze')
+      const treffer:Ereignis[]=[]
+      while(z.aktiv.length) treffer.push(...schritt(z,{x:0},zeitSchritt).filter(e=>e.art==='spezialTreffer'))
+      expect(treffer).toHaveLength(3)
+      treffer.forEach((e,i)=>{expect(e.menge).toBe(60);expect(e.t).toBeGreaterThanOrEqual(start+1.2+i-zeitSchritt);expect(e.t).toBeLessThan(start+1.2+i)})
+    }
+  })
   it('bilanziert jeden Schritt in 1000 deterministischen Zufallsläufen', () => {
     const start = performance.now()
     let schritte = 0
@@ -51,7 +90,7 @@ describe('3D-Spielrechnung', () => {
         if (vor.P !== null && z.P !== null && !e.some(x => x.art === 'einheitFrei'))
           nah(z.P - vor.P, -summe(e, 'saeuleTreffer'))
         for (const wert of [z.t, z.T, z.F, z.Z, z.y, z.P, z.sendeRest, z.seedZustand,
-          z.miniBoss.B, z.eliteBoss.B, z.gestarteteWellen, z.saeulenIndex, unterwegs, z.durchWand, z.kAktuell, ...z.aktiv.map(a => a.rest)]) {
+          z.miniBoss.B, z.eliteBoss.B, z.gestarteteWellen, z.saeulenIndex, unterwegs, z.durchWand, z.kAktuell, ...z.aktiv.map(a => a.verstrichen)]) {
           if (wert !== null && Number.isNaN(wert)) throw new Error('NaN im Zustand')
         }
         expect(z.kAktuell).toBeGreaterThanOrEqual(letzterK)
@@ -195,14 +234,13 @@ describe('3D-Spielrechnung', () => {
     expect(z.saeulenIndex).toBe(1)
     expect(z.T).toBe(100)
     expect(e.some(x => x.art === 'einheitAktiv' && x.einheit === 'humvee')).toBe(true)
-    expect(summe(e, 'spezialTreffer')).toBe(4)
+    expect(summe(e, 'spezialTreffer')).toBe(0)
   })
 
   it('lässt die Haubitze genau dreimal und zwei Einheiten gemeinsam wirken', () => {
     const z = neuerLauf(testLevel({ wellen: [{ t: 0, groesse: 1000 }], streuung: 0,
       miniBossWelle: null, eliteBossZeit: 999 }), 1)
-    z.aktiv.push({ einheit: 'haubitze', rest: 3, einschlaege: 0 },
-      { einheit: 'humvee', rest: 30, einschlaege: 0 })
+    starteEinheit(z, 'haubitze'); starteEinheit(z, 'humvee')
     let haubitze = 0, humvee = 0, ende = 0
     for (let i = 0; i < 4; i++) {
       const e = schritt(z, { x: -1 }, 1)
@@ -211,7 +249,7 @@ describe('3D-Spielrechnung', () => {
       ende += e.filter(x => x.art === 'einheitEnde' && x.einheit === 'haubitze').length
     }
     expect(haubitze).toBe(3)
-    expect(humvee).toBe(4)
+    expect(humvee).toBe(1)
     expect(ende).toBe(1)
   })
 
@@ -219,7 +257,8 @@ describe('3D-Spielrechnung', () => {
     const z = neuerLauf(testLevel({ wellen: [], eliteBossZeit: 999 }), 1)
     z.miniBoss.imFeld = true
     z.eliteBoss.imFeld = true
-    z.aktiv.push({ einheit: 'hubschrauber', rest: 12, einschlaege: 0 })
+    starteEinheit(z, 'hubschrauber')
+    schritt(z, { x: -1 }, 1); schritt(z, { x: -1 }, 1)
     const e = schritt(z, { x: -1 }, 1)
     expect(e.filter(x => x.art === 'bossTreffer').map(x => x.boss)).toEqual(['miniBoss'])
     expect(z.miniBoss.B).toBe(375)

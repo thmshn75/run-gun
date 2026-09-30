@@ -4,7 +4,27 @@ export type Ziel = 'front'
 export type BossName = 'miniBoss' | 'eliteBoss'
 export interface Trupp { ziel: Ziel; pos: number; anzahl: number; vervielfacht: boolean; k: number }
 export interface Boss { imFeld: boolean; B: number }
-export interface AktiveEinheit { einheit: SpezialName; rest: number; einschlaege: number }
+export interface AktiveEinheit { einheit: SpezialName; verstrichen: number; einschlaege: number }
+export function gesamtDauer(einheit: SpezialName): number { return SPEZIAL[einheit].ablauf.reduce((summe, phase) => summe + phase.dauer, 0) }
+export function restZeit(a: AktiveEinheit): number { return gesamtDauer(a.einheit) - a.verstrichen }
+export function starteEinheit(z: Zustand, einheit: SpezialName): AktiveEinheit {
+  const aktiv = { einheit, verstrichen: 0, einschlaege: 0 }
+  z.aktiv.push(aktiv)
+  return aktiv
+}
+export function phaseBei(einheit: SpezialName, verstrichen: number): { index: number; art: 'fahrt' | 'feuer' | 'schneise' | 'einschlaege'; anteil: number; lokal: number } {
+  const phasen = SPEZIAL[einheit].ablauf
+  let start = 0
+  for (let index = 0; index < phasen.length; index++) {
+    const phase = phasen[index]
+    if (verstrichen < start + phase.dauer - 1e-9 || index === phasen.length - 1) {
+      const lokal = Math.max(0, Math.min(phase.dauer, verstrichen - start))
+      return { index, art: phase.art, anteil: lokal / phase.dauer, lokal }
+    }
+    start += phase.dauer
+  }
+  throw new Error('Ablauf ohne Phase')
+}
 export type EreignisArt = 'welle' | 'eingesammelt' | 'ausgesandt' | 'vervielfacht' |
   'wandStufe' | 'angekommenFront' | 'saeuleTreffer' | 'einheitFrei' |
   'einheitAktiv' | 'einheitEnde' | 'spezialTreffer' | 'zombieGefallen' |
@@ -97,7 +117,7 @@ export function schritt(z: Zustand, eingabe: { x: number }, dt: number): Ereigni
     if (z.P <= 0) {
       const einheit = l.saeulen[z.saeulenIndex] as SpezialName
       melde('einheitFrei', 1, { einheit })
-      z.aktiv.push({ einheit, rest: SPEZIAL[einheit].dauer, einschlaege: 0 })
+      starteEinheit(z, einheit)
       melde('einheitAktiv', 1, { einheit })
       z.saeulenIndex++
       z.P = z.saeulenIndex < l.saeulen.length ? l.P : null
@@ -136,35 +156,40 @@ export function schritt(z: Zustand, eingabe: { x: number }, dt: number): Ereigni
 
   const weiterAktiv: AktiveEinheit[] = []
   for (const aktiv of z.aktiv) {
-    const wirkZeit = Math.min(dt, aktiv.rest)
     const einheit = aktiv.einheit
-    const spezial = SPEZIAL[einheit]
-    if (einheit === 'haubitze') {
-      const ende = spezial as typeof SPEZIAL.haubitze
-      const verstrichen = ende.dauer - aktiv.rest
-      while (aktiv.einschlaege < ende.einschlaege && aktiv.einschlaege * ende.abstand <= verstrichen + wirkZeit + 1e-9) {
-        const treffer = Math.min(ende.zombiesProEinschlag, z.Z)
+    const bis = Math.min(gesamtDauer(einheit), aktiv.verstrichen + dt)
+    let start = 0
+    for (const phase of SPEZIAL[einheit].ablauf) {
+      const von = Math.max(aktiv.verstrichen, start)
+      const ende = Math.min(bis, start + phase.dauer)
+      const wirkZeit = Math.max(0, ende - von)
+      if (phase.art === 'einschlaege' && wirkZeit > 0) {
+        const p = phase as typeof SPEZIAL.haubitze.ablauf[1]
+        while (aktiv.einschlaege < p.einschlaege && ende - start >= aktiv.einschlaege * p.abstand - 1e-9) {
+          const treffer = Math.min(p.zombiesProEinschlag, z.Z)
+          z.Z -= treffer
+          if (treffer > 0) ereignisse.push({ art: 'spezialTreffer', menge: treffer, t: z.t + Math.max(0, Math.min(dt, start + aktiv.einschlaege * p.abstand - aktiv.verstrichen)) - 1e-10, einheit })
+          aktiv.einschlaege++
+        }
+      } else if ((phase.art === 'feuer' || phase.art === 'schneise') && wirkZeit > 0) {
+        const p = phase as { zombiesProSekunde: number; bossPunkteProSekunde?: number }
+        const treffer = Math.min(p.zombiesProSekunde * wirkZeit, z.Z)
         z.Z -= treffer
         if (treffer > 0) melde('spezialTreffer', treffer, { einheit })
-        aktiv.einschlaege++
-      }
-    } else {
-      const rate = spezial as typeof SPEZIAL.humvee | typeof SPEZIAL.panzer | typeof SPEZIAL.hubschrauber
-      const treffer = Math.min(rate.zombiesProSekunde * wirkZeit, z.Z)
-      z.Z -= treffer
-      if (treffer > 0) melde('spezialTreffer', treffer, { einheit })
-      if (einheit === 'hubschrauber') {
-        const boss = z.miniBoss.imFeld && z.miniBoss.B > 0 ? 'miniBoss' : z.eliteBoss.imFeld && z.eliteBoss.B > 0 ? 'eliteBoss' : null
-        if (boss) {
-          const schaden = Math.min(SPEZIAL.hubschrauber.bossPunkteProSekunde * wirkZeit, z[boss].B)
-          z[boss].B -= schaden
-          melde('bossTreffer', schaden, { boss })
-          if (z[boss].B <= 0) z[boss].imFeld = false
+        if (p.bossPunkteProSekunde) {
+          const boss = z.miniBoss.imFeld && z.miniBoss.B > 0 ? 'miniBoss' : z.eliteBoss.imFeld && z.eliteBoss.B > 0 ? 'eliteBoss' : null
+          if (boss) {
+            const schaden = Math.min(p.bossPunkteProSekunde * wirkZeit, z[boss].B)
+            z[boss].B -= schaden
+            if (schaden > 0) melde('bossTreffer', schaden, { boss })
+            if (z[boss].B <= 0) z[boss].imFeld = false
+          }
         }
       }
+      start += phase.dauer
     }
-    aktiv.rest -= dt
-    if (aktiv.rest <= 1e-9) melde('einheitEnde', 1, { einheit })
+    aktiv.verstrichen = bis
+    if (restZeit(aktiv) <= 1e-9) melde('einheitEnde', 1, { einheit })
     else weiterAktiv.push(aktiv)
   }
   z.aktiv = weiterAktiv

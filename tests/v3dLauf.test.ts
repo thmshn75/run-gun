@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { SpielLauf, WeltDarstellung, baueLaufSpuren, spurFaktor, formationsFiguren, formationsBewegung, BlitzTakt, wandText, ZAHL_HOEHEN, bossBewegung, type LaufSoldat, type LaufDarstellung, type BossStand } from '../src/v3d/lauf'
 import type { Zustand } from '../src/v3d/rechnung'
+import { neuerLauf, starteEinheit, gesamtDauer } from '../src/v3d/rechnung'
+import type { FahrzeugBau } from '../src/v3d/fahrzeuge'
 import { bannerEintraege } from '../src/v3d/oberflaeche'
 import { MessBotSteuerung } from '../src/v3d/messung'
 import { bossFreieAufstellung } from '../src/v3d/bosse'
@@ -32,7 +34,10 @@ function baueWeltAttrappe() {
   const miniboss={objekt:bossObjekt,breite:1,spiele:miniSpiele,aktualisiere:vi.fn(),gibFrei:vi.fn()}
   const eliteboss={objekt:new THREE.Group(),breite:1,spiele:eliteSpiele,aktualisiere:vi.fn(),gibFrei:vi.fn()}
   scene.add(truppe.gruppe,laufTrupp.gruppe,front.gruppe,zombieMasse.gruppe,wand,...saeulen,bossObjekt,eliteboss.objekt)
-  const welt={scene,camera,bemalungen:[new THREE.Texture(),new THREE.Texture()],wasser:{} as Welt['wasser'],zombieBau,zombieMasse,nahaufnahme:false,soldatNahaufnahme:false,soldatBau,truppe,laufTrupp,front,laufGruppen:[truppe.gruppe,laufTrupp.gruppe,front.gruppe,zombieMasse.gruppe],plusSchilder:[],wand,saeulen,saeulenInnen,saeulenSchilder,miniboss,eliteboss} as Welt
+  const vorlage=new THREE.Group(),fahrzeugGeometrie=new THREE.BoxGeometry(2,2,9.8),fahrzeugMaterial=new THREE.MeshStandardMaterial()
+  vorlage.add(new THREE.Mesh(fahrzeugGeometrie,fahrzeugMaterial))
+  const bau: FahrzeugBau={geometrien:[fahrzeugGeometrie],material:fahrzeugMaterial,laenge:9.8,vorlage,gibFrei(){}}
+  const welt={scene,camera,bemalungen:[new THREE.Texture(),new THREE.Texture()],wasser:{} as Welt['wasser'],zombieBau,zombieMasse,nahaufnahme:false,soldatNahaufnahme:false,soldatBau,truppe,laufTrupp,front,laufGruppen:[truppe.gruppe,laufTrupp.gruppe,front.gruppe,zombieMasse.gruppe],plusSchilder:[],wand,saeulen,saeulenInnen,saeulenSchilder,miniboss,eliteboss,fahrzeuge:{panzer:bau,haubitze:bau}} as Welt
   return {welt,miniSpiele,bossMaterial,namenBreiten,raume:()=>vi.unstubAllGlobals()}
 }
 
@@ -45,6 +50,29 @@ function laufe(ziel: number, dauer=10) {
   return {lauf,gezeigt,ausgesandt,einheiten}
 }
 describe('3D-Lauf',()=>{
+  it('blendet Horde in der Panzerschneise aus und schließt sie im Nachlauf',()=>{
+    const {welt,raume}=baueWeltAttrappe()
+    try {
+      const anzeige=new WeltDarstellung(welt),z=neuerLauf(LEVELS[0],1)
+      z.Z=600;z.y=20;z.t=10
+      const a=starteEinheit(z,'panzer');a.verstrichen=5.8
+      const calls: {zahl:number;imBand:number}[]=[]
+      const original=welt.zombieMasse.setze.bind(welt.zombieMasse)
+      vi.spyOn(welt.zombieMasse,'setze').mockImplementation(e=>{
+        calls.push({zahl:e.length,imBand:e.filter(p=>Math.abs(p.x-FAHRZEUGE.SPUR_X)<1.4&&p.z-z.y<=-13.85&&p.z-z.y>=-z.y).length})
+        original(e)
+      })
+      anzeige.zeige(z,new Map(),[],.1,0)
+      expect(calls.at(-1)!.zahl).toBeLessThan(600)
+      expect(calls.at(-1)!.imBand).toBe(0)
+      z.aktiv=[];z.t+=.1;anzeige.zeige(z,new Map(),[],.1,0)
+      anzeige.nachlauf(3)
+      expect(calls.at(-1)!.zahl).toBe(600)
+      z.t+=3;anzeige.zeige(z,new Map(),[],0,0)
+      expect(calls.at(-1)!.zahl).toBe(600)
+      anzeige.gibFrei()
+    } finally {raume()}
+  })
   it('setzt Einheiten-Banner mindestens sechs Pixel unter die Statuszeile',async()=>{
     vi.resetModules()
     const {setzeEinheitenBanner,zeigeOberflaeche,versteckeOberflaeche}=await import('../src/v3d/oberflaeche')
@@ -61,7 +89,9 @@ describe('3D-Lauf',()=>{
     try {
       const ui=zeigeOberflaeche(()=>{},()=>{},1)
       ui.zahlen.textContent='Level 1 · Welle 2/3'
-      setzeEinheitenBanner([{einheit:'humvee',rest:25}])
+      const z = neuerLauf(LEVELS[0], 1)
+      starteEinheit(z, 'humvee').verstrichen = 8
+      setzeEinheitenBanner(z.aktiv)
       const banner=elemente.find(e=>e.children.some(c=>(c as {textContent?:string}).textContent==='HUMVEE · 25 s'))!
       expect(Number.parseFloat(banner.style.top)+10).toBeGreaterThanOrEqual(ui.zahlen.getBoundingClientRect().bottom+6)
     } finally { versteckeOberflaeche();vi.unstubAllGlobals() }
@@ -340,11 +370,14 @@ describe('3D-Lauf',()=>{
     z.P=.1;lauf.x=3
     const frei=lauf.schritt(.1,3)
     expect(frei.some(e=>e.art==='einheitAktiv')).toBe(true)
-    expect(bannerEintraege(z.aktiv)).toEqual(['HUMVEE · 30 s'])
-    expect(bannerEintraege([{einheit:'humvee',rest:29.9},{einheit:'panzer',rest:3.2}])).toEqual(['HUMVEE · 30 s','PANZER · 4 s'])
+    expect(bannerEintraege(z.aktiv)).toEqual(['HUMVEE · 33 s'])
+    const bannerZ = neuerLauf(LEVELS[0], 1)
+    starteEinheit(bannerZ, 'humvee').verstrichen = 3.1
+    starteEinheit(bannerZ, 'panzer').verstrichen = 3.5
+    expect(bannerEintraege(bannerZ.aktiv)).toEqual(['HUMVEE · 30 s','PANZER · 4 s'])
     for(let i=0;i<10;i++)lauf.schritt(.1,0)
-    expect(bannerEintraege(z.aktiv)).toEqual(['HUMVEE · 29 s'])
-    z.aktiv[0].rest=.01
+    expect(bannerEintraege(z.aktiv)).toEqual(['HUMVEE · 32 s'])
+    z.aktiv[0].verstrichen=gesamtDauer('humvee')-.01
     const ende=lauf.schritt(.1,0)
     expect(ende.some(e=>e.art==='einheitEnde')).toBe(true)
     expect(bannerEintraege(z.aktiv)).toEqual([])

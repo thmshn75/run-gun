@@ -1,16 +1,71 @@
 import { readFileSync, statSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { NodeIO } from '@gltf-transform/core'
 import { EXTTextureWebP } from '@gltf-transform/extensions'
 import sharp from 'sharp'
 import * as THREE from 'three'
 import { FAHRZEUGE, LEVELS, type FahrzeugName } from '../src/v3d/balance3d'
-import { baueMiniatur, type FahrzeugBau } from '../src/v3d/fahrzeuge'
+import { baueMiniatur, baueFeldFahrzeug, type FahrzeugBau } from '../src/v3d/fahrzeuge'
+import { Einsatzbilder } from '../src/v3d/lauf'
+import { neuerLauf, starteEinheit } from '../src/v3d/rechnung'
+import type { Welt } from '../src/v3d/szene'
+import { Explosionen } from '../src/v3d/anzeigen'
+import { pruefEinsatz } from '../src/v3d/einstieg'
 
 const namen = ['humvee','panzer','haubitze','hubschrauber'] as const
 const io = new NodeIO().registerExtensions([EXTTextureWebP])
 
 describe('3D-Fahrzeuge', () => {
+  it('gibt den Prüf-Einsatz nur mit pruefung=1 frei', () => {
+    expect(pruefEinsatz('?einsatz=panzer')).toBeNull()
+    expect(pruefEinsatz('?pruefung=soldat&einsatz=panzer')).toBeNull()
+    expect(pruefEinsatz('?pruefung=1&einsatz=falsch')).toBeNull()
+    expect(pruefEinsatz('?pruefung=1&einsatz=haubitze')).toBe('haubitze')
+  })
+  it('fährt über Zustand zum Halt, entfernt sich nach Sieg und lässt geteilte Ressourcen stehen', () => {
+    const ctx={createRadialGradient:()=>({addColorStop:vi.fn()}),fillRect:vi.fn(),fillStyle:''}
+    vi.stubGlobal('document',{createElement:()=>({width:64,height:64,getContext:()=>ctx})})
+    try {
+      const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(),laufGruppen:THREE.Object3D[]=[]
+      const geometrie=new THREE.BoxGeometry(2,2,9.8),material=new THREE.MeshStandardMaterial(),vorlage=new THREE.Group()
+      vorlage.add(new THREE.Mesh(geometrie,material))
+      const bau: FahrzeugBau={geometrien:[geometrie],material,laenge:9.8,vorlage,gibFrei(){}}
+      const welt={scene,camera,laufGruppen,fahrzeuge:{panzer:bau,haubitze:bau}} as unknown as Welt
+      const frei=vi.spyOn(geometrie,'dispose')
+      const feld=baueFeldFahrzeug(bau,'panzer')
+      expect(new THREE.Box3().setFromObject(feld,true).getSize(new THREE.Vector3()).z).toBeCloseTo(9.8*.8,3)
+      const bilder=new Einsatzbilder(welt),z=neuerLauf(LEVELS[0],1),a=starteEinheit(z,'panzer')
+      bilder.abgleichen(z,[],0)
+      expect(bilder.anzahl).toBe(1)
+      const gruppe=scene.getObjectByName('einsatz-panzer') as THREE.Group
+      expect(gruppe.position.z).toBe(10)
+      a.verstrichen=1.2;bilder.abgleichen(z,[],0)
+      expect(gruppe.position.z).toBeCloseTo(-5-9.8*.8/2-1,2)
+      z.y=10;a.verstrichen=4.2;bilder.abgleichen(z,[],0)
+      expect(gruppe.position.z).toBeCloseTo(-5-9.8*.8/2-1,2)
+      const b=starteEinheit(z,'panzer')
+      z.y=30;b.verstrichen=4.2;bilder.abgleichen(z,[],0)
+      const zweiter=scene.children.filter(o=>o.name==='einsatz-panzer').at(-1) as THREE.Group
+      expect(zweiter.position.z).toBeCloseTo(-17.5,2)
+      z.ergebnis='sieg';bilder.abgleichen(z,[],.8)
+      expect(scene.getObjectByName('einsatz-panzer')).toBeUndefined()
+      bilder.gibFrei()
+      expect(welt.laufGruppen).toHaveLength(0)
+      expect(frei).not.toHaveBeenCalled()
+    } finally { vi.unstubAllGlobals() }
+  })
+  it('begrenzt Explosionen auf acht, davon zwei große', () => {
+    const ctx={createRadialGradient:()=>({addColorStop:vi.fn()}),fillRect:vi.fn(),fillStyle:''}
+    vi.stubGlobal('document',{createElement:()=>({width:64,height:64,getContext:()=>ctx})})
+    try {
+      const bilder=new Explosionen()
+      for(let i=0;i<10;i++)bilder.starte(new THREE.Vector3(),i<4?5:2.5)
+      expect(bilder.anzahl).toBe(8);expect(bilder.grosse).toBe(2)
+      bilder.schritt(.45,new THREE.PerspectiveCamera())
+      expect(bilder.anzahl).toBe(0)
+      bilder.gibFrei()
+    } finally { vi.unstubAllGlobals() }
+  })
   it('hält die vier GLB-Grenzen, Material- und Rotorvorgaben ein', async () => {
     for (const name of namen) {
       const pfad = `src/v3d/modelle/v3d-${name}.glb`

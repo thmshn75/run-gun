@@ -12,6 +12,15 @@ import { aktualisiereLetzteMessung } from './info'
 import { FingerSteuerung } from './steuerung'
 import { SpielLauf, WeltDarstellung } from './lauf'
 import { LEVELS } from './balance3d'
+import { starteEinheit } from './rechnung'
+import type { SpezialName } from './balance3d'
+
+export function pruefEinsatz(suche: string): SpezialName | null {
+  const p = new URLSearchParams(suche)
+  if (p.get('pruefung') !== '1') return null
+  const name = p.get('einsatz')
+  return name === 'panzer' || name === 'haubitze' || name === 'humvee' || name === 'hubschrauber' ? name : null
+}
 
 let aktiv = false
 let dauerhaftAngefragt = false
@@ -147,7 +156,11 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     if (!welt) { verlasse(DATEIEN_FEHLER); return }
     scene = welt.scene
     camera = welt.camera
-    if (!welt.nahaufnahme) { finger=new FingerSteuerung(renderer.domElement,camera);lauf=new SpielLauf(LEVELS[0],Date.now(),new WeltDarstellung(welt)) }
+    if (!welt.nahaufnahme) {
+      finger=new FingerSteuerung(renderer.domElement,camera);lauf=new SpielLauf(LEVELS[0],Date.now(),new WeltDarstellung(welt))
+      const einsatz = pruefEinsatz(location.search)
+      if (einsatz) { starteEinheit(lauf.zustand, einsatz); lauf.protokollNeuBasieren() }
+    }
     ui.messen.disabled = false
     ui.ergebnisse.style.display = 'none'
     if(new URLSearchParams(location.search).get('pruefung')==='soldat'){
