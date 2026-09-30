@@ -2,80 +2,65 @@
 
 Status: APPROVED
 
-## Aufgabe: D5b-Nacharbeit — sichtbare Treffer, Mitte der Fahrbahn, Haubitze 2 Schuss (Thomas 2026-09-30 15:45)
+## Aufgabe: D5b-Nacharbeit 2 — Panzer fährt ganz durch, Haubitze langsamer, Steuerung schneller (Thomas 2026-09-30 16:27)
 
-Thomas (iPhone): "Der Panzer fährt durch die Menge, tötet aber (sichtbar) keine Zombies.
-Die Haubitze ist zu groß; sie soll 2× feuern, einmal links, einmal rechts, und dann wieder aus
-dem Bild fahren. Beide sollen in der **Mitte der Fahrbahn** auftauchen und einmal in die
-**linke** und einmal in die **rechte** Hälfte der Zombies schießen, mit sichtbarem Einschlag
-(Explosion). Die +1-Schilder müssen noch mindestens 25 % schneller kommen, wenn ich dort
-stehe."
+Thomas (iPhone): "Der Panzer stoppt kurz nachdem er in die Horde fährt und verschwindet dann,
+er sollte aber komplett nach oben durchfahren, die Schneise ziehen (Zombies sichtlich
+dezimieren) und dann oben verschwinden. Die Bewegung mit dem Finger funktioniert schon wieder
+nicht ordentlich (mein Team reagiert zu langsam und lässt sich nicht mit einem Zug von links
+nach rechts ziehen). Die 2 Schüsse der Haubitze sollen langsamer hintereinander stattfinden."
 
-**Ursache "keine sichtbaren Treffer" (Claude):** Der Kern zieht `spezialTreffer` von `Z` ab
-(160 beim Panzer, geprüft), die sichtbare Horde ist aber präfixstabil und schrumpft **hinten**
-— an der Einschlagstelle ändert sich nichts. Die Schneisen-Maske allein reicht nicht.
+**Befunde Claude:**
+- Panzer: Schneisenziel ist `min(Halt2, −y_s − 6)` → er fährt nur 6 m in die Horde; die
+  Schneise wirkt 1 s × 40/s = 40 Treffer — zu wenig für eine sichtbare Gasse.
+- Steuerung: Die Truppe folgt dem Finger mit höchstens `STEUERUNG.MAX_M_PRO_S = 8` m/s → ein
+  Wisch über die volle Breite (6 m) braucht ≥ 0,75 s, der Finger ist nach ~0,2 s drüben — das
+  wirkt träge. (Plan D3 hatte "höchstens 8 m/s"; Thomas' Rückmeldung ersetzt das.)
 
 ## Erlaubte Änderungen (abschließend)
 
-`src/v3d/lauf.ts`, `src/v3d/anzeigen.ts`, `src/v3d/balance3d.ts` (`SPEZIAL.haubitze`,
-`FAHRZEUGE`, `DARSTELLUNG`), `src/v3d/rechnung.ts` (nur falls der Haubitzen-Ablauf mit
-Abfahrt Codeänderung braucht), Tests `tests/v3dLauf.test.ts`, `tests/v3dRechnung.test.ts`,
-`tests/v3dFahrzeuge.test.ts`. **Zuerst** `npm run bots3d` als "Vorher" festhalten.
+`src/v3d/balance3d.ts` (`SPEZIAL.panzer`, `SPEZIAL.haubitze`, `STEUERUNG`), `src/v3d/lauf.ts`,
+`src/v3d/steuerung.ts` (nur falls für S2 nötig), Tests `tests/v3dLauf.test.ts`,
+`tests/v3dRechnung.test.ts`, `tests/v3dSteuerung.test.ts`. **Zuerst** `npm run bots3d` als
+"Vorher" festhalten.
 
 ## Akzeptanzkriterien
 
-### N1 Treffer-Löcher (sichtbare Treffer an der Einschlagstelle)
-- `baueHorde` bekommt eine **Lochliste** (Indizes der Aufstellung): sichtbar ist
-  `aufstellung(N + L)` ohne die `L` Loch-Indizes, `N = min(ceil(Z), 600)` — die sichtbare
-  Zahl bleibt exakt `N`.
-- Jede Spezial-Wirkung hat im Bild einen **Einschlagpunkt** `P` (Welt-x/z); die zugehörige
-  Menge (ganzzahlig über einen Rest-Akkumulator je Einheit) wird als Löcher bei den
-  **nächstgelegenen sichtbaren** Zombies um `P` angelegt (höchstens im Radius r, s. unten);
-  reicht der Radius nicht, schrumpft der Rest wie bisher hinten.
-- **Heilen:** Löcher schließen sich langsam — alle `DARSTELLUNG.LOCH_HEILEN_S = 0.25` s wird
-  ein Loch aufgegeben (Horde schrumpft dafür hinten um eins), sodass ein 90er-Krater in
-  ~20 s zuwächst. Löcher liegen in Horde-Koordinaten (wandern mit der Horde).
-- Die Schneisen-Maske der Vorversion entfällt (ersetzt durch Löcher entlang des Panzerwegs).
-- Test: nach einem Haubitzen-Einschlag mit 90 Treffern sind im Radius um `P` mindestens
-  80 % von `min(90, vorher sichtbar im Radius)` weniger Zombies sichtbar; sichtbare Zahl
-  bleibt `N`; Löcher heilen in der vorgegebenen Zeit.
+### P1 Panzer fährt ganz durch
+- Kern-Ablauf (Gesamtwirkung bleibt **160**): `fahrt 1,2 → feuer 0,75 s @ 40/s (30) → fahrt
+  1,5 → feuer 0,75 s @ 40/s (30) → schneise 2,5 s @ 40/s (100)`.
+- Schneise: fährt von Halt 2 **durch die ganze Horde** bis `z = −y_s − T_h − 4`
+  (`T_h` = Tiefe der sichtbaren Horde beim Schneisenstart, aus der Aufstellung), linear über
+  die Phase; Treffer-Löcher an der Panzerspitze (Radius 1,4 m) — die 100 Treffer werden
+  **gleichmäßig über den Weg** verteilt (je zurückgelegtem Meter anteilig), damit eine
+  durchgehende Gasse entsteht.
+- **Abgang oben:** nach der Schneise fährt er 0,6 s weiter geradeaus und verschwindet dabei
+  (Skalierung → 0), statt am Ort zu schrumpfen.
+- Schüsse links/rechts wie bisher (je Feuerphase 2 Schüsse statt 3 wegen 0,75 s).
 
-### N2 Panzer
-- Taucht in der **Mitte der Fahrbahn** auf (`x = 0`), gleiche Halte wie bisher.
-- `feuer` 1 schießt in die **linke** Hälfte (Ziel-x −1,7 ± 0,5), `feuer` 2 in die **rechte**
-  (+1,7 ± 0,5), Ziel-z in den vordersten 4 m der Horde; je Schuss (alle 0,5 s) eine
-  **Explosion Ø 4 m** am Ziel, Löcher-Radius 2 m.
-- `schneise`: Löcher entlang des Wegs vor dem Bug (Radius 1,4 m um die Panzerspitze).
-- Abgang wie bisher.
+### P2 Haubitze langsamer
+- Abstand der 2 Einschläge **2,0 s** (statt 1 s), Phasendauer 2,05 s; sonst unverändert
+  (links, dann rechts, Ø 7 m, Abfahrt).
 
-### N3 Haubitze
-- **Kleiner:** eigener Maßstab `FAHRZEUGE.haubitze.SPIEL_SKALA = 0.5` (Panzer bleibt 0,8).
-  Taucht in der **Mitte** auf (`x = 0`), hält direkt hinter der Wand (Heck 1 m hinter der Wand).
-- **Kern-Ablauf** (Gesamtwirkung unverändert 180): `fahrt 1,2 s → einschlaege 2 × 90,
-  Abstand 1 s, Phasendauer 1,05 s → fahrt 1,5 s (Abfahrt, ohne Wirkung)`.
-- Einschlag 1 in die **linke**, Einschlag 2 in die **rechte** Hälfte (x ∓ 1,7 ± 0,5,
-  z zwischen −y − 3 und −y − 10): Mündungsblitz + **Explosion Ø 7 m**, Löcher-Radius 3 m.
-- **Abfahrt:** In der letzten `fahrt`-Phase fährt sie rückwärts zurück nach z = +10 und ist
-  am Phasenende weg (kein Schrumpfen).
+### S1 Steuerung direkter
+- `STEUERUNG.MAX_M_PRO_S` 8 → **24** m/s (volle Breite in 0,25 s).
+- Test: bei einem simulierten Wisch von x = −3 nach +3 in 0,2 s (Ziel springt) ist die Truppe
+  nach 0,3 s bei ≥ 2,9.
+- Plan-Hinweis (Claude trägt ein): D3 "höchstens 8 m/s" → 24 m/s.
 
-### N4 Explosionen deutlicher
-- Ablauf 0,6 s, heller Kern (fast weiß) + orange Rand, beginnt bei 50 % der Zielgröße.
-  Höchstens 2 gleichzeitig > 4 m bleibt.
+### S2 Wisch reißt nicht ab (Prüfung)
+- Test mit simulierten Ereignissen: `pointerdown` links, 10 `pointermove` in 200 ms bis
+  ganz rechts (teils am `canvas`, teils am `window`), `pointerup` → `ziel` folgt jeder
+  Bewegung, `aktiv` bleibt bis `pointerup` wahr. Schlägt das fehl, Ursache beheben und im
+  Bericht nennen.
 
-### N5 +1-Schilder schneller
-- `SCHILDER_TEMPO_SCHNELL` 16 → **21** m/s (+31 %), Beschleunigung 48 → **64** m/s².
-
-### N6 Tests und Nachweise
-- Tests: N1 wie oben; Panzer/Haubitze-x = 0; Ziel-x links/rechts je Schuss; Haubitze
-  2 Einschläge (Ereignis-`t` in `[Soll − dt, Soll)`, Soll = Start + 1,2 / 2,2) und Abfahrt
-  auf z = +10 am Phasenende; Summen je Einheit unverändert; Schildertempo.
-- Bots vorher/nachher (Grenzen wie D5b), `npm test`, `tsc`, `build` grün.
-- Claude prüft Bild (`?pruefung=1&einsatz=panzer|haubitze`) und Zweitstart; Thomas iPhone.
+### Nachweise
+- Bots vorher/nachher (Siegquote ±1/20, Ø-Dauer ±5 %), `npm test`, `tsc`, `build` grün.
+- Claude prüft `?pruefung=1&einsatz=panzer|haubitze` im Browser und einen schnellen Wisch
+  mit Touch-Ereignissen; Thomas iPhone.
 
 ## Implementation Summary
 
-- N1: Präfixstabile Horde mit Loch-Indizes statt Schneisen-Maske; Treffer entfernen die nächsten sichtbaren Zombies am Einschlagort, halten die sichtbare Sollzahl und heilen je 0,25 s ein Loch.
-- N2/N3: Panzer und Haubitze erscheinen mittig, schießen links/rechts mit den festgelegten Radien und Explosionen. Die Haubitze ist auf 0,5 skaliert, trifft 2 × 90 (gesamt 180) und fährt ohne weitere Wirkung rückwärts auf z = +10 ab.
-- N4/N5: Explosionen 0,6 s mit hellem Kern und orangefarbenem Rand, Start bei 50 % Durchmesser; +1-Schilder 21 m/s und 64 m/s².
-- Nachweise: `npm run bots3d` vorher/nachher identisch (passiv 0/20, nurLinks 0/20, rhythmus(40) 20/20, rhythmusSaeule(60) 20/20, Varianten 15/25 je 0/20); `npm test` 64 Dateien/578 Tests grün, `npx tsc --noEmit`, `npm run build` und `git diff --check` grün.
-- Offen für Claude/Thomas gemäß N6: Bildprüfung beider Einsätze, Zweitstart und iPhone-Test. Terminal.app war hier nicht verfügbar; die Prüfungen liefen direkt in der Shell. Kein Commit/Push (Projektregel).
+- Panzerablauf auf 30 + 30 + 100 Treffer umgestellt; Schneisenziel aus der sichtbaren Horde berechnet, Treffer entlang des Fahrwegs verteilt und Abgang über 0,6 s vorwärts animiert. Vier Schüsse links/rechts.
+- Haubitzeneinschläge auf 2,0 s Abstand und 2,05 s Phase gesetzt; Steuerungslimit auf 24 m/s erhöht. Zehn Pointer-Bewegungen über Canvas/Fenster bleiben durchgehend aktiv.
+- Bots vorher/nachher identisch in allen sechs Profilen. `npm run check` und `npm run build` grün; `npm test`: 580/581 grün. Ein alter Test in `tests/v3dFahrzeuge.test.ts` erwartet die alten Haubitzen- und Panzerzeiten. Diese Datei liegt außerhalb der abschließenden Freigabeliste; Freigabe zur Aktualisierung angefragt. Browser- und iPhone-Prüfung stehen bei Claude/Thomas.

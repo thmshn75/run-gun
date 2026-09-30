@@ -14,7 +14,7 @@ const nah = (a: number, b: number) => {
 
 describe('3D-Spielrechnung', () => {
   it('wirkt je Ablauf unabhängig von der Schrittweite exakt wie die Tabelle', () => {
-    for (const [name, dauer, wirkung] of [['humvee',33,120],['haubitze',3.75,180],['panzer',6.7,160],['hubschrauber',14,180]] as const) {
+    for (const [name, dauer, wirkung] of [['humvee',33,120],['haubitze',4.75,180],['panzer',6.7,160],['hubschrauber',14,180]] as const) {
       expect(gesamtDauer(name)).toBeCloseTo(dauer, 8)
       for (const zeitSchritt of [1/30,.1,1]) {
         const z = neuerLauf(testLevel({ wellen: [], saeulen: [], eliteBossZeit: 999, startY: 1000 }), 5)
@@ -49,7 +49,7 @@ describe('3D-Spielrechnung', () => {
       const treffer:Ereignis[]=[]
       while(z.aktiv.length) treffer.push(...schritt(z,{x:0},zeitSchritt).filter(e=>e.art==='spezialTreffer'))
       expect(treffer).toHaveLength(2)
-      treffer.forEach((e,i)=>{expect(e.menge).toBe(90);expect(e.t).toBeGreaterThanOrEqual(start+1.2+i-zeitSchritt);expect(e.t).toBeLessThan(start+1.2+i)})
+      treffer.forEach((e,i)=>{expect(e.menge).toBe(90);expect(e.t).toBeGreaterThanOrEqual(start+1.2+2*i-zeitSchritt);expect(e.t).toBeLessThan(start+1.2+2*i)})
     }
   })
   it('bilanziert jeden Schritt in 1000 deterministischen Zufallsläufen', () => {
@@ -248,6 +248,7 @@ describe('3D-Spielrechnung', () => {
       humvee += e.filter(x => x.art === 'spezialTreffer' && x.einheit === 'humvee').length
       ende += e.filter(x => x.art === 'einheitEnde' && x.einheit === 'haubitze').length
     }
+    ende += schritt(z, { x: -1 }, 1).filter(x => x.art === 'einheitEnde' && x.einheit === 'haubitze').length
     expect(haubitze).toBe(2)
     expect(humvee).toBe(1)
     expect(ende).toBe(1)

@@ -44,11 +44,11 @@ export const LEVELS: Level[] = [{
 
 export const SPEZIAL = {
   humvee: { ablauf: [{ art: 'fahrt', dauer: 3 }, { art: 'feuer', dauer: 30, zombiesProSekunde: 4 }] },
-  panzer: { ablauf: [{ art: 'fahrt', dauer: 1.2 }, { art: 'feuer', dauer: 1.5, zombiesProSekunde: 40 },
-    { art: 'fahrt', dauer: 1.5 }, { art: 'feuer', dauer: 1.5, zombiesProSekunde: 40 },
-    { art: 'schneise', dauer: 1, zombiesProSekunde: 40 }] },
+  panzer: { ablauf: [{ art: 'fahrt', dauer: 1.2 }, { art: 'feuer', dauer: .75, zombiesProSekunde: 40 },
+    { art: 'fahrt', dauer: 1.5 }, { art: 'feuer', dauer: .75, zombiesProSekunde: 40 },
+    { art: 'schneise', dauer: 2.5, zombiesProSekunde: 40 }] },
   haubitze: { ablauf: [{ art: 'fahrt', dauer: 1.2 },
-    { art: 'einschlaege', dauer: 1.05, einschlaege: 2, abstand: 1, zombiesProEinschlag: 90 },
+    { art: 'einschlaege', dauer: 2.05, einschlaege: 2, abstand: 2, zombiesProEinschlag: 90 },
     { art: 'fahrt', dauer: 1.5 }] },
   hubschrauber: { ablauf: [{ art: 'fahrt', dauer: 2 },
     { art: 'feuer', dauer: 12, zombiesProSekunde: 15, bossPunkteProSekunde: 25 }] },
@@ -115,5 +115,5 @@ export const FIGUREN = {
 
 // Aus src/style.css (env(safe-area-inset-*), touch-action: none) und
 // src/systems/safeArea.ts (CSS-Pixel); die Randgeste braucht 24 pt Reserve.
-export const STEUERUNG = { RANDRESERVE_PT: 24, MIN_X: -3, MAX_X: 3, MAX_M_PRO_S: 8 } as const
+export const STEUERUNG = { RANDRESERVE_PT: 24, MIN_X: -3, MAX_X: 3, MAX_M_PRO_S: 24 } as const
 export const DARSTELLUNG = { FORMATION_MAX: 30, TRUPPS_MAX: 50, FRONT_MAX: 40, HORDE_MAX: 600, LOCH_HEILEN_S: .25, SCHILDER_TEMPO_LANGSAM: 4, SCHILDER_TEMPO_SCHNELL: 21, SCHILDER_BESCHLEUNIGUNG: 64, SAEULEN_VORSCHAU: 3, BLITZE_MAX: 12, BLITZE_PRO_SEKUNDE: 10, BLITZ_DAUER: .06, FRONT_BLITZE_MAX: 8, FRONT_BLITZE_PRO_SEKUNDE: 12, FALL_SOLDATEN_MAX: 8, EXPLOSIONEN_MAX: 8 } as const

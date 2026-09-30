@@ -256,7 +256,7 @@ einzeln gemessen), dann **Worst Case:** 1200 Zombies + 120 Soldaten + 2 Bosse + 
 Nachweise: Budget, Dauertest 3 Minuten. Danach `public/probe-3d/` aus dem Deploy nehmen.
 
 **D3 — Steuerung, Aussenden, linker Rand.** **+1-Schilder (Thomas 2026-09-29):** Die Schilder laufen der Truppe im linken Streifen entgegen, langsam, solange die Truppe nicht dort ist, und **schneller, sobald die Truppe hinsteuert**; jedes Schild, das die Truppe erreicht, ist ein +1 (Tempo so, dass die Rate der Spielrechnung entspricht: 2/s bei 4 m Abstand → 8 m/s; Schilder schweben ohne Pfosten). **Säulen** sind aus Glas, die Spezialeinheit ist darin sichtbar (D5a). Steuerung absolut zum Finger (Truppe folgt
-der Fingerposition, geglättet, höchstens 8 m/s, Grenzen = Bahnrand minus halbe
+der Fingerposition, geglättet, höchstens 8 m/s — **ab 2026-09-30 24 m/s** (Thomas: Truppe reagierte zu träge), Grenzen = Bahnrand minus halbe
 Truppenbreite), Zurück-Knopf mit eigener Tippfläche außerhalb der Steuerfläche,
 Aussenden nach `r`, Vervielfacher-Wand, +1-Schilder — alles aus dem Rechenkern R.
 Nachweise: 10 s Aussenden, gezählte Soldaten ±10 % zur Formel; am linken Rand steigt T,

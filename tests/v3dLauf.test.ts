@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { SpielLauf, WeltDarstellung, baueHorde, HordeLoecher, baueLaufSpuren, spurFaktor, formationsFiguren, formationsBewegung, BlitzTakt, wandText, ZAHL_HOEHEN, bossBewegung, type LaufSoldat, type LaufDarstellung, type BossStand } from '../src/v3d/lauf'
+import { SpielLauf, WeltDarstellung, Einsatzbilder, baueHorde, HordeLoecher, baueLaufSpuren, spurFaktor, formationsFiguren, formationsBewegung, BlitzTakt, wandText, ZAHL_HOEHEN, bossBewegung, type LaufSoldat, type LaufDarstellung, type BossStand } from '../src/v3d/lauf'
 import type { Zustand } from '../src/v3d/rechnung'
 import { neuerLauf, starteEinheit, gesamtDauer } from '../src/v3d/rechnung'
 import type { FahrzeugBau } from '../src/v3d/fahrzeuge'
@@ -76,7 +76,7 @@ describe('3D-Lauf',()=>{
     try {
       const anzeige=new WeltDarstellung(welt),z=neuerLauf(LEVELS[0],1)
       z.Z=600;z.y=20;z.t=10
-      const a=starteEinheit(z,'panzer');a.verstrichen=6.1
+      const a=starteEinheit(z,'panzer');a.verstrichen=4.8
       const calls: ReturnType<typeof baueHorde>[]=[]
       const original=welt.zombieMasse.setze.bind(welt.zombieMasse)
       vi.spyOn(welt.zombieMasse,'setze').mockImplementation(e=>{
@@ -95,6 +95,65 @@ describe('3D-Lauf',()=>{
       z.t+=3;anzeige.zeige(z,new Map(),[],0,0)
       expect(calls.at(-1)).toHaveLength(600)
       anzeige.gibFrei()
+    } finally {raume()}
+  })
+  it('zieht 100 gleichmäßig verteilte Schneisentreffer durch die Horde und fährt beim Verschwinden weiter',()=>{
+    const {welt,raume}=baueWeltAttrappe()
+    try {
+      const einsatz=new Einsatzbilder(welt),z=neuerLauf(LEVELS[0],1)
+      z.y=20;z.Z=540
+      const a=starteEinheit(z,'panzer')
+      a.verstrichen=4.2
+      einsatz.abgleichen(z,[],0)
+      const gruppe=welt.scene.getObjectByName('einsatz-panzer')!
+      const start=gruppe.position.z
+      const tiefe=-Math.min(...baueHorde(540,new Set()).map(e=>e.z))
+      const ende=-z.y-tiefe-4
+      const treffer=[]
+      for(let i=1;i<=25;i++) {
+        a.verstrichen=4.2+i*.1
+        einsatz.abgleichen(z,[{art:'spezialTreffer',menge:4,t:i*.1,einheit:'panzer'}],.1)
+        treffer.push(...einsatz.nimmTreffer())
+      }
+      expect(gruppe.position.z).toBeCloseTo(ende,5)
+      expect(treffer).toHaveLength(100)
+      expect(treffer.every(t=>t.radius===1.4&&t.menge===1)).toBe(true)
+      const bug=FAHRZEUGE.panzer.LAENGE*FAHRZEUGE.SPIEL_SKALA/2
+      expect(treffer[0].punkt.z).toBeGreaterThan(ende-bug)
+      expect(treffer.at(-1)!.punkt.z).toBeLessThan(start-bug)
+      const abstaende=treffer.slice(1).map((t,i)=>treffer[i].punkt.z-t.punkt.z)
+      expect(Math.max(...abstaende)-Math.min(...abstaende)).toBeLessThan(.001)
+      z.aktiv=[]
+      einsatz.abgleichen(z,[],0)
+      einsatz.nachlauf(.3)
+      expect(gruppe.position.z).toBeLessThan(ende)
+      expect(gruppe.scale.x).toBeCloseTo(.5,5)
+      einsatz.nachlauf(.3)
+      expect(einsatz.anzahl).toBe(0)
+      einsatz.gibFrei()
+    } finally {raume()}
+  })
+  it('zeigt zwei Panzerschüsse je Halt und zwei Haubitzeneinschläge links und rechts',()=>{
+    const {welt,raume}=baueWeltAttrappe()
+    try {
+      const einsatz=new Einsatzbilder(welt),z=neuerLauf(LEVELS[0],1)
+      z.y=20;z.Z=600
+      const panzer=starteEinheit(z,'panzer')
+      const schuesse=vi.spyOn(einsatz.explosionen,'starte')
+      for(const zeit of [1.45,1.85,3.7,4.1]) {
+        panzer.verstrichen=zeit
+        einsatz.abgleichen(z,[{art:'spezialTreffer',menge:4,t:zeit,einheit:'panzer'}],.1)
+      }
+      expect(schuesse).toHaveBeenCalledTimes(4)
+      expect(schuesse.mock.calls.map(c=>Math.sign(c[0].x))).toEqual([-1,-1,1,1])
+      const haubitze=starteEinheit(z,'haubitze')
+      for(const zeit of [1.2,3.2]) {
+        haubitze.verstrichen=zeit
+        einsatz.abgleichen(z,[{art:'spezialTreffer',menge:90,t:zeit,einheit:'haubitze'}],.1)
+      }
+      expect(schuesse).toHaveBeenCalledTimes(6)
+      expect(schuesse.mock.calls.slice(4).map(c=>Math.sign(c[0].x))).toEqual([-1,1])
+      einsatz.gibFrei()
     } finally {raume()}
   })
   it('setzt Einheiten-Banner mindestens sechs Pixel unter die Statuszeile',async()=>{

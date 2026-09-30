@@ -14,7 +14,7 @@ import * as THREE from 'three'
 
 const SPUR_FOLGE = [4, 7, 1, 9, 2, 5, 0, 8, 3, 6] as const
 type FeldName = 'panzer' | 'haubitze'
-type FeldStand = { gruppe: THREE.Group; name: FeldName; halt1: number; halt2?: number; schneiseZ?: number; abgang: number; schuss: number; rest: number; ziel?: THREE.Vector3; zielPhase?: number }
+type FeldStand = { gruppe: THREE.Group; name: FeldName; halt1: number; halt2?: number; schneiseZ?: number; schneiseAnteil: number; abgang: number; abgangZ?: number; schuss: number; rest: number; ziel?: THREE.Vector3; zielPhase?: number }
 export type HordeTreffer = { punkt: THREE.Vector3; menge: number; radius: number }
 
 export class Einsatzbilder {
@@ -51,8 +51,13 @@ export class Einsatzbilder {
     this.blitze.setze(this.blitzPunkte.map(b => b.pos), this.welt.camera)
     for (const [a, stand] of this.fahrzeuge) if (stand.abgang >= 0) {
       stand.abgang += dt
-      stand.gruppe.scale.setScalar(Math.max(0, 1 - stand.abgang / .8))
-      if (stand.abgang >= .8) this.entferne(a, stand)
+      const dauer = stand.name === 'panzer' ? .6 : .8
+      stand.gruppe.scale.setScalar(Math.max(0, 1 - stand.abgang / dauer))
+      if (stand.name === 'panzer' && stand.schneiseZ !== undefined && stand.abgangZ !== undefined) {
+        const tempo = (stand.halt2! - stand.schneiseZ) / 2.5
+        stand.gruppe.position.z = stand.abgangZ - tempo * Math.min(stand.abgang, dauer)
+      }
+      if (stand.abgang >= dauer) this.entferne(a, stand)
     }
   }
   abgleichen(z: Zustand, ereignisse: readonly Ereignis[], dt: number): void {
@@ -68,10 +73,11 @@ export class Einsatzbilder {
         this.welt.scene.add(gruppe); this.welt.laufGruppen.push(gruppe)
         const skala = name === 'haubitze' ? FAHRZEUGE.haubitze.SPIEL_SKALA : FAHRZEUGE.SPIEL_SKALA
         const halt1 = -5 - FAHRZEUGE[name].LAENGE * skala / 2 - 1
-        this.fahrzeuge.set(a, { gruppe, name, halt1, abgang: -1, schuss: 0, rest: 0 })
+        this.fahrzeuge.set(a, { gruppe, name, halt1, schneiseAnteil: 0, abgang: -1, schuss: 0, rest: 0 })
       }
     }
     for (const [a, stand] of this.fahrzeuge) {
+      if (stand.abgang >= 0) continue
       const phase = phaseBei(a.einheit, a.verstrichen)
       if (phase.index === 0) stand.gruppe.position.z = THREE.MathUtils.lerp(10, stand.halt1, phase.anteil)
       else if (stand.name === 'haubitze') stand.gruppe.position.z = phase.index === 2
@@ -85,7 +91,12 @@ export class Einsatzbilder {
         if (phase.index === 2) stand.gruppe.position.z = THREE.MathUtils.lerp(stand.halt1, stand.halt2!, phase.anteil)
         if (phase.index === 3) stand.gruppe.position.z = stand.halt2!
         if (phase.index === 4) {
-          if (stand.schneiseZ === undefined) stand.schneiseZ = Math.min(stand.halt2!, -z.y - 6)
+          if (stand.schneiseZ === undefined) {
+            const sichtbar = z.y <= 0 ? 0 : Math.min(DARSTELLUNG.HORDE_MAX, Math.ceil(z.Z))
+            const aufstellung = baueHorde(sichtbar, new Set())
+            const tiefe = aufstellung.length ? -Math.min(...aufstellung.map(e => e.z)) : 0
+            stand.schneiseZ = -z.y - tiefe - 4
+          }
           stand.gruppe.position.z = THREE.MathUtils.lerp(stand.halt2!, stand.schneiseZ, phase.anteil)
         }
       }
@@ -99,12 +110,12 @@ export class Einsatzbilder {
         stand.zielPhase = aktuellePhase
         stand.ziel = new THREE.Vector3((aktuellePhase === 1 ? -1.7 : 1.7) + (this.zufall() - .5), .2, -z.y - 4 * this.zufall())
       }
-      const geplant = stand.name === 'panzer' ? [1.7, 2.2, 2.7, 4.7, 5.2, 5.7].filter(t => t <= a.verstrichen + 1e-9).length : 0
+      const geplant = stand.name === 'panzer' ? [1.45, 1.85, 3.7, 4.1].filter(t => t <= a.verstrichen + 1e-9).length : 0
       const schuesse = stand.name === 'haubitze' ? (ereignis ? 1 : 0) : geplant - stand.schuss
       for (let i = 0; i < Math.max(0, schuesse); i++) {
         const nummer = stand.schuss++
-        const links = stand.name === 'haubitze' ? nummer === 0 : nummer < 3
-        if (!(stand.name === 'panzer' && (nummer === 0 || nummer === 3) && stand.zielPhase === (nummer === 0 ? 1 : 3))) {
+        const links = stand.name === 'haubitze' ? nummer === 0 : nummer < 2
+        if (!(stand.name === 'panzer' && (nummer === 0 || nummer === 2) && stand.zielPhase === (nummer === 0 ? 1 : 3))) {
           const zielX = (links ? -1.7 : 1.7) + (this.zufall() - .5)
           const tief = stand.name === 'haubitze' ? 3 + 7 * this.zufall() : 4 * this.zufall()
           stand.ziel = new THREE.Vector3(zielX, .2, -z.y - tief)
@@ -119,15 +130,22 @@ export class Einsatzbilder {
         const menge = Math.floor(stand.rest + 1e-9)
         stand.rest -= menge
         if (menge) {
-          const schneise = a.verstrichen >= 5.7
-          const punkt = schneise ? new THREE.Vector3(0, .2, stand.gruppe.position.z - FAHRZEUGE.panzer.LAENGE * FAHRZEUGE.SPIEL_SKALA / 2) : stand.ziel
-          if (punkt) this.treffer.push({ punkt: punkt.clone(), menge, radius: schneise ? 1.4 : 2 })
+          const schneise = aktuellePhase === 4
+          if (schneise && stand.schneiseZ !== undefined) {
+            const anteil = phaseBei('panzer', a.verstrichen).anteil
+            for (let i = 0; i < menge; i++) {
+              const weg = THREE.MathUtils.lerp(stand.schneiseAnteil, anteil, (i + .5) / menge)
+              const zPunkt = THREE.MathUtils.lerp(stand.halt2!, stand.schneiseZ, weg)
+              this.treffer.push({ punkt: new THREE.Vector3(0, .2, zPunkt - FAHRZEUGE.panzer.LAENGE * FAHRZEUGE.SPIEL_SKALA / 2), menge: 1, radius: 1.4 })
+            }
+          } else if (stand.ziel) this.treffer.push({ punkt: stand.ziel.clone(), menge, radius: 2 })
         }
       }
+      if (stand.name === 'panzer' && aktuellePhase === 4) stand.schneiseAnteil = phaseBei('panzer', a.verstrichen).anteil
     }
     for (const [a, stand] of this.fahrzeuge) if ((z.ergebnis !== 'laeuft' || !z.aktiv.includes(a)) && stand.abgang < 0) {
-      if (stand.name === 'haubitze' && a.verstrichen >= 3.75 - 1e-9) this.entferne(a, stand)
-      else stand.abgang = 0
+      if (stand.name === 'haubitze' && a.verstrichen >= 4.75 - 1e-9) this.entferne(a, stand)
+      else { stand.abgang = 0; stand.abgangZ = stand.gruppe.position.z }
     }
     this.ticke(dt)
   }
