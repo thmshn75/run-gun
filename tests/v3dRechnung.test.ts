@@ -1,6 +1,6 @@
 import { performance } from 'node:perf_hooks'
 import { describe, expect, it } from 'vitest'
-import { LEVELS, type Level } from '../src/v3d/balance3d'
+import { FAHRZEUGE, FIGUREN, LEVELS, type Level } from '../src/v3d/balance3d'
 import { neuerLauf, schritt, starteEinheit, gesamtDauer, phaseBei, type Ereignis } from '../src/v3d/rechnung'
 
 const dt = 1 / 30
@@ -14,7 +14,7 @@ const nah = (a: number, b: number) => {
 
 describe('3D-Spielrechnung', () => {
   it('wirkt je Ablauf unabhängig von der Schrittweite exakt wie die Tabelle', () => {
-    for (const [name, dauer, wirkung] of [['humvee',8,120],['haubitze',6.75,180],['panzer',9.2,160],['hubschrauber',14,240]] as const) {
+    for (const [name, dauer, wirkung] of [['humvee',14,120],['haubitze',6.75,180],['panzer',9.2,160],['hubschrauber',14,240]] as const) {
       expect(gesamtDauer(name)).toBeCloseTo(dauer, 8)
       for (const zeitSchritt of [1/30,.1,1]) {
         const z = neuerLauf(testLevel({ wellen: [], saeulen: [], eliteBossZeit: 999, startY: 1000 }), 5)
@@ -36,9 +36,59 @@ describe('3D-Spielrechnung', () => {
     expect(summe(schritt(z,{x:0},1),'spezialTreffer')).toBe(0)
     expect(summe(schritt(z,{x:0},1),'spezialTreffer')).toBe(0)
     a.verstrichen=1.5
-    expect(summe(schritt(z,{x:0},1),'spezialTreffer')).toBeCloseTo(10)
+    expect(summe(schritt(z,{x:0},1),'spezialTreffer')).toBeCloseTo(5)
     expect(phaseBei('humvee',2.5)).toMatchObject({index:1,art:'schneise',lokal:.5})
   })
+  for (const zeitSchritt of [1 / 30, .1]) {
+    it(`trifft den Mini-Boss durch die Humvee-Gasse und stoppt bei der nächsten Welle (dt ${zeitSchritt})`, () => {
+      const level = testLevel({ wellen: [{ t: 2 * zeitSchritt, groesse: 100 }], streuung: 0,
+        miniBossWelle: null, eliteBossZeit: 999, startY: 1000, soldatenVerlust: 0 })
+      const z = neuerLauf(level, 1)
+      expect(z.gasseAnteil).toBe(0)
+      z.F = 10; z.Z = 1000; z.miniBoss.imFeld = true
+      const ohne = neuerLauf(level, 1)
+      ohne.F = 10; ohne.Z = 1000; ohne.miniBoss.imFeld = true
+      expect(summe(schritt(ohne, { x: -1 }, zeitSchritt), 'bossTreffer')).toBe(0)
+      const a = starteEinheit(z, 'humvee')
+      a.verstrichen = 2
+      const erstes = schritt(z, { x: -1 }, zeitSchritt)
+      expect(z.gasseAnteil).toBeCloseTo(2 * FAHRZEUGE.humvee.SCHNEISE_HALB / (FIGUREN.ZOMBIE_X_MAX - FIGUREN.ZOMBIE_X_MIN))
+      expect(z.Z).toBeGreaterThan(0)
+      expect(summe(erstes, 'bossTreffer')).toBeGreaterThan(0)
+      const zweites = schritt(z, { x: -1 }, zeitSchritt)
+      expect(summe(zweites, 'bossTreffer')).toBeGreaterThan(0)
+      const drittes = schritt(z, { x: -1 }, zeitSchritt)
+      expect(summe(drittes, 'welle')).toBe(100)
+      expect(z.gasseAnteil).toBe(0)
+      expect(summe(drittes, 'bossTreffer')).toBe(0)
+      expect(z.Z).toBeGreaterThan(0)
+    })
+
+    it(`lässt ohne Boss den Frontkampf trotz Gasse unverändert (dt ${zeitSchritt})`, () => {
+      const level = testLevel({ wellen: [], eliteBossZeit: 999, soldatenVerlust: 0, startY: 1000 })
+      const ohne = neuerLauf(level, 1), mit = neuerLauf(level, 1)
+      for (const z of [ohne, mit]) { z.F = 10; z.Z = 100 }
+      mit.gasseAnteil = .5
+      const ereignisseOhne = schritt(ohne, { x: -1 }, zeitSchritt)
+      const ereignisseMit = schritt(mit, { x: -1 }, zeitSchritt)
+      expect(ereignisseMit).toEqual(ereignisseOhne)
+      expect([mit.Z, mit.F, mit.y]).toEqual([ohne.Z, ohne.F, ohne.y])
+    })
+
+    it(`setzt den Panzer-Anteil höher als den Humvee-Anteil (dt ${zeitSchritt})`, () => {
+      const level = testLevel({ wellen: [], eliteBossZeit: 999, startY: 1000 })
+      const anteil = (name: 'humvee' | 'panzer', start: number) => {
+        const z = neuerLauf(level, 1)
+        z.Z = 1000
+        starteEinheit(z, name).verstrichen = start
+        schritt(z, { x: -1 }, zeitSchritt)
+        return z.gasseAnteil
+      }
+      const humvee = anteil('humvee', 2), panzer = anteil('panzer', 4.2)
+      expect(panzer).toBeCloseTo(2 * FAHRZEUGE.panzer.SCHNEISE_HALB / (FIGUREN.ZOMBIE_X_MAX - FIGUREN.ZOMBIE_X_MIN))
+      expect(panzer).toBeGreaterThan(humvee)
+    })
+  }
   it('setzt zwei Haubitzeneinschläge auf die geplanten Zeitpunkte und wirkt bei der Abfahrt nicht', () => {
     for (const zeitSchritt of [1/30,.1,1]) {
       const z=neuerLauf(testLevel({wellen:[],saeulen:[],eliteBossZeit:999,startY:1000}),1)

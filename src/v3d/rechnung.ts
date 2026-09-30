@@ -1,4 +1,4 @@
-import { SPEZIAL, type Level, type SpezialName } from './balance3d.ts'
+import { FAHRZEUGE, FIGUREN, SPEZIAL, type Level, type SpezialName } from './balance3d.ts'
 
 export type Ziel = 'front'
 export type BossName = 'miniBoss' | 'eliteBoss'
@@ -37,6 +37,7 @@ export interface Zustand {
   trupps: Trupp[]
   F: number
   Z: number
+  gasseAnteil: number
   y: number
   P: number | null
   saeulenIndex: number
@@ -63,7 +64,7 @@ function zufall(z: Zustand): number {
 
 export function neuerLauf(level: Level, seed: number): Zustand {
   return {
-    level, t: 0, T: level.T0, trupps: [], F: 0, Z: 0, y: level.startY,
+    level, t: 0, T: level.T0, trupps: [], F: 0, Z: 0, gasseAnteil: 0, y: level.startY,
     P: level.saeulen.length ? level.P : null, saeulenIndex: 0,
     miniBoss: { imFeld: false, B: level.B_mini },
     eliteBoss: { imFeld: false, B: level.B_elite },
@@ -86,6 +87,7 @@ export function schritt(z: Zustand, eingabe: { x: number }, dt: number): Ereigni
     const menge = l.wellen[index].groesse * (1 + l.streuung * (2 * zufall(z) - 1))
     z.Z += menge
     melde('welle', menge)
+    z.gasseAnteil = 0
     if (index === l.miniBossWelle) z.miniBoss.imFeld = true
   }
   if (!z.eliteErschienen && z.t >= l.eliteBossZeit - 1e-9) {
@@ -163,6 +165,11 @@ export function schritt(z: Zustand, eingabe: { x: number }, dt: number): Ereigni
       const von = Math.max(aktiv.verstrichen, start)
       const ende = Math.min(bis, start + phase.dauer)
       const wirkZeit = Math.max(0, ende - von)
+      if (phase.art === 'schneise' && (einheit === 'panzer' || einheit === 'humvee') &&
+          aktiv.verstrichen <= start + 1e-9 && ende > start) {
+        const breite = FIGUREN.ZOMBIE_X_MAX - FIGUREN.ZOMBIE_X_MIN
+        z.gasseAnteil = Math.max(z.gasseAnteil, Math.min(1, 2 * FAHRZEUGE[einheit].SCHNEISE_HALB / breite))
+      }
       if (phase.art === 'einschlaege' && wirkZeit > 0) {
         const p = phase as typeof SPEZIAL.haubitze.ablauf[1]
         while (aktiv.einschlaege < p.einschlaege && ende - start >= aktiv.einschlaege * p.abstand - 1e-9) {
@@ -209,20 +216,28 @@ export function schritt(z: Zustand, eingabe: { x: number }, dt: number): Ereigni
     const K = Math.min(z.F, l.C)
     const Zk = Math.min(z.Z, l.C) + l.bossDruck * (Number(miniImFeld) + Number(eliteImFeld))
     let treffer = l.zombieTreffer * K * dt
+    const treffeBosse = (menge: number): number => {
+      for (const name of ['miniBoss', 'eliteBoss'] as const) {
+        const boss = z[name]
+        if (!boss.imFeld || boss.B <= 0 || menge <= 0) continue
+        const anteil = Math.min(menge, boss.B / l.bossSchaden)
+        const schaden = l.bossSchaden * anteil
+        boss.B = Math.max(0, boss.B - schaden)
+        menge -= anteil
+        melde('bossTreffer', schaden, { boss: name })
+        if (boss.B <= 0) boss.imFeld = false
+      }
+      return menge
+    }
+    if (z.gasseAnteil > 0 && (miniImFeld || eliteImFeld)) {
+      const durchGasse = treffer * z.gasseAnteil
+      treffer = treffer - durchGasse + treffeBosse(durchGasse)
+    }
     const gefallen = Math.min(treffer, z.Z)
     z.Z -= gefallen
     treffer -= gefallen
     if (gefallen > 0) melde('zombieGefallen', gefallen)
-    for (const [name, imFeld] of [['miniBoss', miniImFeld], ['eliteBoss', eliteImFeld]] as const) {
-      if (!imFeld || treffer <= 0) continue
-      const boss = z[name]
-      const anteil = Math.min(treffer, boss.B / l.bossSchaden)
-      const schaden = l.bossSchaden * anteil
-      boss.B = Math.max(0, boss.B - schaden)
-      treffer -= anteil
-      melde('bossTreffer', schaden, { boss: name })
-      if (boss.B <= 0) boss.imFeld = false
-    }
+    treffeBosse(treffer)
     const verlust = Math.min(z.F, l.soldatenVerlust * Math.min(Zk, l.gegnerProSoldat * K) * dt)
     z.F -= verlust
     if (verlust > 0) melde('soldatGefallen', verlust)

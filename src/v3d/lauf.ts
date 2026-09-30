@@ -52,7 +52,7 @@ export class Einsatzbilder {
   private schiesse(stand: FeldStand, ziel: THREE.Vector3, durchmesser: number, menge = 0, radius = 0): void {
     stand.schuss++
     stand.letzteZiele.push(ziel.clone())
-    if (this.blitzPunkte.length < 4) this.blitzPunkte.push({ pos: this.muendung(stand), rest: .08 })
+    if (this.blitzPunkte.length < 4) this.blitzPunkte.push({ pos: this.muendung(stand), rest: stand.name === 'humvee' ? DARSTELLUNG.HUMVEE_BLITZ_DAUER_S : .08 })
     this.explosionen.starte(ziel, durchmesser)
     if (menge > 0) this.treffer.push({ punkt: ziel.clone(), menge, radius })
   }
@@ -191,7 +191,7 @@ export class Einsatzbilder {
             const menge = boss ? 0 : Math.floor(stand.rest + 1e-9)
             if (stand.name === 'humvee') stand.rest = 0
             else if (!boss) stand.rest -= menge
-            this.schiesse(stand, ziel, stand.name === 'humvee' ? 1.5 : 2.5, stand.name === 'humvee' ? 0 : menge, stand.name === 'humvee' ? 0 : 2)
+            this.schiesse(stand, ziel, stand.name === 'humvee' ? 3 : 2.5, stand.name === 'humvee' ? 0 : menge, stand.name === 'humvee' ? 0 : 2)
           }
         }
         continue

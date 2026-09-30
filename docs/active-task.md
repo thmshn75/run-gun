@@ -390,12 +390,58 @@ aus `SPEZIAL` ableiten.
 Nachweise: `npm run check`, `npm test`, `npm run build`, `npm run bots3d` gruen. Status am
 Ende IMPL_DONE, Abschlussbericht.
 
+## Nacharbeit 3 (Thomas am iPhone, 2026-09-30 20:06) — nur diese Punkte
+
+Thomas: "Humvee zu schnell und Schuesse sieht man kaum; Haubitze, Panzer, Hubschrauber ok.
+Wenn die Truppen auf die Kampflinie stossen, auch wenn dort keine Zombies sind, weil in der
+Mitte der Humvee durchgefahren ist, wird der Mini-Boss nicht bekaempft — sollte aber."
+
+**N4 Humvee langsamer, Schuesse sichtbar.** `SPEZIAL.humvee` Schneise 6 s @ 20/s →
+**12 s @ 10/s** (Wirkung bleibt 120). Humvee-Explosion Ø 1,5 → **3 m**; Muendungsblitz des
+Humvee steht **0,15 s** statt 0,08 s (nur Humvee, Konstante in `DARSTELLUNG`). Takt bleibt
+0,25 s (→ 48 Schuesse ± 1 in der Schneise; Test anpassen).
+
+**N5 Truppe bekaempft den Boss durch die Gasse (Kern-Aenderung, freigegeben).**
+Ursache: Im Frontkampf (`rechnung.ts` ~Z. 208–225) gehen die Treffer der Truppe erst auf
+den Boss, wenn `Z` aufgebraucht ist; die Gasse existiert nur im Bild.
+- Neues Zustandsfeld `gasseAnteil` (0 = keine Gasse). Beginnt die Phase `schneise` einer
+  Einheit (Panzer oder Humvee), setzt der Kern `gasseAnteil = min(1, 2 ·
+  FAHRZEUGE[einheit].SCHNEISE_HALB / (FIGUREN.ZOMBIE_X_MAX − FIGUREN.ZOMBIE_X_MIN))`
+  (das Maximum, falls schon eine Gasse offen ist). Das naechste Kern-Ereignis `welle` nach
+  Schneisenbeginn setzt es auf 0 (gleiche Regel wie das Zugehen der Gasse im Bild).
+  `neuerLauf` startet mit 0.
+- Frontkampf: Ist `gasseAnteil > 0` und ein Boss im Feld, geht zuerst der Anteil
+  `gasseAnteil · treffer` an die Bosse (gleiche Reihenfolge/Schadensformel wie bisher,
+  Mini vor Elite), der Rest wie bisher zuerst an `Z`, Ueberschuss an die Bosse. Ohne Boss
+  im Feld aendert sich nichts. `Zk`, Soldatenverlust und Frontverschiebung bleiben unveraendert.
+- Ereignisse wie bisher (`bossTreffer`, `zombieGefallen`), Ereignisprotokoll-Invariante gruen.
+- Tests (Kern, dt 1/30 und 0,1): mit offener Gasse und Mini-Boss im Feld verliert der Boss
+  Leben, obwohl `Z > 0` (ohne Gasse: nicht); nach `welle` wieder wie bisher; ohne Boss
+  identisches Ergebnis wie ohne Gasse; Panzer-Anteil > Humvee-Anteil.
+
+**Bots:** vorher/nachher-Tabelle; harte Grenze passiv 0/20 (Bots, die keine Saeulen
+freischiessen, sind unberuehrt).
+Nachweise: `npm run check`, `npm test`, `npm run build`, `npm run bots3d` gruen. Status am
+Ende IMPL_DONE, Abschlussbericht.
+
 ## Abschlussbericht (Pflicht)
 Was geändert, Bots vorher/nachher, Testergebnis mit Zahlen, Mündungswerte Humvee und
 Hubschrauber, `SCHNEISE_HALB`, jeder umgestellte Bestandstest mit Grund, was nicht ging und
 warum. Status am Ende auf `IMPL_DONE`.
 
 ## Implementation Summary
+- Nacharbeit 3: Humvee-Schneise 12 s mit 10 Zombies/s bei unveränderter Kernwirkung 120; Explosionen Ø 3 m und Humvee-Mündungsblitz 0,15 s (Takt weiter 0,25 s, im Test 48 Schüsse). Der Kern merkt ab Schneisenbeginn `gasseAnteil` (Humvee 0,2609; Panzer 0,4575), leitet diesen Anteil der Truppentreffer bei anwesendem Boss zuerst auf Mini-/Elite-Boss und setzt ihn bei der nächsten Welle zurück. Frontdruck, Soldatenverlust und Frontverschiebung bleiben nach bisheriger Rechnung.
+- Nacharbeit-3-Bots vorher/nachher; Siege und mittlere Dauer, passive Grenze 0/20 eingehalten:
+
+  | Bot | Vorher Siege | Nachher Siege | Vorher Ø s | Nachher Ø s |
+  | --- | ---: | ---: | ---: | ---: |
+  | passiv | 0/20 | 0/20 | 115,6 | 115,6 |
+  | nurLinks | 0/20 | 0/20 | 75,0 | 75,0 |
+  | rhythmus(40) | 20/20 | 20/20 | 123,1 | 123,1 |
+  | rhythmusSaeule(60) | 20/20 | 20/20 | 106,3 | 106,3 |
+  | rhythmusSaeule(15) | 0/20 | 0/20 | 118,9 | 118,9 |
+  | rhythmusSaeule(25) | 0/20 | 0/20 | 124,8 | 125,3 |
+- Nacharbeit-3-Nachweise: `npm run check`, `npm test` (65 Dateien, 603 Tests), `npm run build`, `npm run bots3d`, `git diff --check` grün; keine `http`-Treffer in `src/v3d/`. Bestandstests `v3dRechnung` (Humvee-Gesamtdauer 8 → 14 s und Grenzschritt 10 → 5 Treffer), `v3dEinsatzD5c` (6 → 12 s, 20 → 10/s, 24 → 48 Schüsse), `v3dLauf` (Banner-Restzeiten wegen 14 s Gesamtdauer) angepasst. Neue Kern- und Bildtests decken Bosskampf durch die Gasse, Wellen-Reset, Breitenanteile, Explosion und Blitzdauer ab. Terminal.app war nicht auffindbar; Tests liefen direkt in der Shell. Erneute iPhone-Sichtkontrolle und echte Messung waren hier nicht möglich.
 - Nacharbeit 2: Feld-Drehung für Humvee/Hubschrauber von der Miniatur-Drehung getrennt (beide 0°; Panzer/Haubitze unverändert 0°). Die niedrige Haube liegt im Humvee-Netz bei negativem z, der Heckrotor des Hubschraubers bei positivem z. Humvee-Mündung `[0, 1.76, -0.87]` am vorderen Dachrand (ein separates MG-Rohr ist im vereinten Netz nicht eindeutig erkennbar), Hubschrauber-Mündung `[0, 1.2, -8.05]` unter der Nase; Humvee-Halbbreite der Gasse `.7957 m` aus Modell-x-Ausdehnung `1.9892 m × .8 / 2`.
 - Humvee: 2 s Anfahrt, 6 s Schneise mit 120 Zombies Kernwirkung, MG-Schüsse vor dem Bug ohne heilende Löcher, Gasse bis zur nächsten Welle und Abgang hinter der Horde. Haubitzen-Einschläge 4 s auseinander, Einsatzdauer 6,75 s. Dauertest folgt dem neuen Humvee-Ablauf.
 - Nachweise Nacharbeit 2: `npm run check`, `npm test` (65 Dateien, 596 Tests), `npm run build`, `npm run bots3d` und `git diff --check` grün. Bots vorher/nachher identisch: passiv 0/20, nurLinks 0/20, rhythmus(40) 20/20, rhythmusSaeule(60) 20/20, rhythmusSaeule(15) 0/20, rhythmusSaeule(25) 0/20. Terminal.app ließ sich hier nicht starten; die Testsuite lief direkt in der Shell. iPhone-Sichtkontrolle bleibt ausstehend.

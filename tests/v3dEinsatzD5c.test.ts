@@ -26,6 +26,26 @@ function attrappe() {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('D5c Feldfahrzeuge', () => {
+  it('zeigt Humvee-Explosionen mit 3 m und den Mündungsblitz 0,15 s lang', () => {
+    const { welt } = attrappe(), bilder = new Einsatzbilder(welt), z = neuerLauf(LEVELS[0], 1)
+    z.y = 20; z.Z = 600
+    const a = starteEinheit(z, 'humvee')
+    const explosion = vi.spyOn(bilder.explosionen, 'starte')
+    for (let bild = 1; bild <= 15; bild++) {
+      a.verstrichen = 2 + bild / 60
+      bilder.abgleichen(z, [{ art: 'spezialTreffer', einheit: 'humvee', menge: 10 / 60, t: a.verstrichen }], 1 / 60)
+    }
+    expect(bilder.schuesse(a)).toBe(1)
+    expect(explosion).toHaveBeenCalledWith(expect.any(THREE.Vector3), 3)
+    const blitze = (bilder as unknown as { blitzPunkte: { rest: number }[] }).blitzPunkte
+    expect(blitze).toHaveLength(1)
+    expect(blitze[0].rest).toBeCloseTo(DARSTELLUNG.HUMVEE_BLITZ_DAUER_S - 1 / 60)
+    bilder.nachlauf(.1)
+    expect(blitze).toHaveLength(1)
+    bilder.nachlauf(.04)
+    expect(blitze).toHaveLength(0)
+    bilder.gibFrei()
+  })
   it('übernimmt die Prüf-Einsätze genau einmal in angegebener Reihenfolge', () => {
     expect(pruefEinsatz('?pruefung=1&einsatz=hubschrauber,humvee,hubschrauber,falsch,panzer')).toEqual(['hubschrauber', 'humvee', 'panzer'])
     expect(pruefEinsatz('?einsatz=humvee,hubschrauber')).toEqual([])
@@ -55,14 +75,14 @@ describe('D5c Feldfahrzeuge', () => {
       expect(gruppe.position.z).toBeCloseTo(-7.84, 2)
       expect(bilder.schuesse(a)).toBe(0)
       const tiefe = -Math.min(...baueHorde(600, new Set()).eintraege.map(e => e.z))
-      for (let t = dt; t <= 6 + 1e-8; t += dt) {
+      for (let t = dt; t <= 12 + 1e-8; t += dt) {
         a.verstrichen = 2 + t
-        bilder.abgleichen(z, [{ art: 'spezialTreffer', einheit: 'humvee', menge: 20 * dt, t }], dt)
+        bilder.abgleichen(z, [{ art: 'spezialTreffer', einheit: 'humvee', menge: 10 * dt, t }], dt)
         expect(bilder.nimmTreffer()).toHaveLength(0)
       }
       expect(gruppe.position.z).toBeCloseTo(-z.y - tiefe - 4, 2)
-      expect(bilder.schuesse(a)).toBeGreaterThanOrEqual(23)
-      expect(bilder.schuesse(a)).toBeLessThanOrEqual(25)
+      expect(bilder.schuesse(a)).toBeGreaterThanOrEqual(47)
+      expect(bilder.schuesse(a)).toBeLessThanOrEqual(49)
       expect(bilder.gasse.aktiv).toBe(true)
       expect(bilder.gasse.halb).toBeCloseTo(FAHRZEUGE.humvee.SCHNEISE_HALB, 4)
       expect(bilder.gasse.bis).toBeLessThan(-tiefe)

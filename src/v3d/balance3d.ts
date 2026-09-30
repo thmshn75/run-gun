@@ -43,7 +43,7 @@ export const LEVELS: Level[] = [{
 }]
 
 export const SPEZIAL = {
-  humvee: { ablauf: [{ art: 'fahrt', dauer: 2 }, { art: 'schneise', dauer: 6, zombiesProSekunde: 20 }] },
+  humvee: { ablauf: [{ art: 'fahrt', dauer: 2 }, { art: 'schneise', dauer: 12, zombiesProSekunde: 10 }] },
   panzer: { ablauf: [{ art: 'fahrt', dauer: 1.2 }, { art: 'feuer', dauer: .75, zombiesProSekunde: 40 },
     { art: 'fahrt', dauer: 1.5 }, { art: 'feuer', dauer: .75, zombiesProSekunde: 40 },
     { art: 'schneise', dauer: 5, zombiesProSekunde: 20, bossAnteil: .05 }] },
@@ -115,4 +115,4 @@ export const FIGUREN = {
 // Aus src/style.css (env(safe-area-inset-*), touch-action: none) und
 // src/systems/safeArea.ts (CSS-Pixel); die Randgeste braucht 24 pt Reserve.
 export const STEUERUNG = { RANDRESERVE_PT: 24, MIN_X: -3, MAX_X: 3, MAX_M_PRO_S: 24 } as const
-export const DARSTELLUNG = { FORMATION_MAX: 30, TRUPPS_MAX: 50, FRONT_MAX: 40, HORDE_MAX: 600, LOCH_HEILEN_S: .25, LOCH_STANDZEIT_S: 2, LOECHER_MAX: 150, GASSE_SCHLIESSEN_S: 3, HUMVEE_TAKT_S: .25, HUBSCHRAUBER_TAKT_S: .2, SCHILDER_TEMPO_LANGSAM: 4, SCHILDER_TEMPO_SCHNELL: 21, SCHILDER_BESCHLEUNIGUNG: 64, SAEULEN_VORSCHAU: 3, BLITZE_MAX: 12, BLITZE_PRO_SEKUNDE: 10, BLITZ_DAUER: .06, FRONT_BLITZE_MAX: 8, FRONT_BLITZE_PRO_SEKUNDE: 12, FALL_SOLDATEN_MAX: 8, EXPLOSIONEN_MAX: 12 } as const
+export const DARSTELLUNG = { FORMATION_MAX: 30, TRUPPS_MAX: 50, FRONT_MAX: 40, HORDE_MAX: 600, LOCH_HEILEN_S: .25, LOCH_STANDZEIT_S: 2, LOECHER_MAX: 150, GASSE_SCHLIESSEN_S: 3, HUMVEE_TAKT_S: .25, HUMVEE_BLITZ_DAUER_S: .15, HUBSCHRAUBER_TAKT_S: .2, SCHILDER_TEMPO_LANGSAM: 4, SCHILDER_TEMPO_SCHNELL: 21, SCHILDER_BESCHLEUNIGUNG: 64, SAEULEN_VORSCHAU: 3, BLITZE_MAX: 12, BLITZE_PRO_SEKUNDE: 10, BLITZ_DAUER: .06, FRONT_BLITZE_MAX: 8, FRONT_BLITZE_PRO_SEKUNDE: 12, FALL_SOLDATEN_MAX: 8, EXPLOSIONEN_MAX: 12 } as const

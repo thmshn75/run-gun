@@ -8,13 +8,13 @@ steht auf IDLE.)
 
 ## Offen — naechster Schritt zuerst
 
-0. **D5c + Nacharbeit 2 online (2026-09-30 ~20:05) — wartet auf Thomas' Sichttest.**
-   Messung D5c (vor Nacharbeit 2) am iPhone: alles gruen (Thomas 19:47).
-   Nacharbeit 2 nach Thomas' iPhone-Blick: Humvee/Hubschrauber zeigten im Feld verkehrt
-   (jetzt `FELD_DREHUNG`, Miniaturen unveraendert); Humvee faehrt jetzt 2 s an und 6 s mit
-   MG durch die Horde (Gasse wie Panzer, schmaler, 120 Wirkung); Haubitze 4 s zwischen den
-   Schuessen. 596 Tests, Bots unveraendert (passiv 0/20). Humvee-Muendung am vorderen
-   Dachrand (kein MG-Rohr im Modell erkennbar). Offen: Thomas' Blick auf die drei Punkte.
+0. **D5c + Nacharbeit 3 online (2026-09-30 ~20:25) — wartet auf Thomas' Sichttest.**
+   Messung D5c am iPhone: alles gruen (Thomas 19:47). Nach Nacharbeit 2 hat Thomas Haubitze,
+   Panzer und Hubschrauber abgenommen (20:06). Nacharbeit 3: Humvee 12 s @ 10/s durch die
+   Horde, Explosion 3 m, Muendungsblitz 0,15 s; **Kern:** `gasseAnteil` – solange eine Gasse
+   offen ist (bis zur naechsten Welle), geht dieser Anteil des Frontfeuers direkt auf die
+   Bosse (Panzer ~50 %, Humvee ~28 % der Hordenbreite). 603 Tests, Bots praktisch gleich
+   (passiv 0/20). Offen: Thomas' Blick auf Humvee und Boss-Kampf durch die Gasse.
 
 1. **Heute online (2026-09-30), alles committet:**
    - D3-Nacharbeit (Truppe nie unter 1, Finger robust, Blick zur Saeule, Zaehler Horde/Boss/
