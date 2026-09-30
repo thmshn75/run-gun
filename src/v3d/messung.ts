@@ -7,11 +7,12 @@ import { FIGUREN } from './balance3d'
 import { bossFreieAufstellung } from './bosse'
 import type { Welt } from './szene'
 import type { WasserStufe } from './wasser'
-import { SpielLauf, WeltDarstellung, hatKontakt } from './lauf'
-import type { Zustand } from './rechnung'
+import { Einsatzbilder, SpielLauf, WeltDarstellung, hatKontakt } from './lauf'
+import { neuerLauf, starteEinheit, type Zustand, type Ereignis } from './rechnung'
 import { LEVELS } from './balance3d'
 import { speichereLetzteMessung } from './info'
 
+// Dauertest-Werte ab D5c enthalten zwei Feldfahrzeuge und sind mit älteren Messungen nicht direkt vergleichbar.
 export const MESSSTUFEN = [
   {name:'Vollast ohne Bosse',dauer:30000,mini:false,elite:false},
   {name:'Vollast + Mini-Boss',dauer:30000,mini:true,elite:false},
@@ -40,11 +41,43 @@ interface Lauf {
   sichtbarkeiten: Map<THREE.Object3D, boolean>
   bossSichtbar: [boolean,boolean]
   bot: SpielLauf | null
+  fahrzeugTest: DauertestFahrzeuge | null
   botSteuerung: MessBotSteuerung
   maxDrawCalls: number
   beiErgebnis: (offen: boolean) => void
 }
 let lauf: Lauf | null = null
+
+export class DauertestFahrzeuge {
+  readonly einsatz: Einsatzbilder
+  readonly zustand: Zustand
+  private frei = false
+  private ereignisse: Ereignis[] = []
+  constructor(welt: Welt) {
+    this.einsatz = new Einsatzbilder(welt)
+    this.zustand = neuerLauf(LEVELS[0], 1)
+    this.zustand.y = 15; this.zustand.Z = 600
+    for (const name of ['humvee', 'hubschrauber'] as const) {
+      const a = starteEinheit(this.zustand, name)
+      a.verstrichen = name === 'humvee' ? 3 : 2
+    }
+  }
+  aktualisiere(dt: number): void {
+    if (this.frei) return
+    this.ereignisse.length = 0
+    for (const a of this.zustand.aktiv) {
+      const beginn = a.einheit === 'humvee' ? 3 : 2
+      const ende = beginn + (a.einheit === 'humvee' ? 30 : 12)
+      a.verstrichen += dt
+      if (a.verstrichen >= ende) a.verstrichen = beginn
+      this.ereignisse.push({ art: 'spezialTreffer', einheit: a.einheit, menge: (a.einheit === 'humvee' ? 4 : 20) * dt, t: 0 })
+    }
+    this.einsatz.abgleichen(this.zustand, this.ereignisse, dt)
+    this.einsatz.nimmTreffer()
+  }
+  nachlauf(dt: number): void { if (!this.frei) this.einsatz.nachlauf(dt) }
+  gibFrei(): void { if (this.frei) return; this.frei = true; this.einsatz.gibFrei() }
+}
 
 export function zeigeMessErgebnis(anzeige: HTMLElement, ergebnis: string, beiErgebnis: (offen: boolean) => void): void {
   speichereLetzteMessung(ergebnis)
@@ -88,6 +121,7 @@ export class MessBotSteuerung {
 }
 
 function starteBot(l: Lauf): void {
+  l.fahrzeugTest?.gibFrei(); l.fahrzeugTest = null
   l.vollast.gruppe.visible = false
   l.soldaten.gruppe.visible = false
   for (const gruppe of [l.welt.truppe.gruppe, l.welt.laufTrupp.gruppe, l.welt.front.gruppe, l.welt.zombieMasse.gruppe, l.welt.wand.parent]) if (gruppe) gruppe.visible = true
@@ -152,7 +186,7 @@ export function starteMessung(welt: Welt, renderer: THREE.WebGLRenderer, game: P
   const bossSichtbar:[boolean,boolean]=[welt.miniboss.objekt.visible,welt.eliteboss.objekt.visible]
   welt.miniboss.objekt.visible=false;welt.eliteboss.objekt.visible=false
   welt.wasser.wechsle(1)
-  lauf = { welt, renderer, game, anzeige, knopf, original, stufe: 0, phase: 'warm', zeit: 0, bilder: [], ergebnisse: [], schwarz: null, messpunktZ, vollast, soldaten, sichtbarkeiten,bossSichtbar,bot:null,botSteuerung:new MessBotSteuerung(),maxDrawCalls:0,beiErgebnis }
+  lauf = { welt, renderer, game, anzeige, knopf, original, stufe: 0, phase: 'warm', zeit: 0, bilder: [], ergebnisse: [], schwarz: null, messpunktZ, vollast, soldaten, sichtbarkeiten,bossSichtbar,bot:null,fahrzeugTest:null,botSteuerung:new MessBotSteuerung(),maxDrawCalls:0,beiErgebnis }
   knopf.disabled = true
   bereiteMessAnzeige(anzeige)
 }
@@ -163,6 +197,10 @@ export function messBild(dt: number, jetzt: number): void {
   l.soldaten.aktualisiere(jetzt)
   l.vollast.aktualisiere(jetzt)
   const sek = Number.isFinite(dt) ? Math.max(0, Math.min(.1, dt / 1000)) : 0
+  if (l.fahrzeugTest) {
+    if (l.phase === 'messen') l.fahrzeugTest.aktualisiere(sek)
+    else l.fahrzeugTest.nachlauf(sek)
+  }
   l.welt.miniboss.aktualisiere(sek)
   l.welt.eliteboss.aktualisiere(sek)
   if (l.phase === 'messen' && l.bot && hatKontakt(l.bot.zustand)) l.maxDrawCalls = Math.max(l.maxDrawCalls, l.renderer.info.render.calls)
@@ -195,6 +233,7 @@ export function messBild(dt: number, jetzt: number): void {
     return
   }
   l.stufe++
+  if (!l.fahrzeugTest && MESSSTUFEN[l.stufe].name.startsWith('Dauertest')) l.fahrzeugTest = new DauertestFahrzeuge(l.welt)
   l.welt.miniboss.objekt.visible=MESSSTUFEN[l.stufe].mini
   l.welt.eliteboss.objekt.visible=MESSSTUFEN[l.stufe].elite
   l.phase = 'umbau'; l.zeit = 0; l.bilder = []; l.schwarz = null
@@ -205,6 +244,7 @@ export function bricheAb(grund?: string, wiederherstellen = true): void {
   if (!lauf) return
   const l = lauf
   lauf = null
+  l.fahrzeugTest?.gibFrei()
   l.bot?.gibLaufFrei()
   l.welt.scene.remove(l.vollast.gruppe, l.soldaten.gruppe)
   l.vollast.gibNetzeFrei()

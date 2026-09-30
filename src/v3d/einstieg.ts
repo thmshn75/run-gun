@@ -15,11 +15,15 @@ import { LEVELS } from './balance3d'
 import { starteEinheit } from './rechnung'
 import type { SpezialName } from './balance3d'
 
-export function pruefEinsatz(suche: string): SpezialName | null {
+export function pruefEinsatz(suche: string): SpezialName[] {
   const p = new URLSearchParams(suche)
-  if (p.get('pruefung') !== '1') return null
-  const name = p.get('einsatz')
-  return name === 'panzer' || name === 'haubitze' || name === 'humvee' || name === 'hubschrauber' ? name : null
+  if (p.get('pruefung') !== '1') return []
+  const namen: SpezialName[] = []
+  for (const name of (p.get('einsatz') ?? '').split(',')) {
+    if ((name === 'panzer' || name === 'haubitze' || name === 'humvee' || name === 'hubschrauber') && !namen.includes(name)) namen.push(name)
+    if (namen.length === 4) break
+  }
+  return namen
 }
 
 let aktiv = false
@@ -159,7 +163,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     if (!welt.nahaufnahme) {
       finger=new FingerSteuerung(renderer.domElement,camera);lauf=new SpielLauf(LEVELS[0],Date.now(),new WeltDarstellung(welt))
       const einsatz = pruefEinsatz(location.search)
-      if (einsatz) { starteEinheit(lauf.zustand, einsatz); lauf.protokollNeuBasieren() }
+      if (einsatz.length) { einsatz.forEach(name => starteEinheit(lauf!.zustand, name)); lauf.protokollNeuBasieren() }
     }
     ui.messen.disabled = false
     ui.ergebnisse.style.display = 'none'

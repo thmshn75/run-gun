@@ -172,7 +172,7 @@ export function schritt(z: Zustand, eingabe: { x: number }, dt: number): Ereigni
           aktiv.einschlaege++
         }
       } else if ((phase.art === 'feuer' || phase.art === 'schneise') && wirkZeit > 0) {
-        const p = phase as { zombiesProSekunde: number; bossPunkteProSekunde?: number }
+        const p = phase as { zombiesProSekunde: number; bossPunkteProSekunde?: number; bossAnteil?: number; dauer: number }
         const treffer = Math.min(p.zombiesProSekunde * wirkZeit, z.Z)
         z.Z -= treffer
         if (treffer > 0) melde('spezialTreffer', treffer, { einheit })
@@ -184,6 +184,14 @@ export function schritt(z: Zustand, eingabe: { x: number }, dt: number): Ereigni
             if (schaden > 0) melde('bossTreffer', schaden, { boss })
             if (z[boss].B <= 0) z[boss].imFeld = false
           }
+        }
+        if (p.bossAnteil) for (const boss of ['miniBoss', 'eliteBoss'] as const) {
+          if (!z[boss].imFeld || z[boss].B <= 0) continue
+          const startLeben = boss === 'miniBoss' ? l.B_mini : l.B_elite
+          const schaden = Math.min(startLeben * p.bossAnteil * wirkZeit / p.dauer, z[boss].B)
+          z[boss].B -= schaden
+          if (schaden > 0) melde('bossTreffer', schaden, { boss })
+          if (z[boss].B <= 0) z[boss].imFeld = false
         }
       }
       start += phase.dauer

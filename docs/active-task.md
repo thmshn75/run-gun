@@ -1,6 +1,6 @@
 # Aktive Aufgabe
 
-Status: SPEC_READY
+Status: APPROVED
 
 ## Aufgabe: D5c — Humvee und Hubschrauber auf dem Feld + bleibende Panzer-Schneise
 
@@ -329,7 +329,30 @@ Jeder Test mit `dt = 1/60` **und** `dt = 0,1`, wo Zeit läuft.
 - Passiv-Bot gewinnt irgendwo (Grenze 20/20 verletzt) → melden, nichts anpassen.
 - Höchstens zwei Anläufe, dann zurück zu Thomas.
 
+## Nacharbeit 1 (Claude-Review 2026-09-30 19:30) — nur diese zwei Punkte
+
+1. **Hubschrauber zu hoch.** Im Browser (390×844) haengt der kreisende Hubschrauber am
+   oberen Bildrand und ist teils abgeschnitten. `FAHRZEUGE.hubschrauber.FLUGHOEHE` 7 → **4**
+   (Unterkante). Anflug-Start bleibt (0, 9, +10), die Fahrt endet auf der neuen Hoehe. Tests,
+   die 7 als Zahl pruefen, auf die Konstante umstellen (nicht auf 4 hart codieren).
+2. **Kurs in der Anflugphase seitenverkehrt.** `lauf.ts`, Hubschrauber `phase.index === 0`:
+   Kurs muss der Formel aus K folgen (Flugrichtung (dx, dz) = (−sin θ, −cos θ) ⇒
+   θ = atan2(−dx, −dz)) mit (dx, dz) = Zielpunkt − Startpunkt der Fahrt, nicht die aktuelle
+   Position. Test: Bei Versatz 0 (Ziel x = +R) zeigt die Flugrichtung aus dem Kurs in der
+   ersten Haelfte der Fahrt nach +x (Kurs < 0), bei Versatz π nach −x.
+
+Sonst nichts aendern. `npm run check`, `npm test`, `npm run build` gruen. Status am Ende
+IMPL_DONE, kurzer Abschlussbericht.
+
 ## Abschlussbericht (Pflicht)
 Was geändert, Bots vorher/nachher, Testergebnis mit Zahlen, Mündungswerte Humvee und
 Hubschrauber, `SCHNEISE_HALB`, jeder umgestellte Bestandstest mit Grund, was nicht ging und
 warum. Status am Ende auf `IMPL_DONE`.
+
+## Implementation Summary
+- Nacharbeit 1: Flugunterkante des Hubschraubers auf 4 m gesetzt; der Anflugkurs wird aus der Richtung Startpunkt → Zielpunkt berechnet. Bestehenden Höhentest an `FLUGHOEHE` gebunden und Anflugrichtung für beide Kreisversätze bei `dt = 1/60` und `0,1` geprüft.
+- D5c: Humvee und Hubschrauber als Feldfahrzeuge mit Kurs-Gruppe, maßstäblicher Geometrie, Rotoren, Schusstakt, Zielpunkten, Treffern und Abgang; Panzer-Schneise bleibt bis zur nächsten Welle offen und schließt dann in 3 s. Panzer-Bosswirkung, Säulen-Reihenfolge und Hubschrauber-Wirkung gemäß S1b/S3 umgesetzt. Dauertest zeigt beide Fahrzeuge.
+- Geometrie: Humvee-Mündung `[0, 3.15, -2.3]`, Hubschrauber-Mündung `[0, 1.2, -8.85]` (je Kurs-Gruppen-Koordinaten vor Spielskalierung); Panzer-Schneisen-Halbbreite `1.3954 m` aus Modell-x-Ausdehnung `3.4885 m × 0.8 / 2`.
+- Bots vor Änderungen aus `HEAD`: passiv 0/20, nurLinks 0/20, rhythmus(40) 20/20, rhythmusSaeule(60) 20/20 (108.0 s, 2.05 Säulen), rhythmusSaeule(15) 0/20, rhythmusSaeule(25) 0/20. Danach: gleiche Siege; rhythmusSaeule(60) 106.3 s, 2.00 Säulen; alle übrigen Mittelwerte unverändert. Harte Grenze passiv 0/20 eingehalten.
+- Bestandstests angepasst: `v3dFahrzeuge` für Listen-Rückgabe von `pruefEinsatz` und neue Säulenfolge; `v3dRechnung` für Panzerdauer 9.2 s und Hubschrauberwirkung 240; `v3dLauf` für `baueHorde`-Rückgabe, dauerhafte Gasse statt heilender Schneisentreffer, Panzer-Restdauer und frühestens nach 2 s heilende Löcher. Neue D5c-Verhaltenstests in `v3dEinsatzD5c`.
+- Nachweise: `npm run check`, `npm test` (65 Dateien, 593 Tests), `npm run build`, `npm run bots3d` grün; `git diff --check` und keine `http`-Treffer in `src/v3d/`. Browser-Bildfolge, Draw-Call-/WebGL-Speicherzähler, iPhone-Blick und echte 3-Minuten-Messung bleiben bei Claude/Thomas gemäß Nachweise-Abschnitt. Terminal-App war in dieser Umgebung nicht verfügbar; Testsuite lief direkt in der Shell.

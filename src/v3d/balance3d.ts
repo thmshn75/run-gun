@@ -36,7 +36,7 @@ export const LEVELS: Level[] = [{
   wellen: [{ t: 0, groesse: 250 }, { t: 20, groesse: 250 }, { t: 40, groesse: 250 }],
   streuung: 0.1, miniBossWelle: 1, eliteBossZeit: 60,
   B_mini: 400, B_elite: 3000, P: 150,
-  saeulen: ['humvee', 'panzer', 'haubitze', 'hubschrauber'],
+  saeulen: ['humvee', 'haubitze', 'panzer', 'hubschrauber'],
   C: 40, bossDruck: 25, zombieTreffer: 0.5, soldatenVerlust: 0.4,
   gegnerProSoldat: 2, frontVerschiebung: 0.5, bossSchaden: 25,
   marsch: 0.8, startY: 60,
@@ -46,26 +46,25 @@ export const SPEZIAL = {
   humvee: { ablauf: [{ art: 'fahrt', dauer: 3 }, { art: 'feuer', dauer: 30, zombiesProSekunde: 4 }] },
   panzer: { ablauf: [{ art: 'fahrt', dauer: 1.2 }, { art: 'feuer', dauer: .75, zombiesProSekunde: 40 },
     { art: 'fahrt', dauer: 1.5 }, { art: 'feuer', dauer: .75, zombiesProSekunde: 40 },
-    { art: 'schneise', dauer: 2.5, zombiesProSekunde: 40 }] },
+    { art: 'schneise', dauer: 5, zombiesProSekunde: 20, bossAnteil: .05 }] },
   haubitze: { ablauf: [{ art: 'fahrt', dauer: 1.2 },
     { art: 'einschlaege', dauer: 2.05, einschlaege: 2, abstand: 2, zombiesProEinschlag: 90 },
     { art: 'fahrt', dauer: 1.5 }] },
   hubschrauber: { ablauf: [{ art: 'fahrt', dauer: 2 },
-    { art: 'feuer', dauer: 12, zombiesProSekunde: 15, bossPunkteProSekunde: 25 }] },
+    { art: 'feuer', dauer: 12, zombiesProSekunde: 20, bossPunkteProSekunde: 25 }] },
 } as const
 export type SpezialName = keyof typeof SPEZIAL
 
 export const FAHRZEUGE = {
-  humvee: { LAENGE: 4.6, DREIECKE: 1528, DREHUNG: 180 },
-  panzer: { LAENGE: 9.8, DREIECKE: 1560, DREHUNG: 0, MUENDUNG: [0, 2.02, -4.9] as const },
+  humvee: { LAENGE: 4.6, DREIECKE: 1528, DREHUNG: 180, SPIEL_SKALA: .8, MUENDUNG: [0, 3.15, -2.3] as const },
+  panzer: { LAENGE: 9.8, DREIECKE: 1560, DREHUNG: 0, SPIEL_SKALA: .8, MUENDUNG: [0, 2.02, -4.9] as const, SCHNEISE_HALB: 1.3954 },
   haubitze: { LAENGE: 7.3, DREIECKE: 3714, DREHUNG: 0, MUENDUNG: [-.032, 2.54, -3.65] as const, SPIEL_SKALA: .5 },
-  hubschrauber: { LAENGE: 17.7, DREIECKE: 2907, DREHUNG: 180 },
+  hubschrauber: { LAENGE: 17.7, DREIECKE: 2907, DREHUNG: 180, SPIEL_SKALA: .4, MUENDUNG: [0, 1.2, -8.85] as const, FLUGHOEHE: 4, KREIS_RADIUS: 3, KREIS_S: 6 },
   DREH_S: 8,
   MINI_Y: 2.2,
-  SPIEL_SKALA: .8,
   SPUR_X: 1.8,
 } as const
-export type FahrzeugName = Exclude<keyof typeof FAHRZEUGE, 'DREH_S' | 'MINI_Y' | 'SPIEL_SKALA' | 'SPUR_X'>
+export type FahrzeugName = Exclude<keyof typeof FAHRZEUGE, 'DREH_S' | 'MINI_Y' | 'SPUR_X'>
 
 // 1 Einheit = 1 Meter. x quer, y oben, vorwärts = negatives z;
 // Aussendelinie z = 0, Rechenposition pos bzw. Frontlage y wird z = -pos bzw. -y.
@@ -116,4 +115,4 @@ export const FIGUREN = {
 // Aus src/style.css (env(safe-area-inset-*), touch-action: none) und
 // src/systems/safeArea.ts (CSS-Pixel); die Randgeste braucht 24 pt Reserve.
 export const STEUERUNG = { RANDRESERVE_PT: 24, MIN_X: -3, MAX_X: 3, MAX_M_PRO_S: 24 } as const
-export const DARSTELLUNG = { FORMATION_MAX: 30, TRUPPS_MAX: 50, FRONT_MAX: 40, HORDE_MAX: 600, LOCH_HEILEN_S: .25, SCHILDER_TEMPO_LANGSAM: 4, SCHILDER_TEMPO_SCHNELL: 21, SCHILDER_BESCHLEUNIGUNG: 64, SAEULEN_VORSCHAU: 3, BLITZE_MAX: 12, BLITZE_PRO_SEKUNDE: 10, BLITZ_DAUER: .06, FRONT_BLITZE_MAX: 8, FRONT_BLITZE_PRO_SEKUNDE: 12, FALL_SOLDATEN_MAX: 8, EXPLOSIONEN_MAX: 8 } as const
+export const DARSTELLUNG = { FORMATION_MAX: 30, TRUPPS_MAX: 50, FRONT_MAX: 40, HORDE_MAX: 600, LOCH_HEILEN_S: .25, LOCH_STANDZEIT_S: 2, LOECHER_MAX: 150, GASSE_SCHLIESSEN_S: 3, HUMVEE_TAKT_S: .25, HUBSCHRAUBER_TAKT_S: .2, SCHILDER_TEMPO_LANGSAM: 4, SCHILDER_TEMPO_SCHNELL: 21, SCHILDER_BESCHLEUNIGUNG: 64, SAEULEN_VORSCHAU: 3, BLITZE_MAX: 12, BLITZE_PRO_SEKUNDE: 10, BLITZ_DAUER: .06, FRONT_BLITZE_MAX: 8, FRONT_BLITZE_PRO_SEKUNDE: 12, FALL_SOLDATEN_MAX: 8, EXPLOSIONEN_MAX: 12 } as const

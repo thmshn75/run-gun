@@ -53,23 +53,25 @@ describe('3D-Lauf',()=>{
   it('entfernt Einschlag-Zombies vor Ort bei gleicher sichtbarer Zahl und heilt langsam',()=>{
     const loecher=new HordeLoecher(),punkt=new THREE.Vector3(-1.7,.2,-25)
     const imRadius=(eintraege: ReturnType<typeof baueHorde>)=>eintraege.filter(e=>Math.hypot(e.x-punkt.x,e.z-20-punkt.z)<=3).length
-    const vorher=imRadius(baueHorde(600,loecher.indizes))
+    const vorher=imRadius(baueHorde(600,loecher.indizes).eintraege)
     const getroffen=loecher.treffer(600,-20,punkt,90,3)
-    const nachher=baueHorde(600,loecher.indizes)
+    const nachher=baueHorde(600,loecher.indizes).eintraege
     expect(getroffen).toBeGreaterThanOrEqual(.8*Math.min(90,vorher))
     expect(imRadius(nachher)).toBeLessThanOrEqual(vorher-.8*Math.min(90,vorher))
     expect(nachher).toHaveLength(600)
     loecher.zuruecksetzen()
     expect(loecher.treffer(600,-20,punkt,90,100)).toBe(90)
     loecher.schritt(20)
-    expect(loecher.indizes.size).toBe(10)
-    expect(baueHorde(600,loecher.indizes)).toHaveLength(600)
+    expect(loecher.indizes.size).toBe(17)
+    expect(baueHorde(600,loecher.indizes).eintraege).toHaveLength(600)
     loecher.schritt(2.5)
+    expect(loecher.indizes.size).toBe(7)
+    loecher.schritt(1.75)
     expect(loecher.indizes.size).toBe(0)
-    expect(baueHorde(600,loecher.indizes)).toHaveLength(600)
+    expect(baueHorde(600,loecher.indizes).eintraege).toHaveLength(600)
     loecher.treffer(600,-20,punkt,90,100)
     loecher.passeAn(510)
-    expect(baueHorde(510,loecher.indizes)).toHaveLength(510)
+    expect(baueHorde(510,loecher.indizes).eintraege).toHaveLength(510)
   })
   it('hält die Horde mit Panzerschneisen-Löchern bei der sichtbaren Sollzahl',()=>{
     const {welt,raume}=baueWeltAttrappe()
@@ -86,9 +88,9 @@ describe('3D-Lauf',()=>{
       anzeige.zeige(z,new Map(),[{art:'spezialTreffer',menge:20,t:10,einheit:'panzer'}],.1,0)
       expect(calls.at(-1)).toHaveLength(600)
       const gruppe=welt.scene.getObjectByName('einsatz-panzer')!
-      const bug=gruppe.position.z-FAHRZEUGE.panzer.LAENGE*FAHRZEUGE.SPIEL_SKALA/2
+      const bug=gruppe.position.z-FAHRZEUGE.panzer.LAENGE*FAHRZEUGE.panzer.SPIEL_SKALA/2
       const amBug=(eintraege: ReturnType<typeof baueHorde>)=>eintraege.filter(p=>Math.hypot(p.x,p.z-z.y-bug)<=1.4).length
-      expect(amBug(calls.at(-1)!)).toBeLessThan(amBug(baueHorde(600,new Set())))
+      expect(amBug(calls.at(-1)!)).toBeLessThan(amBug(baueHorde(600,new Set()).eintraege))
       z.aktiv=[];z.t+=.1;anzeige.zeige(z,new Map(),[],.1,0)
       anzeige.nachlauf(3)
       expect(calls.at(-1)).toHaveLength(600)
@@ -97,39 +99,27 @@ describe('3D-Lauf',()=>{
       anzeige.gibFrei()
     } finally {raume()}
   })
-  it('zieht 100 gleichmäßig verteilte Schneisentreffer durch die Horde und fährt beim Verschwinden weiter',()=>{
+  it('lässt die Panzer-Gasse nach der Durchfahrt bis zur nächsten Welle offen',()=>{
     const {welt,raume}=baueWeltAttrappe()
     try {
       const einsatz=new Einsatzbilder(welt),z=neuerLauf(LEVELS[0],1)
       z.y=20;z.Z=540
       const a=starteEinheit(z,'panzer')
-      a.verstrichen=4.2
-      einsatz.abgleichen(z,[],0)
-      const gruppe=welt.scene.getObjectByName('einsatz-panzer')!
-      const start=gruppe.position.z
-      const tiefe=-Math.min(...baueHorde(540,new Set()).map(e=>e.z))
-      const ende=-z.y-tiefe-4
-      const treffer=[]
-      for(let i=1;i<=25;i++) {
+      for(let i=0;i<=50;i++) {
         a.verstrichen=4.2+i*.1
-        einsatz.abgleichen(z,[{art:'spezialTreffer',menge:4,t:i*.1,einheit:'panzer'}],.1)
-        treffer.push(...einsatz.nimmTreffer())
+        einsatz.abgleichen(z,[{art:'spezialTreffer',menge:2,t:i*.1,einheit:'panzer'}],.1)
       }
-      expect(gruppe.position.z).toBeCloseTo(ende,5)
-      expect(treffer).toHaveLength(100)
-      expect(treffer.every(t=>t.radius===1.4&&t.menge===1)).toBe(true)
-      const bug=FAHRZEUGE.panzer.LAENGE*FAHRZEUGE.SPIEL_SKALA/2
-      expect(treffer[0].punkt.z).toBeGreaterThan(ende-bug)
-      expect(treffer.at(-1)!.punkt.z).toBeLessThan(start-bug)
-      const abstaende=treffer.slice(1).map((t,i)=>treffer[i].punkt.z-t.punkt.z)
-      expect(Math.max(...abstaende)-Math.min(...abstaende)).toBeLessThan(.001)
-      z.aktiv=[]
-      einsatz.abgleichen(z,[],0)
-      einsatz.nachlauf(.3)
-      expect(gruppe.position.z).toBeLessThan(ende)
-      expect(gruppe.scale.x).toBeCloseTo(.5,5)
-      einsatz.nachlauf(.3)
-      expect(einsatz.anzahl).toBe(0)
+      expect(einsatz.nimmTreffer()).toHaveLength(0)
+      expect(einsatz.gasse.bis).toBeLessThan(-20)
+      const gebaut=baueHorde(540,new Set(),einsatz.gasse)
+      expect(gebaut.eintraege).toHaveLength(540)
+      expect(gebaut.eintraege.some(e=>einsatz.gasse.enthaelt(e))).toBe(false)
+      einsatz.nachlauf(10)
+      expect(einsatz.gasse.aktiv).toBe(true)
+      einsatz.abgleichen(z,[{art:'welle',menge:250,t:0}],1.5)
+      expect(einsatz.gasse.aktiv).toBe(true)
+      einsatz.abgleichen(z,[],1.5)
+      expect(einsatz.gasse.aktiv).toBe(false)
       einsatz.gibFrei()
     } finally {raume()}
   })
@@ -139,6 +129,7 @@ describe('3D-Lauf',()=>{
       const einsatz=new Einsatzbilder(welt),z=neuerLauf(LEVELS[0],1)
       z.y=20;z.Z=600
       const panzer=starteEinheit(z,'panzer')
+      einsatz.abgleichen(z,[],0)
       const schuesse=vi.spyOn(einsatz.explosionen,'starte')
       for(const zeit of [1.45,1.85,3.7,4.1]) {
         panzer.verstrichen=zeit
@@ -457,7 +448,7 @@ describe('3D-Lauf',()=>{
     const bannerZ = neuerLauf(LEVELS[0], 1)
     starteEinheit(bannerZ, 'humvee').verstrichen = 3.1
     starteEinheit(bannerZ, 'panzer').verstrichen = 3.5
-    expect(bannerEintraege(bannerZ.aktiv)).toEqual(['HUMVEE · 30 s','PANZER · 4 s'])
+    expect(bannerEintraege(bannerZ.aktiv)).toEqual(['HUMVEE · 30 s','PANZER · 6 s'])
     for(let i=0;i<10;i++)lauf.schritt(.1,0)
     expect(bannerEintraege(z.aktiv)).toEqual(['HUMVEE · 32 s'])
     z.aktiv[0].verstrichen=gesamtDauer('humvee')-.01

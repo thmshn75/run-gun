@@ -1533,3 +1533,13 @@ Browser das Einzelbild waehrend der Durchfahrt, nicht das Bild zwei Sekunden dan
 Luecke), die **Standzeit** mitspezifizieren und pruefen: Bild waehrend UND einige Sekunden
 nach der Wirkung ansehen. Meldet Thomas dasselbe ein zweites Mal, nicht den Wert weiterdrehen,
 sondern fragen, welche Mechanik das Gewuenschte wieder aufhebt (hier: Heilen + Neuaufstellung).
+
+## 2026-09-30 — Codex ueber den abgeschafften Weg gestartet
+
+D5c wurde ueber `codex-companion.mjs` gestartet, weil CLAUDE.md das noch vorschrieb; die
+Uebergabe sagt seit dem Vortag `codex exec`. Der Lauf endete nach 14 Minuten mit Exit 0 ohne
+Bericht und kostete einen zweiten Lauf. Die Uebergabe war nur als Vorschau (erste 2 KB)
+gelesen worden.
+**Regel:** Die Uebergabe zu Sitzungsbeginn vollstaendig lesen, nicht die abgeschnittene
+Vorschau. Widerspricht sie CLAUDE.md, gilt die neuere Uebergabe, und CLAUDE.md wird im
+selben Zug nachgezogen.

@@ -83,22 +83,22 @@ export function baueMiniatur(bau: FahrzeugBau, name: FahrzeugName, zielGroesse: 
   return gruppe
 }
 
-export function baueFeldFahrzeug(bau: FahrzeugBau, name: 'panzer' | 'haubitze'): THREE.Group {
-  const aussen = new THREE.Group()
-  aussen.name = `einsatz-${name}`
-  aussen.position.x = FAHRZEUGE.SPUR_X
-  aussen.rotation.y = FAHRZEUGE[name].DREHUNG * Math.PI / 180
-  const innen = bau.vorlage.clone(true)
-  innen.traverse(o => { if (o instanceof THREE.Mesh) o.layers.set(1) })
-  aussen.add(innen)
-  aussen.updateMatrixWorld(true)
-  const box = new THREE.Box3().setFromObject(aussen, true)
-  const skala = FAHRZEUGE[name].LAENGE * FAHRZEUGE.SPIEL_SKALA / box.getSize(new THREE.Vector3()).z
-  innen.scale.setScalar(skala)
-  innen.position.y = -box.min.y * skala
-  aussen.updateMatrixWorld(true)
-  const mitte = new THREE.Box3().setFromObject(aussen, true).getCenter(new THREE.Vector3())
-  innen.position.x -= mitte.x - aussen.position.x
-  innen.position.z -= mitte.z
-  return aussen
+export function baueFeldFahrzeug(bau: FahrzeugBau, name: FahrzeugName): THREE.Group {
+  const kurs = new THREE.Group()
+  kurs.name = `einsatz-${name}`
+  const drehung = new THREE.Group()
+  drehung.rotation.y = FAHRZEUGE[name].DREHUNG * Math.PI / 180
+  kurs.add(drehung)
+  const modell = bau.vorlage.clone(true)
+  modell.traverse(o => { if (o instanceof THREE.Mesh) o.layers.set(1) })
+  drehung.add(modell)
+  kurs.updateMatrixWorld(true)
+  const roh = new THREE.Box3().setFromObject(kurs, true)
+  const skala = FAHRZEUGE[name].LAENGE * FAHRZEUGE[name].SPIEL_SKALA / roh.getSize(new THREE.Vector3()).z
+  modell.scale.setScalar(skala)
+  kurs.updateMatrixWorld(true)
+  const box = new THREE.Box3().setFromObject(kurs, true)
+  const mitte = box.getCenter(new THREE.Vector3())
+  drehung.position.set(-mitte.x, -box.min.y, -mitte.z)
+  return kurs
 }

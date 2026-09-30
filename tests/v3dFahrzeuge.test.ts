@@ -17,10 +17,10 @@ const io = new NodeIO().registerExtensions([EXTTextureWebP])
 
 describe('3D-Fahrzeuge', () => {
   it('gibt den Prüf-Einsatz nur mit pruefung=1 frei', () => {
-    expect(pruefEinsatz('?einsatz=panzer')).toBeNull()
-    expect(pruefEinsatz('?pruefung=soldat&einsatz=panzer')).toBeNull()
-    expect(pruefEinsatz('?pruefung=1&einsatz=falsch')).toBeNull()
-    expect(pruefEinsatz('?pruefung=1&einsatz=haubitze')).toBe('haubitze')
+    expect(pruefEinsatz('?einsatz=panzer')).toEqual([])
+    expect(pruefEinsatz('?pruefung=soldat&einsatz=panzer')).toEqual([])
+    expect(pruefEinsatz('?pruefung=1&einsatz=falsch')).toEqual([])
+    expect(pruefEinsatz('?pruefung=1&einsatz=haubitze')).toEqual(['haubitze'])
   })
   it('fährt über Zustand zum Halt, entfernt sich nach Sieg und lässt geteilte Ressourcen stehen', () => {
     const ctx={createRadialGradient:()=>({addColorStop:vi.fn()}),fillRect:vi.fn(),fillStyle:''}
@@ -166,7 +166,7 @@ describe('3D-Fahrzeuge', () => {
   })
 
   it('ordnet Säulen und Credits den gewählten Modellen zu', () => {
-    expect(LEVELS[0].saeulen).toEqual(namen)
+    expect(LEVELS[0].saeulen).toEqual(['humvee','haubitze','panzer','hubschrauber'])
     const lizenzen=readFileSync('docs/lizenzen.md','utf8')
     for(const text of ['Low Poly Humvee vehicle',"Duane's Mind",'AMX-56 Low Poly','Waroxed','M144 155mm Howitzer low poly','Cyan_dev10','Low Poly Apache Gunship'])expect(lizenzen).toContain(text)
     expect((namen as readonly FahrzeugName[]).every(name=>lizenzen.includes(`v3d-${name}`)||lizenzen.includes(name==='panzer'?'AMX-56':name==='haubitze'?'M144':name==='hubschrauber'?'Apache':'Humvee'))).toBe(true)

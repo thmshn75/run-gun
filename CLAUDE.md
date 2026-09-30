@@ -60,7 +60,7 @@ bei Bedarf dort schärfen. Der dritte Blickwinkel (Umsetzersicht) kommt aus dem 
 Wenn ein Task bereit zur Umsetzung ist:
 1. docs/active-task.md vollständig ausfüllen
 2. Status auf `SPEC_READY` setzen
-3. **Codex im Terminal starten, nicht in der Extension** — dafür den globalen Skill
+3. **Codex im Terminal starten, nicht in der Extension** — **seit 2026-09-29 per `codex exec "<Auftrag>" < /dev/null > codex.out 2>&1` statt ueber `codex-companion.mjs`** (der Companion haengt bzw. endet mitten im Lauf ohne Bericht, siehe `docs/lessons.md` 2026-09-29 und 2026-09-30); der Skill-/Skriptweg unten gilt nur noch fuer das Drumherum (`.command`, `.done`-Datei) — dafür den globalen Skill
    `codex-terminal-handoff` verwenden, der genau dieses Verfahren kapselt.
    Das setzt die globale Betriebsregel um
    (`~/.claude/CLAUDE.md`; Hintergrund: `AI Brain/wiki/_system/betriebs-runbook.md`, Abschnitt
