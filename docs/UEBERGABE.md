@@ -1,26 +1,32 @@
 # Uebergabe: Run & Gun
 
-Stand: 2026-09-29 22:30 (**Plan V7 "Run Gun 3D" ist verbindlich**, `docs/plan-v7.md`.
-Thomas schlaeft; letzter Commit 99b81fe, online.)
+Stand: 2026-09-30 16:15 (**Plan V7 "Run Gun 3D" ist verbindlich**, `docs/plan-v7.md`.
+Pause auf Thomas' Wunsch; letzter Commit 62269c5, online.)
 
 **Das Naechste liegt in `## Offen`.**
 
 ## Offen — naechster Schritt zuerst
 
-0. **D3, R2, D3-Anpassung und D3-Nacharbeit sind gebaut, geprueft und online (99b81fe).**
-   Nacharbeit nach Thomas' iPhone-Test 22:02/22:12: Truppe faellt nie unter 1 (Aussenden
-   nur ab T >= 2), Finger-Steuerung uebernimmt immer den neuen Finger, Formation blickt
-   rechts zur Saeule, rote Hordenzahl + Boss-Lebensbalken + "Welle n/3", Laeufer springen
-   nicht mehr (Ausduennen ueber feste Soldatennummer, schraeger Einlauf in die Spur).
-   - **Offen bei Thomas:** iPhone-Spieltest dieses Stands.
-   - **Danach laut Plan:** D4 (Frontkampf-Bild: Schiessen nach der Wand, fallende
-     Zombies/Soldaten, Horde und Bosse marschieren) → D5a (Fahrzeuge waehlt Thomas) →
-     D5b/c → D6 → D7 → D8 (Politurliste im Plan).
-   - Beobachtung Claude (noch nicht beauftragt): rechts ragt die 30er-Formation am
-     Bildrand leicht aus dem Bild.
-   - **Codex-Start:** `.command` mit `codex exec "<Auftrag>" < /dev/null > codex.out 2>&1`
-     (Companion-Weg haengt, siehe `docs/lessons.md` 2026-09-29), Warteschleife mit
-     Stillstandswaechter.
+0. **Online und abgenommen bis D5b-Nacharbeit (62269c5).** Heute dazugekommen: D4 Kampfbild
+   (Front schiesst, Soldaten fallen, Mini-Boss kaempft/stirbt, Ereignisprotokoll-Pruefung),
+   D4-Nacharbeit (keine fallenden Horde-Zombies, Saeulen-Vorschau), Messanzeige scrollbar +
+   "Letzte Messung" unter INFO, D5a (4 Fahrzeuge als Miniaturen in den Saeulen), D5b
+   (Einsatzablaeufe im Rechenkern mit Anfahrt, Panzer/Haubitze auf dem Feld) und
+   D5b-Nacharbeit (Treffer-Loecher an der Einschlagstelle, beide mittig links/rechts,
+   Haubitze 0,5-Massstab mit 2 Schuss + Abfahrt, +1-Schilder 21 m/s).
+   - iPhone-Messungen: D4 und D5b im Budget (Lauf-Bot 58,3 fps, Dauertest ~56 fps).
+   - **Offen bei Thomas:** Blick auf die D5b-Nacharbeit am iPhone (Pruefweg in Safari:
+     `…/run-gun/?pruefung=1&einsatz=panzer` bzw. `haubitze`).
+   - **Naechster Schritt:** D5c — Humvee (faehrt bis zur Haelfte, schiesst) und Hubschrauber
+     (kreist, feuert) auf dem Feld, mit denselben Treffer-Loechern; Ablaeufe im Kern
+     stehen schon (D5b). Danach D6, D7, D8.
+   - Fahrzeug-Rohdateien: `~/Downloads/rungun-roh/<name>/`, Kopie in `tmp/fahrzeuge/`
+     (ignoriert). Sketchfab-Download ueber Chrome siehe Memory "chrome-applescript-neustart".
+   - **Codex-Start:** `.command` mit `codex exec "<Auftrag>" < /dev/null > codex.out 2>&1`,
+     Warteschleife mit Stillstands- und Limitwaechter.
+   - Bekannt, nicht beauftragt: im Pruefmodus dunkelt der Hinweis "Offline-Speicher nicht
+     dauerhaft zugesagt" die ersten Sekunden ab (nur Testbrowser); Einheiten-Banner liegt
+     ueber der Messergebnisliste.
 1. **Abgenommen und online (2026-09-29):** D0, R1, D1, D2a/b/c. Worst Case am iPhone
    (390×844, 600 Zombies + 120 Soldaten + 2 Bosse + Wasser 1): 55,2–55,8 fps, 24–25 ms,
    Dauertest 3 min bestanden — **das Budget ist ausgereizt**, alles Weitere muss sparsam
