@@ -1,6 +1,6 @@
 # Aktive Aufgabe
 
-Status: APPROVED
+Status: SPEC_READY
 
 ## Aufgabe: D7r — Kampfrüstung "Mecha" als fünfte Säule (Plan V7, Abschnitt D7r)
 
@@ -178,3 +178,35 @@ Ganzes** — melden mit den Messwerten, keine dritte Variante.
 **N4:** Das Einheiten-Band mit Restsekunden ist aus dem 3D-Spiel entfernt, einschließlich Erzeugung, Aufrufen und bisherigen Banner-Tests. Ein Test prüft das Ausbleiben des Elements. Die allgemeine Statuszeile bleibt bestehen.
 
 **Prüfungen:** `npm run check` ohne Fehler; `npm test` 658/658 Tests in 72 Dateien; `npm run build` erfolgreich, neues Mecha-GLB in `dist/assets/`, PWA-Cache 274 Einträge; `git diff --check` ohne Befund. Der gezielte Lauf der Mecha- und Lauf-Tests war ebenfalls grün. Der vorgeschriebene Start in einem eigenen Terminal-Fenster war nicht möglich (`Unable to find application named 'Terminal'`); die Befehle liefen im Terminal-Werkzeug. Keine Browser-/iPhone-/WebGL-Sichtprüfung, kein Commit oder Push.
+
+
+## Nacharbeit 2 — dritter Anlauf für echte Schritte (Thomas 2026-10-01 19:45: "Dritter Anlauf")
+
+Thomas hat ausdrücklich einen dritten Anlauf gewählt (über der Plan-Grenze von zwei). Befund
+Claude zum zweiten Anlauf: (1) Gedreht wurde um die **Welt-x-Achse**, nicht um die Achse des
+jeweiligen Gelenkteils — die Beine stehen gespreizt, die Knie-Zylinder liegen schräg. (2) Die
+Spalt-Messung zählte Kind-Ecken bis 0,5 m ums Gelenk, auch Teile, die den Elternteil gar nicht
+berühren → sie misst Überlappung, nicht Abreißen.
+
+**N5 Gelenkachsen aus der Geometrie.** Hüfte und Knie drehen um die **Längsachse ihres
+Gelenkzylinders/-kugelpaars** (Hauptachse des Teils `Cylinder041__0` bzw. `Cylinder038__0` am
+Knie; an der Hüfte die Verbindungsachse der Hüftteile oder, falls nicht bestimmbar, die
+Seitenachse des Beins = Richtung senkrecht zur Ebene Hüfte–Knie–Knöchel), Knöchel analog.
+Achsen als Zahlen im Bericht. Drehung je Glied als Quaternion um diese Achse.
+**N6 Messung richtig.** Kontaktmenge = Kind-Ecken, die in Grundstellung **≤ 0,08 m von einem
+Dreieck des Elternglieds** entfernt sind (Punkt-zu-Fläche). Spalt = deren Punkt-zu-Fläche-
+Abstand zum Elternglied in jeder von 8 Phasen. Grenze bleibt **0,05 m**.
+**N7 Drehpunkt optimieren.** Je Gelenk den Drehpunkt in einem Gitter ±0,25 m (Schritt 0,02 m)
+um die Gelenkmitte so wählen, dass der größte Spalt über die 8 Phasen minimal ist; gewählter
+Punkt im Bericht. Teile, deren Kontaktmenge leer ist und die quer über die Gelenkgrenze liegen,
+dürfen dem Nachbarglied zugeordnet werden (Liste im Bericht).
+**N8 Ausweg Winkel.** Bleibt der Spalt > 0,05 m: Kniebeugung schrittweise von 35° auf bis zu
+15° und Hüfte von 18° auf bis zu 12° senken, bis die Grenze hält. Unter 15°/12° → Stampfen
+bleibt, melden.
+**N9 Im Spiel aktiv.** Erfüllt → `mechaPose` liefert die Schrittbewegung (N2-Werte bzw. N8-
+Werte), sichtbar in `fahrt` (vorwärts) und beim Rückwärtsgehen; Seitenbilder der 4 Phasen neu
+(`tests/fixtures/mecha-schritt-1…4.png`, überschreiben). Test N3/N6 als Verhaltenstest mit der
+echten GLB.
+`node scripts/modelle.mjs mecha` falls die Zuordnung sich ändert; `npm run check`, `npm test`,
+`npm run build`. Status `IMPL_DONE`, Bericht unter diesem Abschnitt: Achsen, Drehpunkte, Spalt
+je Gelenk vorher/nachher, Endwinkel.
