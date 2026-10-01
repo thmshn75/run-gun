@@ -1562,3 +1562,18 @@ alle Fahrzeuge 0,45 m gross (≈ 6–12 px). Geprueft war bisher nur, ob `schies
 **Regel:** Kurzlebige Effekte (Blitz, Funke) altern erst ab dem Bild nach ihrem ersten Zeichnen
 und haben eine Mindestzahl gerenderter Bilder. Im Review nicht den Aufruf zaehlen, sondern die
 **gezeichneten Bilder je Ereignis** (Hook auf `setze`/`count`) und die Groesse in Bildpunkten.
+
+## 2026-10-01 — Jedes Fahrzeug einzeln auf eine Ziellänge gebracht, Verhältnisse zerstört
+
+Für die Eis-Säulen schrieb die Spec je Fahrzeug eine feste Ziellänge vor (3,0 m, Hubschrauber
+3,54 m; später alle 3,75 m bzw. 5 m). Damit waren Humvee und 10-m-Panzer gleich lang. Thomas:
+"Die Größenverhältnisse stimmen nicht — sie müssen im Verhältnis zueinander richtig sein, sie
+dürfen auch über die Fahrbahn ragen." Ursache: Die Spec ordnete die Größe dem **Platz**
+(Blockmaß, Streifenbreite) unter statt dem **Vergleich zwischen den Objekten**, und sie
+ersetzte "doppelt/2,5-fach so groß" durch eine Zahl je Objekt.
+**Regel:** Werden mehrere Objekte derselben Art gemeinsam gezeigt (Fahrzeuge, Figuren,
+Gebäude), gibt es **einen** Maßstab für alle; Platzgrenzen werden über Lage, Abstand oder
+Überstand gelöst, nie über Einzelskalierung. Ein Test hält das Verhältnis fest (Länge A /
+Länge B = Vorlage A / Vorlage B). Zweitens: Eine Lagevorgabe als Untergrenze ("Innenkante
+≥ 3,6") lässt dem Umsetzer jeden größeren Wert — Codex setzte x = 7 und schob alles aus dem
+Bild. Lagen, die man sehen soll, als Wert mit enger Spanne vorgeben und im Bild prüfen.
