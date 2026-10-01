@@ -4,7 +4,7 @@ import { NodeIO } from '@gltf-transform/core'
 import { EXTTextureWebP } from '@gltf-transform/extensions'
 import sharp from 'sharp'
 import * as THREE from 'three'
-import { FAHRZEUGE, LEVELS, type FahrzeugName } from '../src/v3d/balance3d'
+import { EIS, FAHRZEUGE, LEVELS, type FahrzeugName } from '../src/v3d/balance3d'
 import { baueMiniatur, baueFeldFahrzeug, type FahrzeugBau } from '../src/v3d/fahrzeuge'
 import { Einsatzbilder } from '../src/v3d/lauf'
 import { neuerLauf, starteEinheit } from '../src/v3d/rechnung'
@@ -60,6 +60,32 @@ describe('3D-Fahrzeuge', () => {
       const muendung = FAHRZEUGE[name].MUENDUNG
       expect(kurs.localToWorld(new THREE.Vector3(0, 0, muendung[2] * FAHRZEUGE[name].SPIEL_SKALA)).z).toBeLessThan(0)
     }
+  })
+  it('passt vier stillstehende Fahrzeuge in den Eisblock', async () => {
+    const laengen: Record<string,number> = {}
+    for (const name of namen) {
+      const root=(await io.read(`src/v3d/modelle/v3d-${name}.glb`)).getRoot()
+      const vorlage=new THREE.Group()
+      for(const node of root.listNodes().filter(n=>n.getMesh())) {
+        const knoten=new THREE.Group();knoten.name=node.getName();knoten.matrix.fromArray(node.getWorldMatrix());knoten.matrixAutoUpdate=false
+        for(const primitive of node.getMesh()!.listPrimitives()) {
+          const positionen=primitive.getAttribute('POSITION')!,werte=new Float32Array(positionen.getCount()*3)
+          for(let i=0;i<positionen.getCount();i++)positionen.getElement(i,werte.subarray(i*3,i*3+3))
+          const geometrie=new THREE.BufferGeometry();geometrie.setAttribute('position',new THREE.BufferAttribute(werte,3));knoten.add(new THREE.Mesh(geometrie))
+        }
+        vorlage.add(knoten)
+      }
+      const mini=baueMiniatur({vorlage} as FahrzeugBau,name,[EIS.BREITE-.2,EIS.HOEHE-.2,EIS.LAENGE-.2],{eis:true})
+      const box=new THREE.Box3().setFromObject(mini,true),size=box.getSize(new THREE.Vector3())
+      laengen[name]=size.z
+      expect(size.x,name).toBeLessThanOrEqual(EIS.BREITE-.2+1e-6)
+      expect(size.y,name).toBeLessThanOrEqual(EIS.HOEHE-.2+1e-6)
+      expect(size.z,name).toBeLessThanOrEqual(EIS.LAENGE-.2+1e-6)
+      if (name === 'hubschrauber') expect(size.z).toBeCloseTo(3.06, 1) // Hauptrotor begrenzt bei maximal erlaubter Blockbreite.
+      else expect(size.z,name).toBeGreaterThanOrEqual(3.75-1e-6)
+      expect(mini.localToWorld(new THREE.Vector3(...FAHRZEUGE[name].MUENDUNG)).z,name).toBeLessThan(0)
+    }
+    expect(Object.keys(laengen)).toHaveLength(4)
   })
   it('gibt den Prüf-Einsatz nur mit pruefung=1 frei', () => {
     expect(pruefEinsatz('?einsatz=panzer')).toEqual([])
@@ -203,18 +229,18 @@ describe('3D-Fahrzeuge', () => {
     }
   })
 
-  it('teilt Ressourcen und hält jede Miniatur innerhalb von 1,5 m je Achse', () => {
+  it('teilt Ressourcen und hält Miniaturen mit Rand im Eisblock', () => {
     for (const name of namen) {
       const geometrie=new THREE.BoxGeometry(2,1,4),material=new THREE.MeshStandardMaterial(),vorlage=new THREE.Group()
       vorlage.add(new THREE.Mesh(geometrie,material))
       const bau: FahrzeugBau={geometrien:[geometrie],material,laenge:FAHRZEUGE[name].LAENGE,vorlage,gibFrei(){}}
-      const mini=baueMiniatur(bau,name,[1.5,1.5,1.5]),mesh=mini.children[0] as THREE.Mesh
+      const mini=baueMiniatur(bau,name,[EIS.BREITE-.2,EIS.HOEHE-.2,EIS.LAENGE-.2],{eis:true}),mesh=mini.children[0] as THREE.Mesh
       expect(mesh.geometry).toBe(geometrie);expect(mesh.material).toBe(material)
       const box=new THREE.Box3().setFromObject(mini,true),size=box.getSize(new THREE.Vector3())
-      expect(box.min.y).toBeCloseTo(0)
-      expect(size.x).toBeLessThanOrEqual(1.5+1e-6)
-      expect(size.y).toBeLessThanOrEqual(1.5+1e-6)
-      expect(size.z).toBeLessThanOrEqual(1.5+1e-6)
+      expect(box.min.y).toBeGreaterThanOrEqual(.1)
+      expect(size.x).toBeLessThanOrEqual(EIS.BREITE-.2+1e-6)
+      expect(size.y).toBeLessThanOrEqual(EIS.HOEHE-.2+1e-6)
+      expect(size.z).toBeLessThanOrEqual(EIS.LAENGE-.2+1e-6)
     }
   })
 

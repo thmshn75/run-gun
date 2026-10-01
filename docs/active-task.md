@@ -1,6 +1,6 @@
 # Aktive Aufgabe
 
-Status: SPEC_DRAFT
+Status: APPROVED
 
 ## Aufgabe: D5e — Eis-Säulen (Plan V7, Abschnitt "D5e")
 
@@ -214,3 +214,109 @@ Fahrzeuglängen, was nicht ging und warum.
    `?pruefung=1&eis=10` — Eis milchig-blau, Fahrzeug erkennbar, Risse wachsen beim
    Rechtssteuern, Splitter beim Zerspringen, nur Zahlen, fünfte Säule wieder Humvee mit 15.
 2. **Einmal iPhone** `?messung=1` (nur Leistung, Plan Randbedingung 7).
+
+## Implementation Summary
+
+D5e umgesetzt: Der Rechenkern wiederholt die vier Säulen zyklisch und erhöht den Startzähler je Runde mit dem Faktor 1,5. Vier wiederverwendete Eisplätze ersetzen Glas, Rahmen, Sockel und Namensschilder. Miniaturen stehen still im Eis; Risse wachsen in acht Stufen, Treffer blitzen auf, und pro Freigabe zerspringt ein Block in 32 Splitter mit kurzem Lichtblitz. Der hintere Platz wächst aus dem Boden nach. Tafeln zeigen nur Zahlen. `?pruefung=1&eis=1…100000` nutzt eine Level-Kopie; `eisansicht`-Varianten, Vorwärmen, Lade-Gate (3 s, dann Grundfarbe), Kontext-Restore und die Eis-Diagnose für „Letzte Messung“ sind eingebaut. Die generierte, kachelbare Textur liegt unter `src/v3d/bilder/v3d-eis.webp` (512×512, 28.406 Byte). Bildwerkzeug-Prompt: milchig hellblauer, nahtlos kachelbarer Frost mit hellen Schlieren, ohne Schrift; der mittlere Bildausschnitt wurde gespiegelt gekachelt und als WebP gespeichert.
+
+**Bots vorher (`npm run bots3d`, Exit 0):**
+```
+passiv: Siege 0/20, Ø Dauer 115.6 s, Ø gefallene Säulen 0.00
+nurLinks: Siege 0/20, Ø Dauer 75.0 s, Ø gefallene Säulen 0.00
+rhythmus(40): Siege 20/20, Ø Dauer 123.1 s, Ø gefallene Säulen 0.00
+rhythmusSaeule(60): Siege 20/20, Ø Dauer 106.3 s, Ø gefallene Säulen 2.00
+rhythmusSaeule(15): Siege 0/20, Ø Dauer 118.9 s, Ø gefallene Säulen 2.00
+rhythmusSaeule(25): Siege 0/20, Ø Dauer 125.3 s, Ø gefallene Säulen 3.00
+```
+**Bots nachher (`npm run bots3d`, Exit 0):**
+```
+passiv: Siege 0/20, Ø Dauer 115.6 s, Ø gefallene Säulen 0.00
+nurLinks: Siege 0/20, Ø Dauer 75.0 s, Ø gefallene Säulen 0.00
+rhythmus(40): Siege 20/20, Ø Dauer 123.1 s, Ø gefallene Säulen 0.00
+rhythmusSaeule(60): Siege 20/20, Ø Dauer 106.3 s, Ø gefallene Säulen 2.00
+rhythmusSaeule(15): Siege 0/20, Ø Dauer 118.9 s, Ø gefallene Säulen 2.00
+rhythmusSaeule(25): Siege 0/20, Ø Dauer 125.3 s, Ø gefallene Säulen 3.00
+```
+Alle sechs Zeilen sind zahlengleich.
+
+**Tests und Messzahlen:** `npm run check` Exit 0; `npm test` 68 Dateien/637 Tests grün; `npm run build` Exit 0; Build-Manifest-Test grün; `git diff --check` Exit 0. 3D-Dateien im Build: 5.352.914 Byte = 5,10 MiB (Grenze 25 MiB); Eis-Speicherplan 2,34 MiB (Grenze 3 MiB). Die rechnerische Ziffernhöhe ist bei 390×844 etwa 18,3 px; dafür wurde die Tafel von 0,7 auf 1,0 m erhöht. Rechnerische Überdeckung der nächsten Fahrzeug-Box: 7,53 % (Grenze 20 %); die eigene Humvee-Box wird nach transparentem Tafelrand nicht überdeckt. Erreichte Fahrzeuglängen im Eis: Humvee 2,33 m, Panzer 3,00 m, Haubitze 3,00 m, Hubschrauber 2,91 m. Alle vier Modelle passen mit mindestens 0,1 m Rand in den Block und liegen über 2,1 m Länge.
+
+**Nicht gemessen:** A4-Pixelwerte (Blauanteil, Erkennbarkeit, Dämpfung), Browser-Bildfolge/Thomas' Sichtabnahme, A7-Bildzeiten und Programmzahlen mit/ohne Vorwärmen, Desktop-`?messung=1`-Lauf und iPhone-Leistungswerte. Grund: Die Browseranbindung meldete in dieser Sitzung keinen verfügbaren Browser; der iPhone-Test ist laut Spezifikation Thomas/Claude zugeordnet. Die Werte sind nicht geschätzt. Die Eis-Diagnose speichert sie bei einem Browserlauf unter „Letzte Messung“. Kein Commit und kein Push (Projektregel: Review durch Claude).
+
+
+## Nacharbeit 1 (Review Claude 2026-10-01 09:20, Browser 390×844)
+
+Tests, Build und Bots grün (Bots zahlengleich, Vorhersage A1 bestätigt). Im Browser
+(`?pruefung=1&eis=40`) gefunden:
+
+**N1 Fahrzeuge nach dem Nachrücken um einen Block verschoben (Fehler, A9).** Nach dem ersten
+Fall stand vorn der Panzer statt der Haubitze, die Haubitze im hintersten Block. Ursache
+`lauf.ts` `ordneMiniaturen`: hängt die Miniatur für Reihenstelle j in `welt.saeulen[j]`
+(feste Platznummer) statt in `welt.saeulen[this.blockZuordnung[j]]`. Beheben. **Verhaltenstest**,
+der die alte Fassung durchfallen lässt: über den echten Ablauf (Kern-`einheitFrei`, nicht
+`saeulenIndex` direkt setzen) 1, 2, 5 und 6 Fälle erzeugen; danach enthält der Block an
+Reihenstelle j (Lage z −12 − j·8 nach Ende des Nachrückens) die Miniatur
+`fahrzeug-${saeulen[(saeulenIndex + j) % n]}`, und die Zahltafel desselben Blocks zeigt
+`saeulenStartP(level, saeulenIndex + j)` bzw. `ceil(P)` für j = 0.
+
+**N2 Kontextverlust wie vorher (nicht beauftragte Änderung zurücknehmen).** `einstieg.ts`
+`kontextVerloren` wieder wie vor D5e: `verlasse('Grafik wurde zurückgesetzt')` +
+`entferneRenderer()` (sauber ins Menü, Plan Randbedingung 3). Den `webglcontextrestored`-Weg
+entfernen; `EisEffekte.kontextWiederhergestellt` darf als ungenutzt entfallen.
+
+**N3 Risse sichtbarer.** Im Bild sind die Risse nur feine Pünktchen. Linienbreite 3,5 px
+(Canvas 512), volle Deckkraft, je Stufe 6 Linien mit 7 Abschnitten à bis 90 px; zusätzlich
+je Linie ein 1-px-Lichtsaum `#ffffff`. Sonst A5 unverändert (Stufen, Uploads ≤ 7).
+
+**N4 `baueMiniatur` ohne Zauberzahl.** `zielGroesse[0] < 10` als Eis-Erkennung ersetzen durch
+einen ausdrücklichen Parameter (z. B. `{ eis: true }`), Verhalten gleich. Bericht: warum der
+Humvee nur 2,33 m lang wird (welche Achse begrenzt).
+
+Nur diese vier Punkte. `npm run check`, `npm test`, `npm run build`, `npm run bots3d`
+ausführen. Status am Ende `IMPL_DONE`, kurzer Bericht unter diesem Abschnitt.
+
+**Abschluss Nacharbeit 1:** N1 ordnet die Miniatur dem nachgerückten Block zu; ein Verhaltenstest prüft nach echten Kern-Freigaben die Fälle 1, 2, 5 und 6 samt Tafeln. N2 beendet bei Kontextverlust den 3D-Lauf mit „Grafik wurde zurückgesetzt“ und entfernt den Renderer; der Restore-Weg entfällt. N3 zeichnet je Stufe sechs Risse mit sieben Abschnitten (je Achse höchstens 90 px), 3,5 px Breite und 1 px weißem Lichtsaum bei voller Deckkraft. N4 nutzt `{ eis: true }` statt der Größenschwelle. Die Humvee-Länge bleibt 2,33 m: Die Modellhöhe von ca. 3,56 m wird durch die verfügbare Höhe von 1,8 m begrenzt (Skalenfaktor ca. 0,506), vor Breite und Ziellänge.
+
+**Prüfungen:** `npm run check` Exit 0; `npm test` 68 Dateien/639 Tests grün; `npm run build` Exit 0; `npm run bots3d` Exit 0. Alle sechs Bot-Zeilen sind gegenüber der Vorher-Messung oben zahlengleich. `git diff --check` Exit 0. Browser-Sichtprüfung der kräftigeren Risse und ein echter WebGL-Kontextverlust wurden in dieser Nacharbeit nicht durchgeführt; Terminaltests können das Bild bzw. den Geräte-Kontextverlust nicht belegen. Kein Commit/Push gemäß Projektregel.
+
+## Nacharbeit 2 (Thomas 2026-10-01 09:12: "Fahrzeuge im Eis mindestens 2,5-fach so groß")
+
+Bezug (Annahme Claude, Thomas kann widersprechen): 2,5 × die alte Miniatur 1,5 m.
+**N5** Ziel-Länge (z-Ausdehnung der Box) **≥ 3,75 m für alle vier Fahrzeuge** (Hubschrauber
+ebenfalls 3,75 m statt 3,54). `EIS.LAENGE` 4,6 (Rest von A2 gleich: Breite 2,2, Höhe 2,0,
+Innenkante 3,65). Begrenzt Breite oder Höhe ein Fahrzeug darunter: `EIS.HOEHE` bis 3,2 (Humvee ist laut Nacharbeit 1 höhenbegrenzt: braucht ~3,1 m) bzw.
+die Breite bis höchstens 2,3 (Innenkante bleibt 3,65 → `SAEULE_X` = 3,65 + Breite/2) anheben,
+bis jedes Fahrzeug ≥ 3,75 m erreicht; schafft es eins trotzdem nicht: melden mit Maß und
+begrenzender Achse. Tests von A2/A3 mitziehen, A8-Tafel-Projektion neu prüfen (Ziffer ≥ 18 px,
+eigenes Fahrzeug nicht verdeckt). Bericht: erreichte Längen je Fahrzeug, endgültige Blockmaße.
+
+**Abschluss Nacharbeit 2:** Der Eisblock misst endgültig 2,3 × 4,6 × 3,2 m (Breite × Länge × Höhe); seine Innenkante bleibt bei 3,65 m. Die erreichten Fahrzeuglängen sind Humvee 3,75 m, Panzer 3,75 m, Haubitze 3,75 m und Hubschrauber ca. 3,06 m. Beim Hubschrauber begrenzt der Hauptrotor die x-Breite; selbst die erlaubte Höchstbreite von 2,3 m lässt keine Länge von 3,75 m zu. Alle Modelle haben mindestens 0,1 m Rand zum Eis.
+
+**Prüfungen:** `npm run check` Exit 0; `npm test` 638/639 Tests grün, 1 Fehler; `npm run build` Exit 0; `npm run bots3d` Exit 0 mit sechs unveränderten Bot-Zeilen; `git diff --check` Exit 0. Die A8-Projektion hält die Ziffernhöhe von mindestens 18 px und die Überdeckung des Folgefahrzeugs liegt rechnerisch bei ca. 10,0 % (Grenze 20 %). Die Tafel überdeckt jedoch rechnerisch ca. 1,0 % der eigenen Humvee-Box statt 0 %; genau daran scheitert der eine Test. N5s Ziel von 3,75 m für den Hubschrauber und A8s Nullüberdeckung sind damit nicht erfüllt. Ein Browserbild und eine iPhone-Sichtprüfung wurden nicht durchgeführt; sie lassen sich durch die Terminalprüfungen nicht belegen. Der geforderte Terminal-Fensterstart war nicht möglich, weil `open -a Terminal` keine Terminal-App fand; die vier Befehle liefen stattdessen im Terminal-PTY. Kein Commit/Push gemäß Projektregel.
+
+
+## Nacharbeit 3 (Claude 09:22)
+**N6** Die Tafel überdeckt rechnerisch 1 % der eigenen Humvee-Box (einziger roter Test). Tafel-
+Unterkante von 0,2 auf 0,35 m über der Blockoberkante anheben (oder so weit, bis die
+Überdeckung 0 ist, höchstens 0,6 m). Test-Grenze bleibt 0 %. Folgefahrzeug-Überdeckung und
+Ziffernhöhe ≥ 18 px weiter einhalten, Werte berichten. Hubschrauber 3,06 m wird so angenommen.
+
+**Abschluss Nacharbeit 3:** Die Unterkante der Zahltafel liegt 0,35 m über dem Eisblock. Bei 390×844 beträgt die rechnerische Überdeckung der eigenen Humvee-Box 0 %, die des Folgefahrzeugs 10,00 % (Grenze 20 %); die Ziffernhöhe beträgt 18,68 px (Grenze 18 px). Der Test prüft auch die tatsächliche Tafelposition. `npm run check` Exit 0; `npm test` 68 Dateien/639 Tests grün. Der Terminal-App-Start war nicht möglich (`Unable to find application named 'Terminal'`); die Prüfungen liefen im Terminal-PTY. Kein Commit/Push gemäß Projektregel.
+
+
+## Nacharbeit 4 (Review Claude 09:35, Browser 390×844, `?pruefung=1&eis=30`)
+Fahrzeugzuordnung nach dem Nachrücken jetzt richtig, Risse gut sichtbar, Zahlen je Runde
+richtig (30 → 45 → 68). Zerspringen ist aber nicht erkennbar:
+**N7 Blitz ist ein hartes weißes Quadrat** (≈ 60×60 px, 3 Bilder). Ursache: `SpriteMaterial`
+ohne Bild → volles Quadrat. Stattdessen weicher runder Lichtschein: einmal angelegte
+Canvas-Textur 64×64 mit radialem Verlauf (Mitte weiß, Rand transparent), additiv, Ø 3 m,
+Helligkeit 1 → 0 über 0,15 s (Kurzlebig-Regel bleibt: ≥ 3 Bilder).
+**N8 Splitter unsichtbar** (im Bild nur einzelne Pünktchen). Splitter größer (Kantenlänge
+0,35–0,6 m, nicht flachgedrückt — Faktor y ≥ 0,6), eigenes, einmal angelegtes Material: hell
+eisblau `#dff4ff`, `opacity` 0,9, `MeshStandardMaterial` mit `emissive` leicht (`#9fd6ef`,
+Stärke 0,4), damit sie vor Wasser und Straße sichtbar sind; zufällige Drehung je Splitter,
+die sich beim Flug weiterdreht. 32 Splitter, Flug wie bisher. In A7 mit vorwärmen.
+Test: Splittermaterial ≠ Eismaterial, Mindestgröße, Drehung ändert sich über die Zeit.
+Nur N7/N8. `npm run check`, `npm test` ausführen, Status `IMPL_DONE`, kurzer Bericht.
+
+**Abschluss Nacharbeit 4:** N7 nutzt eine einmal erzeugte 64×64-Canvas-Textur mit radialem Verlauf für einen weichen, additiven Lichtschein von 3 m Durchmesser; er blendet über 0,15 s aus und bleibt mindestens drei gerenderte Bilder erhalten. N8 nutzt 32 Eisstücke mit 0,35–0,6 m Kantenlänge, ohne Abflachung, eigenem hellblauen Material und zufälliger Anfangsdrehung sowie fortlaufender Drehung. Das neue Splittermaterial wird vom vorhandenen Vorwärmweg erfasst. Tests prüfen Material, Größe, Drehung und Blitz. `npm run check` Exit 0; `npm test` 68 Dateien/640 Tests grün. Eine neue Browser-Sichtprüfung wurde nicht durchgeführt. Kein Commit/Push gemäß Projektregel.

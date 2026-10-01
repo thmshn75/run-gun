@@ -17,6 +17,7 @@ export interface Level {
   B_mini: number
   B_elite: number
   P: number
+  saeulenRundenFaktor: number
   saeulen: string[]
   C: number
   bossDruck: number
@@ -35,7 +36,7 @@ export const LEVELS: Level[] = [{
   schwelleLinks: -0.6, schwelleRechts: 0.6,
   wellen: [{ t: 0, groesse: 250 }, { t: 20, groesse: 250 }, { t: 40, groesse: 250 }],
   streuung: 0.1, miniBossWelle: 1, eliteBossZeit: 60,
-  B_mini: 400, B_elite: 3000, P: 150,
+  B_mini: 400, B_elite: 3000, P: 150, saeulenRundenFaktor: 1.5,
   saeulen: ['humvee', 'haubitze', 'panzer', 'hubschrauber'],
   C: 40, bossDruck: 25, zombieTreffer: 0.5, soldatenVerlust: 0.4,
   gegnerProSoldat: 2, frontVerschiebung: 0.5, bossSchaden: 25,
@@ -83,7 +84,7 @@ export const BUEHNE = {
   PLUS_ABSTAND: 4,
   WAND_HOEHE: 1.2,
   WAND_FARBE: '#1f6fd6',
-  SAEULE_X: 4.7,
+  SAEULE_X: 4.8,
   SAEULEN_ABSTAND: 8,
   KAMERA_SICHTFELD: 22,
   KAMERA_POSITION: [0, 28.5, 45.7] as const,
@@ -115,4 +116,5 @@ export const FIGUREN = {
 // Aus src/style.css (env(safe-area-inset-*), touch-action: none) und
 // src/systems/safeArea.ts (CSS-Pixel); die Randgeste braucht 24 pt Reserve.
 export const STEUERUNG = { RANDRESERVE_PT: 24, VERSTAERKUNG: 1.6, MIN_X: -3, MAX_X: 3, MAX_M_PRO_S: 40 } as const
+export const EIS = { BREITE: 2.3, LAENGE: 4.6, HOEHE: 3.2, SPLITTER_POOL: 80 } as const
 export const DARSTELLUNG = { FORMATION_MAX: 30, TRUPPS_MAX: 50, FRONT_MAX: 40, HORDE_MAX: 600, LOCH_HEILEN_S: .25, LOCH_STANDZEIT_S: 2, LOECHER_MAX: 150, GASSE_SCHLIESSEN_S: 3, HUMVEE_TAKT_S: .25, HUMVEE_BLITZ_DAUER_S: .15, HUBSCHRAUBER_TAKT_S: .2, HUBSCHRAUBER_FRONTABSTAND: 3.25, HUBSCHRAUBER_BOSS_VERSATZ: 1.5, FAHRZEUG_BLITZ: { haubitze: { durchmesser: 2.4, dauer: .15 }, panzer: { durchmesser: 1.6, dauer: .12 }, humvee: { durchmesser: .45, dauer: .15 }, hubschrauber: { durchmesser: .45, dauer: .08 } }, SCHILDER_TEMPO_LANGSAM: 4, SCHILDER_TEMPO_SCHNELL: 21, SCHILDER_BESCHLEUNIGUNG: 64, SAEULEN_VORSCHAU: 3, BLITZE_MAX: 12, BLITZE_PRO_SEKUNDE: 10, BLITZ_DAUER: .06, FRONT_BLITZE_MAX: 8, FRONT_BLITZE_PRO_SEKUNDE: 12, FALL_SOLDATEN_MAX: 8, EXPLOSIONEN_MAX: 12 } as const

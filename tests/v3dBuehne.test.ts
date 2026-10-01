@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { describe, expect, it, vi } from 'vitest'
-import { BUEHNE, DARSTELLUNG, FAHRZEUGE, LEVELS } from '../src/v3d/balance3d'
+import { BUEHNE, DARSTELLUNG, EIS, LEVELS } from '../src/v3d/balance3d'
 import { platzhalter } from '../src/v3d/szene'
 import type { FahrzeugBau } from '../src/v3d/fahrzeuge'
 import type { FahrzeugName } from '../src/v3d/balance3d'
@@ -25,9 +25,8 @@ function breite(camera: THREE.PerspectiveCamera, z: number) {
 }
 
 describe('3D-Bühne', () => {
-  it('baut vier benannte Säulen mit einem Rahmen-Netz und geteilten Ressourcen', () => {
-    const gemalteNamen: {name:string;breite:number}[]=[]
-    const ctx={font:'',clearRect:vi.fn(),fillRect:vi.fn(),fillText:vi.fn(function(this:{font:string},name:string){gemalteNamen.push({name,breite:name.length*Number.parseInt(this.font.match(/\d+/)?.[0]??'0')*.64})}),strokeText:vi.fn(),measureText:vi.fn(function(this:{font:string},name:string){return {width:name.length*Number.parseInt(this.font.match(/\d+/)?.[0]??'0')*.64}}),createLinearGradient:()=>({addColorStop:vi.fn()})}
+  it('baut vier Eisplätze mit geteiltem Block und Zahltafeln', () => {
+    const ctx={font:'',clearRect:vi.fn(),fillRect:vi.fn(),fillText:vi.fn(),strokeText:vi.fn(),measureText:vi.fn(()=>({width:30})),beginPath:vi.fn(),moveTo:vi.fn(),lineTo:vi.fn(),stroke:vi.fn(),createLinearGradient:()=>({addColorStop:vi.fn()}),createRadialGradient:()=>({addColorStop:vi.fn()})}
     vi.stubGlobal('document',{createElement:()=>({width:0,height:0,getContext:()=>ctx})})
     vi.stubGlobal('location',{search:''})
     try {
@@ -35,37 +34,27 @@ describe('3D-Bühne', () => {
       vorlage.add(new THREE.Mesh(form,material))
       const fahrzeuge=Object.fromEntries(LEVELS[0].saeulen.map(n=>[n,{geometrien:[form],material,laenge:4,vorlage,gibFrei(){}}])) as Record<FahrzeugName,FahrzeugBau>
       const scene=new THREE.Scene(),p=platzhalter(scene,fahrzeuge)
-      expect(DARSTELLUNG.SAEULEN_VORSCHAU).toBe(3)
-      expect(BUEHNE.SAEULEN_ABSTAND).toBe(8)
-      expect(p.saeulen.map(s=>s.name)).toEqual(LEVELS[0].saeulen.map(n=>`saeule-${n}`))
-      for(const name of LEVELS[0].saeulen)expect(ctx.fillText).toHaveBeenCalledWith(name.toUpperCase(),128,48)
-      const saeulenNamen=gemalteNamen.filter(e=>LEVELS[0].saeulen.some(n=>n.toUpperCase()===e.name))
-      expect(saeulenNamen.map(e=>e.name)).toEqual(LEVELS[0].saeulen.map(n=>n.toUpperCase()))
-      expect(saeulenNamen.every(e=>e.breite<=256-16)).toBe(true)
-      expect(ctx.measureText).toHaveBeenCalled()
+      expect(p.saeulen).toHaveLength(4)
       expect(p.saeulen.map(s=>s.position.z)).toEqual([-12,-20,-28,-36])
-      for (const [i,saeule] of p.saeulen.entries()) {
-        expect(saeule.children).toHaveLength(5)
-        expect(saeule.children.filter(o=>o.name==='saeule-rahmen')).toHaveLength(1)
-        expect(p.saeulenInnen[i].name).toBe(`fahrzeug-${LEVELS[0].saeulen[i]}`)
-        expect(new THREE.Box3().setFromObject(p.saeulenInnen[i],true).min.y).toBeCloseTo(FAHRZEUGE.MINI_Y)
-        const sockel=saeule.getObjectByName('mini-sockel') as THREE.Mesh
-        expect(sockel).toBeInstanceOf(THREE.Mesh)
-        const sockelGroesse=new THREE.Box3().setFromObject(sockel,true).getSize(new THREE.Vector3())
-        expect(sockelGroesse.x).toBeCloseTo(1.3)
-        expect(sockelGroesse.y).toBeCloseTo(.06)
-        expect(sockelGroesse.z).toBeCloseTo(1.3)
-        const glas=saeule.getObjectByName('saeule') as THREE.Mesh
-        expect((glas.material as THREE.MeshStandardMaterial).opacity).toBe(.15)
-        expect(saeule.getObjectByName('spezialeinheit-platzhalter')).toBeUndefined()
-        expect(saeule.children.find(o=>o.name===`saeule-name-${LEVELS[0].saeulen[i].toUpperCase()}`)).toBeDefined()
-        if(i>0)for(let j=1;j<4;j++){
-          expect((saeule.children[j] as THREE.Mesh).geometry).toBe((p.saeulen[0].children[j] as THREE.Mesh).geometry)
-          expect((saeule.children[j] as THREE.Mesh).material).toBe((p.saeulen[0].children[j] as THREE.Mesh).material)
-        }
-        if(i>0)expect((saeule.children[4] as THREE.Mesh).geometry).toBe((p.saeulen[0].children[4] as THREE.Mesh).geometry)
+      expect(p.miniaturen).toHaveLength(4)
+      for (const [i,block] of p.saeulenBloecke.entries()) {
+        expect(block.name).toBe('eisblock')
+        expect(block.geometry).toBe(p.saeulenBloecke[0].geometry)
+        expect((block.geometry as THREE.BoxGeometry).parameters).toMatchObject({width:EIS.BREITE,height:EIS.HOEHE,depth:EIS.LAENGE})
+        expect(block.position.y).toBe(EIS.HOEHE/2)
+        expect(block.material).toBe(i===0?p.eis.treffer:p.eis.basis)
+        expect(p.saeulenSchilder[i].name).toBe('eis-zahl')
+        expect(p.saeulenSchilder[i].position.y - EIS.HOEHE - .5).toBeCloseTo(.35)
+        expect((p.saeulenSchilder[i].material as THREE.MeshBasicMaterial).depthTest).toBe(true)
+        expect(p.saeulen[i].getObjectByName('mini-sockel')).toBeUndefined()
+        expect(p.saeulen[i].getObjectByName('saeule-rahmen')).toBeUndefined()
       }
-      expect(p.saeulen.reduce((n,s)=>n+s.children.filter(o=>o instanceof THREE.Mesh).length,0)).toBeLessThanOrEqual(20)
+      expect(BUEHNE.SAEULE_X-EIS.BREITE/2).toBeLessThanOrEqual(3.7)
+      expect(BUEHNE.SAEULE_X-EIS.BREITE/2).toBeCloseTo(3.65)
+      expect([EIS.BREITE,EIS.LAENGE,EIS.HOEHE]).toEqual([2.3,4.6,3.2])
+      expect(BUEHNE.SAEULE_X-EIS.BREITE/2).toBeGreaterThan(BUEHNE.MITTE_HALB+BUEHNE.KANTE_BREITE/2)
+      expect(BUEHNE.SAEULE_X+EIS.BREITE/2).toBeLessThanOrEqual(BUEHNE.BAHN_BREITE/2)
+      expect(p.saeulen.reduce((n,s)=>n+s.children.filter(o=>o instanceof THREE.Mesh).length,0)).toBeLessThanOrEqual(12)
     } finally {vi.unstubAllGlobals()}
   })
   it('trennt Schilder, Kampffeld und Säule geometrisch', () => {
@@ -75,8 +64,8 @@ describe('3D-Bühne', () => {
     expect(BUEHNE.PLUS_X + BUEHNE.PLUS_BREITE / 2).toBeLessThanOrEqual(-BUEHNE.MITTE_HALB)
     expect(BUEHNE.PLUS_BREITE).toBe(2)
     expect(BUEHNE.PLUS_HOEHE).toBe(1.2)
-    expect(BUEHNE.SAEULE_X - 1.6 / 2).toBeGreaterThanOrEqual(BUEHNE.MITTE_HALB)
-    expect(BUEHNE.SAEULE_X + 1.6 / 2).toBeLessThanOrEqual(aussen)
+    expect(BUEHNE.SAEULE_X - EIS.BREITE / 2).toBeGreaterThanOrEqual(BUEHNE.MITTE_HALB)
+    expect(BUEHNE.SAEULE_X + EIS.BREITE / 2).toBeLessThanOrEqual(aussen)
     expect(BUEHNE.WAND_HOEHE).toBe(1.2)
     expect(BUEHNE.WAND_FARBE).toBe('#1f6fd6')
     expect(2 * BUEHNE.MITTE_HALB).toBe(6.8)
@@ -86,6 +75,29 @@ describe('3D-Bühne', () => {
     expect(BUEHNE.KANTE_Z_HINTEN).toBe(-220)
     expect(BUEHNE.KANTE_Z_VORNE).toBeLessThan(-5)
     expect(BUEHNE.RANDMAUER_FARBE).toBe('#c9cbca')
+  })
+  it('projiziert die erste Zahl mit mindestens 18 Bildpunkten', () => {
+    const camera=baueKamera(390,844)
+    const unten=new THREE.Vector3(BUEHNE.SAEULE_X,EIS.HOEHE+.35,-12).project(camera)
+    const oben=new THREE.Vector3(BUEHNE.SAEULE_X,EIS.HOEHE+1.35,-12).project(camera)
+    const ziffernPixel=Math.abs(oben.y-unten.y)*844/2*96/128
+    expect(ziffernPixel).toBeGreaterThanOrEqual(18)
+  })
+  it('begrenzt die Überdeckung der nächsten Fahrzeugbox', () => {
+    const camera=baueKamera(390,844)
+    const ecke=(punkte:THREE.Vector3[])=>{
+      const bild=punkte.map(p=>p.project(camera))
+      return { links:Math.min(...bild.map(p=>p.x)),rechts:Math.max(...bild.map(p=>p.x)),oben:Math.min(...bild.map(p=>p.y)),unten:Math.max(...bild.map(p=>p.y)) }
+    }
+    const q=camera.quaternion,rechts=new THREE.Vector3(1,0,0).applyQuaternion(q),oben=new THREE.Vector3(0,1,0).applyQuaternion(q),mitte=new THREE.Vector3(BUEHNE.SAEULE_X,EIS.HOEHE+.9828125,-12)
+    const tafel=ecke([-1,1].flatMap(x=>[-.234375,.5].map(y=>mitte.clone().addScaledVector(rechts,.6*x).addScaledVector(oben,y))))
+    const fahrzeug=ecke([-(EIS.BREITE-.2)/2,(EIS.BREITE-.2)/2].flatMap(x=>[.1,EIS.HOEHE-.1].flatMap(y=>[-20-(EIS.LAENGE-.2)/2,-20+(EIS.LAENGE-.2)/2].map(z=>new THREE.Vector3(BUEHNE.SAEULE_X+x,y,z)))))
+    const eigenes=ecke([-.811,.811].flatMap(x=>[.15,3.05].flatMap(y=>[-13.875,-10.125].map(z=>new THREE.Vector3(BUEHNE.SAEULE_X+x,y,z)))))
+    const flaeche=(r:ReturnType<typeof ecke>)=>(r.rechts-r.links)*(r.unten-r.oben)
+    const schnitt=Math.max(0,Math.min(tafel.rechts,fahrzeug.rechts)-Math.max(tafel.links,fahrzeug.links))*Math.max(0,Math.min(tafel.unten,fahrzeug.unten)-Math.max(tafel.oben,fahrzeug.oben))
+    const eigenerSchnitt=Math.max(0,Math.min(tafel.rechts,eigenes.rechts)-Math.max(tafel.links,eigenes.links))*Math.max(0,Math.min(tafel.unten,eigenes.unten)-Math.max(tafel.oben,eigenes.oben))
+    expect(eigenerSchnitt).toBe(0)
+    expect(schnitt/flaeche(fahrzeug)).toBeLessThanOrEqual(.2)
   })
   it('hält die vorgegebenen Kamerawerte und Bildmaße in drei Formaten', () => {
     for (const [w, h] of [[390, 659], [375, 812], [390, 844]]) {

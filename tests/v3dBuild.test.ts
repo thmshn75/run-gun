@@ -20,6 +20,8 @@ describe.skipIf(!existsSync(join(dist, 'sw.js')))('3D-Build', () => {
     for (const name of v3d) expect(urls).toContain(`assets/${name}`)
     const webp = readdirSync(join(dist, 'assets')).filter(n => n.endsWith('.webp'))
     expect(webp.length).toBeGreaterThanOrEqual(2)
+    expect(webp.some(name => name.startsWith('v3d-eis-'))).toBe(true)
+    expect(statSync(resolve('src/v3d/bilder/v3d-eis.webp')).size).toBeLessThanOrEqual(150 * 1024)
     for (const name of webp) {
       expect(name).toContain('v3d')
       expect(urls).toContain(`assets/${name}`)

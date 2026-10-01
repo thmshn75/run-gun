@@ -1,8 +1,9 @@
-import { BUEHNE, DARSTELLUNG, FAHRZEUGE, FIGUREN, LEVELS, SPEZIAL, type FahrzeugName, type Level } from './balance3d'
-import { neuerLauf, schritt, phaseBei, type AktiveEinheit, type Ereignis, type Trupp, type Zustand } from './rechnung'
+import { BUEHNE, DARSTELLUNG, EIS, FAHRZEUGE, FIGUREN, LEVELS, SPEZIAL, type FahrzeugName, type Level } from './balance3d'
+import { neuerLauf, schritt, phaseBei, saeulenStartP, type AktiveEinheit, type Ereignis, type Trupp, type Zustand } from './rechnung'
 import { glaetteX, kernX } from './steuerung'
 import { bossFreieAufstellung } from './bosse'
 import type { Welt } from './szene'
+import { eisZahl } from './eis'
 import type { SoldatEintrag } from './soldaten'
 import { SoldatenMasse } from './soldaten'
 import { BossBalken, Explosionen, Muendungsblitze, ZahlAnzeige } from './anzeigen'
@@ -619,14 +620,15 @@ export class WeltDarstellung implements LaufDarstellung {
   private wandPulsBis = -Infinity
   private glasBlitzBis = -Infinity
   private letzterGlasBlitz = -Infinity
-  private glasMaterial: THREE.MeshStandardMaterial | null
-  private glasFarbe: THREE.Color | null
+  private bild = 0
+  private blockZuordnung: number[] = []
+  private letzteZahlZeit = -Infinity
   constructor(welt: Welt, seed = 12345, pruefDiagnose?: PruefDiagnose) {
     this.welt=welt
     welt.saeulen.forEach((saeule, i) => {
       saeule.position.z = -12 - i * BUEHNE.SAEULEN_ABSTAND
       saeule.visible = i <= DARSTELLUNG.SAEULEN_VORSCHAU
-      welt.saeulenInnen[i].visible = saeule.visible
+      welt.saeulenBloecke[i].visible = saeule.visible
     })
     this.zufallZustand = seed >>> 0
     this.fallSoldaten = new SoldatenMasse(welt.soldatBau, DARSTELLUNG.FALL_SOLDATEN_MAX)
@@ -638,10 +640,7 @@ export class WeltDarstellung implements LaufDarstellung {
     this.eliteBalken = new BossBalken(LEVELS[0].B_elite)
     this.vorgaenger = weltDarstellungen.get(welt)
     weltDarstellungen.set(welt, this)
-    const glas = welt.saeulen[0]?.getObjectByName('saeule')
-    this.glasMaterial = glas instanceof THREE.Mesh && glas.material instanceof THREE.MeshStandardMaterial ? glas.material : null
-    this.glasFarbe = this.glasMaterial ? new THREE.Color('#c8ecf7') : null
-    if (this.glasMaterial && this.glasFarbe) { this.glasMaterial.color.copy(this.glasFarbe); this.glasMaterial.opacity = .15 }
+    this.setzeEisZurueck()
     const canvas = document.createElement('canvas')
     canvas.width = 128; canvas.height = 64
     const ctx = canvas.getContext('2d')!
@@ -668,17 +667,43 @@ export class WeltDarstellung implements LaufDarstellung {
     this.bossBlitzBis = this.letzterBossBlitz = -Infinity
   }
   diag(): Readonly<LaufDiag> { return { frontBewegung: this.letzteFrontBewegung, frontBlitze: this.frontBlitzAktiv, fallSoldatenAktiv: this.fallSoldatenListe.length, fallSoldatenEntstanden: this.fallSoldatenGesamt, bossZustand: this.bossStand.zustand } }
-  private bewegeMiniaturen(): void {
-    for (const miniatur of this.welt.saeulenInnen) {
-      miniatur.rotation.y = this.uhr * 2 * Math.PI / FAHRZEUGE.DREH_S
-      const basisY = miniatur.userData.miniBasisY
-      if (typeof basisY === 'number') miniatur.position.y = basisY + .08 * Math.sin(this.uhr * Math.PI)
-      miniatur.getObjectByName('rotor')?.rotation.set(0, this.uhr * 8 * Math.PI, 0)
-      miniatur.getObjectByName('heckrotor')?.rotation.set(this.uhr * 12 * Math.PI, 0, 0)
+  setzeBild(bild: number): void { this.bild = bild }
+  private ordneMiniaturen(level: Level, index: number): void {
+    for (const mini of this.welt.miniaturen) mini.removeFromParent()
+    const vergeben = new Set<THREE.Object3D>()
+    for (let j = 0; j < this.welt.saeulen.length; j++) {
+      const name = level.saeulen[(index + j) % level.saeulen.length]
+      const mini = this.welt.miniaturen.find(m => m.name === `fahrzeug-${name}` && !vergeben.has(m))
+      if (mini) { vergeben.add(mini); this.welt.saeulen[this.blockZuordnung[j]].add(mini); mini.visible = true }
     }
   }
+  private setzeEisZurueck(): void {
+    const w = this.welt
+    w.eis.zuruecksetzen()
+    this.blockZuordnung = w.saeulen.map((_, i) => i)
+    w.saeulen.forEach((s, i) => {
+      s.position.set(BUEHNE.SAEULE_X, 0, -12 - i * BUEHNE.SAEULEN_ABSTAND)
+      s.visible = true
+      w.saeulenBloecke[i].visible = true; w.saeulenBloecke[i].scale.y = 1
+      w.saeulenBloecke[i].position.y = EIS.HOEHE / 2
+      w.saeulenBloecke[i].material = i === 0 ? w.eis.treffer : w.eis.basis
+      w.saeulenSchilder[i].visible = true
+    })
+    w.eis.setzeAktiv(w.saeulenBloecke[0], 0)
+    this.letzteSaeule = -1; this.letzteSchildSaeule = -1; this.letzteSaeulenZahl = null
+  }
+  private zeichneTafel(schild: THREE.Mesh, wert: number): void {
+    const canvas = schild.userData.canvas as HTMLCanvasElement, ctx = canvas.getContext('2d')!
+    const zahl = eisZahl(wert)
+    ctx.clearRect(0, 0, 256, 128)
+    ctx.fillStyle = '#142d39e8'; ctx.fillRect(0, 0, 256, 94)
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    let px = 96; ctx.font = `bold ${px}px system-ui`
+    while (px > 30 && ctx.measureText(zahl).width > 238) ctx.font = `bold ${--px}px system-ui`
+    ctx.fillText(zahl, 128, 56)
+    ;((schild.material as THREE.MeshBasicMaterial).map as THREE.CanvasTexture).needsUpdate = true
+  }
   private tickeNeu(): void {
-    this.bewegeMiniaturen()
     let geaendert = false
     for (let i = this.fallSoldatenListe.length - 1; i >= 0; i--) if (this.fallSoldatenEnden[this.fallSoldatenListe[i].phase!] <= this.uhr) { this.fallSoldatenListe.splice(i, 1); geaendert = true }
     if (geaendert) this.fallSoldaten.setze(this.fallSoldatenListe)
@@ -694,6 +719,7 @@ export class WeltDarstellung implements LaufDarstellung {
   }
   nachlauf(dt: number): void {
     this.uhr += Math.max(0, dt); this.tickeNeu(); this.einsatz.nachlauf(dt); this.loecher.schritt(dt)
+    this.welt.eis.aktualisiere(dt, this.bild)
     if (this.letzterStand) this.aktualisiereHorde(this.letzterStand.z)
   }
   private aktualisiereHorde(z: Zustand): number {
@@ -721,7 +747,6 @@ export class WeltDarstellung implements LaufDarstellung {
     const w = this.welt
     const t = z.t
     this.uhr += dt
-    this.bewegeMiniaturen()
     this.bossListe[0] = w.miniboss.objekt.visible ? this.bossPunkte[0].copy(w.miniboss.objekt.position).add(this.bossZiel.set(0, 1.5, 0)) : undefined
     this.bossListe[1] = w.eliteboss.objekt.visible ? this.bossPunkte[1].copy(w.eliteboss.objekt.position).add(this.bossZiel.set(0, 1.5, 0)) : undefined
     this.einsatz.abgleichen(z, ereignisse, dt, this.bossListe[0] ?? this.bossListe[1], this.bossListe)
@@ -854,48 +879,54 @@ export class WeltDarstellung implements LaufDarstellung {
     this.eliteBalken.objekt.visible=w.eliteboss.objekt.visible
     if (this.eliteBalken.objekt.visible) this.eliteBalken.setze(z.eliteBoss.B,t)
     this.eliteBalken.objekt.position.set(w.eliteboss.objekt.position.x,FIGUREN.ELITEBOSS_HOEHE+.5,w.eliteboss.objekt.position.z)
-    if (ereignisse.some(e => e.art === 'saeuleTreffer') && t - this.letzterGlasBlitz >= .2) { this.letzterGlasBlitz = t; this.glasBlitzBis = t + .08 }
-    if (this.glasMaterial && this.glasFarbe) {
-      this.glasMaterial.color.copy(this.glasFarbe).lerp(new THREE.Color('#ffffff'), t < this.glasBlitzBis ? .8 : 0)
-      this.glasMaterial.opacity = t < this.glasBlitzBis ? .65 : .15
+    const fall = ereignisse.some(e => e.art === 'einheitFrei')
+    const treffer = !fall && ereignisse.some(e => e.art === 'saeuleTreffer') && t - this.letzterGlasBlitz >= .2
+    if (treffer) {
+      this.letzterGlasBlitz = t; this.glasBlitzBis = t + .08
+      const aktiv = w.saeulenBloecke[this.blockZuordnung[0]]
+      if (aktiv) w.eis.trefferSplitter(aktiv.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 1, EIS.LAENGE / 2)), this.bild)
     }
+    w.eis.treffer.color.copy(w.eis.grundfarbe).lerp(w.eis.blitzfarbe, t < this.glasBlitzBis ? .65 : 0)
     if (z.saeulenIndex !== this.letzteSaeule) {
-      this.saeulenVon = w.saeulen.map(s => s.position.z)
+      if (this.letzteSaeule >= 0 && fall) {
+        const alt = this.blockZuordnung.shift()!
+        const block = w.saeulenBloecke[alt]
+        w.eis.zerspringe(block.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 1, 0)), this.bild)
+        block.visible = false; w.saeulenSchilder[alt].visible = false
+        this.blockZuordnung.push(alt)
+        w.saeulen[alt].position.z = -12 - (w.saeulen.length - 1) * BUEHNE.SAEULEN_ABSTAND
+        block.scale.y = .001
+        block.position.y = EIS.HOEHE * .001 / 2
+        w.eis.treffer.color.copy(w.eis.grundfarbe)
+        w.eis.setzeAktiv(w.saeulenBloecke[this.blockZuordnung[0]], z.saeulenIndex)
+        this.ordneMiniaturen(z.level, z.saeulenIndex)
+      } else this.ordneMiniaturen(z.level, z.saeulenIndex)
+      this.saeulenVon = this.blockZuordnung.map(i => w.saeulen[i].position.z)
       this.saeulenStart = this.uhr
       this.letzteSaeule = z.saeulenIndex
+      this.letzteSchildSaeule = -1
+      w.saeulenBloecke.forEach((block, i) => { block.material = i === this.blockZuordnung[0] ? w.eis.treffer : w.eis.basis })
     }
     const anteil = Math.min(1, (this.uhr - this.saeulenStart) / .6)
-    w.saeulen.forEach((saeule, i) => {
-      saeule.visible = i >= z.saeulenIndex && i <= z.saeulenIndex + DARSTELLUNG.SAEULEN_VORSCHAU
-      if (saeule.visible) {
-        const ziel = -12 - (i - z.saeulenIndex) * BUEHNE.SAEULEN_ABSTAND
-        saeule.position.z = THREE.MathUtils.lerp(this.saeulenVon[i] ?? ziel, ziel, anteil)
+    this.blockZuordnung.forEach((i, j) => {
+      const saeule = w.saeulen[i]
+      const ziel = -12 - j * BUEHNE.SAEULEN_ABSTAND
+      saeule.position.z = THREE.MathUtils.lerp(this.saeulenVon[j] ?? ziel, ziel, anteil)
+      if (j === w.saeulen.length - 1 && w.saeulenBloecke[i].scale.y < 1) {
+        w.saeulenBloecke[i].visible = true
+        w.saeulenBloecke[i].scale.y = anteil >= 1 - 1e-9 ? 1 : Math.max(.001, anteil)
+        w.saeulenBloecke[i].position.y = EIS.HOEHE * w.saeulenBloecke[i].scale.y / 2
+        if (anteil >= 1 - 1e-9) { w.saeulenSchilder[i].visible = true; const mini = saeule.children.find(m => m.name.startsWith('fahrzeug-')); if (mini) mini.visible = true }
+        else { w.saeulenSchilder[i].visible = false; const mini = saeule.children.find(m => m.name.startsWith('fahrzeug-')); if (mini) mini.visible = false }
       }
-      w.saeulenInnen[i].visible = saeule.visible
+      w.saeulenSchilder[i].quaternion.copy(w.camera.quaternion)
     })
+    w.eis.risse(z.P ?? 0, z.PStart ?? 0)
+    w.eis.aktualisiere(dt, this.bild)
     const zahl = z.P === null ? null : Math.ceil(z.P)
-    if (z.saeulenIndex !== this.letzteSchildSaeule || zahl !== this.letzteSaeulenZahl) {
-      for (const [i, schild] of w.saeulenSchilder.entries()) {
-        const canvas = schild.userData.canvas as HTMLCanvasElement
-        const ctx = canvas.getContext('2d')!
-        ctx.clearRect(0, 0, 256, 128)
-        ctx.fillStyle = '#102437d9'; ctx.fillRect(0, 0, 256, 128)
-        ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-        const name = LEVELS[0].saeulen[i].toUpperCase()
-        let schrift = 34
-        ctx.font = `bold ${schrift}px system-ui`
-        while (schrift > 10 && ctx.measureText(name).width > canvas.width - 16) {
-          ctx.font = `bold ${--schrift}px system-ui`
-        }
-        ctx.fillText(name, 128, i === z.saeulenIndex ? 36 : 64)
-        if (i === z.saeulenIndex && z.P !== null) {
-          ctx.font = 'bold 48px system-ui'
-          ctx.fillText(String(zahl), 128, 91)
-        }
-        ;((schild.material as THREE.MeshBasicMaterial).map as THREE.CanvasTexture).needsUpdate = true
-      }
-      this.letzteSchildSaeule = z.saeulenIndex
-      this.letzteSaeulenZahl = zahl
+    if (z.saeulenIndex !== this.letzteSchildSaeule || (zahl !== this.letzteSaeulenZahl && t - this.letzteZahlZeit >= .1)) {
+      this.blockZuordnung.forEach((i, j) => this.zeichneTafel(w.saeulenSchilder[i], j === 0 ? z.P ?? 0 : saeulenStartP(z.level, z.saeulenIndex + j)))
+      this.letzteSchildSaeule = z.saeulenIndex; this.letzteSaeulenZahl = zahl; this.letzteZahlZeit = t
     }
     setzeEinheitenBanner(z.aktiv)
     this.tickeNeu()
@@ -912,7 +943,7 @@ export class WeltDarstellung implements LaufDarstellung {
     this.fallSoldaten.gruppe.removeFromParent(); this.fallSoldaten.gibNetzeFrei()
     setzeEinheitenBanner([])
     this.welt.wand.scale.setScalar(1)
-    if (this.glasMaterial && this.glasFarbe) { this.glasMaterial.color.copy(this.glasFarbe); this.glasMaterial.opacity = .15 }
+    this.setzeEisZurueck()
     this.welt.scene.remove(this.truppeZahl.objekt, this.frontZahl.objekt, this.hordeZahl.objekt, this.miniBalken.objekt, this.eliteBalken.objekt)
     this.welt.laufGruppen = this.welt.laufGruppen.filter(obj => obj !== this.truppeZahl.objekt && obj !== this.frontZahl.objekt && obj !== this.hordeZahl.objekt && obj !== this.miniBalken.objekt && obj !== this.eliteBalken.objekt && obj !== this.blitze.objekt && obj !== this.frontBlitze.objekt && obj !== this.fallSoldaten.gruppe && !this.aufblenden.includes(obj as THREE.Sprite))
     if (weltDarstellungen.get(this.welt) === this) {
@@ -926,6 +957,7 @@ export class WeltDarstellung implements LaufDarstellung {
           this.vorgaenger.hordeZeit = -Infinity
           this.vorgaenger.letzteTrupps = ''
           this.vorgaenger.letzterFaktor = NaN
+          this.vorgaenger.setzeEisZurueck()
           this.vorgaenger.letzteSaeule = -1
           this.vorgaenger.letzteSchildSaeule = -1
           this.vorgaenger.uhr = 0

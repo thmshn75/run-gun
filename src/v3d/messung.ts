@@ -3,7 +3,7 @@ import type Phaser from 'phaser'
 import { auswerten, pmremPufferBytes, speicherMB, spiegelPufferBytes, urteil, type Bildgroesse } from './rechnen'
 import { ZombieMasse } from './figuren'
 import { SoldatenMasse, type SoldatEintrag } from './soldaten'
-import { FIGUREN } from './balance3d'
+import { EIS, FIGUREN } from './balance3d'
 import { bossFreieAufstellung } from './bosse'
 import type { Welt } from './szene'
 import type { WasserStufe } from './wasser'
@@ -47,6 +47,9 @@ interface Lauf {
   beiErgebnis: (offen: boolean) => void
 }
 let lauf: Lauf | null = null
+
+// GPU-Plan: Eisbild RGBA mit Mipmaps, Riss-Canvas RGBA, Instanzmatrizen.
+export const EIS_SPEICHER_MB = (512 * 512 * 4 * 4 / 3 + 512 * 512 * 4 + EIS.SPLITTER_POOL * 16 * 4) / 1048576
 
 export class DauertestFahrzeuge {
   readonly einsatz: Einsatzbilder
@@ -227,7 +230,7 @@ export function messBild(dt: number, jetzt: number): void {
   }
   const a = auswerten(l.bilder)
   const mb = groessen(l)
-  l.ergebnisse.push(`${MESSSTUFEN[l.stufe].name}: ${a.fps?.toFixed(1) ?? '–'} fps · langsamste 5 % ${a.p95?.toFixed(1) ?? '–'} ms · Schwarz ${l.schwarz === null ? '–' : `${l.schwarz.toFixed(1)} %`} · >250 ms: ${a.verworfen}\nBacken Soldat: ${l.welt.soldatBau.backzeitMs.toFixed(1)} ms · Bemalungen inkl. Bosse ${mb.bemalungen.toFixed(2)} MB · Wasserpuffer ${mb.zusatz.toFixed(2)} MB · Renderflächen ${mb.renderflaechen.toFixed(2)} MB · Phaser-Rest ${mb.phaserRest.toFixed(2)} MB · Speicherplan ${mb.gesamt.toFixed(2)} MB · Geometrien ${l.renderer.info.memory.geometries} · Texturen ${l.renderer.info.memory.textures}${l.bot ? `\nProtokoll: ${l.bot.protokollFehler ?? `ok (nach ${l.bot.zustand.t.toFixed(1)} s)`} · Draw Calls (max): ${l.maxDrawCalls}` : ''}\n${urteil(a, l.schwarz, mb.gesamt)}`)
+  l.ergebnisse.push(`${MESSSTUFEN[l.stufe].name}: ${a.fps?.toFixed(1) ?? '–'} fps · langsamste 5 % ${a.p95?.toFixed(1) ?? '–'} ms · Schwarz ${l.schwarz === null ? '–' : `${l.schwarz.toFixed(1)} %`} · >250 ms: ${a.verworfen}\nBacken Soldat: ${l.welt.soldatBau.backzeitMs.toFixed(1)} ms · Bemalungen inkl. Bosse ${mb.bemalungen.toFixed(2)} MB · Wasserpuffer ${mb.zusatz.toFixed(2)} MB · Renderflächen ${mb.renderflaechen.toFixed(2)} MB · Phaser-Rest ${mb.phaserRest.toFixed(2)} MB · Speicherplan ${mb.gesamt.toFixed(2)} MB · Eisbild/Riss/Splitter ${EIS_SPEICHER_MB.toFixed(2)} MB · Geometrien ${l.renderer.info.memory.geometries} · Texturen ${l.renderer.info.memory.textures}${l.bot ? `\nProtokoll: ${l.bot.protokollFehler ?? `ok (nach ${l.bot.zustand.t.toFixed(1)} s)`} · Draw Calls (max): ${l.maxDrawCalls}` : ''}\n${urteil(a, l.schwarz, mb.gesamt)}`)
   if (l.stufe === MESSSTUFEN.length - 1) {
     const ergebnis = l.ergebnisse.join('\n\n')
     bricheAb()

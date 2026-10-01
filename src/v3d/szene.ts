@@ -1,8 +1,9 @@
 import * as THREE from 'three'
 import strassenUrl from './bilder/v3d-strasse.webp?url'
 import normalenUrl from './bilder/v3d-wasser-normalen.webp?url'
-import { BUEHNE, DARSTELLUNG, FAHRZEUGE, FIGUREN, LEVELS, type FahrzeugName } from './balance3d'
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
+import eisUrl from './bilder/v3d-eis.webp?url'
+import { EisEffekte, ladeEisBemalung } from './eis'
+import { BUEHNE, DARSTELLUNG, EIS, FAHRZEUGE, FIGUREN, LEVELS, type FahrzeugName } from './balance3d'
 import { baueKamera } from './kamera'
 import { ladeZombie, ZombieMasse, type ZombieBau } from './figuren'
 import { ladeSoldatenDateien, fertigeSoldaten, entsorgeGLTF, SoldatenMasse, type SoldatenBau } from './soldaten'
@@ -34,7 +35,9 @@ export interface Welt {
   plusSchilder: THREE.Object3D[]
   wand: THREE.Object3D
   saeulen: THREE.Group[]
-  saeulenInnen: THREE.Object3D[]
+  miniaturen: THREE.Object3D[]
+  eis: EisEffekte
+  saeulenBloecke: THREE.Mesh[]
   saeulenSchilder: THREE.Mesh[]
   miniboss: Boss
   eliteboss: Boss
@@ -49,7 +52,7 @@ function box(gruppe: THREE.Group | THREE.Scene, name: string, groesse: [number, 
   return mesh
 }
 
-export function platzhalter(scene: THREE.Scene, fahrzeuge: Record<FahrzeugName, FahrzeugBau>) {
+export function platzhalter(scene: THREE.Scene, fahrzeuge: Record<FahrzeugName, FahrzeugBau>, eisTextur: THREE.Texture | null = null) {
   const gruppe = new THREE.Group()
   gruppe.name = 'platzhalter'
   gruppe.visible = new URLSearchParams(location.search).get('platzhalter') !== '0'
@@ -61,59 +64,28 @@ export function platzhalter(scene: THREE.Scene, fahrzeuge: Record<FahrzeugName, 
     const plus = baueSchild({ breite: BUEHNE.PLUS_BREITE, hoehe: BUEHNE.PLUS_HOEHE, text: '+1', farbe: '#168bd2', unterkante: 0.5, neigungGrad: -10, pfosten: false })
     plus.name = 'plus-eins'; plus.position.set(BUEHNE.PLUS_X, 0, z); gruppe.add(plus); plusSchilder.push(plus)
   }
-  const glasGeometrie = new THREE.BoxGeometry(1.6, 4, 1.6)
-  const sockelGeometrie = new THREE.CylinderGeometry(.65, .65, .06, 24)
-  const schildGeometrie = new THREE.PlaneGeometry(1.6, .9)
-  const kanten: THREE.BufferGeometry[] = []
-  const kante = (masse: [number, number, number], pos: [number, number, number]) => {
-    const g = new THREE.BoxGeometry(...masse); g.translate(...pos); kanten.push(g)
-  }
-  for (const x of [-.8, .8]) for (const z of [-.8, .8]) kante([.06, 4, .06], [x, 2, z])
-  for (const y of [0, 4]) {
-    for (const z of [-.8, .8]) kante([1.6, .06, .06], [0, y, z])
-    for (const x of [-.8, .8]) kante([.06, .06, 1.6], [x, y, 0])
-  }
-  const rahmenGeometrie = mergeGeometries(kanten)
-  kanten.forEach(g => g.dispose())
-  if (!rahmenGeometrie) throw new Error('Säulenrahmen nicht zusammenführbar')
-  const glasMaterial = new THREE.MeshStandardMaterial({ color: '#c8ecf7', transparent: true, opacity: .15, depthWrite: false, roughness: .1 })
-  const sockelMaterial = new THREE.MeshStandardMaterial({ color: '#263039', roughness: .8 })
-  const rahmenMaterial = new THREE.MeshStandardMaterial({ color: '#e5f6fa' })
-  const saeulen: THREE.Group[] = [], saeulenInnen: THREE.Object3D[] = [], saeulenSchilder: THREE.Mesh[] = []
-  for (const [index, name] of LEVELS[0].saeulen.entries()) {
-    if (index > DARSTELLUNG.SAEULEN_VORSCHAU) break
+  const eis = new EisEffekte(scene, eisTextur)
+  const tafGeometrie = new THREE.PlaneGeometry(1.2, 1.0)
+  const saeulen: THREE.Group[] = [], miniaturen: THREE.Object3D[] = [], saeulenSchilder: THREE.Mesh[] = [], saeulenBloecke: THREE.Mesh[] = []
+  for (const name of LEVELS[0].saeulen) miniaturen.push(baueMiniatur(fahrzeuge[name as FahrzeugName], name as FahrzeugName, [EIS.BREITE - .2, EIS.HOEHE - .2, EIS.LAENGE - .2], { eis: true }))
+  const anzahl = Math.min(LEVELS[0].saeulen.length, DARSTELLUNG.SAEULEN_VORSCHAU + 1)
+  for (let index = 0; index < anzahl; index++) {
     const saeule = new THREE.Group()
-    saeule.name = `saeule-${name}`
+    saeule.name = `saeule-${index}`
     saeule.position.set(BUEHNE.SAEULE_X, 0, -12 - index * BUEHNE.SAEULEN_ABSTAND)
-    const innen = baueMiniatur(fahrzeuge[name as FahrzeugName], name as FahrzeugName, [1.5, 1.5, 1.5])
-    innen.position.y += FAHRZEUGE.MINI_Y
-    innen.userData.miniBasisY = innen.position.y
-    innen.renderOrder = 1
-    const sockel = new THREE.Mesh(sockelGeometrie, sockelMaterial)
-    sockel.name = 'mini-sockel'; sockel.position.y = FAHRZEUGE.MINI_Y - .03; sockel.layers.set(1)
-    const glas = new THREE.Mesh(glasGeometrie, glasMaterial)
-    glas.name = 'saeule'; glas.position.y = 2; glas.renderOrder = 2
-    const rahmen = new THREE.Mesh(rahmenGeometrie, rahmenMaterial)
-    rahmen.name = 'saeule-rahmen'; rahmen.renderOrder = 3
-    const canvas = document.createElement('canvas')
-    canvas.width = 256; canvas.height = 128
-    const ctx = canvas.getContext('2d')!
-    ctx.fillStyle = '#102437d9'; ctx.fillRect(0, 0, 256, 128)
-    ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-    let schrift = 34
-    ctx.font = `bold ${schrift}px system-ui`
-    while (schrift > 10 && ctx.measureText(name.toUpperCase()).width > canvas.width - 16) {
-      ctx.font = `bold ${--schrift}px system-ui`
-    }
-    ctx.fillText(name.toUpperCase(), 128, 48)
+    const block = new THREE.Mesh(eis.blockGeometrie, index === 0 ? eis.treffer : eis.basis)
+    block.name = 'eisblock'; block.position.y = EIS.HOEHE / 2; block.renderOrder = 2
+    const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 128
     const textur = new THREE.CanvasTexture(canvas); textur.colorSpace = THREE.SRGBColorSpace
-    const schild = new THREE.Mesh(schildGeometrie, new THREE.MeshBasicMaterial({ map: textur, transparent: true, depthTest: false, side: THREE.DoubleSide }))
-    schild.name = `saeule-name-${name.toUpperCase()}`; schild.position.y = 4.95; schild.renderOrder = 10
+    const schild = new THREE.Mesh(tafGeometrie, new THREE.MeshBasicMaterial({ map: textur, transparent: true, depthTest: true, side: THREE.DoubleSide }))
+    schild.name = 'eis-zahl'; schild.position.y = EIS.HOEHE + .35 + .5; schild.renderOrder = 10
     schild.userData.canvas = canvas
-    saeule.add(innen, sockel, glas, rahmen, schild); gruppe.add(saeule)
-    saeulen.push(saeule); saeulenInnen.push(innen); saeulenSchilder.push(schild)
+    saeule.add(block, schild); gruppe.add(saeule)
+    saeulen.push(saeule); saeulenSchilder.push(schild); saeulenBloecke.push(block)
   }
-  return { gruppe, wand, plusSchilder, saeulen, saeulenInnen, saeulenSchilder }
+  eis.setzeAktiv(saeulenBloecke[0], 0)
+  return { gruppe, wand, plusSchilder, saeulen, miniaturen, saeulenSchilder, saeulenBloecke, eis }
+
 }
 
 export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStufe, abgebrochen: () => boolean, beiLadeFehler: (hinweis: string) => void): Promise<Welt | null> {
@@ -137,6 +109,9 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
   try {
     const beide = Promise.all([lade(strassenUrl), lade(normalenUrl), ladeZombie(renderer, () => vorbei || abgebrochen()).then(bau => { if (bau && (vorbei || abgebrochen())) { bau.formen.forEach(g => g.dispose()); bau.materialien.forEach(m => m.dispose()); bau.bemalungen.forEach(t => t.dispose()); return null } return bau }), ladeSoldatenDateien(() => vorbei || abgebrochen()).then(result => { if(result && (vorbei || abgebrochen())) { result.forEach(entsorgeGLTF); return null } dateien=result; return result }),ladeBossDateien(()=>vorbei||abgebrochen()).then(result=>{bossDateien=result;return result}),ladeFahrzeuge(()=>vorbei||abgebrochen()).then(result=>{fahrzeuge=result;return result})])
     const zeitlimit = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(DATEIEN_FEHLER)), 8000) })
+    const eisBild = await ladeEisBemalung(() => loader.loadAsync(eisUrl), abgebrochen)
+    if (!eisBild) console.warn('Eisbild nicht geladen; Grundfarbe wird verwendet')
+    else { eisBild.colorSpace = THREE.SRGBColorSpace; eisBild.generateMipmaps = true; geladen.push(eisBild) }
     const [strasse, normalen, zombieBau, soldatDateien, geladeneBosse, geladeneFahrzeuge] = await Promise.race([beide, zeitlimit])
     if (!zombieBau || !soldatDateien || !geladeneBosse || !geladeneFahrzeuge) {
       geladen.forEach(t => t.dispose())
@@ -186,7 +161,7 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
     // Der Boden des Damms schließt die Seiten bis y = -0,6.
     const damm = new THREE.Mesh(new THREE.PlaneGeometry(12, 240), beton)
     damm.rotation.x = Math.PI / 2; damm.position.set(0, -0.6, -100); damm.name = 'damm-unterseite'; scene.add(damm)
-    const platz = platzhalter(scene, geladeneFahrzeuge)
+    const platz = platzhalter(scene, geladeneFahrzeuge, eisBild)
     const nahWert = new URLSearchParams(location.search).get('nahaufnahme')
     const nahaufnahme = nahWert === '1' || nahWert === 'soldat' || nahWert === 'fahrzeuge'
     const soldatNahaufnahme = nahWert === 'soldat'
@@ -273,7 +248,7 @@ export async function baueSzene(renderer: THREE.WebGLRenderer, stufe: WasserStuf
     if (fahrzeugText) document.body.appendChild(fahrzeugText)
     if (nahaufnahme && !fahrzeugNahaufnahme) scene.children.filter(o => o instanceof THREE.Mesh).forEach(o => { o.visible = false })
     geladenesZombieBau = null
-    return { scene, camera, bemalungen: [strasse, normalen], wasser, zombieBau, zombieMasse, nahaufnahme, soldatNahaufnahme, fahrzeugNahaufnahme, fahrzeuge:geladeneFahrzeuge, fahrzeugGross, fahrzeugText, soldatBau, truppe, laufTrupp,front,miniboss:bosse[0],eliteboss:bosse[1], laufGruppen:[truppe.gruppe,laufTrupp.gruppe,front.gruppe,zombieMasse.gruppe,bosse[0].objekt,bosse[1].objekt,platz.gruppe], plusSchilder:platz.plusSchilder,wand:platz.wand,saeulen:platz.saeulen,saeulenInnen:platz.saeulenInnen,saeulenSchilder:platz.saeulenSchilder }
+    return { scene, camera, bemalungen: [strasse, normalen], wasser, zombieBau, zombieMasse, nahaufnahme, soldatNahaufnahme, fahrzeugNahaufnahme, fahrzeuge:geladeneFahrzeuge, fahrzeugGross, fahrzeugText, soldatBau, truppe, laufTrupp,front,miniboss:bosse[0],eliteboss:bosse[1], laufGruppen:[truppe.gruppe,laufTrupp.gruppe,front.gruppe,zombieMasse.gruppe,bosse[0].objekt,bosse[1].objekt,platz.gruppe,platz.eis.splitter,platz.eis.blitz], plusSchilder:platz.plusSchilder,wand:platz.wand,saeulen:platz.saeulen,miniaturen:platz.miniaturen,saeulenSchilder:platz.saeulenSchilder,saeulenBloecke:platz.saeulenBloecke,eis:platz.eis }
   } catch {
     fahrzeugText?.remove()
     geladen.forEach(t => t.dispose())
@@ -323,6 +298,7 @@ export function gibSzeneFrei(welt: Welt): void {
   if (welt.scene.background instanceof THREE.Texture) texturen.add(welt.scene.background)
   welt.scene.environment = null; welt.scene.background = null
   texturen.forEach(t => t.dispose())
+  welt.eis.basis.dispose(); welt.eis.treffer.dispose(); welt.eis.textur.dispose(); welt.eis.blockGeometrie.dispose(); (welt.eis.blitz.material as THREE.Material).dispose()
   gibSchilderFrei()
   materialien.forEach(m => m.dispose())
   geometrien.forEach(g => g.dispose())

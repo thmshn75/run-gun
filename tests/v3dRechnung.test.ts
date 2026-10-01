@@ -184,16 +184,30 @@ describe('3D-Spielrechnung', () => {
     expect(z.eliteBoss.B).toBeGreaterThan(0)
   })
 
-  it('befreit genau vier Einheiten in Reihenfolge', () => {
+  it('befreit zehn Einheiten zyklisch mit wachsendem Startwert', () => {
     const level = testLevel({ P: 20, startY: 1000, wellen: [], eliteBossZeit: 1000 })
     const z = neuerLauf(level, 8)
     const frei: string[] = []
+    const startNachFall: Record<number, number | null> = {}
     while (z.t < 100) {
-      for (const e of schritt(z, { x: 1 }, dt)) if (e.art === 'einheitFrei') frei.push(e.einheit!)
+      for (const e of schritt(z, { x: 1 }, dt)) if (e.art === 'einheitFrei') { frei.push(e.einheit!); startNachFall[frei.length] = z.PStart }
     }
-    expect(frei).toEqual(level.saeulen)
-    expect(z.P).toBeNull()
-    expect(z.saeulenIndex).toBe(4)
+    expect(frei).toEqual([...level.saeulen,...level.saeulen,...level.saeulen.slice(0,2)])
+    expect(z.P).not.toBeNull()
+    expect(z.saeulenIndex).toBe(10)
+    expect(startNachFall[4]).toBe(30)
+    expect(startNachFall[8]).toBe(45)
+  })
+
+  it('führt zwei gleichzeitig freie Humvees vollständig aus', () => {
+    const level = testLevel({ P: 1, startY: 1000, wellen: [], eliteBossZeit: 1000 })
+    const z = neuerLauf(level, 21)
+    while (z.saeulenIndex < 5) schritt(z, { x: 1 }, dt)
+    expect(z.aktiv.filter(a => a.einheit === 'humvee')).toHaveLength(2)
+    let enden = 0
+    while (z.t < 30) enden += schritt(z, { x: 0 }, dt).filter(e => e.art === 'einheitEnde' && e.einheit === 'humvee').length
+    expect(enden).toBe(2)
+    expect(z.aktiv.filter(a => a.einheit === 'humvee')).toHaveLength(0)
   })
 
   it('marschiert ohne Frontsoldaten und sammelt links exakt', () => {

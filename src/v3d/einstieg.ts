@@ -1,5 +1,6 @@
 import type Phaser from 'phaser'
 import type * as THREE from 'three'
+import * as Drei from 'three'
 import { holeRenderer, entferneRenderer } from './renderer'
 import { baueSzene, gibSzeneFrei } from './szene'
 import { DATEIEN_FEHLER, type Welt } from './szene'
@@ -8,10 +9,10 @@ import { leseWasserStufe } from './wasser'
 import { statusZeile, zeigeOberflaeche, versteckeOberflaeche } from './oberflaeche'
 import { ladeFortschritt } from './speicher'
 import { bricheAb, messBild, messungLaeuft, starteMessung, zeigeMessErgebnis } from './messung'
-import { aktualisiereLetzteMessung } from './info'
+import { aktualisiereLetzteMessung, speichereLetzteMessung } from './info'
 import { FingerSteuerung } from './steuerung'
 import { PruefDiagnose, SpielLauf, WeltDarstellung } from './lauf'
-import { LEVELS } from './balance3d'
+import { LEVELS, type Level } from './balance3d'
 import { starteEinheit, type Zustand } from './rechnung'
 import type { SpezialName } from './balance3d'
 
@@ -24,6 +25,19 @@ export function pruefEinsatz(suche: string): SpezialName[] {
     if (namen.length === 4) break
   }
   return namen
+}
+
+export function eisPruefLevel(suche: string): Level {
+  const p = new URLSearchParams(suche)
+  const roh = p.get('eis')
+  if (p.get('pruefung') !== '1' || !roh || !/^(?:[1-9][0-9]{0,4}|100000)$/.test(roh)) return LEVELS[0]
+  return { ...LEVELS[0], P: Number(roh) }
+}
+
+export function pruefEisansicht(suche: string): 'normal' | 'ohneeis' | 'ohnefahrzeug' | 'maske' {
+  const p = new URLSearchParams(suche)
+  const wert = p.get('eisansicht')
+  return p.get('pruefung') === '1' && (wert === 'ohneeis' || wert === 'ohnefahrzeug' || wert === 'maske') ? wert : 'normal'
 }
 
 export function startePruefEinsatz(zustand: Zustand, suche: string, abdeckungSichtbar: boolean): boolean {
@@ -48,6 +62,13 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
   let welt: Welt | null = null
   let beendet = false
   let letzterFrame = 0
+  let bildZaehler = 0
+  const eisansicht = pruefEisansicht(location.search)
+  let maskenMaterial: Drei.MeshBasicMaterial | null = null
+  let eisTrefferZeit: number | null = null, eisFallZeit: number | null = null
+  let eisProgrammeVor = 0, eisProgrammeNach = 0, eisDiagFertig = false
+  let eisTrefferMax: number | null = null
+  const eisBilder: { zeit: number; ms: number }[] = []
   let spielzeit = 0
   let fallRunde = -1
   let finger: FingerSteuerung | null = null
@@ -77,8 +98,9 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     if (!renderer || !scene || !camera || !darstellung || new URLSearchParams(location.search).get('vorwaermen') === '0') return
     const { explosionen, blitze } = darstellung.einsatz
     explosionen.vorwaermen(); blitze.vorwaermen()
+    welt?.eis.vorwaermen()
     try { renderer.compile(scene, camera) }
-    finally { explosionen.zuruecksetzen(); blitze.setze([], camera) }
+    finally { explosionen.zuruecksetzen(); blitze.setze([], camera); welt?.eis.nachVorwaermen() }
   }
   const sichtbar = () => {
     if (!renderer || beendet) return
@@ -110,7 +132,12 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
       welt?.miniboss.aktualisiere(sek)
       welt?.eliteboss.aktualisiere(sek)
       if (lauf && !welt?.nahaufnahme) {
+        darstellung?.setzeBild(bildZaehler)
         const ereignisse = lauf.schritt(sek, finger?.ziel ?? null)
+        if (eisansicht === 'normal' && new URLSearchParams(location.search).get('pruefung') === '1') {
+          if (eisTrefferZeit === null && ereignisse.some(e => e.art === 'saeuleTreffer')) { eisTrefferZeit = jetzt; eisProgrammeVor = renderer.info.programs?.length ?? 0 }
+          if (eisFallZeit === null && ereignisse.some(e => e.art === 'einheitFrei')) eisFallZeit = jetzt
+        }
         ui.zahlen.textContent = statusZeile(1, lauf.zustand.t, lauf.zustand.T, lauf.zustand.F, lauf.zustand.gestarteteWellen, lauf.zustand.level.wellen.length)
         if (ereignisse.some(e=>e.art==='sieg'||e.art==='niederlage')) {
           if (pruefDiagnose) pruefEnde = jetzt
@@ -127,7 +154,35 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
       if(runde!==fallRunde){welt.truppe.setze([]);fallRunde=runde}
       welt.truppe.setze([-1.5,-.5,.5,1.5].map((x,i)=>({x,z:0,dreh:spielzeit*Math.PI/4,bewegung:(['laufen','stehen','schiessen','fallen'] as const)[i]})))
     }
+    if (welt && eisansicht !== 'normal') {
+      if (eisansicht === 'ohneeis') { welt.saeulenBloecke.forEach(b => b.visible = false); welt.eis.auflage.visible = false; welt.eis.splitter.visible = false }
+      if (eisansicht === 'ohnefahrzeug') welt.miniaturen.forEach(m => m.visible = false)
+      if (eisansicht === 'maske') {
+        maskenMaterial ??= new Drei.MeshBasicMaterial({ color: '#ffffff', depthWrite: true })
+        scene.background = new Drei.Color('#000000')
+        scene.traverse(o => {
+          if (o instanceof Drei.Mesh || o instanceof Drei.Sprite) {
+            if (welt!.saeulenBloecke.includes(o as Drei.Mesh)) { o.visible = true; (o as Drei.Mesh).material = maskenMaterial! }
+            else o.visible = false
+          }
+        })
+      }
+    }
     renderer.render(scene, camera)
+    bildZaehler++
+    if (new URLSearchParams(location.search).get('pruefung') === '1') {
+      eisBilder.push({ zeit: jetzt, ms: dt })
+      while (eisBilder.length && jetzt - eisBilder[0].zeit > 1500) eisBilder.shift()
+    }
+    if (eisTrefferZeit !== null && !eisDiagFertig) {
+      const max = (zeit: number) => Math.max(0, ...eisBilder.filter(b => Math.abs(b.zeit - zeit) <= 500).map(b => b.ms))
+      if (eisTrefferMax === null && jetzt - eisTrefferZeit >= 500) eisTrefferMax = max(eisTrefferZeit)
+      if (eisFallZeit !== null && jetzt - eisFallZeit >= 300) eisProgrammeNach = renderer.info.programs?.length ?? 0
+      if (eisFallZeit !== null && jetzt - eisFallZeit >= 500) {
+        speichereLetzteMessung(`Eis: erstes Trefferbild ±0,5 s ${(eisTrefferMax ?? max(eisTrefferZeit)).toFixed(1)} ms · erstes Zerspringen ±0,5 s ${max(eisFallZeit).toFixed(1)} ms · Programme ${eisProgrammeVor} vor Treffer / ${eisProgrammeNach} nach Zerspringen · Vorwärmen ${new URLSearchParams(location.search).get('vorwaermen') === '0' ? 'aus' : 'an'}`)
+        aktualisiereLetzteMessung(ui.info); eisDiagFertig = true
+      }
+    }
     if (pruefDiagnose && darstellung) {
       pruefDiagnose.bild(jetzt, dt, renderer.info.programs?.length ?? 0, darstellung.einsatz)
       if (pruefEnde !== null && !pruefAngezeigt && jetzt - pruefEnde >= 1000) {
@@ -159,6 +214,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
       lauf?.gibLaufFrei(); lauf=null
       renderer?.setAnimationLoop(null)
       if (welt) { gibSzeneFrei(welt); welt = null }
+      maskenMaterial?.dispose(); maskenMaterial = null
       if (renderer) renderer.domElement.style.display = 'none'
       versteckeOberflaeche()
       window.removeEventListener('resize', groesse)
@@ -193,7 +249,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
         })
       }
     }, ladeFortschritt().hoechstesLevel, () => finger?.aktiv ?? false, () => { infoOffen=true;finger?.verwerfe();letzterFrame=0 }, () => { infoOffen=false;letzterFrame=0 })
-    ui.nochmal.addEventListener('click',()=>{if(!welt||!lauf||!renderer||!camera)return;lauf.gibLaufFrei();pruefDiagnose=pruefDiagnose?new PruefDiagnose(new URLSearchParams(location.search).get('vorwaermen')!=='0'):null;pruefEnde=null;pruefAngezeigt=false;darstellung=new WeltDarstellung(welt,12345,pruefDiagnose??undefined);lauf=new SpielLauf(LEVELS[0],Date.now(),darstellung);vorwaermenEffekte();pruefEinsatzAusstehend=pruefEinsatz(location.search).length>0;finger=new FingerSteuerung(renderer.domElement,camera);ui.ende.style.display='none';letzterFrame=0})
+    ui.nochmal.addEventListener('click',()=>{if(!welt||!lauf||!renderer||!camera)return;lauf.gibLaufFrei();pruefDiagnose=pruefDiagnose?new PruefDiagnose(new URLSearchParams(location.search).get('vorwaermen')!=='0'):null;pruefEnde=null;pruefAngezeigt=false;darstellung=new WeltDarstellung(welt,12345,pruefDiagnose??undefined);lauf=new SpielLauf(eisPruefLevel(location.search),Date.now(),darstellung);vorwaermenEffekte();pruefEinsatzAusstehend=pruefEinsatz(location.search).length>0;finger=new FingerSteuerung(renderer.domElement,camera);ui.ende.style.display='none';letzterFrame=0;bildZaehler=0;eisTrefferZeit=eisFallZeit=eisTrefferMax=null;eisDiagFertig=false;eisBilder.length=0})
     ui.messen.disabled = true
     ui.ergebnisse.style.display = 'block'
     ui.ergebnisse.textContent = 'Lädt …'
@@ -203,7 +259,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     scene = welt.scene
     camera = welt.camera
     if (!welt.nahaufnahme) {
-      finger=new FingerSteuerung(renderer.domElement,camera);darstellung=new WeltDarstellung(welt, 12345, pruefDiagnose ?? undefined);lauf=new SpielLauf(LEVELS[0],Date.now(),darstellung)
+      finger=new FingerSteuerung(renderer.domElement,camera);darstellung=new WeltDarstellung(welt, 12345, pruefDiagnose ?? undefined);lauf=new SpielLauf(eisPruefLevel(location.search),Date.now(),darstellung)
       pruefEinsatzAusstehend = pruefEinsatz(location.search).length > 0
     }
     groesse()

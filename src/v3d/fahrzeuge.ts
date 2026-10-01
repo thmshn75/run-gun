@@ -4,7 +4,7 @@ import humveeUrl from './modelle/v3d-humvee.glb?url'
 import panzerUrl from './modelle/v3d-panzer.glb?url'
 import haubitzeUrl from './modelle/v3d-haubitze.glb?url'
 import hubschrauberUrl from './modelle/v3d-hubschrauber.glb?url'
-import { FAHRZEUGE, type FahrzeugName } from './balance3d'
+import { EIS, FAHRZEUGE, type FahrzeugName } from './balance3d'
 
 const urls: Record<FahrzeugName, string> = {
   humvee: humveeUrl, panzer: panzerUrl, haubitze: haubitzeUrl, hubschrauber: hubschrauberUrl,
@@ -70,16 +70,30 @@ export async function ladeFahrzeuge(abgebrochen: () => boolean): Promise<Record<
   }
 }
 
-export function baueMiniatur(bau: FahrzeugBau, name: FahrzeugName, zielGroesse: readonly [number, number, number]): THREE.Group {
+export function baueMiniatur(bau: FahrzeugBau, name: FahrzeugName, zielGroesse: readonly [number, number, number], optionen: { eis?: boolean } = {}): THREE.Group {
   const gruppe = bau.vorlage.clone(true)
+  gruppe.matrixAutoUpdate = true
   gruppe.name = `fahrzeug-${name}`
   gruppe.traverse(o => { if (o instanceof THREE.Mesh) o.layers.set(1) })
+  gruppe.rotation.y = FAHRZEUGE[name].FELD_DREHUNG * Math.PI / 180
+  const rotor = gruppe.getObjectByName('rotor')
+  if (rotor) {
+    rotor.rotation.y = 0
+    gruppe.updateMatrixWorld(true)
+    const nullBreite = new THREE.Box3().setFromObject(gruppe, true).getSize(new THREE.Vector3()).x
+    rotor.rotation.y = Math.PI / 2
+    gruppe.updateMatrixWorld(true)
+    if (new THREE.Box3().setFromObject(gruppe, true).getSize(new THREE.Vector3()).x >= nullBreite) rotor.rotation.y = 0
+  }
   gruppe.updateMatrixWorld(true)
   const box = new THREE.Box3().setFromObject(gruppe, true), groesse = box.getSize(new THREE.Vector3())
-  const faktor = Math.min(zielGroesse[0] / groesse.x, zielGroesse[1] / groesse.y, zielGroesse[2] / groesse.z)
+  const eis = optionen.eis === true
+  const faktor = Math.min(zielGroesse[0] / groesse.x, zielGroesse[1] / groesse.y, (eis ? 3.75 : zielGroesse[2]) / groesse.z)
   if (!Number.isFinite(faktor) || faktor <= 0) throw new Error(`${name}: ungültige Größe`)
   gruppe.scale.setScalar(faktor)
-  gruppe.position.y = -box.min.y * faktor
+  gruppe.position.set(-box.getCenter(new THREE.Vector3()).x * faktor, eis ? EIS.HOEHE / 2 - box.getCenter(new THREE.Vector3()).y * faktor : -box.min.y * faktor, -box.getCenter(new THREE.Vector3()).z * faktor)
+  gruppe.updateMatrixWorld(true)
+  if (eis) gruppe.userData.eisLaenge = groesse.z * faktor
   return gruppe
 }
 

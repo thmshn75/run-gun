@@ -40,6 +40,7 @@ export interface Zustand {
   gasseAnteil: number
   y: number
   P: number | null
+  PStart: number | null
   saeulenIndex: number
   miniBoss: Boss
   eliteBoss: Boss
@@ -62,10 +63,15 @@ function zufall(z: Zustand): number {
   return ((n ^ (n >>> 14)) >>> 0) / 4294967296
 }
 
+export function saeulenStartP(level: Level, index: number): number {
+  return level.P * level.saeulenRundenFaktor ** Math.floor(index / level.saeulen.length)
+}
+
 export function neuerLauf(level: Level, seed: number): Zustand {
   return {
     level, t: 0, T: level.T0, trupps: [], F: 0, Z: 0, gasseAnteil: 0, y: level.startY,
-    P: level.saeulen.length ? level.P : null, saeulenIndex: 0,
+    P: level.saeulen.length ? saeulenStartP(level, 0) : null,
+    PStart: level.saeulen.length ? saeulenStartP(level, 0) : null, saeulenIndex: 0,
     miniBoss: { imFeld: false, B: level.B_mini },
     eliteBoss: { imFeld: false, B: level.B_elite },
     gestarteteWellen: 0, eliteErschienen: false, ergebnis: 'laeuft',
@@ -117,12 +123,12 @@ export function schritt(z: Zustand, eingabe: { x: number }, dt: number): Ereigni
     z.P -= treffer
     if (treffer > 0) melde('saeuleTreffer', treffer)
     if (z.P <= 0) {
-      const einheit = l.saeulen[z.saeulenIndex] as SpezialName
+      const einheit = l.saeulen[z.saeulenIndex % l.saeulen.length] as SpezialName
       melde('einheitFrei', 1, { einheit })
       starteEinheit(z, einheit)
       melde('einheitAktiv', 1, { einheit })
       z.saeulenIndex++
-      z.P = z.saeulenIndex < l.saeulen.length ? l.P : null
+      z.P = z.PStart = saeulenStartP(l, z.saeulenIndex)
     }
   }
 
