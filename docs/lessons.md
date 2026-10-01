@@ -1577,3 +1577,17 @@ Gebäude), gibt es **einen** Maßstab für alle; Platzgrenzen werden über Lage,
 Länge B = Vorlage A / Vorlage B). Zweitens: Eine Lagevorgabe als Untergrenze ("Innenkante
 ≥ 3,6") lässt dem Umsetzer jeden größeren Wert — Codex setzte x = 7 und schob alles aus dem
 Bild. Lagen, die man sehen soll, als Wert mit enger Spanne vorgeben und im Bild prüfen.
+
+## 2026-10-01 — Prüfkriterium, das schon im Ruhezustand durchfällt
+
+Der Mecha-Schrittversuch wurde zweimal per Reißleine verworfen. Beim dritten Mal zeigte der
+Bericht: Die Spec definierte "Kontakt" als Punkte bis 0,08 m vom Elternglied und erlaubte
+0,05 m Spalt **absolut** — in Grundstellung lagen die Spalte schon bei 0,054–0,080 m. Gemessen
+wurde also die Modellgeometrie, nicht das Abreißen. Die tatsächliche Zunahme durch die Bewegung
+lag bei 0–3 cm, die Schritte waren die ganze Zeit in Ordnung. Ausgelöst hat das einen dritten
+Anlauf und eine Rückfrage an Thomas.
+**Regel:** Ein Kriterium über eine **Veränderung** (Abreißen, Verrutschen, Driften) misst die
+Differenz zum Ausgangszustand, nie den Absolutwert. Vor dem Handoff jedes Messkriterium einmal
+gegen den Ruhezustand durchdenken: Besteht der unbewegte Ausgangszustand die Prüfung? Wenn
+nein, ist das Kriterium falsch. Und wenn eine Reißleine zweimal greift, zuerst die Messung
+prüfen, dann die Umsetzung.
