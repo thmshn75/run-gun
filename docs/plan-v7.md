@@ -318,7 +318,9 @@ Sketchfab sind trotz CC-BY-Angabe keine Lösung. Kandidaten (API-Prüfung 2026-1
 ohne Animation): "Project 'Alpha' Mecha" (Lwifff, ~38k Dreiecke, eigenes Design), "Veteran
 EXO" (lonestarprotogen, ~37k, laut Urheber an den AMP-Anzug angelehnt — vor Wahl prüfen),
 "Chinese Power Armor" (molobesh2, ~36k) ist laut Beschreibung Fallout-76-Nachbau → raus.
-Thomas wählt. Umfang wie D2b: vereinfachen (≈ 5000 Dreiecke), Bewegung übertragen (Quaternius),
+**Thomas' Wahl (2026-10-01 08:44): "Project 'Alpha' Mecha"**, mit **Waffen in den Händen** und
+**Raketenwerfer über dem Kopf**. Vor der Spec prüfen, ob das Modell Waffen/Werfer schon hat; sonst
+CC0/CC-BY-Teile (wie die M4 beim Soldaten) anbauen. Umfang wie D2b: vereinfachen (≈ 5000 Dreiecke), Bewegung übertragen (Quaternius),
 neuer Ablauf in `SPEZIAL` (Vorschlag Claude: stapft in die Horde, Nahkampf, stark gegen
 Bosse), Bot-Nachweis, Leistung im Budget. Nach D7, weil die Säulenfolge dort je Level steht.
 
