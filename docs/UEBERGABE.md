@@ -19,8 +19,7 @@ steht auf IDLE, es laeuft kein Codex.)
    Spec ("nach dem Einsatz"), in Kauf genommen. Die A/B-Gegenprobe `&vorwaermen=0` trennt nicht
    mehr (im Browser 0 neue Programme auch ohne Vorwaermen, weil instanceColor-Fix allein wirkt).
    Vorhersage iPhone: Schuss 1 Explosion ≥ 20 Bilder, laengstes Bild bei Schuss 1 ≈ Schuss 2.
-   **Thomas 22:07: "passt alles so"** — bezog sich sicher auf das Icon, ob auch auf den
-   Haubitzen-/Panzer-Test, ist offen: zu Sitzungsbeginn in einem Satz nachfragen.
+   **ABGENOMMEN:** Thomas 2026-10-01 08:19: Haubitze und Panzer am iPhone geprueft, passt.
 
 0. **Danach: D5e Eis-Saeulen — Spec schreiben** (Plan V7, Abschnitt "D5e";
    danach D6 → D7 + Lobby Stufe 1 → Werkstatt → Arsenal → D8, alles im Plan festgehalten,
@@ -424,5 +423,4 @@ echten Runs. Beides sollte nach Bennis Test nachgezogen werden.
 ## Einstiegssatz
 "Lies `docs/UEBERGABE.md` (vollstaendig, nicht nur die Vorschau), `docs/lessons.md` und
 `docs/plan-v7.md` und arbeite dort weiter. **Nichts neu aufsetzen.** Es laeuft gerade nichts,
-`docs/active-task.md` ist leer. Zuerst `## Offen`, Punkt 0a (Haubitze: Muendungsfeuer fehlt, erster Einschlag
-unsichtbar), dann Punkt 0 (D5e Eis-Saeulen); Thomas nach dem Icon-Test fragen."
+`docs/active-task.md` ist leer. Weiter mit `## Offen`, Punkt 0 (D5e Eis-Saeulen: Spec schreiben)."
