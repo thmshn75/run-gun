@@ -49,6 +49,8 @@ interface Lauf {
 let lauf: Lauf | null = null
 
 // GPU-Plan: Eisbild RGBA mit Mipmaps, Riss-Canvas RGBA, Instanzmatrizen.
+// Die Mecha-Bemalung (512 x 512 WebP, 4/3 MiB mit Mipmaps) ist über die Eis-Miniatur
+// schon in der Szenen-Texturmenge enthalten und wird nur einmal gezählt.
 export const EIS_SPEICHER_MB = (512 * 512 * 4 * 4 / 3 + 512 * 512 * 4 + EIS.SPLITTER_POOL * 16 * 4) / 1048576
 export const eisSpeicherMB = (huellBytes: number): number => EIS_SPEICHER_MB + huellBytes / 1048576
 
@@ -231,7 +233,7 @@ export function messBild(dt: number, jetzt: number): void {
   }
   const a = auswerten(l.bilder)
   const mb = groessen(l)
-  l.ergebnisse.push(`${MESSSTUFEN[l.stufe].name}: ${a.fps?.toFixed(1) ?? '–'} fps · langsamste 5 % ${a.p95?.toFixed(1) ?? '–'} ms · Schwarz ${l.schwarz === null ? '–' : `${l.schwarz.toFixed(1)} %`} · >250 ms: ${a.verworfen}\nBacken Soldat: ${l.welt.soldatBau.backzeitMs.toFixed(1)} ms · Bemalungen inkl. Bosse ${mb.bemalungen.toFixed(2)} MB · Wasserpuffer ${mb.zusatz.toFixed(2)} MB · Renderflächen ${mb.renderflaechen.toFixed(2)} MB · Phaser-Rest ${mb.phaserRest.toFixed(2)} MB · Speicherplan ${mb.gesamt.toFixed(2)} MB · Eisbild/Riss/Splitter/Hüllen ${eisSpeicherMB(l.welt.eis.huellBytes).toFixed(2)} MB · Hüllen-Dreiecke ${l.welt.eis.huellDreiecke} · Geometrien ${l.renderer.info.memory.geometries} · Texturen ${l.renderer.info.memory.textures}${l.bot ? `\nProtokoll: ${l.bot.protokollFehler ?? `ok (nach ${l.bot.zustand.t.toFixed(1)} s)`} · Draw Calls (max): ${l.maxDrawCalls}` : ''}\n${urteil(a, l.schwarz, mb.gesamt)}`)
+  l.ergebnisse.push(`${MESSSTUFEN[l.stufe].name}: ${a.fps?.toFixed(1) ?? '–'} fps · langsamste 5 % ${a.p95?.toFixed(1) ?? '–'} ms · Schwarz ${l.schwarz === null ? '–' : `${l.schwarz.toFixed(1)} %`} · >250 ms: ${a.verworfen}\nBacken Soldat: ${l.welt.soldatBau.backzeitMs.toFixed(1)} ms · Bemalungen inkl. Bosse/Mecha ${mb.bemalungen.toFixed(2)} MB · Wasserpuffer ${mb.zusatz.toFixed(2)} MB · Renderflächen ${mb.renderflaechen.toFixed(2)} MB · Phaser-Rest ${mb.phaserRest.toFixed(2)} MB · Speicherplan ${mb.gesamt.toFixed(2)} MB · Eisbild/Riss/Splitter/Hüllen ${eisSpeicherMB(l.welt.eis.huellBytes).toFixed(2)} MB · Hüllen-Dreiecke ${l.welt.eis.huellDreiecke} · Geometrien ${l.renderer.info.memory.geometries} · Texturen ${l.renderer.info.memory.textures}${l.bot ? `\nProtokoll: ${l.bot.protokollFehler ?? `ok (nach ${l.bot.zustand.t.toFixed(1)} s)`} · Draw Calls (max): ${l.maxDrawCalls}` : ''}\n${urteil(a, l.schwarz, mb.gesamt)}`)
   if (l.stufe === MESSSTUFEN.length - 1) {
     const ergebnis = l.ergebnisse.join('\n\n')
     bricheAb()

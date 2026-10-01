@@ -21,8 +21,8 @@ export function pruefEinsatz(suche: string): SpezialName[] {
   if (p.get('pruefung') !== '1') return []
   const namen: SpezialName[] = []
   for (const name of (p.get('einsatz') ?? '').split(',')) {
-    if ((name === 'panzer' || name === 'haubitze' || name === 'humvee' || name === 'hubschrauber') && !namen.includes(name)) namen.push(name)
-    if (namen.length === 4) break
+    if ((name === 'panzer' || name === 'haubitze' || name === 'humvee' || name === 'hubschrauber' || name === 'mecha') && !namen.includes(name)) namen.push(name)
+    if (namen.length === 5) break
   }
   return namen
 }
@@ -48,7 +48,7 @@ export function direktStart(suche: string): boolean {
   const p = new URLSearchParams(suche)
   return p.has('pruefung') || p.has('nahaufnahme')
 }
-export const TEST_FAHRZEUGE: readonly SpezialName[] = ['humvee', 'haubitze', 'panzer', 'hubschrauber']
+export const TEST_FAHRZEUGE: readonly SpezialName[] = ['humvee', 'haubitze', 'panzer', 'hubschrauber', 'mecha']
 /** Testgelände: Level 1, Säulen fallen schnell (P 10), das gewählte Fahrzeug startet sofort. */
 export function testLevel(): Level { return { ...LEVELS[0], P: 10 } }
 export const ENDE_VERZOEGERUNG_MS = { sieg: 2500, niederlage: 2000 } as const

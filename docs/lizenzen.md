@@ -17,7 +17,10 @@ Mini-Boss und Elite-Boss: bereits vereinfachte Quellgeometrie unverändert über
 | AMX-56 Low Poly | [Waroxed](https://sketchfab.com/Waroxed) | https://sketchfab.com/3d-models/amx-56-low-poly-ee60c5f42e0847d79143b38f5faced57 | CC-BY 4.0 |
 | M144 155mm Howitzer low poly (downloadable) | [Cyan_dev10](https://sketchfab.com/Cyan_dev10) | https://sketchfab.com/3d-models/m144-155mm-howitzer-low-poly-downloadable-1c56f9b18a3f459891f6f8b902d192a0 | CC-BY 4.0 |
 | Low Poly Apache Gunship | [Duane's Mind](https://sketchfab.com/duanesmind) | https://sketchfab.com/3d-models/low-poly-apache-gunship-035ed0b967f848cfa9e0ff0ade53c3dd | CC-BY 4.0 |
+| Project 'Alpha' Mecha | [Lwifff](https://sketchfab.com/Lwifff) | https://sketchfab.com/3d-models/0136cc111e0f40bdb1fe3dab6ca67b2b | CC-BY 4.0 (http://creativecommons.org/licenses/by/4.0/) |
 | Universal Animation Library (Bewegungen) | Quaternius | https://quaternius.com/packs/universalanimationlibrary.html | CC0 |
 | Zombie Apocalypse Kit (nur Testseiten) | Quaternius | https://quaternius.com/packs/zombieapocalypsekit.html | CC0 |
 
 Fahrzeuge: Netze vereint (Hubschrauber-Rotoren getrennt), vereinfacht, Bilder reduziert und zu WebP/Atlas bzw. Farbpalette umgewandelt, Lage und Maßstab normiert, in den Säulen zu Miniaturen skaliert.
+
+Project 'Alpha' Mecha: API-Prüfung 2026-10-01. Änderungen: vereinfacht, verkleinert, neu bemalt, in Glieder zerlegt, Bewegung ergänzt.

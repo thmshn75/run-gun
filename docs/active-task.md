@@ -1,6 +1,6 @@
 # Aktive Aufgabe
 
-Status: SPEC_READY
+Status: APPROVED
 
 ## Aufgabe: D7r — Kampfrüstung "Mecha" als fünfte Säule (Plan V7, Abschnitt D7r)
 
@@ -85,5 +85,33 @@ nicht löschen. `npm run check`, `npm test`, `npm run build`.
 - Bleibt die Vereinfachung über 6 000 Dreiecke oder zeigt Löcher: melden mit Zahl und Nahbild.
 
 ## Abschlussbericht
-Status `IMPL_DONE`; Bericht: Gliederung (Grenzen, Gelenkpunkte), Dreiecke, Bemalungsgröße,
-Nahbilder, Testergebnisse, Bot-Ausgabe vorher/nachher, was nicht ging und warum.
+
+Status `IMPL_DONE` — D7r umgesetzt, mit der ausdrücklich vorgesehenen Reißleine für die Bewegung.
+
+**Aufbereitung und Gliederung.** Die Rohdatei hat 36 896 Dreiecke; die Ausgabe hat **5 154 Dreiecke**, 7 Netze/Knoten, 1 Material und **ein 512 × 512 WebP-Farbbild** (918 132 Byte GLB). Die Quelle hat kein genutztes Reliefbild. Alle 185 Quellteile sind nach ihrem Mittelpunkt zugeordnet: Quelle-y < 0,65 Fuß; < 1,65 Unterschenkel; < 2,55 und Quelle-x < −0,3 oder > 0,2 Oberschenkel; sonst Rumpf. Die Grenze vor Oberschenkel hält den mittleren Hüftblock am Rumpf. Die 7 Glieder heißen `rumpf`, `oberschenkel_l/r`, `unterschenkel_l/r`, `fuss_l/r`. Gelenkpunkte in Quellmetern: links Hüfte (0,38; 2,23; 0,19), Knie (0,95; 1,48; 0,50), Knöchel (0,97; 0,47; 0,50); rechts Hüfte (−0,58; 2,23; −0,28), Knie (−1,20; 1,48; −0,50), Knöchel (−1,19; 0,47; −0,50). Nach Normierung auf 6,0 m und Drehung um 206,565°: links (−0,602; 2,371; 0,493), (−1,351; 1,504; 0,467), (−1,371; 0,338; 0,478); rechts (0,633; 2,371; 0,483), (1,387; 1,504; 0,390), (1,377; 0,338; 0,395). Die Projektionen zeigen keine auffälligen neuen Löcher gegenüber der Rohdatei; eine echte WebGL-Nahansicht blieb aus.
+
+![Mecha vereinfacht von vorn](../tests/fixtures/mecha-vorn.png)
+![Mecha vereinfacht von der Seite](../tests/fixtures/mecha-seite.png)
+
+**Reißleine.** Der erste Versuch mit schwingenden Oberschenkeln und gebeugten Knien ließ die Segmente in der Seitenprojektion sichtbar auseinanderreißen. Deshalb bewegen sich die sieben Glieder im Einsatz gemeinsam: 1,2-s-Zyklus, 0,12 m Hub, ±4° Pendeln, im Stand Grundstellung. Die ursprünglich verlangte individuelle Schrittbewegung und deren Knie-/Fußkontaktkriterien sind somit ausdrücklich **nicht erfüllt**. Der Fehlversuch ist hier abgebildet:
+
+![Erster Schrittversuch mit auseinandergezogenen Beinen](../tests/fixtures/mecha-erster-schritt-fehler.png)
+
+**Einsatz und Größe.** Feldhöhe 4,5 m, Eis-Miniatur 4,8 m plus 0,3 m Hülle; Front nach −z. Das Modell steht als fünfte Säule in allen Levels; es bleiben vier sichtbare Eisblöcke. `?pruefung=1&einsatz=mecha` und der Lobby-Knopf sind aktiv. Feldablauf: 3 s hinein, 10 s beide Armwaffen mit drehenden Läufen und gepoolten Mündungsblitzen, zwei Salven im Abstand von 4 s aus einem Pool von acht Raketen, 2 s rückwärts hinaus. Der Rechenkern-Vergleich mit/ohne Mecha ergab **260 zusätzliche Zombie-Treffer** (Tabelle 120 + 140, Toleranz ±5 %).
+
+**Bots vorher → nachher.** Beide Läufe `npm run bots3d` beendeten mit Code 0. Passiv und nur links: jeweils 0/20 Siege; `rhythmus(40)` und `rhythmusSaeule(60)`: jeweils 20/20. Gewinnende Spielweisen pro Level (je 30):
+
+| Level | vorher | nachher |
+|---|---:|---:|
+| 1 | 24 | 24 |
+| 2 | 22 | 22 |
+| 3 | 19 | 19 |
+| 4 | 17 | 17 |
+| 5 | 15 | 15 |
+| 6 | 13 | 13 |
+| 7 | 10 | 10 |
+| 8 | 8 | 8 |
+| 9 | 6 | 6 |
+| 10 | 3 | 3 |
+
+**Prüfungen.** `node scripts/modelle.mjs mecha` bestand die Qualitätsgrenze; `npm run check` ohne Fehler; `npm test` **657/657** in 72 Dateien; `npm run build` erfolgreich, Mecha-GLB im gebauten `dist/assets/`, PWA-Cache mit 274 Einträgen; `git diff --check` ohne Befund. Der Speicherplan erfasst die Mecha-Bemalung über die Eis-Miniatur einmal (512² RGBA samt Mipmaps ≈ 1,33 MiB). Der reale Messmodus mit Bildrate, GPU-Speicher und Drei-Minuten-Lauf konnte nicht geprüft werden: die automatische Freigabe für die Chrome-Bedienung wurde abgelehnt (`Computer Use was not approved to use Google Chrome`), ohne nähere Begründung. Der vorgeschriebene Teststart über ein eigenes Terminal-Fenster war hier ebenfalls nicht möglich (`Unable to find application named 'Terminal'`); die genannten Befehle liefen direkt im Terminal-Werkzeug. Kein Commit oder Push.

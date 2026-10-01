@@ -304,9 +304,9 @@ describe('3D-Fahrzeuge', () => {
   })
 
   it('ordnet Säulen und Credits den gewählten Modellen zu', () => {
-    expect(LEVELS[0].saeulen).toEqual(['humvee','haubitze','panzer','hubschrauber'])
+    expect(LEVELS[0].saeulen).toEqual(['humvee','haubitze','panzer','hubschrauber','mecha'])
     const lizenzen=readFileSync('docs/lizenzen.md','utf8')
-    for(const text of ['Low Poly Humvee vehicle',"Duane's Mind",'AMX-56 Low Poly','Waroxed','M144 155mm Howitzer low poly','Cyan_dev10','Low Poly Apache Gunship'])expect(lizenzen).toContain(text)
+    for(const text of ['Low Poly Humvee vehicle',"Duane's Mind",'AMX-56 Low Poly','Waroxed','M144 155mm Howitzer low poly','Cyan_dev10','Low Poly Apache Gunship',"Project 'Alpha' Mecha",'Lwifff'])expect(lizenzen).toContain(text)
     expect((namen as readonly FahrzeugName[]).every(name=>lizenzen.includes(`v3d-${name}`)||lizenzen.includes(name==='panzer'?'AMX-56':name==='haubitze'?'M144':name==='hubschrauber'?'Apache':'Humvee'))).toBe(true)
   })
 })

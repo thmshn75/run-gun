@@ -8,13 +8,15 @@ import type { SoldatEintrag } from './soldaten'
 import { SoldatenMasse } from './soldaten'
 import { BossBalken, Explosionen, Muendungsblitze, ZahlAnzeige } from './anzeigen'
 import { baueFeldFahrzeug } from './fahrzeuge'
+import { mechaPose } from './mecha'
 import type { ZombieEintrag } from './figuren'
 import { setzeSchildText } from './schilder'
 import { setzeEinheitenBanner } from './oberflaeche'
 import * as THREE from 'three'
 
 const SPUR_FOLGE = [4, 7, 1, 9, 2, 5, 0, 8, 3, 6] as const
-type FeldStand = { gruppe: THREE.Group; name: FahrzeugName; halt1: number; halt2?: number; schneiseZ?: number; gasseBegonnen?: boolean; abgang: number; abgangPos?: THREE.Vector3; abgangKurs?: number; schuss: number; schussUhr: number; rest: number; ziel?: THREE.Vector3; zielPhase?: number; offsetX: number; kreisVersatz: number; bossSchuss: number; bossExplosionen: Set<string>; letzteZiele: THREE.Vector3[] }
+type FeldStand = { gruppe: THREE.Group; name: FahrzeugName; halt1: number; halt2?: number; schneiseZ?: number; gasseBegonnen?: boolean; abgang: number; abgangPos?: THREE.Vector3; abgangKurs?: number; schuss: number; schussUhr: number; rest: number; ziel?: THREE.Vector3; zielPhase?: number; offsetX: number; kreisVersatz: number; bossSchuss: number; bossExplosionen: Set<string>; letzteZiele: THREE.Vector3[]; raketenSalven?: number; feuert?: boolean }
+type Rakete = { start: THREE.Vector3; ziel: THREE.Vector3; alter: number; menge: number; bilder: number }
 export type HordeTreffer = { punkt: THREE.Vector3; menge: number; radius: number }
 
 type PruefSchuss = { name: 'haubitze' | 'panzer'; nummer: number; t: number; zeit: number; blitzId: number; explosionId: number; blitzBilder: number; explosionsBilder: number; laengstesBild: number; programmeVorher: number; neueProgramme: number }
@@ -58,6 +60,13 @@ export class Einsatzbilder {
   private welt: Welt
   readonly explosionen = new Explosionen()
   readonly blitze = new Muendungsblitze(4)
+  // Feste acht Instanzen für zwei Salven; inaktive Matrizen haben Skalierung null.
+  readonly raketen = new THREE.InstancedMesh(new THREE.ConeGeometry(.075, .34, 6), new THREE.MeshBasicMaterial({ color: '#d03920' }), 8)
+  private laufGeometrie = new THREE.CylinderGeometry(.035, .035, .38, 6)
+  private laufMaterial = new THREE.MeshStandardMaterial({ color: '#252b30', metalness: 0, roughness: .8 })
+  private raketenFlug: (Rakete | null)[] = Array(8).fill(null)
+  private wartendeRaketen: Rakete[] = []
+  private raketenMatrix = new THREE.Matrix4()
   private fahrzeuge = new Map<AktiveEinheit, FeldStand>()
   private blitzPunkte: { id: number; pos: THREE.Vector3; rest: number; dauer: number; durchmesser: number; klein: boolean; bilder?: number }[] = []
   private blitzPositionen: THREE.Vector3[] = []
@@ -73,8 +82,9 @@ export class Einsatzbilder {
   readonly gasse = new HordeGasse()
   constructor(welt: Welt) {
     this.welt = welt
-    welt.scene.add(this.explosionen.objekt, this.blitze.objekt)
-    welt.laufGruppen.push(this.explosionen.objekt, this.blitze.objekt)
+    this.raketen.count = 0
+    welt.scene.add(this.explosionen.objekt, this.blitze.objekt, this.raketen)
+    welt.laufGruppen.push(this.explosionen.objekt, this.blitze.objekt, this.raketen)
   }
   setzeSeed(seed: number): void { this.zufallZustand = (seed ^ 0x9e3779b9) >>> 0 }
   private zufall(): number {
@@ -99,12 +109,59 @@ export class Einsatzbilder {
     stand.gruppe.updateMatrixWorld(true)
     return stand.gruppe.localToWorld(this.wegwerf.set(p[0], p[1], p[2]).clone().multiplyScalar(FAHRZEUGE[stand.name].SPIEL_SKALA))
   }
+  private mechaPunkt(stand: FeldStand, links: boolean, rakete: boolean, nummer = 0): THREE.Vector3 {
+    stand.gruppe.updateMatrixWorld(true)
+    const x = (links ? -1 : 1) * (rakete ? .7 : 1.15) + (rakete ? (nummer % 2 ? .1 : -.1) : 0)
+    return stand.gruppe.localToWorld(new THREE.Vector3(x, rakete ? 3.95 : 2.65, rakete ? -.35 : -1.15))
+  }
+  private starteRaketen(stand: FeldStand, z: Zustand, menge: number): void {
+    const tiefe = this.schussTiefe(z, true)
+    const ziel = new THREE.Vector3((this.zufall() - .5) * 2.5, .2, -z.y - tiefe)
+    for (let i = 0; i < 4; i++) {
+      const slot = this.raketenFlug.findIndex(r => r === null)
+      const punkt = ziel.clone().add(new THREE.Vector3((i % 2 ? 1 : -1) * .55, 0, i < 2 ? -.5 : .5))
+      const rakete = { start: this.mechaPunkt(stand, i < 2, true, i), ziel: punkt, alter: 0, menge: menge / 4, bilder: 0 }
+      if (slot < 0) this.wartendeRaketen.push(rakete)
+      else this.raketenFlug[slot] = rakete
+      stand.letzteZiele.push(punkt.clone())
+    }
+  }
+  private setzeMecha(stand: FeldStand, zeit: number, laufend: boolean): void {
+    const p = mechaPose(zeit, laufend), rumpf = stand.gruppe.getObjectByName('rumpf')
+    if (!rumpf) return
+    rumpf.position.y = p.rumpfY
+    rumpf.rotation.z = THREE.MathUtils.degToRad(p.rumpfPendel)
+    for (const [seite, bein] of [['l', p.links], ['r', p.rechts]] as const) {
+      const o = stand.gruppe.getObjectByName(`oberschenkel_${seite}`)
+      const u = stand.gruppe.getObjectByName(`unterschenkel_${seite}`)
+      const f = stand.gruppe.getObjectByName(`fuss_${seite}`)
+      if (o) o.rotation.x = THREE.MathUtils.degToRad(bein.huefte)
+      if (u) u.rotation.x = THREE.MathUtils.degToRad(bein.knie)
+      if (f) f.rotation.x = THREE.MathUtils.degToRad(bein.fuss)
+    }
+  }
+  private baueMechaLaeufe(gruppe: THREE.Group): void {
+    for (const links of [true, false]) {
+      const rotator = new THREE.Group()
+      rotator.name = links ? 'mecha-lauf-l' : 'mecha-lauf-r'
+      rotator.position.set(links ? -1.15 : 1.15, 2.65, -1.15)
+      for (let i = 0; i < 3; i++) {
+        const lauf = new THREE.Mesh(this.laufGeometrie, this.laufMaterial)
+        const winkel = i * 2 * Math.PI / 3
+        lauf.position.set(Math.cos(winkel) * .11, Math.sin(winkel) * .11, -.2)
+        lauf.rotation.x = Math.PI / 2
+        lauf.layers.set(1)
+        rotator.add(lauf)
+      }
+      gruppe.add(rotator)
+    }
+  }
   blitzAktiv(id: number): boolean { return this.blitze.objekt.count > 0 && this.blitzPunkte.some(b => b.id === id) }
-  private schiesse(stand: FeldStand, ziel: THREE.Vector3, durchmesser: number, menge = 0, radius = 0, t = 0): void {
+  private schiesse(stand: FeldStand, ziel: THREE.Vector3, durchmesser: number, menge = 0, radius = 0, t = 0, mechaSeite?: boolean): void {
     stand.schuss++
     stand.letzteZiele.push(ziel.clone())
     const werte = DARSTELLUNG.FAHRZEUG_BLITZ[stand.name]
-    const klein = stand.name === 'humvee' || stand.name === 'hubschrauber'
+    const klein = stand.name === 'humvee' || stand.name === 'hubschrauber' || stand.name === 'mecha'
     if (this.blitzPunkte.length >= 4 && !klein) {
       const index = this.blitzPunkte.findIndex(b => b.klein)
       this.blitzPunkte.splice(index >= 0 ? index : 0, 1)
@@ -115,9 +172,10 @@ export class Einsatzbilder {
         .applyAxisAngle(new THREE.Vector3(0, 1, 0), FAHRZEUGE[stand.name].FELD_DREHUNG * Math.PI / 180)
         .applyQuaternion(stand.gruppe.getWorldQuaternion(new THREE.Quaternion()))
       blitzId = ++this.naechsterBlitz
-      this.blitzPunkte.push({ id: blitzId, pos: this.muendung(stand).addScaledVector(richtung, .3 * werte.durchmesser), rest: werte.dauer, dauer: werte.dauer, durchmesser: werte.durchmesser, klein, bilder: 0 })
+      const pos = stand.name === 'mecha' ? this.mechaPunkt(stand, mechaSeite ?? true, false) : this.muendung(stand)
+      this.blitzPunkte.push({ id: blitzId, pos: pos.addScaledVector(richtung, .3 * werte.durchmesser), rest: werte.dauer, dauer: werte.dauer, durchmesser: werte.durchmesser, klein, bilder: 0 })
     }
-    const explosionId = this.explosionen.starte(ziel, durchmesser)
+    const explosionId = stand.name === 'mecha' ? -1 : this.explosionen.starte(ziel, durchmesser)
     if (stand.name === 'haubitze' || stand.name === 'panzer') this.pruefDiagnose?.schuss(stand.name, stand.schuss, t, blitzId, explosionId)
     if (menge > 0) this.treffer.push({ punkt: ziel.clone(), menge, radius })
   }
@@ -129,6 +187,30 @@ export class Einsatzbilder {
   private ticke(dt: number): void {
     this.rotorUhr += Math.max(0, dt)
     this.explosionen.schritt(dt, this.welt.camera)
+    let sichtbar = false
+    for (let i = 0; i < this.raketenFlug.length; i++) {
+      const rakete = this.raketenFlug[i]
+      if (!rakete) { this.raketen.setMatrixAt(i, this.raketenMatrix.makeScale(0, 0, 0)); continue }
+      rakete.alter += Math.max(0, dt); rakete.bilder++
+      const anteil = Math.min(1, rakete.alter / .6)
+      const punkt = rakete.start.clone().lerp(rakete.ziel, anteil)
+      punkt.y += 3 * 4 * anteil * (1 - anteil)
+      const tangent = rakete.ziel.clone().sub(rakete.start).add(new THREE.Vector3(0, 12 * (1 - 2 * anteil), 0)).normalize()
+      this.raketenMatrix.compose(punkt, new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent), new THREE.Vector3(1, 1, 1))
+      this.raketen.setMatrixAt(i, this.raketenMatrix); sichtbar = true
+      if (anteil === 1 && rakete.bilder >= 3) {
+        this.explosionen.starte(rakete.ziel, 4)
+        this.treffer.push({ punkt: rakete.ziel.clone(), menge: rakete.menge, radius: 2 })
+        this.raketenFlug[i] = null
+      }
+    }
+    this.raketen.count = sichtbar ? 8 : 0
+    this.raketen.instanceMatrix.needsUpdate = true
+    while (this.wartendeRaketen.length) {
+      const slot = this.raketenFlug.findIndex(r => r === null)
+      if (slot < 0) break
+      this.raketenFlug[slot] = this.wartendeRaketen.shift()!
+    }
     this.blitzPositionen.length = 0
     this.blitzGroessen.length = 0; this.blitzHelligkeiten.length = 0
     for (let i = this.blitzPunkte.length - 1; i >= 0; i--) {
@@ -148,6 +230,10 @@ export class Einsatzbilder {
     for (const stand of this.fahrzeuge.values()) if (stand.name === 'hubschrauber') {
       stand.gruppe.getObjectByName('rotor')?.rotation.set(0, this.rotorUhr * 8 * Math.PI, 0)
       stand.gruppe.getObjectByName('heckrotor')?.rotation.set(this.rotorUhr * 12 * Math.PI, 0, 0)
+    }
+    for (const stand of this.fahrzeuge.values()) if (stand.name === 'mecha') {
+      stand.gruppe.getObjectByName('mecha-lauf-l')?.rotation.set(0, 0, stand.feuert ? this.rotorUhr * 20 : 0)
+      stand.gruppe.getObjectByName('mecha-lauf-r')?.rotation.set(0, 0, stand.feuert ? -this.rotorUhr * 20 : 0)
     }
     for (const [a, stand] of this.fahrzeuge) if (stand.abgang >= 0) {
       stand.abgang += dt
@@ -170,16 +256,17 @@ export class Einsatzbilder {
         const name = a.einheit, bau = this.welt.fahrzeuge?.[name]
         if (!bau) continue
         const gruppe = baueFeldFahrzeug(bau, name)
+        if (name === 'mecha') this.baueMechaLaeufe(gruppe)
         const boden = name !== 'hubschrauber'
         const belegte = [...this.fahrzeuge.values()].filter(s => s.name !== 'hubschrauber' && s.abgang < 0).map(s => s.offsetX)
         const offsetX = boden ? (belegte.includes(0) ? belegte.includes(2) ? -2 : 2 : 0) : 0
         const kreisVersatz = !boden && [...this.fahrzeuge.values()].some(s => s.name === 'hubschrauber' && s.abgang < 0) ? Math.PI : 0
         gruppe.position.set(offsetX, name === 'hubschrauber' ? 9 : 0, 10)
         this.welt.scene.add(gruppe); this.welt.laufGruppen.push(gruppe)
-        const halt1 = -5 - FAHRZEUGE[name].LAENGE * FAHRZEUGE[name].SPIEL_SKALA / 2 - 1
+        const halt1 = name === 'mecha' ? (-5 - Math.max(5, z.y)) / 2 : -5 - FAHRZEUGE[name].LAENGE * FAHRZEUGE[name].SPIEL_SKALA / 2 - 1
         const phase = phaseBei(name, a.verstrichen)
         const geplant = name === 'panzer' ? [1.45, 1.85, 3.7, 4.1].filter(t => t <= a.verstrichen + 1e-9).length : 0
-        const stand: FeldStand = { gruppe, name, halt1, abgang: -1, schuss: geplant, schussUhr: 0, rest: 0, offsetX, kreisVersatz, bossSchuss: 0, bossExplosionen: new Set(), letzteZiele: [] }
+        const stand: FeldStand = { gruppe, name, halt1, abgang: -1, schuss: geplant, schussUhr: 0, rest: 0, offsetX, kreisVersatz, bossSchuss: 0, bossExplosionen: new Set(), letzteZiele: [], raketenSalven: 0 }
         this.fahrzeuge.set(a, stand)
         if (phase.art === 'schneise' && (name === 'panzer' || name === 'humvee')) {
           this.gasse.beginne(offsetX, FAHRZEUGE[name].SCHNEISE_HALB); stand.gasseBegonnen = true
@@ -189,7 +276,13 @@ export class Einsatzbilder {
     for (const [a, stand] of this.fahrzeuge) {
       if (stand.abgang >= 0) continue
       const phase = phaseBei(a.einheit, a.verstrichen)
-      if (stand.name === 'hubschrauber') {
+      if (stand.name === 'mecha') {
+        stand.feuert = phase.index === 1
+        if (phase.index === 0) stand.gruppe.position.z = THREE.MathUtils.lerp(10, stand.halt1, phase.anteil)
+        else if (phase.index === 3) stand.gruppe.position.z = THREE.MathUtils.lerp(stand.halt1, 10, phase.anteil)
+        else stand.gruppe.position.z = stand.halt1
+        this.setzeMecha(stand, a.verstrichen, phase.index === 0 || phase.index === 3)
+      } else if (stand.name === 'hubschrauber') {
         const theta = 2 * Math.PI * phase.lokal / FAHRZEUGE.hubschrauber.KREIS_S + stand.kreisVersatz
         const mitte = -z.y - 5, r = FAHRZEUGE.hubschrauber.KREIS_RADIUS
         if (phase.index === 0) {
@@ -247,6 +340,28 @@ export class Einsatzbilder {
       const ereignisIndex = offen.findIndex(e => e.einheit === stand.name)
       const ereignis = ereignisIndex < 0 ? undefined : offen.splice(ereignisIndex, 1)[0]
       const aktuellePhase = phaseBei(a.einheit, a.verstrichen).index
+      if (stand.name === 'mecha') {
+        if (aktuellePhase === 1) {
+          if (ereignis) stand.rest += ereignis.menge
+          if (ereignis || bossPunkt) {
+            stand.schussUhr = Math.min(stand.schussUhr + dt, .5)
+            while (stand.schussUhr >= .25 - 1e-9) {
+              stand.schussUhr -= .25
+              const menge = Math.floor(stand.rest + 1e-9)
+              stand.rest -= menge
+              for (const links of [true, false]) {
+                const boss = !!bossPunkt && (stand.bossSchuss++ % 3 === 0)
+                const ziel = boss ? bossPunkt!.clone() : new THREE.Vector3((this.zufall() - .5) * 4, .2, -z.y - this.schussTiefe(z, false))
+                this.schiesse(stand, ziel, 0, boss ? 0 : links ? Math.ceil(menge / 2) : Math.floor(menge / 2), 1.2, a.verstrichen, links)
+              }
+            }
+          }
+        } else if (aktuellePhase === 2 && ereignis && (stand.raketenSalven ?? 0) < 2) {
+          this.starteRaketen(stand, z, ereignis.menge)
+          stand.raketenSalven = (stand.raketenSalven ?? 0) + 1
+        }
+        continue
+      }
       if (stand.name === 'humvee' || stand.name === 'hubschrauber') {
         if (ereignis) stand.rest += ereignis.menge
         const ausloeser = !!ereignis || stand.name === 'hubschrauber' && aktuellePhase === 1 && !!bossPunkt
@@ -312,10 +427,13 @@ export class Einsatzbilder {
     for (const [a, stand] of this.fahrzeuge) this.entferne(a, stand)
     this.explosionen.zuruecksetzen(); this.blitzPunkte.length = 0; this.blitzPositionen.length = 0; this.blitze.setze(this.blitzPositionen, this.welt.camera)
     this.treffer.length = 0; this.offeneTreffer.length = 0; this.rotorUhr = 0; this.gasse.zuruecksetzen()
+    this.raketenFlug.fill(null); this.wartendeRaketen.length = 0; this.raketen.count = 0
   }
   gibFrei(): void {
     this.zuruecksetzen(); this.explosionen.gibFrei(); this.blitze.gibFrei()
-    this.welt.laufGruppen = this.welt.laufGruppen.filter(o => o !== this.explosionen.objekt && o !== this.blitze.objekt)
+    this.raketen.removeFromParent(); this.raketen.geometry.dispose(); (this.raketen.material as THREE.Material).dispose()
+    this.laufGeometrie.dispose(); this.laufMaterial.dispose()
+    this.welt.laufGruppen = this.welt.laufGruppen.filter(o => o !== this.explosionen.objekt && o !== this.blitze.objekt && o !== this.raketen)
   }
 }
 export const ZAHL_HOEHEN = { front: 2.8, horde: 2.4 } as const

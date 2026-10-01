@@ -14,7 +14,7 @@ const nah = (a: number, b: number) => {
 
 describe('3D-Spielrechnung', () => {
   it('wirkt je Ablauf unabhängig von der Schrittweite exakt wie die Tabelle', () => {
-    for (const [name, dauer, wirkung] of [['humvee',14,120],['haubitze',6.75,180],['panzer',9.2,160],['hubschrauber',14,240]] as const) {
+    for (const [name, dauer, wirkung] of [['humvee',14,120],['haubitze',6.75,180],['panzer',9.2,160],['hubschrauber',14,240],['mecha',19.05,260]] as const) {
       expect(gesamtDauer(name)).toBeCloseTo(dauer, 8)
       for (const zeitSchritt of [1/30,.1,1]) {
         const z = neuerLauf(testLevel({ wellen: [], saeulen: [], eliteBossZeit: 999, startY: 1000 }), 5)
@@ -192,17 +192,17 @@ describe('3D-Spielrechnung', () => {
     while (z.t < 100) {
       for (const e of schritt(z, { x: 1 }, dt)) if (e.art === 'einheitFrei') { frei.push(e.einheit!); startNachFall[frei.length] = z.PStart }
     }
-    expect(frei).toEqual([...level.saeulen,...level.saeulen,...level.saeulen.slice(0,2)])
+    expect(frei).toEqual([...level.saeulen,...level.saeulen,...level.saeulen.slice(0,1)])
     expect(z.P).not.toBeNull()
-    expect(z.saeulenIndex).toBe(10)
-    expect(startNachFall[4]).toBe(30)
-    expect(startNachFall[8]).toBe(45)
+    expect(z.saeulenIndex).toBe(11)
+    expect(startNachFall[5]).toBe(30)
+    expect(startNachFall[10]).toBe(45)
   })
 
   it('führt zwei gleichzeitig freie Humvees vollständig aus', () => {
     const level = testLevel({ P: 1, startY: 1000, wellen: [], eliteBossZeit: 1000 })
     const z = neuerLauf(level, 21)
-    while (z.saeulenIndex < 5) schritt(z, { x: 1 }, dt)
+    while (z.saeulenIndex < 6) schritt(z, { x: 1 }, dt)
     expect(z.aktiv.filter(a => a.einheit === 'humvee')).toHaveLength(2)
     let enden = 0
     while (z.t < 30) enden += schritt(z, { x: 0 }, dt).filter(e => e.art === 'einheitEnde' && e.einheit === 'humvee').length

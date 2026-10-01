@@ -36,7 +36,7 @@ describe('3D-Bühne', () => {
       const scene=new THREE.Scene(),p=platzhalter(scene,fahrzeuge)
       expect(p.saeulen).toHaveLength(4)
       expect(p.saeulen.map(s=>s.position.z)).toEqual(saeulenZiele(LEVELS[0],0,p.miniaturen,4))
-      expect(p.miniaturen).toHaveLength(4)
+      expect(p.miniaturen).toHaveLength(5)
       for (const [i, block] of p.saeulenBloecke.entries()) {
         const mini = block.children.find(o => o.name.startsWith('fahrzeug-'))!
         const huelle = mini.userData.huelle as THREE.Group
@@ -58,7 +58,7 @@ describe('3D-Bühne', () => {
       for(let index=0;index<4;index++) {
         const ziele=saeulenZiele(LEVELS[0],index,p.miniaturen,4)
         const grenzen=Array.from({length:4},(_,j)=>{
-          const name=LEVELS[0].saeulen[(index+j)%4]
+          const name=LEVELS[0].saeulen[(index+j)%LEVELS[0].saeulen.length]
           return p.miniaturen.find(m=>m.name===`fahrzeug-${name}`)!.userData.huelleZ as [number,number]
         })
         expect(ziele[0]+grenzen[0][1]).toBeCloseTo(-9,2)

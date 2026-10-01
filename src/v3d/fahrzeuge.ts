@@ -4,10 +4,11 @@ import humveeUrl from './modelle/v3d-humvee.glb?url'
 import panzerUrl from './modelle/v3d-panzer.glb?url'
 import haubitzeUrl from './modelle/v3d-haubitze.glb?url'
 import hubschrauberUrl from './modelle/v3d-hubschrauber.glb?url'
+import mechaUrl from './modelle/v3d-mecha.glb?url'
 import { EIS, FAHRZEUGE, type FahrzeugName } from './balance3d'
 
 const urls: Record<FahrzeugName, string> = {
-  humvee: humveeUrl, panzer: panzerUrl, haubitze: haubitzeUrl, hubschrauber: hubschrauberUrl,
+  humvee: humveeUrl, panzer: panzerUrl, haubitze: haubitzeUrl, hubschrauber: hubschrauberUrl, mecha: mechaUrl,
 }
 export const FAHRZEUG_NAMEN = Object.keys(urls) as FahrzeugName[]
 
@@ -89,7 +90,7 @@ export function baueMiniatur(bau: FahrzeugBau, name: FahrzeugName, zielGroesse: 
   const box = new THREE.Box3().setFromObject(gruppe, true), groesse = box.getSize(new THREE.Vector3())
   const eis = optionen.eis === true
   const faktor = eis
-    ? FAHRZEUGE[name].LAENGE * EIS.MASSSTAB / groesse.z
+    ? FAHRZEUGE[name].LAENGE * EIS.MASSSTAB / (name === 'mecha' ? groesse.y : groesse.z)
     : Math.min(zielGroesse[0] / groesse.x, zielGroesse[1] / groesse.y, zielGroesse[2] / groesse.z)
   if (!Number.isFinite(faktor) || faktor <= 0) throw new Error(`${name}: ungültige Größe`)
   gruppe.scale.setScalar(faktor)
@@ -110,7 +111,7 @@ export function baueFeldFahrzeug(bau: FahrzeugBau, name: FahrzeugName): THREE.Gr
   drehung.add(modell)
   kurs.updateMatrixWorld(true)
   const roh = new THREE.Box3().setFromObject(kurs, true)
-  const skala = FAHRZEUGE[name].LAENGE * FAHRZEUGE[name].SPIEL_SKALA / roh.getSize(new THREE.Vector3()).z
+  const skala = FAHRZEUGE[name].LAENGE * FAHRZEUGE[name].SPIEL_SKALA / (name === 'mecha' ? roh.getSize(new THREE.Vector3()).y : roh.getSize(new THREE.Vector3()).z)
   modell.scale.setScalar(skala)
   kurs.updateMatrixWorld(true)
   const box = new THREE.Box3().setFromObject(kurs, true)
