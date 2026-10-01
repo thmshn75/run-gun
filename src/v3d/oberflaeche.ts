@@ -74,7 +74,15 @@ export function fuelleLobby(lobby: HTMLDivElement, stand: LobbyStand, spiele: (l
   const start = knopf(`SPIELEN · LEVEL ${stand.hoechstes}`, { position: 'static', width: '100%', marginTop: '12px', fontSize: '17px', background: '#2a6aa3' })
   start.addEventListener('click', () => spiele(stand.hoechstes))
   const test = document.createElement('div')
-  Object.assign(test.style, { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' })
+  Object.assign(test.style, { display: 'none', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' })
+  const testSchalter = knopf('▸ TESTGELÄNDE', { position: 'static', width: '100%', margin: '14px 0 8px', textAlign: 'left' })
+  testSchalter.setAttribute('aria-expanded', 'false')
+  testSchalter.addEventListener('click', () => {
+    const offen = test.style.display === 'none'
+    test.style.display = offen ? 'grid' : 'none'
+    testSchalter.textContent = `${offen ? '▾' : '▸'} TESTGELÄNDE`
+    testSchalter.setAttribute('aria-expanded', String(offen))
+  })
   for (const name of stand.fahrzeuge) {
     const b = knopf(name.toLocaleUpperCase('de-DE'), { position: 'static', fontSize: '13px' })
     b.dataset.fahrzeug = name
@@ -86,5 +94,5 @@ export function fuelleLobby(lobby: HTMLDivElement, stand: LobbyStand, spiele: (l
   const geschafft = Object.keys(stand.beste).map(Number).sort((a, b) => a - b)
   liste.textContent = geschafft.length ? '' : 'Noch kein Level geschafft.'
   for (const n of geschafft) { const z = document.createElement('div'); z.textContent = `Level ${n} · ${lobbyZeit(stand.beste[n].zeit)} · ${Math.round(stand.beste[n].besiegt)} Zombies`; liste.append(z) }
-  lobby.replaceChildren(titel, ueberschrift('LEVEL'), karte, start, ueberschrift('TESTGELÄNDE'), test, ueberschrift('BESTE LÄUFE'), liste)
+  lobby.replaceChildren(titel, ueberschrift('LEVEL'), karte, start, testSchalter, test, ueberschrift('BESTE LÄUFE'), liste)
 }

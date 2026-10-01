@@ -325,6 +325,18 @@ const MECHA_GELENKTEILE = {
   r: { huefte: 'Sphere048__0', knie: 'Cylinder038__0', knoechel: 'Sphere045__0' },
 }
 const MECHA_DREHUNG = 206.565 * Math.PI / 180
+// N7: Drehpunkte, die an den Kontaktflächen der vereinfachten GLB gesucht wurden.
+// Modellkoordinaten nach Zentrierung, Drehung und Normierung auf sechs Meter.
+const MECHA_DREHPUNKTE = {
+  l: { huefte: [-.335812, 2.439765, .507992], knie: [-1.039096, 1.601292, .053397], knoechel: [-1.55446, .41406, .448299] },
+  r: { huefte: [.362591, 2.379765, .448704], knie: [1.342879, 1.659528, .01538], knoechel: [1.518938, .373156, .34366] },
+}
+const MECHA_ACHSEN = {
+  huefte: [.999871, 0, -.016093],
+  knieL: [.984680, -.173648, -.015847],
+  knieR: [.984680, .173648, -.015846],
+  knoechel: [.999870, -.000326, -.016093],
+}
 async function mecha() {
   const src = (await io.read('tmp/fahrzeuge/mecha/project_alpha_mecha.glb')).getRoot()
   const teile = src.listNodes().filter(n => n.getMesh()).flatMap(n => n.getMesh().listPrimitives().map(p => ({n, p})))
@@ -371,7 +383,11 @@ async function mecha() {
   const hips=Object.fromEntries(['l','r'].map(side=>[side,gelenke[side].huefte]))
   const knees=Object.fromEntries(['l','r'].map(side=>[side,gelenke[side].knie]))
   const ankles=Object.fromEntries(['l','r'].map(side=>[side,gelenke[side].knoechel]))
-  const pivot={rumpf:new Vector3(),oberschenkel_l:hips.l,oberschenkel_r:hips.r,unterschenkel_l:knees.l,unterschenkel_r:knees.r,fuss_l:ankles.l,fuss_r:ankles.r}
+  const pivot={rumpf:new Vector3(),...Object.fromEntries(['l','r'].flatMap(side=>[
+    ['oberschenkel_'+side,new Vector3(...MECHA_DREHPUNKTE[side].huefte)],
+    ['unterschenkel_'+side,new Vector3(...MECHA_DREHPUNKTE[side].knie)],
+    ['fuss_'+side,new Vector3(...MECHA_DREHPUNKTE[side].knoechel)],
+  ]))}
   await MeshoptSimplifier.ready
   for(const {n,p} of teile){
     const m=new Matrix4().fromArray(n.getWorldMatrix()),nm=new Matrix3().getNormalMatrix(m),a=p.getAttribute('POSITION'),na=p.getAttribute('NORMAL'),uv=p.getAttribute('TEXCOORD_0')
@@ -415,9 +431,12 @@ async function mecha() {
   const nodes=Object.fromEntries(names.map(name=>[name,doc.createNode(name).setMesh(doc.getRoot().listMeshes().find(m=>m.getName()===name)).setTranslation(pivot[name].toArray())]))
   scene.addChild(nodes.rumpf)
   for(const side of ['l','r']){
+    nodes['oberschenkel_'+side].setExtras({gelenkachse:MECHA_ACHSEN.huefte})
+    nodes['unterschenkel_'+side].setExtras({gelenkachse:side==='l'?MECHA_ACHSEN.knieL:MECHA_ACHSEN.knieR})
+    nodes['fuss_'+side].setExtras({gelenkachse:MECHA_ACHSEN.knoechel})
     nodes.rumpf.addChild(nodes['oberschenkel_'+side])
-    nodes['oberschenkel_'+side].addChild(nodes['unterschenkel_'+side].setTranslation(knees[side].clone().sub(hips[side]).toArray()))
-    nodes['unterschenkel_'+side].addChild(nodes['fuss_'+side].setTranslation(ankles[side].clone().sub(knees[side]).toArray()))
+    nodes['oberschenkel_'+side].addChild(nodes['unterschenkel_'+side].setTranslation(pivot['unterschenkel_'+side].clone().sub(pivot['oberschenkel_'+side]).toArray()))
+    nodes['unterschenkel_'+side].addChild(nodes['fuss_'+side].setTranslation(pivot['fuss_'+side].clone().sub(pivot['unterschenkel_'+side]).toArray()))
   }
   const out='src/v3d/modelle/v3d-mecha.glb';await mkdir('src/v3d/modelle',{recursive:true});await io.write(out,doc)
   const check=(await io.read(out)).getRoot(),tri=check.listMeshes().flatMap(m=>m.listPrimitives()).reduce((n,p)=>n+dreiecke(p),0),meta=await sharp(check.listTextures()[0].getImage()).metadata()

@@ -1,6 +1,6 @@
 # Aktive Aufgabe
 
-Status: SPEC_READY
+Status: APPROVED
 
 ## Aufgabe: D7r — Kampfrüstung "Mecha" als fünfte Säule (Plan V7, Abschnitt D7r)
 
@@ -250,3 +250,16 @@ Phasen neu (`tests/fixtures/mecha-schritt-1…4.png`).
 **N12 Lobby:** "TESTGELÄNDE" in der Lobby ist eine aufklappbare Zeile (▸ zu / ▾ auf); die
 Fahrzeugknöpfe sind erst nach Tippen sichtbar, beim Öffnen der Lobby immer zugeklappt. Test.
 `npm run check`, `npm test`, `npm run build`. Status `IMPL_DONE`, kurzer Bericht.
+
+### Bericht Nacharbeit 3
+
+**N10/N11:** Die Kontaktprüfung an den tatsächlich verwendeten Dreiecksecken der echten GLB misst für jedes der sechs Gelenke die Spalt-Zunahme gegenüber dem Stand in acht Schrittphasen; alle bleiben bei höchstens 0,05 m. Die in Nacharbeit 2 gewählten sechs Drehpunkte und vier Achsen sind im neu erzeugten Modell hinterlegt. `mechaPose` verwendet 18° Hüfte, bis 35° Kniebeugung, Fuß-Ausgleich, 0,12 m Hub und ±3° Pendeln. Im Feld laufen die Beine beim Einweg vorwärts und beim Rückweg rückwärts; beim Feuern und bei den Einschlägen stehen sie in Grundstellung. Die vier Seitenbilder wurden aus der neuen GLB für 0 / 0,15 / 0,30 / 0,45 s erzeugt:
+
+![Mecha-Schritt 1](../tests/fixtures/mecha-schritt-1.png)
+![Mecha-Schritt 2](../tests/fixtures/mecha-schritt-2.png)
+![Mecha-Schritt 3](../tests/fixtures/mecha-schritt-3.png)
+![Mecha-Schritt 4](../tests/fixtures/mecha-schritt-4.png)
+
+**N12:** TESTGELÄNDE ist ein Schalter mit ▸/▾; die Fahrzeugknöpfe sind beim Öffnen der Lobby zugeklappt. Der neue Test prüft Öffnen, Schließen, Fahrzeugwahl und erneutes Zuklappen beim nächsten Lobby-Aufbau.
+
+**Prüfungen:** `node scripts/modelle.mjs mecha` erfolgreich: 5 154 Dreiecke, sieben Glieder, ein Material, ein 512 × 512 WebP-Farbbild. `npm run check` ohne Fehler; `npm test` 660/660 Tests in 73 Dateien; `npm run build` erfolgreich mit der neuen Mecha-GLB und 274 PWA-Cache-Einträgen; `git diff --check` ohne Befund. Die Seitenbilder sind Projektionen ohne WebGL; eine echte Browser-/iPhone-Sichtprüfung fand nicht statt. Der Start in einem eigenen Terminal-Fenster war nicht möglich (`Unable to find application named 'Terminal'`); die Prüfbefehle liefen im Terminal-Werkzeug. Kein Commit oder Push.

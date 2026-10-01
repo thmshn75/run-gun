@@ -8,7 +8,7 @@ import type { SoldatEintrag } from './soldaten'
 import { SoldatenMasse } from './soldaten'
 import { BossBalken, Explosionen, Muendungsblitze, ZahlAnzeige } from './anzeigen'
 import { baueFeldFahrzeug } from './fahrzeuge'
-import { mechaPose } from './mecha'
+import { MECHA_ACHSEN, mechaPose } from './mecha'
 import type { ZombieEintrag } from './figuren'
 import { setzeSchildText } from './schilder'
 import * as THREE from 'three'
@@ -134,9 +134,10 @@ export class Einsatzbilder {
       const o = stand.gruppe.getObjectByName(`oberschenkel_${seite}`)
       const u = stand.gruppe.getObjectByName(`unterschenkel_${seite}`)
       const f = stand.gruppe.getObjectByName(`fuss_${seite}`)
-      if (o) o.rotation.x = THREE.MathUtils.degToRad(bein.huefte)
-      if (u) u.rotation.x = THREE.MathUtils.degToRad(bein.knie)
-      if (f) f.rotation.x = THREE.MathUtils.degToRad(bein.fuss)
+      const achse = (werte: readonly [number, number, number]) => new THREE.Vector3(...werte).normalize()
+      if (o) o.quaternion.setFromAxisAngle(achse(MECHA_ACHSEN.huefte), THREE.MathUtils.degToRad(bein.huefte))
+      if (u) u.quaternion.setFromAxisAngle(achse(seite === 'l' ? MECHA_ACHSEN.knieL : MECHA_ACHSEN.knieR), THREE.MathUtils.degToRad(bein.knie))
+      if (f) f.quaternion.setFromAxisAngle(achse(MECHA_ACHSEN.knoechel), THREE.MathUtils.degToRad(bein.fuss))
     }
   }
   private baueMechaLaeufe(gruppe: THREE.Group): void {
@@ -280,7 +281,7 @@ export class Einsatzbilder {
         if (phase.index === 0) stand.gruppe.position.z = THREE.MathUtils.lerp(10, stand.halt1, phase.anteil)
         else if (phase.index === 3) stand.gruppe.position.z = THREE.MathUtils.lerp(stand.halt1, 10, phase.anteil)
         else stand.gruppe.position.z = stand.halt1
-        this.setzeMecha(stand, a.verstrichen, phase.index === 0 || phase.index === 3)
+        this.setzeMecha(stand, phase.index === 3 ? -phase.lokal : phase.lokal, phase.index === 0 || phase.index === 3)
       } else if (stand.name === 'hubschrauber') {
         const theta = 2 * Math.PI * phase.lokal / FAHRZEUGE.hubschrauber.KREIS_S + stand.kreisVersatz
         const mitte = -z.y - 5, r = FAHRZEUGE.hubschrauber.KREIS_RADIUS
