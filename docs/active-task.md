@@ -1,6 +1,6 @@
 # Aktive Aufgabe
 
-Status: APPROVED
+Status: SPEC_READY
 
 ## Aufgabe: D7r — Kampfrüstung "Mecha" als fünfte Säule (Plan V7, Abschnitt D7r)
 
@@ -115,3 +115,46 @@ Status `IMPL_DONE` — D7r umgesetzt, mit der ausdrücklich vorgesehenen Reißle
 | 10 | 3 | 3 |
 
 **Prüfungen.** `node scripts/modelle.mjs mecha` bestand die Qualitätsgrenze; `npm run check` ohne Fehler; `npm test` **657/657** in 72 Dateien; `npm run build` erfolgreich, Mecha-GLB im gebauten `dist/assets/`, PWA-Cache mit 274 Einträgen; `git diff --check` ohne Befund. Der Speicherplan erfasst die Mecha-Bemalung über die Eis-Miniatur einmal (512² RGBA samt Mipmaps ≈ 1,33 MiB). Der reale Messmodus mit Bildrate, GPU-Speicher und Drei-Minuten-Lauf konnte nicht geprüft werden: die automatische Freigabe für die Chrome-Bedienung wurde abgelehnt (`Computer Use was not approved to use Google Chrome`), ohne nähere Begründung. Der vorgeschriebene Teststart über ein eigenes Terminal-Fenster war hier ebenfalls nicht möglich (`Unable to find application named 'Terminal'`); die genannten Befehle liefen direkt im Terminal-Werkzeug. Kein Commit oder Push.
+
+
+## Nacharbeit 1 — echte Schritte, zweiter und letzter Anlauf (Thomas 2026-10-01 19:08)
+
+Thomas: "Gleich einen zweiten Anlauf — fixe das ordentlich." Dazu: "Die Sekundenanzeigen bei den
+Fahrzeugen, wenn sie schießen, gehören raus."
+
+**Ursache des ersten Fehlschlags (Befund Claude, `scripts/modelle.mjs` `mecha()`):** Die
+Zuordnung der Teile zu Gliedern läuft in **Quellkoordinaten** (`mid.x > .1` für die Seite,
+Höhenbänder), obwohl das Rohmodell um ~26,6° gedreht ist (`MECHA_DREHUNG` 206,565°). "x" ist
+dort nicht die Seitenrichtung → Teile landen im falschen Bein/Glied. Die Gelenkpunkte sind von
+Hand geschätzte Zahlen, nicht aus der Geometrie abgelesen. Die Hierarchie (Rumpf → Oberschenkel →
+Unterschenkel → Fuß) ist richtig und bleibt. Das Knie knickt wie beim Menschen nach **vorn**
+(Seitenansicht: Oberschenkel läuft von der Hüfte nach vorn-unten, Unterschenkel nach hinten-unten).
+
+**N1 Zuordnung neu, in gedrehten Koordinaten** (x = seitlich, y = oben, z = vorn ist −z).
+(a) Erst alle Teile mit `convert` in Zielkoordinaten bringen, dann zuordnen. (b) Gelenkpunkte aus
+der Geometrie: je Bein die Kugel-/Zylinderteile an Hüfte, Knie und Knöchel (Mittelpunkt des
+Gelenkteils) — Namen und Mittelpunkte der gewählten Teile im Bericht. (c) Jedes Teil gehört zu
+dem Knochen, dessen Strecke (Hüfte→Knie, Knie→Knöchel, Knöchel→Sohle) seinem Mittelpunkt am
+nächsten liegt; Teile oberhalb der Hüftgelenke oder zwischen den Hüften (|x| < innere Hüftkante)
+gehören zum Rumpf; Panzerplatten am Oberschenkel gehören zum Oberschenkel. (d) **Prüfbild vor der
+Bewegung:** Front- und Seitenansicht, jedes Glied in einer eigenen Farbe
+(`tests/fixtures/mecha-glieder-vorn.png`, `…-seite.png`) — beide Beine müssen spiegelgleich
+eingefärbt sein.
+
+**N2 Bewegung (`mecha.ts`), Zyklus 1,2 s, Beine gegenphasig:** Hüfte ±18° um die Seitenachse,
+Knie zusätzlich 0…35° gebeugt (nur in Grundrichtung, beim Beugen wandert der Knöchel nach
+hinten, +z), Fuß gleicht aus (Sohle beim Auftreten waagrecht ±5°), Rumpf wippt 0,12 m (tiefster
+Punkt beim Auftreten) und pendelt ±3°. Standbein-Fuß hat beim Auftreten Bodenkontakt (tiefster
+Punkt 0 ± 3 cm). Während `fahrt` läuft er, in `feuer`/`einschlaege` Grundstellung (fest
+stehend), beim Rückwärtsgehen Zyklus rückwärts.
+**N3 Kein Abreißen (Verhaltenstest mit der echten GLB):** In 8 Phasen des Zyklus bleiben die
+Punkte, an denen Eltern- und Kind-Glied sich in Grundstellung berühren (Ecken der Kind-Geometrie
+innerhalb 0,15 m um das Gelenk), höchstens **0,05 m** vom Elternteil entfernt; dazu: Knie
+nie überstreckt, Bodenkontakt wie N2. Seitenbilder der 4 Phasen
+(`tests/fixtures/mecha-schritt-1…4.png`) in den Bericht.
+**N4 Sekundenanzeige raus:** Das Einheiten-Band oben ("MECHA · 13 s", "HUMVEE · 11 s") entfällt
+komplett im 3D-Spiel (keine Anzeige mehr, Aufrufe/Element entfernen, Tests mitziehen).
+
+Reißleine (letzter Anlauf laut Plan): Erfüllt die Bewegung N3 nicht, **bleibt das Stampfen als
+Ganzes** — melden mit den Messwerten, keine dritte Variante.
+`npm run check`, `npm test`, `npm run build`. Status `IMPL_DONE`, Bericht unter diesem Abschnitt.
