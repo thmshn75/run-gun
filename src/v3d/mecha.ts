@@ -1,5 +1,5 @@
 // N10: Entscheidend ist die Zunahme des Spalts beim Schritt gegenüber dem Stand.
-export const MECHA_SCHRITT_S = 1.2
+export const MECHA_SCHRITT_S = 1.8
 export interface MechaBein { huefte: number; knie: number; fuss: number }
 export interface MechaPose { links: MechaBein; rechts: MechaBein; rumpfY: number; rumpfPendel: number }
 

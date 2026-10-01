@@ -272,3 +272,19 @@ auf die neuen Werte (Pendel = 0, Hub 0/0,06/0 bei 0/0,3/0,6 s). `npm run check`,
 Status `IMPL_DONE`, ein Satz Bericht.
 
 N13 umgesetzt: Der Mecha bewegt beim Gehen die Beine unverändert, der Rumpf pendelt nicht mehr und hebt sich höchstens 0,06 m; `npm run check` und `npm test` (660/660) sind erfolgreich.
+
+
+## Nacharbeit 5 (Thomas 2026-10-01 21:39: Raketen ohne Mündungsfeuer; "der ganze Mech soll langsamer gehen")
+**N14 Langsamer.** `SPEZIAL.mecha`: erste `fahrt` 3 → **5 s**, letzte `fahrt` (rückwärts) 2 →
+**3,5 s** (Wege unverändert, also langsamer); `MECHA_SCHRITT_S` 1,2 → **1,8 s**. Tests mitziehen
+(Gesamtdauer, Zyklus). Rechenkern: Wirkung unverändert (Anfahrt ohne Wirkung).
+**N15 Raketenabschuss sichtbar.** Beim Start jeder Rakete: Mündungsblitz an der Werferöffnung
+(bestehender `Muendungsblitze`-Pool, Ø 0,8 m, 0,12 s, ≥ 3 Bilder) und eine kurze Rauchwolke
+(grau, halbdurchsichtig, Ø 0,6 → 1,4 m, 0,5 s, aus einem kleinen Pool, kein neues Bild nötig —
+weicher Kreis wie der Eis-Lichtschein). Raketen doppelt so groß (Kegel r 0,15, Länge 0,68) und
+mit Rauchspur (3–5 kleine graue Puffs je Rakete entlang der Flugbahn, verblassen in 0,4 s).
+Alles in festen Pools, vorgewärmt wie die übrigen Effekte. Test: je Salve 4 Blitze + 4
+Rauchwolken an den Werferpunkten, Kurzlebig-Regel.
+`npm run check`, `npm test`, `npm run build`, `npm run bots3d`. Status `IMPL_DONE`, kurzer Bericht.
+
+N14/N15 umgesetzt: Der Mecha geht mit 5/3,5 s Fahrt und 1,8 s Schrittzyklus langsamer, jede Raketensalve zeigt vier Mündungsblitze und Startwolken sowie größere Raketen mit Rauchspur; `npm run check`, `npm test` (660/660), `npm run build` und `npm run bots3d` sind erfolgreich.

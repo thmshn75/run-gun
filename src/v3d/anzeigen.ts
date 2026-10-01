@@ -96,6 +96,56 @@ export class Muendungsblitze {
   gibFrei(): void { this.objekt.removeFromParent(); this.objekt.geometry.dispose(); this.objekt.dispose(); this.material.dispose(); this.textur.dispose() }
 }
 
+export class Rauchwolken {
+  readonly objekt: THREE.InstancedMesh
+  private textur: THREE.CanvasTexture
+  private material: THREE.MeshBasicMaterial
+  private dummy = new THREE.Object3D()
+  private farbe = new THREE.Color()
+  private aktiv: { pos: THREE.Vector3; start: number; ende: number; dauer: number; alter: number; bilder: number }[] = []
+  constructor() {
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 64
+    const ctx = canvas.getContext('2d')!
+    const weich = ctx.createRadialGradient(32, 32, 2, 32, 32, 32)
+    weich.addColorStop(0, '#b0b0b0aa'); weich.addColorStop(.55, '#99999977'); weich.addColorStop(1, '#88888800')
+    ctx.fillStyle = weich; ctx.fillRect(0, 0, 64, 64)
+    this.textur = new THREE.CanvasTexture(canvas)
+    this.material = new THREE.MeshBasicMaterial({ map: this.textur, transparent: true, depthWrite: false, side: THREE.DoubleSide })
+    this.objekt = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), this.material, 48)
+    this.objekt.frustumCulled = false; this.objekt.count = 0; this.objekt.renderOrder = 11
+    this.objekt.setColorAt(0, new THREE.Color(1, 1, 1))
+  }
+  get anzahl(): number { return this.aktiv.length }
+  starte(pos: THREE.Vector3, start: number, ende: number, dauer: number): void {
+    if (this.aktiv.length < this.objekt.instanceMatrix.count) this.aktiv.push({ pos: pos.clone(), start, ende, dauer, alter: 0, bilder: 0 })
+  }
+  schritt(dt: number, kamera: THREE.Camera): void {
+    for (const wolke of this.aktiv) {
+      if (wolke.bilder > 0) wolke.alter += Math.max(0, dt)
+      wolke.bilder++
+    }
+    this.aktiv = this.aktiv.filter(w => w.alter < w.dauer || w.bilder < 3)
+    this.objekt.count = this.aktiv.length
+    this.aktiv.forEach((w, i) => {
+      const anteil = Math.min(1, w.alter / w.dauer)
+      this.dummy.position.copy(w.pos); this.dummy.quaternion.copy(kamera.quaternion)
+      this.dummy.scale.setScalar(w.start + (w.ende - w.start) * anteil)
+      this.dummy.updateMatrix(); this.objekt.setMatrixAt(i, this.dummy.matrix)
+      this.objekt.setColorAt(i, this.farbe.setScalar(Math.max(.05, 1 - anteil)))
+    })
+    this.objekt.instanceMatrix.needsUpdate = true
+    if (this.objekt.instanceColor) this.objekt.instanceColor.needsUpdate = true
+  }
+  vorwaermen(): void {
+    this.dummy.position.set(0, 0, -1e6); this.dummy.scale.setScalar(1); this.dummy.updateMatrix()
+    this.objekt.setMatrixAt(0, this.dummy.matrix); this.objekt.count = 1
+    this.objekt.instanceMatrix.needsUpdate = true
+  }
+  zuruecksetzen(): void { this.aktiv.length = 0; this.objekt.count = 0 }
+  gibFrei(): void { this.objekt.removeFromParent(); this.objekt.geometry.dispose(); this.objekt.dispose(); this.material.dispose(); this.textur.dispose() }
+}
+
 export class ZahlAnzeige {
   readonly objekt: THREE.Mesh
   private canvas = document.createElement('canvas')

@@ -127,11 +127,11 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
   }
   const vorwaermenEffekte = () => {
     if (!renderer || !scene || !camera || !darstellung || new URLSearchParams(location.search).get('vorwaermen') === '0') return
-    const { explosionen, blitze } = darstellung.einsatz
-    explosionen.vorwaermen(); blitze.vorwaermen()
+    const { explosionen, blitze, rauch } = darstellung.einsatz
+    explosionen.vorwaermen(); blitze.vorwaermen(); rauch.vorwaermen()
     welt?.eis.vorwaermen()
     try { renderer.compile(scene, camera) }
-    finally { explosionen.zuruecksetzen(); blitze.setze([], camera); welt?.eis.nachVorwaermen() }
+    finally { explosionen.zuruecksetzen(); blitze.setze([], camera); rauch.zuruecksetzen(); welt?.eis.nachVorwaermen() }
   }
   const sichtbar = () => {
     if (!renderer || beendet) return

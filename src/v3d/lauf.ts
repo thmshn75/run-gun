@@ -6,7 +6,7 @@ import { saeulenZiele, type Welt } from './szene'
 import { eisZahl } from './eis'
 import type { SoldatEintrag } from './soldaten'
 import { SoldatenMasse } from './soldaten'
-import { BossBalken, Explosionen, Muendungsblitze, ZahlAnzeige } from './anzeigen'
+import { BossBalken, Explosionen, Muendungsblitze, Rauchwolken, ZahlAnzeige } from './anzeigen'
 import { baueFeldFahrzeug } from './fahrzeuge'
 import { MECHA_ACHSEN, mechaPose } from './mecha'
 import type { ZombieEintrag } from './figuren'
@@ -15,7 +15,7 @@ import * as THREE from 'three'
 
 const SPUR_FOLGE = [4, 7, 1, 9, 2, 5, 0, 8, 3, 6] as const
 type FeldStand = { gruppe: THREE.Group; name: FahrzeugName; halt1: number; halt2?: number; schneiseZ?: number; gasseBegonnen?: boolean; abgang: number; abgangPos?: THREE.Vector3; abgangKurs?: number; schuss: number; schussUhr: number; rest: number; ziel?: THREE.Vector3; zielPhase?: number; offsetX: number; kreisVersatz: number; bossSchuss: number; bossExplosionen: Set<string>; letzteZiele: THREE.Vector3[]; raketenSalven?: number; feuert?: boolean }
-type Rakete = { start: THREE.Vector3; ziel: THREE.Vector3; alter: number; menge: number; bilder: number }
+type Rakete = { start: THREE.Vector3; ziel: THREE.Vector3; alter: number; menge: number; bilder: number; puffs: number }
 export type HordeTreffer = { punkt: THREE.Vector3; menge: number; radius: number }
 
 type PruefSchuss = { name: 'haubitze' | 'panzer'; nummer: number; t: number; zeit: number; blitzId: number; explosionId: number; blitzBilder: number; explosionsBilder: number; laengstesBild: number; programmeVorher: number; neueProgramme: number }
@@ -59,8 +59,9 @@ export class Einsatzbilder {
   private welt: Welt
   readonly explosionen = new Explosionen()
   readonly blitze = new Muendungsblitze(4)
+  readonly rauch = new Rauchwolken()
   // Feste acht Instanzen für zwei Salven; inaktive Matrizen haben Skalierung null.
-  readonly raketen = new THREE.InstancedMesh(new THREE.ConeGeometry(.075, .34, 6), new THREE.MeshBasicMaterial({ color: '#d03920' }), 8)
+  readonly raketen = new THREE.InstancedMesh(new THREE.ConeGeometry(.15, .68, 6), new THREE.MeshBasicMaterial({ color: '#d03920' }), 8)
   private laufGeometrie = new THREE.CylinderGeometry(.035, .035, .38, 6)
   private laufMaterial = new THREE.MeshStandardMaterial({ color: '#252b30', metalness: 0, roughness: .8 })
   private raketenFlug: (Rakete | null)[] = Array(8).fill(null)
@@ -82,8 +83,8 @@ export class Einsatzbilder {
   constructor(welt: Welt) {
     this.welt = welt
     this.raketen.count = 0
-    welt.scene.add(this.explosionen.objekt, this.blitze.objekt, this.raketen)
-    welt.laufGruppen.push(this.explosionen.objekt, this.blitze.objekt, this.raketen)
+    welt.scene.add(this.explosionen.objekt, this.blitze.objekt, this.rauch.objekt, this.raketen)
+    welt.laufGruppen.push(this.explosionen.objekt, this.blitze.objekt, this.rauch.objekt, this.raketen)
   }
   setzeSeed(seed: number): void { this.zufallZustand = (seed ^ 0x9e3779b9) >>> 0 }
   private zufall(): number {
@@ -119,9 +120,13 @@ export class Einsatzbilder {
     for (let i = 0; i < 4; i++) {
       const slot = this.raketenFlug.findIndex(r => r === null)
       const punkt = ziel.clone().add(new THREE.Vector3((i % 2 ? 1 : -1) * .55, 0, i < 2 ? -.5 : .5))
-      const rakete = { start: this.mechaPunkt(stand, i < 2, true, i), ziel: punkt, alter: 0, menge: menge / 4, bilder: 0 }
+      const start = this.mechaPunkt(stand, i < 2, true, i)
+      const rakete = { start, ziel: punkt, alter: 0, menge: menge / 4, bilder: 0, puffs: 0 }
       if (slot < 0) this.wartendeRaketen.push(rakete)
       else this.raketenFlug[slot] = rakete
+      if (this.blitzPunkte.length >= 4) this.blitzPunkte.splice(Math.max(0, this.blitzPunkte.findIndex(b => b.klein)), 1)
+      this.blitzPunkte.push({ id: ++this.naechsterBlitz, pos: start.clone(), rest: .12, dauer: .12, durchmesser: .8, klein: false, bilder: 0 })
+      this.rauch.starte(start, .6, 1.4, .5)
       stand.letzteZiele.push(punkt.clone())
     }
   }
@@ -195,6 +200,12 @@ export class Einsatzbilder {
       const anteil = Math.min(1, rakete.alter / .6)
       const punkt = rakete.start.clone().lerp(rakete.ziel, anteil)
       punkt.y += 3 * 4 * anteil * (1 - anteil)
+      while (rakete.puffs < 4 && anteil >= (rakete.puffs + 1) / 5) {
+        const spur = ++rakete.puffs / 5
+        const pos = rakete.start.clone().lerp(rakete.ziel, spur)
+        pos.y += 12 * spur * (1 - spur)
+        this.rauch.starte(pos, .25, .45, .4)
+      }
       const tangent = rakete.ziel.clone().sub(rakete.start).add(new THREE.Vector3(0, 12 * (1 - 2 * anteil), 0)).normalize()
       this.raketenMatrix.compose(punkt, new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent), new THREE.Vector3(1, 1, 1))
       this.raketen.setMatrixAt(i, this.raketenMatrix); sichtbar = true
@@ -206,6 +217,7 @@ export class Einsatzbilder {
     }
     this.raketen.count = sichtbar ? 8 : 0
     this.raketen.instanceMatrix.needsUpdate = true
+    this.rauch.schritt(dt, this.welt.camera)
     while (this.wartendeRaketen.length) {
       const slot = this.raketenFlug.findIndex(r => r === null)
       if (slot < 0) break
@@ -425,15 +437,15 @@ export class Einsatzbilder {
   nachlauf(dt: number): void { this.ticke(dt) }
   zuruecksetzen(): void {
     for (const [a, stand] of this.fahrzeuge) this.entferne(a, stand)
-    this.explosionen.zuruecksetzen(); this.blitzPunkte.length = 0; this.blitzPositionen.length = 0; this.blitze.setze(this.blitzPositionen, this.welt.camera)
+    this.explosionen.zuruecksetzen(); this.rauch.zuruecksetzen(); this.blitzPunkte.length = 0; this.blitzPositionen.length = 0; this.blitze.setze(this.blitzPositionen, this.welt.camera)
     this.treffer.length = 0; this.offeneTreffer.length = 0; this.rotorUhr = 0; this.gasse.zuruecksetzen()
     this.raketenFlug.fill(null); this.wartendeRaketen.length = 0; this.raketen.count = 0
   }
   gibFrei(): void {
-    this.zuruecksetzen(); this.explosionen.gibFrei(); this.blitze.gibFrei()
+    this.zuruecksetzen(); this.explosionen.gibFrei(); this.blitze.gibFrei(); this.rauch.gibFrei()
     this.raketen.removeFromParent(); this.raketen.geometry.dispose(); (this.raketen.material as THREE.Material).dispose()
     this.laufGeometrie.dispose(); this.laufMaterial.dispose()
-    this.welt.laufGruppen = this.welt.laufGruppen.filter(o => o !== this.explosionen.objekt && o !== this.blitze.objekt && o !== this.raketen)
+    this.welt.laufGruppen = this.welt.laufGruppen.filter(o => o !== this.explosionen.objekt && o !== this.blitze.objekt && o !== this.rauch.objekt && o !== this.raketen)
   }
 }
 export const ZAHL_HOEHEN = { front: 2.8, horde: 2.4 } as const

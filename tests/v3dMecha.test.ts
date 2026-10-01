@@ -5,7 +5,7 @@ import sharp from 'sharp'
 import * as THREE from 'three'
 import { FAHRZEUGE, LEVELS, EIS } from '../src/v3d/balance3d'
 import { baueFeldFahrzeug, baueMiniatur, type FahrzeugBau } from '../src/v3d/fahrzeuge'
-import { MECHA_ACHSEN, mechaPose, mechaSchrittProbe } from '../src/v3d/mecha'
+import { MECHA_ACHSEN, MECHA_SCHRITT_S, mechaPose, mechaSchrittProbe } from '../src/v3d/mecha'
 import { pruefEinsatz, TEST_FAHRZEUGE } from '../src/v3d/einstieg'
 import { Einsatzbilder } from '../src/v3d/lauf'
 import { neuerLauf, schritt, starteEinheit } from '../src/v3d/rechnung'
@@ -118,7 +118,7 @@ describe('D7r Mecha', () => {
       const richtung = new THREE.Vector3(...achse).normalize()
       let zunahme = 0
       for (let phase = 0; phase < 8; phase++) {
-        const pose = mechaPose(phase * .15)
+        const pose = mechaPose(phase * MECHA_SCHRITT_S / 8)
         const bein = seite === 'l' ? pose.links : pose.rechts
         const winkel = gelenk === 'huefte' ? bein.huefte : gelenk === 'knie' ? bein.knie : bein.fuss
         const q = new THREE.Quaternion().setFromAxisAngle(richtung, THREE.MathUtils.degToRad(winkel))
@@ -133,7 +133,8 @@ describe('D7r Mecha', () => {
 
   it('geht gegenphasig mit 18° Hüfte, 0–35° Knie, höchstens 0,06 m Hub und ohne Pendeln', () => {
     expect(mechaPose(0, false).rumpfY).toBe(0)
-    for (const t of [0,.1,.3,.6,.9,1.2]) {
+    expect(MECHA_SCHRITT_S).toBe(1.8)
+    for (const t of [0,.15,.45,.9,1.35,1.8]) {
       const p = mechaPose(t)
       expect(p).toEqual(mechaSchrittProbe(t))
       expect(p.links.huefte).toBeCloseTo(-p.rechts.huefte, 8)
@@ -144,11 +145,13 @@ describe('D7r Mecha', () => {
       expect(p.rumpfY).toBeLessThanOrEqual(.06)
       expect(p.rumpfPendel).toBe(0)
     }
-    expect(mechaPose(.3).links.huefte).toBeCloseTo(18)
-    expect(mechaPose(.6).links.knie).toBeCloseTo(-35)
+    expect(mechaPose(.45).links.huefte).toBeCloseTo(18)
+    expect(mechaPose(.9).links.knie).toBeCloseTo(-35)
     expect(mechaPose(0).rumpfY).toBeCloseTo(0, 8)
-    expect(mechaPose(.3).rumpfY).toBeCloseTo(.06, 8)
-    expect(mechaPose(.6).rumpfY).toBeCloseTo(0, 8)
+    expect(mechaPose(.45).rumpfY).toBeCloseTo(.06, 8)
+    expect(mechaPose(.9).rumpfY).toBeCloseTo(0, 8)
+    expect(mechaPose(1.8).links.huefte).toBeCloseTo(mechaPose(0).links.huefte, 8)
+    expect(mechaPose(1.8).rechts.knie).toBeCloseTo(mechaPose(0).rechts.knie, 8)
   })
 
   it('fügt eine fünfte Säule und den Prüfknopf hinzu', () => {
@@ -178,34 +181,60 @@ describe('D7r Mecha', () => {
       z.y = 20; z.Z = 600
       const a = starteEinheit(z, 'mecha')
       const achse = new THREE.Vector3(...MECHA_ACHSEN.huefte).normalize()
-      a.verstrichen = .3
+      a.verstrichen = .45
       bilder.abgleichen(z, [], 0)
       const gruppe = welt.scene.getObjectByName('einsatz-mecha') as THREE.Group
       const links = gruppe.getObjectByName('oberschenkel_l')!
       expect(links.quaternion.angleTo(new THREE.Quaternion().setFromAxisAngle(achse, THREE.MathUtils.degToRad(18)))).toBeLessThan(1e-6)
-      a.verstrichen = 3
+      a.verstrichen = 5
       bilder.abgleichen(z, [], 0)
       expect(links.quaternion.angleTo(new THREE.Quaternion())).toBeLessThan(1e-6)
       expect(gruppe.position.z).toBeCloseTo(-12.5, 2)
-      a.verstrichen = 3.25
-      bilder.abgleichen(z, [{ art: 'spezialTreffer', einheit: 'mecha', menge: 3, t: 3.25 }], .25)
+      a.verstrichen = 5.25
+      bilder.abgleichen(z, [{ art: 'spezialTreffer', einheit: 'mecha', menge: 3, t: 5.25 }], .25)
       expect(bilder.schuesse(a)).toBe(2)
       expect(bilder.nimmTreffer().reduce((n, e) => n + e.menge, 0)).toBe(3)
-      a.verstrichen = 13
-      bilder.abgleichen(z, [{ art: 'spezialTreffer', einheit: 'mecha', menge: 70, t: 13 }], 0)
+      a.verstrichen = 15
+      bilder.abgleichen(z, [{ art: 'spezialTreffer', einheit: 'mecha', menge: 70, t: 15 }], 0)
       expect(bilder.raketen.count).toBe(8)
+      expect(bilder.blitze.objekt.count).toBe(4)
+      expect(bilder.rauch.anzahl).toBe(4)
+      expect(bilder.rauch.objekt.count).toBe(4)
+      expect((bilder.raketen.geometry as THREE.ConeGeometry).parameters).toMatchObject({ radius: .15, height: .68 })
+      const blitzMatrix = new THREE.Matrix4(), rauchMatrix = new THREE.Matrix4()
+      const blitzOrte: THREE.Vector3[] = []
+      const startOrte: THREE.Vector3[] = []
+      for (let i = 0; i < 4; i++) {
+        const start = gruppe.localToWorld(new THREE.Vector3((i < 2 ? -1 : 1) * .7 + (i % 2 ? .1 : -.1), 3.95, -.35))
+        startOrte.push(start)
+        bilder.blitze.objekt.getMatrixAt(i, blitzMatrix)
+        bilder.rauch.objekt.getMatrixAt(i, rauchMatrix)
+        blitzOrte.push(new THREE.Vector3().setFromMatrixPosition(blitzMatrix))
+        expect(new THREE.Vector3().setFromMatrixPosition(rauchMatrix).distanceTo(start)).toBeLessThan(1e-6)
+        expect(new THREE.Vector3().setFromMatrixScale(blitzMatrix).x).toBeCloseTo(.8)
+        expect(new THREE.Vector3().setFromMatrixScale(rauchMatrix).x).toBeCloseTo(.6)
+      }
+      for (const start of startOrte) expect(blitzOrte.some(p => p.distanceTo(start) < 1e-6)).toBe(true)
       bilder.nachlauf(.6)
+      expect(bilder.blitze.objekt.count).toBe(4)
+      expect(bilder.rauch.anzahl).toBe(20)
       expect(bilder.nimmTreffer().reduce((n, e) => n + e.menge, 0)).toBe(0)
-      bilder.nachlauf(.02); bilder.nachlauf(.02)
+      bilder.nachlauf(.02)
+      expect(bilder.blitze.objekt.count).toBe(4)
+      bilder.nachlauf(.02)
+      expect(bilder.blitze.objekt.count).toBe(0)
+      expect(bilder.rauch.anzahl).toBe(16)
       expect(bilder.nimmTreffer().reduce((n, e) => n + e.menge, 0)).toBe(70)
-      a.verstrichen = 17
-      bilder.abgleichen(z, [{ art: 'spezialTreffer', einheit: 'mecha', menge: 70, t: 17 }], 0)
+      a.verstrichen = 19
+      bilder.abgleichen(z, [{ art: 'spezialTreffer', einheit: 'mecha', menge: 70, t: 19 }], 0)
+      expect(bilder.blitze.objekt.count).toBe(4)
+      expect(bilder.rauch.anzahl).toBe(20)
       bilder.nachlauf(.6); bilder.nachlauf(.02); bilder.nachlauf(.02)
       expect(bilder.nimmTreffer().reduce((n, e) => n + e.menge, 0)).toBe(70)
-      a.verstrichen = 17.35
+      a.verstrichen = 19.5
       bilder.abgleichen(z, [], 0)
       expect(links.quaternion.angleTo(new THREE.Quaternion().setFromAxisAngle(achse, THREE.MathUtils.degToRad(-18)))).toBeLessThan(1e-6)
-      a.verstrichen = 19.05
+      a.verstrichen = 22.55
       bilder.abgleichen(z, [], 0)
       expect(gruppe.position.z).toBeCloseTo(10, 2)
       bilder.gibFrei()

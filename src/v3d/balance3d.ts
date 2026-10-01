@@ -66,10 +66,10 @@ export const SPEZIAL = {
     { art: 'fahrt', dauer: 1.5 }] },
   hubschrauber: { ablauf: [{ art: 'fahrt', dauer: 2 },
     { art: 'feuer', dauer: 12, zombiesProSekunde: 20, bossPunkteProSekunde: 25 }] },
-  mecha: { ablauf: [{ art: 'fahrt', dauer: 3 },
+  mecha: { ablauf: [{ art: 'fahrt', dauer: 5 },
     { art: 'feuer', dauer: 10, zombiesProSekunde: 12, bossPunkteProSekunde: 40 },
     { art: 'einschlaege', dauer: 4.05, einschlaege: 2, abstand: 4, zombiesProEinschlag: 70 },
-    { art: 'fahrt', dauer: 2 }] },
+    { art: 'fahrt', dauer: 3.5 }] },
 } as const
 export type SpezialName = keyof typeof SPEZIAL
 

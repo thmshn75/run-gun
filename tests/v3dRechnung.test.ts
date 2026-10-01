@@ -14,7 +14,7 @@ const nah = (a: number, b: number) => {
 
 describe('3D-Spielrechnung', () => {
   it('wirkt je Ablauf unabhängig von der Schrittweite exakt wie die Tabelle', () => {
-    for (const [name, dauer, wirkung] of [['humvee',14,120],['haubitze',6.75,180],['panzer',9.2,160],['hubschrauber',14,240],['mecha',19.05,260]] as const) {
+    for (const [name, dauer, wirkung] of [['humvee',14,120],['haubitze',6.75,180],['panzer',9.2,160],['hubschrauber',14,240],['mecha',22.55,260]] as const) {
       expect(gesamtDauer(name)).toBeCloseTo(dauer, 8)
       for (const zeitSchritt of [1/30,.1,1]) {
         const z = neuerLauf(testLevel({ wellen: [], saeulen: [], eliteBossZeit: 999, startY: 1000 }), 5)
