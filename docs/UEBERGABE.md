@@ -18,8 +18,13 @@ umgesetzt): 10 Level (Bots: gewinnende Spielweisen 24 → 3, passiv verliert üb
 Freischalten, beste Läufe, Lobby mit Level-Karte und Testgelände je Fahrzeug, Ergebnistafel
 NOCHMAL/WEITER/LOBBY. Wartet auf Thomas' Blick im Browser. **Codex ist wieder einsetzbar**
 (Thomas 18:27) — ab D7r wieder der normale Weg (Spec → Codex im Terminal → Review).
-**Naechster Schritt:** D7r Kampfrüstung (Project 'Alpha' Mecha, Plan V7): Modell über Thomas'
-Sketchfab-Anmeldung laden, prüfen ob Waffen/Raketenwerfer dabei sind, dann Spec.
+**Stand 2026-10-01 21:55:** D7r Mecha online (Commit 3b1311e): fünfte Säule, 5 154 Dreiecke,
+7 Glieder mit echten Schritten (dritter Anlauf auf Thomas' Wunsch; die ersten zwei scheiterten
+an einem widersprüchlichen Prüfkriterium der Spec, siehe lessons.md), kein Rumpfpendeln,
+langsamer Gang (5 s hinein, Zyklus 1,8 s), Armkanonen, zwei Raketensalven mit Abschussblitz und
+Rauch. Sekundenanzeige der Einheiten entfernt, Testgelände in der Lobby aufklappbar. Wartet auf
+Thomas' Blick. Rohmodell `~/Downloads/rungun-roh/mecha/`, Kopie `tmp/fahrzeuge/mecha/`.
+**Naechster Schritt:** Werkstatt (Plan V7, D7-Lobby Punkt 2).
 
 ## Offen — naechster Schritt zuerst
 
