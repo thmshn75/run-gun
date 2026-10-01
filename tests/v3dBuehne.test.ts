@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { describe, expect, it, vi } from 'vitest'
 import { BUEHNE, DARSTELLUNG, EIS, LEVELS } from '../src/v3d/balance3d'
-import { platzhalter } from '../src/v3d/szene'
+import { platzhalter, saeulenZiele } from '../src/v3d/szene'
 import type { FahrzeugBau } from '../src/v3d/fahrzeuge'
 import type { FahrzeugName } from '../src/v3d/balance3d'
 import { baueKamera, passeKameraAn } from '../src/v3d/kamera'
@@ -35,7 +35,7 @@ describe('3D-Bühne', () => {
       const fahrzeuge=Object.fromEntries(LEVELS[0].saeulen.map(n=>[n,{geometrien:[form],material,laenge:4,vorlage,gibFrei(){}}])) as Record<FahrzeugName,FahrzeugBau>
       const scene=new THREE.Scene(),p=platzhalter(scene,fahrzeuge)
       expect(p.saeulen).toHaveLength(4)
-      expect(p.saeulen.map(s=>s.position.z)).toEqual([-12,-20,-28,-36])
+      expect(p.saeulen.map(s=>s.position.z)).toEqual(saeulenZiele(LEVELS[0],0,p.miniaturen,4))
       expect(p.miniaturen).toHaveLength(4)
       for (const [i, block] of p.saeulenBloecke.entries()) {
         const mini = block.children.find(o => o.name.startsWith('fahrzeug-'))!
@@ -45,19 +45,25 @@ describe('3D-Bühne', () => {
         const box = new THREE.Box3().setFromObject(huelle)
         box.min.x += BUEHNE.SAEULE_X; box.max.x += BUEHNE.SAEULE_X
         expect(box.min.x).toBeGreaterThanOrEqual(EIS.INNEN_X - 1e-6)
-        expect(box.max.x).toBeLessThanOrEqual(EIS.AUSSEN_X + 1e-6)
-        expect(box.max.z - box.min.z).toBeLessThanOrEqual(EIS.ZIEL_LAENGE + 1e-6)
+        expect(box.max.x).toBeGreaterThan(box.min.x)
+        expect(box.max.z - box.min.z).toBeGreaterThan(1)
         expect(p.saeulenSchilder[i].name).toBe('eis-zahl')
         expect(p.saeulenSchilder[i].position.y - (mini.userData.hoehe as number) - .5).toBeCloseTo(.35)
         expect((p.saeulenSchilder[i].material as THREE.MeshBasicMaterial).depthTest).toBe(true)
         expect(p.saeulen[i].getObjectByName('mini-sockel')).toBeUndefined()
         expect(p.saeulen[i].getObjectByName('saeule-rahmen')).toBeUndefined()
       }
-      expect(EIS.AUSSEN_X - EIS.INNEN_X).toBe(2.4)
-      expect(BUEHNE.SAEULE_X).toBe((EIS.INNEN_X + EIS.AUSSEN_X) / 2)
       expect(EIS.INNEN_X).toBeGreaterThan(BUEHNE.MITTE_HALB + BUEHNE.KANTE_BREITE / 2)
-      expect(EIS.AUSSEN_X).toBeLessThanOrEqual(BUEHNE.BAHN_BREITE / 2)
       expect(p.saeulen.reduce((n,s)=>n+s.children.filter(o=>o instanceof THREE.Mesh).length,0)).toBeLessThanOrEqual(12)
+      for(let index=0;index<4;index++) {
+        const ziele=saeulenZiele(LEVELS[0],index,p.miniaturen,4)
+        const grenzen=Array.from({length:4},(_,j)=>{
+          const name=LEVELS[0].saeulen[(index+j)%4]
+          return p.miniaturen.find(m=>m.name===`fahrzeug-${name}`)!.userData.huelleZ as [number,number]
+        })
+        expect(ziele[0]+grenzen[0][1]).toBeCloseTo(-9,2)
+        for(let j=1;j<4;j++) expect(ziele[j-1]+grenzen[j-1][0]-(ziele[j]+grenzen[j][1])).toBeCloseTo(1.5,2)
+      }
     } finally {vi.unstubAllGlobals()}
   })
   it('trennt Schilder, Kampffeld und Säule geometrisch', () => {
@@ -68,7 +74,7 @@ describe('3D-Bühne', () => {
     expect(BUEHNE.PLUS_BREITE).toBe(2)
     expect(BUEHNE.PLUS_HOEHE).toBe(1.2)
     expect(EIS.INNEN_X).toBeGreaterThanOrEqual(BUEHNE.MITTE_HALB)
-    expect(EIS.AUSSEN_X).toBeLessThanOrEqual(aussen)
+    expect(EIS.INNEN_X).toBeLessThanOrEqual(aussen)
     expect(BUEHNE.WAND_HOEHE).toBe(1.2)
     expect(BUEHNE.WAND_FARBE).toBe('#1f6fd6')
     expect(2 * BUEHNE.MITTE_HALB).toBe(6.8)

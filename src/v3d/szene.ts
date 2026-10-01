@@ -3,7 +3,7 @@ import strassenUrl from './bilder/v3d-strasse.webp?url'
 import normalenUrl from './bilder/v3d-wasser-normalen.webp?url'
 import eisUrl from './bilder/v3d-eis.webp?url'
 import { EisEffekte, baueEishuelle, ladeEisBemalung } from './eis'
-import { BUEHNE, DARSTELLUNG, FAHRZEUGE, FIGUREN, LEVELS, type FahrzeugName } from './balance3d'
+import { BUEHNE, DARSTELLUNG, FAHRZEUGE, FIGUREN, LEVELS, type FahrzeugName, type Level } from './balance3d'
 import { baueKamera } from './kamera'
 import { ladeZombie, ZombieMasse, type ZombieBau } from './figuren'
 import { ladeSoldatenDateien, fertigeSoldaten, entsorgeGLTF, SoldatenMasse, type SoldatenBau } from './soldaten'
@@ -43,6 +43,21 @@ export interface Welt {
   eliteboss: Boss
 }
 
+export function saeulenZiele(level: Level, index: number, miniaturen: readonly THREE.Object3D[], anzahl: number): number[] {
+  const ziele: number[] = []
+  let vorderkante = -9
+  for (let j = 0; j < anzahl; j++) {
+    const name = level.saeulen[(index + j) % level.saeulen.length]
+    const mini = miniaturen.find(m => m.name === `fahrzeug-${name}`)
+    if (!mini) throw new Error(`${name}: Eis-Miniatur fehlt`)
+    const [minZ, maxZ] = mini.userData.huelleZ as [number, number]
+    const ziel = vorderkante - maxZ
+    ziele.push(ziel)
+    vorderkante = ziel + minZ - 1.5
+  }
+  return ziele
+}
+
 function box(gruppe: THREE.Group | THREE.Scene, name: string, groesse: [number, number, number], pos: [number, number, number], farbe: string, layer = 0): THREE.Mesh {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(...groesse), new THREE.MeshStandardMaterial({ color: farbe }))
   mesh.name = name
@@ -71,14 +86,17 @@ export function platzhalter(scene: THREE.Scene, fahrzeuge: Record<FahrzeugName, 
     const mini = baueMiniatur(fahrzeuge[name as FahrzeugName], name as FahrzeugName, [0, 0, 0], { eis: true })
     const masse = baueEishuelle(mini, eis)
     eis.huellDreiecke += masse.dreiecke; eis.huellBytes += masse.bytes
+    const huellBox = new THREE.Box3().setFromObject(mini.userData.huelle as THREE.Group, true)
+    mini.userData.huelleZ = [huellBox.min.z, huellBox.max.z]
     mini.userData.hoehe = new THREE.Box3().setFromObject(mini, true).max.y
     miniaturen.push(mini)
   }
   const anzahl = Math.min(LEVELS[0].saeulen.length, DARSTELLUNG.SAEULEN_VORSCHAU + 1)
+  const ziele = saeulenZiele(LEVELS[0], 0, miniaturen, anzahl)
   for (let index = 0; index < anzahl; index++) {
     const saeule = new THREE.Group()
     saeule.name = `saeule-${index}`
-    saeule.position.set(BUEHNE.SAEULE_X, 0, -12 - index * BUEHNE.SAEULEN_ABSTAND)
+    saeule.position.set(BUEHNE.SAEULE_X, 0, ziele[index])
     const block = new THREE.Group()
     block.name = 'eishuelle-platz'
     block.add(miniaturen[index])

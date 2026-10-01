@@ -4,11 +4,11 @@ import { NodeIO } from '@gltf-transform/core'
 import { EXTTextureWebP } from '@gltf-transform/extensions'
 import sharp from 'sharp'
 import * as THREE from 'three'
-import { EIS, FAHRZEUGE, LEVELS, type FahrzeugName } from '../src/v3d/balance3d'
+import { BUEHNE, EIS, FAHRZEUGE, LEVELS, type FahrzeugName } from '../src/v3d/balance3d'
 import { baueMiniatur, baueFeldFahrzeug, type FahrzeugBau } from '../src/v3d/fahrzeuge'
 import { Einsatzbilder } from '../src/v3d/lauf'
 import { neuerLauf, starteEinheit } from '../src/v3d/rechnung'
-import type { Welt } from '../src/v3d/szene'
+import { saeulenZiele, type Welt } from '../src/v3d/szene'
 import { Explosionen } from '../src/v3d/anzeigen'
 import { EisEffekte, baueEishuelle } from '../src/v3d/eis'
 import { baueKamera } from '../src/v3d/kamera'
@@ -68,7 +68,8 @@ describe('3D-Fahrzeuge', () => {
     vi.stubGlobal('document',{createElement:()=>({width:0,height:0,getContext:()=>ctx})})
     try {
       const eis = new EisEffekte(new THREE.Scene(), null)
-      const laengen: Record<string,number> = {}, hoehen: Record<string,number> = {}, feldLaengen: Record<string,number> = {}
+      const laengen: Record<string,number> = {}, hoehen: Record<string,number> = {}, feldLaengen: Record<string,number> = {}, fahrzeugLaengen: Record<string,number> = {}
+      const miniaturen: THREE.Group[] = []
       const huellBoxen = {} as Record<FahrzeugName, THREE.Box3>
       const fahrzeugBoxen = {} as Record<FahrzeugName, THREE.Box3>
       for (const name of namen) {
@@ -93,20 +94,25 @@ describe('3D-Fahrzeuge', () => {
         expect(feldLaengen[name]).toBeCloseTo(FAHRZEUGE[name].LAENGE * FAHRZEUGE[name].SPIEL_SKALA, 3)
         const mini = baueMiniatur(bau, name, [0, 0, 0], {eis:true})
         const fahrzeugBox = new THREE.Box3().setFromObject(mini, true)
-        fahrzeugBoxen[name] = fahrzeugBox.clone()
+        const xVorHuelle = mini.position.x
+        fahrzeugLaengen[name] = fahrzeugBox.getSize(new THREE.Vector3()).z
+        expect(fahrzeugLaengen[name],name).toBeCloseTo(FAHRZEUGE[name].LAENGE * EIS.MASSSTAB, 3)
         const masse = baueEishuelle(mini, eis)
+        fahrzeugBox.translate(new THREE.Vector3(mini.position.x-xVorHuelle,0,0))
+        fahrzeugBoxen[name] = fahrzeugBox.clone()
         const feldBoxNach = new THREE.Box3().setFromObject(baueFeldFahrzeug(bau, name), true).getSize(new THREE.Vector3())
         expect(feldBoxNach.toArray(),name).toEqual(feldBoxVor.toArray())
         eis.huellDreiecke += masse.dreiecke; eis.huellBytes += masse.bytes
         const huelle = mini.userData.huelle as THREE.Group
         const huellBox = new THREE.Box3().setFromObject(huelle, true)
+        mini.userData.huelleZ = [huellBox.min.z, huellBox.max.z]
+        miniaturen.push(mini)
         huellBoxen[name] = huellBox.clone()
-        const weltX = huellBox.clone().translate(new THREE.Vector3((EIS.INNEN_X + EIS.AUSSEN_X) / 2, 0, 0))
+        const weltX = huellBox.clone().translate(new THREE.Vector3(BUEHNE.SAEULE_X, 0, 0))
         laengen[name] = huellBox.getSize(new THREE.Vector3()).z
         hoehen[name] = huellBox.max.y
         expect(weltX.min.x,name).toBeGreaterThanOrEqual(EIS.INNEN_X - 1e-5)
-        expect(weltX.max.x,name).toBeLessThanOrEqual(EIS.AUSSEN_X + 1e-5)
-        expect(laengen[name],name).toBeLessThanOrEqual(EIS.ZIEL_LAENGE + 1e-4)
+        expect(laengen[name],name).toBeGreaterThanOrEqual(fahrzeugLaengen[name])
         expect(laengen[name],name).toBeGreaterThanOrEqual(3)
         expect(fahrzeugBox.min.y,name).toBeCloseTo(EIS.HUELLE, 3)
         for (const x of [fahrzeugBox.min.x,fahrzeugBox.max.x]) for (const y of [fahrzeugBox.min.y,fahrzeugBox.max.y]) for (const z of [fahrzeugBox.min.z,fahrzeugBox.max.z]) {
@@ -114,25 +120,28 @@ describe('3D-Fahrzeuge', () => {
         }
         expect(mini.localToWorld(new THREE.Vector3(...FAHRZEUGE[name].MUENDUNG)).z,name).toBeLessThan(0)
       }
+      for(const a of namen) for(const b of namen) expect(fahrzeugLaengen[a]/fahrzeugLaengen[b]).toBeCloseTo(FAHRZEUGE[a].LAENGE/FAHRZEUGE[b].LAENGE,2)
+      expect(huellBoxen.hubschrauber.max.x+BUEHNE.SAEULE_X).toBeGreaterThan(BUEHNE.BAHN_BREITE/2)
       expect(eis.huellDreiecke).toBeGreaterThan(0)
       expect((512*512*4*4/3 + 512*512*4 + EIS.SPLITTER_POOL*16*4 + eis.huellBytes)/1048576).toBeLessThanOrEqual(3)
-      const camera = baueKamera(390, 844), xMitte = (EIS.INNEN_X + EIS.AUSSEN_X) / 2
+      const camera = baueKamera(390, 844), xMitte = BUEHNE.SAEULE_X
+      const ziele = saeulenZiele(LEVELS[0],0,miniaturen,4)
       const bildBox = (box:THREE.Box3) => {
         const punkte:THREE.Vector3[]=[]
         for(const x of [box.min.x,box.max.x]) for(const y of [box.min.y,box.max.y]) for(const z of [box.min.z,box.max.z]) punkte.push(new THREE.Vector3(x,y,z).project(camera))
         return {l:Math.min(...punkte.map(p=>p.x)),r:Math.max(...punkte.map(p=>p.x)),o:Math.min(...punkte.map(p=>p.y)),u:Math.max(...punkte.map(p=>p.y))}
       }
       const hoch = new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion), rechts = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion)
-      const mitte = new THREE.Vector3(xMitte,hoehen.humvee+.85,-12)
+      const mitte = new THREE.Vector3(xMitte,hoehen.humvee+.85,ziele[0])
       const tafelPunkte = [-.6,.6].flatMap(x=>[-.234375,.5].map(y=>mitte.clone().addScaledVector(rechts,x).addScaledVector(hoch,y).project(camera)))
       const tafel = {l:Math.min(...tafelPunkte.map(p=>p.x)),r:Math.max(...tafelPunkte.map(p=>p.x)),o:Math.min(...tafelPunkte.map(p=>p.y)),u:Math.max(...tafelPunkte.map(p=>p.y))}
-      const eigenes=bildBox(fahrzeugBoxen.humvee.clone().translate(new THREE.Vector3(xMitte,0,-12)))
-      const folge=bildBox(fahrzeugBoxen.haubitze.clone().translate(new THREE.Vector3(xMitte,0,-20)))
+      const eigenes=bildBox(fahrzeugBoxen.humvee.clone().translate(new THREE.Vector3(xMitte,0,ziele[0])))
+      const folge=bildBox(fahrzeugBoxen.haubitze.clone().translate(new THREE.Vector3(xMitte,0,ziele[1])))
       const schnitt=(b:typeof tafel)=>Math.max(0,Math.min(tafel.r,b.r)-Math.max(tafel.l,b.l))*Math.max(0,Math.min(tafel.u,b.u)-Math.max(tafel.o,b.o))
       const eigeneUeberdeckung=schnitt(eigenes), eigenerAnteil=eigeneUeberdeckung/((eigenes.r-eigenes.l)*(eigenes.u-eigenes.o))
       const folgeAnteil=schnitt(folge)/((folge.r-folge.l)*(folge.u-folge.o))
-      const ziffernPx=Math.abs(new THREE.Vector3(xMitte,hoehen.humvee+.35,-12).project(camera).y-new THREE.Vector3(xMitte,hoehen.humvee+1.35,-12).project(camera).y)*844/2*96/128
-      console.info('Eishüllen-Messung', {laengen, hoehen, feldLaengen, dreiecke:eis.huellDreiecke, bytes:eis.huellBytes, eigenerAnteil, folgeAnteil, ziffernPx})
+      const ziffernPx=Math.abs(new THREE.Vector3(xMitte,hoehen.humvee+.35,ziele[0]).project(camera).y-new THREE.Vector3(xMitte,hoehen.humvee+1.35,ziele[0]).project(camera).y)*844/2*96/128
+      console.info('Eishüllen-Messung', {fahrzeugLaengen,laengen, hoehen, feldLaengen, ziele, dreiecke:eis.huellDreiecke, bytes:eis.huellBytes, eigenerAnteil, folgeAnteil, ziffernPx})
       // Bounding-Box-Schnitt: 2,25 % (Antennenspitze); im Browserbild nicht sichtbar (Claude 2026-10-01).
       expect(eigenerAnteil).toBeLessThanOrEqual(.05)
       expect(folgeAnteil).toBeLessThanOrEqual(.2)

@@ -392,3 +392,38 @@ Eine Browser-Sichtprüfung war nicht möglich, weil die automatische Freigabe de
 auf Google Chrome abgelehnt hat; ein iPhone-Lauf wurde hier nicht durchgeführt.
 `open -a Terminal` fand keine Terminal-App, daher liefen die Prüfungen im Terminal-PTY.
 Kein Commit/Push gemäß Projektregel.
+
+
+## Nacharbeit 6 — richtige Größenverhältnisse (Thomas 2026-10-01 10:50)
+
+Thomas: "Die Größenverhältnisse der Fahrzeuge stimmen nicht — sie müssen im Verhältnis zu den
+anderen Fahrzeugen richtig dargestellt sein, sie dürfen auch größer sein und über die Fahrbahn
+ragen." Ersetzt N10 (feste 5 m je Fahrzeug).
+
+**N14 Ein Maßstab für alle.** Neue Konstante `EIS.MASSSTAB = 0.8`. Länge jeder Eis-Miniatur
+(z-Ausdehnung des Fahrzeugs ohne Hülle) = `FAHRZEUGE[name].LAENGE × EIS.MASSSTAB` →
+Humvee 3,68 m, Panzer 7,84 m, Haubitze 5,84 m, Hubschrauber 14,16 m. **Keine** Verkleinerung
+einzelner Fahrzeuge wegen Breite/Höhe mehr (Verhältnis ist Pflicht). Test: Länge/Länge zweier
+beliebiger Miniaturen = Verhältnis ihrer `LAENGE` (±1 %).
+**N15 Lage.** Innenkante der Hülle (kleinstes x) ≥ 3,6 (nicht ins Kampffeld); nach außen darf
+sie über Bahnrand und Wasser ragen (keine Obergrenze). Hubschrauber-Rotor weiter im Winkel
+kleinster Breite, Rotor steht über dem Wasser. Fahrzeug steht auf dem Boden (Hubschrauber auf
+seinen Rädern/Kufen).
+**N16 Abstände nach Länge.** Plätze nicht mehr im festen 8-m-Raster: vorderster Platz j = 0 mit
+Hüllenvorderkante bei z = −9; jeder weitere hinter dem vorigen mit 1,5 m Lücke zwischen den
+Hüllen (aus den Hüllenlängen der aktuellen Reihenfolge berechnet). Beim Nachrücken (0,6 s) zu den
+neuen Zielen gleiten; der hinten neu erscheinende Platz bekommt sein Ziel aus derselben Rechnung.
+Eine Funktion für die Ziel-z je Reihenstelle (Test: Lücken 1,5 m ± 0,01 bei jeder der vier
+Reihenfolgen).
+**N17 Feld unverändert** (Test aus N10 bleibt). Tafel: über der höchsten Stelle der Hülle wie
+N13; Projektionstest: Ziffer ≥ 18 px am vordersten Platz, eigenes Fahrzeug ≤ 5 %,
+Folgefahrzeug ≤ 20 % — Werte berichten, bei Verfehlung melden statt Maßstab ändern.
+`npm run check`, `npm test`, `npm run build`, `npm run bots3d`. Status `IMPL_DONE`, Bericht:
+Längen, Ziel-z je Reihenfolge, Hüllen-Dreiecke, Testergebnisse.
+
+**Abschluss Nacharbeit 6 (Claude 11:40):** Codex-Lauf hing nach der Umsetzung ~23 min ohne
+Datei- oder Prozessaktivität und wurde beendet; der hinterlassene Stand war vollständig grün
+(639 Tests, Build, Bots zahlengleich). N14–N16 umgesetzt (`EIS.MASSSTAB` 0,8,
+`saeulenZiele`), den fehlenden Lücken-Test (N16) hat Claude ergänzt
+(`tests/v3dSaeulenZiele.test.ts`), 640 Tests grün. Browserbild: Verhältnisse stimmen,
+Hubschrauber ragt über das Wasser.

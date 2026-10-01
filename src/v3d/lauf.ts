@@ -2,7 +2,7 @@ import { BUEHNE, DARSTELLUNG, FAHRZEUGE, FIGUREN, LEVELS, SPEZIAL, type Fahrzeug
 import { neuerLauf, schritt, phaseBei, saeulenStartP, type AktiveEinheit, type Ereignis, type Trupp, type Zustand } from './rechnung'
 import { glaetteX, kernX } from './steuerung'
 import { bossFreieAufstellung } from './bosse'
-import type { Welt } from './szene'
+import { saeulenZiele, type Welt } from './szene'
 import { eisZahl } from './eis'
 import type { SoldatEintrag } from './soldaten'
 import { SoldatenMasse } from './soldaten'
@@ -402,9 +402,9 @@ export function formationsFiguren(T: number, bewegung: SoldatEintrag['bewegung']
   }))
 }
 
-export function saeulenBlick(x: number, figurX: number, figurZ: number): number {
+export function saeulenBlick(x: number, figurX: number, figurZ: number, saeuleZ: number): number {
   const dx = BUEHNE.SAEULE_X - x - figurX
-  const dz = -12 - figurZ
+  const dz = saeuleZ - figurZ
   return Math.atan2(-dx, -dz)
 }
 
@@ -622,11 +622,13 @@ export class WeltDarstellung implements LaufDarstellung {
   private letzterGlasBlitz = -Infinity
   private bild = 0
   private blockZuordnung: number[] = []
+  private saeulenZiele: number[] = []
   private letzteZahlZeit = -Infinity
   constructor(welt: Welt, seed = 12345, pruefDiagnose?: PruefDiagnose) {
     this.welt=welt
+    const ziele = saeulenZiele(LEVELS[0], 0, welt.miniaturen, welt.saeulen.length)
     welt.saeulen.forEach((saeule, i) => {
-      saeule.position.z = -12 - i * BUEHNE.SAEULEN_ABSTAND
+      saeule.position.z = ziele[i]
       saeule.visible = i <= DARSTELLUNG.SAEULEN_VORSCHAU
       welt.saeulenBloecke[i].visible = saeule.visible
     })
@@ -686,8 +688,9 @@ export class WeltDarstellung implements LaufDarstellung {
     const w = this.welt
     w.eis.zuruecksetzen()
     this.blockZuordnung = w.saeulen.map((_, i) => i)
+    this.saeulenZiele = saeulenZiele(this.letzterStand?.z.level ?? LEVELS[0], 0, w.miniaturen, w.saeulen.length)
     w.saeulen.forEach((s, i) => {
-      s.position.set(BUEHNE.SAEULE_X, 0, -12 - i * BUEHNE.SAEULEN_ABSTAND)
+      s.position.set(BUEHNE.SAEULE_X, 0, this.saeulenZiele[i])
       s.visible = true
       w.saeulenBloecke[i].visible = true; w.saeulenBloecke[i].scale.setScalar(1)
       w.saeulenSchilder[i].visible = true
@@ -787,7 +790,7 @@ export class WeltDarstellung implements LaufDarstellung {
     this.drehAnteil = THREE.MathUtils.clamp(this.drehAnteil + (schiesst ? 1 : -1) * dt / .3, 0, 1)
     const bewegung = schiesst ? 'schiessen' : 'stehen'
     if (formation !== this.letzteT || this.drehAnteil !== this.letzteDrehung || bewegung !== this.letzteBewegung || (this.drehAnteil > 0 && x !== this.letztesX)) {
-      w.truppe.setze(formationsFiguren(z.T, bewegung).map(e => ({ ...e, dreh: saeulenBlick(x, e.x, e.z) * this.drehAnteil })))
+      w.truppe.setze(formationsFiguren(z.T, bewegung).map(e => ({ ...e, dreh: saeulenBlick(x, e.x, e.z, this.saeulenZiele[0]) * this.drehAnteil })))
       this.letzteT = formation
       this.letzteDrehung = this.drehAnteil
       this.letztesX = x
@@ -800,7 +803,7 @@ export class WeltDarstellung implements LaufDarstellung {
     const lokal = Array.isArray(muendung) ? new THREE.Vector3(...muendung as [number,number,number]) : new THREE.Vector3(0,1.3,-.5)
     for (let i = 0; i < neueBlitze; i++) {
       const figur = formationsFiguren(z.T)[Math.floor(this.zufall() * formation)]
-      const dreh = saeulenBlick(x, figur.x, figur.z) * this.drehAnteil
+      const dreh = saeulenBlick(x, figur.x, figur.z, this.saeulenZiele[0]) * this.drehAnteil
       const pos = lokal.clone().applyAxisAngle(new THREE.Vector3(0,1,0), dreh).add(new THREE.Vector3(x + figur.x,0,figur.z))
       this.blitzPunkte.push({ ende: t + DARSTELLUNG.BLITZ_DAUER, pos })
     }
@@ -899,12 +902,16 @@ export class WeltDarstellung implements LaufDarstellung {
         w.eis.zerspringe(new THREE.Box3().setFromObject(block).getCenter(new THREE.Vector3()), this.bild)
         block.visible = false; w.saeulenSchilder[alt].visible = false
         this.blockZuordnung.push(alt)
-        w.saeulen[alt].position.z = -12 - (w.saeulen.length - 1) * BUEHNE.SAEULEN_ABSTAND
+        this.saeulenZiele = saeulenZiele(z.level, z.saeulenIndex, w.miniaturen, w.saeulen.length)
+        w.saeulen[alt].position.z = this.saeulenZiele.at(-1)!
         block.scale.setScalar(.3)
         w.eis.treffer.color.copy(w.eis.grundfarbe)
         this.ordneMiniaturen(z.level, z.saeulenIndex)
         w.eis.setzeAktiv(w.saeulenBloecke[this.blockZuordnung[0]], z.saeulenIndex)
-      } else this.ordneMiniaturen(z.level, z.saeulenIndex)
+      } else {
+        this.ordneMiniaturen(z.level, z.saeulenIndex)
+        this.saeulenZiele = saeulenZiele(z.level, z.saeulenIndex, w.miniaturen, w.saeulen.length)
+      }
       this.saeulenVon = this.blockZuordnung.map(i => w.saeulen[i].position.z)
       this.saeulenStart = this.uhr
       this.letzteSaeule = z.saeulenIndex
@@ -914,7 +921,7 @@ export class WeltDarstellung implements LaufDarstellung {
     const anteil = Math.min(1, (this.uhr - this.saeulenStart) / .6)
     this.blockZuordnung.forEach((i, j) => {
       const saeule = w.saeulen[i]
-      const ziel = -12 - j * BUEHNE.SAEULEN_ABSTAND
+      const ziel = this.saeulenZiele[j]
       saeule.position.z = THREE.MathUtils.lerp(this.saeulenVon[j] ?? ziel, ziel, anteil)
       if (j === w.saeulen.length - 1 && w.saeulenBloecke[i].scale.x < 1) {
         w.saeulenBloecke[i].visible = true

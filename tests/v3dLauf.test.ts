@@ -7,7 +7,7 @@ import { bannerEintraege } from '../src/v3d/oberflaeche'
 import { MessBotSteuerung } from '../src/v3d/messung'
 import { bossFreieAufstellung } from '../src/v3d/bosse'
 import { saeulenBlick } from '../src/v3d/lauf'
-import { BUEHNE, DARSTELLUNG, FAHRZEUGE, FIGUREN, LEVELS } from '../src/v3d/balance3d'
+import { BUEHNE, DARSTELLUNG, EIS, FAHRZEUGE, FIGUREN, LEVELS, type FahrzeugName } from '../src/v3d/balance3d'
 import { statusZeile } from '../src/v3d/oberflaeche'
 import { EisEffekte } from '../src/v3d/eis'
 import { startePruefEinsatz } from '../src/v3d/einstieg'
@@ -16,6 +16,7 @@ import { BossBalken, ZahlAnzeige } from '../src/v3d/anzeigen'
 import { ZombieMasse, type ZombieBau } from '../src/v3d/figuren'
 import { SoldatenMasse, type SoldatenBau } from '../src/v3d/soldaten'
 import type { Welt } from '../src/v3d/szene'
+import { saeulenZiele } from '../src/v3d/szene'
 
 function baueWeltAttrappe() {
   const namenBreiten: number[]=[]
@@ -28,8 +29,8 @@ function baueWeltAttrappe() {
   const soldatBau:SoldatenBau={formen:{laufen:[form()],stehen:[form()],schiessen:[form()],fallen:[form(),form(),form(),form()]},material:new THREE.MeshStandardMaterial(),atlas:new THREE.Texture(),dauer:{laufen:1,stehen:1,schiessen:1,fallen:1},backzeitMs:0,pruefung:{debugMuzzle:[0,1.3,-.5]}}
   const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(),truppe=new SoldatenMasse(soldatBau,40),laufTrupp=new SoldatenMasse(soldatBau,50),front=new SoldatenMasse(soldatBau,40),zombieMasse=new ZombieMasse(zombieBau,zombieBau.materialien,600)
   const wand=new THREE.Group(),eis=new EisEffekte(scene,null)
-  const saeulen=LEVELS[0].saeulen.map((_,i)=>{const g=new THREE.Group();g.name=`saeule-${i}`;g.position.set(BUEHNE.SAEULE_X,0,-12-i*BUEHNE.SAEULEN_ABSTAND);return g})
-  const miniaturen=LEVELS[0].saeulen.map(name=>{const innen=new THREE.Group();innen.name=`fahrzeug-${name}`;innen.position.y=1;innen.userData.hoehe=2;const huelle=new THREE.Group();huelle.name='eishuelle';huelle.add(new THREE.Mesh(new THREE.BoxGeometry(1,2,1),eis.basis));innen.add(huelle);innen.userData.huelle=huelle;innen.userData.rissMeshes=[new THREE.Mesh(new THREE.BoxGeometry(1,2,1),eis.rissMaterial)];return innen})
+  const saeulen=LEVELS[0].saeulen.map((_,i)=>{const g=new THREE.Group();g.name=`saeule-${i}`;g.position.set(BUEHNE.SAEULE_X,0,-12);return g})
+  const miniaturen=LEVELS[0].saeulen.map(name=>{const innen=new THREE.Group();innen.name=`fahrzeug-${name}`;innen.position.y=1;innen.userData.hoehe=2;const halb=FAHRZEUGE[name as FahrzeugName].LAENGE*EIS.MASSSTAB/2+EIS.HUELLE;innen.userData.huelleZ=[-halb,halb];const huelle=new THREE.Group();huelle.name='eishuelle';huelle.add(new THREE.Mesh(new THREE.BoxGeometry(1,2,1),eis.basis));innen.add(huelle);innen.userData.huelle=huelle;innen.userData.rissMeshes=[new THREE.Mesh(new THREE.BoxGeometry(1,2,1),eis.rissMaterial)];return innen})
   const saeulenBloecke=saeulen.map(g=>{const block=new THREE.Group();g.add(block);return block})
   const saeulenSchilder=saeulen.map(g=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(document.createElement('canvas'))}));m.userData.canvas=document.createElement('canvas');g.add(m);return m})
 
@@ -367,13 +368,13 @@ describe('3D-Lauf',()=>{
       expect(welt.eis.diagnose.splitter).toBeGreaterThanOrEqual(24)
       expect(welt.saeulenBloecke[0].scale.x).toBeCloseTo(.3)
       for(let i=0;i<6;i++)anzeige.zeige(z,new Map(),[],.1,0)
-      expect(welt.saeulen[1].position.z).toBeCloseTo(-12)
+      expect(welt.saeulen[1].position.z).toBeCloseTo(saeulenZiele(LEVELS[0],1,welt.miniaturen,4)[0])
       expect(welt.saeulenBloecke[0].scale.x).toBe(1)
       expect(welt.saeulen.filter(s=>s.visible)).toHaveLength(4)
       anzeige.gibFrei()
       const nochmal=new WeltDarstellung(welt),neu=new SpielLauf().zustand
       nochmal.zeige(neu,new Map(),[],.1,0)
-      expect(welt.saeulen[0].position.z).toBe(-12)
+      expect(welt.saeulen[0].position.z).toBe(saeulenZiele(LEVELS[0],0,welt.miniaturen,4)[0])
       expect(welt.eis.diagnose.splitter).toBe(0)
       expect(welt.eis.diagnose.stufe).toBe(0)
       expect(((welt.saeulenBloecke[0].children.find(o=>o.name.startsWith('fahrzeug-'))!.userData.huelle as THREE.Group).children[0] as THREE.Mesh)).toHaveProperty('material',welt.eis.treffer)
@@ -394,7 +395,7 @@ describe('3D-Lauf',()=>{
         for(let bild=0;bild<6;bild++) anzeige.zeige(z,new Map(),[],.1,0)
         if (![1,2,5,6].includes(fall)) continue
         for(let j=0;j<welt.saeulen.length;j++) {
-          const platz=welt.saeulen.find(s=>Math.abs(s.position.z-(-12-j*BUEHNE.SAEULEN_ABSTAND))<1e-6)!
+          const platz=welt.saeulen.find(s=>Math.abs(s.position.z-saeulenZiele(level,z.saeulenIndex,welt.miniaturen,4)[j])<1e-6)!
           const name=level.saeulen[(z.saeulenIndex+j)%level.saeulen.length]
           expect(platz.children.some(c=>c.children.some(m=>m.name===`fahrzeug-${name}`)),`Fall ${fall}, Platz ${j}`).toBe(true)
           const schild=welt.saeulenSchilder[welt.saeulen.indexOf(platz)]
@@ -478,10 +479,11 @@ describe('3D-Lauf',()=>{
     expect(bot.ziel(z)).toBe(0)
   })
   it('dreht den Vorwärtsvektor aus mehreren Lagen zur Säule',()=>{
+    const saeuleZ=-11
     for (const [x,figurX,figurZ] of [[0,0,0],[3,-2,0],[-3,2,-3],[0,1,-15]]) {
-      const winkel=saeulenBlick(x,figurX,figurZ)
+      const winkel=saeulenBlick(x,figurX,figurZ,saeuleZ)
       const blick=new THREE.Vector3(0,0,-1).applyAxisAngle(new THREE.Vector3(0,1,0),winkel)
-      const ziel=new THREE.Vector3(BUEHNE.SAEULE_X-x-figurX,0,-12-figurZ).normalize()
+      const ziel=new THREE.Vector3(BUEHNE.SAEULE_X-x-figurX,0,saeuleZ-figurZ).normalize()
       expect(blick.dot(ziel)).toBeGreaterThan(.95)
     }
   })
