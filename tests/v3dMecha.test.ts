@@ -47,6 +47,21 @@ describe('D7r Mecha', () => {
     expect([meta.width,meta.height,meta.format]).toEqual([512,512,'webp'])
   })
 
+  it('ordnet die gedrehten Gelenke und beide Beine spiegelgleich zu', async () => {
+    const bau = await modell()
+    for (const glied of ['oberschenkel', 'unterschenkel', 'fuss']) {
+      const links = bau.vorlage.getObjectByName(`${glied}_l`)!
+      const rechts = bau.vorlage.getObjectByName(`${glied}_r`)!
+      const l = new THREE.Box3().setFromObject(links, true)
+      const r = new THREE.Box3().setFromObject(rechts, true)
+      expect(l.getCenter(new THREE.Vector3()).x).toBeLessThan(-.5)
+      expect(r.getCenter(new THREE.Vector3()).x).toBeGreaterThan(.5)
+      expect(Math.abs(l.getSize(new THREE.Vector3()).y - r.getSize(new THREE.Vector3()).y)).toBeLessThan(.12)
+    }
+    expect(bau.vorlage.getObjectByName('oberschenkel_l')!.position.y).toBeCloseTo(2.370, 2)
+    expect(bau.vorlage.getObjectByName('unterschenkel_l')!.position.y).toBeCloseTo(-.858, 2)
+  })
+
   it('steht im Feld 4,5 m und im Eis 4,8 m hoch; Front zeigt nach −z', async () => {
     const bau = await modell()
     const feld = baueFeldFahrzeug(bau, 'mecha'), eis = baueMiniatur(bau, 'mecha', [0,0,0], { eis: true })

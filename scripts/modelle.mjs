@@ -318,14 +318,11 @@ async function fahrzeug(name) {
   console.log(JSON.stringify({name,dreiecke,bytes,bild:[meta.width,meta.height],drehung:FAHRZEUG_DREHUNG[name],laenge:FAHRZEUG_LAENGEN[name]}))
 }
 
-// Project 'Alpha': die starren Quellteile werden anhand ihres Weltmittelpunkts sortiert.
-// Grenzen in Quellmetern: Fuß < 0,65; Unterschenkel < 1,65; Oberschenkel < 2,55.
-// Gelenke in Quellmetern: Hüfte 2,23, Knie 1,48, Knöchel 0,47.
-const MECHA_GRENZEN = { fuss: .65, knie: 1.65, huefte: 2.55 }
-const MECHA_GELENKE = { huefte: 2.23, knie: 1.48, knoechel: .47 }
-const MECHA_PUNKTE = {
-  l: { huefte: [.38, 2.23, .19], knie: [.95, 1.48, .5], knoechel: [.97, .47, .5] },
-  r: { huefte: [-.58, 2.23, -.28], knie: [-1.2, 1.48, -.5], knoechel: [-1.19, .47, -.5] },
+// Die Zentren dieser sechs Gelenkteile wurden im gedrehten Rohmodell abgelesen.
+// Die Namen sind stabile Quellnamen; bei einer anderen Quelle bricht die Prüfung ab.
+const MECHA_GELENKTEILE = {
+  l: { huefte: 'Sphere047__0', knie: 'Cylinder041__0', knoechel: 'Sphere046__0' },
+  r: { huefte: 'Sphere048__0', knie: 'Cylinder038__0', knoechel: 'Sphere045__0' },
 }
 const MECHA_DREHUNG = 206.565 * Math.PI / 180
 async function mecha() {
@@ -340,7 +337,19 @@ async function mecha() {
   const scale=6/(max.y-min.y), center=new Vector3((min.x+max.x)/2,min.y,(min.z+max.z)/2)
   const turn=new Quaternion().setFromAxisAngle(new Vector3(0,1,0),MECHA_DREHUNG)
   const convert=v=>v.sub(center).applyQuaternion(turn).multiplyScalar(scale)
-  const joints=Object.fromEntries(Object.entries(MECHA_GELENKE).map(([k,y])=>[k,(y-min.y)*scale]))
+  const mitte = (n,p) => {
+    const m=new Matrix4().fromArray(n.getWorldMatrix()),a=p.getAttribute('POSITION'),lo=new Vector3(Infinity,Infinity,Infinity),hi=new Vector3(-Infinity,-Infinity,-Infinity)
+    for(let i=0;i<a.getCount();i++){const v=new Vector3(...a.getElement(i,[0,0,0])).applyMatrix4(m);lo.min(v);hi.max(v)}
+    return convert(lo.add(hi).multiplyScalar(.5))
+  }
+  const zentren=new Map(teile.map(({n,p})=>[n.getName(),mitte(n,p)]))
+  const gelenke=Object.fromEntries(['l','r'].map(seite=>[seite,Object.fromEntries(Object.entries(MECHA_GELENKTEILE[seite]).map(([art,name])=>{
+    const punkt=zentren.get(name);if(!punkt)throw new Error(`Mecha: Gelenkteil fehlt: ${name}`)
+    return [art,punkt]
+  }))]))
+  const streckenAbstand=(punkt,a,b)=>{const d=b.clone().sub(a),t=Math.max(0,Math.min(1,punkt.clone().sub(a).dot(d)/d.lengthSq()));return punkt.distanceTo(a.clone().addScaledVector(d,t))}
+  const innereHueftkante=Math.min(-gelenke.l.huefte.x,gelenke.r.huefte.x)-.15
+  const sohle=Object.fromEntries(['l','r'].map(s=>[s,new Vector3(gelenke[s].knoechel.x,0,gelenke[s].knoechel.z)]))
   const mats=src.listMaterials(), pics=src.listTextures()
   const base=await sharp(pics[1].getImage()).resize(480,480).ensureAlpha().raw().toBuffer()
   const side=await sharp(pics[2].getImage()).resize(32,480).ensureAlpha().raw().toBuffer()
@@ -359,18 +368,25 @@ async function mecha() {
   const mat=doc.createMaterial('Mecha_Atlas').setBaseColorTexture(tex).setMetallicFactor(0).setRoughnessFactor(.8)
   const names=['rumpf','oberschenkel_l','unterschenkel_l','fuss_l','oberschenkel_r','unterschenkel_r','fuss_r']
   const data=Object.fromEntries(names.map(n=>[n,{pos:[],norm:[],uv:[],ind:[]}]))
-  const hips=Object.fromEntries(['l','r'].map(side=>[side,convert(new Vector3(...MECHA_PUNKTE[side].huefte))]))
-  const knees=Object.fromEntries(['l','r'].map(side=>[side,convert(new Vector3(...MECHA_PUNKTE[side].knie))]))
-  const ankles=Object.fromEntries(['l','r'].map(side=>[side,convert(new Vector3(...MECHA_PUNKTE[side].knoechel))]))
+  const hips=Object.fromEntries(['l','r'].map(side=>[side,gelenke[side].huefte]))
+  const knees=Object.fromEntries(['l','r'].map(side=>[side,gelenke[side].knie]))
+  const ankles=Object.fromEntries(['l','r'].map(side=>[side,gelenke[side].knoechel]))
   const pivot={rumpf:new Vector3(),oberschenkel_l:hips.l,oberschenkel_r:hips.r,unterschenkel_l:knees.l,unterschenkel_r:knees.r,fuss_l:ankles.l,fuss_r:ankles.r}
   await MeshoptSimplifier.ready
   for(const {n,p} of teile){
     const m=new Matrix4().fromArray(n.getWorldMatrix()),nm=new Matrix3().getNormalMatrix(m),a=p.getAttribute('POSITION'),na=p.getAttribute('NORMAL'),uv=p.getAttribute('TEXCOORD_0')
-    const mid=new Vector3(), lo=new Vector3(Infinity,Infinity,Infinity), hi=new Vector3(-Infinity,-Infinity,-Infinity)
-    for(let i=0;i<a.getCount();i++){const v=new Vector3(...a.getElement(i,[0,0,0])).applyMatrix4(m);lo.min(v);hi.max(v)}
-    mid.addVectors(lo,hi).multiplyScalar(.5)
-    const sideName=mid.x>.1?'l':'r'
-    const group=mid.y<MECHA_GRENZEN.fuss?'fuss_'+sideName:mid.y<MECHA_GRENZEN.knie?'unterschenkel_'+sideName:mid.y<MECHA_GRENZEN.huefte&&(mid.x<-.3||mid.x>.2)?'oberschenkel_'+sideName:'rumpf'
+    const mid=zentren.get(n.getName())
+    const sideName=mid.x<0?'l':'r'
+    const forced=Object.entries(MECHA_GELENKTEILE[sideName]).find(([,name])=>name===n.getName())?.[0]
+    let group
+    if(forced==='huefte')group='rumpf'
+    else if(forced==='knie')group='unterschenkel_'+sideName
+    else if(forced==='knoechel')group='unterschenkel_'+sideName
+    else if(mid.y>hips[sideName].y || Math.abs(mid.x)<innereHueftkante)group='rumpf'
+    else {
+      const kandidaten=[['oberschenkel_',hips[sideName],knees[sideName]],['unterschenkel_',knees[sideName],ankles[sideName]],['fuss_',ankles[sideName],sohle[sideName]]]
+      group=kandidaten.map(([name,a,b])=>({name:name+sideName,d:streckenAbstand(mid,a,b)})).sort((a,b)=>a.d-b.d)[0].name
+    }
     const g=data[group],offset=g.pos.length/3
     const material=p.getMaterial(),image=material.getBaseColorTexture(),ti=pics.indexOf(image),flatIndex=flat.get(material.getBaseColorFactor().slice(0,3).join(','))
     if(image&&(!uv||ti<0))throw new Error('Mecha: UV fehlt')
@@ -406,7 +422,7 @@ async function mecha() {
   const out='src/v3d/modelle/v3d-mecha.glb';await mkdir('src/v3d/modelle',{recursive:true});await io.write(out,doc)
   const check=(await io.read(out)).getRoot(),tri=check.listMeshes().flatMap(m=>m.listPrimitives()).reduce((n,p)=>n+dreiecke(p),0),meta=await sharp(check.listTextures()[0].getImage()).metadata()
   if(tri>6000||check.listMaterials().length!==1||check.listTextures().length!==1||meta.width!==512||meta.height!==512||names.some(n=>!check.listNodes().some(node=>node.getName()===n)))throw new Error(`Mecha: Qualitätsgrenze ${tri} Dreiecke`)
-  console.log(JSON.stringify({name:'mecha',dreiecke:tri,bild:[meta.width,meta.height],glieder:names,joints,grenzen:MECHA_GRENZEN,bytes:(await stat(out)).size}))
+  console.log(JSON.stringify({name:'mecha',dreiecke:tri,bild:[meta.width,meta.height],glieder:names,gelenke:Object.fromEntries(Object.entries(gelenke).map(([s,g])=>[s,Object.fromEntries(Object.entries(g).map(([k,v])=>[k,{teil:MECHA_GELENKTEILE[s][k],mitte:v.toArray()}]))])),innereHueftkante,bytes:(await stat(out)).size}))
 }
 
 const ziel=process.argv[2]

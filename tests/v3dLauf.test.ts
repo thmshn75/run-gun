@@ -3,7 +3,6 @@ import { SpielLauf, WeltDarstellung, Einsatzbilder, baueHorde, HordeLoecher, bau
 import type { Zustand } from '../src/v3d/rechnung'
 import { neuerLauf, starteEinheit, gesamtDauer, schritt, saeulenStartP } from '../src/v3d/rechnung'
 import type { FahrzeugBau } from '../src/v3d/fahrzeuge'
-import { bannerEintraege } from '../src/v3d/oberflaeche'
 import { MessBotSteuerung } from '../src/v3d/messung'
 import { bossFreieAufstellung } from '../src/v3d/bosse'
 import { saeulenBlick } from '../src/v3d/lauf'
@@ -228,28 +227,23 @@ describe('3D-Lauf',()=>{
       einsatz.gibFrei()
     } finally {raume()}
   })
-  it('setzt Einheiten-Banner mindestens sechs Pixel unter die Statuszeile',async()=>{
+  it('zeigt kein Einheiten-Band mit Sekunden im 3D-Spiel', async () => {
     vi.resetModules()
-    const {setzeEinheitenBanner,zeigeOberflaeche,versteckeOberflaeche}=await import('../src/v3d/oberflaeche')
-    const elemente: { tag: string; style: Record<string,string>; children: unknown[]; textContent: string; getBoundingClientRect: () => {top:number;bottom:number}; appendChild: (child:unknown)=>void; append: (...children:unknown[])=>void; replaceChildren: (...children:unknown[])=>void; addEventListener:()=>void }[]=[]
-    const createElement=(tag:string)=>{
-      const element={tag,style:{} as Record<string,string>,children:[] as unknown[],textContent:'',
-        getBoundingClientRect:()=>({top:tag==='div'&&elemente.indexOf(element)===0?10:20,bottom:90}),
-        appendChild(child:unknown){this.children.push(child)},append(...children:unknown[]){this.children.push(...children)},
-        replaceChildren(...children:unknown[]){this.children=children},addEventListener(){} }
+    const { zeigeOberflaeche, versteckeOberflaeche } = await import('../src/v3d/oberflaeche')
+    const elemente: { textContent: string; style: Record<string, string>; children: unknown[]; appendChild: (child: unknown) => void; append: (...children: unknown[]) => void; replaceChildren: (...children: unknown[]) => void; addEventListener: () => void }[] = []
+    const createElement = () => {
+      const element = { textContent: '', style: {} as Record<string,string>, children: [] as unknown[],
+        appendChild(child: unknown) { this.children.push(child) }, append(...children: unknown[]) { this.children.push(...children) },
+        replaceChildren(...children: unknown[]) { this.children = children }, addEventListener() {} }
       elemente.push(element)
       return element
     }
-    vi.stubGlobal('document',{body:{appendChild:vi.fn()},createElement})
+    vi.stubGlobal('document', { body: { appendChild: vi.fn() }, createElement })
     try {
-      const ui=zeigeOberflaeche(()=>{},()=>{},1)
-      ui.zahlen.textContent='Level 1 · Welle 2/3'
-      const z = neuerLauf(LEVELS[0], 1)
-      starteEinheit(z, 'humvee').verstrichen = 2.1
-      setzeEinheitenBanner(z.aktiv)
-      const banner=elemente.find(e=>e.children.some(c=>(c as {textContent?:string}).textContent==='HUMVEE · 12 s'))!
-      expect(Number.parseFloat(banner.style.top)+10).toBeGreaterThanOrEqual(ui.zahlen.getBoundingClientRect().bottom+6)
-    } finally { versteckeOberflaeche();vi.unstubAllGlobals() }
+      zeigeOberflaeche(() => {}, () => {}, 1)
+      expect(elemente.some(e => /HUMVEE · \d+ s|MECHA · \d+ s/.test(e.textContent))).toBe(false)
+      expect(elemente.filter(e => e.style.whiteSpace === 'nowrap')).toHaveLength(0)
+    } finally { versteckeOberflaeche(); vi.unstubAllGlobals() }
   })
   it('zeigt Frontkampf und gedeckelte Fall-Soldaten und räumt eigene Netze auf',()=>{
     const {welt,miniSpiele,bossMaterial,raume}=baueWeltAttrappe()
@@ -572,17 +566,10 @@ describe('3D-Lauf',()=>{
     z.P=.1;lauf.x=3
     const frei=lauf.schritt(.1,3)
     expect(frei.some(e=>e.art==='einheitAktiv')).toBe(true)
-    expect(bannerEintraege(z.aktiv)).toEqual(['HUMVEE · 14 s'])
-    const bannerZ = neuerLauf(LEVELS[0], 1)
-    starteEinheit(bannerZ, 'humvee').verstrichen = 2.1
-    starteEinheit(bannerZ, 'panzer').verstrichen = 3.5
-    expect(bannerEintraege(bannerZ.aktiv)).toEqual(['HUMVEE · 12 s','PANZER · 6 s'])
     for(let i=0;i<10;i++)lauf.schritt(.1,0)
-    expect(bannerEintraege(z.aktiv)).toEqual(['HUMVEE · 13 s'])
     z.aktiv[0].verstrichen=gesamtDauer('humvee')-.01
     const ende=lauf.schritt(.1,0)
     expect(ende.some(e=>e.art==='einheitEnde')).toBe(true)
-    expect(bannerEintraege(z.aktiv)).toEqual([])
   })
   it('verteilt zehn aufeinanderfolgende Soldaten auf zehn feste Spuren',()=>{
     const folge=[4,7,1,9,2,5,0,8,3,6]

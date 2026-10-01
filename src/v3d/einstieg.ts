@@ -6,7 +6,7 @@ import { baueSzene, gibSzeneFrei } from './szene'
 import { DATEIEN_FEHLER, type Welt } from './szene'
 import { passeKameraAn } from './kamera'
 import { leseWasserStufe } from './wasser'
-import { statusZeile, zeigeOberflaeche, versteckeOberflaeche, fuelleLobby, setzeEinheitenBanner } from './oberflaeche'
+import { statusZeile, zeigeOberflaeche, versteckeOberflaeche, fuelleLobby } from './oberflaeche'
 import { ladeFortschritt, ladeBestlaeufe, merkeSieg } from './speicher'
 import { bricheAb, messBild, messungLaeuft, starteMessung, zeigeMessErgebnis } from './messung'
 import { aktualisiereLetzteMessung, speichereLetzteMessung } from './info'
@@ -317,7 +317,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     const zeigeLobby = () => {
       if(!welt)return
       lauf?.gibLaufFrei();lauf=null;finger?.gibFrei();finger=null;testFahrzeug=null;testAusstehend=false
-      ui.ende.style.display='none';endeAnzeigeUm=null;ui.zahlen.textContent='';ui.levelText.textContent='';setzeEinheitenBanner([])
+      ui.ende.style.display='none';endeAnzeigeUm=null;ui.zahlen.textContent='';ui.levelText.textContent=''
       fuelleLobby(ui.lobby,{hoechstes:Math.min(LEVELS.length,ladeFortschritt().hoechstesLevel),levelAnzahl:LEVELS.length,beste:ladeBestlaeufe(),fahrzeuge:TEST_FAHRZEUGE},n=>starteLauf(n,null),f=>starteLauf(1,f as SpezialName))
       ui.lobby.style.display='block'
     }

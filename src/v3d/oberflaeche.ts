@@ -1,31 +1,9 @@
 import { baueInfo } from './info'
-import { restZeit, type AktiveEinheit } from './rechnung'
 
 let container: HTMLDivElement | null = null
-let einheiten: HTMLDivElement | null = null
-let status: HTMLDivElement | null = null
-
-export function bannerEintraege(aktiv: readonly AktiveEinheit[]): string[] {
-  return aktiv.map(a => `${a.einheit.toLocaleUpperCase('de-DE')} · ${Math.ceil(restZeit(a))} s`)
-}
 
 export function statusZeile(level: number, zeit: number, T: number, F: number, welle: number, wellen: number): string {
   return `Level ${level} · ${zeit.toFixed(1)} s · T ${Math.floor(T)} · F ${Math.floor(F)} · Welle ${welle}/${wellen}`
-}
-
-export function setzeEinheitenBanner(aktiv: readonly AktiveEinheit[]): void {
-  if (!container) return
-  if (!einheiten) {
-    einheiten = document.createElement('div')
-    Object.assign(einheiten.style, { position: 'absolute', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', fontWeight: 'bold', fontSize: '13px', textShadow: '0 1px 4px #000', whiteSpace: 'nowrap' })
-    container.appendChild(einheiten)
-  }
-  if (status) einheiten.style.top = `${status.getBoundingClientRect().bottom - container.getBoundingClientRect().top + 6}px`
-  einheiten.replaceChildren(...bannerEintraege(aktiv).map(text => {
-    const zeile = document.createElement('div')
-    zeile.textContent = text
-    return zeile
-  }))
 }
 
 function knopf(text: string, position: Partial<CSSStyleDeclaration>): HTMLButtonElement {
@@ -42,8 +20,6 @@ export function zeigeOberflaeche(zurueck: () => void, messen: () => void, level:
     document.body.appendChild(container)
   }
   container.replaceChildren()
-  einheiten = null
-  status = null
   container.style.display = 'block'
   const back = knopf('ZURÜCK', { top: 'calc(env(safe-area-inset-top) + 8px)', left: 'calc(env(safe-area-inset-left) + 8px)' })
   const infoButton = knopf('INFO', { top: 'calc(env(safe-area-inset-top) + 8px)', right: 'calc(env(safe-area-inset-right) + 8px)' })
@@ -55,7 +31,6 @@ export function zeigeOberflaeche(zurueck: () => void, messen: () => void, level:
   Object.assign(results.style, { position: 'absolute', top: 'calc(env(safe-area-inset-top) + 64px)', bottom: 'calc(env(safe-area-inset-bottom) + 8px)', left: '8px', right: '8px', overflowY: 'auto', overscrollBehavior: 'contain', padding: '8px', background: '#122436dd', fontSize: '12px', whiteSpace: 'pre-wrap', display: 'none', touchAction: 'pan-y' })
   const zahlen = document.createElement('div')
   Object.assign(zahlen.style, { position: 'absolute', top: 'calc(env(safe-area-inset-top) + 54px)', left: '8px', fontSize: '12px', textShadow: '0 1px 2px black' })
-  status = zahlen
   const ende = document.createElement('div')
   Object.assign(ende.style, { display: 'none', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', minWidth: '220px', padding: '20px', background: '#122436ee', textAlign: 'center', pointerEvents: 'auto' })
   const nochmal = knopf('NOCHMAL', { position: 'static', margin: '8px' })
@@ -74,7 +49,7 @@ export function zeigeOberflaeche(zurueck: () => void, messen: () => void, level:
   return { messen: measure, ergebnisse: results, info, zahlen, ende, endeText, nochmal, weiter, endeZurueck, lobby, levelText }
 }
 
-export function versteckeOberflaeche(): void { if (container) container.style.display = 'none'; einheiten = null; status = null }
+export function versteckeOberflaeche(): void { if (container) container.style.display = 'none' }
 
 export interface LobbyStand { hoechstes: number; levelAnzahl: number; beste: Record<number, { zeit: number; besiegt: number }>; fahrzeuge: readonly string[] }
 export function lobbyZeit(s: number): string { return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` }

@@ -1,6 +1,6 @@
 # Aktive Aufgabe
 
-Status: SPEC_READY
+Status: APPROVED
 
 ## Aufgabe: D7r — Kampfrüstung "Mecha" als fünfte Säule (Plan V7, Abschnitt D7r)
 
@@ -158,3 +158,23 @@ komplett im 3D-Spiel (keine Anzeige mehr, Aufrufe/Element entfernen, Tests mitzi
 Reißleine (letzter Anlauf laut Plan): Erfüllt die Bewegung N3 nicht, **bleibt das Stampfen als
 Ganzes** — melden mit den Messwerten, keine dritte Variante.
 `npm run check`, `npm test`, `npm run build`. Status `IMPL_DONE`, Bericht unter diesem Abschnitt.
+
+### Bericht Nacharbeit 1
+
+**N1:** `node scripts/modelle.mjs mecha` lief erneut. Alle 185 Teile wurden zuerst in die um 206,565° gedrehten Zielkoordinaten umgerechnet und danach dem nächsten Beinabschnitt zugeordnet. Teile oberhalb beziehungsweise zwischen den Hüften bleiben am Rumpf. Die Gelenkmitten stammen aus den benannten Rohteilen (Zielmeter; x, y, z): links Hüfte `Sphere047__0` (−0,586; 2,370; 0,498), Knie `Cylinder041__0` (−1,189; 1,511; −0,037), Knöchel `Sphere046__0` (−1,384; 0,344; 0,458); rechts Hüfte `Sphere048__0` (0,613; 2,370; 0,479), Knie `Cylinder038__0` (1,173; 1,510; −0,075), Knöchel `Sphere045__0` (1,389; 0,343; 0,414). Innere Hüftkante: |x| < 0,436 m. Ausgabe: 5 154 Dreiecke, sieben Glieder, ein Material, ein 512 × 512 WebP-Farbbild, 918 128 Byte. Die Farbprüfung zeigt die Beine spiegelgleich zugeordnet:
+
+![Mecha-Glieder von vorn](../tests/fixtures/mecha-glieder-vorn.png)
+![Mecha-Glieder von der Seite](../tests/fixtures/mecha-glieder-seite.png)
+
+**N2/N3, zweiter und letzter Anlauf:** Die Probe nutzte 1,2 s Zyklus, gegenphasige Hüften mit ±18°, Kniebeugung bis 35° nach hinten, waagrechte Sohlen beim Auftreten und den verlangten Rumpfhub beziehungsweise ±3° Pendeln. Die vier Seitenbilder zeigen die Phasen 0 / 0,15 / 0,30 / 0,45 s:
+
+![Schrittphase 1](../tests/fixtures/mecha-schritt-1.png)
+![Schrittphase 2](../tests/fixtures/mecha-schritt-2.png)
+![Schrittphase 3](../tests/fixtures/mecha-schritt-3.png)
+![Schrittphase 4](../tests/fixtures/mecha-schritt-4.png)
+
+**Reißleine gezogen:** Die 0,15-m-Zone um die Gelenkmitten enthält in der vereinfachten GLB keine Eckpunkte der Kindglieder (kleinster Abstand einer Kind-Ecke: Hüfte 0,170 m, Knie 0,189 m, Knöchel 0,173 m). Die direkte Eckpunktprüfung dort wäre damit leer. Eine erweiterte Prüfung der in Grundstellung berührenden Kind-Ecken bis 0,50 m um das Gelenk ergab über acht Phasen am Knie maximal 0,116 m links und 0,132 m rechts Abstand zum Oberschenkel, am Knöchel 0,075 m links und 0,073 m rechts zum Unterschenkel; zulässig wären 0,050 m. Der Schrittversuch erfüllt N3 nicht. Im Spiel bleibt deshalb wie vorgegeben das gemeinsame Stampfen der sieben starren Glieder; keine dritte Bewegungsvariante.
+
+**N4:** Das Einheiten-Band mit Restsekunden ist aus dem 3D-Spiel entfernt, einschließlich Erzeugung, Aufrufen und bisherigen Banner-Tests. Ein Test prüft das Ausbleiben des Elements. Die allgemeine Statuszeile bleibt bestehen.
+
+**Prüfungen:** `npm run check` ohne Fehler; `npm test` 658/658 Tests in 72 Dateien; `npm run build` erfolgreich, neues Mecha-GLB in `dist/assets/`, PWA-Cache 274 Einträge; `git diff --check` ohne Befund. Der gezielte Lauf der Mecha- und Lauf-Tests war ebenfalls grün. Der vorgeschriebene Start in einem eigenen Terminal-Fenster war nicht möglich (`Unable to find application named 'Terminal'`); die Befehle liefen im Terminal-Werkzeug. Keine Browser-/iPhone-/WebGL-Sichtprüfung, kein Commit oder Push.

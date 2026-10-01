@@ -11,7 +11,6 @@ import { baueFeldFahrzeug } from './fahrzeuge'
 import { mechaPose } from './mecha'
 import type { ZombieEintrag } from './figuren'
 import { setzeSchildText } from './schilder'
-import { setzeEinheitenBanner } from './oberflaeche'
 import * as THREE from 'three'
 
 const SPUR_FOLGE = [4, 7, 1, 9, 2, 5, 0, 8, 3, 6] as const
@@ -1093,7 +1092,6 @@ export class WeltDarstellung implements LaufDarstellung {
       this.blockZuordnung.forEach((i, j) => this.zeichneTafel(w.saeulenSchilder[i], j === 0 ? z.P ?? 0 : saeulenStartP(z.level, z.saeulenIndex + j)))
       this.letzteSchildSaeule = z.saeulenIndex; this.letzteSaeulenZahl = zahl; this.letzteZahlZeit = t
     }
-    setzeEinheitenBanner(z.aktiv)
     this.tickeNeu()
   }
   gibFrei():void {
@@ -1106,7 +1104,6 @@ export class WeltDarstellung implements LaufDarstellung {
     this.blitze.gibFrei()
     this.frontBlitze.gibFrei()
     this.fallSoldaten.gruppe.removeFromParent(); this.fallSoldaten.gibNetzeFrei()
-    setzeEinheitenBanner([])
     this.welt.wand.scale.setScalar(1)
     this.setzeEisZurueck()
     this.welt.scene.remove(this.truppeZahl.objekt, this.frontZahl.objekt, this.hordeZahl.objekt, this.miniBalken.objekt, this.eliteBalken.objekt)
