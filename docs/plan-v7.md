@@ -209,7 +209,7 @@ Test: Summe der Ereignisse = Änderung der Zähler, in jedem Schritt.
 Jeder Schritt ist **eine** Spec in `docs/active-task.md`, **ein** Codex-Lauf im Terminal,
 Review durch Claude, ein Commit, Desktop-Vorprüfung, dann **ein** iPhone-Foto von Thomas.
 Erst danach der nächste Schritt. **Reihenfolge (ab 2026-09-29):** D0 → R1 → D1 → D2a → D2b → D2c → D3 →
-R2 → D3-Anpassung → D4 → D5a → D5b → D5c → D5d → D5e → D6 → D7 (+ Lobby) → Werkstatt → Arsenal → D8. R1 ist harte Voraussetzung für D3. Gamefeel gilt erst nach Thomas' Test am iPhone.
+R2 → D3-Anpassung → D4 → D5a → D5b → D5c → D5d → D5e → D6 → D7 (+ Lobby) → D7r → Werkstatt → Arsenal → D8. R1 ist harte Voraussetzung für D3. Gamefeel gilt erst nach Thomas' Test am iPhone.
 
 **D0 — Fundament.** npm `three`; `src/v3d/` mit Einstieg; Menüknopf "RUN GUN 3D" statt
 "RUN GUN V2"; Nachladen mit Fehlerbild; Phaser schlafen/wecken; einmaliger Renderer;
@@ -309,7 +309,18 @@ spielen → Muenzen → aufruesten → naechstes Level:
    breitere Schneise — der Panzer ist so breit, wie er ist), **Humvee faehrt laenger**,
    **Hubschrauber bleibt laenger**.
 3. **Arsenal** (Reihenfolge der Fahrzeuge in den Eisbloecken selbst festlegen) — zuletzt.
-Reihenfolge ab jetzt: D5e → D6 → D7 + Lobby 1 → Werkstatt → Arsenal → D8.
+Reihenfolge ab jetzt: D5e → D6 → D7 + Lobby 1 → D7r → Werkstatt → Arsenal → D8.
+
+**D7r — Kampfrüstung als fünfte Säule (Thomas 2026-10-01).** Nach dem Hubschrauber eine
+weitere Säule mit einer Kampfrüstung (Anregung: Power-Rüstung aus Fallout bzw. AMP-Anzug aus
+Avatar). **Kein Nachbau fremder Spiel-/Filmfiguren** (Modellregel oben) — Fan-Nachbauten auf
+Sketchfab sind trotz CC-BY-Angabe keine Lösung. Kandidaten (API-Prüfung 2026-10-01, alle CC-BY,
+ohne Animation): "Project 'Alpha' Mecha" (Lwifff, ~38k Dreiecke, eigenes Design), "Veteran
+EXO" (lonestarprotogen, ~37k, laut Urheber an den AMP-Anzug angelehnt — vor Wahl prüfen),
+"Chinese Power Armor" (molobesh2, ~36k) ist laut Beschreibung Fallout-76-Nachbau → raus.
+Thomas wählt. Umfang wie D2b: vereinfachen (≈ 5000 Dreiecke), Bewegung übertragen (Quaternius),
+neuer Ablauf in `SPEZIAL` (Vorschlag Claude: stapft in die Horde, Nahkampf, stark gegen
+Bosse), Bot-Nachweis, Leistung im Budget. Nach D7, weil die Säulenfolge dort je Level steht.
 
 **D8 — Politur.** **Vorgemerkt (Thomas 2026-09-29):** Soldat — Ärmel heller als Weste (Arme im Coyote sichtbar), echte Gewehr-Anschlagpose statt Pistolenhaltung; Gesichtsmaske ggf. Coyote. Nur mit vorab von Thomas bestätigter Liste (Treffer-Feedback, Zahlen,
 Klang …); ohne Liste kein Codex-Auftrag.
