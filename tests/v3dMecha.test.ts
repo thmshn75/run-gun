@@ -131,7 +131,7 @@ describe('D7r Mecha', () => {
     }
   })
 
-  it('geht gegenphasig mit 18° Hüfte, 0–35° Knie, 0,12 m Hub und ±3° Pendeln', () => {
+  it('geht gegenphasig mit 18° Hüfte, 0–35° Knie, höchstens 0,06 m Hub und ohne Pendeln', () => {
     expect(mechaPose(0, false).rumpfY).toBe(0)
     for (const t of [0,.1,.3,.6,.9,1.2]) {
       const p = mechaPose(t)
@@ -141,13 +141,13 @@ describe('D7r Mecha', () => {
       expect(p.rechts.knie).toBeLessThanOrEqual(0)
       expect(p.links.fuss).toBeCloseTo(-p.links.huefte - p.links.knie, 8)
       expect(p.rumpfY).toBeGreaterThanOrEqual(0)
-      expect(p.rumpfY).toBeLessThanOrEqual(.12)
-      expect(Math.abs(p.rumpfPendel)).toBeLessThanOrEqual(3)
+      expect(p.rumpfY).toBeLessThanOrEqual(.06)
+      expect(p.rumpfPendel).toBe(0)
     }
     expect(mechaPose(.3).links.huefte).toBeCloseTo(18)
     expect(mechaPose(.6).links.knie).toBeCloseTo(-35)
     expect(mechaPose(0).rumpfY).toBeCloseTo(0, 8)
-    expect(mechaPose(.3).rumpfY).toBeCloseTo(.12, 8)
+    expect(mechaPose(.3).rumpfY).toBeCloseTo(.06, 8)
     expect(mechaPose(.6).rumpfY).toBeCloseTo(0, 8)
   })
 

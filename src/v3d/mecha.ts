@@ -21,8 +21,8 @@ export function mechaSchrittProbe(sekunden: number, huefteGrad = 18, knieGrad = 
   }
   return {
     links: bein(phase), rechts: bein(phase + Math.PI),
-    rumpfY: .06 * (1 - Math.cos(2 * phase)),
-    rumpfPendel: 3 * Math.sin(phase),
+    rumpfY: .03 * (1 - Math.cos(2 * phase)),
+    rumpfPendel: 0,
   }
 }
 

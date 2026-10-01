@@ -263,3 +263,12 @@ Fahrzeugknöpfe sind erst nach Tippen sichtbar, beim Öffnen der Lobby immer zug
 **N12:** TESTGELÄNDE ist ein Schalter mit ▸/▾; die Fahrzeugknöpfe sind beim Öffnen der Lobby zugeklappt. Der neue Test prüft Öffnen, Schließen, Fahrzeugwahl und erneutes Zuklappen beim nächsten Lobby-Aufbau.
 
 **Prüfungen:** `node scripts/modelle.mjs mecha` erfolgreich: 5 154 Dreiecke, sieben Glieder, ein Material, ein 512 × 512 WebP-Farbbild. `npm run check` ohne Fehler; `npm test` 660/660 Tests in 73 Dateien; `npm run build` erfolgreich mit der neuen Mecha-GLB und 274 PWA-Cache-Einträgen; `git diff --check` ohne Befund. Die Seitenbilder sind Projektionen ohne WebGL; eine echte Browser-/iPhone-Sichtprüfung fand nicht statt. Der Start in einem eigenen Terminal-Fenster war nicht möglich (`Unable to find application named 'Terminal'`); die Prüfbefehle liefen im Terminal-Werkzeug. Kein Commit oder Push.
+
+
+## Nacharbeit 4 (Thomas 2026-10-01 21:23: "weniger pendeln oder gar nicht — nur die Beine bewegen")
+**N13** `mechaPose` (Schrittbewegung): `rumpfPendel` immer 0; Rumpfhub halbiert auf höchstens
+0,06 m (`.03 * (1 - cos(2·phase))`). Beinbewegung unverändert. Tests in `tests/v3dMecha.test.ts`
+auf die neuen Werte (Pendel = 0, Hub 0/0,06/0 bei 0/0,3/0,6 s). `npm run check`, `npm test`.
+Status `IMPL_DONE`, ein Satz Bericht.
+
+N13 umgesetzt: Der Mecha bewegt beim Gehen die Beine unverändert, der Rumpf pendelt nicht mehr und hebt sich höchstens 0,06 m; `npm run check` und `npm test` (660/660) sind erfolgreich.
