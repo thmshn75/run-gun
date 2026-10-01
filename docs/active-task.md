@@ -2,34 +2,26 @@
 
 Status: APPROVED
 
-## Aufgabe: D6 — Elite-Endboss, Sieg und Niederlage (Plan V7)
+## Aufgabe: D7 — Level + 3D-Lobby Stufe 1 (Plan V7)
 
-**Umgesetzt von Claude direkt** (Thomas 2026-10-01 11:59: "setze ohne Codex um" — Codex am
-Limit). Vorgänger D5e (Eis-Säulen) ist abgenommen: Browser ok (Thomas 11:56), iPhone-Messung
-alle Stufen grün (Thomas 12:05); Spec und Nacharbeiten 1–8 in der Git-Historie (Commit 269e998).
-
-**Bestand vorher:** Endboss erschien und verschwand bei B = 0 schlagartig; bei Sieg/Niederlage
-sofort ein schlichter Textkasten "SIEG · 48,7 s". Bots belegten beide Ausgänge schon
-(passiv 0/20, rhythmus 20/20).
+**Umgesetzt von Claude direkt** (Thomas 2026-10-01 12:15: "ohne Codex ok weiter"). Vorgänger D6
+(Endboss-Tod, Ergebnistafel) in der Git-Historie (Commit e910763).
 
 ## Umgesetzt
-- **Endboss-Tod** (`lauf.ts`, `eliteSterben`, `ELITE_TOD`): kippt in 1,6 s nach hinten um, sinkt
-  0,8 m ein, drei Explosionen (0 / 0,45 / 1 s), nach 2,5 s weg; Lebensbalken aus. Läuft auch im
-  Nachlauf nach dem Sieg weiter. Zurücksetzen in `setzeBossZurueck` und beim Vorgänger.
-- **Niederlage:** Die Truppe fällt im Nachlauf um (`fallen`-Bewegung).
-- **Ergebnistafel** (`einstieg.ts`, `endeTafel`, `zaehleEnde`): erscheint 2,5 s (Sieg) bzw. 2 s
-  (Niederlage) nach dem Ende; großer Titel SIEG (gold) / NIEDERLAGE (rot), Zeit, Zombies
-  besiegt (Summe `zombieGefallen` + `spezialTreffer`), Säulen gebrochen, größte Truppe;
-  NOCHMAL/ZURÜCK wie bisher.
-- **Prüfschalter** `?pruefung=1&schnell=1`: zwei Wellen à 60, Endboss nach 10 s mit 400 LP.
+- **10 Level** (`balance3d.ts`, `STUFEN`): Wellen 3/3/3/3/4/4/4/4/5/5, Zombies gesamt 750 → 1230,
+  Endboss 3000 → 5250, Mini-Boss 400 → 760, Säulen 150 → 285, `kMax` 5 ab Level 5. Level 1 =
+  bisheriger Stand.
+- **Fortschritt / beste Läufe** (`speicher.ts`): Sieg schaltet das nächste Level frei, schnellster
+  Sieg je Level unter `rg3d.beste.v1`; Testgelände und Prüfläufe zählen nicht.
+- **Lobby** (`oberflaeche.ts` `fuelleLobby`, `einstieg.ts`): nach "RUN GUN 3D" Level-Karte 1–10
+  (gesperrt = Schloss, geschafft = gold), SPIELEN · LEVEL x, Testgelände je Fahrzeug (Level 1,
+  Säulen P 10, Fahrzeug sofort im Einsatz), Beste Läufe. Ergebnistafel NOCHMAL / WEITER / LOBBY;
+  ZURÜCK im Lauf → Lobby, in der Lobby → Hauptmenü. Mit `?pruefung…` direkter Start wie bisher.
+- Boss-Balken nehmen das Maximum des laufenden Levels.
 
 ## Nachweise
-- `tests/v3dEnde.test.ts`: Kipp-Verlauf monoton, Verschwinden nach 2,5 s, Tafel nach dem
-  Abgang, Zählung = verschwundene Zombies im echten Kernlauf, Prüfschalter nur mit pruefung=1.
-- `npm run check`, `npm test` (644), `npm run build`, `npm run bots3d` (unverändert) grün.
-- Browser 390×844, `?pruefung=1&schnell=1`: Sieg (Endboss kippt mit Explosion, Tafel SIEG
-  0:48), Niederlage (Truppe liegt, Tafel NIEDERLAGE 1:55).
-
-## Bekannt, nicht beauftragt (Kandidat D8)
-Bei der Niederlage verschwindet die Horde im Moment des Durchbruchs, statt über die Truppe
-herzufallen.
+- Bots (`npm run bots3d`, 30 Spielweisen × 20 Seeds je Level): passiv 0/20 auf allen Leveln,
+  beste Spielweise 20/20, gewinnende Spielweisen 24/22/19/17/15/13/10/8/6/3.
+- `tests/v3dLevel.test.ts` (Tabelle monoton, passiv verliert überall, Freischalten/Bestzeit,
+  2D-Stand unberührt, kaputte Einträge, Lobby-Weichen); 651 Tests grün, Build ok.
+- Browser 390×844: Lobby leer und mit Fortschritt, Testgelände Panzer, Start Level 3.

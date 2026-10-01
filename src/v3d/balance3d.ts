@@ -30,7 +30,7 @@ export interface Level {
   startY: number
 }
 
-export const LEVELS: Level[] = [{
+const BASIS: Level = {
   T0: 10, kStart: 2, wandStufe: 100, kMax: 4, wand: 5, laufgeschwindigkeit: 6,
   senden: 8, einsammeln: 6, saeuleSchaden: 0.3,
   schwelleLinks: -0.6, schwelleRechts: 0.6,
@@ -41,7 +41,20 @@ export const LEVELS: Level[] = [{
   C: 40, bossDruck: 25, zombieTreffer: 0.5, soldatenVerlust: 0.4,
   gegnerProSoldat: 2, frontVerschiebung: 0.5, bossSchaden: 25,
   marsch: 0.8, startY: 60,
-}]
+}
+
+// D7-Kalibrierung (Claude 2026-10-01, Bots: 30 Spielweisen [rhythmus/rhythmusSaeule, S 10–150]
+// × 20 Seeds je Level). Ziel: gewinnende Spielweisen fallen 24 → 3, beste Spielweise gewinnt
+// 20/20, passiv verliert 20/20; Zombies gesamt und Boss-Leben steigen monoton.
+// Je Level: [Wellen, Zombies je Welle]. Gemessen: 24/22/19/17/15/13/10/8/6/3 Spielweisen.
+const STUFEN: readonly (readonly [number, number])[] = [[3, 250], [3, 264], [3, 275], [3, 275], [4, 244], [4, 244], [4, 260], [4, 271], [5, 221], [5, 246]]
+export const LEVELS: Level[] = STUFEN.map(([wellenZahl, groesse], i) => ({
+  ...BASIS,
+  wellen: Array.from({ length: wellenZahl }, (_, j) => ({ t: 20 * j, groesse })),
+  eliteBossZeit: 20 * wellenZahl,
+  B_elite: 3000 + 250 * i, B_mini: 400 + 40 * i,
+  P: Math.round(150 * (1 + .1 * i)), kMax: i >= 4 ? 5 : 4,
+}))
 
 export const SPEZIAL = {
   humvee: { ablauf: [{ art: 'fahrt', dauer: 2 }, { art: 'schneise', dauer: 12, zombiesProSekunde: 10 }] },

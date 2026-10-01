@@ -145,6 +145,7 @@ export class BossBalken {
     this.objekt.scale.set(2.5,.625,1)
     this.objekt.renderOrder = 10
   }
+  setzeMaximum(maximum: number): void { if (maximum !== this.maximum) { this.maximum = maximum; this.wert = NaN; this.letzteZeit = -Infinity } }
   setze(wert: number, zeit: number): void {
     const ganz = Math.ceil(wert)
     if (ganz === this.wert || zeit - this.letzteZeit < .25) return

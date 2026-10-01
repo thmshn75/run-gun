@@ -6,8 +6,8 @@ import { baueSzene, gibSzeneFrei } from './szene'
 import { DATEIEN_FEHLER, type Welt } from './szene'
 import { passeKameraAn } from './kamera'
 import { leseWasserStufe } from './wasser'
-import { statusZeile, zeigeOberflaeche, versteckeOberflaeche } from './oberflaeche'
-import { ladeFortschritt } from './speicher'
+import { statusZeile, zeigeOberflaeche, versteckeOberflaeche, fuelleLobby, setzeEinheitenBanner } from './oberflaeche'
+import { ladeFortschritt, ladeBestlaeufe, merkeSieg } from './speicher'
 import { bricheAb, messBild, messungLaeuft, starteMessung, zeigeMessErgebnis } from './messung'
 import { aktualisiereLetzteMessung, speichereLetzteMessung } from './info'
 import { FingerSteuerung } from './steuerung'
@@ -27,10 +27,10 @@ export function pruefEinsatz(suche: string): SpezialName[] {
   return namen
 }
 
-export function eisPruefLevel(suche: string): Level {
+export function eisPruefLevel(suche: string, basis: Level = LEVELS[0]): Level {
   const p = new URLSearchParams(suche)
-  if (p.get('pruefung') !== '1') return LEVELS[0]
-  let level = LEVELS[0]
+  if (p.get('pruefung') !== '1') return basis
+  let level = basis
   const roh = p.get('eis')
   if (roh && /^(?:[1-9][0-9]{0,4}|100000)$/.test(roh)) level = { ...level, P: Number(roh) }
   // D6: kurzer Lauf zum Ansehen von Sieg und Niederlage (Endboss nach 10 s).
@@ -43,6 +43,14 @@ export function zaehleEnde(stat: EndeStatistik, ereignisse: readonly { art: stri
   for (const e of ereignisse) if (e.art === 'zombieGefallen' || e.art === 'spezialTreffer') stat.besiegt += e.menge
   stat.maxT = Math.max(stat.maxT, T)
 }
+/** D7: Mit Prüf- oder Messparametern startet der Lauf direkt, sonst zuerst die Lobby. */
+export function direktStart(suche: string): boolean {
+  const p = new URLSearchParams(suche)
+  return p.has('pruefung') || p.has('nahaufnahme')
+}
+export const TEST_FAHRZEUGE: readonly SpezialName[] = ['humvee', 'haubitze', 'panzer', 'hubschrauber']
+/** Testgelände: Level 1, Säulen fallen schnell (P 10), das gewählte Fahrzeug startet sofort. */
+export function testLevel(): Level { return { ...LEVELS[0], P: 10 } }
 export const ENDE_VERZOEGERUNG_MS = { sieg: 2500, niederlage: 2000 } as const
 export function endeTafel(ergebnis: 'sieg' | 'niederlage', t: number, saeulen: number, stat: EndeStatistik): { titel: string; zeilen: string[] } {
   return {
@@ -96,6 +104,10 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
   let pruefEnde: number | null = null
   let pruefAngezeigt = false
   let pruefEinsatzAusstehend = false
+  let levelNr = 1
+  let testFahrzeug: SpezialName | null = null
+  let testAusstehend = false
+  const direkt = direktStart(location.search)
   let infoOffen = false
   let ergebnisOffen = false
   let endeTimer: ReturnType<typeof setTimeout> | undefined
@@ -157,7 +169,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
           if (eisTrefferZeit === null && ereignisse.some(e => e.art === 'saeuleTreffer')) { eisTrefferZeit = jetzt; eisProgrammeVor = renderer.info.programs?.length ?? 0 }
           if (eisFallZeit === null && ereignisse.some(e => e.art === 'einheitFrei')) eisFallZeit = jetzt
         }
-        ui.zahlen.textContent = statusZeile(1, lauf.zustand.t, lauf.zustand.T, lauf.zustand.F, lauf.zustand.gestarteteWellen, lauf.zustand.level.wellen.length)
+        ui.zahlen.textContent = statusZeile(levelNr, lauf.zustand.t, lauf.zustand.T, lauf.zustand.F, lauf.zustand.gestarteteWellen, lauf.zustand.level.wellen.length)
         zaehleEnde(endeStat, ereignisse, lauf.zustand.T)
         if (ereignisse.some(e=>e.art==='sieg'||e.art==='niederlage')) {
           if (pruefDiagnose) pruefEnde = jetzt
@@ -167,14 +179,22 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
         if (endeAnzeigeUm !== null && jetzt >= endeAnzeigeUm && lauf.zustand.ergebnis !== 'laeuft') {
           endeAnzeigeUm = null
           const tafel = endeTafel(lauf.zustand.ergebnis, lauf.zustand.t, lauf.zustand.saeulenIndex, endeStat)
+          const zaehlt = !testFahrzeug && !direkt
+          if (lauf.zustand.ergebnis === 'sieg' && zaehlt) {
+            const vorher = ladeFortschritt().hoechstesLevel
+            if (merkeSieg(levelNr, { zeit: lauf.zustand.t, besiegt: endeStat.besiegt }, LEVELS.length)) tafel.zeilen.push('Neue Bestzeit!')
+            if (ladeFortschritt().hoechstesLevel > vorher) tafel.zeilen.push(`Level ${levelNr + 1} freigeschaltet`)
+          }
+          ui.weiter.style.display = lauf.zustand.ergebnis === 'sieg' && zaehlt && levelNr < LEVELS.length ? 'inline-block' : 'none'
+          ui.endeZurueck.style.display = direkt ? 'none' : 'inline-block'
           ui.endeText.replaceChildren()
           const titel = document.createElement('div')
           titel.textContent = tafel.titel
           Object.assign(titel.style, { fontSize: '40px', fontWeight: '900', letterSpacing: '2px', marginBottom: '10px', color: lauf.zustand.ergebnis === 'sieg' ? '#ffd34d' : '#ff5a4d', textShadow: '0 2px 6px black' })
           ui.endeText.append(titel, ...tafel.zeilen.map(z => { const d = document.createElement('div'); d.textContent = z; d.style.fontSize = '16px'; d.style.margin = '3px 0'; return d }))
           ui.ende.style.display='block'
-          ui.nochmal.disabled=true;ui.endeZurueck.disabled=true
-          endeTimer=setTimeout(()=>{ui.nochmal.disabled=false;ui.endeZurueck.disabled=false},700)
+          ui.nochmal.disabled=true;ui.endeZurueck.disabled=true;ui.weiter.disabled=true
+          endeTimer=setTimeout(()=>{ui.nochmal.disabled=false;ui.endeZurueck.disabled=false;ui.weiter.disabled=false},700)
         }
       }
     }
@@ -223,6 +243,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
         })
       }
     }
+    if (testAusstehend && lauf && testFahrzeug) { starteEinheit(lauf.zustand, testFahrzeug); lauf.protokollNeuBasieren(); testAusstehend = false }
     if (pruefEinsatzAusstehend && lauf && ui.ergebnisse.style.display === 'none') {
       if (startePruefEinsatz(lauf.zustand, location.search, false)) {
         lauf.protokollNeuBasieren()
@@ -268,7 +289,8 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     game.loop.sleep()
     canvas.style.visibility = 'hidden'
     renderer = holeRenderer()
-    ui = zeigeOberflaeche(() => verlasse(), () => {
+    ui = zeigeOberflaeche(() => { if (direkt || ui.lobby.style.display === 'block' || !welt || welt.nahaufnahme) verlasse(); else zeigeLobby() }, () => {
+      ui.lobby.style.display = 'none'
       if (welt && renderer) {
         ui.ergebnisse.style.bottom = 'calc(env(safe-area-inset-bottom) + 8px)'
         starteMessung(welt, renderer, game, ui.ergebnisse, ui.messen, offen => {
@@ -279,7 +301,29 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
         })
       }
     }, ladeFortschritt().hoechstesLevel, () => finger?.aktiv ?? false, () => { infoOffen=true;finger?.verwerfe();letzterFrame=0 }, () => { infoOffen=false;letzterFrame=0 })
-    ui.nochmal.addEventListener('click',()=>{if(!welt||!lauf||!renderer||!camera)return;lauf.gibLaufFrei();pruefDiagnose=pruefDiagnose?new PruefDiagnose(new URLSearchParams(location.search).get('vorwaermen')!=='0'):null;pruefEnde=null;pruefAngezeigt=false;darstellung=new WeltDarstellung(welt,12345,pruefDiagnose??undefined);lauf=new SpielLauf(eisPruefLevel(location.search),Date.now(),darstellung);vorwaermenEffekte();pruefEinsatzAusstehend=pruefEinsatz(location.search).length>0;finger=new FingerSteuerung(renderer.domElement,camera);ui.ende.style.display='none';endeStat={besiegt:0,maxT:0};endeAnzeigeUm=null;letzterFrame=0;bildZaehler=0;eisTrefferZeit=eisFallZeit=eisTrefferMax=null;eisDiagFertig=false;eisBilder.length=0})
+    const starteLauf = (n: number, test: SpezialName | null) => {
+      if(!welt||!renderer||!camera)return
+      lauf?.gibLaufFrei();finger?.gibFrei()
+      levelNr=n;testFahrzeug=test;testAusstehend=test!==null
+      ui.lobby.style.display='none';ui.ende.style.display='none'
+      ui.levelText.textContent=test?`Testgelände · ${test.toLocaleUpperCase('de-DE')}`:`Level ${n}`
+      pruefDiagnose=pruefDiagnose?new PruefDiagnose(new URLSearchParams(location.search).get('vorwaermen')!=='0'):null;pruefEnde=null;pruefAngezeigt=false
+      darstellung=new WeltDarstellung(welt,12345,pruefDiagnose??undefined)
+      lauf=new SpielLauf(test?testLevel():eisPruefLevel(location.search,LEVELS[n-1]),Date.now(),darstellung)
+      vorwaermenEffekte();pruefEinsatzAusstehend=pruefEinsatz(location.search).length>0
+      finger=new FingerSteuerung(renderer.domElement,camera)
+      endeStat={besiegt:0,maxT:0};endeAnzeigeUm=null;letzterFrame=0;bildZaehler=0;eisTrefferZeit=eisFallZeit=eisTrefferMax=null;eisDiagFertig=false;eisBilder.length=0
+    }
+    const zeigeLobby = () => {
+      if(!welt)return
+      lauf?.gibLaufFrei();lauf=null;finger?.gibFrei();finger=null;testFahrzeug=null;testAusstehend=false
+      ui.ende.style.display='none';endeAnzeigeUm=null;ui.zahlen.textContent='';ui.levelText.textContent='';setzeEinheitenBanner([])
+      fuelleLobby(ui.lobby,{hoechstes:Math.min(LEVELS.length,ladeFortschritt().hoechstesLevel),levelAnzahl:LEVELS.length,beste:ladeBestlaeufe(),fahrzeuge:TEST_FAHRZEUGE},n=>starteLauf(n,null),f=>starteLauf(1,f as SpezialName))
+      ui.lobby.style.display='block'
+    }
+    ui.nochmal.addEventListener('click',()=>starteLauf(levelNr,testFahrzeug))
+    ui.weiter.addEventListener('click',()=>starteLauf(Math.min(LEVELS.length,levelNr+1),null))
+    ui.endeZurueck.addEventListener('click',()=>zeigeLobby())
     ui.messen.disabled = true
     ui.ergebnisse.style.display = 'block'
     ui.ergebnisse.textContent = 'Lädt …'
@@ -289,8 +333,8 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     scene = welt.scene
     camera = welt.camera
     if (!welt.nahaufnahme) {
-      finger=new FingerSteuerung(renderer.domElement,camera);darstellung=new WeltDarstellung(welt, 12345, pruefDiagnose ?? undefined);lauf=new SpielLauf(eisPruefLevel(location.search),Date.now(),darstellung)
-      pruefEinsatzAusstehend = pruefEinsatz(location.search).length > 0
+      if (direkt) starteLauf(1, null)
+      else zeigeLobby()
     }
     groesse()
     vorwaermenEffekte()

@@ -783,6 +783,7 @@ export class WeltDarstellung implements LaufDarstellung {
   }
   zeige(z: Zustand, trupps: ReadonlyMap<Trupp, Sicht>, ereignisse: Ereignis[], dt: number, x: number): void {
     this.letzterStand = { z, trupps, x }
+    this.miniBalken.setzeMaximum(z.level.B_mini); this.eliteBalken.setzeMaximum(z.level.B_elite)
     const w = this.welt
     const t = z.t
     this.uhr += dt

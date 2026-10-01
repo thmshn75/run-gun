@@ -36,3 +36,26 @@ for (const bot of bots) {
   }
   console.log(`${bot.name}: Siege ${siege}/20, Ø Dauer ${(dauer / 20).toFixed(1)} s, Ø gefallene Säulen ${(saeulen / 20).toFixed(2)}`)
 }
+
+// D7-Nachweis: je Level passiv, Zahl gewinnender Spielweisen (≥ 15/20) und beste Gewinnquote.
+function spiele(level: typeof LEVELS[number], art: 'passiv' | 'rhythmus' | 'rhythmusSaeule', S: number, seed: number) {
+  const z = neuerLauf(level, seed); let phase: 'links' | 'mitte' | 'rechts' = 'links', nr = 0, si = 0
+  while (z.ergebnis === 'laeuft' && z.t < 400) {
+    if (art !== 'passiv') {
+      if (phase === 'links' && z.T >= S) { nr++; phase = art === 'rhythmusSaeule' && nr % 2 === 0 && z.P !== null ? 'rechts' : 'mitte'; si = z.saeulenIndex }
+      else if (phase === 'mitte' && z.T < 2) phase = 'links'
+      else if (phase === 'rechts' && z.saeulenIndex !== si) phase = 'mitte'
+    }
+    schritt(z, { x: art === 'passiv' ? 0 : phase === 'links' ? -1 : phase === 'rechts' ? 1 : 0 }, dt)
+  }
+  return z.ergebnis === 'sieg'
+}
+for (const [i, level] of LEVELS.entries()) {
+  let passiv = 0, spielweisen = 0, beste = 0
+  for (let s = 1; s <= 20; s++) if (spiele(level, 'passiv', 0, s)) passiv++
+  for (const art of ['rhythmus', 'rhythmusSaeule'] as const) for (let S = 10; S <= 150; S += 10) {
+    let w = 0; for (let s = 1; s <= 20; s++) if (spiele(level, art, S, s)) w++
+    if (w >= 15) spielweisen++; beste = Math.max(beste, w)
+  }
+  console.log(`Level ${i + 1}: passiv ${passiv}/20 · gewinnende Spielweisen ${spielweisen}/30 · beste ${beste}/20`)
+}
