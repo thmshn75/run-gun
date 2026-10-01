@@ -88,10 +88,12 @@ export function baueMiniatur(bau: FahrzeugBau, name: FahrzeugName, zielGroesse: 
   gruppe.updateMatrixWorld(true)
   const box = new THREE.Box3().setFromObject(gruppe, true), groesse = box.getSize(new THREE.Vector3())
   const eis = optionen.eis === true
-  const faktor = Math.min(zielGroesse[0] / groesse.x, zielGroesse[1] / groesse.y, (eis ? 3.75 : zielGroesse[2]) / groesse.z)
+  const faktor = eis
+    ? Math.min((EIS.AUSSEN_X - EIS.INNEN_X - 2 * EIS.HUELLE) / groesse.x, (EIS.ZIEL_LAENGE - 2 * EIS.HUELLE) / groesse.z)
+    : Math.min(zielGroesse[0] / groesse.x, zielGroesse[1] / groesse.y, zielGroesse[2] / groesse.z)
   if (!Number.isFinite(faktor) || faktor <= 0) throw new Error(`${name}: ungültige Größe`)
   gruppe.scale.setScalar(faktor)
-  gruppe.position.set(-box.getCenter(new THREE.Vector3()).x * faktor, eis ? EIS.HOEHE / 2 - box.getCenter(new THREE.Vector3()).y * faktor : -box.min.y * faktor, -box.getCenter(new THREE.Vector3()).z * faktor)
+  gruppe.position.set(-box.getCenter(new THREE.Vector3()).x * faktor, (eis ? EIS.HUELLE : 0) - box.min.y * faktor, -box.getCenter(new THREE.Vector3()).z * faktor)
   gruppe.updateMatrixWorld(true)
   if (eis) gruppe.userData.eisLaenge = groesse.z * faktor
   return gruppe

@@ -50,6 +50,7 @@ let lauf: Lauf | null = null
 
 // GPU-Plan: Eisbild RGBA mit Mipmaps, Riss-Canvas RGBA, Instanzmatrizen.
 export const EIS_SPEICHER_MB = (512 * 512 * 4 * 4 / 3 + 512 * 512 * 4 + EIS.SPLITTER_POOL * 16 * 4) / 1048576
+export const eisSpeicherMB = (huellBytes: number): number => EIS_SPEICHER_MB + huellBytes / 1048576
 
 export class DauertestFahrzeuge {
   readonly einsatz: Einsatzbilder
@@ -171,7 +172,7 @@ function groessen(l: Lauf) {
   const grund = speicherMB(bilder, renderflaechen, phaserBilder)
   const zusatz = ((l.welt.wasser.pmremZiel ? pmremPufferBytes(l.welt.wasser.pmremZiel) : 0)
     + (l.welt.wasser.spiegelZiel ? spiegelPufferBytes(l.welt.wasser.spiegelZiel) : 0)) / 1048576
-  return { ...grund, zusatz, gesamt: grund.bemalungen + zusatz }
+  return { ...grund, zusatz, gesamt: grund.bemalungen + zusatz + l.welt.eis.huellBytes / 1048576 }
 }
 
 export function starteMessung(welt: Welt, renderer: THREE.WebGLRenderer, game: Phaser.Game, anzeige: HTMLElement, knopf: HTMLButtonElement, beiErgebnis: (offen: boolean) => void = () => {}): void {
@@ -230,7 +231,7 @@ export function messBild(dt: number, jetzt: number): void {
   }
   const a = auswerten(l.bilder)
   const mb = groessen(l)
-  l.ergebnisse.push(`${MESSSTUFEN[l.stufe].name}: ${a.fps?.toFixed(1) ?? '–'} fps · langsamste 5 % ${a.p95?.toFixed(1) ?? '–'} ms · Schwarz ${l.schwarz === null ? '–' : `${l.schwarz.toFixed(1)} %`} · >250 ms: ${a.verworfen}\nBacken Soldat: ${l.welt.soldatBau.backzeitMs.toFixed(1)} ms · Bemalungen inkl. Bosse ${mb.bemalungen.toFixed(2)} MB · Wasserpuffer ${mb.zusatz.toFixed(2)} MB · Renderflächen ${mb.renderflaechen.toFixed(2)} MB · Phaser-Rest ${mb.phaserRest.toFixed(2)} MB · Speicherplan ${mb.gesamt.toFixed(2)} MB · Eisbild/Riss/Splitter ${EIS_SPEICHER_MB.toFixed(2)} MB · Geometrien ${l.renderer.info.memory.geometries} · Texturen ${l.renderer.info.memory.textures}${l.bot ? `\nProtokoll: ${l.bot.protokollFehler ?? `ok (nach ${l.bot.zustand.t.toFixed(1)} s)`} · Draw Calls (max): ${l.maxDrawCalls}` : ''}\n${urteil(a, l.schwarz, mb.gesamt)}`)
+  l.ergebnisse.push(`${MESSSTUFEN[l.stufe].name}: ${a.fps?.toFixed(1) ?? '–'} fps · langsamste 5 % ${a.p95?.toFixed(1) ?? '–'} ms · Schwarz ${l.schwarz === null ? '–' : `${l.schwarz.toFixed(1)} %`} · >250 ms: ${a.verworfen}\nBacken Soldat: ${l.welt.soldatBau.backzeitMs.toFixed(1)} ms · Bemalungen inkl. Bosse ${mb.bemalungen.toFixed(2)} MB · Wasserpuffer ${mb.zusatz.toFixed(2)} MB · Renderflächen ${mb.renderflaechen.toFixed(2)} MB · Phaser-Rest ${mb.phaserRest.toFixed(2)} MB · Speicherplan ${mb.gesamt.toFixed(2)} MB · Eisbild/Riss/Splitter/Hüllen ${eisSpeicherMB(l.welt.eis.huellBytes).toFixed(2)} MB · Hüllen-Dreiecke ${l.welt.eis.huellDreiecke} · Geometrien ${l.renderer.info.memory.geometries} · Texturen ${l.renderer.info.memory.textures}${l.bot ? `\nProtokoll: ${l.bot.protokollFehler ?? `ok (nach ${l.bot.zustand.t.toFixed(1)} s)`} · Draw Calls (max): ${l.maxDrawCalls}` : ''}\n${urteil(a, l.schwarz, mb.gesamt)}`)
   if (l.stufe === MESSSTUFEN.length - 1) {
     const ergebnis = l.ergebnisse.join('\n\n')
     bricheAb()

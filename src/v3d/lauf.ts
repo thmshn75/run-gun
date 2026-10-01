@@ -1,4 +1,4 @@
-import { BUEHNE, DARSTELLUNG, EIS, FAHRZEUGE, FIGUREN, LEVELS, SPEZIAL, type FahrzeugName, type Level } from './balance3d'
+import { BUEHNE, DARSTELLUNG, FAHRZEUGE, FIGUREN, LEVELS, SPEZIAL, type FahrzeugName, type Level } from './balance3d'
 import { neuerLauf, schritt, phaseBei, saeulenStartP, type AktiveEinheit, type Ereignis, type Trupp, type Zustand } from './rechnung'
 import { glaetteX, kernX } from './steuerung'
 import { bossFreieAufstellung } from './bosse'
@@ -674,7 +674,12 @@ export class WeltDarstellung implements LaufDarstellung {
     for (let j = 0; j < this.welt.saeulen.length; j++) {
       const name = level.saeulen[(index + j) % level.saeulen.length]
       const mini = this.welt.miniaturen.find(m => m.name === `fahrzeug-${name}` && !vergeben.has(m))
-      if (mini) { vergeben.add(mini); this.welt.saeulen[this.blockZuordnung[j]].add(mini); mini.visible = true }
+      if (mini) {
+        vergeben.add(mini)
+        const i = this.blockZuordnung[j], block = this.welt.saeulenBloecke[i]
+        block.add(mini); mini.visible = true
+        this.welt.saeulenSchilder[i].position.y = (mini.userData.hoehe as number ?? 0) + .85
+      }
     }
   }
   private setzeEisZurueck(): void {
@@ -684,11 +689,11 @@ export class WeltDarstellung implements LaufDarstellung {
     w.saeulen.forEach((s, i) => {
       s.position.set(BUEHNE.SAEULE_X, 0, -12 - i * BUEHNE.SAEULEN_ABSTAND)
       s.visible = true
-      w.saeulenBloecke[i].visible = true; w.saeulenBloecke[i].scale.y = 1
-      w.saeulenBloecke[i].position.y = EIS.HOEHE / 2
-      w.saeulenBloecke[i].material = i === 0 ? w.eis.treffer : w.eis.basis
+      w.saeulenBloecke[i].visible = true; w.saeulenBloecke[i].scale.setScalar(1)
       w.saeulenSchilder[i].visible = true
     })
+    this.ordneMiniaturen(this.letzterStand?.z.level ?? LEVELS[0], 0)
+    w.saeulenBloecke.forEach((block, i) => w.eis.setzeMaterial(block, i === 0))
     w.eis.setzeAktiv(w.saeulenBloecke[0], 0)
     this.letzteSaeule = -1; this.letzteSchildSaeule = -1; this.letzteSaeulenZahl = null
   }
@@ -884,40 +889,37 @@ export class WeltDarstellung implements LaufDarstellung {
     if (treffer) {
       this.letzterGlasBlitz = t; this.glasBlitzBis = t + .08
       const aktiv = w.saeulenBloecke[this.blockZuordnung[0]]
-      if (aktiv) w.eis.trefferSplitter(aktiv.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 1, EIS.LAENGE / 2)), this.bild)
+      if (aktiv) w.eis.trefferSplitter(new THREE.Box3().setFromObject(aktiv).getCenter(new THREE.Vector3()), this.bild)
     }
     w.eis.treffer.color.copy(w.eis.grundfarbe).lerp(w.eis.blitzfarbe, t < this.glasBlitzBis ? .65 : 0)
     if (z.saeulenIndex !== this.letzteSaeule) {
       if (this.letzteSaeule >= 0 && fall) {
         const alt = this.blockZuordnung.shift()!
         const block = w.saeulenBloecke[alt]
-        w.eis.zerspringe(block.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 1, 0)), this.bild)
+        w.eis.zerspringe(new THREE.Box3().setFromObject(block).getCenter(new THREE.Vector3()), this.bild)
         block.visible = false; w.saeulenSchilder[alt].visible = false
         this.blockZuordnung.push(alt)
         w.saeulen[alt].position.z = -12 - (w.saeulen.length - 1) * BUEHNE.SAEULEN_ABSTAND
-        block.scale.y = .001
-        block.position.y = EIS.HOEHE * .001 / 2
+        block.scale.setScalar(.3)
         w.eis.treffer.color.copy(w.eis.grundfarbe)
-        w.eis.setzeAktiv(w.saeulenBloecke[this.blockZuordnung[0]], z.saeulenIndex)
         this.ordneMiniaturen(z.level, z.saeulenIndex)
+        w.eis.setzeAktiv(w.saeulenBloecke[this.blockZuordnung[0]], z.saeulenIndex)
       } else this.ordneMiniaturen(z.level, z.saeulenIndex)
       this.saeulenVon = this.blockZuordnung.map(i => w.saeulen[i].position.z)
       this.saeulenStart = this.uhr
       this.letzteSaeule = z.saeulenIndex
       this.letzteSchildSaeule = -1
-      w.saeulenBloecke.forEach((block, i) => { block.material = i === this.blockZuordnung[0] ? w.eis.treffer : w.eis.basis })
+      w.saeulenBloecke.forEach((block, i) => w.eis.setzeMaterial(block, i === this.blockZuordnung[0]))
     }
     const anteil = Math.min(1, (this.uhr - this.saeulenStart) / .6)
     this.blockZuordnung.forEach((i, j) => {
       const saeule = w.saeulen[i]
       const ziel = -12 - j * BUEHNE.SAEULEN_ABSTAND
       saeule.position.z = THREE.MathUtils.lerp(this.saeulenVon[j] ?? ziel, ziel, anteil)
-      if (j === w.saeulen.length - 1 && w.saeulenBloecke[i].scale.y < 1) {
+      if (j === w.saeulen.length - 1 && w.saeulenBloecke[i].scale.x < 1) {
         w.saeulenBloecke[i].visible = true
-        w.saeulenBloecke[i].scale.y = anteil >= 1 - 1e-9 ? 1 : Math.max(.001, anteil)
-        w.saeulenBloecke[i].position.y = EIS.HOEHE * w.saeulenBloecke[i].scale.y / 2
-        if (anteil >= 1 - 1e-9) { w.saeulenSchilder[i].visible = true; const mini = saeule.children.find(m => m.name.startsWith('fahrzeug-')); if (mini) mini.visible = true }
-        else { w.saeulenSchilder[i].visible = false; const mini = saeule.children.find(m => m.name.startsWith('fahrzeug-')); if (mini) mini.visible = false }
+        w.saeulenBloecke[i].scale.setScalar(anteil >= 1 - 1e-9 ? 1 : .3 + .7 * anteil)
+        w.saeulenSchilder[i].visible = anteil >= 1 - 1e-9
       }
       w.saeulenSchilder[i].quaternion.copy(w.camera.quaternion)
     })

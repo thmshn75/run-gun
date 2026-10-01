@@ -29,8 +29,8 @@ function baueWeltAttrappe() {
   const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(),truppe=new SoldatenMasse(soldatBau,40),laufTrupp=new SoldatenMasse(soldatBau,50),front=new SoldatenMasse(soldatBau,40),zombieMasse=new ZombieMasse(zombieBau,zombieBau.materialien,600)
   const wand=new THREE.Group(),eis=new EisEffekte(scene,null)
   const saeulen=LEVELS[0].saeulen.map((_,i)=>{const g=new THREE.Group();g.name=`saeule-${i}`;g.position.set(BUEHNE.SAEULE_X,0,-12-i*BUEHNE.SAEULEN_ABSTAND);return g})
-  const miniaturen=LEVELS[0].saeulen.map(name=>{const innen=new THREE.Group();innen.name=`fahrzeug-${name}`;innen.position.y=1;return innen})
-  const saeulenBloecke=saeulen.map((g,i)=>{const m=new THREE.Mesh(eis.blockGeometrie,i===0?eis.treffer:eis.basis);m.position.y=1;g.add(m);return m})
+  const miniaturen=LEVELS[0].saeulen.map(name=>{const innen=new THREE.Group();innen.name=`fahrzeug-${name}`;innen.position.y=1;innen.userData.hoehe=2;const huelle=new THREE.Group();huelle.name='eishuelle';huelle.add(new THREE.Mesh(new THREE.BoxGeometry(1,2,1),eis.basis));innen.add(huelle);innen.userData.huelle=huelle;innen.userData.rissMeshes=[new THREE.Mesh(new THREE.BoxGeometry(1,2,1),eis.rissMaterial)];return innen})
+  const saeulenBloecke=saeulen.map(g=>{const block=new THREE.Group();g.add(block);return block})
   const saeulenSchilder=saeulen.map(g=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(document.createElement('canvas'))}));m.userData.canvas=document.createElement('canvas');g.add(m);return m})
 
   const bossObjekt=new THREE.Group(),bossMaterial=new THREE.MeshStandardMaterial({color:'#777777'})
@@ -365,10 +365,10 @@ describe('3D-Lauf',()=>{
       z.saeulenIndex=1;z.P=150;z.PStart=150
       anzeige.zeige(z,new Map(),[{art:'einheitFrei',menge:1,t:0}],.1,0)
       expect(welt.eis.diagnose.splitter).toBeGreaterThanOrEqual(24)
-      expect(welt.saeulenBloecke[0].scale.y).toBeLessThan(.01)
+      expect(welt.saeulenBloecke[0].scale.x).toBeCloseTo(.3)
       for(let i=0;i<6;i++)anzeige.zeige(z,new Map(),[],.1,0)
       expect(welt.saeulen[1].position.z).toBeCloseTo(-12)
-      expect(welt.saeulenBloecke[0].scale.y).toBe(1)
+      expect(welt.saeulenBloecke[0].scale.x).toBe(1)
       expect(welt.saeulen.filter(s=>s.visible)).toHaveLength(4)
       anzeige.gibFrei()
       const nochmal=new WeltDarstellung(welt),neu=new SpielLauf().zustand
@@ -376,7 +376,7 @@ describe('3D-Lauf',()=>{
       expect(welt.saeulen[0].position.z).toBe(-12)
       expect(welt.eis.diagnose.splitter).toBe(0)
       expect(welt.eis.diagnose.stufe).toBe(0)
-      expect(welt.saeulenBloecke[0].material).toBe(welt.eis.treffer)
+      expect(((welt.saeulenBloecke[0].children.find(o=>o.name.startsWith('fahrzeug-'))!.userData.huelle as THREE.Group).children[0] as THREE.Mesh)).toHaveProperty('material',welt.eis.treffer)
       nochmal.gibFrei()
     } finally {raume()}
   })
@@ -396,7 +396,7 @@ describe('3D-Lauf',()=>{
         for(let j=0;j<welt.saeulen.length;j++) {
           const platz=welt.saeulen.find(s=>Math.abs(s.position.z-(-12-j*BUEHNE.SAEULEN_ABSTAND))<1e-6)!
           const name=level.saeulen[(z.saeulenIndex+j)%level.saeulen.length]
-          expect(platz.children.some(c=>c.name===`fahrzeug-${name}`),`Fall ${fall}, Platz ${j}`).toBe(true)
+          expect(platz.children.some(c=>c.children.some(m=>m.name===`fahrzeug-${name}`)),`Fall ${fall}, Platz ${j}`).toBe(true)
           const schild=welt.saeulenSchilder[welt.saeulen.indexOf(platz)]
           const wert=j===0?z.P!:saeulenStartP(level,z.saeulenIndex+j)
           expect(tafeln.mock.calls.some(([s,n])=>s===schild&&n===wert),`Zahl Fall ${fall}, Platz ${j}`).toBe(true)
@@ -440,8 +440,8 @@ describe('3D-Lauf',()=>{
       anzeige.zeige(z,new Map(),[fall],.1,0)
       anzeige.zeige(z,new Map(),[fall],.1,0)
       expect(zer).toHaveBeenCalledTimes(1)
-      expect(welt.saeulenBloecke[1].material).toBe(welt.eis.treffer)
-      expect(welt.saeulenBloecke[2].material).toBe(welt.eis.basis)
+      expect(((welt.saeulenBloecke[1].children.find(o=>o.name.startsWith('fahrzeug-'))!.userData.huelle as THREE.Group).children[0] as THREE.Mesh)).toHaveProperty('material',welt.eis.treffer)
+      expect(((welt.saeulenBloecke[2].children.find(o=>o.name.startsWith('fahrzeug-'))!.userData.huelle as THREE.Group).children[0] as THREE.Mesh)).toHaveProperty('material',welt.eis.basis)
       expect(welt.eis.auflage.parent).toBe(welt.saeulenBloecke[1])
       anzeige.gibFrei()
     } finally {raume()}

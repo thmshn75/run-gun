@@ -2,8 +2,8 @@ import * as THREE from 'three'
 import strassenUrl from './bilder/v3d-strasse.webp?url'
 import normalenUrl from './bilder/v3d-wasser-normalen.webp?url'
 import eisUrl from './bilder/v3d-eis.webp?url'
-import { EisEffekte, ladeEisBemalung } from './eis'
-import { BUEHNE, DARSTELLUNG, EIS, FAHRZEUGE, FIGUREN, LEVELS, type FahrzeugName } from './balance3d'
+import { EisEffekte, baueEishuelle, ladeEisBemalung } from './eis'
+import { BUEHNE, DARSTELLUNG, FAHRZEUGE, FIGUREN, LEVELS, type FahrzeugName } from './balance3d'
 import { baueKamera } from './kamera'
 import { ladeZombie, ZombieMasse, type ZombieBau } from './figuren'
 import { ladeSoldatenDateien, fertigeSoldaten, entsorgeGLTF, SoldatenMasse, type SoldatenBau } from './soldaten'
@@ -37,7 +37,7 @@ export interface Welt {
   saeulen: THREE.Group[]
   miniaturen: THREE.Object3D[]
   eis: EisEffekte
-  saeulenBloecke: THREE.Mesh[]
+  saeulenBloecke: THREE.Group[]
   saeulenSchilder: THREE.Mesh[]
   miniboss: Boss
   eliteboss: Boss
@@ -66,19 +66,27 @@ export function platzhalter(scene: THREE.Scene, fahrzeuge: Record<FahrzeugName, 
   }
   const eis = new EisEffekte(scene, eisTextur)
   const tafGeometrie = new THREE.PlaneGeometry(1.2, 1.0)
-  const saeulen: THREE.Group[] = [], miniaturen: THREE.Object3D[] = [], saeulenSchilder: THREE.Mesh[] = [], saeulenBloecke: THREE.Mesh[] = []
-  for (const name of LEVELS[0].saeulen) miniaturen.push(baueMiniatur(fahrzeuge[name as FahrzeugName], name as FahrzeugName, [EIS.BREITE - .2, EIS.HOEHE - .2, EIS.LAENGE - .2], { eis: true }))
+  const saeulen: THREE.Group[] = [], miniaturen: THREE.Object3D[] = [], saeulenSchilder: THREE.Mesh[] = [], saeulenBloecke: THREE.Group[] = []
+  for (const name of LEVELS[0].saeulen) {
+    const mini = baueMiniatur(fahrzeuge[name as FahrzeugName], name as FahrzeugName, [0, 0, 0], { eis: true })
+    const masse = baueEishuelle(mini, eis)
+    eis.huellDreiecke += masse.dreiecke; eis.huellBytes += masse.bytes
+    mini.userData.hoehe = new THREE.Box3().setFromObject(mini, true).max.y
+    miniaturen.push(mini)
+  }
   const anzahl = Math.min(LEVELS[0].saeulen.length, DARSTELLUNG.SAEULEN_VORSCHAU + 1)
   for (let index = 0; index < anzahl; index++) {
     const saeule = new THREE.Group()
     saeule.name = `saeule-${index}`
     saeule.position.set(BUEHNE.SAEULE_X, 0, -12 - index * BUEHNE.SAEULEN_ABSTAND)
-    const block = new THREE.Mesh(eis.blockGeometrie, index === 0 ? eis.treffer : eis.basis)
-    block.name = 'eisblock'; block.position.y = EIS.HOEHE / 2; block.renderOrder = 2
+    const block = new THREE.Group()
+    block.name = 'eishuelle-platz'
+    block.add(miniaturen[index])
+    eis.setzeMaterial(block, index === 0)
     const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 128
     const textur = new THREE.CanvasTexture(canvas); textur.colorSpace = THREE.SRGBColorSpace
     const schild = new THREE.Mesh(tafGeometrie, new THREE.MeshBasicMaterial({ map: textur, transparent: true, depthTest: true, side: THREE.DoubleSide }))
-    schild.name = 'eis-zahl'; schild.position.y = EIS.HOEHE + .35 + .5; schild.renderOrder = 10
+    schild.name = 'eis-zahl'; schild.position.y = (miniaturen[index].userData.hoehe as number) + .35 + .5; schild.renderOrder = 10
     schild.userData.canvas = canvas
     saeule.add(block, schild); gruppe.add(saeule)
     saeulen.push(saeule); saeulenSchilder.push(schild); saeulenBloecke.push(block)
@@ -277,6 +285,7 @@ export function gibSzeneFrei(welt: Welt): void {
   welt.miniboss.gibFrei();welt.eliteboss.gibFrei()
   Object.values(welt.fahrzeuge).forEach(b=>b.gibFrei())
   welt.scene.remove(welt.zombieMasse.gruppe)
+  for (const mini of welt.miniaturen) for (const mesh of (mini.userData.rissMeshes as THREE.Mesh[] | undefined) ?? []) mesh.geometry.dispose()
   const geometrien = new Set<THREE.BufferGeometry>()
   const materialien = new Set<THREE.Material>()
   const texturen = new Set<THREE.Texture>(welt.bemalungen)
@@ -298,7 +307,7 @@ export function gibSzeneFrei(welt: Welt): void {
   if (welt.scene.background instanceof THREE.Texture) texturen.add(welt.scene.background)
   welt.scene.environment = null; welt.scene.background = null
   texturen.forEach(t => t.dispose())
-  welt.eis.basis.dispose(); welt.eis.treffer.dispose(); welt.eis.textur.dispose(); welt.eis.blockGeometrie.dispose(); (welt.eis.blitz.material as THREE.Material).dispose()
+  welt.eis.basis.dispose(); welt.eis.treffer.dispose(); welt.eis.rissMaterial.dispose(); welt.eis.textur.dispose(); (welt.eis.blitz.material as THREE.Material).dispose()
   gibSchilderFrei()
   materialien.forEach(m => m.dispose())
   geometrien.forEach(g => g.dispose())

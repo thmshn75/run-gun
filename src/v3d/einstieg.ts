@@ -155,14 +155,14 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
       welt.truppe.setze([-1.5,-.5,.5,1.5].map((x,i)=>({x,z:0,dreh:spielzeit*Math.PI/4,bewegung:(['laufen','stehen','schiessen','fallen'] as const)[i]})))
     }
     if (welt && eisansicht !== 'normal') {
-      if (eisansicht === 'ohneeis') { welt.saeulenBloecke.forEach(b => b.visible = false); welt.eis.auflage.visible = false; welt.eis.splitter.visible = false }
-      if (eisansicht === 'ohnefahrzeug') welt.miniaturen.forEach(m => m.visible = false)
+      if (eisansicht === 'ohneeis') { welt.miniaturen.forEach(m => { (m.userData.huelle as Drei.Group).visible = false }); welt.eis.auflage.visible = false; welt.eis.splitter.visible = false }
+      if (eisansicht === 'ohnefahrzeug') welt.miniaturen.forEach(m => m.traverse(o => { if (o instanceof Drei.Mesh && o.name !== 'eishuelle-teil') o.visible = false }))
       if (eisansicht === 'maske') {
         maskenMaterial ??= new Drei.MeshBasicMaterial({ color: '#ffffff', depthWrite: true })
         scene.background = new Drei.Color('#000000')
         scene.traverse(o => {
           if (o instanceof Drei.Mesh || o instanceof Drei.Sprite) {
-            if (welt!.saeulenBloecke.includes(o as Drei.Mesh)) { o.visible = true; (o as Drei.Mesh).material = maskenMaterial! }
+            if (o.name === 'eishuelle-teil') { o.visible = true; (o as Drei.Mesh).material = maskenMaterial! }
             else o.visible = false
           }
         })

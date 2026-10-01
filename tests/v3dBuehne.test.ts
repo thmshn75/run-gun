@@ -25,7 +25,7 @@ function breite(camera: THREE.PerspectiveCamera, z: number) {
 }
 
 describe('3D-Bühne', () => {
-  it('baut vier Eisplätze mit geteiltem Block und Zahltafeln', () => {
+  it('baut vier Eisplätze mit Fahrzeughüllen und Zahltafeln', () => {
     const ctx={font:'',clearRect:vi.fn(),fillRect:vi.fn(),fillText:vi.fn(),strokeText:vi.fn(),measureText:vi.fn(()=>({width:30})),beginPath:vi.fn(),moveTo:vi.fn(),lineTo:vi.fn(),stroke:vi.fn(),createLinearGradient:()=>({addColorStop:vi.fn()}),createRadialGradient:()=>({addColorStop:vi.fn()})}
     vi.stubGlobal('document',{createElement:()=>({width:0,height:0,getContext:()=>ctx})})
     vi.stubGlobal('location',{search:''})
@@ -37,23 +37,26 @@ describe('3D-Bühne', () => {
       expect(p.saeulen).toHaveLength(4)
       expect(p.saeulen.map(s=>s.position.z)).toEqual([-12,-20,-28,-36])
       expect(p.miniaturen).toHaveLength(4)
-      for (const [i,block] of p.saeulenBloecke.entries()) {
-        expect(block.name).toBe('eisblock')
-        expect(block.geometry).toBe(p.saeulenBloecke[0].geometry)
-        expect((block.geometry as THREE.BoxGeometry).parameters).toMatchObject({width:EIS.BREITE,height:EIS.HOEHE,depth:EIS.LAENGE})
-        expect(block.position.y).toBe(EIS.HOEHE/2)
-        expect(block.material).toBe(i===0?p.eis.treffer:p.eis.basis)
+      for (const [i, block] of p.saeulenBloecke.entries()) {
+        const mini = block.children.find(o => o.name.startsWith('fahrzeug-'))!
+        const huelle = mini.userData.huelle as THREE.Group
+        expect(huelle.children.length).toBeGreaterThan(0)
+        expect(huelle.children.every(o => o instanceof THREE.Mesh && o.material === (i === 0 ? p.eis.treffer : p.eis.basis))).toBe(true)
+        const box = new THREE.Box3().setFromObject(huelle)
+        box.min.x += BUEHNE.SAEULE_X; box.max.x += BUEHNE.SAEULE_X
+        expect(box.min.x).toBeGreaterThanOrEqual(EIS.INNEN_X - 1e-6)
+        expect(box.max.x).toBeLessThanOrEqual(EIS.AUSSEN_X + 1e-6)
+        expect(box.max.z - box.min.z).toBeLessThanOrEqual(EIS.ZIEL_LAENGE + 1e-6)
         expect(p.saeulenSchilder[i].name).toBe('eis-zahl')
-        expect(p.saeulenSchilder[i].position.y - EIS.HOEHE - .5).toBeCloseTo(.35)
+        expect(p.saeulenSchilder[i].position.y - (mini.userData.hoehe as number) - .5).toBeCloseTo(.35)
         expect((p.saeulenSchilder[i].material as THREE.MeshBasicMaterial).depthTest).toBe(true)
         expect(p.saeulen[i].getObjectByName('mini-sockel')).toBeUndefined()
         expect(p.saeulen[i].getObjectByName('saeule-rahmen')).toBeUndefined()
       }
-      expect(BUEHNE.SAEULE_X-EIS.BREITE/2).toBeLessThanOrEqual(3.7)
-      expect(BUEHNE.SAEULE_X-EIS.BREITE/2).toBeCloseTo(3.65)
-      expect([EIS.BREITE,EIS.LAENGE,EIS.HOEHE]).toEqual([2.3,4.6,3.2])
-      expect(BUEHNE.SAEULE_X-EIS.BREITE/2).toBeGreaterThan(BUEHNE.MITTE_HALB+BUEHNE.KANTE_BREITE/2)
-      expect(BUEHNE.SAEULE_X+EIS.BREITE/2).toBeLessThanOrEqual(BUEHNE.BAHN_BREITE/2)
+      expect(EIS.AUSSEN_X - EIS.INNEN_X).toBe(2.4)
+      expect(BUEHNE.SAEULE_X).toBe((EIS.INNEN_X + EIS.AUSSEN_X) / 2)
+      expect(EIS.INNEN_X).toBeGreaterThan(BUEHNE.MITTE_HALB + BUEHNE.KANTE_BREITE / 2)
+      expect(EIS.AUSSEN_X).toBeLessThanOrEqual(BUEHNE.BAHN_BREITE / 2)
       expect(p.saeulen.reduce((n,s)=>n+s.children.filter(o=>o instanceof THREE.Mesh).length,0)).toBeLessThanOrEqual(12)
     } finally {vi.unstubAllGlobals()}
   })
@@ -64,8 +67,8 @@ describe('3D-Bühne', () => {
     expect(BUEHNE.PLUS_X + BUEHNE.PLUS_BREITE / 2).toBeLessThanOrEqual(-BUEHNE.MITTE_HALB)
     expect(BUEHNE.PLUS_BREITE).toBe(2)
     expect(BUEHNE.PLUS_HOEHE).toBe(1.2)
-    expect(BUEHNE.SAEULE_X - EIS.BREITE / 2).toBeGreaterThanOrEqual(BUEHNE.MITTE_HALB)
-    expect(BUEHNE.SAEULE_X + EIS.BREITE / 2).toBeLessThanOrEqual(aussen)
+    expect(EIS.INNEN_X).toBeGreaterThanOrEqual(BUEHNE.MITTE_HALB)
+    expect(EIS.AUSSEN_X).toBeLessThanOrEqual(aussen)
     expect(BUEHNE.WAND_HOEHE).toBe(1.2)
     expect(BUEHNE.WAND_FARBE).toBe('#1f6fd6')
     expect(2 * BUEHNE.MITTE_HALB).toBe(6.8)
@@ -76,28 +79,24 @@ describe('3D-Bühne', () => {
     expect(BUEHNE.KANTE_Z_VORNE).toBeLessThan(-5)
     expect(BUEHNE.RANDMAUER_FARBE).toBe('#c9cbca')
   })
-  it('projiziert die erste Zahl mit mindestens 18 Bildpunkten', () => {
-    const camera=baueKamera(390,844)
-    const unten=new THREE.Vector3(BUEHNE.SAEULE_X,EIS.HOEHE+.35,-12).project(camera)
-    const oben=new THREE.Vector3(BUEHNE.SAEULE_X,EIS.HOEHE+1.35,-12).project(camera)
-    const ziffernPixel=Math.abs(oben.y-unten.y)*844/2*96/128
-    expect(ziffernPixel).toBeGreaterThanOrEqual(18)
-  })
-  it('begrenzt die Überdeckung der nächsten Fahrzeugbox', () => {
-    const camera=baueKamera(390,844)
-    const ecke=(punkte:THREE.Vector3[])=>{
-      const bild=punkte.map(p=>p.project(camera))
-      return { links:Math.min(...bild.map(p=>p.x)),rechts:Math.max(...bild.map(p=>p.x)),oben:Math.min(...bild.map(p=>p.y)),unten:Math.max(...bild.map(p=>p.y)) }
+  it('projiziert die Zahl und begrenzt die Überdeckung des Folgefahrzeugs', () => {
+    const camera = baueKamera(390, 844)
+    const hoehe = 3.2
+    const unten = new THREE.Vector3(BUEHNE.SAEULE_X, hoehe + .35, -12).project(camera)
+    const oben = new THREE.Vector3(BUEHNE.SAEULE_X, hoehe + 1.35, -12).project(camera)
+    expect(Math.abs(oben.y - unten.y) * 844 / 2 * 96 / 128).toBeGreaterThanOrEqual(18)
+    const bildBox = (box: THREE.Box3) => {
+      const punkte: THREE.Vector3[] = []
+      for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) punkte.push(new THREE.Vector3(x, y, z).project(camera))
+      return {l: Math.min(...punkte.map(p => p.x)), r: Math.max(...punkte.map(p => p.x)), o: Math.min(...punkte.map(p => p.y)), u: Math.max(...punkte.map(p => p.y))}
     }
-    const q=camera.quaternion,rechts=new THREE.Vector3(1,0,0).applyQuaternion(q),oben=new THREE.Vector3(0,1,0).applyQuaternion(q),mitte=new THREE.Vector3(BUEHNE.SAEULE_X,EIS.HOEHE+.9828125,-12)
-    const tafel=ecke([-1,1].flatMap(x=>[-.234375,.5].map(y=>mitte.clone().addScaledVector(rechts,.6*x).addScaledVector(oben,y))))
-    const fahrzeug=ecke([-(EIS.BREITE-.2)/2,(EIS.BREITE-.2)/2].flatMap(x=>[.1,EIS.HOEHE-.1].flatMap(y=>[-20-(EIS.LAENGE-.2)/2,-20+(EIS.LAENGE-.2)/2].map(z=>new THREE.Vector3(BUEHNE.SAEULE_X+x,y,z)))))
-    const eigenes=ecke([-.811,.811].flatMap(x=>[.15,3.05].flatMap(y=>[-13.875,-10.125].map(z=>new THREE.Vector3(BUEHNE.SAEULE_X+x,y,z)))))
-    const flaeche=(r:ReturnType<typeof ecke>)=>(r.rechts-r.links)*(r.unten-r.oben)
-    const schnitt=Math.max(0,Math.min(tafel.rechts,fahrzeug.rechts)-Math.max(tafel.links,fahrzeug.links))*Math.max(0,Math.min(tafel.unten,fahrzeug.unten)-Math.max(tafel.oben,fahrzeug.oben))
-    const eigenerSchnitt=Math.max(0,Math.min(tafel.rechts,eigenes.rechts)-Math.max(tafel.links,eigenes.links))*Math.max(0,Math.min(tafel.unten,eigenes.unten)-Math.max(tafel.oben,eigenes.oben))
-    expect(eigenerSchnitt).toBe(0)
-    expect(schnitt/flaeche(fahrzeug)).toBeLessThanOrEqual(.2)
+    const q = camera.quaternion, rechts = new THREE.Vector3(1, 0, 0).applyQuaternion(q), hoch = new THREE.Vector3(0, 1, 0).applyQuaternion(q)
+    const mitte = new THREE.Vector3(BUEHNE.SAEULE_X, hoehe + .85, -12)
+    const tafelPunkte = [-.6, .6].flatMap(x => [-.234375, .5].map(y => mitte.clone().addScaledVector(rechts, x).addScaledVector(hoch, y).project(camera)))
+    const tafel = {l: Math.min(...tafelPunkte.map(p => p.x)), r: Math.max(...tafelPunkte.map(p => p.x)), o: Math.min(...tafelPunkte.map(p => p.y)), u: Math.max(...tafelPunkte.map(p => p.y))}
+    const folge = bildBox(new THREE.Box3(new THREE.Vector3(3.7, .12, -22.5), new THREE.Vector3(5.9, hoehe, -17.5)))
+    const schnitt = (b: typeof tafel) => Math.max(0, Math.min(tafel.r, b.r) - Math.max(tafel.l, b.l)) * Math.max(0, Math.min(tafel.u, b.u) - Math.max(tafel.o, b.o))
+    expect(schnitt(folge) / ((folge.r - folge.l) * (folge.u - folge.o))).toBeLessThanOrEqual(.2)
   })
   it('hält die vorgegebenen Kamerawerte und Bildmaße in drei Formaten', () => {
     for (const [w, h] of [[390, 659], [375, 812], [390, 844]]) {

@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js'
 import { EIS } from './balance3d'
 
 export async function ladeEisBemalung(lade: () => Promise<THREE.Texture>, abgebrochen: () => boolean, timeout = 3000): Promise<THREE.Texture | null> {
@@ -22,13 +22,84 @@ export function eisZahl(wert: number): string {
   return `${(n / einheit).toFixed(1).replace('.', ',')}${einheit === 1e6 ? 'M' : 'k'}`
 }
 
+export function baueEishuelle(mini: THREE.Group, eis: EisEffekte): { dreiecke: number; bytes: number } {
+  mini.updateMatrixWorld(true)
+  const inverse = mini.matrixWorld.clone().invert()
+  const teile: THREE.Mesh[] = []
+  mini.traverse(o => { if (o instanceof THREE.Mesh) teile.push(o) })
+  const gemeinsameBox = new THREE.Box3().makeEmpty()
+  for (const teil of teile) {
+    if (!teil.geometry.boundingBox) teil.geometry.computeBoundingBox()
+    gemeinsameBox.union(teil.geometry.boundingBox!.clone().applyMatrix4(inverse.clone().multiply(teil.matrixWorld)))
+  }
+  gemeinsameBox.expandByScalar(EIS.HUELLE / mini.scale.x)
+  const gesamtGroesse = gemeinsameBox.getSize(new THREE.Vector3())
+  const huelle = new THREE.Group(), rissMeshes: THREE.Mesh[] = []
+  huelle.name = 'eishuelle'
+  let dreiecke = 0, bytes = 0
+  for (const teil of teile) {
+    const roh = teil.geometry, grund = new THREE.BufferGeometry()
+    grund.setAttribute('position', roh.getAttribute('position').clone())
+    if (roh.index) grund.setIndex(roh.index.clone())
+    grund.applyMatrix4(inverse.clone().multiply(teil.matrixWorld))
+    const glatt = mergeVertices(grund)
+    const modellBox = new THREE.Box3().setFromBufferAttribute(glatt.getAttribute('position') as THREE.BufferAttribute)
+    grund.dispose()
+    glatt.computeVertexNormals()
+    const position = glatt.getAttribute('position') as THREE.BufferAttribute
+    const normale = glatt.getAttribute('normal') as THREE.BufferAttribute
+    const abstand = EIS.HUELLE / mini.scale.x
+    for (let i = 0; i < position.count; i++) {
+      // Einige GLB-Teile enthalten entartete Dreiecke; deren berechnete Normale ist NaN.
+      const nx = normale.getX(i), ny = normale.getY(i), nz = normale.getZ(i)
+      if (!Number.isFinite(nx + ny + nz)) normale.setXYZ(i, 0, 1, 0)
+      position.setXYZ(i, position.getX(i) + normale.getX(i) * abstand, position.getY(i) + normale.getY(i) * abstand, position.getZ(i) + normale.getZ(i) * abstand)
+    }
+    position.needsUpdate = true
+    glatt.computeBoundingBox()
+    const verschoben = glatt.boundingBox!
+    for (let i = 0; i < position.count; i++) {
+      const wert = [position.getX(i), position.getY(i), position.getZ(i)]
+      for (let achse = 0; achse < 3; achse++) {
+        const von = verschoben.min.getComponent(achse), bis = verschoben.max.getComponent(achse)
+        const zielMin = modellBox.min.getComponent(achse) - abstand, zielMax = modellBox.max.getComponent(achse) + abstand
+        wert[achse] = bis > von ? zielMin + (wert[achse] - von) * (zielMax - zielMin) / (bis - von) : wert[achse]
+      }
+      position.setXYZ(i, wert[0], wert[1], wert[2])
+    }
+    position.needsUpdate = true
+    glatt.computeBoundingBox()
+    const uv = new Float32Array(position.count * 2)
+    for (let i = 0; i < position.count; i++) {
+      uv[2 * i] = (position.getX(i) + position.getZ(i) - gemeinsameBox.min.x - gemeinsameBox.min.z) / Math.max(gesamtGroesse.x + gesamtGroesse.z, 1e-6)
+      uv[2 * i + 1] = (position.getY(i) - gemeinsameBox.min.y) / Math.max(gesamtGroesse.y, 1e-6)
+    }
+    glatt.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
+    const mesh = new THREE.Mesh(glatt, eis.basis)
+    mesh.renderOrder = 2; mesh.name = 'eishuelle-teil'; huelle.add(mesh)
+    const rissForm = glatt.clone(), rissPos = rissForm.getAttribute('position') as THREE.BufferAttribute
+    for (let i = 0; i < rissPos.count; i++) rissPos.setXYZ(i, rissPos.getX(i) + normale.getX(i) * (.01 / mini.scale.x), rissPos.getY(i) + normale.getY(i) * (.01 / mini.scale.x), rissPos.getZ(i) + normale.getZ(i) * (.01 / mini.scale.x))
+    rissPos.needsUpdate = true
+    const riss = new THREE.Mesh(rissForm, eis.rissMaterial)
+    riss.renderOrder = 3; rissMeshes.push(riss)
+    dreiecke += (glatt.index?.count ?? position.count) / 3
+    bytes += position.count * 8 * 4 * 2 + (glatt.index?.count ?? 0) * 4 * 2
+  }
+  mini.add(huelle)
+  mini.userData.huelle = huelle
+  mini.userData.rissMeshes = rissMeshes
+  return { dreiecke, bytes }
+}
+
 export class EisEffekte {
   readonly basis: THREE.MeshStandardMaterial
   readonly treffer: THREE.MeshStandardMaterial
-  readonly blockGeometrie = new THREE.BoxGeometry(EIS.BREITE, EIS.HOEHE, EIS.LAENGE)
-  readonly auflage: THREE.Mesh
+  readonly auflage: THREE.Group
+  readonly rissMaterial: THREE.MeshBasicMaterial
   readonly splitter: THREE.InstancedMesh
   readonly splitterMaterial: THREE.MeshStandardMaterial
+  huellDreiecke = 0
+  huellBytes = 0
   readonly blitz: THREE.Sprite
   readonly textur: THREE.CanvasTexture
   readonly grundfarbe = new THREE.Color('#b4dce9')
@@ -44,21 +115,13 @@ export class EisEffekte {
   private blitzGeboren = -1
   private blitzAlter = 0
   constructor(scene: THREE.Scene, map: THREE.Texture | null) {
-    const material = () => new THREE.MeshStandardMaterial({ color: this.grundfarbe, map, transparent: true, opacity: .52, depthWrite: false, side: THREE.FrontSide, roughness: .92 })
+    const material = () => new THREE.MeshStandardMaterial({ color: this.grundfarbe, map, transparent: true, opacity: .45, depthWrite: false, side: THREE.FrontSide, roughness: .92 })
     this.basis = material(); this.treffer = material()
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 512
     this.textur = new THREE.CanvasTexture(canvas)
     this.textur.generateMipmaps = false; this.textur.minFilter = THREE.LinearFilter; this.textur.magFilter = THREE.LinearFilter
-    const flaechen = [
-      new THREE.PlaneGeometry(EIS.BREITE, EIS.HOEHE).translate(0, 0, EIS.LAENGE / 2 + .012),
-      new THREE.PlaneGeometry(EIS.BREITE, EIS.LAENGE).rotateX(-Math.PI / 2).translate(0, EIS.HOEHE / 2 + .012, 0),
-      new THREE.PlaneGeometry(EIS.LAENGE, EIS.HOEHE).rotateY(-Math.PI / 2).translate(-EIS.BREITE / 2 - .012, 0, 0),
-    ]
-    const rissGeometrie = mergeGeometries(flaechen)
-    flaechen.forEach(g => g.dispose())
-    if (!rissGeometrie) throw new Error('Eis-Rissflächen nicht zusammenführbar')
-    const rissMaterial = new THREE.MeshBasicMaterial({ map: this.textur, transparent: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 })
-    this.auflage = new THREE.Mesh(rissGeometrie, rissMaterial)
+    this.rissMaterial = new THREE.MeshBasicMaterial({ map: this.textur, transparent: true, depthWrite: false, side: THREE.FrontSide, polygonOffset: true, polygonOffsetFactor: -2 })
+    this.auflage = new THREE.Group()
     this.auflage.renderOrder = 3; this.auflage.visible = false; this.auflage.frustumCulled = false
     scene.add(this.auflage)
     const g = new THREE.TetrahedronGeometry(1, 0)
@@ -78,8 +141,19 @@ export class EisEffekte {
   setzeAktiv(block: THREE.Object3D, index: number): void {
     this.index = index; this.stufe = 0; this.upload = 0
     this.leereCanvas(false)
+    this.auflage.clear()
     block.add(this.auflage); this.auflage.visible = false
+    const mini = block.children.find(o => o.name.startsWith('fahrzeug-'))
+    if (mini) {
+      this.auflage.position.copy(mini.position); this.auflage.scale.copy(mini.scale); this.auflage.rotation.copy(mini.rotation)
+      for (const mesh of (mini.userData.rissMeshes as THREE.Mesh[] | undefined) ?? []) this.auflage.add(mesh)
+    }
     this.treffer.color.copy(this.grundfarbe)
+  }
+  setzeMaterial(block: THREE.Object3D, aktiv: boolean): void {
+    const mini = block.children.find(o => o.name.startsWith('fahrzeug-'))
+    const huelle = mini?.userData.huelle as THREE.Group | undefined
+    huelle?.traverse(o => { if (o instanceof THREE.Mesh) o.material = aktiv ? this.treffer : this.basis })
   }
   private leereCanvas(upload: boolean): CanvasRenderingContext2D {
     const c = this.textur.image as HTMLCanvasElement, ctx = c.getContext('2d')!

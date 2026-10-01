@@ -320,3 +320,75 @@ Test: Splittermaterial ≠ Eismaterial, Mindestgröße, Drehung ändert sich üb
 Nur N7/N8. `npm run check`, `npm test` ausführen, Status `IMPL_DONE`, kurzer Bericht.
 
 **Abschluss Nacharbeit 4:** N7 nutzt eine einmal erzeugte 64×64-Canvas-Textur mit radialem Verlauf für einen weichen, additiven Lichtschein von 3 m Durchmesser; er blendet über 0,15 s aus und bleibt mindestens drei gerenderte Bilder erhalten. N8 nutzt 32 Eisstücke mit 0,35–0,6 m Kantenlänge, ohne Abflachung, eigenem hellblauen Material und zufälliger Anfangsdrehung sowie fortlaufender Drehung. Das neue Splittermaterial wird vom vorhandenen Vorwärmweg erfasst. Tests prüfen Material, Größe, Drehung und Blitz. `npm run check` Exit 0; `npm test` 68 Dateien/640 Tests grün. Eine neue Browser-Sichtprüfung wurde nicht durchgeführt. Kein Commit/Push gemäß Projektregel.
+
+
+## Nacharbeit 5 — Eis in Fahrzeugform statt Block (Thomas 2026-10-01 10:17)
+
+Thomas nach Blick im Browser: "Die Eisblöcke sollen keine Blöcke sein, sondern die Form des
+Fahrzeugs haben, als wäre das Fahrzeug einfach eingefroren — und die Fahrzeuge noch größer,
+dass man sie erkennt — aber die Größen der Fahrzeuge im Spiel beibehalten."
+Ersetzt A2 (Blockmaße) und die Block-Teile von A4/A5/A9; alles andere (Kern, Zahlen, Risse-
+Stufen, Zerspringen, Wiederholung, Vorwärmen, Zurücksetzen, Prüfschalter) bleibt.
+
+**N9 Eishülle statt Quader.** Je Miniatur (eine je Fahrzeugart, wie heute) eine **Eishülle**:
+Für jedes Mesh des Fahrzeugs eine Kopie der Geometrie, deren Punkte entlang **geglätteter**
+Normalen nach außen geschoben werden (vorher `mergeVertices` nur nach Position, dann
+`computeVertexNormals`, damit die Hülle an Kanten nicht aufreißt), Dicke `EIS.HUELLE` = 0,12 m
+(Weltmaß nach Skalierung). Hülle im Basis- bzw. Treffer-Eismaterial (A4: milchig-blau,
+`v3d-eis.webp`, transparent, `depthWrite: false`, `FrontSide`), `opacity` so, dass das
+Fahrzeug darin klar erkennbar und bläulich gedämpft ist (Start 0,45). Hülle einmal je
+Fahrzeugart gebaut (beim Welt-Aufbau), nie je Fall. `EIS.BREITE/LAENGE/HOEHE`, Block-Geometrie
+und `saeulenBloecke` als Quader entfallen (Feld darf bleiben, zeigt dann auf die Hüllen-Gruppe).
+**Fahrzeug steht auf dem Boden** (Räder/Ketten auf y = Hülldicke), Hubschrauber schwebt nicht,
+sondern steht ebenfalls.
+
+**N10 Größer, Feld unverändert.** Ziel-Länge (z-Ausdehnung inkl. Hülle) **5,0 m** für alle
+vier. Erlaubter Bereich der Hülle in x: **3,6 bis 6,0** (Innenkante ≥ 3,6, nicht über den
+Bahnrand); `SAEULE_X` = Mitte dieses Bereichs, Fahrzeug mittig darin. Begrenzt die Breite
+(Hubschrauber-Rotor im Winkel kleinster Breite), so weit verkleinern, bis es passt; erreichte
+Länge berichten (kein Melden nötig, solange ≥ 3,0 m). Abstand der Plätze bleibt 8 m.
+**Feldfahrzeuge (`baueFeldFahrzeug`, Einsatz) bleiben exakt so groß wie heute**: Test, der die
+Box-Maße aller vier Feldfahrzeuge vor/nach vergleicht (Werte aus `FAHRZEUGE.LAENGE ×
+SPIEL_SKALA`).
+
+**N11 Risse auf der Hülle.** Die Riss-Auflage ist jetzt eine zweite Kopie der Hüllen-Geometrie
+des aktiven Fahrzeugs (0,01 m weiter außen, `renderOrder` 3, `polygonOffset`) mit dem
+Riss-Material. UVs dafür **nicht** die Fahrzeug-UVs, sondern aus der Position projiziert
+(z. B. u = (x + z)/L, v = y/H in Hüllkoordinaten), damit die Risslinien gleichmäßig über die
+Hülle laufen. Stufen, Upload-Grenze, Canvas wie A5/N3. Beim Platzwechsel hängt die Auflage an
+die Hülle des neuen aktiven Fahrzeugs (je Fahrzeugart eine vorgebaute Auflage-Geometrie oder
+Umhängen — keine Neuanlage je Fall).
+
+**N12 Nachrücken/Erscheinen.** Der neu hinten erscheinende Platz wächst als Ganzes (Fahrzeug +
+Hülle gleichmäßig, `scale` 0,3 → 1 in 0,6 s), Tafel erst danach sichtbar. Zerspringen: Splitter
+und Lichtschein aus der Mitte der Hülle; Hülle und Fahrzeug verschwinden im Fallbild wie bisher.
+
+**N13 Tafel.** Unterkante 0,35 m über der höchsten Stelle der Hülle des jeweiligen Platzes;
+A8-Projektionstest neu (eigenes Fahrzeug 0 %, Folgefahrzeug ≤ 20 %, Ziffer ≥ 18 px). Ist das
+mit 5 m nicht erreichbar: melden mit Werten.
+
+**Tests umschreiben, nicht löschen** (Blockmaße → Hüllen-Bereich x 3,6–6,0, Länge, Fahrzeug
+steht auf dem Boden, Hülle umschließt das Fahrzeug: jede Ecke der Fahrzeug-Box liegt innerhalb
+der Hüllen-Box; Speicherplan: Hüllen-Geometrien als Posten, neue Posten weiter ≤ 3 MB).
+`npm run check`, `npm test`, `npm run build`, `npm run bots3d` (zahlengleich). Status
+`IMPL_DONE`, Bericht: erreichte Längen je Fahrzeug, Hüllen-Dreiecke gesamt, Testergebnisse.
+
+**Abschluss Nacharbeit 5:** Die Quader wurden durch einmal je Fahrzeug gebaute, an geglätteten
+Normalen aufgeweitete Hüllen ersetzt. Risse folgen den Hüllen mit gemeinsamer
+Positionsprojektion; beim Nachrücken wachsen Fahrzeug und Hülle zusammen. Alle vier Modelle
+stehen auf dem Boden; die Feldfahrzeuge behalten ihre Box-Maße. Erreichte Hüllenlängen:
+Humvee **5,00 m**, Panzer **5,00 m**, Haubitze **4,36 m**, Hubschrauber **3,39 m**. Insgesamt
+**9.709 Hüllen-Dreiecke**; Hüllen-Geometrien im konservativen Speicherplan 574.968 Byte,
+neue Eisposten zusammen **2,89 MiB** (Grenze 3 MiB).
+
+**Prüfungen:** `npm run check` Exit 0; `npm test` 638/639 grün (68 Dateien, 1 Fehler);
+`npm run build` Exit 0; `npm run bots3d` Exit 0, alle sechs Bot-Zeilen zahlengleich mit dem
+vorher dokumentierten Stand; `git diff --check` Exit 0. Der rote Test betrifft N13: Bei
+390×844 überdeckt die projizierte Tafel **2,25 %** der eigenen Humvee-Box statt 0 %.
+Die Folgefahrzeug-Überdeckung liegt bei **13,10 %** (Grenze 20 %), die Ziffernhöhe bei
+**18,85 px** (Grenze 18 px). Die vorgegebene Unterkante 0,35 m über der Hülle und die
+Humvee-Länge 5,0 m wurden beibehalten; N13s Nullüberdeckung ist damit offen.
+Eine Browser-Sichtprüfung war nicht möglich, weil die automatische Freigabe den Zugriff
+auf Google Chrome abgelehnt hat; ein iPhone-Lauf wurde hier nicht durchgeführt.
+`open -a Terminal` fand keine Terminal-App, daher liefen die Prüfungen im Terminal-PTY.
+Kein Commit/Push gemäß Projektregel.
