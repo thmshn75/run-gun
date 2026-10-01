@@ -29,9 +29,26 @@ export function pruefEinsatz(suche: string): SpezialName[] {
 
 export function eisPruefLevel(suche: string): Level {
   const p = new URLSearchParams(suche)
+  if (p.get('pruefung') !== '1') return LEVELS[0]
+  let level = LEVELS[0]
   const roh = p.get('eis')
-  if (p.get('pruefung') !== '1' || !roh || !/^(?:[1-9][0-9]{0,4}|100000)$/.test(roh)) return LEVELS[0]
-  return { ...LEVELS[0], P: Number(roh) }
+  if (roh && /^(?:[1-9][0-9]{0,4}|100000)$/.test(roh)) level = { ...level, P: Number(roh) }
+  // D6: kurzer Lauf zum Ansehen von Sieg und Niederlage (Endboss nach 10 s).
+  if (p.get('schnell') === '1') level = { ...level, wellen: [{ t: 0, groesse: 60 }, { t: 5, groesse: 60 }], B_mini: 100, eliteBossZeit: 10, B_elite: 400 }
+  return level
+}
+
+export interface EndeStatistik { besiegt: number; maxT: number }
+export function zaehleEnde(stat: EndeStatistik, ereignisse: readonly { art: string; menge: number }[], T: number): void {
+  for (const e of ereignisse) if (e.art === 'zombieGefallen' || e.art === 'spezialTreffer') stat.besiegt += e.menge
+  stat.maxT = Math.max(stat.maxT, T)
+}
+export const ENDE_VERZOEGERUNG_MS = { sieg: 2500, niederlage: 2000 } as const
+export function endeTafel(ergebnis: 'sieg' | 'niederlage', t: number, saeulen: number, stat: EndeStatistik): { titel: string; zeilen: string[] } {
+  return {
+    titel: ergebnis === 'sieg' ? 'SIEG' : 'NIEDERLAGE',
+    zeilen: [`Zeit ${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`, `Zombies besiegt ${Math.round(stat.besiegt)}`, `Säulen gebrochen ${saeulen}`, `Größte Truppe ${Math.floor(stat.maxT)}`],
+  }
 }
 
 export function pruefEisansicht(suche: string): 'normal' | 'ohneeis' | 'ohnefahrzeug' | 'maske' {
@@ -82,6 +99,8 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
   let infoOffen = false
   let ergebnisOffen = false
   let endeTimer: ReturnType<typeof setTimeout> | undefined
+  let endeStat: EndeStatistik = { besiegt: 0, maxT: 0 }
+  let endeAnzeigeUm: number | null = null
   let offlineTimer: ReturnType<typeof setTimeout> | undefined
   let ui: ReturnType<typeof zeigeOberflaeche>
   const canvas = game.canvas
@@ -139,10 +158,21 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
           if (eisFallZeit === null && ereignisse.some(e => e.art === 'einheitFrei')) eisFallZeit = jetzt
         }
         ui.zahlen.textContent = statusZeile(1, lauf.zustand.t, lauf.zustand.T, lauf.zustand.F, lauf.zustand.gestarteteWellen, lauf.zustand.level.wellen.length)
+        zaehleEnde(endeStat, ereignisse, lauf.zustand.T)
         if (ereignisse.some(e=>e.art==='sieg'||e.art==='niederlage')) {
           if (pruefDiagnose) pruefEnde = jetzt
-          finger?.gibFrei(); finger=null; ui.ende.style.display='block'
-          ui.endeText.textContent=`${lauf.zustand.ergebnis==='sieg'?'SIEG':'NIEDERLAGE'} · ${lauf.zustand.t.toFixed(1)} s`
+          finger?.gibFrei(); finger=null
+          endeAnzeigeUm = jetzt + ENDE_VERZOEGERUNG_MS[lauf.zustand.ergebnis === 'sieg' ? 'sieg' : 'niederlage']
+        }
+        if (endeAnzeigeUm !== null && jetzt >= endeAnzeigeUm && lauf.zustand.ergebnis !== 'laeuft') {
+          endeAnzeigeUm = null
+          const tafel = endeTafel(lauf.zustand.ergebnis, lauf.zustand.t, lauf.zustand.saeulenIndex, endeStat)
+          ui.endeText.replaceChildren()
+          const titel = document.createElement('div')
+          titel.textContent = tafel.titel
+          Object.assign(titel.style, { fontSize: '40px', fontWeight: '900', letterSpacing: '2px', marginBottom: '10px', color: lauf.zustand.ergebnis === 'sieg' ? '#ffd34d' : '#ff5a4d', textShadow: '0 2px 6px black' })
+          ui.endeText.append(titel, ...tafel.zeilen.map(z => { const d = document.createElement('div'); d.textContent = z; d.style.fontSize = '16px'; d.style.margin = '3px 0'; return d }))
+          ui.ende.style.display='block'
           ui.nochmal.disabled=true;ui.endeZurueck.disabled=true
           endeTimer=setTimeout(()=>{ui.nochmal.disabled=false;ui.endeZurueck.disabled=false},700)
         }
@@ -249,7 +279,7 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
         })
       }
     }, ladeFortschritt().hoechstesLevel, () => finger?.aktiv ?? false, () => { infoOffen=true;finger?.verwerfe();letzterFrame=0 }, () => { infoOffen=false;letzterFrame=0 })
-    ui.nochmal.addEventListener('click',()=>{if(!welt||!lauf||!renderer||!camera)return;lauf.gibLaufFrei();pruefDiagnose=pruefDiagnose?new PruefDiagnose(new URLSearchParams(location.search).get('vorwaermen')!=='0'):null;pruefEnde=null;pruefAngezeigt=false;darstellung=new WeltDarstellung(welt,12345,pruefDiagnose??undefined);lauf=new SpielLauf(eisPruefLevel(location.search),Date.now(),darstellung);vorwaermenEffekte();pruefEinsatzAusstehend=pruefEinsatz(location.search).length>0;finger=new FingerSteuerung(renderer.domElement,camera);ui.ende.style.display='none';letzterFrame=0;bildZaehler=0;eisTrefferZeit=eisFallZeit=eisTrefferMax=null;eisDiagFertig=false;eisBilder.length=0})
+    ui.nochmal.addEventListener('click',()=>{if(!welt||!lauf||!renderer||!camera)return;lauf.gibLaufFrei();pruefDiagnose=pruefDiagnose?new PruefDiagnose(new URLSearchParams(location.search).get('vorwaermen')!=='0'):null;pruefEnde=null;pruefAngezeigt=false;darstellung=new WeltDarstellung(welt,12345,pruefDiagnose??undefined);lauf=new SpielLauf(eisPruefLevel(location.search),Date.now(),darstellung);vorwaermenEffekte();pruefEinsatzAusstehend=pruefEinsatz(location.search).length>0;finger=new FingerSteuerung(renderer.domElement,camera);ui.ende.style.display='none';endeStat={besiegt:0,maxT:0};endeAnzeigeUm=null;letzterFrame=0;bildZaehler=0;eisTrefferZeit=eisFallZeit=eisTrefferMax=null;eisDiagFertig=false;eisBilder.length=0})
     ui.messen.disabled = true
     ui.ergebnisse.style.display = 'block'
     ui.ergebnisse.textContent = 'Lädt …'

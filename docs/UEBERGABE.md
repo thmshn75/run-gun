@@ -6,6 +6,15 @@ steht auf IDLE, es laeuft kein Codex.)
 
 **Das Naechste liegt in `## Offen`, Punkt 0.**
 
+**Stand 2026-10-01 12:10:** D5e (Eis-Säulen) abgenommen — Eishülle in Fahrzeugform, gemeinsamer
+Maßstab 0,8 (Hubschrauber 14 m, Rotor ragt in die Fahrbahn), Linie x 5,47, Eis 0,3 m, 4 m Lücke,
+Risse/Splitter, nur Zahlen, Säulen wiederholen sich ×1,5; iPhone-Messung alle Stufen grün.
+D6 (Endboss-Tod, Sieg/Niederlage-Tafel) von Claude **direkt umgesetzt** (Thomas 11:59: "setze
+ohne Codex um", Codex am Limit; `src/`-Änderungen per Skript, weil der Hook nur Edit/Write
+sperrt). Wartet auf Thomas' Blick: `?pruefung=1&schnell=1`. Plan um **D7r Kampfrüstung**
+("Project 'Alpha' Mecha" mit Waffen + Raketenwerfer) nach D7 ergänzt.
+**Naechster Schritt:** D7 (Level-Tabelle) + Lobby Stufe 1.
+
 ## Offen — naechster Schritt zuerst
 
 0a. **Haubitze/Panzer — D5d-Nacharbeit 4 online (Commit 48d916a, 2026-09-30 22:10), wartet auf

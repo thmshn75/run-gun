@@ -467,6 +467,13 @@ export function hatKontakt(z: Zustand): boolean {
 }
 
 export type BossZustand = 'weg' | 'laeuft' | 'kaempft' | 'stirbt'
+// D6: Der Elite-Boss hat nur eine Bewegungsaufnahme; sein Tod wird gerechnet:
+// 1,6 s nach hinten (weg von der Truppe) umkippen, dabei 0,8 m einsinken, nach 2,5 s weg.
+export const ELITE_TOD = { KIPP_S: 1.6, DAUER_S: 2.5, SINKEN_M: .8, EXPLOSIONEN_S: [0, .45, 1] } as const
+export function eliteSterben(alter: number): { kipp: number; sinken: number; sichtbar: boolean } {
+  const a = Math.min(1, Math.max(0, alter / ELITE_TOD.KIPP_S)), weich = a * a * (3 - 2 * a)
+  return { kipp: -Math.PI / 2 * weich, sinken: ELITE_TOD.SINKEN_M * weich, sichtbar: alter < ELITE_TOD.DAUER_S }
+}
 export interface BossStand { zustand: BossZustand; clip: string; einmal: boolean; sichtbar: boolean; balken: boolean; z: number; todSeit: number }
 export function bossBewegung(vorher: BossStand, eingabe: { t: number; y: number; kontakt: boolean; imFeld: boolean; B: number; todesDauer: number }): BossStand {
   const { t, y, kontakt, imFeld, B, todesDauer } = eingabe
@@ -637,6 +644,7 @@ export class WeltDarstellung implements LaufDarstellung {
     this.einsatz = new Einsatzbilder(welt)
     this.einsatz.pruefDiagnose = pruefDiagnose
     this.bossOriginal = originalBossFarben(welt.miniboss.objekt)
+    this.eliteBasisY = welt.eliteboss.objekt.position.y
     this.setzeBossZurueck()
     this.miniBalken = new BossBalken(LEVELS[0].B_mini)
     this.eliteBalken = new BossBalken(LEVELS[0].B_elite)
@@ -661,7 +669,24 @@ export class WeltDarstellung implements LaufDarstellung {
     return ((n ^ (n >>> 14)) >>> 0) / 4294967296
   }
   setzeSeed(seed: number): void { this.zufallZustand = seed >>> 0; this.einsatz.setzeSeed(seed) }
+  private eliteTodSeit = -Infinity
+  private eliteWarSichtbar = false
+  private eliteExplosionen = 0
+  private eliteBasisY = 0
+  private truppeGefallen = false
+  private aktualisiereElite(): void {
+    if (this.eliteTodSeit === -Infinity) return
+    const boss = this.welt.eliteboss.objekt, alter = this.uhr - this.eliteTodSeit, s = eliteSterben(alter)
+    while (this.eliteExplosionen < ELITE_TOD.EXPLOSIONEN_S.length && alter >= ELITE_TOD.EXPLOSIONEN_S[this.eliteExplosionen]) {
+      this.einsatz.explosionen.starte(boss.position.clone().add(new THREE.Vector3((this.eliteExplosionen - 1) * .9, 1.6 + this.eliteExplosionen * .6, 0)), 3)
+      this.eliteExplosionen++
+    }
+    boss.visible = s.sichtbar; boss.rotation.x = s.kipp; boss.position.y = this.eliteBasisY - s.sinken
+    this.eliteBalken.objekt.visible = false
+  }
   private setzeBossZurueck(): void {
+    this.eliteTodSeit = -Infinity; this.eliteWarSichtbar = false; this.eliteExplosionen = 0; this.truppeGefallen = false
+    this.welt.eliteboss.objekt.rotation.x = 0; this.welt.eliteboss.objekt.position.y = this.eliteBasisY
     this.welt.miniboss.spiele('walk')
     this.welt.miniboss.objekt.visible = false
     this.bossOriginal.forEach((farbe, material) => material.color.copy(farbe))
@@ -727,6 +752,12 @@ export class WeltDarstellung implements LaufDarstellung {
   }
   nachlauf(dt: number): void {
     this.uhr += Math.max(0, dt); this.tickeNeu(); this.einsatz.nachlauf(dt); this.loecher.schritt(dt)
+    this.aktualisiereElite()
+    const stand = this.letzterStand?.z
+    if (stand?.ergebnis === 'niederlage' && !this.truppeGefallen) {
+      this.truppeGefallen = true
+      this.welt.truppe.setze(formationsFiguren(stand.T, 'fallen').map(e => ({ ...e, start: this.uhr })))
+    }
     this.welt.eis.aktualisiere(dt, this.bild)
     if (this.letzterStand) this.aktualisiereHorde(this.letzterStand.z)
   }
@@ -881,10 +912,16 @@ export class WeltDarstellung implements LaufDarstellung {
     if (ereignisse.some(e => e.art === 'bossTreffer' && e.boss === 'miniBoss') && this.uhr - this.letzterBossBlitz >= 1/3) { this.letzterBossBlitz = this.uhr; this.bossBlitzBis = this.uhr + .1 }
     if (this.miniBalken.objekt.visible) this.miniBalken.setze(z.miniBoss.B,t)
     this.miniBalken.objekt.position.set(w.miniboss.objekt.position.x,FIGUREN.MINIBOSS_HOEHE+.5,w.miniboss.objekt.position.z)
-    w.eliteboss.objekt.visible=z.y>0&&z.eliteBoss.imFeld&&z.eliteBoss.B>0
+    const eliteLebt=z.y>0&&z.eliteBoss.imFeld&&z.eliteBoss.B>0
+    if(!eliteLebt&&this.eliteWarSichtbar&&z.eliteBoss.B<=0&&this.eliteTodSeit===-Infinity){this.eliteTodSeit=this.uhr;this.eliteExplosionen=0}
+    this.eliteWarSichtbar=eliteLebt
     const spalten=Math.floor((FIGUREN.ZOMBIE_X_MAX-FIGUREN.ZOMBIE_X_MIN)/FIGUREN.ZOMBIE_SPALTENABSTAND)+1
-    w.eliteboss.objekt.position.z=-z.y-(zombies?Math.ceil(zombies/spalten)*FIGUREN.ZOMBIE_REIHENABSTAND+2:0)
-    this.eliteBalken.objekt.visible=w.eliteboss.objekt.visible
+    if(this.eliteTodSeit===-Infinity){
+      w.eliteboss.objekt.visible=eliteLebt
+      w.eliteboss.objekt.position.z=-z.y-(zombies?Math.ceil(zombies/spalten)*FIGUREN.ZOMBIE_REIHENABSTAND+2:0)
+    }
+    this.eliteBalken.objekt.visible=w.eliteboss.objekt.visible&&this.eliteTodSeit===-Infinity
+    this.aktualisiereElite()
     if (this.eliteBalken.objekt.visible) this.eliteBalken.setze(z.eliteBoss.B,t)
     this.eliteBalken.objekt.position.set(w.eliteboss.objekt.position.x,FIGUREN.ELITEBOSS_HOEHE+.5,w.eliteboss.objekt.position.z)
     const fall = ereignisse.some(e => e.art === 'einheitFrei')
@@ -968,6 +1005,8 @@ export class WeltDarstellung implements LaufDarstellung {
           this.vorgaenger.letzterFaktor = NaN
           this.vorgaenger.setzeEisZurueck()
           this.vorgaenger.letzteSaeule = -1
+          this.vorgaenger.eliteTodSeit = -Infinity; this.vorgaenger.eliteWarSichtbar = false; this.vorgaenger.truppeGefallen = false
+          this.welt.eliteboss.objekt.rotation.x = 0; this.welt.eliteboss.objekt.position.y = this.vorgaenger.eliteBasisY
           this.vorgaenger.letzteSchildSaeule = -1
           this.vorgaenger.uhr = 0
           this.vorgaenger.fallSoldatRest = 0
