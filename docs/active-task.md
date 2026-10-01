@@ -210,3 +210,43 @@ echten GLB.
 `node scripts/modelle.mjs mecha` falls die Zuordnung sich ändert; `npm run check`, `npm test`,
 `npm run build`. Status `IMPL_DONE`, Bericht unter diesem Abschnitt: Achsen, Drehpunkte, Spalt
 je Gelenk vorher/nachher, Endwinkel.
+
+### Bericht Nacharbeit 2
+
+**N5:** Die Knieachsen stammen aus den Hauptachsen der Rohteile `Cylinder041__0` (links: 0,984680; −0,173648; −0,015847) und `Cylinder038__0` (rechts: 0,984680; 0,173648; −0,015846). Die Verbindungsachse der beiden Hüftmitten ist (0,999871; 0; −0,016093), die der Knöchelmitten (0,999870; −0,000326; −0,016093). Der erneute Gehversuch dreht die Glieder als Quaternionen um diese Achsen. Der Rechenkern für die Probe (`mechaSchrittProbe`) hat einen 1,2-s-Zyklus, gegenphasige Beine, 18° Hüfte, 0–35° Kniebeugung nach hinten, Fuß-Gegendrehung, 0,12 m Hub und ±3° Rumpfpendeln.
+
+**N6/N7:** `node tests/mecha-kontakt.mjs` misst Kind-Ecken gegen echte Eltern-Dreiecke der vereinfachten GLB. Kontaktgrenze: ≤ 0,08 m im Grundstand; Spaltgrenze: ≤ 0,05 m in acht Phasen. Die Drehpunkte wurden je Gelenk im Gitter ±0,25 m mit 0,02-m-Schritten gesucht; die gewählten Ergebnisse wurden anschließend nochmals gegen *alle* Elterndreiecke geprüft. Alle Angaben in Metern in Modellkoordinaten; `L`/`R` bezeichnet die Seite.
+
+| Gelenk | Kontakt-Ecken | Ruhe-Spalt | Drehpunkt vorher → gewählt (x; y; z) | größter Spalt vorher → nachher | bei 12°/15° |
+|---|---:|---:|---|---:|---:|
+| Hüfte L | 36 | 0,054 | (−0,586; 2,370; 0,498) → (−0,336; 2,440; 0,508) | 0,075 → 0,057 | 0,060 |
+| Knie L | 14 | 0,072 | (−1,189; 1,511; −0,037) → (−1,039; 1,601; 0,053) | 0,138 → 0,073 | 0,074 |
+| Knöchel L | 117 | 0,080 | (−1,384; 0,344; 0,458) → (−1,554; 0,414; 0,448) | 0,130 → 0,109 | 0,091 |
+| Hüfte R | 36 | 0,069 | (0,613; 2,370; 0,479) → (0,363; 2,380; 0,449) | 0,070 → 0,069 | 0,070 |
+| Knie R | 14 | 0,072 | (1,173; 1,510; −0,075) → (1,343; 1,660; 0,015) | 0,138 → 0,074 | 0,074 |
+| Knöchel R | 106 | 0,080 | (1,389; 0,343; 0,414) → (1,519; 0,373; 0,344) | 0,132 → 0,104 | 0,101 |
+
+Keine Teile wurden neu zugeordnet: Die Messung zeigt an allen sechs Gelenken bereits in Grundstellung einen Spalt über 0,05 m. Drehpunkt und Winkel können den Grundstand nicht ändern. **N8/Reißleine:** Auch bei den kleinsten erlaubten 12° Hüfte und 15° Knie hält kein Gelenk die Grenze. Endwinkel im Spiel bleiben daher 0°/0°: Das gemeinsame Stampfen bleibt aktiv. **N9 ist damit gemäß Bedingung „Erfüllt →“ nicht aktiviert**; die vier alten Schritt-Projektionsbilder wurden nicht als neue Erfolgsbilder ausgegeben. Der neue Verhaltenstest misst die Kontaktflächen und acht Probenphasen mit der echten GLB und belegt den Rückfall.
+
+**Prüfungen:** `node scripts/modelle.mjs mecha` erneut erfolgreich (5 154 Dreiecke, sieben Glieder, ein Material, ein 512 × 512 WebP-Farbbild); `node tests/mecha-kontakt.mjs` erfolgreich; `npm run check` ohne Fehler; `npm test` 659/659 Tests in 72 Dateien; `npm run build` erfolgreich mit Mecha-GLB in `dist/assets/` und 274 PWA-Cache-Einträgen. Der vorgeschriebene Start der Prüfläufe in einem eigenen Terminal-Fenster scheiterte hier erneut an `Unable to find application named 'Terminal'`; die Befehle liefen direkt im Terminal-Werkzeug. Kein Browser-/iPhone-/WebGL-Test, kein Commit oder Push.
+
+
+## Nacharbeit 3 — Schritte einschalten (Claude 19:58) + Lobby (Thomas 19:50)
+
+**Befund Claude:** Das N6-Kriterium war **in sich widersprüchlich** (Spec-Fehler Claude):
+Kontaktmenge bis 0,08 m, Grenze 0,05 m absolut → scheitert schon im Stand. Gemeint war das
+**Abreißen durch die Bewegung**. Die Tabelle aus Nacharbeit 2 zeigt mit den gewählten
+Drehpunkten eine Zunahme gegenüber dem Stand von Hüfte L +0,003, Knie L +0,001, Knöchel L
++0,029, Hüfte R 0,000, Knie R +0,002, Knöchel R +0,024 m → **erfüllt**.
+
+**N10 Kriterium neu:** Spalt-**Zunahme** je Kontakt-Ecke gegenüber dem Stand ≤ **0,05 m** in
+allen 8 Phasen (Test mit der echten GLB, ersetzt N3/N6-Absolutgrenze).
+**N11 Drehpunkte und Achsen einbauen:** Die in Nacharbeit 2 gewählten Drehpunkte (Tabelle,
+Spalte "gewählt") und Achsen (N5) werden in `scripts/modelle.mjs` als Gelenkpunkte der
+Hierarchie verwendet (Modell neu erzeugen); `mechaPose` liefert die Schrittbewegung aus
+`mechaSchrittProbe` (18° Hüfte, 0–35° Knie, Fuß-Ausgleich, Hub 0,12 m, ±3°), sichtbar in
+`fahrt` vorwärts und rückwärts; in `feuer`/`einschlaege` Grundstellung. Seitenbilder der 4
+Phasen neu (`tests/fixtures/mecha-schritt-1…4.png`).
+**N12 Lobby:** "TESTGELÄNDE" in der Lobby ist eine aufklappbare Zeile (▸ zu / ▾ auf); die
+Fahrzeugknöpfe sind erst nach Tippen sichtbar, beim Öffnen der Lobby immer zugeklappt. Test.
+`npm run check`, `npm test`, `npm run build`. Status `IMPL_DONE`, kurzer Bericht.
