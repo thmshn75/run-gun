@@ -13,7 +13,13 @@ D6 (Endboss-Tod, Sieg/Niederlage-Tafel) von Claude **direkt umgesetzt** (Thomas 
 ohne Codex um", Codex am Limit; `src/`-Änderungen per Skript, weil der Hook nur Edit/Write
 sperrt). Wartet auf Thomas' Blick: `?pruefung=1&schnell=1`. Plan um **D7r Kampfrüstung**
 ("Project 'Alpha' Mecha" mit Waffen + Raketenwerfer) nach D7 ergänzt.
-**Naechster Schritt:** D7 (Level-Tabelle) + Lobby Stufe 1.
+**Stand 2026-10-01 18:30:** D7 + Lobby Stufe 1 online (Commit 23a8474, von Claude direkt
+umgesetzt): 10 Level (Bots: gewinnende Spielweisen 24 → 3, passiv verliert überall),
+Freischalten, beste Läufe, Lobby mit Level-Karte und Testgelände je Fahrzeug, Ergebnistafel
+NOCHMAL/WEITER/LOBBY. Wartet auf Thomas' Blick im Browser. **Codex ist wieder einsetzbar**
+(Thomas 18:27) — ab D7r wieder der normale Weg (Spec → Codex im Terminal → Review).
+**Naechster Schritt:** D7r Kampfrüstung (Project 'Alpha' Mecha, Plan V7): Modell über Thomas'
+Sketchfab-Anmeldung laden, prüfen ob Waffen/Raketenwerfer dabei sind, dann Spec.
 
 ## Offen — naechster Schritt zuerst
 
