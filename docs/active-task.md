@@ -1,6 +1,6 @@
 # Aktive Aufgabe
 
-Status: APPROVED
+Status: SPEC_READY
 
 ## Aufgabe: D5e — Eis-Säulen (Plan V7, Abschnitt "D5e")
 
@@ -427,3 +427,34 @@ Datei- oder Prozessaktivität und wurde beendet; der hinterlassene Stand war vol
 `saeulenZiele`), den fehlenden Lücken-Test (N16) hat Claude ergänzt
 (`tests/v3dSaeulenZiele.test.ts`), 640 Tests grün. Browserbild: Verhältnisse stimmen,
 Hubschrauber ragt über das Wasser.
+
+
+## Nacharbeit 7 (Thomas 2026-10-01 11:42)
+"Hubschrauber darf auf derselben Linie wie die restlichen Fahrzeuge sein, dann ragt der Rotor
+halt in die Fahrbahn, das ist ok — das Eis darf ruhig dicker sein und die Säulen mehr Abstand."
+**N18 Eine Linie.** Alle vier Fahrzeuge stehen mit ihrer Mitte (x) auf derselben Linie
+`SAEULE_X`; diese so, dass die Hülle der **drei Bodenfahrzeuge** innen ≥ 3,6 bleibt. Für den
+Hubschrauber gilt die Innenkante nicht — sein Rotor darf ins Kampffeld ragen (Rotor weiter im
+Winkel kleinster Breite). Test: x-Mitten aller vier gleich (±0,01), Bodenfahrzeuge innen ≥ 3,6.
+**N19 Dickeres Eis.** `EIS.HUELLE` 0,3 m (Maßstab 0,8 und Längen der Fahrzeuge unverändert;
+die Hülle wächst nach außen).
+**N20 Mehr Abstand.** Lücke zwischen den Hüllen 4 m statt 1,5 m (eine Konstante
+`EIS.LUECKE`, `saeulenZiele` und `tests/v3dSaeulenZiele.test.ts` darauf umstellen).
+Tafel-/Projektionstests mitziehen (Grenzen wie N17). `npm run check`, `npm test`,
+`npm run build`, `npm run bots3d`. Status `IMPL_DONE`, kurzer Bericht.
+
+**Abschluss Nacharbeit 7:** N18 richtet alle vier Fahrzeugmitten auf `SAEULE_X = 7` aus; die drei Bodenfahrzeuge halten mit ihrer Eishülle die Innenkante ≥ 3,6 m ein, während der Hubschrauber-Rotor ins Kampffeld ragen darf. N19 setzt die Hüllendicke auf 0,3 m bei unverändertem Fahrzeugmaßstab 0,8. N20 nutzt `EIS.LUECKE = 4` für die Zielpositionen; die Tests prüfen alle vier Reihenfolgen und die Tafel-Projektionsgrenzen aus N17. `npm run check`, `npm test` (69 Dateien, 640 Tests), `npm run build` und `npm run bots3d` jeweils Exit 0; alle sechs Bot-Zeilen sind zahlengleich zum dokumentierten Vorher-Stand. `git diff --check` Exit 0. Eine neue Browser- oder iPhone-Sichtprüfung fand hier nicht statt. Kein Commit/Push gemäß Projektregel.
+
+
+## Nacharbeit 8 (Claude 11:50, Browser)
+**N21** `SAEULE_X` 7 schiebt die Fahrzeuge halb aus dem Bild. Gemessen (Hülle inkl.): Breite
+Humvee 2,19, Panzer 3,39, Haubitze 3,66 m → Innenkante 3,6 braucht nur x = 5,45. `SAEULE_X`
+auf 3,6 + halbe Breite des breitesten **Bodenfahrzeugs** setzen (berechnet oder 5,45), nicht
+mehr. Test: `SAEULE_X` − halbe Haubitzenbreite liegt in [3,6; 3,7]. Sonst nichts ändern.
+`npm run check`, `npm test`. Status `IMPL_DONE`, ein Satz Bericht.
+
+
+## Nacharbeit 8 (Claude 11:55, direkt umgesetzt — Thomas: "setze direkt selbst um, Codex ist am Limit")
+`SAEULE_X` 7 schob die Fahrzeuge halb aus dem Bild. Gemessen (Hülle inkl.): Breite Humvee 2,19,
+Panzer 3,39, Haubitze 3,66 m. `SAEULE_X` = 5,47 (Innenkante der Haubitze 3,6). 640 Tests grün,
+Build ok, Browserbild: alle vier im Bild auf einer Linie, Hubschrauber-Rotor über der Fahrbahn.

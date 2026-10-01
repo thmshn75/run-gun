@@ -84,7 +84,7 @@ export const BUEHNE = {
   PLUS_ABSTAND: 4,
   WAND_HOEHE: 1.2,
   WAND_FARBE: '#1f6fd6',
-  SAEULE_X: 4.8,
+  SAEULE_X: 5.47,
   KAMERA_SICHTFELD: 22,
   KAMERA_POSITION: [0, 28.5, 45.7] as const,
   KAMERA_NEIGUNG: 23.5,
@@ -115,5 +115,5 @@ export const FIGUREN = {
 // Aus src/style.css (env(safe-area-inset-*), touch-action: none) und
 // src/systems/safeArea.ts (CSS-Pixel); die Randgeste braucht 24 pt Reserve.
 export const STEUERUNG = { RANDRESERVE_PT: 24, VERSTAERKUNG: 1.6, MIN_X: -3, MAX_X: 3, MAX_M_PRO_S: 40 } as const
-export const EIS = { HUELLE: .12, MASSSTAB: .8, INNEN_X: 3.6, SPLITTER_POOL: 80 } as const
+export const EIS = { HUELLE: .3, MASSSTAB: .8, INNEN_X: 3.6, LUECKE: 4, SPLITTER_POOL: 80 } as const
 export const DARSTELLUNG = { FORMATION_MAX: 30, TRUPPS_MAX: 50, FRONT_MAX: 40, HORDE_MAX: 600, LOCH_HEILEN_S: .25, LOCH_STANDZEIT_S: 2, LOECHER_MAX: 150, GASSE_SCHLIESSEN_S: 3, HUMVEE_TAKT_S: .25, HUMVEE_BLITZ_DAUER_S: .15, HUBSCHRAUBER_TAKT_S: .2, HUBSCHRAUBER_FRONTABSTAND: 3.25, HUBSCHRAUBER_BOSS_VERSATZ: 1.5, FAHRZEUG_BLITZ: { haubitze: { durchmesser: 2.4, dauer: .15 }, panzer: { durchmesser: 1.6, dauer: .12 }, humvee: { durchmesser: .45, dauer: .15 }, hubschrauber: { durchmesser: .45, dauer: .08 } }, SCHILDER_TEMPO_LANGSAM: 4, SCHILDER_TEMPO_SCHNELL: 21, SCHILDER_BESCHLEUNIGUNG: 64, SAEULEN_VORSCHAU: 3, BLITZE_MAX: 12, BLITZE_PRO_SEKUNDE: 10, BLITZ_DAUER: .06, FRONT_BLITZE_MAX: 8, FRONT_BLITZE_PRO_SEKUNDE: 12, FALL_SOLDATEN_MAX: 8, EXPLOSIONEN_MAX: 12 } as const

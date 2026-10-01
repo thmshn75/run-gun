@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { EIS, FAHRZEUGE, LEVELS, type FahrzeugName } from '../src/v3d/balance3d'
 import { saeulenZiele } from '../src/v3d/szene'
 
-// N16: Plätze nach Hüllenlänge, 1,5 m Lücke, vorderste Vorderkante bei z = −9.
+// Plätze nach Hüllenlänge, EIS.LUECKE Abstand, vorderste Vorderkante bei z = −9.
 describe('Säulen-Ziele nach Fahrzeuglänge', () => {
   const miniaturen = LEVELS[0].saeulen.map(name => {
     const m = new THREE.Group(); m.name = `fahrzeug-${name}`
@@ -13,7 +13,7 @@ describe('Säulen-Ziele nach Fahrzeuglänge', () => {
   })
   const halb = (name: string) => FAHRZEUGE[name as FahrzeugName].LAENGE * EIS.MASSSTAB / 2 + EIS.HUELLE
 
-  it('hält 1,5 m Lücke in jeder der vier Reihenfolgen', () => {
+  it('hält den Eis-Abstand in jeder der vier Reihenfolgen', () => {
     const level = LEVELS[0], n = level.saeulen.length
     for (let index = 0; index < n; index++) {
       const ziele = saeulenZiele(level, index, miniaturen, 4)
@@ -21,7 +21,7 @@ describe('Säulen-Ziele nach Fahrzeuglänge', () => {
       for (let j = 1; j < 4; j++) {
         const vorne = level.saeulen[(index + j - 1) % n], hinten = level.saeulen[(index + j) % n]
         const luecke = (ziele[j - 1] - halb(vorne)) - (ziele[j] + halb(hinten))
-        expect(luecke, `Reihenfolge ${index}, Stelle ${j}`).toBeCloseTo(1.5, 2)
+        expect(luecke, `Reihenfolge ${index}, Stelle ${j}`).toBeCloseTo(EIS.LUECKE, 2)
       }
     }
   })

@@ -111,7 +111,8 @@ describe('3D-Fahrzeuge', () => {
         const weltX = huellBox.clone().translate(new THREE.Vector3(BUEHNE.SAEULE_X, 0, 0))
         laengen[name] = huellBox.getSize(new THREE.Vector3()).z
         hoehen[name] = huellBox.max.y
-        expect(weltX.min.x,name).toBeGreaterThanOrEqual(EIS.INNEN_X - 1e-5)
+        expect(fahrzeugBox.getCenter(new THREE.Vector3()).x + BUEHNE.SAEULE_X,name).toBeCloseTo(BUEHNE.SAEULE_X,2)
+        if (name !== 'hubschrauber') expect(weltX.min.x,name).toBeGreaterThanOrEqual(EIS.INNEN_X - 1e-5)
         expect(laengen[name],name).toBeGreaterThanOrEqual(fahrzeugLaengen[name])
         expect(laengen[name],name).toBeGreaterThanOrEqual(3)
         expect(fahrzeugBox.min.y,name).toBeCloseTo(EIS.HUELLE, 3)
@@ -121,6 +122,7 @@ describe('3D-Fahrzeuge', () => {
         expect(mini.localToWorld(new THREE.Vector3(...FAHRZEUGE[name].MUENDUNG)).z,name).toBeLessThan(0)
       }
       for(const a of namen) for(const b of namen) expect(fahrzeugLaengen[a]/fahrzeugLaengen[b]).toBeCloseTo(FAHRZEUGE[a].LAENGE/FAHRZEUGE[b].LAENGE,2)
+      expect(EIS.HUELLE).toBe(.3)
       expect(huellBoxen.hubschrauber.max.x+BUEHNE.SAEULE_X).toBeGreaterThan(BUEHNE.BAHN_BREITE/2)
       expect(eis.huellDreiecke).toBeGreaterThan(0)
       expect((512*512*4*4/3 + 512*512*4 + EIS.SPLITTER_POOL*16*4 + eis.huellBytes)/1048576).toBeLessThanOrEqual(3)

@@ -30,7 +30,7 @@ describe('3D-Bühne', () => {
     vi.stubGlobal('document',{createElement:()=>({width:0,height:0,getContext:()=>ctx})})
     vi.stubGlobal('location',{search:''})
     try {
-      const vorlage=new THREE.Group(),form=new THREE.BoxGeometry(1,1,1),material=new THREE.MeshStandardMaterial()
+      const vorlage=new THREE.Group(),form=new THREE.BoxGeometry(.4,1,1),material=new THREE.MeshStandardMaterial()
       vorlage.add(new THREE.Mesh(form,material))
       const fahrzeuge=Object.fromEntries(LEVELS[0].saeulen.map(n=>[n,{geometrien:[form],material,laenge:4,vorlage,gibFrei(){}}])) as Record<FahrzeugName,FahrzeugBau>
       const scene=new THREE.Scene(),p=platzhalter(scene,fahrzeuge)
@@ -44,7 +44,7 @@ describe('3D-Bühne', () => {
         expect(huelle.children.every(o => o instanceof THREE.Mesh && o.material === (i === 0 ? p.eis.treffer : p.eis.basis))).toBe(true)
         const box = new THREE.Box3().setFromObject(huelle)
         box.min.x += BUEHNE.SAEULE_X; box.max.x += BUEHNE.SAEULE_X
-        expect(box.min.x).toBeGreaterThanOrEqual(EIS.INNEN_X - 1e-6)
+        if (mini.name !== 'fahrzeug-hubschrauber') expect(box.min.x).toBeGreaterThanOrEqual(EIS.INNEN_X - 1e-6)
         expect(box.max.x).toBeGreaterThan(box.min.x)
         expect(box.max.z - box.min.z).toBeGreaterThan(1)
         expect(p.saeulenSchilder[i].name).toBe('eis-zahl')
@@ -62,7 +62,7 @@ describe('3D-Bühne', () => {
           return p.miniaturen.find(m=>m.name===`fahrzeug-${name}`)!.userData.huelleZ as [number,number]
         })
         expect(ziele[0]+grenzen[0][1]).toBeCloseTo(-9,2)
-        for(let j=1;j<4;j++) expect(ziele[j-1]+grenzen[j-1][0]-(ziele[j]+grenzen[j][1])).toBeCloseTo(1.5,2)
+        for(let j=1;j<4;j++) expect(ziele[j-1]+grenzen[j-1][0]-(ziele[j]+grenzen[j][1])).toBeCloseTo(EIS.LUECKE,2)
       }
     } finally {vi.unstubAllGlobals()}
   })

@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js'
-import { BUEHNE, EIS } from './balance3d'
+import { EIS } from './balance3d'
 
 export async function ladeEisBemalung(lade: () => Promise<THREE.Texture>, abgebrochen: () => boolean, timeout = 3000): Promise<THREE.Texture | null> {
   let abgeschlossen = false
@@ -86,8 +86,6 @@ export function baueEishuelle(mini: THREE.Group, eis: EisEffekte): { dreiecke: n
     bytes += position.count * 8 * 4 * 2 + (glatt.index?.count ?? 0) * 4 * 2
   }
   mini.add(huelle)
-  mini.updateMatrixWorld(true)
-  mini.position.x += EIS.INNEN_X - BUEHNE.SAEULE_X - new THREE.Box3().setFromObject(huelle, true).min.x
   mini.updateMatrixWorld(true)
   mini.userData.huelle = huelle
   mini.userData.rissMeshes = rissMeshes

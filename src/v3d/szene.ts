@@ -3,7 +3,7 @@ import strassenUrl from './bilder/v3d-strasse.webp?url'
 import normalenUrl from './bilder/v3d-wasser-normalen.webp?url'
 import eisUrl from './bilder/v3d-eis.webp?url'
 import { EisEffekte, baueEishuelle, ladeEisBemalung } from './eis'
-import { BUEHNE, DARSTELLUNG, FAHRZEUGE, FIGUREN, LEVELS, type FahrzeugName, type Level } from './balance3d'
+import { BUEHNE, DARSTELLUNG, EIS, FAHRZEUGE, FIGUREN, LEVELS, type FahrzeugName, type Level } from './balance3d'
 import { baueKamera } from './kamera'
 import { ladeZombie, ZombieMasse, type ZombieBau } from './figuren'
 import { ladeSoldatenDateien, fertigeSoldaten, entsorgeGLTF, SoldatenMasse, type SoldatenBau } from './soldaten'
@@ -53,7 +53,7 @@ export function saeulenZiele(level: Level, index: number, miniaturen: readonly T
     const [minZ, maxZ] = mini.userData.huelleZ as [number, number]
     const ziel = vorderkante - maxZ
     ziele.push(ziel)
-    vorderkante = ziel + minZ - 1.5
+    vorderkante = ziel + minZ - EIS.LUECKE
   }
   return ziele
 }
