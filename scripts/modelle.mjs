@@ -11,6 +11,10 @@ const ATLAS = 1024, KACHEL = 256, RAND = 8, WEBP_QUALITAET = 85
 const QUELLE_BEWEGUNG = 'tmp/UAL1_Standard.glb'
 // Die Quell-Skin-Bindung hat eigene Einheiten; 5,4 ergibt nach dem Backen etwa 1,26 m M4-Länge.
 const M4_SKALIERUNG = 5.4
+// Wie viel der M4-Länge (in zielLaenge-Einheiten, gesamt 5,4) vor der Hand liegt. Bis
+// 2026-10-02 1,45 (27 % vorn): Kolben lag auf der Schulter. Thomas: "gehört weiter nach vorne"
+// → 3,5 (65 % vorn), die Hand sitzt am Pistolengriff wie bei einem echten Gewehr.
+const M4_VORLAGE = 3.5
 const REIHENFOLGE = ['Mark_HeadMasked','Mark_Helmet1','Mark_Plate_1','Mark_Gloves_1','Mark_Pouches_1','Mark_SunGlusses_Glus','Mark_Boots_2','Mark_Kitel_1','Mark_Pants_1','Mark_Eye','M4']
 const COYOTE_FARBEN = new Map([
   ['Mark_Kitel_1','#bda683'], ['Mark_Pants_1','#8a7456'],
@@ -129,7 +133,7 @@ async function soldat() {
   let muzzleIndex=0,buttIndex=0
   for(let i=0;i<packed.length;i+=3){if((packed[i+axis]-packed[muzzleIndex*3+axis])*(laufEnde===0?-1:1)>0)muzzleIndex=i/3
     if((packed[i+axis]-packed[buttIndex*3+axis])*(laufEnde===0?1:-1)>0)buttIndex=i/3
-    let v=new Vector3((packed[i+side[0]]-center[side[0]])*scale, (packed[i+side[1]]-center[side[1]])*scale, (packed[i+axis]-mins[axis]) *scale-zielLaenge*1.45).applyQuaternion(M4_AUSRICHTUNG).applyMatrix4(bindHand);pos.push(v.x,v.y,v.z);norm.push(0,1,0);uvs.push((2*KACHEL+KACHEL/2)/ATLAS,(2*KACHEL+KACHEL/2)/ATLAS);joints.push(handIndex,0,0,0);weights.push(1,0,0,0)}
+    let v=new Vector3((packed[i+side[0]]-center[side[0]])*scale, (packed[i+side[1]]-center[side[1]])*scale, (packed[i+axis]-mins[axis]) *scale-zielLaenge*M4_VORLAGE).applyQuaternion(M4_AUSRICHTUNG).applyMatrix4(bindHand);pos.push(v.x,v.y,v.z);norm.push(0,1,0);uvs.push((2*KACHEL+KACHEL/2)/ATLAS,(2*KACHEL+KACHEL/2)/ATLAS);joints.push(handIndex,0,0,0);weights.push(1,0,0,0)}
   const gripIndex=offset+packed.length/3,gripLocal=new Vector3().applyMatrix4(bindHand)
   pos.push(gripLocal.x,gripLocal.y,gripLocal.z);norm.push(0,1,0);uvs.push((2*KACHEL+KACHEL/2)/ATLAS,(2*KACHEL+KACHEL/2)/ATLAS);joints.push(handIndex,0,0,0);weights.push(1,0,0,0)
   for(const i of simplified)indices.push(offset+i)
