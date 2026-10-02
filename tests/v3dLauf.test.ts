@@ -20,7 +20,7 @@ import { wendeArsenalAn } from '../src/v3d/werkstatt'
 
 function baueWeltAttrappe() {
   const namenBreiten: number[]=[]
-  const kontext={font:'',clearRect:vi.fn(),fillRect:vi.fn(),fillText:vi.fn(function(this:{font:string},name:string){
+  const kontext={font:'',clearRect:vi.fn(),fillRect:vi.fn(),strokeText:vi.fn(),fillText:vi.fn(function(this:{font:string},name:string){
     if(LEVELS[0].saeulen.some(n=>n.toUpperCase()===name))namenBreiten.push(name.length*Number.parseInt(this.font.match(/\d+/)?.[0]??'0')*.64)
   }),measureText:vi.fn(function(this:{font:string},name:string){return {width:name.length*Number.parseInt(this.font.match(/\d+/)?.[0]??'0')*.64}}),createRadialGradient:()=>({addColorStop:vi.fn()}),beginPath:vi.fn(),moveTo:vi.fn(),lineTo:vi.fn(),stroke:vi.fn()}
   vi.stubGlobal('document',{createElement:()=>({width:256,height:128,getContext:()=>kontext})})
@@ -56,6 +56,24 @@ function laufe(ziel: number, dauer=10) {
   return {lauf,gezeigt,ausgesandt,einheiten}
 }
 describe('3D-Lauf',()=>{
+  it('lässt die Horde bei Niederlage sichtbar vier Meter über die Truppe laufen',()=>{
+    const {welt,raume}=baueWeltAttrappe()
+    try {
+      const anzeige=new WeltDarstellung(welt),z=neuerLauf(LEVELS[0],1)
+      z.Z=80;z.T=30;z.y=.05
+      const setze=vi.spyOn(welt.zombieMasse,'setze')
+      anzeige.zeige(z,new Map(),[],.1,0)
+      const start=welt.zombieMasse.gruppe.position.z
+      z.y=-.01;z.ergebnis='niederlage'
+      anzeige.zeige(z,new Map(),[{art:'niederlage',menge:1,t:z.t}],.1,0)
+      expect(setze.mock.lastCall?.[0].length).toBeGreaterThan(0)
+      expect(welt.zombieMasse.gruppe.position.z).toBe(start)
+      anzeige.nachlauf(1.5)
+      expect(welt.zombieMasse.gruppe.position.z-start).toBeGreaterThanOrEqual(3)
+      expect(setze.mock.lastCall?.[0].length).toBeGreaterThan(0)
+      anzeige.gibFrei()
+    } finally {raume()}
+  })
   it('entfernt Einschlag-Zombies vor Ort bei gleicher sichtbarer Zahl und heilt langsam',()=>{
     const loecher=new HordeLoecher(),punkt=new THREE.Vector3(-1.7,.2,-25)
     const imRadius=(eintraege: ReturnType<typeof baueHorde>)=>eintraege.filter(e=>Math.hypot(e.x-punkt.x,e.z-20-punkt.z)<=3).length
@@ -252,7 +270,7 @@ describe('3D-Lauf',()=>{
       const gruppenVorher=new Set(welt.scene.children.filter(o=>o instanceof THREE.Group))
       const matFrei=vi.spyOn(welt.soldatBau.material,'dispose'),zombieFrei=vi.spyOn(welt.zombieBau.materialien[0],'dispose')
       const anzeige=new WeltDarstellung(welt,7),lauf=new SpielLauf(undefined,7,anzeige),z=lauf.zustand
-      expect(welt.scene.children.filter(o=>o instanceof THREE.Group && !gruppenVorher.has(o))).toHaveLength(1)
+      expect(welt.scene.children.filter(o=>o instanceof THREE.Group && !gruppenVorher.has(o))).toHaveLength(2)
       z.F=40;z.Z=100;z.y=20;z.miniBoss.imFeld=true
       anzeige.zeige(z,new Map(),[{art:'zombieGefallen',menge:1000,t:0},{art:'soldatGefallen',menge:1000,t:0}],.1,0)
       expect(anzeige.diag().frontBewegung).toBe('schiessen')

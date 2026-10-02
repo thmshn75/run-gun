@@ -54,6 +54,20 @@ describe('3D-Soldat',()=>{
       expect(weights.slice(1).every((w:number)=>w===0)).toBe(true)
     }
   })
+  it('backt helle Ärmel und Coyote-Maske in den Soldaten-Atlas',async()=>{
+    const g=glb(soldat),bild=g.json.images[0],view=g.json.bufferViews[bild.bufferView]
+    const {data}=await sharp(g.bin.subarray(view.byteOffset,view.byteOffset+view.byteLength)).ensureAlpha().raw().toBuffer({resolveWithObject:true})
+    const helligkeit=(k:number)=>{
+      let summe=0,anzahl=0
+      for(let y=Math.floor(k/4)*256+8;y<Math.floor(k/4)*256+248;y++)for(let x=k%4*256+8;x<k%4*256+248;x++){
+        const i=(y*1024+x)*4,l=(data[i]+data[i+1]+data[i+2])/3
+        if(l>40){summe+=l;anzahl++}
+      }
+      return summe/anzahl
+    }
+    expect(helligkeit(7)/helligkeit(2)).toBeGreaterThanOrEqual(1.15)
+    expect(helligkeit(0)).toBeGreaterThan(helligkeit(2))
+  })
   it('enthält nur die fünf verlangten Bewegungen und keine Netze',()=>{
     const g=glb(bewegung),j=g.json
     expect(j.meshes??[]).toHaveLength(0);expect(j.images??[]).toHaveLength(0);expect(j.materials??[]).toHaveLength(0)

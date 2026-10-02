@@ -13,9 +13,9 @@ const QUELLE_BEWEGUNG = 'tmp/UAL1_Standard.glb'
 const M4_SKALIERUNG = 5.4
 const REIHENFOLGE = ['Mark_HeadMasked','Mark_Helmet1','Mark_Plate_1','Mark_Gloves_1','Mark_Pouches_1','Mark_SunGlusses_Glus','Mark_Boots_2','Mark_Kitel_1','Mark_Pants_1','Mark_Eye','M4']
 const COYOTE_FARBEN = new Map([
-  ['Mark_Kitel_1','#b39a74'], ['Mark_Pants_1','#8a7456'],
+  ['Mark_Kitel_1','#c8b08a'], ['Mark_Pants_1','#8a7456'],
   ['Mark_Plate_1','#7a6549'], ['Mark_Pouches_1','#7a6549'],
-  ['Mark_Helmet1','#a58a64'], ['Mark_Boots_2','#6e5a42'],
+  ['Mark_Helmet1','#a58a64'], ['Mark_HeadMasked','#a58a64'], ['Mark_Boots_2','#6e5a42'],
   ['Mark_Gloves_1','#141414'],
 ])
 const CLIPS = ['Jog_Fwd_Loop','Pistol_Aim_Neutral','Pistol_Idle_Loop','Pistol_Shoot','Death01']

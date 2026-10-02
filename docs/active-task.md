@@ -1,6 +1,6 @@
 # Aktive Aufgabe
 
-Status: SPEC_READY
+Status: APPROVED
 
 ## Aufgabe: D8 — Politur (Plan V7), Liste von Thomas bestätigt
 
@@ -66,3 +66,15 @@ Zahlen bei 0. Test: Summe der angezeigten Zahlen = Summe der `bossTreffer` (± R
 P1b ist der riskante Punkt: Überzeugt die Gewehrhaltung nach **einem** Anlauf nicht (Messwerte
 verfehlt, Arm verdreht, Hand im Körper): **melden** mit Messwerten und Nahbild, Pistolenhaltung
 bleibt, P1a/P2/P3/P4 trotzdem fertig bauen. Kein anderes Modell, keine neue Bewegungsbibliothek.
+
+## Implementation Summary (2026-10-02)
+
+- **P1a umgesetzt:** `Mark_Kitel_1` auf `#c8b08a`, `Mark_HeadMasked` auf `#a58a64` umgefärbt und den Soldaten mit `node scripts/modelle.mjs soldat` neu gebacken. Die dunklen Augenmaterialien blieben unverändert. Im Modell-Prüfbild `stehen-vorn` ergaben die Ärmelpixel (x 273–311, y 225–301) im Mittel 148,03 Helligkeitseinheiten und die Weste (x 123–265, y 284–388) 91,45; die Ärmel liegen damit **61,9 %** darüber. Die Stichprobe berücksichtigt sichtbare Coyote-Pixel mit Mittelwert 70–220 und R > 1,06 × B. Zusätzlich liegt die mittlere Helligkeit der belegten Atlas-Kacheln bei 115,28 (Jacke) gegen 83,66 (Weste), also 37,8 % höher.
+- **P1b Reißleine ausgelöst:** Ein Versuch mit Zwei-Gelenk-Ausrichtung je Backbild verfehlte die Grenzwerte. `stehen`: linke Hand zum Vorderschaft 57,75–58,04 cm, Kolben zur rechten Schulter 14,19–14,51 cm, Laufwinkel 0–0,00002°. `schiessen`: 57,98–58,03 cm, 13,39–14,26 cm, 0–0,00001°. Die rechte Hand blieb als M4-Bindung am Griff; der bestehende Test begrenzt den Griffabstand auf 3 cm. Die Poseänderung wurde vollständig zurückgenommen, die bisherige Pistolenhaltung bleibt. Die Bilder unten zeigen den **beibehaltenen** Stand; vom verworfenen Versuch wurde vor der Rücknahme kein Bild gespeichert.
+- **P2 umgesetzt:** Die Horde bleibt beim Verlust sichtbar und rückt während des Nachlaufs ohne Positionssprung in 1,5 s um 4 m über die fallende Truppe vor. Der neue Test prüft sichtbare Zombies und mindestens 3 m Vorrücken.
+- **P3 umgesetzt:** Abschussrauch 1,0 → 2,4 m, 0,9 s, `#6d6d6d`, Deckkraft 0,75 → 0. Je Rakete sieben Spurwolken 0,45 → 0,9 m, 0,7 s, Deckkraft 0,6 → 0. Der Pool hält 80 Wolken; der Test belegt 64 gleichzeitig für zwei Salven.
+- **P4 umgesetzt:** Boss-Treffer beider Bossarten werden je 0,3 s summiert und gerundet, als `−N` über dem Kopf angezeigt, steigen in 0,8 s um 1,2 m und blenden aus. Sechs wiederverwendete Sprites ersetzen das älteste; null wird nicht gezeigt. Die Größe passt sich für mindestens 16 nominelle Ziffernpixel bei 390 × 844 an. Test: 2,2 + 3,4 + 4 = 9,6 Treffer ergeben 6 + 4 = 10 angezeigte Punkte, innerhalb der Rundung je Zahl.
+
+Modell-Prüfbilder der beibehaltenen Pose: [stehen vorn](../tests/nachweise/d8-soldat-stehen-vorn.png), [stehen seitlich](../tests/nachweise/d8-soldat-stehen-seite.png), [schiessen vorn](../tests/nachweise/d8-soldat-schiessen-vorn.png), [schiessen seitlich](../tests/nachweise/d8-soldat-schiessen-seite.png). Sie wurden aus den gebackenen Geometrien und dem Atlas erzeugt. Eine echte Browser-, WebGL- oder iPhone-Sichtung war in dieser Umgebung nicht möglich.
+
+Prüfungen: `npm run check` erfolgreich; `npm test` 76 Dateien/680 Tests erfolgreich; `npm run build` erfolgreich (bestehende Chunk-Größenwarnung); `npm run bots3d` erfolgreich, passiv 0/20, beste ausgerüstete Spielweise in jedem Level 20/20. `git diff --check` ohne Befund. Die vorgeschriebene Terminal-App war nicht erreichbar (`open -a Terminal`: „Unable to find application named 'Terminal'“); die Befehle liefen im verfügbaren Terminal-Werkzeug. Kein Commit und kein Push.
