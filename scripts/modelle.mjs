@@ -13,7 +13,7 @@ const QUELLE_BEWEGUNG = 'tmp/UAL1_Standard.glb'
 const M4_SKALIERUNG = 5.4
 const REIHENFOLGE = ['Mark_HeadMasked','Mark_Helmet1','Mark_Plate_1','Mark_Gloves_1','Mark_Pouches_1','Mark_SunGlusses_Glus','Mark_Boots_2','Mark_Kitel_1','Mark_Pants_1','Mark_Eye','M4']
 const COYOTE_FARBEN = new Map([
-  ['Mark_Kitel_1','#c8b08a'], ['Mark_Pants_1','#8a7456'],
+  ['Mark_Kitel_1','#bda683'], ['Mark_Pants_1','#8a7456'],
   ['Mark_Plate_1','#7a6549'], ['Mark_Pouches_1','#7a6549'],
   ['Mark_Helmet1','#a58a64'], ['Mark_HeadMasked','#a58a64'], ['Mark_Boots_2','#6e5a42'],
   ['Mark_Gloves_1','#141414'],
@@ -86,7 +86,8 @@ async function soldat() {
         for(const {p} of teile.filter(t=>t.p.getMaterial()===material)){const m=maske(p,tileSize);for(let i=0;i<m.length;i++)marks[i]|=m[i]}
         let sum=0,count=0;for(let i=0;i<marks.length;i++)if(marks[i]){let o=i*4;sum+=(tile[o]+tile[o+1]+tile[o+2])/3;count++}
         const mean=sum/Math.max(1,count),col=rgb(COYOTE_FARBEN.get(name))
-        for(let i=0;i<marks.length;i++)if(marks[i]){let o=i*4,lum=(tile[o]+tile[o+1]+tile[o+2])/3,shade=lum/Math.max(1,mean);for(let c=0;c<3;c++)tile[o+c]=Math.min(255,Math.round(col[c]*shade))}
+        // Die sichtbaren Ärmel nutzen helle UV-Bereiche; 0,74 hält sie im Prüfbild 10–25 % über der Weste.
+        for(let i=0;i<marks.length;i++)if(marks[i]){let o=i*4,lum=(tile[o]+tile[o+1]+tile[o+2])/3,shade=lum/Math.max(1,mean)*(name==='Mark_Kitel_1'?.74:1);for(let c=0;c<3;c++)tile[o+c]=Math.min(255,Math.round(col[c]*shade))}
       }
     }
     const ox=(k%4)*KACHEL,oy=Math.floor(k/4)*KACHEL
@@ -121,15 +122,20 @@ async function soldat() {
   const side=[0,1,2].filter(a=>a!==axis),soldierBox=[Infinity,-Infinity]
   for(let i=0;i<pos.length;i+=3){let v=new Vector3(pos[i],pos[i+1],pos[i+2]).applyMatrix4(soldierWorld);soldierBox[0]=Math.min(soldierBox[0],v.y);soldierBox[1]=Math.max(soldierBox[1],v.y)}
   const zielLaenge=(soldierBox[1]-soldierBox[0])*.84/2,scale=M4_SKALIERUNG*zielLaenge/(maxs[axis]-mins[axis]),center=mins.map((v,i)=>(v+maxs[i])/2)
-  let muzzleIndex=0
-  for(let i=0;i<packed.length;i+=3){if(packed[i+axis]>packed[muzzleIndex*3+axis])muzzleIndex=i/3
-    let v=new Vector3((packed[i+side[0]]-center[side[0]])*scale, (packed[i+side[1]]-center[side[1]])*scale, -(packed[i+axis]-mins[axis]) *scale+zielLaenge*.28).applyQuaternion(M4_AUSRICHTUNG).applyMatrix4(bindHand);pos.push(v.x,v.y,v.z);norm.push(0,1,0);uvs.push((2*KACHEL+KACHEL/2)/ATLAS,(2*KACHEL+KACHEL/2)/ATLAS);joints.push(handIndex,0,0,0);weights.push(1,0,0,0)}
+  // Das schmale Achsenende ist der Lauf; das breite ist der Kolben.
+  const quer=(ende)=>{const grenze=ende===0?mins[axis]:maxs[axis],schnitt=[];for(let i=0;i<packed.length;i+=3)if(Math.abs(packed[i+axis]-grenze)<(maxs[axis]-mins[axis])*.08)schnitt.push(i)
+    return Math.hypot(...side.map(s=>Math.max(...schnitt.map(i=>packed[i+s]))-Math.min(...schnitt.map(i=>packed[i+s]))))}
+  const laufEnde=quer(0)<quer(1)?0:1
+  let muzzleIndex=0,buttIndex=0
+  for(let i=0;i<packed.length;i+=3){if((packed[i+axis]-packed[muzzleIndex*3+axis])*(laufEnde===0?-1:1)>0)muzzleIndex=i/3
+    if((packed[i+axis]-packed[buttIndex*3+axis])*(laufEnde===0?1:-1)>0)buttIndex=i/3
+    let v=new Vector3((packed[i+side[0]]-center[side[0]])*scale, (packed[i+side[1]]-center[side[1]])*scale, (packed[i+axis]-mins[axis]) *scale-zielLaenge*1.45).applyQuaternion(M4_AUSRICHTUNG).applyMatrix4(bindHand);pos.push(v.x,v.y,v.z);norm.push(0,1,0);uvs.push((2*KACHEL+KACHEL/2)/ATLAS,(2*KACHEL+KACHEL/2)/ATLAS);joints.push(handIndex,0,0,0);weights.push(1,0,0,0)}
   const gripIndex=offset+packed.length/3,gripLocal=new Vector3().applyMatrix4(bindHand)
   pos.push(gripLocal.x,gripLocal.y,gripLocal.z);norm.push(0,1,0);uvs.push((2*KACHEL+KACHEL/2)/ATLAS,(2*KACHEL+KACHEL/2)/ATLAS);joints.push(handIndex,0,0,0);weights.push(1,0,0,0)
   for(const i of simplified)indices.push(offset+i)
   const triangles=indices.length/3
   const mesh=doc.createMesh('Soldat_M4_vereint')
-  mesh.setExtras({m4VertexStart:offset,m4VertexCount:packed.length/3+1,m4GripVertex:gripIndex,m4MuzzleVertex:offset+muzzleIndex})
+  mesh.setExtras({m4VertexStart:offset,m4VertexCount:packed.length/3+1,m4GripVertex:gripIndex,m4MuzzleVertex:offset+muzzleIndex,m4ButtVertex:offset+buttIndex,m4MuzzleWidth:quer(laufEnde),m4ButtWidth:quer(1-laufEnde)})
   addPrimitive(doc,mesh,{attrs:[['POSITION',new Float32Array(pos),'VEC3'],['NORMAL',new Float32Array(norm),'VEC3'],['TEXCOORD_0',new Float32Array(uvs),'VEC2'],['JOINTS_0',new Uint16Array(joints),'VEC4'],['WEIGHTS_0',new Float32Array(weights),'VEC4']],indices},mat)
   nodes[0].setMesh(mesh);for(const n of nodes.slice(1))n.setMesh(null)
   for(const a of root.listAnimations())a.dispose()

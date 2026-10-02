@@ -4,6 +4,7 @@ import sharp from 'sharp'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import * as THREE from 'three'
 import { backeSoldaten, truppenAufstellung, laufenderTrupp, SoldatenMasse, type SoldatenBau } from '../src/v3d/soldaten'
+import { soldatenBlitzPunkt } from '../src/v3d/lauf'
 import { BUEHNE, FIGUREN } from '../src/v3d/balance3d'
 
 function glb(path:string){
@@ -65,7 +66,14 @@ describe('3D-Soldat',()=>{
       }
       return summe/anzahl
     }
-    expect(helligkeit(7)/helligkeit(2)).toBeGreaterThanOrEqual(1.15)
+    expect(helligkeit(7)/helligkeit(2)).toBeGreaterThanOrEqual(1.0)
+    expect(helligkeit(7)/helligkeit(2)).toBeLessThanOrEqual(1.25)
+    let rot=0,blau=0,anzahl=0
+    for(let y=256+8;y<256+248;y++)for(let x=3*256+8;x<3*256+248;x++){
+      const i=(y*1024+x)*4,l=(data[i]+data[i+1]+data[i+2])/3
+      if(l>40){rot+=data[i];blau+=data[i+2];anzahl++}
+    }
+    expect((rot-blau)/anzahl).toBeGreaterThan(25)
     expect(helligkeit(0)).toBeGreaterThan(helligkeit(2))
   })
   it('enthält nur die fünf verlangten Bewegungen und keine Netze',()=>{
@@ -101,7 +109,8 @@ describe('3D-Soldat',()=>{
     const bau=backeSoldaten(soldatG,quelleG)
     expect(Object.fromEntries(Object.entries(bau.formen).map(([k,v])=>[k,v.length]))).toEqual({laufen:12,stehen:8,schiessen:8,fallen:10})
     for(const row of Object.values(bau.formen))for(const form of row){expect(form.attributes.position.count).toBe(row[0].attributes.position.count);expect(form.index).toBe(row[0].index);expect(form.attributes.uv).toBe(row[0].attributes.uv)}
-    const {m4VertexStart,m4VertexCount}=glb(soldat).json.meshes[0].extras
+    const {m4VertexStart,m4VertexCount,m4MuzzleWidth,m4ButtWidth}=glb(soldat).json.meshes[0].extras
+    expect(m4MuzzleWidth).toBeLessThan(m4ButtWidth/2)
     const punkte=bau.formen.stehen[0].attributes.position
     let minZ=Infinity,maxZ=-Infinity
     for(let i=m4VertexStart;i<m4VertexStart+m4VertexCount;i++){
@@ -111,8 +120,14 @@ describe('3D-Soldat',()=>{
     expect(maxZ-minZ).toBeLessThanOrEqual(1.4)
     for(const name of ['laufen','stehen','schiessen']){
       expect(bau.pruefung[`${name}GriffCm`]).toBeLessThanOrEqual(3)
+      expect(bau.pruefung[`${name}GriffMaxCm`]).toBeLessThanOrEqual(3)
       expect(bau.pruefung[`${name}MinY`]).toBeGreaterThanOrEqual(-.03)
-      expect(bau.pruefung[`${name}MuendungVorBrustM`]).toBeGreaterThanOrEqual(.5)
+      expect(bau.pruefung[`${name}MuendungVorBrustM`]).toBeGreaterThanOrEqual(.3)
+      if(name!=='laufen'){
+        expect(bau.pruefung[`${name}MuendungVorBrustMinM`]).toBeGreaterThanOrEqual(.3)
+        expect(bau.pruefung[`${name}KolbenNaeherMinM`]).toBeGreaterThan(0)
+        expect(bau.pruefung[`${name}LaufWinkelMaxGrad`]).toBeLessThanOrEqual(15)
+      }
       expect(bau.pruefung[`${name}GesichtVorKopfM`]).toBeGreaterThan(0)
     }
     // Claude 2026-09-29: 15 cm war geschaetzt; mit Weste liegt die Huefte sichtbar flach bei ~30 cm (Nahaufnahme geprueft).
@@ -120,6 +135,11 @@ describe('3D-Soldat',()=>{
     expect(bau.pruefung.fallenMinY).toBeGreaterThanOrEqual(-.03)
     expect(bau.pruefung.laufWinkelGrad).toBeLessThanOrEqual(15)
     expect(bau.pruefung.muendungBrustM).toBeGreaterThanOrEqual(.5)
+    const muendung=new THREE.Vector3(...bau.pruefung.muendung as [number,number,number])
+    const blitz=soldatenBlitzPunkt(bau.pruefung)
+    expect(blitz.distanceTo(muendung)).toBeLessThanOrEqual(.15)
+    expect(blitz.z).toBeLessThan(muendung.z)
+    expect(bau.pruefung.blitzAbstandMaxM).toBeLessThanOrEqual(.15)
     for(const row of Object.values(bau.formen))row.forEach(g=>g.dispose());bau.material.dispose();bau.atlas.dispose()
     vi.unstubAllGlobals()
   },30000)

@@ -1,6 +1,6 @@
 # Aktive Aufgabe
 
-Status: SPEC_READY
+Status: APPROVED
 
 ## Aufgabe: D8 — Politur (Plan V7), Liste von Thomas bestätigt
 
@@ -116,3 +116,14 @@ Reißleine N4: verfehlt → melden mit Messwerten und Nahbild; N1–N3 bleiben, 
 aber **mit richtig herum gehaltenem Gewehr**.
 `node scripts/modelle.mjs soldat`, `npm run check`, `npm test`, `npm run build`. Status
 `IMPL_DONE`, Bericht unter diesem Abschnitt.
+
+### Bericht Nacharbeit 1 (2026-10-02)
+
+- **N1 umgesetzt:** Das M4-Laufende wird aus dem kleineren Querschnitt der beiden Achsenenden ermittelt (110,06 gegen 471,82 Quell-Einheiten; Verhältnis 0,233). Der Soldat wurde mit `node scripts/modelle.mjs soldat` neu gebacken. Über alle acht Bilder je Pose: `stehen` Griffabstand höchstens 0,001 cm, Mündung mindestens 0,753 m vor der Brust, Kolben mindestens 0,105 m näher am Körper, Laufwinkel höchstens 4,86°; `schiessen` 0,001 cm, 0,737 m, 0,066 m und 3,76°. Der Lauf zeigt damit nach −z, der Kolben zum Körper.
+- **N2 umgesetzt:** Truppen- und Frontblitze verwenden `muendung` und `laufrichtung`; ihr Mittelpunkt liegt 0,10 m vor der Mündung. Die Tests prüfen Abstand und Vorzeichen auch nach einer Truppendrehung sowie den Abstand über die Schussbilder. Die [seitliche Blitzvorschau](../tests/nachweise/d8-soldat-schiessen-blitz-seite.png) und die [vordere Blitzvorschau](../tests/nachweise/d8-soldat-schiessen-blitz-vorn.png) markieren diese berechnete Stelle. Der orange Blitz ist in diesen Modell-Prüfbildern schematisch ergänzt, kein Browser-Screenshot.
+- **N3 umgesetzt:** `Mark_Kitel_1` verwendet `#bda683`; die Texturhelligkeit wurde so angepasst, dass die Ärmel in der vorderen Modellansicht bei `stehen` im Mittel 109,25 gegen 92,87 Helligkeitseinheiten der Weste erreichen, also **17,6 %** mehr. Bei `schiessen` sind es 109,28 gegen 92,88, ebenfalls **17,6 %**. Der mittlere Rot-Blau-Abstand der sichtbaren Ärmel beträgt 38,95 und liegt über 25; die Ärmel wirken nicht weißlich.
+- **N4 Reißleine nach einem IK-Anlauf:** Beide Handziele waren rechnerisch erreichbar (links 0,461 m Abstand bei 0,506 m Armlänge), der rechte Ellbogen erreichte 79,76°. Dabei verdrehte sich jedoch das Gewehr: `stehen`/`schiessen` Kolben–Schulter 112,18/112,06 cm (Soll ≤ 8 cm), linke Hand–Vorderschaft 62,18/62,13 cm (Soll ≤ 4 cm), Laufwinkel 125,31/125,15° (Soll ≤ 15°). Die Poseänderung wurde zurückgenommen; die einhändige Haltung mit richtig herum liegendem Gewehr bleibt. Das [seitliche Fehlnahbild](../tests/nachweise/d8-soldat-n4-versuch-stehen-seite.png) zeigt den verworfenen Anlauf.
+
+Neu erzeugte Modell-Prüfbilder der **beibehaltenen** Pose: `stehen` [vorn](../tests/nachweise/d8-soldat-stehen-vorn.png), [seitlich](../tests/nachweise/d8-soldat-stehen-seite.png), [schräg hinten](../tests/nachweise/d8-soldat-stehen-kamera.png); `schiessen` [vorn](../tests/nachweise/d8-soldat-schiessen-vorn.png), [seitlich](../tests/nachweise/d8-soldat-schiessen-seite.png), [schräg hinten](../tests/nachweise/d8-soldat-schiessen-kamera.png). Sie wurden aus den gebackenen Geometrien und dem Atlas als Modellansichten gerendert.
+
+Abschlussprüfungen: `npm run check` erfolgreich; `npm test` 76 Dateien/681 Tests erfolgreich; `npm run build` erfolgreich (bestehende Chunk-Größenwarnung); `git diff --check` ohne Befund. Echte Browser-/WebGL-/iPhone-Sichtung fehlt: Die automatische Freigabe verweigerte den Zugriff auf Google Chrome. Die vorgeschriebene Terminal-App war per `open -a Terminal` nicht erreichbar; die drei Befehle liefen deshalb im verfügbaren Terminal-Werkzeug. Kein Commit und kein Push.

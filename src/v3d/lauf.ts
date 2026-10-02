@@ -4,7 +4,7 @@ import { glaetteX, kernX } from './steuerung'
 import { bossFreieAufstellung } from './bosse'
 import { saeulenZiele, type Welt } from './szene'
 import { eisZahl } from './eis'
-import type { SoldatEintrag } from './soldaten'
+import type { SoldatEintrag, SoldatenBau } from './soldaten'
 import { SoldatenMasse } from './soldaten'
 import { BossBalken, BossTrefferZahlen, Explosionen, Muendungsblitze, Rauchwolken, ZahlAnzeige } from './anzeigen'
 import { baueFeldFahrzeug } from './fahrzeuge'
@@ -561,6 +561,14 @@ export function formationsBewegung(ereignisse: readonly Ereignis[]): SoldatEintr
 
 export function wandText(z: Zustand): string { return `×${z.kAktuell}` }
 
+export function soldatenBlitzPunkt(pruefung: SoldatenBau['pruefung'], dreh = 0): THREE.Vector3 {
+  const muendung = pruefung.muendung, richtung = pruefung.laufrichtung
+  if (!Array.isArray(muendung) || !Array.isArray(richtung)) throw new Error('Soldaten-Mündung fehlt')
+  return new THREE.Vector3(...muendung as [number, number, number])
+    .addScaledVector(new THREE.Vector3(...richtung as [number, number, number]).normalize(), .1)
+    .applyAxisAngle(new THREE.Vector3(0, 1, 0), dreh)
+}
+
 export class BlitzTakt {
   readonly enden: number[] = []
   private rest = 0
@@ -986,12 +994,10 @@ export class WeltDarstellung implements LaufDarstellung {
     w.truppe.gruppe.position.x = x
     this.blitzPunkte = this.blitzPunkte.filter(b => b.ende > t)
     const neueBlitze = this.blitzTakt.schritt(dt, t, schiesst && formation > 0)
-    const muendung = w.soldatBau.pruefung.debugMuzzle
-    const lokal = Array.isArray(muendung) ? new THREE.Vector3(...muendung as [number,number,number]) : new THREE.Vector3(0,1.3,-.5)
     for (let i = 0; i < neueBlitze; i++) {
       const figur = formationsFiguren(z.T)[Math.floor(this.zufall() * formation)]
       const dreh = saeulenBlick(x, figur.x, figur.z, this.saeulenZiele[0]) * this.drehAnteil
-      const pos = lokal.clone().applyAxisAngle(new THREE.Vector3(0,1,0), dreh).add(new THREE.Vector3(x + figur.x,0,figur.z))
+      const pos = soldatenBlitzPunkt(w.soldatBau.pruefung, dreh).add(new THREE.Vector3(x + figur.x,0,figur.z))
       this.blitzPunkte.push({ ende: t + DARSTELLUNG.BLITZ_DAUER, pos })
     }
     this.blitze.setze(this.blitzPunkte.map(b => b.pos), w.camera)
@@ -1007,14 +1013,13 @@ export class WeltDarstellung implements LaufDarstellung {
     let soldatNeuBild = 0
     if (frontBewegung === 'schiessen' && front > 0) {
       this.frontBlitzRest += dt * DARSTELLUNG.FRONT_BLITZE_PRO_SEKUNDE
-      const muendung = w.soldatBau.pruefung.debugMuzzle
-      const mx = Array.isArray(muendung) ? muendung[0] : 0, my = Array.isArray(muendung) ? muendung[1] : 1.3, mz = Array.isArray(muendung) ? muendung[2] : -.5
+      const blitz = soldatenBlitzPunkt(w.soldatBau.pruefung)
       while (this.frontBlitzRest >= 1) {
         this.frontBlitzRest--
         if (this.frontBlitzAktiv < DARSTELLUNG.FRONT_BLITZE_MAX) {
           const f = this.frontFiguren[Math.floor(this.zufall() * front)]
           const i = this.frontBlitzAktiv++
-          this.frontBlitzPunkte[i].set(f.x + mx, my, w.front.gruppe.position.z + f.z + mz)
+          this.frontBlitzPunkte[i].set(f.x + blitz.x, blitz.y, w.front.gruppe.position.z + f.z + blitz.z)
           this.frontBlitzEnden[i] = this.uhr + .06
         }
       }

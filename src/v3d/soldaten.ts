@@ -77,7 +77,7 @@ export function backeSoldaten(soldat: GLTF, quelle: GLTF): SoldatenBau {
   const faktorHip=zielBein/quelleBein
   srcMixer.stopAllAction()
   const formen={} as SoldatenBau['formen'],dauer={} as SoldatenBau['dauer'],pruefung={} as SoldatenBau['pruefung']
-  const extras=netz.geometry.userData as {m4VertexStart?:number;m4VertexCount?:number;m4GripVertex?:number;m4MuzzleVertex?:number}
+  const extras=netz.geometry.userData as {m4VertexStart?:number;m4VertexCount?:number;m4GripVertex?:number;m4MuzzleVertex?:number;m4ButtVertex?:number;m4MuzzleWidth?:number;m4ButtWidth?:number}
   const m4Start=extras.m4VertexStart ?? (netz.userData as typeof extras).m4VertexStart ?? -1
   const m4Count=extras.m4VertexCount ?? (netz.userData as typeof extras).m4VertexCount ?? 0
   const richtungen=(name:string,bilder:number,gesamt:number)=>{
@@ -112,11 +112,12 @@ export function backeSoldaten(soldat: GLTF, quelle: GLTF): SoldatenBau {
   const handpunkte={} as Record<SoldatenBewegung,THREE.Vector3[]>,brustpunkte={} as Record<SoldatenBewegung,THREE.Vector3[]>
   const handDrehung={} as Record<SoldatenBewegung,THREE.Quaternion[]>
   const hueftpunkte={} as Record<SoldatenBewegung,THREE.Vector3[]>
+  const armPunkte={} as Record<SoldatenBewegung,THREE.Vector3[][]>
   const kopfpunkte={} as Record<SoldatenBewegung,THREE.Vector3[]>,augenpunkte={} as Record<SoldatenBewegung,THREE.Vector3[]>
   for(const bewegung of ['stehen','laufen','schiessen','fallen'] as SoldatenBewegung[]){
     const cfg=BEWEGUNGEN[bewegung],unterClip=clips.get(cfg.unten)!;dauer[bewegung]=cfg.zyklus??unterClip.duration
     const unten=richtungen(cfg.unten,cfg.bilder,unterClip.duration),oben=cfg.oben===cfg.unten?unten:richtungen(cfg.oben,cfg.bilder,unterClip.duration)
-    raw[bewegung]=[];handpunkte[bewegung]=[];brustpunkte[bewegung]=[];handDrehung[bewegung]=[];hueftpunkte[bewegung]=[];kopfpunkte[bewegung]=[];augenpunkte[bewegung]=[]
+    raw[bewegung]=[];handpunkte[bewegung]=[];brustpunkte[bewegung]=[];handDrehung[bewegung]=[];hueftpunkte[bewegung]=[];kopfpunkte[bewegung]=[];augenpunkte[bewegung]=[];armPunkte[bewegung]=[]
     for(let f=0;f<cfg.bilder;f++){
       stellen(unten,oben,f);const p=new Float32Array(vertexCount*3)
       for(let i=0;i<vertexCount;i++){netz.getVertexPosition(i,v);v.applyMatrix4(netz.matrixWorld);p.set([v.x,v.y,v.z],i*3)}
@@ -127,6 +128,7 @@ export function backeSoldaten(soldat: GLTF, quelle: GLTF): SoldatenBau {
       hueftpunkte[bewegung].push(weltpunkt(hip,new THREE.Vector3()).clone())
       kopfpunkte[bewegung].push(weltpunkt(z('CC_Base_Head_038'),new THREE.Vector3()).clone())
       augenpunkte[bewegung].push(weltpunkt(z('CC_Base_R_Eye_045'),new THREE.Vector3()).add(weltpunkt(z('CC_Base_L_Eye_046'),new THREE.Vector3())).multiplyScalar(.5))
+      armPunkte[bewegung].push(['CC_Base_R_Upperarm_074','CC_Base_R_Forearm_077','CC_Base_R_Hand_081','CC_Base_L_Upperarm_050','CC_Base_L_Forearm_051','CC_Base_L_Hand_055'].map(name=>weltpunkt(z(name),new THREE.Vector3()).clone()))
     }
   }
   const stand=raw.stehen[0],refMin=minYTeil(stand,0,m4Start>=0?m4Start:vertexCount),box=new THREE.Box3();for(let i=0;i<stand.length;i+=3)box.expandByPoint(new THREE.Vector3(stand[i],stand[i+1],stand[i+2]))
@@ -138,9 +140,7 @@ export function backeSoldaten(soldat: GLTF, quelle: GLTF): SoldatenBau {
     const vorFormen:number[]=[],nachFormen:number[]=[]
     raw[bewegung].forEach((p,f)=>{
       for(let i=0;i<p.length;i+=3){p[i]=(refX-p[i])*scale;p[i+1]=(p[i+1]-refMin)*scale;p[i+2]=(refZ-p[i+2])*scale}
-      // Die importierte Körperfront liegt bei +z. Die M4 war bereits nach -z
-      // ausgerichtet; nach der Körperdrehung bleibt ihr Griff an der Hand und
-      // ihr Lauf wird um die Handwurzel wieder zur Horde gedreht.
+      // Körperfront und M4 werden um die Handwurzel zur Horde ausgerichtet.
       if(m4Start>=0){const hand=umrechne(handpunkte[bewegung][f]);for(let i=m4Start*3;i<p.length;i+=3){p[i]=2*hand.x-p[i];p[i+2]=2*hand.z-p[i+2]}}
       const tiefsterKoerper=minYTeil(p,0,m4Start>=0?m4Start:vertexCount)
       const tiefsteWaffe=m4Start>=0?minYTeil(p,m4Start,vertexCount):Infinity
@@ -175,17 +175,42 @@ export function backeSoldaten(soldat: GLTF, quelle: GLTF): SoldatenBau {
       const gripIndex=extras.m4GripVertex ?? (netz.userData as typeof extras).m4GripVertex
       const muzzleIndex=extras.m4MuzzleVertex ?? (netz.userData as typeof extras).m4MuzzleVertex
       if(gripIndex===undefined||muzzleIndex===undefined)throw new Error('M4-Prüfpunkte fehlen')
-      const griff=marker(gripIndex),muzzle=marker(muzzleIndex)
+      const buttIndex=extras.m4ButtVertex ?? (netz.userData as typeof extras).m4ButtVertex
+      if(buttIndex===undefined)throw new Error('M4-Kolbenpunkt fehlt')
+      const griff=marker(gripIndex),muzzle=marker(muzzleIndex),kolben=marker(buttIndex)
+      const alle=formen[bewegung].map((form,f)=>{
+        const attr=form.attributes.position
+        const punkt=(i:number)=>new THREE.Vector3(attr.getX(i),attr.getY(i),attr.getZ(i))
+        const hand=umrechne(handpunkte[bewegung][f]),brust=umrechne(brustpunkte[bewegung][f]),m=punkt(muzzleIndex),k=punkt(buttIndex)
+        return {griffCm:punkt(gripIndex).distanceTo(hand)*100,vorBrust:brust.z-m.z,kolbenNaeher:m.distanceTo(brust)-k.distanceTo(brust),winkel:THREE.MathUtils.radToDeg(m.clone().sub(k).angleTo(new THREE.Vector3(0,0,-1))),muendung:m}
+      })
+      pruefung[`${bewegung}GriffMaxCm`]=Math.max(...alle.map(x=>x.griffCm))
+      pruefung[`${bewegung}MuendungVorBrustMinM`]=Math.min(...alle.map(x=>x.vorBrust))
+      pruefung[`${bewegung}KolbenNaeherMinM`]=Math.min(...alle.map(x=>x.kolbenNaeher))
+      pruefung[`${bewegung}LaufWinkelMaxGrad`]=Math.max(...alle.map(x=>x.winkel))
       pruefung[`${bewegung}GriffCm`]=griff.distanceTo(hand)*100
       const brust=umrechne(brustpunkte[bewegung][0]),kopf=umrechne(kopfpunkte[bewegung][0]),augen=umrechne(augenpunkte[bewegung][0])
       pruefung[`${bewegung}MuendungVorBrustM`]=brust.z-muzzle.z
+      pruefung[`${bewegung}KolbenNaeherM`]=muzzle.distanceTo(brust)-kolben.distanceTo(brust)
+      pruefung[`${bewegung}LaufWinkelGrad`]=THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(muzzle.clone().sub(kolben).normalize().dot(new THREE.Vector3(0,0,-1)),-1,1)))
+      pruefung[`${bewegung}ArmPunkte`]=armPunkte[bewegung][0].map(umrechne).flatMap(p=>p.toArray())
+      if(bewegung==='stehen'||bewegung==='schiessen'){
+        const [schulter,ellbogen,rechteHand,,,linkeHand]=armPunkte[bewegung][0].map(umrechne)
+        const ober=schulter.clone().sub(ellbogen),unter=rechteHand.clone().sub(ellbogen)
+        pruefung[`${bewegung}EllbogenGrad`]=THREE.MathUtils.radToDeg(ober.angleTo(unter))
+        pruefung[`${bewegung}KolbenSchulterCm`]=kolben.distanceTo(schulter)*100
+        pruefung[`${bewegung}LinksVorderschaftCm`]=linkeHand.distanceTo(griff.clone().addScaledVector(muzzle.clone().sub(kolben).normalize(),.35))*100
+      }
       pruefung[`${bewegung}GesichtVorKopfM`]=kopf.z-augen.z
       if(bewegung==='schiessen'){
-        const achse=muzzle.clone().sub(hand).normalize();pruefung.laufWinkelGrad=THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(achse.dot(new THREE.Vector3(0,0,-1)),-1,1)))
+        const achse=muzzle.clone().sub(kolben).normalize();pruefung.laufWinkelGrad=THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(achse.dot(new THREE.Vector3(0,0,-1)),-1,1)))
         pruefung.muendungBrustM=muzzle.distanceTo(brust)
         pruefung.debugHandQuaternion=handDrehung[bewegung][0].toArray()
         pruefung.debugHand=hand.toArray()
-        pruefung.debugMuzzle=muzzle.toArray()
+        pruefung.muendung=muzzle.toArray()
+        pruefung.laufrichtung=achse.toArray()
+        const blitz=muzzle.clone().addScaledVector(achse,.1)
+        pruefung.blitzAbstandMaxM=Math.max(...alle.map(x=>x.muendung.distanceTo(blitz)))
       }
     }
   }

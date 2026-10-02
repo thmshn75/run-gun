@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { SpielLauf, WeltDarstellung, Einsatzbilder, baueHorde, HordeLoecher, baueLaufSpuren, spurFaktor, formationsFiguren, formationsBewegung, BlitzTakt, wandText, ZAHL_HOEHEN, bossBewegung, type LaufSoldat, type LaufDarstellung, type BossStand } from '../src/v3d/lauf'
+import { SpielLauf, WeltDarstellung, Einsatzbilder, baueHorde, HordeLoecher, baueLaufSpuren, spurFaktor, formationsFiguren, formationsBewegung, BlitzTakt, soldatenBlitzPunkt, wandText, ZAHL_HOEHEN, bossBewegung, type LaufSoldat, type LaufDarstellung, type BossStand } from '../src/v3d/lauf'
 import type { Zustand } from '../src/v3d/rechnung'
 import { neuerLauf, starteEinheit, gesamtDauer, schritt, saeulenStartP } from '../src/v3d/rechnung'
 import type { FahrzeugBau } from '../src/v3d/fahrzeuge'
@@ -26,7 +26,7 @@ function baueWeltAttrappe() {
   vi.stubGlobal('document',{createElement:()=>({width:256,height:128,getContext:()=>kontext})})
   const form=()=>new THREE.BoxGeometry(.3,2,.3)
   const zombieBau:ZombieBau={formen:[form()],materialien:[new THREE.MeshStandardMaterial(),new THREE.MeshStandardMaterial(),new THREE.MeshStandardMaterial()],bemalungen:[],dauer:1.1,dreiecke:12}
-  const soldatBau:SoldatenBau={formen:{laufen:[form()],stehen:[form()],schiessen:[form()],fallen:[form(),form(),form(),form()]},material:new THREE.MeshStandardMaterial(),atlas:new THREE.Texture(),dauer:{laufen:1,stehen:1,schiessen:1,fallen:1},backzeitMs:0,pruefung:{debugMuzzle:[0,1.3,-.5]}}
+  const soldatBau:SoldatenBau={formen:{laufen:[form()],stehen:[form()],schiessen:[form()],fallen:[form(),form(),form(),form()]},material:new THREE.MeshStandardMaterial(),atlas:new THREE.Texture(),dauer:{laufen:1,stehen:1,schiessen:1,fallen:1},backzeitMs:0,pruefung:{muendung:[0,1.3,-.5],laufrichtung:[0,0,-1]}}
   const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(),truppe=new SoldatenMasse(soldatBau,40),laufTrupp=new SoldatenMasse(soldatBau,50),front=new SoldatenMasse(soldatBau,40),zombieMasse=new ZombieMasse(zombieBau,zombieBau.materialien,600)
   const wand=new THREE.Group(),eis=new EisEffekte(scene,null)
   const saeulen=Array.from({length:Math.min(LEVELS[0].saeulen.length,DARSTELLUNG.SAEULEN_VORSCHAU+1)},(_,i)=>{const g=new THREE.Group();g.name=`saeule-${i}`;g.position.set(BUEHNE.SAEULE_X,0,-12);return g})
@@ -56,6 +56,17 @@ function laufe(ziel: number, dauer=10) {
   return {lauf,gezeigt,ausgesandt,einheiten}
 }
 describe('3D-Lauf',()=>{
+  it('setzt den Blitz zehn Zentimeter vor die echte Mündung',()=>{
+    const pruefung={muendung:[.2,1.6,-.7],laufrichtung:[0,0,-1]}
+    for(const dreh of [0,.4]){
+      const blitz=soldatenBlitzPunkt(pruefung,dreh)
+      const muendung=new THREE.Vector3(...pruefung.muendung as [number,number,number]).applyAxisAngle(new THREE.Vector3(0,1,0),dreh)
+      const richtung=new THREE.Vector3(...pruefung.laufrichtung as [number,number,number]).applyAxisAngle(new THREE.Vector3(0,1,0),dreh)
+      expect(blitz.distanceTo(muendung)).toBeLessThanOrEqual(.15)
+      expect(blitz.clone().sub(muendung).dot(richtung)).toBeGreaterThan(0)
+      if(dreh===0)expect(blitz.z).toBeLessThan(muendung.z)
+    }
+  })
   it('lässt die Horde bei Niederlage sichtbar vier Meter über die Truppe laufen',()=>{
     const {welt,raume}=baueWeltAttrappe()
     try {
