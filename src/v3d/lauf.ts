@@ -778,9 +778,9 @@ export class WeltDarstellung implements LaufDarstellung {
   private blockZuordnung: number[] = []
   private saeulenZiele: number[] = []
   private letzteZahlZeit = -Infinity
-  constructor(welt: Welt, seed = 12345, pruefDiagnose?: PruefDiagnose) {
+  constructor(welt: Welt, seed = 12345, pruefDiagnose?: PruefDiagnose, level: Level = LEVELS[0]) {
     this.welt=welt
-    const ziele = saeulenZiele(LEVELS[0], 0, welt.miniaturen, welt.saeulen.length)
+    const ziele = saeulenZiele(level, 0, welt.miniaturen, welt.saeulen.length)
     welt.saeulen.forEach((saeule, i) => {
       saeule.position.z = ziele[i]
       saeule.visible = i <= DARSTELLUNG.SAEULEN_VORSCHAU
@@ -797,7 +797,7 @@ export class WeltDarstellung implements LaufDarstellung {
     this.eliteBalken = new BossBalken(LEVELS[0].B_elite)
     this.vorgaenger = weltDarstellungen.get(welt)
     weltDarstellungen.set(welt, this)
-    this.setzeEisZurueck()
+    this.setzeEisZurueck(level)
     const canvas = document.createElement('canvas')
     canvas.width = 128; canvas.height = 64
     const ctx = canvas.getContext('2d')!
@@ -856,18 +856,18 @@ export class WeltDarstellung implements LaufDarstellung {
       }
     }
   }
-  private setzeEisZurueck(): void {
+  private setzeEisZurueck(level: Level = this.letzterStand?.z.level ?? LEVELS[0]): void {
     const w = this.welt
     w.eis.zuruecksetzen()
     this.blockZuordnung = w.saeulen.map((_, i) => i)
-    this.saeulenZiele = saeulenZiele(this.letzterStand?.z.level ?? LEVELS[0], 0, w.miniaturen, w.saeulen.length)
+    this.saeulenZiele = saeulenZiele(level, 0, w.miniaturen, w.saeulen.length)
     w.saeulen.forEach((s, i) => {
       s.position.set(BUEHNE.SAEULE_X, 0, this.saeulenZiele[i])
       s.visible = true
       w.saeulenBloecke[i].visible = true; w.saeulenBloecke[i].scale.setScalar(1)
       w.saeulenSchilder[i].visible = true
     })
-    this.ordneMiniaturen(this.letzterStand?.z.level ?? LEVELS[0], 0)
+    this.ordneMiniaturen(level, 0)
     w.saeulenBloecke.forEach((block, i) => w.eis.setzeMaterial(block, i === 0))
     w.eis.setzeAktiv(w.saeulenBloecke[0], 0)
     this.letzteSaeule = -1; this.letzteSchildSaeule = -1; this.letzteSaeulenZahl = null

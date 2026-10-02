@@ -3,6 +3,10 @@ import { WERKSTATT, type Ablauf, type Level, type SpezialName, type WerkstattArt
 export type Stufen = Record<WerkstattArt, number>
 export const leereStufen = (): Stufen => ({ truppe: 0, feuer: 0, eis: 0, panzer: 0, haubitze: 0, humvee: 0, hubschrauber: 0, mecha: 0 })
 
+export function wendeArsenalAn(level: Level, reihenfolge: readonly string[]): Level {
+  return { ...level, saeulen: [...reihenfolge] }
+}
+
 export function preis(art: WerkstattArt, stufe: number): number | null {
   return Number.isInteger(stufe) && stufe >= 0 ? WERKSTATT[art].preise[stufe] ?? null : null
 }

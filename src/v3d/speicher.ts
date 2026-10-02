@@ -1,7 +1,39 @@
-import { WERKSTATT, type WerkstattArt } from './balance3d'
+import { LEVELS, WERKSTATT, type WerkstattArt } from './balance3d'
 import { leereStufen, preis, type Stufen } from './werkstatt'
 
 const WERKSTATT_SCHLUESSEL = 'rg3d.werkstatt.v1'
+const ARSENAL_SCHLUESSEL = 'rg3d.arsenal.v1'
+export interface Arsenal { version: 1; reihenfolge: string[] }
+export const standardArsenal = (): string[] => [...LEVELS[0].saeulen]
+
+function gueltigeReihenfolge(wert: unknown): wert is string[] {
+  const standard = standardArsenal()
+  return Array.isArray(wert) && wert.length === standard.length &&
+    wert.every(name => typeof name === 'string' && standard.includes(name)) &&
+    new Set(wert).size === standard.length
+}
+
+export function ladeArsenal(): Arsenal {
+  try {
+    const roh: unknown = JSON.parse(localStorage.getItem(ARSENAL_SCHLUESSEL) ?? 'null')
+    if (typeof roh === 'object' && roh !== null && (roh as Arsenal).version === 1 && gueltigeReihenfolge((roh as Arsenal).reihenfolge)) {
+      return { version: 1, reihenfolge: [...(roh as Arsenal).reihenfolge] }
+    }
+  } catch { /* Fehlender oder gesperrter Speicher. */ }
+  return { version: 1, reihenfolge: standardArsenal() }
+}
+
+export function speichereArsenal(reihenfolge: string[]): boolean {
+  if (!gueltigeReihenfolge(reihenfolge)) return false
+  try {
+    localStorage.setItem(ARSENAL_SCHLUESSEL, JSON.stringify({ version: 1, reihenfolge }))
+    const gelesen: unknown = JSON.parse(localStorage.getItem(ARSENAL_SCHLUESSEL) ?? 'null')
+    return typeof gelesen === 'object' && gelesen !== null && (gelesen as Arsenal).version === 1 &&
+      gueltigeReihenfolge((gelesen as Arsenal).reihenfolge) &&
+      JSON.stringify((gelesen as Arsenal).reihenfolge) === JSON.stringify(reihenfolge)
+  } catch { return false }
+}
+
 export interface WerkstattKonto { version: 1; muenzen: number; stufen: Stufen }
 const leeresKonto = (): WerkstattKonto => ({ version: 1, muenzen: 0, stufen: leereStufen() })
 

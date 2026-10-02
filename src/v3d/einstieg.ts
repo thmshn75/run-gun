@@ -6,8 +6,8 @@ import { baueSzene, gibSzeneFrei } from './szene'
 import { DATEIEN_FEHLER, type Welt } from './szene'
 import { passeKameraAn } from './kamera'
 import { leseWasserStufe } from './wasser'
-import { statusZeile, zeigeOberflaeche, versteckeOberflaeche, fuelleLobby, fuelleWerkstatt } from './oberflaeche'
-import { ladeFortschritt, ladeBestlaeufe, ladeWerkstatt, bucheMuenzen, merkeSieg } from './speicher'
+import { statusZeile, zeigeOberflaeche, versteckeOberflaeche, fuelleLobby, fuelleWerkstatt, fuelleArsenal } from './oberflaeche'
+import { ladeFortschritt, ladeBestlaeufe, ladeWerkstatt, ladeArsenal, bucheMuenzen, merkeSieg } from './speicher'
 import { bricheAb, messBild, messungLaeuft, starteMessung, zeigeMessErgebnis } from './messung'
 import { aktualisiereLetzteMessung, speichereLetzteMessung } from './info'
 import { FingerSteuerung } from './steuerung'
@@ -15,7 +15,7 @@ import { PruefDiagnose, SpielLauf, WeltDarstellung } from './lauf'
 import { LEVELS, type Level } from './balance3d'
 import { starteEinheit, type Zustand } from './rechnung'
 import type { SpezialName } from './balance3d'
-import { muenzenFuerLauf, wendeStufenAn, zaehleBesiegt } from './werkstatt'
+import { muenzenFuerLauf, wendeStufenAn, wendeArsenalAn, zaehleBesiegt } from './werkstatt'
 
 export function pruefEinsatz(suche: string): SpezialName[] {
   const p = new URLSearchParams(suche)
@@ -52,6 +52,11 @@ export function direktStart(suche: string): boolean {
 export const TEST_FAHRZEUGE: readonly SpezialName[] = ['humvee', 'haubitze', 'panzer', 'hubschrauber', 'mecha']
 /** Testgelände: Level 1, Säulen fallen schnell (P 10), das gewählte Fahrzeug startet sofort. */
 export function testLevel(): Level { return { ...LEVELS[0], P: 10 } }
+export function laufLevel(n: number, test: SpezialName | null, direkt: boolean): Level {
+  const basis = test ? testLevel() : LEVELS[n - 1]
+  if (direkt) return basis
+  return wendeArsenalAn(wendeStufenAn(basis, ladeWerkstatt().stufen, test !== null), ladeArsenal().reihenfolge)
+}
 export function zaehltFuerKonto(testFahrzeug: SpezialName | null, direkt: boolean): boolean { return !testFahrzeug && !direkt }
 export interface LaufGutschrift { gutgeschrieben: boolean; betrag: number }
 export function bucheEndeEinmal(stand: LaufGutschrift, levelNr: number, ausgang: 'sieg' | 'niederlage', besiegt: number, testFahrzeug: SpezialName | null, direkt: boolean): number {
@@ -317,13 +322,12 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
       if(!welt||!renderer||!camera)return
       lauf?.gibLaufFrei();finger?.gibFrei()
       levelNr=n;testFahrzeug=test;testAusstehend=test!==null
-      ui.lobby.style.display='none';ui.werkstatt.style.display='none';ui.ende.style.display='none'
+      ui.lobby.style.display='none';ui.werkstatt.style.display='none';ui.arsenal.style.display='none';ui.ende.style.display='none'
       ui.levelText.textContent=test?`Testgelände · ${test.toLocaleUpperCase('de-DE')}`:`Level ${n}`
       pruefDiagnose=pruefDiagnose?new PruefDiagnose(new URLSearchParams(location.search).get('vorwaermen')!=='0'):null;pruefEnde=null;pruefAngezeigt=false
-      darstellung=new WeltDarstellung(welt,12345,pruefDiagnose??undefined)
-      const basis = test ? testLevel() : LEVELS[n - 1]
-      const mitStufen = direkt ? basis : wendeStufenAn(basis, ladeWerkstatt().stufen, test !== null)
-      lauf=new SpielLauf(eisPruefLevel(location.search,mitStufen),Date.now(),darstellung)
+      const level = eisPruefLevel(location.search, laufLevel(n, test, direkt))
+      darstellung=new WeltDarstellung(welt,12345,pruefDiagnose??undefined,level)
+      lauf=new SpielLauf(level,Date.now(),darstellung)
       vorwaermenEffekte();pruefEinsatzAusstehend=pruefEinsatz(location.search).length>0
       finger=new FingerSteuerung(renderer.domElement,camera)
       endeStat={besiegt:0,maxT:0};laufGutschrift={gutgeschrieben:false,betrag:0};endeAnzeigeUm=null;letzterFrame=0;bildZaehler=0;eisTrefferZeit=eisFallZeit=eisTrefferMax=null;eisDiagFertig=false;eisBilder.length=0
@@ -331,8 +335,8 @@ export async function starte3D(game: Phaser.Game, beimSchliessen: (hinweis?: str
     const zeigeLobby = () => {
       if(!welt)return
       lauf?.gibLaufFrei();lauf=null;finger?.gibFrei();finger=null;testFahrzeug=null;testAusstehend=false
-      ui.ende.style.display='none';ui.werkstatt.style.display='none';endeAnzeigeUm=null;ui.zahlen.textContent='';ui.levelText.textContent=''
-      fuelleLobby(ui.lobby,{hoechstes:Math.min(LEVELS.length,ladeFortschritt().hoechstesLevel),levelAnzahl:LEVELS.length,beste:ladeBestlaeufe(),fahrzeuge:TEST_FAHRZEUGE,muenzen:ladeWerkstatt().muenzen},n=>starteLauf(n,null),f=>starteLauf(1,f as SpezialName),()=>{ ui.lobby.style.display='none'; fuelleWerkstatt(ui.werkstatt, zeigeLobby); ui.werkstatt.style.display='block' })
+      ui.ende.style.display='none';ui.werkstatt.style.display='none';ui.arsenal.style.display='none';endeAnzeigeUm=null;ui.zahlen.textContent='';ui.levelText.textContent=''
+      fuelleLobby(ui.lobby,{hoechstes:Math.min(LEVELS.length,ladeFortschritt().hoechstesLevel),levelAnzahl:LEVELS.length,beste:ladeBestlaeufe(),fahrzeuge:TEST_FAHRZEUGE,muenzen:ladeWerkstatt().muenzen},n=>starteLauf(n,null),f=>starteLauf(1,f as SpezialName),()=>{ ui.lobby.style.display='none'; fuelleWerkstatt(ui.werkstatt, zeigeLobby); ui.werkstatt.style.display='block' },()=>{ ui.lobby.style.display='none'; fuelleArsenal(ui.arsenal, zeigeLobby); ui.arsenal.style.display='block' })
       ui.lobby.style.display='block'
     }
     ui.nochmal.addEventListener('click',()=>starteLauf(levelNr,testFahrzeug))

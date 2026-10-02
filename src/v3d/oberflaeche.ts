@@ -1,6 +1,6 @@
 import { baueInfo } from './info'
 import { WERKSTATT, type WerkstattArt } from './balance3d'
-import { kaufe, ladeWerkstatt } from './speicher'
+import { kaufe, ladeWerkstatt, ladeArsenal, speichereArsenal, standardArsenal } from './speicher'
 import { preis } from './werkstatt'
 
 let container: HTMLDivElement | null = null
@@ -45,13 +45,15 @@ export function zeigeOberflaeche(zurueck: () => void, messen: () => void, level:
   Object.assign(lobby.style, { display: 'none', position: 'absolute', top: 'calc(env(safe-area-inset-top) + 60px)', bottom: 'calc(env(safe-area-inset-bottom) + 12px)', left: '12px', right: '12px', overflowY: 'auto', overscrollBehavior: 'contain', padding: '14px', background: '#0f1e2ef0', borderRadius: '12px', pointerEvents: 'auto', touchAction: 'pan-y', textAlign: 'center' })
   const werkstatt = document.createElement('div')
   Object.assign(werkstatt.style, { display: 'none', position: 'absolute', top: 'calc(env(safe-area-inset-top) + 60px)', bottom: 'calc(env(safe-area-inset-bottom) + 12px)', left: '12px', right: '12px', overflowY: 'auto', overscrollBehavior: 'contain', padding: '14px', background: '#0f1e2ef0', borderRadius: '12px', pointerEvents: 'auto', touchAction: 'pan-y', textAlign: 'center', fontSize: '16px' })
+  const arsenal = document.createElement('div')
+  Object.assign(arsenal.style, { display: 'none', position: 'absolute', top: 'calc(env(safe-area-inset-top) + 60px)', bottom: 'calc(env(safe-area-inset-bottom) + 12px)', left: '12px', right: '12px', overflowY: 'auto', overscrollBehavior: 'contain', padding: '14px', background: '#0f1e2ef0', borderRadius: '12px', pointerEvents: 'auto', touchAction: 'pan-y', textAlign: 'center', fontSize: '16px' })
   for (const element of [back, infoButton, measure, info, results]) element.style.pointerEvents = 'auto'
   levelText.style.pointerEvents = 'none'
   back.addEventListener('click', () => { if (!fingerAktiv()) zurueck() })
   infoButton.addEventListener('click', () => { if (fingerAktiv()) return; info.style.display = 'block'; beiInfo?.() })
   measure.addEventListener('click', () => { info.style.display = 'none'; beiInfoEnde?.(); messen() })
-  container.append(back, infoButton, levelText, zahlen, results, info, ende, lobby, werkstatt)
-  return { messen: measure, ergebnisse: results, info, zahlen, ende, endeText, nochmal, weiter, endeZurueck, lobby, werkstatt, levelText }
+  container.append(back, infoButton, levelText, zahlen, results, info, ende, lobby, werkstatt, arsenal)
+  return { messen: measure, ergebnisse: results, info, zahlen, ende, endeText, nochmal, weiter, endeZurueck, lobby, werkstatt, arsenal, levelText }
 }
 
 export function versteckeOberflaeche(): void { if (container) container.style.display = 'none' }
@@ -59,7 +61,7 @@ export function versteckeOberflaeche(): void { if (container) container.style.di
 export interface LobbyStand { hoechstes: number; levelAnzahl: number; beste: Record<number, { zeit: number; besiegt: number }>; fahrzeuge: readonly string[]; muenzen?: number }
 export function lobbyZeit(s: number): string { return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` }
 /** Füllt die 3D-Lobby: Level-Karte (gesperrte grau), Testgelände je Fahrzeug, beste Läufe. */
-export function fuelleLobby(lobby: HTMLDivElement, stand: LobbyStand, spiele: (level: number) => void, teste: (fahrzeug: string) => void, oeffneWerkstatt?: () => void): void {
+export function fuelleLobby(lobby: HTMLDivElement, stand: LobbyStand, spiele: (level: number) => void, teste: (fahrzeug: string) => void, oeffneWerkstatt?: () => void, oeffneArsenal?: () => void): void {
   const ueberschrift = (text: string) => { const h = document.createElement('div'); h.textContent = text; Object.assign(h.style, { fontWeight: '900', fontSize: '15px', letterSpacing: '1px', margin: '14px 0 8px', color: '#a8d9ff' }); return h }
   const titel = document.createElement('div'); titel.textContent = `RUN GUN 3D · ¢ ${stand.muenzen ?? 0}`
   Object.assign(titel.style, { fontWeight: '900', fontSize: '28px', letterSpacing: '2px', textShadow: '0 2px 6px black' })
@@ -85,6 +87,11 @@ export function fuelleLobby(lobby: HTMLDivElement, stand: LobbyStand, spiele: (l
     werkstattKnopf.addEventListener('click', oeffneWerkstatt)
     startBlock.append(werkstattKnopf)
   }
+  if (oeffneArsenal) {
+    const arsenalKnopf = knopf('ARSENAL', { position: 'static', width: '100%', marginTop: '8px', fontSize: '17px' })
+    arsenalKnopf.addEventListener('click', oeffneArsenal)
+    startBlock.append(arsenalKnopf)
+  }
   const test = document.createElement('div')
   Object.assign(test.style, { display: 'none', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' })
   const testSchalter = knopf('▸ TESTGELÄNDE', { position: 'static', width: '100%', margin: '14px 0 8px', textAlign: 'left' })
@@ -107,6 +114,46 @@ export function fuelleLobby(lobby: HTMLDivElement, stand: LobbyStand, spiele: (l
   liste.textContent = geschafft.length ? '' : 'Noch kein Level geschafft.'
   for (const n of geschafft) { const z = document.createElement('div'); z.textContent = `Level ${n} · ${lobbyZeit(stand.beste[n].zeit)} · ${Math.round(stand.beste[n].besiegt)} Zombies`; liste.append(z) }
   lobby.replaceChildren(titel, ueberschrift('LEVEL'), karte, startBlock, testSchalter, test, ueberschrift('BESTE LÄUFE'), liste)
+}
+
+export function fuelleArsenal(element: HTMLDivElement, zurueck: () => void, fehler = false): void {
+  const reihenfolge = ladeArsenal().reihenfolge
+  const back = () => { const b = knopf('ZURÜCK', { position: 'static', fontSize: '16px' }); b.addEventListener('click', zurueck); return b }
+  const oben = document.createElement('div')
+  Object.assign(oben.style, { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' })
+  const titel = document.createElement('strong'); titel.textContent = 'ARSENAL'
+  oben.append(back(), titel)
+  const hinweis = document.createElement('div')
+  hinweis.textContent = 'Reihenfolge der Eis-Säulen — die oberste kommt zuerst'
+  Object.assign(hinweis.style, { margin: '12px 0', fontSize: '16px' })
+  const meldung = document.createElement('div')
+  meldung.textContent = fehler ? 'Speichern nicht möglich' : ''
+  Object.assign(meldung.style, { color: '#ff9c8f', minHeight: '24px' })
+  const liste = document.createElement('div')
+  Object.assign(liste.style, { display: 'grid', gap: '8px' })
+  reihenfolge.forEach((name, i) => {
+    const zeile = document.createElement('div')
+    Object.assign(zeile.style, { display: 'flex', alignItems: 'center', gap: '6px', minHeight: '56px', padding: '4px 8px', background: '#193a59', borderRadius: '8px', fontSize: '16px' })
+    const text = document.createElement('strong')
+    text.textContent = `${i + 1}. ${name.toLocaleUpperCase('de-DE')}`
+    Object.assign(text.style, { flex: '1', textAlign: 'left' })
+    const verschiebe = (ziel: number, symbol: string) => {
+      const b = knopf(symbol, { position: 'static', minWidth: '44px', minHeight: '44px', padding: '4px', fontSize: '20px' })
+      b.disabled = ziel < 0 || ziel >= reihenfolge.length
+      if (b.disabled) b.style.opacity = '.45'
+      b.addEventListener('click', () => {
+        if (b.disabled) return
+        const neu = [...reihenfolge]; [neu[i], neu[ziel]] = [neu[ziel], neu[i]]
+        fuelleArsenal(element, zurueck, !speichereArsenal(neu))
+      })
+      return b
+    }
+    zeile.append(text, verschiebe(i - 1, '▲'), verschiebe(i + 1, '▼'))
+    liste.append(zeile)
+  })
+  const standard = knopf('STANDARD', { position: 'static', width: '100%', margin: '12px 0', fontSize: '16px' })
+  standard.addEventListener('click', () => fuelleArsenal(element, zurueck, !speichereArsenal(standardArsenal())))
+  element.replaceChildren(oben, hinweis, meldung, liste, standard, back())
 }
 
 const TEXTE: Record<WerkstattArt, [string, string]> = {

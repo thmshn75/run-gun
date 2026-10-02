@@ -1,6 +1,6 @@
 import { LEVELS } from '../src/v3d/balance3d.ts'
 import { neuerLauf, schritt } from '../src/v3d/rechnung.ts'
-import { leereStufen, muenzenFuerLauf, wendeStufenAn, zaehleBesiegt } from '../src/v3d/werkstatt.ts'
+import { leereStufen, muenzenFuerLauf, wendeArsenalAn, wendeStufenAn, zaehleBesiegt } from '../src/v3d/werkstatt.ts'
 import { WERKSTATT } from '../src/v3d/balance3d.ts'
 
 const dt = 1 / 30
@@ -88,3 +88,23 @@ const gesamtPreis = Object.values(WERKSTATT).reduce((summe, art) => summe + art.
 let muenzen = 0, siege = 0
 while (muenzen < gesamtPreis && siege < 10000) { muenzen += basisSiegMuenzen[siege % LEVELS.length]; siege++ }
 console.log(`Profil Siege Level 1–10 der Reihe nach bis voll: ${siege} Siege · Bedarf ¢ ${gesamtPreis} · Ø Siegmünzen je Level ${basisSiegMuenzen.map(n => n.toFixed(1)).join('/')}`)
+
+const standard = LEVELS[0].saeulen
+const arsenalProfile = [
+  { name: 'Standard', reihenfolge: standard },
+  { name: 'Mecha zuerst', reihenfolge: ['mecha', 'hubschrauber', 'panzer', 'haubitze', 'humvee'] },
+  { name: 'Umgekehrt', reihenfolge: [...standard].reverse() },
+]
+for (const [nr, stufe] of [[1, 0], [5, 1], [10, 3]] as const) for (const profil of arsenalProfile) {
+  const stufen = { ...leereStufen(), truppe: stufe, feuer: stufe, eis: stufe }
+  const level = wendeArsenalAn(wendeStufenAn(LEVELS[nr - 1], stufen), profil.reihenfolge)
+  let passiv = 0, spielweisen = 0, beste = 0
+  for (let seed = 1; seed <= 20; seed++) if (spiele(level, nr, 'passiv', 0, seed).sieg) passiv++
+  for (const art of ['rhythmus', 'rhythmusSaeule'] as const) for (let S = 10; S <= 150; S += 10) {
+    let siege = 0
+    for (let seed = 1; seed <= 20; seed++) if (spiele(level, nr, art, S, seed).sieg) siege++
+    if (siege >= 15) spielweisen++
+    beste = Math.max(beste, siege)
+  }
+  console.log(`Profil Arsenal ${profil.name} · Level ${nr} · Stufe ${stufe}: passiv ${passiv}/20 · gewinnende Spielweisen ${spielweisen}/30 · beste ${beste}/20`)
+}

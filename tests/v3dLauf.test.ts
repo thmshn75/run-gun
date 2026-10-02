@@ -16,6 +16,7 @@ import { ZombieMasse, type ZombieBau } from '../src/v3d/figuren'
 import { SoldatenMasse, type SoldatenBau } from '../src/v3d/soldaten'
 import type { Welt } from '../src/v3d/szene'
 import { saeulenZiele } from '../src/v3d/szene'
+import { wendeArsenalAn } from '../src/v3d/werkstatt'
 
 function baueWeltAttrappe() {
   const namenBreiten: number[]=[]
@@ -373,6 +374,38 @@ describe('3D-Lauf',()=>{
       expect(welt.eis.diagnose.stufe).toBe(0)
       expect(((welt.saeulenBloecke[0].children.find(o=>o.name.startsWith('fahrzeug-'))!.userData.huelle as THREE.Group).children[0] as THREE.Mesh)).toHaveProperty('material',welt.eis.treffer)
       nochmal.gibFrei()
+    } finally {raume()}
+  })
+  it('zeigt die Arsenalfolge ab dem ersten Bild, wiederholt sie nach fünf Fällen und setzt den Zweitstart zurück',()=>{
+    const {welt,raume}=baueWeltAttrappe()
+    try {
+      const namen=['mecha','humvee','panzer','haubitze','hubschrauber']
+      const level={...wendeArsenalAn(LEVELS[0],namen),P:1,startY:1000,wellen:[],eliteBossZeit:1000}
+      const z=neuerLauf(level,1),anzeige=new WeltDarstellung(welt,1,undefined,level)
+      const vorne=()=>welt.saeulen
+        .filter(s=>s.visible)
+        .sort((a,b)=>b.position.z-a.position.z)
+        .map(s=>s.children.flatMap(block=>block.children).find(m=>m.name.startsWith('fahrzeug-'))?.name)
+      expect(vorne()).toEqual(namen.slice(0,4).map(n=>`fahrzeug-${n}`))
+      expect(welt.saeulen.map(s=>s.position.z)).toEqual(saeulenZiele(level,0,welt.miniaturen,4))
+      anzeige.zeige(z,new Map(),[],0,0)
+      expect(vorne()).toEqual(namen.slice(0,4).map(n=>`fahrzeug-${n}`))
+      for(let fall=1;fall<=5;fall++) {
+        let ereignisse: ReturnType<typeof schritt>=[]
+        for(let i=0;i<100 && !ereignisse.some(e=>e.art==='einheitFrei');i++) ereignisse=schritt(z,{x:1},.1)
+        expect(ereignisse.some(e=>e.art==='einheitFrei'),`Fall ${fall}`).toBe(true)
+        anzeige.zeige(z,new Map(),ereignisse,.1,0)
+        for(let i=0;i<6;i++) anzeige.zeige(z,new Map(),[],.1,0)
+      }
+      expect(z.saeulenIndex).toBe(5)
+      expect(vorne()[0]).toBe('fahrzeug-mecha')
+      expect(z.P).toBeCloseTo(level.P*1.5)
+      anzeige.gibFrei()
+      const standard=new WeltDarstellung(welt,2,undefined,LEVELS[0])
+      standard.zeige(neuerLauf(LEVELS[0],2),new Map(),[],0,0)
+      expect(vorne()[0]).toBe('fahrzeug-humvee')
+      expect(welt.saeulen.map(s=>s.position.z)).toEqual(saeulenZiele(LEVELS[0],0,welt.miniaturen,4))
+      standard.gibFrei()
     } finally {raume()}
   })
   it('ordnet nach echten Freigaben Fahrzeuge und Zahlen dem nachgerückten Block zu',()=>{

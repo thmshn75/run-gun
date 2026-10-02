@@ -1,6 +1,6 @@
 # Aktive Aufgabe
 
-Status: SPEC_READY
+Status: APPROVED
 
 ## Aufgabe: Arsenal (Plan V7, D7-Lobby Punkt 3)
 
@@ -63,3 +63,21 @@ geänderte Stellen, A5-Zeilen, Testergebnisse, was nicht ging.
 ## Reißleine
 Lässt sich der Anfangsaufbau der Eis-Plätze nicht ohne Umbau der Szene auf die Level-Reihenfolge
 umstellen: melden; keine Lösung, bei der im ersten Bild die falsche Reihenfolge sichtbar ist.
+
+## Implementation Summary
+
+- A1: `speicher.ts` speichert eine geprüfte Permutation unter `rg3d.arsenal.v1` und bestätigt das Schreiben durch Rücklesen. Fehlende, beschädigte und gesperrte Daten fallen auf die Standardfolge zurück; der 2D-Spielstand bleibt bytegleich.
+- A2: `werkstatt.ts` erzeugt mit `wendeArsenalAn` ein neues Level mit eigenem Säulen-Array; die Level-Tabelle bleibt unverändert.
+- A3: `einstieg.ts` setzt Normal- und Testläufe in der Folge Basis → Werkstatt → Arsenal auf. Direktstart und Messmodus verwenden die Standardfolge. `lauf.ts` setzt Miniaturen und Abstände bereits beim Erzeugen der Laufdarstellung auf die Reihenfolge des laufenden Levels, auch bei NOCHMAL, WEITER und Zweitstart. `szene.ts` musste nicht umgebaut werden; die Reißleine griff nicht.
+- A4: `oberflaeche.ts` ergänzt ARSENAL unter WERKSTATT, mit frischem Lesen beim Öffnen, fünf sofort speichernden Zeilen, STANDARD, Fehlermeldung und ZURÜCK oben/unten.
+- A5: `bots3d.ts` ergänzt neun Info-Zeilen mit Werkstatt-Stufen 0/1/3 für Level 1/5/10. „Mecha zuerst“ und „Umgekehrt“ sind bei der vorgegebenen Standardfolge dieselbe Permutation.
+
+Bot-Profile (passiv · gewinnende Spielweisen · beste Quote):
+
+| Level / Stufe | Standard | Mecha zuerst | Umgekehrt |
+| --- | --- | --- | --- |
+| 1 / 0 | 0/20 · 24/30 · 20/20 | 0/20 · 25/30 · 20/20 | 0/20 · 25/30 · 20/20 |
+| 5 / 1 | 0/20 · 15/30 · 20/20 | 0/20 · 17/30 · 20/20 | 0/20 · 17/30 · 20/20 |
+| 10 / 3 | 0/20 · 3/30 · 20/20 | 0/20 · 1/30 · 15/20 | 0/20 · 1/30 · 15/20 |
+
+Nachweise: Bot-Ausgabe vor der ersten Änderung in `tmp/bots_vorher.txt`, danach in `tmp/bots_nachher.txt`. `npm run check` grün; `npm test` 75 Dateien/676 Tests grün; `npm run build` grün (bestehender Hinweis auf große Chunks); `npm run bots3d` grün. Diff der Bot-Ausgaben ohne alle `Profil`-Zeilen leer; `git diff --check` grün. Browser-/iPhone-Sichtprüfung nicht durchgeführt. Keine weiteren Blocker. Kein Commit oder Push.
