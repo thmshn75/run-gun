@@ -1,6 +1,6 @@
 import { performance } from 'node:perf_hooks'
 import { describe, expect, it } from 'vitest'
-import { FAHRZEUGE, FIGUREN, LEVELS, type Level } from '../src/v3d/balance3d'
+import { FAHRZEUGE, FIGUREN, LEVELS, SPEZIAL, type Level } from '../src/v3d/balance3d'
 import { neuerLauf, schritt, starteEinheit, gesamtDauer, phaseBei, type Ereignis } from '../src/v3d/rechnung'
 
 const dt = 1 / 30
@@ -15,7 +15,7 @@ const nah = (a: number, b: number) => {
 describe('3D-Spielrechnung', () => {
   it('wirkt je Ablauf unabhängig von der Schrittweite exakt wie die Tabelle', () => {
     for (const [name, dauer, wirkung] of [['humvee',14,120],['haubitze',6.75,180],['panzer',9.2,160],['hubschrauber',14,240],['mecha',22.55,260]] as const) {
-      expect(gesamtDauer(name)).toBeCloseTo(dauer, 8)
+      expect(gesamtDauer(SPEZIAL[name].ablauf)).toBeCloseTo(dauer, 8)
       for (const zeitSchritt of [1/30,.1,1]) {
         const z = neuerLauf(testLevel({ wellen: [], saeulen: [], eliteBossZeit: 999, startY: 1000 }), 5)
         z.Z = 10000
@@ -37,7 +37,7 @@ describe('3D-Spielrechnung', () => {
     expect(summe(schritt(z,{x:0},1),'spezialTreffer')).toBe(0)
     a.verstrichen=1.5
     expect(summe(schritt(z,{x:0},1),'spezialTreffer')).toBeCloseTo(5)
-    expect(phaseBei('humvee',2.5)).toMatchObject({index:1,art:'schneise',lokal:.5})
+    expect(phaseBei(a,2.5)).toMatchObject({index:1,art:'schneise',lokal:.5})
   })
   for (const zeitSchritt of [1 / 30, .1]) {
     it(`trifft den Mini-Boss durch die Humvee-Gasse und stoppt bei der nächsten Welle (dt ${zeitSchritt})`, () => {

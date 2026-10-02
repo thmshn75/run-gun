@@ -1,6 +1,6 @@
 # Aktive Aufgabe
 
-Status: SPEC_READY
+Status: APPROVED
 
 ## Aufgabe: Werkstatt (Plan V7, D7-Lobby Punkt 2)
 
@@ -131,3 +131,58 @@ Ist der W0-Diff nicht leer: nicht an Werten drehen, melden mit der ersten abweic
 Lässt sich W2b nicht vollständig umstellen: melden mit der Liste, Fahrzeug-Stufen dann **nicht**
 freischalten (Zeilen ausgegraut "bald"), Grundstufen trotzdem fertig bauen. Keine Änderung an
 Front-/Horde-Formeln.
+
+## Implementation Summary (Codex, 2026-10-02)
+
+- W0 vor der ersten Quelländerung ausgeführt und in `tmp/bots_vorher.txt` gesichert. Die vier Kopfzeilen von `npm run` wurden für den vorgeschriebenen Vergleich mit `npm run -s` entfernt; die 16 Bot-Zeilen blieben unverändert. Abschließender W0-Diff: leer (Exit 0).
+- W1: eigenes Konto `rg3d.werkstatt.v1`, feldweise Prüfung, begrenzte Münzen, atomarer Kauf mit Rücklesen. Alter 2D-Spielstand bleibt bytegleich.
+- W2/W3: diskriminierter Ablauf je aktiver Einheit als tiefe Kopie, reine Stufenrechnung und gemeinsame Zählung besiegter Zombies. Testwirkung: Panzer 190 statt 160, Haubitze 270 statt 180, Mecha insgesamt 330 statt 260 (Salven 210 statt 140); Humvee und Hubschrauber je 4 s länger. Haubitzentreffer bei 1,2/5,2/9,2 s (dt 0,05); Panzer sechs Schüsse.
+- W4/W5/W6: separate scrollbare Werkstatt aus der Lobby mit acht Kaufzeilen, zwei Zurück-Knöpfen und aktuellem Kontostand. Stufen werden nur beim Laufstart gelesen; Testgelände nutzt nur Fahrzeugstufen, Direktstart keine Stufen. Münzen werden beim Endereignis genau einmal gebucht und später auf der Tafel als tatsächlich gebuchter Betrag gezeigt; Abbruch bucht nichts.
+- W2b umgestellte Stellen (`rg -n 'phaseBei|gesamtDauer|restZeit|SPEZIAL\.|ablauf\[' src scripts`): `rechnung.ts:8-17,169,212` (Dauer, Phase, Restzeit, Wirkung), `lauf.ts:17-27,267,289-303,306-350,366-449` (Schusszeiten, Schneise, Fahrten, Haubitzenende, Mecha-Salven, Panzerziele). `messung.ts:68,76-80` bleibt bewusst stufenlos: Dauertest mit `SPEZIAL`, Level 0 ohne `spezial`; kein Umbau. Keine festen Ablauf-Indizes oder Schusszeiten mehr in `lauf.ts`.
+- Nachweise nach letzter Codeänderung: `npm run check` grün; `npm test` 74 Dateien/671 Tests grün; `npm run build` grün (bestehende Chunkgrößen-Warnung); `npm run bots3d` grün; W0-Diff leer; `git diff --check` grün. Keine Werte wegen der Reißleine gedreht. Kein Commit/Push. Browser-/iPhone-Sichtprüfung nicht durchgeführt. Die Projektregel für Tests in der Terminal-App war in dieser Umgebung nicht ausführbar (`open -a Terminal`: „Unable to find application named 'Terminal'“); die Tests liefen direkt und wurden am Ergebnis geprüft.
+
+Bot-Ausgabe W0 (ohne npm-Kopfzeilen):
+```text
+passiv: Siege 0/20, Ø Dauer 115.6 s, Ø gefallene Säulen 0.00
+nurLinks: Siege 0/20, Ø Dauer 75.0 s, Ø gefallene Säulen 0.00
+rhythmus(40): Siege 20/20, Ø Dauer 123.1 s, Ø gefallene Säulen 0.00
+rhythmusSaeule(60): Siege 20/20, Ø Dauer 106.3 s, Ø gefallene Säulen 2.00
+rhythmusSaeule(15): Siege 0/20, Ø Dauer 118.9 s, Ø gefallene Säulen 2.00
+rhythmusSaeule(25): Siege 0/20, Ø Dauer 125.3 s, Ø gefallene Säulen 3.00
+Level 1: passiv 0/20 · gewinnende Spielweisen 24/30 · beste 20/20
+Level 2: passiv 0/20 · gewinnende Spielweisen 22/30 · beste 20/20
+Level 3: passiv 0/20 · gewinnende Spielweisen 19/30 · beste 20/20
+Level 4: passiv 0/20 · gewinnende Spielweisen 17/30 · beste 20/20
+Level 5: passiv 0/20 · gewinnende Spielweisen 15/30 · beste 20/20
+Level 6: passiv 0/20 · gewinnende Spielweisen 13/30 · beste 20/20
+Level 7: passiv 0/20 · gewinnende Spielweisen 10/30 · beste 20/20
+Level 8: passiv 0/20 · gewinnende Spielweisen 8/30 · beste 20/20
+Level 9: passiv 0/20 · gewinnende Spielweisen 6/30 · beste 20/20
+Level 10: passiv 0/20 · gewinnende Spielweisen 3/30 · beste 20/20
+```
+
+Bot-Ausgabe W7 (`Ø Münzen` der besten Spielweise über 20 Läufe):
+```text
+Profil Stufen 3/3/3, keine Fahrzeuge · Level 1: passiv 0/20 · gewinnende Spielweisen 29/30 · beste 20/20 · Ø Münzen 148.7/Lauf
+Profil Stufen 3/3/3, keine Fahrzeuge · Level 2: passiv 0/20 · gewinnende Spielweisen 28/30 · beste 20/20 · Ø Münzen 177.8/Lauf
+Profil Stufen 3/3/3, keine Fahrzeuge · Level 3: passiv 0/20 · gewinnende Spielweisen 28/30 · beste 20/20 · Ø Münzen 205.9/Lauf
+Profil Stufen 3/3/3, keine Fahrzeuge · Level 4: passiv 0/20 · gewinnende Spielweisen 27/30 · beste 20/20 · Ø Münzen 230.9/Lauf
+Profil Stufen 3/3/3, keine Fahrzeuge · Level 5: passiv 0/20 · gewinnende Spielweisen 27/30 · beste 20/20 · Ø Münzen 271.3/Lauf
+Profil Stufen 3/3/3, keine Fahrzeuge · Level 6: passiv 0/20 · gewinnende Spielweisen 27/30 · beste 20/20 · Ø Münzen 296.3/Lauf
+Profil Stufen 3/3/3, keine Fahrzeuge · Level 7: passiv 0/20 · gewinnende Spielweisen 26/30 · beste 20/20 · Ø Münzen 327.5/Lauf
+Profil Stufen 3/3/3, keine Fahrzeuge · Level 8: passiv 0/20 · gewinnende Spielweisen 24/30 · beste 20/20 · Ø Münzen 356.9/Lauf
+Profil Stufen 3/3/3, keine Fahrzeuge · Level 9: passiv 0/20 · gewinnende Spielweisen 24/30 · beste 20/20 · Ø Münzen 384.2/Lauf
+Profil Stufen 3/3/3, keine Fahrzeuge · Level 10: passiv 0/20 · gewinnende Spielweisen 20/30 · beste 20/20 · Ø Münzen 421.6/Lauf
+Profil alle Stufen voll · Level 1: passiv 0/20 · gewinnende Spielweisen 29/30 · beste 20/20 · Ø Münzen 148.7/Lauf
+Profil alle Stufen voll · Level 2: passiv 0/20 · gewinnende Spielweisen 29/30 · beste 20/20 · Ø Münzen 177.8/Lauf
+Profil alle Stufen voll · Level 3: passiv 0/20 · gewinnende Spielweisen 29/30 · beste 20/20 · Ø Münzen 205.9/Lauf
+Profil alle Stufen voll · Level 4: passiv 0/20 · gewinnende Spielweisen 29/30 · beste 20/20 · Ø Münzen 230.9/Lauf
+Profil alle Stufen voll · Level 5: passiv 0/20 · gewinnende Spielweisen 29/30 · beste 20/20 · Ø Münzen 271.3/Lauf
+Profil alle Stufen voll · Level 6: passiv 0/20 · gewinnende Spielweisen 28/30 · beste 20/20 · Ø Münzen 296.3/Lauf
+Profil alle Stufen voll · Level 7: passiv 0/20 · gewinnende Spielweisen 28/30 · beste 20/20 · Ø Münzen 327.5/Lauf
+Profil alle Stufen voll · Level 8: passiv 0/20 · gewinnende Spielweisen 28/30 · beste 20/20 · Ø Münzen 356.9/Lauf
+Profil alle Stufen voll · Level 9: passiv 0/20 · gewinnende Spielweisen 28/30 · beste 20/20 · Ø Münzen 384.2/Lauf
+Profil alle Stufen voll · Level 10: passiv 0/20 · gewinnende Spielweisen 27/30 · beste 20/20 · Ø Münzen 421.6/Lauf
+Profil Siege Level 1–10 der Reihe nach bis voll: 29 Siege · Bedarf ¢ 8000 · Ø Siegmünzen je Level 148.7/177.8/205.9/230.9/271.3/296.3/327.5/356.9/384.2/421.6
+```
+Münzen-Messung: Level-1-Sieg der besten Spielweise im Profil `3/3/3` und bei vollen Stufen Ø 148,7 Münzen pro Lauf; die reine Siegfolge aus den gemessenen Durchschnittswerten erreicht 8 000 Münzen nach 29 Siegen. Kein W7-Hinweisfall: Vollausbau hat nirgends weniger gewinnende Spielweisen als W0, passiv gewinnt 0/20 auf allen Levels.

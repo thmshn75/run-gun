@@ -1,19 +1,20 @@
-import { FAHRZEUGE, FIGUREN, SPEZIAL, type Level, type SpezialName } from './balance3d.ts'
+import { FAHRZEUGE, FIGUREN, SPEZIAL, type Ablauf, type Level, type SpezialName } from './balance3d.ts'
 
 export type Ziel = 'front'
 export type BossName = 'miniBoss' | 'eliteBoss'
 export interface Trupp { ziel: Ziel; pos: number; anzahl: number; vervielfacht: boolean; k: number }
 export interface Boss { imFeld: boolean; B: number }
-export interface AktiveEinheit { einheit: SpezialName; verstrichen: number; einschlaege: number }
-export function gesamtDauer(einheit: SpezialName): number { return SPEZIAL[einheit].ablauf.reduce((summe, phase) => summe + phase.dauer, 0) }
-export function restZeit(a: AktiveEinheit): number { return gesamtDauer(a.einheit) - a.verstrichen }
+export interface AktiveEinheit { einheit: SpezialName; ablauf: Ablauf; verstrichen: number; einschlaege: number }
+export function gesamtDauer(x: AktiveEinheit | Ablauf): number { return ('ablauf' in x ? x.ablauf : x).reduce((summe, phase) => summe + phase.dauer, 0) }
+export function restZeit(a: AktiveEinheit): number { return gesamtDauer(a) - a.verstrichen }
 export function starteEinheit(z: Zustand, einheit: SpezialName): AktiveEinheit {
-  const aktiv = { einheit, verstrichen: 0, einschlaege: 0 }
+  const quelle: Ablauf = z.level.spezial?.[einheit]?.ablauf ?? SPEZIAL[einheit].ablauf
+  const aktiv: AktiveEinheit = { einheit, ablauf: quelle.map(phase => ({ ...phase })), verstrichen: 0, einschlaege: 0 }
   z.aktiv.push(aktiv)
   return aktiv
 }
-export function phaseBei(einheit: SpezialName, verstrichen: number): { index: number; art: 'fahrt' | 'feuer' | 'schneise' | 'einschlaege'; anteil: number; lokal: number } {
-  const phasen = SPEZIAL[einheit].ablauf
+export function phaseBei(x: AktiveEinheit | Ablauf, verstrichen: number): { index: number; art: 'fahrt' | 'feuer' | 'schneise' | 'einschlaege'; anteil: number; lokal: number } {
+  const phasen = 'ablauf' in x ? x.ablauf : x
   let start = 0
   for (let index = 0; index < phasen.length; index++) {
     const phase = phasen[index]
@@ -165,9 +166,9 @@ export function schritt(z: Zustand, eingabe: { x: number }, dt: number): Ereigni
   const weiterAktiv: AktiveEinheit[] = []
   for (const aktiv of z.aktiv) {
     const einheit = aktiv.einheit
-    const bis = Math.min(gesamtDauer(einheit), aktiv.verstrichen + dt)
+    const bis = Math.min(gesamtDauer(aktiv), aktiv.verstrichen + dt)
     let start = 0
-    for (const phase of SPEZIAL[einheit].ablauf) {
+    for (const phase of aktiv.ablauf) {
       const von = Math.max(aktiv.verstrichen, start)
       const ende = Math.min(bis, start + phase.dauer)
       const wirkZeit = Math.max(0, ende - von)
@@ -177,31 +178,29 @@ export function schritt(z: Zustand, eingabe: { x: number }, dt: number): Ereigni
         z.gasseAnteil = Math.max(z.gasseAnteil, Math.min(1, 2 * FAHRZEUGE[einheit].SCHNEISE_HALB / breite))
       }
       if (phase.art === 'einschlaege' && wirkZeit > 0) {
-        const p = phase as typeof SPEZIAL.haubitze.ablauf[1]
-        while (aktiv.einschlaege < p.einschlaege && ende - start >= aktiv.einschlaege * p.abstand - 1e-9) {
-          const treffer = Math.min(p.zombiesProEinschlag, z.Z)
+        while (aktiv.einschlaege < phase.einschlaege && ende - start >= aktiv.einschlaege * phase.abstand - 1e-9) {
+          const treffer = Math.min(phase.zombiesProEinschlag, z.Z)
           z.Z -= treffer
-          if (treffer > 0) ereignisse.push({ art: 'spezialTreffer', menge: treffer, t: z.t + Math.max(0, Math.min(dt, start + aktiv.einschlaege * p.abstand - aktiv.verstrichen)) - 1e-10, einheit })
+          if (treffer > 0) ereignisse.push({ art: 'spezialTreffer', menge: treffer, t: z.t + Math.max(0, Math.min(dt, start + aktiv.einschlaege * phase.abstand - aktiv.verstrichen)) - 1e-10, einheit })
           aktiv.einschlaege++
         }
       } else if ((phase.art === 'feuer' || phase.art === 'schneise') && wirkZeit > 0) {
-        const p = phase as { zombiesProSekunde: number; bossPunkteProSekunde?: number; bossAnteil?: number; dauer: number }
-        const treffer = Math.min(p.zombiesProSekunde * wirkZeit, z.Z)
+        const treffer = Math.min(phase.zombiesProSekunde * wirkZeit, z.Z)
         z.Z -= treffer
         if (treffer > 0) melde('spezialTreffer', treffer, { einheit })
-        if (p.bossPunkteProSekunde) {
+        if (phase.art === 'feuer' && phase.bossPunkteProSekunde) {
           const boss = z.miniBoss.imFeld && z.miniBoss.B > 0 ? 'miniBoss' : z.eliteBoss.imFeld && z.eliteBoss.B > 0 ? 'eliteBoss' : null
           if (boss) {
-            const schaden = Math.min(p.bossPunkteProSekunde * wirkZeit, z[boss].B)
+            const schaden = Math.min(phase.bossPunkteProSekunde * wirkZeit, z[boss].B)
             z[boss].B -= schaden
             if (schaden > 0) melde('bossTreffer', schaden, { boss })
             if (z[boss].B <= 0) z[boss].imFeld = false
           }
         }
-        if (p.bossAnteil) for (const boss of ['miniBoss', 'eliteBoss'] as const) {
+        if (phase.art === 'schneise' && phase.bossAnteil) for (const boss of ['miniBoss', 'eliteBoss'] as const) {
           if (!z[boss].imFeld || z[boss].B <= 0) continue
           const startLeben = boss === 'miniBoss' ? l.B_mini : l.B_elite
-          const schaden = Math.min(startLeben * p.bossAnteil * wirkZeit / p.dauer, z[boss].B)
+          const schaden = Math.min(startLeben * phase.bossAnteil * wirkZeit / phase.dauer, z[boss].B)
           z[boss].B -= schaden
           if (schaden > 0) melde('bossTreffer', schaden, { boss })
           if (z[boss].B <= 0) z[boss].imFeld = false

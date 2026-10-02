@@ -1,3 +1,10 @@
+export type Phase =
+  | { art: 'fahrt'; dauer: number }
+  | { art: 'feuer'; dauer: number; zombiesProSekunde: number; bossPunkteProSekunde?: number }
+  | { art: 'schneise'; dauer: number; zombiesProSekunde: number; bossAnteil?: number }
+  | { art: 'einschlaege'; dauer: number; einschlaege: number; abstand: number; zombiesProEinschlag: number }
+export type Ablauf = readonly Phase[]
+
 export interface Level {
   T0: number
   kStart: number
@@ -28,6 +35,7 @@ export interface Level {
   bossSchaden: number
   marsch: number
   startY: number
+  spezial?: Partial<Record<SpezialName, { ablauf: Ablauf }>>
 }
 
 const BASIS: Level = {
@@ -70,8 +78,37 @@ export const SPEZIAL = {
     { art: 'feuer', dauer: 10, zombiesProSekunde: 12, bossPunkteProSekunde: 40 },
     { art: 'einschlaege', dauer: 4.05, einschlaege: 2, abstand: 4, zombiesProEinschlag: 70 },
     { art: 'fahrt', dauer: 3.5 }] },
-} as const
+} as const satisfies Record<string, { ablauf: Ablauf }>
 export type SpezialName = keyof typeof SPEZIAL
+
+export const WERKSTATT = {
+  truppe: { preise: [100, 200, 350, 550, 800], maximum: 5 },
+  feuer: { preise: [100, 200, 350, 550, 800], maximum: 5 },
+  eis: { preise: [100, 200, 350, 550, 800], maximum: 5 },
+  panzer: { preise: [400], maximum: 1, ablauf: [
+    { art: 'fahrt', dauer: 1.2 }, { art: 'feuer', dauer: .75, zombiesProSekunde: 40 },
+    { art: 'fahrt', dauer: 1.5 }, { art: 'feuer', dauer: .75, zombiesProSekunde: 40 },
+    { art: 'fahrt', dauer: 1.5 }, { art: 'feuer', dauer: .75, zombiesProSekunde: 40 },
+    { art: 'schneise', dauer: 5, zombiesProSekunde: 20, bossAnteil: .05 },
+  ] },
+  haubitze: { preise: [400], maximum: 1, ablauf: [
+    { art: 'fahrt', dauer: 1.2 },
+    { art: 'einschlaege', dauer: 8.05, einschlaege: 3, abstand: 4, zombiesProEinschlag: 90 },
+    { art: 'fahrt', dauer: 1.5 },
+  ] },
+  humvee: { preise: [400], maximum: 1, ablauf: [
+    { art: 'fahrt', dauer: 2 }, { art: 'schneise', dauer: 16, zombiesProSekunde: 10 },
+  ] },
+  hubschrauber: { preise: [400], maximum: 1, ablauf: [
+    { art: 'fahrt', dauer: 2 }, { art: 'feuer', dauer: 16, zombiesProSekunde: 20, bossPunkteProSekunde: 25 },
+  ] },
+  mecha: { preise: [400], maximum: 1, ablauf: [
+    { art: 'fahrt', dauer: 5 }, { art: 'feuer', dauer: 10, zombiesProSekunde: 12, bossPunkteProSekunde: 40 },
+    { art: 'einschlaege', dauer: 8.05, einschlaege: 3, abstand: 4, zombiesProEinschlag: 70 },
+    { art: 'fahrt', dauer: 3.5 },
+  ] },
+} as const satisfies Record<string, { preise: readonly number[]; maximum: number; ablauf?: Ablauf }>
+export type WerkstattArt = keyof typeof WERKSTATT
 
 export const FAHRZEUGE = {
   humvee: { LAENGE: 4.6, DREIECKE: 1528, DREHUNG: 180, FELD_DREHUNG: 0, SPIEL_SKALA: .8, MUENDUNG: [0, 1.76, -.87] as const, SCHNEISE_HALB: .7957 },

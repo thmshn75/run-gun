@@ -567,7 +567,7 @@ describe('3D-Lauf',()=>{
     const frei=lauf.schritt(.1,3)
     expect(frei.some(e=>e.art==='einheitAktiv')).toBe(true)
     for(let i=0;i<10;i++)lauf.schritt(.1,0)
-    z.aktiv[0].verstrichen=gesamtDauer('humvee')-.01
+    z.aktiv[0].verstrichen=gesamtDauer(z.aktiv[0])-.01
     const ende=lauf.schritt(.1,0)
     expect(ende.some(e=>e.art==='einheitEnde')).toBe(true)
   })
