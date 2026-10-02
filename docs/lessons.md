@@ -1591,3 +1591,14 @@ Differenz zum Ausgangszustand, nie den Absolutwert. Vor dem Handoff jedes Messkr
 gegen den Ruhezustand durchdenken: Besteht der unbewegte Ausgangszustand die Prüfung? Wenn
 nein, ist das Kriterium falsch. Und wenn eine Reißleine zweimal greift, zuerst die Messung
 prüfen, dann die Umsetzung.
+
+## 2026-10-02 — Spec schreiben und Folgeschritt im selben Schwung (zweimal in zwei Tagen)
+
+2026-10-01 18:41 und 2026-10-02 06:20: Der Schreibbefehl für `docs/active-task.md` scheiterte
+("Datei seit dem Lesen verändert" — Codex/Commit hatte sie geändert), die im selben Schwung
+abgeschickten Folgeschritte liefen trotzdem: einmal startete Codex mit dem alten, erledigten
+Auftrag, einmal das Härten. Beide Male nur durch Zufall bemerkt.
+**Regel:** Ein Schritt, der auf einer frisch geschriebenen Datei aufbaut (Commit, Codex-Start,
+Härten), wird erst abgeschickt, wenn das Schreiben bestätigt ist — nie parallel. Vor dem
+Schreiben der Task-Datei sie immer neu lesen, wenn Codex oder ein Commit sie seit dem letzten
+Lesen berührt hat.
