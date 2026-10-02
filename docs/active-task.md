@@ -1,83 +1,68 @@
 # Aktive Aufgabe
 
-Status: APPROVED
+Status: SPEC_READY
 
-## Aufgabe: Arsenal (Plan V7, D7-Lobby Punkt 3)
+## Aufgabe: D8 — Politur (Plan V7), Liste von Thomas bestätigt
 
-Plan V7: "Arsenal (Reihenfolge der Fahrzeuge in den Eisblöcken selbst festlegen) — zuletzt."
-Vorgänger: Werkstatt (Commit 965d991) und Level-Neukalibrierung (Commit 7ceda1f), Thomas
-2026-10-02 07:06 "ok mach weiter". Arsenal ist **kostenlos** (Plan nennt keinen Preis).
+Thomas 2026-10-02 08:26: "1–4 umsetzen, kein Klang". Liste:
+1. Soldat: Ärmel heller als die Weste, echte Gewehr-Anschlagpose statt Pistolenhaltung,
+   Gesichtsmaske Coyote (vorgemerkt 2026-09-29).
+2. Niederlage: Die Horde überrennt die Truppe sichtbar, statt im letzten Moment zu verschwinden.
+3. Mecha-Raketen: kräftigerer Rauch.
+4. Treffer-Rückmeldung: Zahlen über getroffenen Bossen.
+Vorgänger Arsenal (Commit fd48402).
 
-**Ist-Zustand:** Alle Level haben `saeulen: ['humvee','haubitze','panzer','hubschrauber','mecha']`
-(aus `BASIS`). Die Darstellung baut die Eis-Plätze anfangs mit `LEVELS[0]`
-(`szene.ts` ~Z. 85–95, 202, 219; `lauf.ts` ~Z. 783 und `setzeEisZurueck` ~Z. 859), ordnet die
-Miniaturen danach aber über `z.level.saeulen` (`ordneMiniaturen`). Je Fahrzeugart gibt es genau
-eine Miniatur.
+**Ist-Zustand:** `scripts/modelle.mjs` färbt den Soldaten über `COYOTE_FARBEN` (Jacke
+`Mark_Kitel_1` #b39a74, Weste/Taschen #7a6549, Helm #a58a64, Handschuhe #141414; Maske
+`Mark_HeadMasked` ungefärbt). Bewegungen aus der Quaternius-Bibliothek `tmp/UAL1_Standard.glb`
+(nur Pistolen-Clips: `Pistol_Aim_Neutral`, `Pistol_Idle_Loop`, `Pistol_Shoot`; **keine**
+Gewehr-Clips), gebacken in `soldaten.ts` (`laufen`/`stehen`/`schiessen`, M4 an der rechten Hand).
+Bei `z.y ≤ 0` wird die Horde unsichtbar (`lauf.ts` ~Z. 106, 912, 941). Raketenrauch:
+`this.rauch.starte(start, .6, 1.4, .5)` und Spur `(pos, .25, .45, .4)` (`lauf.ts` ~Z. 139, 217).
+Boss-Treffer kommen als `bossTreffer`-Ereignisse.
 
 ## Erlaubte Änderungen (abschließend)
-- `src/v3d/speicher.ts` (Arsenal-Speicher), `src/v3d/werkstatt.ts` (reine Funktion
-  `wendeArsenalAn`), `src/v3d/oberflaeche.ts` (Arsenal-Ansicht, Knopf in der Lobby),
-  `src/v3d/einstieg.ts` (`starteLauf`), `src/v3d/lauf.ts` (Eis-Plätze nach der Reihenfolge des
-  laufenden Levels statt `LEVELS[0]`), `src/v3d/szene.ts` nur falls der Anfangsaufbau sonst
-  falsch steht, `tests/`, `scripts/bots3d.ts` (Info-Profile A5).
-- Nicht: Kern-Formeln, Level-Tabelle, Werkstatt-Preise, 2D-Code.
+`scripts/modelle.mjs` (Soldat: Farben, ggf. Pose beim Backen), `src/v3d/soldaten.ts`,
+`src/v3d/modelle/` (neu gebackener Soldat), `src/v3d/lauf.ts`, `src/v3d/anzeigen.ts`,
+`src/v3d/balance3d.ts` (nur Darstellungswerte), `tests/`. Nicht: Kern, Level, Werkstatt, 2D.
 
 ## Akzeptanzkriterien
 
-**A1 Speicher.** Schlüssel `rg3d.arsenal.v1`: `{ version: 1, reihenfolge: string[] }`. Gültig nur,
-wenn `reihenfolge` eine **Permutation** genau der fünf Namen aus `BASIS.saeulen` ist; sonst (fehlt,
-kaputt, doppelt, unbekannt, zu kurz) gilt die Standardreihenfolge — nie Absturz. Schreiben mit
-Rücklese-Prüfung wie `kaufe` (scheitert → `false`, Ansicht zeigt "Speichern nicht möglich").
-Test: 2D-Spielstand byte-gleich, alle Fehlerfälle → Standard.
+**P1a Farben.** Jacke/Ärmel `Mark_Kitel_1` heller: #c8b08a; Weste/Taschen bleiben; Maske
+`Mark_HeadMasked` Coyote #a58a64 (Augenbereich `Mark_Eye`/`Mark_SunGlusses_Glus` bleibt dunkel).
+Messbar: mittlere Helligkeit der Ärmelpixel im Nahbild ≥ 15 % über der Weste. Nahbild Soldat
+vorn/seitlich (Pruefbild wie bei `?pruefung=soldat`) in den Bericht.
 
-**A2 `wendeArsenalAn(level, reihenfolge): Level`** (rein, `werkstatt.ts`): neues Level-Objekt
-mit neuem `saeulen`-Array in der gewünschten Reihenfolge; `LEVELS` unverändert (Freeze-Test).
+**P1b Gewehr-Anschlag.** Für `stehen` und `schiessen` (nicht `laufen`, `fallen`) wird die
+Oberkörperhaltung beim Backen so korrigiert, dass das M4 wie ein Gewehr gehalten wird:
+rechte Hand am Griff (wie heute), **linke Hand am Vorderschaft** (Abstand Handwurzel links ↔
+Punkt 0,35 m vor dem Griff entlang der M4-Achse ≤ 4 cm), **Kolben an der rechten Schulter**
+(Kolbenende ≤ 8 cm vom Schultergelenk), Lauf zeigt nach vorn (−z, Abweichung ≤ 10°). Umsetzung
+über Zwei-Gelenk-Ausrichtung (Oberarm/Unterarm, "Two-Bone-IK") je Bild beim Backen, Körper
+und Beine aus dem bisherigen Clip. Messwerte je Pose in den Bericht, Nahbild von vorn und von
+der Seite.
 
-**A3 Lauf.** In `starteLauf`: Normallauf **und** Testgelände nach Arsenal-Reihenfolge
-(Reihenfolge: Basis → Werkstatt-Stufen → Arsenal); Prüfläufe (`direkt`) und Messmodus mit
-Standardreihenfolge. Die Darstellung baut die vier sichtbaren Eis-Plätze, die Abstände
-(`saeulenZiele`) und die Miniatur-Zuordnung **ab dem ersten Bild** nach `z.level.saeulen` (auch
-nach NOCHMAL/WEITER und Zweitstart). Test (Welt-Stub): Reihenfolge `['mecha','humvee',
-'panzer','haubitze','hubschrauber']` → nach dem ersten `zeige` steht vorn der Mecha, dann
-Humvee …; nach 5 Fällen wieder der Mecha mit `P × 1,5`; zweiter Lauf mit Standardreihenfolge
-zeigt vorn wieder den Humvee.
+**P2 Horde überrennt.** Bei `niederlage` im Nachlauf (bestehende 3 s): Die sichtbare Horde
+bleibt sichtbar und rückt in 1,5 s um 4 m weiter vor (über die Truppenposition hinaus),
+während die Truppe fällt (bestehend); Zombies im Vordergrund überdecken die Gefallenen. Kein
+Sprung: die Horde startet an ihrer letzten Lage. Test: nach `niederlage` sind > 0 Zombies
+sichtbar und ihre vorderste Reihe liegt nach 1,5 s ≥ 3 m weiter vorn.
 
-**A4 Ansicht.** Knopf **ARSENAL** in der Lobby unter WERKSTATT. Eigenes Element neben
-`ui.lobby` (wie die Werkstatt), liest beim Öffnen frisch. Überschrift "ARSENAL", Hinweis
-"Reihenfolge der Eis-Säulen — die oberste kommt zuerst". Fünf Zeilen mit Platznummer, Name
-(HUMVEE …) und zwei Knöpfen ▲ ▼ (oberste ▲ und unterste ▼ ausgegraut); jeder Tipp speichert
-sofort und zeigt die neue Reihenfolge. Knopf "STANDARD" stellt die Standardreihenfolge her.
-Zeilen ≥ 56 px, Tippflächen ≥ 44 px, Schrift ≥ 16 px bei 390 × 844. ZURÜCK (oben und unten)
-→ `zeigeLobby()`. Test: ▲ auf Platz 5 → Mecha auf Platz 4, gespeichert; SPIELEN startet mit
-dieser Reihenfolge.
+**P3 Raketenrauch kräftiger.** Abschusswolke Ø 1,0 → 2,4 m, 0,9 s, dunkler (#6d6d6d,
+Deckkraft 0,75 → 0); Spur je Rakete 6–8 Puffs Ø 0,45 → 0,9 m, 0,7 s, Deckkraft 0,6 → 0.
+Pool so groß, dass zwei Salven gleichzeitig Platz haben (keine Verdrängung). Kurzlebig-Regel.
 
-**A5 Bots (Info).** `scripts/bots3d.ts` druckt zusätzlich Zeilen `Profil Arsenal …` für Level
-1, 5, 10 mit Werkstatt-Maßstab (Stufen 0/1/3 wie in der Kalibrierung) in drei Reihenfolgen:
-Standard, "Mecha zuerst" (`mecha, hubschrauber, panzer, haubitze, humvee`) und umgekehrt zur
-Standardreihenfolge. Bestehende Zeilen unverändert (`diff` ohne `Profil`-Zeilen leer).
+**P4 Trefferzahlen über Bossen.** Bei `bossTreffer` (Mini- und Elite-Boss): Zahl "−N"
+(gerundete Summe der Treffer der letzten 0,3 s) über dem Kopf des Bosses, steigt in 0,8 s um
+1,2 m und blendet aus; weiß mit dunklem Rand, Ziffernhöhe ≥ 16 px bei 390 × 844; höchstens
+6 gleichzeitig (Pool, ein Zeichenaufruf oder Sprite-Pool), älteste wird ersetzt. Keine
+Zahlen bei 0. Test: Summe der angezeigten Zahlen = Summe der `bossTreffer` (± Rundung je Zahl).
 
 ## Nachweise
-`npm run check`, `npm test`, `npm run build`, `npm run bots3d`. Status `IMPL_DONE`, Bericht:
-geänderte Stellen, A5-Zeilen, Testergebnisse, was nicht ging.
+`npm run check`, `npm test`, `npm run build`, `npm run bots3d` (unverändert). Status
+`IMPL_DONE`, Bericht: P1a-Helligkeiten, P1b-Messwerte je Pose, Nahbilder, Testergebnisse.
 
 ## Reißleine
-Lässt sich der Anfangsaufbau der Eis-Plätze nicht ohne Umbau der Szene auf die Level-Reihenfolge
-umstellen: melden; keine Lösung, bei der im ersten Bild die falsche Reihenfolge sichtbar ist.
-
-## Implementation Summary
-
-- A1: `speicher.ts` speichert eine geprüfte Permutation unter `rg3d.arsenal.v1` und bestätigt das Schreiben durch Rücklesen. Fehlende, beschädigte und gesperrte Daten fallen auf die Standardfolge zurück; der 2D-Spielstand bleibt bytegleich.
-- A2: `werkstatt.ts` erzeugt mit `wendeArsenalAn` ein neues Level mit eigenem Säulen-Array; die Level-Tabelle bleibt unverändert.
-- A3: `einstieg.ts` setzt Normal- und Testläufe in der Folge Basis → Werkstatt → Arsenal auf. Direktstart und Messmodus verwenden die Standardfolge. `lauf.ts` setzt Miniaturen und Abstände bereits beim Erzeugen der Laufdarstellung auf die Reihenfolge des laufenden Levels, auch bei NOCHMAL, WEITER und Zweitstart. `szene.ts` musste nicht umgebaut werden; die Reißleine griff nicht.
-- A4: `oberflaeche.ts` ergänzt ARSENAL unter WERKSTATT, mit frischem Lesen beim Öffnen, fünf sofort speichernden Zeilen, STANDARD, Fehlermeldung und ZURÜCK oben/unten.
-- A5: `bots3d.ts` ergänzt neun Info-Zeilen mit Werkstatt-Stufen 0/1/3 für Level 1/5/10. „Mecha zuerst“ und „Umgekehrt“ sind bei der vorgegebenen Standardfolge dieselbe Permutation.
-
-Bot-Profile (passiv · gewinnende Spielweisen · beste Quote):
-
-| Level / Stufe | Standard | Mecha zuerst | Umgekehrt |
-| --- | --- | --- | --- |
-| 1 / 0 | 0/20 · 24/30 · 20/20 | 0/20 · 25/30 · 20/20 | 0/20 · 25/30 · 20/20 |
-| 5 / 1 | 0/20 · 15/30 · 20/20 | 0/20 · 17/30 · 20/20 | 0/20 · 17/30 · 20/20 |
-| 10 / 3 | 0/20 · 3/30 · 20/20 | 0/20 · 1/30 · 15/20 | 0/20 · 1/30 · 15/20 |
-
-Nachweise: Bot-Ausgabe vor der ersten Änderung in `tmp/bots_vorher.txt`, danach in `tmp/bots_nachher.txt`. `npm run check` grün; `npm test` 75 Dateien/676 Tests grün; `npm run build` grün (bestehender Hinweis auf große Chunks); `npm run bots3d` grün. Diff der Bot-Ausgaben ohne alle `Profil`-Zeilen leer; `git diff --check` grün. Browser-/iPhone-Sichtprüfung nicht durchgeführt. Keine weiteren Blocker. Kein Commit oder Push.
+P1b ist der riskante Punkt: Überzeugt die Gewehrhaltung nach **einem** Anlauf nicht (Messwerte
+verfehlt, Arm verdreht, Hand im Körper): **melden** mit Messwerten und Nahbild, Pistolenhaltung
+bleibt, P1a/P2/P3/P4 trotzdem fertig bauen. Kein anderes Modell, keine neue Bewegungsbibliothek.
