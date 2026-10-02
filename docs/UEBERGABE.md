@@ -33,7 +33,16 @@ Vollausbau ≈ 29 Siege. Wartet auf Thomas' Spielgefühl.
 **Stand 2026-10-02 07:20:** Arsenal online (Commit fd48402): Lobby → ARSENAL, Reihenfolge der
 5 Eis-Säulen per ▲/▼, gespeichert unter `rg3d.arsenal.v1`, gilt für Normallauf und Testgelände.
 Bots: Reihenfolge ändert die Schwierigkeit kaum, "Mecha zuerst" auf L10 eher schwerer.
-**Naechster Schritt:** D8 Politur — laut Plan **nur mit vorab von Thomas bestätigter Liste**.
+**Stand 2026-10-02 10:35:** D8 Politur online (Commits c520ac1, 7c42dd2): Coyote-Maske, Ärmel
+Coyote (leicht heller als Weste), Horde überrennt bei Niederlage, kräftiger Raketenrauch,
+Trefferzahlen über Bossen. **M4 hing seit D2b verkehrt herum** (Lauf zum eigenen Kopf, Test
+prüfte das Kolbenende als "Mündung") — behoben, Mündung jetzt aus der Geometrie, Mündungsfeuer
+vorn (lessons.md 2026-10-02). **Gewehr-Anschlag zweihändig: zwei Anläufe gescheitert**
+(Reißleine), Soldaten halten das M4 einhändig, aber richtig herum. Plan V7 damit bis auf diesen
+Punkt umgesetzt. Offen für Thomas: Sichtung von D8 und Werkstatt-Balance im Spiel.
+**Naechster Schritt:** Thomas fragen, was nach Plan V7 kommt (z. B. Anschlag mit anderem
+Verfahren/Modell, weitere Level, Klang).
+Alter Stand: D8 Politur — laut Plan **nur mit vorab von Thomas bestätigter Liste**.
 Kandidaten (Claude): Soldat Ärmel heller/Gewehr-Anschlag/Maske Coyote (vorgemerkt 2026-09-29);
 Niederlage: Horde verschwindet statt überzurennen; Raketen-Rauch kräftiger; Treffer-Feedback/
 Zahlen/Klang (Plan).
