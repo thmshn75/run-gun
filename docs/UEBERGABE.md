@@ -30,7 +30,13 @@ besiegte + Sieg-Bonus 50 + 25 × Level, auch Niederlagen zählen), Grundstufen T
 kalibriert** (Thomas 07:01, Option "spätere Level härter"): Maßstab erwarteter Fortschritt
 0/1/2/3 Stufen je Grundart ab L1/L4/L7/L9; ohne Stufen sind L9/L10 nicht zu schaffen (gewollt).
 Vollausbau ≈ 29 Siege. Wartet auf Thomas' Spielgefühl.
-**Naechster Schritt:** Arsenal (Reihenfolge der Fahrzeuge in den Eisblöcken selbst festlegen), dann D8.
+**Stand 2026-10-02 07:20:** Arsenal online (Commit fd48402): Lobby → ARSENAL, Reihenfolge der
+5 Eis-Säulen per ▲/▼, gespeichert unter `rg3d.arsenal.v1`, gilt für Normallauf und Testgelände.
+Bots: Reihenfolge ändert die Schwierigkeit kaum, "Mecha zuerst" auf L10 eher schwerer.
+**Naechster Schritt:** D8 Politur — laut Plan **nur mit vorab von Thomas bestätigter Liste**.
+Kandidaten (Claude): Soldat Ärmel heller/Gewehr-Anschlag/Maske Coyote (vorgemerkt 2026-09-29);
+Niederlage: Horde verschwindet statt überzurennen; Raketen-Rauch kräftiger; Treffer-Feedback/
+Zahlen/Klang (Plan).
 
 ## Offen — naechster Schritt zuerst
 
