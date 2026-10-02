@@ -4,6 +4,12 @@ Stand: 2026-09-30 21:35 (**Plan V7 "Run Gun 3D" ist verbindlich**, `docs/plan-v7
 Sessionende auf Thomas' Wunsch; letzter Code-Commit c7d0b9c, online; `docs/active-task.md`
 steht auf IDLE, es laeuft kein Codex.)
 
+**Stand 2026-10-02 10:45 — Sessionende auf Thomas' Wunsch ("erstmal spielen").** Plan V7 ist
+umgesetzt (D0–D8, D7r Mecha, Werkstatt, Arsenal) bis auf den zweihändigen Gewehr-Anschlag (zwei
+Anläufe gescheitert). `docs/active-task.md` IDLE, es läuft nichts, alles committet und online.
+**Nächster Schritt:** Thomas' Rückmeldungen aus dem Spielen abwarten; Ideen: Anschlag über
+anderes Verfahren/Modell, mehr Level, neue Gegner, Balance der Werkstatt.
+
 **Das Naechste liegt in `## Offen`, Punkt 0.**
 
 **Stand 2026-10-01 12:10:** D5e (Eis-Säulen) abgenommen — Eishülle in Fahrzeugform, gemeinsamer
@@ -467,4 +473,5 @@ echten Runs. Beides sollte nach Bennis Test nachgezogen werden.
 ## Einstiegssatz
 "Lies `docs/UEBERGABE.md` (vollstaendig, nicht nur die Vorschau), `docs/lessons.md` und
 `docs/plan-v7.md` und arbeite dort weiter. **Nichts neu aufsetzen.** Es laeuft gerade nichts,
-`docs/active-task.md` ist leer. Weiter mit `## Offen`, Punkt 0 (D5e Eis-Saeulen: Spec schreiben)."
+`docs/active-task.md` ist leer. Plan V7 ist umgesetzt — Thomas' Rückmeldungen aus dem Spielen
+sind der nächste Input."
