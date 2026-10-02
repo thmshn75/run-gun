@@ -55,7 +55,11 @@ const BASIS: Level = {
 // × 20 Seeds je Level). Ziel: gewinnende Spielweisen fallen 24 → 3, beste Spielweise gewinnt
 // 20/20, passiv verliert 20/20; Zombies gesamt und Boss-Leben steigen monoton.
 // Je Level: [Wellen, Zombies je Welle]. Gemessen: 24/22/19/17/15/13/10/8/6/3 Spielweisen.
-const STUFEN: readonly (readonly [number, number])[] = [[3, 250], [3, 264], [3, 275], [3, 275], [4, 244], [4, 244], [4, 260], [4, 271], [5, 221], [5, 246]]
+// Neu kalibriert 2026-10-02 (Thomas: späte Level auch mit Werkstatt fordernd): Maßstab ist der
+// erwartete Fortschritt Truppe/Feuer/Eis je Stufe 0 (L1–3), 1 (L4–6), 2 (L7–8), 3 (L9–10).
+// Gemessen mit diesen Stufen: 24/22/19/17/15/13/10/8/6/3 Spielweisen, beste 20/20, passiv 0/20.
+// Ohne Stufen sind L9/L10 nicht zu gewinnen (gewollt: die Werkstatt trägt die späten Level).
+const STUFEN: readonly (readonly [number, number])[] = [[3, 250], [3, 264], [3, 274], [3, 319], [4, 282], [4, 295], [4, 343], [4, 378], [5, 356], [5, 356]]
 export const LEVELS: Level[] = STUFEN.map(([wellenZahl, groesse], i) => ({
   ...BASIS,
   wellen: Array.from({ length: wellenZahl }, (_, j) => ({ t: 20 * j, groesse })),

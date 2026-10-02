@@ -24,7 +24,13 @@ an einem widersprüchlichen Prüfkriterium der Spec, siehe lessons.md), kein Rum
 langsamer Gang (5 s hinein, Zyklus 1,8 s), Armkanonen, zwei Raketensalven mit Abschussblitz und
 Rauch. Sekundenanzeige der Einheiten entfernt, Testgelände in der Lobby aufklappbar. Wartet auf
 Thomas' Blick. Rohmodell `~/Downloads/rungun-roh/mecha/`, Kopie `tmp/fahrzeuge/mecha/`.
-**Naechster Schritt:** Werkstatt (Plan V7, D7-Lobby Punkt 2).
+**Stand 2026-10-02 07:10:** Werkstatt online (Commit 965d991): Münzen je Lauf (1 je 10
+besiegte + Sieg-Bonus 50 + 25 × Level, auch Niederlagen zählen), Grundstufen Truppe/Feuer/Eis
+(je 5, 100–800), Fahrzeugstufen (je 400), Ablauf je Einheit im Kern. Danach **Level neu
+kalibriert** (Thomas 07:01, Option "spätere Level härter"): Maßstab erwarteter Fortschritt
+0/1/2/3 Stufen je Grundart ab L1/L4/L7/L9; ohne Stufen sind L9/L10 nicht zu schaffen (gewollt).
+Vollausbau ≈ 29 Siege. Wartet auf Thomas' Spielgefühl.
+**Naechster Schritt:** Arsenal (Reihenfolge der Fahrzeuge in den Eisblöcken selbst festlegen), dann D8.
 
 ## Offen — naechster Schritt zuerst
 
