@@ -40,6 +40,9 @@ prüfte das Kolbenende als "Mündung") — behoben, Mündung jetzt aus der Geome
 vorn (lessons.md 2026-10-02). **Gewehr-Anschlag zweihändig: zwei Anläufe gescheitert**
 (Reißleine), Soldaten halten das M4 einhändig, aber richtig herum. Plan V7 damit bis auf diesen
 Punkt umgesetzt. Offen für Thomas: Sichtung von D8 und Werkstatt-Balance im Spiel.
+**Nachtrag 10:41:** Gewehr weiter nach vorn (`M4_VORLAGE` 3,5 in `scripts/modelle.mjs`: Hand am
+Pistolengriff, 65 % der Waffe vor der Hand, Kolben nicht mehr auf der Schulter) — Thomas:
+"besser so" (Commit 2933c8b, von Claude direkt umgesetzt, Codex am Limit).
 **Naechster Schritt:** Thomas fragen, was nach Plan V7 kommt (z. B. Anschlag mit anderem
 Verfahren/Modell, weitere Level, Klang).
 Alter Stand: D8 Politur — laut Plan **nur mit vorab von Thomas bestätigter Liste**.
