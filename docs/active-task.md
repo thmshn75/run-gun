@@ -1,6 +1,6 @@
 # Aktive Aufgabe
 
-Status: APPROVED
+Status: SPEC_READY
 
 ## Aufgabe: D8 — Politur (Plan V7), Liste von Thomas bestätigt
 
@@ -78,3 +78,41 @@ bleibt, P1a/P2/P3/P4 trotzdem fertig bauen. Kein anderes Modell, keine neue Bewe
 Modell-Prüfbilder der beibehaltenen Pose: [stehen vorn](../tests/nachweise/d8-soldat-stehen-vorn.png), [stehen seitlich](../tests/nachweise/d8-soldat-stehen-seite.png), [schiessen vorn](../tests/nachweise/d8-soldat-schiessen-vorn.png), [schiessen seitlich](../tests/nachweise/d8-soldat-schiessen-seite.png). Sie wurden aus den gebackenen Geometrien und dem Atlas erzeugt. Eine echte Browser-, WebGL- oder iPhone-Sichtung war in dieser Umgebung nicht möglich.
 
 Prüfungen: `npm run check` erfolgreich; `npm test` 76 Dateien/680 Tests erfolgreich; `npm run build` erfolgreich (bestehende Chunk-Größenwarnung); `npm run bots3d` erfolgreich, passiv 0/20, beste ausgerüstete Spielweise in jedem Level 20/20. `git diff --check` ohne Befund. Die vorgeschriebene Terminal-App war nicht erreichbar (`open -a Terminal`: „Unable to find application named 'Terminal'“); die Befehle liefen im verfügbaren Terminal-Werkzeug. Kein Commit und kein Push.
+
+
+## Nacharbeit 1 — Gewehr verkehrt herum, Ärmel, Anschlag zweiter Anlauf (Thomas 2026-10-02 10:05)
+
+**Befund Claude (Soldaten-Nahansicht `?nahaufnahme=soldat`, im Spiel):** Das M4 hängt seit D2b
+**verkehrt herum**: rechte Hand am Pistolengriff, aber der **Lauf zeigt nach hinten** zum eigenen
+Kopf, der Kolben nach vorn. Der als `m4MuzzleVertex` gewählte Punkt ist in Wahrheit das
+**Kolbenende** — deshalb bestand der Test "Mündung vor Brust" und das Mündungsfeuer blitzte
+vorn, obwohl das Gewehr falsch lag. Die hellen Ärmel aus P1a (#c8b08a) wirken fast weiß und
+lassen die Arme im Prüfbild im Rumpf verschwinden (Thomas: "sieht schrecklich aus", "keine Arme").
+Thomas: "Achte darauf, dass das Mündungsfeuer dann auch vorne rauskommt."
+
+**N1 Gewehr richtig herum.** M4 so ausrichten, dass der **Lauf** nach vorn (−z) zeigt und der
+Kolben zum Körper; rechte Hand bleibt am Pistolengriff (≤ 3 cm wie bisher). Die **Mündung** wird
+aus der Geometrie bestimmt, nicht über ein Achsenvorzeichen: das Ende der M4-Längsachse mit dem
+**kleinsten Querschnitt** (Lauf), Kolbenende = breites Ende. `m4MuzzleVertex` = Punkt am
+Laufende. **Verhaltenstests:** (a) Querschnitt (Ausdehnung quer zur Achse) an der Mündung
+< halber Querschnitt am anderen Ende; (b) Mündung liegt in `stehen`/`schiessen` ≥ 0,3 m **vor**
+der Brust (−z) **und** das Kolbenende liegt näher am Körper als die Mündung; (c) der Laufwinkel
+gegen −z ≤ 15°.
+**N2 Mündungsfeuer vorn.** Front- und Truppen-Mündungsblitze sitzen an der neuen Mündung
+(`debugMuzzle` aus N1, umbenennen in `muendung`), 0,1 m davor in Laufrichtung. Test: Abstand
+Blitzmitte ↔ Mündung ≤ 0,15 m und Blitz liegt vor (−z) der Mündung; im Nahbild sichtbar vorn.
+**N3 Ärmel.** `Mark_Kitel_1` #b39a74 → **#bda683** (nur leicht heller als vorher, kräftig
+Coyote); Kriterium: Ärmel 10–25 % heller als die Weste im Prüfbild, nicht weißlich (B < R − 25).
+**N4 Gewehr-Anschlag, zweiter und letzter Anlauf** (gilt erst nach N1): Für `stehen` und
+`schiessen` zuerst den **rechten Arm anwinkeln** (Ellbogen ~70–100°), sodass der Kolben an der
+rechten Schulter liegt (≤ 8 cm) und der Lauf nach vorn zeigt; **danach** die linke Hand per
+Zwei-Gelenk-Ausrichtung an den Vorderschaft (Punkt 0,35 m vor dem Griff entlang der Laufachse,
+≤ 4 cm). **Vorher rechnerisch prüfen**, ob der Punkt erreichbar ist (Abstand Schulter links ↔
+Ziel ≤ Oberarm + Unterarm); wenn nicht, Kolben/Gewehr näher an den Körper, bis erreichbar.
+`laufen` bleibt einhändig. Messwerte je Pose in den Bericht.
+**Nahbilder** (vorn, seitlich, schräg von hinten wie die Spielkamera) für `stehen`/`schiessen`
+in `tests/nachweise/` (überschreiben).
+Reißleine N4: verfehlt → melden mit Messwerten und Nahbild; N1–N3 bleiben, Haltung einhändig,
+aber **mit richtig herum gehaltenem Gewehr**.
+`node scripts/modelle.mjs soldat`, `npm run check`, `npm test`, `npm run build`. Status
+`IMPL_DONE`, Bericht unter diesem Abschnitt.
