@@ -1602,3 +1602,18 @@ Auftrag, einmal das Härten. Beide Male nur durch Zufall bemerkt.
 Härten), wird erst abgeschickt, wenn das Schreiben bestätigt ist — nie parallel. Vor dem
 Schreiben der Task-Datei sie immer neu lesen, wenn Codex oder ein Commit sie seit dem letzten
 Lesen berührt hat.
+
+## 2026-10-02 — Gewehr drei Tage verkehrt herum, der Test bestätigte es
+
+Seit D2b (2026-09-29) hielten alle Soldaten das M4 am Pistolengriff, aber mit dem **Lauf zum
+eigenen Kopf** und dem Kolben nach vorn. Bemerkt hat es Thomas an einem großen Prüfbild ("er
+würde sich selbst ins Gesicht schießen"). Der Test "Mündung ≥ 0,3 m vor der Brust" war grün,
+weil der Punkt, den das Skript als Mündung gewählt hatte, das **Kolbenende** war — der Test
+prüfte ein Etikett, nicht das Ding. Auch das Mündungsfeuer saß dadurch am Kolben und sah
+"richtig" (vorn) aus. Im Review wurden nur Spielbilder angesehen, in denen ein Soldat ~40 px
+groß und von hinten zu sehen ist.
+**Regel:** Wo ein Test einen benannten Punkt eines Modells prüft (Mündung, Bug, Nase), muss der
+Punkt **aus einer Eigenschaft der Geometrie** bestimmt werden (z. B. dünnstes Ende der
+Längsachse), nicht über ein Achsenvorzeichen — und der Test prüft zusätzlich das Gegenstück
+(Kolben näher am Körper als die Mündung). Jede neue Figur bekommt im Review ein **großes
+Nahbild von der Seite**, nicht nur das Spielbild.
